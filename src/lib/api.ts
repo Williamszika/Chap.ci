@@ -16,6 +16,8 @@ interface ListingRow {
   region_id: string
   city_id: string | null
   commune: string | null
+  lat: number | null
+  lng: number | null
   seller_name: string
   seller_phone: string
   delivery: boolean
@@ -38,6 +40,8 @@ function rowToListing(r: ListingRow): Listing {
     regionId: r.region_id,
     cityId: r.city_id ?? '',
     commune: r.commune ?? undefined,
+    lat: r.lat ?? undefined,
+    lng: r.lng ?? undefined,
     sellerName: r.seller_name,
     sellerPhone: r.seller_phone,
     sellerId: r.user_id ?? undefined,
@@ -65,30 +69,36 @@ export async function createListing(
   userId: string | null,
 ): Promise<Listing> {
   if (!supabase) throw new Error('Supabase non configuré')
-  const { data, error } = await supabase
-    .from('listings')
-    .insert({
-      user_id: userId,
-      title: input.title,
-      description: input.description,
-      price: input.price,
-      negotiable: input.negotiable,
-      category_id: input.categoryId,
-      subcategory: input.subcategory ?? null,
-      condition: input.condition,
-      images: input.images,
-      region_id: input.regionId,
-      city_id: input.cityId || null,
-      commune: input.commune ?? null,
-      seller_name: input.sellerName,
-      seller_phone: input.sellerPhone,
-      delivery: input.delivery,
-      featured: false,
-    })
-    .select()
-    .single()
-  if (error) throw error
-  return rowToListing(data as ListingRow)
+  const client = supabase
+
+  const base: Record<string, unknown> = {
+    user_id: userId,
+    title: input.title,
+    description: input.description,
+    price: input.price,
+    negotiable: input.negotiable,
+    category_id: input.categoryId,
+    subcategory: input.subcategory ?? null,
+    condition: input.condition,
+    images: input.images,
+    region_id: input.regionId,
+    city_id: input.cityId || null,
+    commune: input.commune ?? null,
+    seller_name: input.sellerName,
+    seller_phone: input.sellerPhone,
+    delivery: input.delivery,
+    featured: false,
+  }
+
+  // Insert avec géolocalisation ; si les colonnes lat/lng n'existent pas encore
+  // (migration add-geolocation.sql non exécutée), on réessaie sans elles.
+  const withGeo = { ...base, lat: input.lat ?? null, lng: input.lng ?? null }
+  let res = await client.from('listings').insert(withGeo).select().single()
+  if (res.error && /lat|lng|column/i.test(res.error.message)) {
+    res = await client.from('listings').insert(base).select().single()
+  }
+  if (res.error) throw res.error
+  return rowToListing(res.data as ListingRow)
 }
 
 /** Supprime une annonce (RLS : seulement le propriétaire). */

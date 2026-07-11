@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { useGeo } from '../store/GeoContext'
+import { haversineKm } from '../lib/geo'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { Sheet } from '../components/Sheet'
@@ -16,11 +18,12 @@ function normalize(s: string): string {
     .replace(/[̀-ͯ]/g, '')
 }
 
-type Sort = 'recent' | 'prix-asc' | 'prix-desc'
+type Sort = 'recent' | 'prix-asc' | 'prix-desc' | 'distance'
 
 export function Browse() {
   const navigate = useNavigate()
   const { listings } = useApp()
+  const { position, status, requestLocation } = useGeo()
   const [params, setParams] = useSearchParams()
   const [locOpen, setLocOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -70,13 +73,21 @@ export function Browse() {
       }
       return true
     })
-    out = [...out].sort((a, b) => {
-      if (tri === 'prix-asc') return a.price - b.price
-      if (tri === 'prix-desc') return b.price - a.price
-      return b.createdAt - a.createdAt
-    })
+    if (tri === 'distance' && position) {
+      const dist = (l: (typeof out)[number]) =>
+        l.lat != null && l.lng != null
+          ? haversineKm(position, { lat: l.lat, lng: l.lng })
+          : Number.POSITIVE_INFINITY
+      out = [...out].sort((a, b) => dist(a) - dist(b))
+    } else {
+      out = [...out].sort((a, b) => {
+        if (tri === 'prix-asc') return a.price - b.price
+        if (tri === 'prix-desc') return b.price - a.price
+        return b.createdAt - a.createdAt
+      })
+    }
     return out
-  }, [listings, q, cat, sub, cond, min, max, tri, loc.regionId, loc.cityId, loc.commune])
+  }, [listings, q, cat, sub, cond, min, max, tri, position, loc.regionId, loc.cityId, loc.commune])
 
   const activeCat = categoryById(cat)
   const activeFilters =
@@ -144,10 +155,24 @@ export function Browse() {
             <ChevronDown size={14} />
           </button>
           <button
+            onClick={async () => {
+              if (tri === 'distance') {
+                update({ tri: undefined })
+                return
+              }
+              if (!position) await requestLocation()
+              update({ tri: 'distance' })
+            }}
+            className={`chip ${tri === 'distance' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+          >
+            <Navigation size={15} />
+            {status === 'loading' ? 'Localisation…' : 'Près de moi'}
+          </button>
+          <button
             onClick={() =>
               update({ tri: tri === 'prix-asc' ? 'prix-desc' : tri === 'prix-desc' ? undefined : 'prix-asc' })
             }
-            className={`chip ${tri !== 'recent' ? 'border-primary-200 bg-primary-50 text-primary-700' : ''}`}
+            className={`chip ${tri === 'prix-asc' || tri === 'prix-desc' ? 'border-primary-200 bg-primary-50 text-primary-700' : ''}`}
           >
             Prix {tri === 'prix-asc' ? '↑' : tri === 'prix-desc' ? '↓' : ''}
           </button>

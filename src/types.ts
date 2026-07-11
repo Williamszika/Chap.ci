@@ -38,6 +38,9 @@ export interface Listing {
   regionId: string
   cityId: string
   commune?: string
+  /** Coordonnées GPS de l'annonce (position vendeur ou commune) */
+  lat?: number
+  lng?: number
   sellerName: string
   sellerPhone: string
   /** id du compte vendeur (si l'annonce a été publiée par un utilisateur connecté) */

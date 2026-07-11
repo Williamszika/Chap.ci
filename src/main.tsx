@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { AppProvider } from './store/AppContext'
 import { AuthProvider } from './store/AuthContext'
+import { GeoProvider } from './store/GeoContext'
 import './index.css'
 
 // HashRouter : fonctionne partout sans configuration serveur — idéal pour
@@ -12,9 +13,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
       <AuthProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
+        <GeoProvider>
+          <AppProvider>
+            <App />
+          </AppProvider>
+        </GeoProvider>
       </AuthProvider>
     </HashRouter>
   </StrictMode>,

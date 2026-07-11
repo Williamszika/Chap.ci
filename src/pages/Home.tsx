@@ -1,11 +1,23 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Search, MapPin, ChevronDown, Bell, Gift, ChevronRight, MessageSquare } from 'lucide-react'
+import {
+  Search,
+  MapPin,
+  ChevronDown,
+  Bell,
+  Gift,
+  ChevronRight,
+  MessageSquare,
+  Navigation,
+  LocateFixed,
+} from 'lucide-react'
 import { categories } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { useApp } from '../store/AppContext'
+import { useGeo } from '../store/GeoContext'
+import { haversineKm } from '../lib/geo'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { locationLabel } from '../data/locations'
 import type { LocationFilter } from '../types'
@@ -17,8 +29,20 @@ export function Home() {
   const [locOpen, setLocOpen] = useState(false)
   const [q, setQ] = useState('')
 
+  const { position, status, requestLocation } = useGeo()
+
   const featured = listings.filter((l) => l.featured).slice(0, 8)
   const recent = listings.slice(0, 12)
+
+  const nearby = useMemo(() => {
+    if (!position) return []
+    return listings
+      .filter((l) => l.lat != null && l.lng != null)
+      .map((l) => ({ l, d: haversineKm(position, { lat: l.lat!, lng: l.lng! }) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 8)
+      .map((x) => x.l)
+  }, [listings, position])
 
   function buildParams(extra: Record<string, string> = {}) {
     const p = new URLSearchParams(extra)
@@ -120,6 +144,53 @@ export function Home() {
           ))}
         </div>
       </section>
+
+      {/* Près de vous */}
+      {position ? (
+        nearby.length > 0 && (
+          <section className="pb-5">
+            <div className="mb-3 flex items-center justify-between px-4">
+              <h2 className="text-base font-bold text-gray-900">📍 Près de vous</h2>
+              <button
+                onClick={() => navigate(`/explorer?${buildParams({ tri: 'distance' })}`)}
+                className="text-sm font-semibold text-primary-600"
+              >
+                Voir plus
+              </button>
+            </div>
+            <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
+              {nearby.map((l) => (
+                <div key={l.id} className="w-40 shrink-0">
+                  <ListingCard listing={l} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )
+      ) : (
+        <div className="px-4 pb-5">
+          <button
+            onClick={requestLocation}
+            disabled={status === 'loading'}
+            className="flex w-full items-center gap-3 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-left active:scale-[0.99]"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-500 text-white">
+              <LocateFixed size={20} />
+            </span>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-primary-800">
+                {status === 'loading' ? 'Localisation…' : 'Voir les annonces près de moi'}
+              </p>
+              <p className="text-xs text-primary-600">
+                {status === 'denied'
+                  ? 'Autorisez la localisation dans votre navigateur'
+                  : 'Activez votre position pour trier par distance'}
+              </p>
+            </div>
+            <Navigation size={20} className="text-primary-500" />
+          </button>
+        </div>
+      )}
 
       {/* Bannière don */}
       <Link

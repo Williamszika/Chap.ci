@@ -15,10 +15,13 @@ import {
   Clock,
   User,
   CreditCard,
+  Navigation,
 } from 'lucide-react'
 import { PaySheet } from '../components/PaySheet'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
+import { useGeo } from '../store/GeoContext'
+import { haversineKm, formatDistance } from '../lib/geo'
 import { getOrCreateConversation } from '../lib/messages'
 import { priceLabel, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
@@ -30,6 +33,7 @@ export function ListingDetail() {
   const navigate = useNavigate()
   const { getListing, isFavorite, toggleFavorite, listings } = useApp()
   const { user, enabled } = useAuth()
+  const { position } = useGeo()
   const listing = id ? getListing(id) : undefined
   const [imgIndex, setImgIndex] = useState(0)
   const [startingChat, setStartingChat] = useState(false)
@@ -194,7 +198,7 @@ export function ListingDetail() {
           )}
         </div>
 
-        <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500">
           <span className="inline-flex items-center gap-1">
             <MapPin size={15} />
             {locationLabel(listing.regionId, listing.cityId, listing.commune)}
@@ -203,6 +207,12 @@ export function ListingDetail() {
             <Clock size={15} />
             {timeAgo(listing.createdAt)}
           </span>
+          {position && listing.lat != null && listing.lng != null && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700">
+              <Navigation size={13} />
+              {formatDistance(haversineKm(position, { lat: listing.lat, lng: listing.lng }))} de vous
+            </span>
+          )}
         </div>
 
         {/* Description */}

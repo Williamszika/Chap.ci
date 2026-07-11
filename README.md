@@ -24,6 +24,8 @@ installable sur **iPhone (iOS)** et **Android**.
 - 🗄️ **Backend Supabase** : annonces **partagées entre tous les utilisateurs**
   (avec repli local automatique si le backend n'est pas configuré)
 - 👤 **Comptes utilisateurs** : création de compte et connexion (email / mot de passe)
+- 📍 **Géolocalisation** : position GPS des annonces (ou commune), distance
+  « à X km de vous » sur chaque annonce, et tri **« Près de moi »**
 - 💚 **Faire un don** : soutien du site par **Mobile Money** (Orange Money,
   MTN MoMo, Moov Money, Wave) — numéros faciles à renseigner
 - ❤️ **Favoris** enregistrés
@@ -103,6 +105,9 @@ Pour activer le **backend partagé** :
    *New query* → collez tout le fichier [`supabase/schema.sql`](supabase/schema.sql)
    → **Run**. Cela crée les tables (profils, annonces, conversations, messages)
    et les règles de sécurité (RLS).
+   - Si vous aviez déjà créé les tables **avant** la géolocalisation, exécutez
+     aussi [`supabase/add-geolocation.sql`](supabase/add-geolocation.sql) (ajoute
+     les colonnes `lat`/`lng`).
 2. **Comptes utilisateurs** : dans Supabase → **Authentication** → *Sign In / Providers*
    → **Email**. Pour des inscriptions immédiates (recommandé au lancement),
    désactivez **« Confirm email »**. Sinon, les utilisateurs devront confirmer
@@ -189,6 +194,7 @@ Fait ✅
 - Comptes utilisateurs (email / mot de passe)
 - Messagerie acheteur ↔ vendeur en temps réel
 - Paiement Mobile Money manuel (numéro du vendeur + USSD Orange/MTN/Moov/Wave)
+- Géolocalisation : distance « à X km de vous » + tri « Près de moi »
 - Option de don par Mobile Money
 - Déploiement web (GitHub Pages)
 
@@ -197,7 +203,6 @@ Fait ✅
   confirmation automatique, nécessite un compte marchand
 - 🖼️ Photos via Supabase Storage (au lieu de l'encodage base64)
 - 🔔 Notifications push (via Capacitor)
-- 📍 Géolocalisation « autour de moi »
 - ⭐ Boost d'annonces & comptes professionnels
 
 ---

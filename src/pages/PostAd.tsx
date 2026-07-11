@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Camera, X, MapPin, Check, ChevronDown, LocateFixed } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { categories, categoryById } from '../data/categories'
 import { LocationSheet } from '../components/LocationSheet'
 import { locationLabel } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { useLocalStorage } from '../lib/useLocalStorage'
+import { getCurrentPosition } from '../lib/geo'
+import { coordsFor, type Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
 const MAX_PHOTOS = 5
@@ -27,6 +29,8 @@ export function PostAd() {
   const [description, setDescription] = useState('')
   const [loc, setLoc] = useState<LocationFilter>({})
   const [locOpen, setLocOpen] = useState(false)
+  const [coords, setCoords] = useState<Coords | null>(null)
+  const [locating, setLocating] = useState(false)
   const [seller, setSeller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -52,6 +56,20 @@ export function PostAd() {
     setImages((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  async function captureGps() {
+    setLocating(true)
+    try {
+      const pos = await getCurrentPosition()
+      setCoords(pos)
+    } catch {
+      alert(
+        'Impossible d’obtenir votre position. Autorisez la localisation dans votre navigateur, puis réessayez.',
+      )
+    } finally {
+      setLocating(false)
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -66,6 +84,9 @@ export function PostAd() {
     const finalImages =
       images.length > 0 ? images : [placeholderImage(title, emoji, subcategory)]
 
+    // Position précise (GPS) sinon coordonnées approximatives de la commune/ville
+    const finalCoords = coords ?? coordsFor(loc.cityId, loc.commune)
+
     const input: NewListingInput = {
       title: title.trim(),
       description: description.trim() || 'Aucune description fournie.',
@@ -78,6 +99,8 @@ export function PostAd() {
       regionId: loc.regionId!,
       cityId: loc.cityId ?? '',
       commune: loc.commune,
+      lat: finalCoords?.lat,
+      lng: finalCoords?.lng,
       sellerName: seller.name.trim(),
       sellerPhone: seller.phone.trim(),
       delivery,
@@ -250,6 +273,26 @@ export function PostAd() {
             </span>
             <MapPin size={18} className="text-gray-400" />
           </button>
+          <button
+            type="button"
+            onClick={captureGps}
+            className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition active:scale-[0.99] ${
+              coords
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-primary-200 bg-primary-50 text-primary-700'
+            }`}
+          >
+            <LocateFixed size={17} />
+            {locating
+              ? 'Localisation…'
+              : coords
+                ? 'Position GPS enregistrée ✓ (précis)'
+                : 'Utiliser ma position actuelle (plus précis)'}
+          </button>
+          <p className="mt-1.5 text-xs text-gray-400">
+            La position GPS permet aux acheteurs proches de voir votre annonce et la distance. À
+            défaut, la commune est utilisée.
+          </p>
         </Field>
 
         {/* Livraison */}

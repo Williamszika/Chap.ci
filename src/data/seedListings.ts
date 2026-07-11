@@ -1,5 +1,6 @@
 import type { Listing } from '../types'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
+import { coordsFor } from './coords'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -402,6 +403,7 @@ const seeds: Seed[] = [
 
 export const seedListings: Listing[] = seeds.map((s, i) => {
   const emoji = s.emoji ?? emojiFor(s.categoryId, s.subcategory)
+  const coords = coordsFor(s.cityId, s.commune)
   return {
     id: `seed-${i + 1}`,
     title: s.title,
@@ -419,6 +421,8 @@ export const seedListings: Listing[] = seeds.map((s, i) => {
     regionId: s.regionId,
     cityId: s.cityId,
     commune: s.commune,
+    lat: coords?.lat,
+    lng: coords?.lng,
     sellerName: s.sellerName,
     sellerPhone: s.sellerPhone,
     createdAt: now - s.ageDays * DAY,

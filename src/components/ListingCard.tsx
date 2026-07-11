@@ -1,13 +1,21 @@
 import { Link } from 'react-router-dom'
-import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
+import { Heart, MapPin, BadgeCheck, Truck, Navigation } from 'lucide-react'
 import type { Listing } from '../types'
 import { priceLabel } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { useApp } from '../store/AppContext'
+import { useGeo } from '../store/GeoContext'
+import { haversineKm, formatDistance } from '../lib/geo'
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const { isFavorite, toggleFavorite } = useApp()
+  const { position } = useGeo()
   const fav = isFavorite(listing.id)
+
+  const distance =
+    position && listing.lat != null && listing.lng != null
+      ? haversineKm(position, { lat: listing.lat, lng: listing.lng })
+      : null
 
   return (
     <Link
@@ -51,9 +59,14 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-gray-500">
           <MapPin size={12} className="shrink-0" />
           <span className="truncate">
-            {locationLabel(listing.regionId, listing.cityId, listing.commune)}
+            {listing.commune ?? locationLabel(listing.regionId, listing.cityId, listing.commune)}
           </span>
         </div>
+        {distance != null && (
+          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary-50 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700">
+            <Navigation size={10} /> {formatDistance(distance)}
+          </div>
+        )}
         <div className="mt-1.5 flex items-center gap-2">
           {listing.condition === 'neuf' && (
             <span className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">

@@ -67,12 +67,18 @@ create table if not exists public.listings (
   region_id    text not null,
   city_id      text,
   commune      text,
+  lat          double precision,
+  lng          double precision,
   seller_name  text not null,
   seller_phone text not null,
   delivery     boolean not null default false,
   featured     boolean not null default false,
   created_at   timestamptz not null default now()
 );
+
+-- Géolocalisation (ajout sûr si la table existait déjà sans ces colonnes)
+alter table public.listings add column if not exists lat double precision;
+alter table public.listings add column if not exists lng double precision;
 
 create index if not exists listings_created_idx on public.listings (created_at desc);
 create index if not exists listings_category_idx on public.listings (category_id);
