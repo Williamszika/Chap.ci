@@ -36,6 +36,7 @@ interface AuthState {
   verifyPhoneCode: (phone: string, token: string, fullName?: string) => Promise<AuthResult>
   verifyLoginMfa: (code: string) => Promise<AuthResult>
   signOut: () => Promise<void>
+  updatePassword: (newPassword: string) => Promise<AuthResult>
   deleteAccount: () => Promise<AuthResult>
   // 2FA (TOTP)
   enrollTotp: () => Promise<EnrollResult>
@@ -163,6 +164,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
+    if (!supabase) return { error: 'Comptes indisponibles.' }
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) return { error: frError(error.message) }
+    return {}
+  }, [])
+
   const deleteAccount = useCallback(async (): Promise<AuthResult> => {
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.rpc('delete_my_account')
@@ -213,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     verifyPhoneCode,
     verifyLoginMfa,
     signOut,
+    updatePassword,
     deleteAccount,
     enrollTotp,
     activateTotp,

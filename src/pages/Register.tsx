@@ -6,6 +6,8 @@ import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
 import { LocationSheet } from '../components/LocationSheet'
 import { Mark } from '../components/Logo'
+import { PasswordStrength } from '../components/PasswordStrength'
+import { checkPassword } from '../lib/password'
 import { locationLabel } from '../data/locations'
 import type { LocationFilter } from '../types'
 
@@ -88,8 +90,9 @@ export function Register() {
     if (v) return setError(v)
 
     if (method === 'email') {
-      if (!email.trim() || password.length < 6)
-        return setError('Renseignez un email et un mot de passe (min. 6 caractères).')
+      if (!email.trim()) return setError('Renseignez votre adresse email.')
+      const pw = checkPassword(password)
+      if (!pw.ok) return setError(`Mot de passe trop faible — ajoutez : ${pw.missing.join(', ')}.`)
       setBusy(true)
       const res = await signUp(email.trim(), password, `${firstName.trim()} ${lastName.trim()}`)
       setBusy(false)
@@ -207,8 +210,9 @@ export function Register() {
               </div>
               <div className="relative">
                 <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe (min. 6 caractères)" className="input pl-10" autoComplete="new-password" />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="input pl-10" autoComplete="new-password" />
               </div>
+              <PasswordStrength value={password} />
             </>
           ) : (
             <>

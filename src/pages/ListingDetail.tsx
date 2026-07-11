@@ -115,8 +115,14 @@ export function ListingDetail() {
     return true
   }
 
+  function demoNotice() {
+    alert(
+      'Ceci est une annonce de démonstration (exemple). Publiez votre propre annonce, ou attendez de vraies annonces pour discuter avec un vendeur.',
+    )
+  }
+
   async function buyNow() {
-    if (isDemo) return
+    if (isDemo) return demoNotice()
     if (!requireAuth() || !listing || !sellerId || !user) return
     setBusy(true)
     try {
@@ -143,7 +149,7 @@ export function ListingDetail() {
   }
 
   async function askQuestion() {
-    if (isDemo) return
+    if (isDemo) return demoNotice()
     if (!requireAuth() || !listing || !user) return
     setBusy(true)
     try {
@@ -386,26 +392,26 @@ export function ListingDetail() {
 
       {/* Barre d'action fixe */}
       <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white px-4 py-3 shadow-nav safe-bottom">
-        {isDemo ? (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-gray-500">Annonce de démonstration (exemple).</p>
-            <Link to="/publier" className="btn-primary py-2.5 text-sm">
-              Publier la mienne
-            </Link>
-          </div>
-        ) : isMine ? (
+        {isMine ? (
           <Link to="/compte" className="btn-outline w-full py-3">
             Gérer mon annonce
           </Link>
         ) : (
-          <div className="flex items-center gap-2">
-            <button onClick={askQuestion} className="btn-outline flex-1">
-              <MessageSquare size={18} /> Contacter
-            </button>
-            <button onClick={buyNow} disabled={busy} className="btn-primary flex-1">
-              <ShoppingBag size={18} /> {busy ? '…' : 'Acheter'}
-            </button>
-          </div>
+          <>
+            <div className="flex items-center gap-2">
+              <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
+                <ShoppingBag size={18} /> {busy ? '…' : 'Acheter'}
+              </button>
+              <button onClick={askQuestion} disabled={busy} className="btn-primary flex-[1.7]">
+                <MessageSquare size={18} /> Contacter le vendeur
+              </button>
+            </div>
+            {isDemo && (
+              <p className="mt-1.5 text-center text-[11px] text-gray-400">
+                Exemple de démonstration — publiez votre annonce pour recevoir de vrais messages.
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>

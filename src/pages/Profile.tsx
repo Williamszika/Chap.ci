@@ -18,8 +18,11 @@ import {
   Camera,
   ShieldCheck,
   AlertTriangle,
+  KeyRound,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
+import { PasswordStrength } from '../components/PasswordStrength'
+import { checkPassword } from '../lib/password'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
@@ -281,6 +284,7 @@ export function Profile() {
               <AvatarUpload userId={user.id} currentUrl={avatarUrl} name={displayName} onUpdated={setAvatarUrl} />
             )}
             {user && <SettingsForm userId={user.id} initialName={displayName} />}
+            {user && <ChangePassword />}
             {user && <TwoFactor />}
 
             {user && (
@@ -448,6 +452,73 @@ function SettingsForm({ userId, initialName }: { userId: string; initialName: st
           {saved ? 'Enregistré ✓' : busy ? 'Enregistrement…' : 'Enregistrer'}
         </button>
       </div>
+    </div>
+  )
+}
+
+function ChangePassword() {
+  const { updatePassword } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [pw, setPw] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+
+  async function submit() {
+    setError('')
+    const check = checkPassword(pw)
+    if (!check.ok) return setError(`Mot de passe trop faible — ajoutez : ${check.missing.join(', ')}.`)
+    if (pw !== confirm) return setError('Les deux mots de passe ne correspondent pas.')
+    setBusy(true)
+    const res = await updatePassword(pw)
+    setBusy(false)
+    if (res.error) return setError(res.error)
+    setDone(true)
+    setPw('')
+    setConfirm('')
+    setTimeout(() => {
+      setDone(false)
+      setOpen(false)
+    }, 2200)
+  }
+
+  return (
+    <div className="card p-4">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 text-sm font-bold text-gray-800"
+      >
+        <KeyRound size={16} className="text-primary-500" />
+        <span className="flex-1 text-left">Changer le mot de passe</span>
+        <span className="text-xs font-medium text-primary-600">{open ? 'Fermer' : 'Modifier'}</span>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-3">
+          <input
+            type="password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            placeholder="Nouveau mot de passe"
+            className="input"
+            autoComplete="new-password"
+          />
+          <PasswordStrength value={pw} />
+          <input
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Confirmer le mot de passe"
+            className="input"
+            autoComplete="new-password"
+          />
+          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{error}</p>}
+          <button onClick={submit} disabled={busy} className="btn-primary w-full py-2.5 text-sm">
+            {done ? 'Mot de passe modifié ✓' : busy ? 'Modification…' : 'Enregistrer le nouveau mot de passe'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
