@@ -1,13 +1,14 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check, ChevronDown, LocateFixed } from 'lucide-react'
+import { ArrowLeft, Camera, X, MapPin, Check } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
+import { useGeo } from '../store/GeoContext'
 import { categories, categoryById } from '../data/categories'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { LocationSheet } from '../components/LocationSheet'
 import { locationLabel } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { useLocalStorage } from '../lib/useLocalStorage'
-import { getBestPosition } from '../lib/geo'
 import { coordsFor, type Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
@@ -16,6 +17,7 @@ const MAX_PHOTOS = 5
 export function PostAd() {
   const navigate = useNavigate()
   const { addListing } = useApp()
+  const { place } = useGeo()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [images, setImages] = useState<string[]>([])
@@ -30,12 +32,23 @@ export function PostAd() {
   const [loc, setLoc] = useState<LocationFilter>({})
   const [locOpen, setLocOpen] = useState(false)
   const [coords, setCoords] = useState<Coords | null>(null)
-  const [locating, setLocating] = useState(false)
   const [seller, setSeller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Pré-remplit la localisation avec la position captée à l'ouverture / la connexion.
+  useEffect(() => {
+    if (!place) return
+    setLoc((prev) =>
+      prev.regionId ? prev : { regionId: place.regionId, cityId: place.cityId, commune: place.commune },
+    )
+    if (place.lat != null && place.lng != null) {
+      setCoords((prev) => prev ?? { lat: place.lat!, lng: place.lng! })
+    }
+  }, [place])
+
   const cat = categoryById(categoryId)
+  const gpsDetected = coords != null && place?.source === 'gps'
 
   function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -54,20 +67,6 @@ export function PostAd() {
 
   function removeImage(i: number) {
     setImages((prev) => prev.filter((_, idx) => idx !== i))
-  }
-
-  async function captureGps() {
-    setLocating(true)
-    try {
-      const fix = await getBestPosition()
-      setCoords({ lat: fix.lat, lng: fix.lng })
-    } catch {
-      alert(
-        'Impossible d’obtenir votre position. Autorisez la localisation dans votre navigateur, puis réessayez.',
-      )
-    } finally {
-      setLocating(false)
-    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -180,45 +179,54 @@ export function PostAd() {
           />
         </Field>
 
-        {/* Catégorie */}
+        {/* Catégorie — sélecteur visuel */}
         <Field label="Catégorie">
-          <div className="relative">
-            <select
-              value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value)
-                setSubcategory('')
-              }}
-              className="input appearance-none pr-10"
-            >
-              <option value="">Choisir une catégorie…</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={18} className="pointer-events-none absolute right-3 top-3.5 text-gray-400" />
+          <div className="grid grid-cols-2 gap-2">
+            {categories.map((c) => {
+              const active = categoryId === c.id
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setCategoryId(c.id)
+                    setSubcategory('')
+                  }}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition active:scale-[0.98] ${
+                    active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-700'
+                  }`}
+                >
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${c.color}`}>
+                    <CategoryIcon name={c.icon} size={16} />
+                  </span>
+                  <span className="truncate">{c.name}</span>
+                </button>
+              )
+            })}
           </div>
         </Field>
 
-        {/* Sous-catégorie */}
+        {/* Sous-catégorie — puces selon la catégorie choisie */}
         {cat && (
           <Field label="Sous-catégorie">
-            <div className="relative">
-              <select
-                value={subcategory}
-                onChange={(e) => setSubcategory(e.target.value)}
-                className="input appearance-none pr-10"
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSubcategory('')}
+                className={`chip ${!subcategory ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
               >
-                <option value="">Toutes</option>
-                {cat.subcategories.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={18} className="pointer-events-none absolute right-3 top-3.5 text-gray-400" />
+                Toutes
+              </button>
+              {cat.subcategories.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSubcategory(s)}
+                  className={`chip ${subcategory === s ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
           </Field>
         )}
@@ -261,7 +269,7 @@ export function PostAd() {
           </label>
         </Field>
 
-        {/* Localisation */}
+        {/* Localisation (pré-remplie depuis votre position) */}
         <Field label="Localisation">
           <button
             type="button"
@@ -273,26 +281,11 @@ export function PostAd() {
             </span>
             <MapPin size={18} className="text-gray-400" />
           </button>
-          <button
-            type="button"
-            onClick={captureGps}
-            className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition active:scale-[0.99] ${
-              coords
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border-primary-200 bg-primary-50 text-primary-700'
-            }`}
-          >
-            <LocateFixed size={17} />
-            {locating
-              ? 'Localisation…'
-              : coords
-                ? 'Position GPS enregistrée ✓ (précis)'
-                : 'Utiliser ma position actuelle (plus précis)'}
-          </button>
-          <p className="mt-1.5 text-xs text-gray-400">
-            La position GPS permet aux acheteurs proches de voir votre annonce et la distance. À
-            défaut, la commune est utilisée.
-          </p>
+          {gpsDetected && (
+            <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600">
+              <Check size={13} /> Position détectée automatiquement
+            </p>
+          )}
         </Field>
 
         {/* Livraison */}
