@@ -274,14 +274,6 @@ export function Profile() {
                       ? `${place.commune ?? ''}${place.commune && place.address ? ' · ' : ''}${place.address ?? ''}`
                       : locationLabel(place.regionId, place.cityId, place.commune)}
                   </p>
-                  <p className="text-[11px] text-gray-400">
-                    {locationLabel(place.regionId, place.cityId, place.commune)} ·{' '}
-                    {place.source === 'gps'
-                      ? place.accuracy
-                        ? `position GPS (±${Math.round(place.accuracy)} m)`
-                        : 'position GPS'
-                      : 'position approximative (IP)'}
-                  </p>
                 </div>
               </div>
             )}
