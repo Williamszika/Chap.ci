@@ -160,6 +160,15 @@ export function Login() {
                   <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
                   <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="input pl-10" autoComplete="current-password" />
                 </div>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/mot-de-passe-oublie')}
+                    className="text-sm font-semibold text-primary-600"
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                </div>
                 {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
                 <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
                   {busy ? <Loader2 size={20} className="animate-spin" /> : 'Se connecter'}

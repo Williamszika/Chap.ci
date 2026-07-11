@@ -36,7 +36,11 @@ interface AuthState {
   verifyPhoneCode: (phone: string, token: string, fullName?: string) => Promise<AuthResult>
   verifyLoginMfa: (code: string) => Promise<AuthResult>
   signOut: () => Promise<void>
+  sendPasswordReset: (email: string) => Promise<AuthResult>
   updatePassword: (newPassword: string) => Promise<AuthResult>
+  /** true après un clic sur le lien de récupération de mot de passe reçu par email */
+  recovery: boolean
+  clearRecovery: () => void
   deleteAccount: () => Promise<AuthResult>
   // 2FA (TOTP)
   enrollTotp: () => Promise<EnrollResult>
@@ -78,6 +82,7 @@ async function checkMfaRequired(): Promise<boolean> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState<boolean>(isSupabaseConfigured)
+  const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
     if (!supabase) {
@@ -88,8 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.session?.user ?? null)
       setLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
+      // L'utilisateur a cliqué sur le lien « mot de passe oublié » reçu par email.
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -164,12 +171,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const sendPasswordReset = useCallback(async (email: string): Promise<AuthResult> => {
+    if (!supabase) return { error: 'Comptes indisponibles.' }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() })
+    if (error) return { error: frError(error.message) }
+    return {}
+  }, [])
+
   const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) return { error: frError(error.message) }
     return {}
   }, [])
+
+  const clearRecovery = useCallback(() => setRecovery(false), [])
 
   const deleteAccount = useCallback(async (): Promise<AuthResult> => {
     if (!supabase) return { error: 'Comptes indisponibles.' }
@@ -221,7 +237,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     verifyPhoneCode,
     verifyLoginMfa,
     signOut,
+    sendPasswordReset,
     updatePassword,
+    recovery,
+    clearRecovery,
     deleteAccount,
     enrollTotp,
     activateTotp,
