@@ -7,6 +7,7 @@ import {
   MapPin,
   Phone,
   MessageCircle,
+  MessageSquare,
   BadgeCheck,
   Truck,
   ShieldCheck,
@@ -15,6 +16,8 @@ import {
   User,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
+import { getOrCreateConversation } from '../lib/messages'
 import { priceLabel, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
@@ -24,8 +27,10 @@ export function ListingDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { getListing, isFavorite, toggleFavorite, listings } = useApp()
+  const { user, enabled } = useAuth()
   const listing = id ? getListing(id) : undefined
   const [imgIndex, setImgIndex] = useState(0)
+  const [startingChat, setStartingChat] = useState(false)
 
   if (!listing) {
     return (
@@ -69,6 +74,24 @@ export function ListingDetail() {
       } catch {
         /* ignore */
       }
+    }
+  }
+
+  const canMessage = enabled && !!listing.sellerId && user?.id !== listing.sellerId
+
+  async function contactSeller() {
+    if (!user) {
+      navigate('/connexion')
+      return
+    }
+    if (!listing) return
+    setStartingChat(true)
+    try {
+      const convId = await getOrCreateConversation(listing, user.id)
+      navigate(`/messages/${convId}`)
+    } catch {
+      alert('Impossible d’ouvrir la conversation pour le moment.')
+      setStartingChat(false)
     }
   }
 
@@ -232,6 +255,15 @@ export function ListingDetail() {
 
       {/* Barre de contact fixe */}
       <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white/95 px-4 py-3 shadow-nav backdrop-blur safe-bottom">
+        {canMessage && (
+          <button
+            onClick={contactSeller}
+            disabled={startingChat}
+            className="btn-primary mb-2 w-full"
+          >
+            <MessageSquare size={18} /> {startingChat ? 'Ouverture…' : 'Envoyer un message'}
+          </button>
+        )}
         <div className="flex gap-2">
           <a href={`tel:${phoneDigits}`} className="btn-outline flex-1">
             <Phone size={18} /> Appeler

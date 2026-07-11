@@ -40,6 +40,7 @@ function rowToListing(r: ListingRow): Listing {
     commune: r.commune ?? undefined,
     sellerName: r.seller_name,
     sellerPhone: r.seller_phone,
+    sellerId: r.user_id ?? undefined,
     createdAt: new Date(r.created_at).getTime(),
     delivery: r.delivery,
     featured: r.featured,

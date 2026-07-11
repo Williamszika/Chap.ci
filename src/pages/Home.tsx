@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Search, MapPin, ChevronDown, Bell, Gift, ChevronRight } from 'lucide-react'
+import { Search, MapPin, ChevronDown, Bell, Gift, ChevronRight, MessageSquare } from 'lucide-react'
 import { categories } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { ListingCard } from '../components/ListingCard'
@@ -49,10 +49,19 @@ export function Home() {
               </p>
             </div>
           </div>
-          <button className="relative rounded-full bg-white/15 p-2" aria-label="Notifications">
-            <Bell size={20} />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-400" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/messages"
+              className="rounded-full bg-white/15 p-2"
+              aria-label="Messages"
+            >
+              <MessageSquare size={20} />
+            </Link>
+            <button className="relative rounded-full bg-white/15 p-2" aria-label="Notifications">
+              <Bell size={20} />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-400" />
+            </button>
+          </div>
         </div>
 
         {/* Sélecteur de lieu */}

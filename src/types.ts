@@ -40,6 +40,8 @@ export interface Listing {
   commune?: string
   sellerName: string
   sellerPhone: string
+  /** id du compte vendeur (si l'annonce a été publiée par un utilisateur connecté) */
+  sellerId?: string
   createdAt: number // timestamp ms
   delivery: boolean
   /** annonce mise en avant */
@@ -50,4 +52,27 @@ export interface LocationFilter {
   regionId?: string
   cityId?: string
   commune?: string
+}
+
+// — Messagerie —
+export interface Conversation {
+  id: string
+  listingId: string | null
+  buyerId: string
+  sellerId: string
+  createdAt: number
+  // Enrichissements côté client
+  listingTitle?: string
+  listingImage?: string
+  otherName?: string
+  lastMessage?: string
+  lastAt?: number
+}
+
+export interface Message {
+  id: string
+  conversationId: string
+  senderId: string
+  body: string
+  createdAt: number
 }

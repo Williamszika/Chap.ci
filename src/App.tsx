@@ -9,6 +9,8 @@ import { Favorites } from './pages/Favorites'
 import { Profile } from './pages/Profile'
 import { Donate } from './pages/Donate'
 import { Login } from './pages/Login'
+import { Messages } from './pages/Messages'
+import { Conversation } from './pages/Conversation'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="/compte" element={<Profile />} />
           <Route path="/don" element={<Donate />} />
           <Route path="/connexion" element={<Login />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages/:id" element={<Conversation />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>

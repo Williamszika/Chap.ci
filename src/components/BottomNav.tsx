@@ -19,7 +19,8 @@ export function BottomNav() {
     location.pathname.startsWith('/annonce/') ||
     location.pathname === '/publier' ||
     location.pathname === '/don' ||
-    location.pathname === '/connexion'
+    location.pathname === '/connexion' ||
+    location.pathname.startsWith('/messages/')
   if (hidden) return null
 
   return (

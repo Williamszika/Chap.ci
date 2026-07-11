@@ -13,6 +13,7 @@ import {
   LogIn,
   LogOut,
   UserCircle,
+  MessageSquare,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -146,6 +147,7 @@ export function Profile() {
 
         {/* Liens rapides */}
         <section className="card divide-y divide-gray-100 overflow-hidden">
+          <Row to="/messages" icon={<MessageSquare size={18} className="text-sky-500" />} label="Mes messages" />
           <Row to="/favoris" icon={<Heart size={18} className="text-red-500" />} label="Mes favoris" />
           <Row to="/explorer" icon={<Package size={18} className="text-primary-500" />} label="Parcourir les annonces" />
           <Row to="/don" icon={<Gift size={18} className="text-ivoire-green" />} label="Soutenir Chap.ci (faire un don)" />
