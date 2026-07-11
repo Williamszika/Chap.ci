@@ -106,19 +106,15 @@ Les annonces et les comptes sont gérés par **[Supabase](https://supabase.com)*
 Sans configuration, l'application fonctionne en **mode local** (démo + appareil).
 Pour activer le **backend partagé** :
 
-1. **Créer les tables** : ouvrez votre projet Supabase → **SQL Editor** →
-   *New query* → collez tout le fichier [`supabase/schema.sql`](supabase/schema.sql)
-   → **Run**. Cela crée les tables (profils, annonces, conversations, messages)
-   et les règles de sécurité (RLS).
-   - Si vous aviez déjà créé les tables **avant** la géolocalisation, exécutez
-     aussi [`supabase/add-geolocation.sql`](supabase/add-geolocation.sql) (ajoute
-     les colonnes `lat`/`lng`).
-   - Pour les **demandes d'achat et les avis**, exécutez
-     [`supabase/add-orders-reviews.sql`](supabase/add-orders-reviews.sql)
-     (tables `orders`, `order_items`, `reviews` + sécurité RLS : un avis n'est
-     possible que si l'on a commandé l'article).
-   - Pour la **suppression de compte par l'utilisateur**, exécutez
-     [`supabase/add-account-deletion.sql`](supabase/add-account-deletion.sql).
+1. **Tout installer en une fois (recommandé)** : Supabase → **SQL Editor** →
+   *New query* → collez tout le fichier **[`supabase/setup.sql`](supabase/setup.sql)**
+   → **Run**. Ce fichier unique crée **toutes** les tables (profils, annonces,
+   messagerie, commandes, avis), les colonnes de profil et de géolocalisation,
+   les règles de sécurité (RLS) et la fonction de suppression de compte. Il est
+   idempotent (réexécutable sans danger).
+
+   > Les fichiers séparés (`schema.sql`, `add-*.sql`) restent disponibles pour
+   > référence, mais `setup.sql` suffit et regroupe tout.
 
 ### Connexions avancées (à activer dans Supabase)
 
