@@ -255,6 +255,10 @@ export function ListingDetail() {
             <li>Rencontrez le vendeur dans un lieu public et fréquenté.</li>
             <li>Vérifiez le produit avant de payer.</li>
             <li>Ne payez jamais à l’avance sans avoir vu l’article.</li>
+            <li>
+              Chap.ci met en relation acheteurs et vendeurs : le paiement et la livraison se font
+              directement entre vous, hors de l’application.
+            </li>
           </ul>
         </div>
 

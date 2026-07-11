@@ -109,6 +109,10 @@ export function PaySheet({
             <li>Vérifiez le produit avant de payer, ou privilégiez le paiement à la livraison.</li>
             <li>Vérifiez le nom du bénéficiaire affiché par votre opérateur.</li>
             <li>Chap.ci ne vous demande jamais votre code secret / PIN.</li>
+            <li>
+              Vous payez le vendeur <strong>directement</strong> : Chap.ci ne gère pas la
+              transaction ni la livraison.
+            </li>
           </ul>
         </div>
       </div>
