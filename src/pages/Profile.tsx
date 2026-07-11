@@ -19,10 +19,12 @@ import {
   ShieldCheck,
   AlertTriangle,
   KeyRound,
+  BarChart3,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
+import { activePromo } from '../lib/promo'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
@@ -60,6 +62,14 @@ export function Profile() {
   const displayName =
     (user?.user_metadata?.full_name as string | undefined) || seller.name || user?.email?.split('@')[0] || ''
   const rating = averageRating(myReviews)
+
+  // Statistiques vendeur
+  const activePromoCount = myListings.filter((l) => activePromo(l)).length
+  const salesOngoing = sales.filter((o) => o.status === 'en_cours').length
+  const salesDone = sales.filter((o) => o.status === 'finalise').length
+  const revenue = sales
+    .filter((o) => o.status === 'finalise')
+    .reduce((sum, o) => sum + o.items.reduce((t, it) => t + it.price, 0), 0)
 
   useEffect(() => {
     if (!user) return
@@ -197,26 +207,57 @@ export function Profile() {
         {/* VENTES */}
         {tab === 'ventes' &&
           (!user ? (
-            <Empty text="Connectez-vous pour voir les demandes reçues." />
-          ) : sales.length === 0 ? (
-            <Empty text="Aucune demande reçue pour l’instant. Publiez des annonces pour vendre !" />
+            <Empty text="Connectez-vous pour voir vos ventes et statistiques." />
           ) : (
-            <div className="space-y-3">
-              {sales.map((o) => (
-                <OrderCard
-                  key={o.id}
-                  order={o}
-                  who={`Acheteur : ${o.otherName}`}
-                  onOpen={() => o.conversationId && navigate(`/messages/${o.conversationId}`)}
-                  footer={
-                    o.conversationId && (
-                      <button onClick={() => navigate(`/messages/${o.conversationId}`)} className="btn-primary w-full py-2 text-sm">
-                        <MessageCircle size={16} /> Répondre à l’acheteur
-                      </button>
-                    )
-                  }
-                />
-              ))}
+            <div className="space-y-4">
+              {/* Statistiques vendeur */}
+              <div className="card p-4">
+                <p className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
+                  <BarChart3 size={16} className="text-primary-500" /> Vos statistiques
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <StatTile label="Annonces" value={myListings.length} />
+                  <StatTile label="Demandes" value={sales.length} />
+                  <StatTile label="En cours" value={salesOngoing} />
+                  <StatTile label="Finalisées" value={salesDone} />
+                  <StatTile
+                    label="Note"
+                    value={rating.count ? `${rating.avg.toFixed(1)}★` : '—'}
+                    sub={rating.count ? `${rating.count} avis` : 'aucun avis'}
+                  />
+                  <StatTile label="Promos" value={activePromoCount} />
+                </div>
+                {revenue > 0 && (
+                  <div className="mt-3 rounded-xl bg-emerald-50 px-4 py-3">
+                    <p className="text-xs font-semibold text-emerald-700">
+                      Chiffre d’affaires (ventes finalisées)
+                    </p>
+                    <p className="text-lg font-black text-emerald-700">{formatPrice(revenue)} FCFA</p>
+                  </div>
+                )}
+              </div>
+
+              {sales.length === 0 ? (
+                <Empty text="Aucune demande reçue pour l’instant. Publiez des annonces pour vendre !" />
+              ) : (
+                <div className="space-y-3">
+                  {sales.map((o) => (
+                    <OrderCard
+                      key={o.id}
+                      order={o}
+                      who={`Acheteur : ${o.otherName}`}
+                      onOpen={() => o.conversationId && navigate(`/messages/${o.conversationId}`)}
+                      footer={
+                        o.conversationId && (
+                          <button onClick={() => navigate(`/messages/${o.conversationId}`)} className="btn-primary w-full py-2 text-sm">
+                            <MessageCircle size={16} /> Répondre à l’acheteur
+                          </button>
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
@@ -359,6 +400,16 @@ function QuickAction({
       </span>
       <span className="text-[11px] font-medium">{label}</span>
     </button>
+  )
+}
+
+function StatTile({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
+  return (
+    <div className="rounded-xl bg-gray-50 px-2 py-3 text-center">
+      <p className="text-xl font-black text-gray-900">{value}</p>
+      <p className="text-[11px] font-medium text-gray-500">{label}</p>
+      {sub && <p className="text-[10px] text-gray-400">{sub}</p>}
+    </div>
   )
 }
 
