@@ -24,11 +24,32 @@ export async function fetchProfile(id: string): Promise<PublicProfile | null> {
   }
 }
 
-export async function updateMyProfile(
-  id: string,
-  fields: { full_name?: string; bio?: string; phone?: string; avatar_url?: string },
-): Promise<void> {
+export interface ProfileFields {
+  full_name?: string
+  bio?: string
+  phone?: string
+  avatar_url?: string
+  first_name?: string
+  last_name?: string
+  gender?: string
+  birth_date?: string | null
+  region_id?: string
+  city_id?: string
+  commune?: string
+  address?: string
+  lat?: number | null
+  lng?: number | null
+}
+
+export async function updateMyProfile(id: string, fields: ProfileFields): Promise<void> {
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('profiles').update(fields).eq('id', id)
+  if (error) throw error
+}
+
+/** Insère/met à jour le profil (upsert) — utile juste après l'inscription. */
+export async function upsertMyProfile(id: string, fields: ProfileFields): Promise<void> {
+  if (!supabase) throw new Error('Supabase non configuré')
+  const { error } = await supabase.from('profiles').upsert({ id, ...fields })
   if (error) throw error
 }

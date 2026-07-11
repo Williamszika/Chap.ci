@@ -9,6 +9,7 @@ import { Favorites } from './pages/Favorites'
 import { Profile } from './pages/Profile'
 import { Donate } from './pages/Donate'
 import { Login } from './pages/Login'
+import { Register } from './pages/Register'
 import { Messages } from './pages/Messages'
 import { Conversation } from './pages/Conversation'
 import { SellerProfile } from './pages/SellerProfile'
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/compte" element={<Profile />} />
           <Route path="/don" element={<Donate />} />
           <Route path="/connexion" element={<Login />} />
+          <Route path="/inscription" element={<Register />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Conversation />} />
           <Route path="/vendeur/:id" element={<SellerProfile />} />

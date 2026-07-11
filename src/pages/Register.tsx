@@ -1,0 +1,276 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  ArrowLeft,
+  Mail,
+  Lock,
+  Phone,
+  User,
+  MapPin,
+  LocateFixed,
+  Loader2,
+  Check,
+  ChevronDown,
+} from 'lucide-react'
+import { useAuth } from '../store/AuthContext'
+import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
+import { LocationSheet } from '../components/LocationSheet'
+import { locationLabel } from '../data/locations'
+import { getCurrentPosition, reverseGeocode } from '../lib/geo'
+import type { Coords } from '../data/coords'
+import type { LocationFilter } from '../types'
+
+export function Register() {
+  const navigate = useNavigate()
+  const { signUp, sendPhoneCode, verifyPhoneCode, enabled } = useAuth()
+
+  const [method, setMethod] = useState<'email' | 'phone'>('email')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [gender, setGender] = useState('')
+  const [birthDate, setBirthDate] = useState('')
+
+  const [loc, setLoc] = useState<LocationFilter>({})
+  const [locOpen, setLocOpen] = useState(false)
+  const [coords, setCoords] = useState<Coords | null>(null)
+  const [address, setAddress] = useState('')
+  const [locating, setLocating] = useState(false)
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('+225 ')
+  const [otpSent, setOtpSent] = useState(false)
+  const [otp, setOtp] = useState('')
+
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function captureGps() {
+    setLocating(true)
+    setError('')
+    try {
+      const pos = await getCurrentPosition()
+      setCoords(pos)
+      const geo = await reverseGeocode(pos.lat, pos.lng)
+      if (geo?.address) setAddress(geo.address)
+    } catch {
+      setError('Impossible d’obtenir votre position. Autorisez la localisation, puis réessayez.')
+    } finally {
+      setLocating(false)
+    }
+  }
+
+  function validateProfile(): string | null {
+    if (!firstName.trim()) return 'Indiquez votre prénom.'
+    if (!lastName.trim()) return 'Indiquez votre nom.'
+    if (!gender) return 'Indiquez votre sexe.'
+    if (!birthDate) return 'Indiquez votre date de naissance.'
+    if (!loc.regionId) return 'Indiquez votre ville / commune.'
+    return null
+  }
+
+  function profileFields(): ProfileFields {
+    return {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      gender,
+      birth_date: birthDate || null,
+      region_id: loc.regionId,
+      city_id: loc.cityId,
+      commune: loc.commune,
+      address: address.trim() || undefined,
+      lat: coords?.lat ?? null,
+      lng: coords?.lng ?? null,
+    }
+  }
+
+  async function saveProfileAndGo(userId?: string) {
+    if (userId) {
+      try {
+        await upsertMyProfile(userId, profileFields())
+      } catch {
+        /* le profil pourra être complété dans les paramètres */
+      }
+    }
+    navigate('/compte')
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setInfo('')
+    const v = validateProfile()
+    if (v) return setError(v)
+
+    if (method === 'email') {
+      if (!email.trim() || password.length < 6)
+        return setError('Renseignez un email et un mot de passe (min. 6 caractères).')
+      setBusy(true)
+      const res = await signUp(email.trim(), password, `${firstName.trim()} ${lastName.trim()}`)
+      setBusy(false)
+      if (res.error) return setError(res.error)
+      if (res.needsConfirmation) {
+        setInfo('Compte créé ! Vérifiez votre email pour confirmer, puis connectez-vous.')
+        return
+      }
+      await saveProfileAndGo(res.userId)
+    } else {
+      const p = phone.replace(/\s/g, '')
+      if (!otpSent) {
+        if (p.length < 8) return setError('Entrez un numéro de téléphone valide (+225…).')
+        setBusy(true)
+        const res = await sendPhoneCode(p)
+        setBusy(false)
+        if (res.error) return setError(res.error)
+        setOtpSent(true)
+        setInfo('Un code vous a été envoyé par SMS.')
+      } else {
+        if (!otp.trim()) return setError('Entrez le code reçu par SMS.')
+        setBusy(true)
+        const res = await verifyPhoneCode(p, otp.trim(), `${firstName.trim()} ${lastName.trim()}`)
+        setBusy(false)
+        if (res.error) return setError(res.error)
+        await saveProfileAndGo(res.userId)
+      }
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-white pb-10">
+      <header className="safe-top flex items-center gap-3 border-b border-gray-100 px-3 py-3">
+        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
+          <ArrowLeft size={22} />
+        </button>
+        <h1 className="text-lg font-bold">Créer un compte</h1>
+      </header>
+
+      {!enabled && (
+        <p className="mx-4 mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          Les comptes ne sont pas encore activés (backend non configuré).
+        </p>
+      )}
+
+      <form onSubmit={submit} className="space-y-5 px-4 py-5">
+        {/* Identité */}
+        <section className="space-y-3">
+          <p className="text-sm font-bold text-gray-800">Vos informations</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="relative">
+              <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Prénom" className="input pl-10" />
+            </div>
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nom" className="input" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="relative">
+              <select value={gender} onChange={(e) => setGender(e.target.value)} className="input appearance-none pr-9">
+                <option value="">Sexe…</option>
+                <option value="homme">Homme</option>
+                <option value="femme">Femme</option>
+                <option value="autre">Autre</option>
+              </select>
+              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-4 text-gray-400" />
+            </div>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="input text-gray-700"
+              aria-label="Date de naissance"
+            />
+          </div>
+          <p className="text-[11px] text-gray-400">Date de naissance</p>
+        </section>
+
+        {/* Localisation */}
+        <section className="space-y-2">
+          <p className="text-sm font-bold text-gray-800">Où êtes-vous ?</p>
+          <button type="button" onClick={() => setLocOpen(true)} className="input flex items-center justify-between text-left">
+            <span className={loc.regionId ? 'text-gray-800' : 'text-gray-400'}>
+              {loc.regionId ? locationLabel(loc.regionId, loc.cityId, loc.commune) : 'Choisir région / ville / commune'}
+            </span>
+            <MapPin size={18} className="text-gray-400" />
+          </button>
+          <button
+            type="button"
+            onClick={captureGps}
+            className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold ${
+              coords ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-primary-200 bg-primary-50 text-primary-700'
+            }`}
+          >
+            {locating ? <Loader2 size={17} className="animate-spin" /> : coords ? <Check size={17} /> : <LocateFixed size={17} />}
+            {locating ? 'Localisation…' : coords ? 'Position précise enregistrée' : 'Me géolocaliser précisément (GPS)'}
+          </button>
+          {address && (
+            <input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Adresse / quartier détecté"
+              className="input text-sm"
+            />
+          )}
+        </section>
+
+        {/* Méthode de compte */}
+        <section className="space-y-3">
+          <p className="text-sm font-bold text-gray-800">Créer le compte avec</p>
+          <div className="flex rounded-xl bg-gray-100 p-1">
+            <button type="button" onClick={() => { setMethod('email'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
+              <Mail size={15} className="mr-1 inline" /> Email
+            </button>
+            <button type="button" onClick={() => { setMethod('phone'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'phone' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
+              <Phone size={15} className="mr-1 inline" /> Téléphone
+            </button>
+          </div>
+
+          {method === 'email' ? (
+            <>
+              <div className="relative">
+                <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse email" className="input pl-10" autoComplete="email" />
+              </div>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe (min. 6 caractères)" className="input pl-10" autoComplete="new-password" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="relative">
+                <Phone size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                <input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+225 07 00 00 00 00" disabled={otpSent} className="input pl-10" />
+              </div>
+              {otpSent && (
+                <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="Code reçu par SMS" maxLength={6} className="input text-center text-lg tracking-widest" />
+              )}
+            </>
+          )}
+        </section>
+
+        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+        {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
+
+        <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
+          {busy ? (
+            <Loader2 size={20} className="animate-spin" />
+          ) : method === 'phone' && !otpSent ? (
+            'Recevoir un code SMS'
+          ) : (
+            'Créer mon compte'
+          )}
+        </button>
+
+        <p className="text-center text-sm text-gray-500">
+          Déjà un compte ?{' '}
+          <button type="button" onClick={() => navigate('/connexion')} className="font-semibold text-primary-600">
+            Se connecter
+          </button>
+        </p>
+      </form>
+
+      <LocationSheet open={locOpen} onClose={() => setLocOpen(false)} value={loc} onApply={setLoc} />
+    </div>
+  )
+}

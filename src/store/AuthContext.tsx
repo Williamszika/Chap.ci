@@ -13,6 +13,7 @@ interface AuthResult {
   error?: string
   needsConfirmation?: boolean
   mfaRequired?: boolean
+  userId?: string
 }
 
 export type OAuthProvider = 'google' | 'apple' | 'facebook'
@@ -100,8 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: { data: { full_name: fullName }, emailRedirectTo: redirectTo() },
     })
     if (error) return { error: frError(error.message) }
-    if (!data.session) return { needsConfirmation: true }
-    return {}
+    if (!data.session) return { needsConfirmation: true, userId: data.user?.id }
+    return { userId: data.user?.id }
   }, [])
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
@@ -132,13 +133,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyPhoneCode = useCallback(
     async (phone: string, token: string, fullName?: string): Promise<AuthResult> => {
       if (!supabase) return { error: 'Comptes indisponibles.' }
-      const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
+      const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
       if (error) return { error: frError(error.message) }
       if (fullName && fullName.trim()) {
         await supabase.auth.updateUser({ data: { full_name: fullName.trim() } })
       }
-      if (await checkMfaRequired()) return { mfaRequired: true }
-      return {}
+      if (await checkMfaRequired()) return { mfaRequired: true, userId: data.user?.id }
+      return { userId: data.user?.id }
     },
     [],
   )

@@ -24,6 +24,33 @@ export function formatDistance(km: number): string {
   return 'loin'
 }
 
+export interface GeoAddress {
+  address?: string
+  city?: string
+  suburb?: string
+}
+
+/**
+ * Géocodage inversé (coordonnées → adresse) via OpenStreetMap Nominatim.
+ * Best-effort : renvoie null en cas d'échec / hors-ligne.
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<GeoAddress | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=fr&zoom=16`
+    const res = await fetch(url, { headers: { Accept: 'application/json' } })
+    if (!res.ok) return null
+    const data = await res.json()
+    const a = data.address ?? {}
+    return {
+      address: data.display_name,
+      city: a.city || a.town || a.village || a.municipality,
+      suburb: a.suburb || a.neighbourhood || a.quarter || a.city_district,
+    }
+  } catch {
+    return null
+  }
+}
+
 /** Récupère la position GPS actuelle de l'utilisateur (avec permission). */
 export function getCurrentPosition(): Promise<Coords> {
   return new Promise((resolve, reject) => {

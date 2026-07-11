@@ -19,6 +19,20 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
+-- Champs de profil détaillés (ajout sûr si la table existait déjà)
+alter table public.profiles add column if not exists bio        text;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists first_name text;
+alter table public.profiles add column if not exists last_name  text;
+alter table public.profiles add column if not exists gender     text;
+alter table public.profiles add column if not exists birth_date date;
+alter table public.profiles add column if not exists region_id  text;
+alter table public.profiles add column if not exists city_id    text;
+alter table public.profiles add column if not exists commune    text;
+alter table public.profiles add column if not exists address    text;
+alter table public.profiles add column if not exists lat        double precision;
+alter table public.profiles add column if not exists lng        double precision;
+
 alter table public.profiles enable row level security;
 
 drop policy if exists "profiles_select_all" on public.profiles;

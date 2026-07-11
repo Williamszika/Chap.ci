@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Mail, Lock, User, Phone, Loader2, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Mail, Lock, Phone, Loader2, ShieldCheck } from 'lucide-react'
 import { useAuth, type OAuthProvider } from '../store/AuthContext'
 
-// Petits logos de marque (SVG inline)
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48">
@@ -24,62 +23,43 @@ function AppleIcon() {
 
 export function Login() {
   const navigate = useNavigate()
-  const { signIn, signUp, signInWithProvider, sendPhoneCode, verifyPhoneCode, verifyLoginMfa, enabled } = useAuth()
+  const { signIn, signInWithProvider, sendPhoneCode, verifyPhoneCode, verifyLoginMfa, enabled } = useAuth()
 
   const [method, setMethod] = useState<'email' | 'phone'>('email')
-  const [tab, setTab] = useState<'in' | 'up'>('in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
-
   const [phone, setPhone] = useState('+225 ')
   const [otpSent, setOtpSent] = useState(false)
   const [otp, setOtp] = useState('')
-
   const [mfaStep, setMfaStep] = useState(false)
   const [mfaCode, setMfaCode] = useState('')
-
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
 
-  function reset() {
-    setError('')
-    setInfo('')
-  }
-  function handle(res: { error?: string; needsConfirmation?: boolean; mfaRequired?: boolean }) {
-    if (res.error) {
-      setError(res.error)
-      return
-    }
-    if (res.needsConfirmation) {
-      setInfo('Compte créé ! Vérifiez votre email pour confirmer, puis connectez-vous.')
-      setTab('in')
-      return
-    }
-    if (res.mfaRequired) {
-      setMfaStep(true)
-      return
-    }
+  function handle(res: { error?: string; mfaRequired?: boolean }) {
+    if (res.error) return setError(res.error)
+    if (res.mfaRequired) return setMfaStep(true)
     navigate('/compte')
   }
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault()
-    reset()
+    setError('')
     if (!email.trim() || !password) return setError('Renseignez votre email et votre mot de passe.')
     setBusy(true)
-    const res = tab === 'in' ? await signIn(email.trim(), password) : await signUp(email.trim(), password, fullName.trim())
+    const res = await signIn(email.trim(), password)
     setBusy(false)
     handle(res)
   }
 
   async function submitPhone(e: React.FormEvent) {
     e.preventDefault()
-    reset()
+    setError('')
+    setInfo('')
     const p = phone.replace(/\s/g, '')
     if (!otpSent) {
-      if (p.length < 8) return setError('Entrez un numéro de téléphone valide (format +225…).')
+      if (p.length < 8) return setError('Entrez un numéro valide (+225…).')
       setBusy(true)
       const res = await sendPhoneCode(p)
       setBusy(false)
@@ -89,7 +69,7 @@ export function Login() {
     } else {
       if (!otp.trim()) return setError('Entrez le code reçu par SMS.')
       setBusy(true)
-      const res = await verifyPhoneCode(p, otp.trim(), fullName.trim())
+      const res = await verifyPhoneCode(p, otp.trim())
       setBusy(false)
       handle(res)
     }
@@ -97,7 +77,7 @@ export function Login() {
 
   async function submitMfa(e: React.FormEvent) {
     e.preventDefault()
-    reset()
+    setError('')
     setBusy(true)
     const res = await verifyLoginMfa(mfaCode.trim())
     setBusy(false)
@@ -106,7 +86,7 @@ export function Login() {
   }
 
   async function oauth(provider: OAuthProvider) {
-    reset()
+    setError('')
     const res = await signInWithProvider(provider)
     if (res.error) setError(res.error)
   }
@@ -121,11 +101,9 @@ export function Login() {
 
       <div className="mx-auto max-w-sm px-6 pt-2">
         <div className="mb-5 flex flex-col items-center text-center">
-          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-500 text-2xl font-black text-white">
-            C
-          </div>
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-500 text-2xl font-black text-white">C</div>
           <h1 className="mt-3 text-2xl font-black text-gray-900">Chap.ci</h1>
-          <p className="text-sm text-gray-500">Connectez-vous ou créez votre compte</p>
+          <p className="text-sm text-gray-500">Connectez-vous à votre compte</p>
         </div>
 
         {!enabled && (
@@ -134,24 +112,14 @@ export function Login() {
           </p>
         )}
 
-        {/* Étape 2FA */}
         {mfaStep ? (
           <form onSubmit={submitMfa} className="space-y-3">
             <div className="flex flex-col items-center gap-2 py-2 text-center">
               <ShieldCheck size={40} className="text-primary-500" />
               <p className="font-bold text-gray-900">Double authentification</p>
-              <p className="text-sm text-gray-500">
-                Entrez le code à 6 chiffres de votre application d’authentification.
-              </p>
+              <p className="text-sm text-gray-500">Entrez le code à 6 chiffres de votre application d’authentification.</p>
             </div>
-            <input
-              inputMode="numeric"
-              value={mfaCode}
-              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-              placeholder="123456"
-              maxLength={6}
-              className="input text-center text-xl tracking-widest"
-            />
+            <input inputMode="numeric" value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))} placeholder="123456" maxLength={6} className="input text-center text-xl tracking-widest" />
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
             <button type="submit" disabled={busy} className="btn-primary w-full py-3.5">
               {busy ? <Loader2 size={20} className="animate-spin" /> : 'Valider'}
@@ -159,7 +127,6 @@ export function Login() {
           </form>
         ) : (
           <>
-            {/* Connexions externes */}
             <div className="space-y-2">
               <button onClick={() => oauth('google')} disabled={!enabled} className="btn-outline w-full py-3">
                 <GoogleIcon /> Continuer avec Google
@@ -173,101 +140,55 @@ export function Login() {
               <span className="h-px flex-1 bg-gray-200" /> ou <span className="h-px flex-1 bg-gray-200" />
             </div>
 
-            {/* Sélecteur Email / Téléphone */}
             <div className="mb-4 flex rounded-xl bg-gray-100 p-1">
-              <button
-                onClick={() => { setMethod('email'); reset() }}
-                className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}
-              >
+              <button onClick={() => { setMethod('email'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
                 <Mail size={15} className="mr-1 inline" /> Email
               </button>
-              <button
-                onClick={() => { setMethod('phone'); reset() }}
-                className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'phone' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}
-              >
+              <button onClick={() => { setMethod('phone'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'phone' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
                 <Phone size={15} className="mr-1 inline" /> Téléphone
               </button>
             </div>
 
             {method === 'email' ? (
-              <>
-                <div className="mb-4 flex rounded-xl bg-gray-100 p-1">
-                  <button onClick={() => setTab('in')} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${tab === 'in' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
-                    Connexion
-                  </button>
-                  <button onClick={() => setTab('up')} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${tab === 'up' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
-                    Créer un compte
-                  </button>
+              <form onSubmit={submitEmail} className="space-y-3">
+                <div className="relative">
+                  <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse email" className="input pl-10" autoComplete="email" />
                 </div>
-                <form onSubmit={submitEmail} className="space-y-3">
-                  {tab === 'up' && (
-                    <div className="relative">
-                      <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                      <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom complet" className="input pl-10" autoComplete="name" />
-                    </div>
-                  )}
-                  <div className="relative">
-                    <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse email" className="input pl-10" autoComplete="email" />
-                  </div>
-                  <div className="relative">
-                    <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe (min. 6 caractères)" className="input pl-10" autoComplete={tab === 'in' ? 'current-password' : 'new-password'} />
-                  </div>
-                  {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
-                  {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
-                  <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
-                    {busy ? <Loader2 size={20} className="animate-spin" /> : tab === 'in' ? 'Se connecter' : 'Créer mon compte'}
-                  </button>
-                </form>
-              </>
+                <div className="relative">
+                  <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="input pl-10" autoComplete="current-password" />
+                </div>
+                {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+                <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
+                  {busy ? <Loader2 size={20} className="animate-spin" /> : 'Se connecter'}
+                </button>
+              </form>
             ) : (
               <form onSubmit={submitPhone} className="space-y-3">
                 <div className="relative">
                   <Phone size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                  <input
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+225 07 00 00 00 00"
-                    disabled={otpSent}
-                    className="input pl-10"
-                  />
+                  <input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+225 07 00 00 00 00" disabled={otpSent} className="input pl-10" />
                 </div>
                 {otpSent && (
-                  <>
-                    <div className="relative">
-                      <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                      <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nom complet (nouveau compte)" className="input pl-10" />
-                    </div>
-                    <input
-                      inputMode="numeric"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Code reçu par SMS"
-                      maxLength={6}
-                      className="input text-center text-lg tracking-widest"
-                    />
-                  </>
+                  <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="Code reçu par SMS" maxLength={6} className="input text-center text-lg tracking-widest" />
                 )}
                 {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
                 {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
                 <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
                   {busy ? <Loader2 size={20} className="animate-spin" /> : otpSent ? 'Vérifier le code' : 'Recevoir un code SMS'}
                 </button>
-                {otpSent && (
-                  <button type="button" onClick={() => { setOtpSent(false); setOtp(''); reset() }} className="w-full text-center text-sm text-gray-400">
-                    Modifier le numéro
-                  </button>
-                )}
               </form>
             )}
+
+            <p className="mt-5 text-center text-sm text-gray-500">
+              Pas encore de compte ?{' '}
+              <button onClick={() => navigate('/inscription')} className="font-semibold text-primary-600">
+                Créer un compte
+              </button>
+            </p>
           </>
         )}
-
-        <p className="mt-6 pb-6 text-center text-xs text-gray-400">
-          En continuant, vous acceptez d’utiliser Chap.ci de façon responsable et respectueuse.
-        </p>
       </div>
     </div>
   )
