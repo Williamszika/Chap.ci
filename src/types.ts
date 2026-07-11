@@ -49,6 +49,10 @@ export interface Listing {
   delivery: boolean
   /** annonce mise en avant */
   featured?: boolean
+  /** Prix promotionnel (réduit). Actif seulement tant que promoUntil n'est pas dépassé. */
+  promoPrice?: number
+  /** Fin de la promotion (timestamp ms). Passé ce délai, le prix normal revient. */
+  promoUntil?: number
 }
 
 export interface LocationFilter {

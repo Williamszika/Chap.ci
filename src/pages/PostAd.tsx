@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed } from 'lucide-react'
+import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { categories, categoryById } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
+import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
+import { formatPrice } from '../lib/format'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { useLocalStorage } from '../lib/useLocalStorage'
@@ -28,6 +30,9 @@ export function PostAd() {
   const [condition, setCondition] = useState<'neuf' | 'occasion'>('occasion')
   const [price, setPrice] = useState('')
   const [negotiable, setNegotiable] = useState(false)
+  const [promoOn, setPromoOn] = useState(false)
+  const [promoPct, setPromoPct] = useState('')
+  const [promoDays, setPromoDays] = useState('7')
   const [delivery, setDelivery] = useState(false)
   const [description, setDescription] = useState('')
   const [loc, setLoc] = useState<LocationFilter>({})
@@ -50,6 +55,14 @@ export function PostAd() {
   }, [place])
 
   const cat = categoryById(categoryId)
+
+  // Aperçu de la promotion (prix réduit calculé depuis le pourcentage).
+  const priceNum = Number(price) || 0
+  const promoPctNum = Number(promoPct) || 0
+  const promoPreview =
+    promoOn && promoPctNum > 0 && promoPctNum < 100 && priceNum > 0
+      ? { percent: promoPctNum, price: Math.round(priceNum * (1 - promoPctNum / 100)) }
+      : null
 
   function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -125,6 +138,8 @@ export function PostAd() {
       sellerPhone: seller.phone.trim(),
       delivery,
       featured: false,
+      promoPrice: promoPreview ? promoPreview.price : undefined,
+      promoUntil: promoPreview ? Date.now() + Number(promoDays) * 86_400_000 : undefined,
     }
 
     setSubmitting(true)
@@ -289,6 +304,90 @@ export function PostAd() {
             Prix négociable / à débattre
           </label>
         </Field>
+
+        {/* Promotion (facultatif) */}
+        <div>
+          <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+            <span className="flex items-center gap-2 text-sm font-bold text-gray-800">
+              <Tag size={18} className="text-red-500" /> Mettre en promotion
+            </span>
+            <input
+              type="checkbox"
+              checked={promoOn}
+              onChange={(e) => setPromoOn(e.target.checked)}
+              className="h-5 w-5 accent-red-500"
+            />
+          </label>
+
+          {promoOn && (
+            <div className="mt-2 space-y-3 rounded-xl border border-red-100 bg-red-50/60 p-3">
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-gray-600">Réduction</p>
+                <div className="flex flex-wrap gap-2">
+                  {[10, 20, 30, 50].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPromoPct(String(p))}
+                      className={`chip text-xs ${promoPct === String(p) ? 'border-red-500 bg-red-500 text-white' : ''}`}
+                    >
+                      -{p}%
+                    </button>
+                  ))}
+                  <div className="relative">
+                    <input
+                      inputMode="numeric"
+                      value={promoPct}
+                      onChange={(e) => setPromoPct(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      placeholder="%"
+                      className="input h-9 w-16 py-0 text-center text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-gray-600">Durée de la promo</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { d: '1', l: '1 jour' },
+                    { d: '3', l: '3 jours' },
+                    { d: '7', l: '1 semaine' },
+                    { d: '14', l: '2 semaines' },
+                    { d: '30', l: '1 mois' },
+                  ].map((o) => (
+                    <button
+                      key={o.d}
+                      type="button"
+                      onClick={() => setPromoDays(o.d)}
+                      className={`chip text-xs ${promoDays === o.d ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+                    >
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {promoPreview ? (
+                <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <PromoTag percent={promoPreview.percent} />
+                  <span className="flex items-baseline gap-2">
+                    <span className="text-base font-black text-red-600">
+                      {formatPrice(promoPreview.price)} FCFA
+                    </span>
+                    <span className="text-xs text-gray-400 line-through">
+                      {formatPrice(priceNum)} FCFA
+                    </span>
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Indiquez d’abord un prix, puis choisissez une réduction pour voir le nouveau prix.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
         <Field label="Localisation">

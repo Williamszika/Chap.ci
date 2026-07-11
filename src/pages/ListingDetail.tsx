@@ -24,10 +24,12 @@ import { getOrCreateConversation } from '../lib/messages'
 import { placeOrderForSeller } from '../lib/checkout'
 import { fetchReviewsForListing, createReview, averageRating } from '../lib/reviews'
 import { fetchPurchasedListingIds } from '../lib/orders'
-import { priceLabel, timeAgo } from '../lib/format'
+import { priceLabel, formatPrice, timeAgo } from '../lib/format'
+import { activePromo, promoEndLabel } from '../lib/promo'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { ListingCard } from '../components/ListingCard'
+import { PromoTag } from '../components/PromoTag'
 import { Stars } from '../components/Stars'
 import type { Review } from '../types'
 
@@ -91,6 +93,8 @@ export function ListingDetail() {
       ? haversineKm(position, { lat: listing.lat, lng: listing.lng })
       : null
 
+  const promo = activePromo(listing)
+
   const similar = listings
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
     .slice(0, 6)
@@ -131,6 +135,7 @@ export function ListingDetail() {
     if (isDemo) return demoNotice()
     if (!requireAuth() || !listing || !sellerId || !user) return
     setBusy(true)
+    const salePrice = promo?.price ?? listing.price
     try {
       const convId = await placeOrderForSeller(user.id, {
         sellerId,
@@ -139,13 +144,13 @@ export function ListingDetail() {
           {
             listingId: listing.id,
             title: listing.title,
-            price: listing.price,
+            price: salePrice,
             image: listing.images[0],
             sellerId,
             sellerName: listing.sellerName,
           },
         ],
-        total: listing.price,
+        total: salePrice,
       })
       navigate(`/messages/${convId}`)
     } catch {
@@ -246,7 +251,21 @@ export function ListingDetail() {
 
       {/* Contenu */}
       <div className="px-4 py-4">
-        <p className="text-2xl font-black text-primary-600">{priceLabel(listing.price, listing.negotiable)}</p>
+        {promo ? (
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <PromoTag percent={promo.percent} height={26} />
+              <span className="text-2xl font-black text-red-600">{formatPrice(promo.price)} FCFA</span>
+              <span className="text-base text-gray-400 line-through">{formatPrice(promo.original)} FCFA</span>
+            </div>
+            <p className="mt-1 text-xs font-semibold text-red-600">
+              Promo jusqu’au {promoEndLabel(promo.until)}
+              {listing.negotiable ? ' · à débattre' : ''}
+            </p>
+          </div>
+        ) : (
+          <p className="text-2xl font-black text-primary-600">{priceLabel(listing.price, listing.negotiable)}</p>
+        )}
         <h1 className="mt-1 text-lg font-bold leading-snug text-gray-900">{listing.title}</h1>
 
         <div className="mt-2 flex flex-wrap items-center gap-2">

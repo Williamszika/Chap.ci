@@ -23,6 +23,8 @@ interface ListingRow {
   delivery: boolean
   featured: boolean
   created_at: string
+  promo_price?: number | null
+  promo_until?: string | null
 }
 
 function rowToListing(r: ListingRow): Listing {
@@ -48,6 +50,8 @@ function rowToListing(r: ListingRow): Listing {
     createdAt: new Date(r.created_at).getTime(),
     delivery: r.delivery,
     featured: r.featured,
+    promoPrice: r.promo_price != null ? Number(r.promo_price) : undefined,
+    promoUntil: r.promo_until ? new Date(r.promo_until).getTime() : undefined,
   }
 }
 
@@ -90,10 +94,19 @@ export async function createListing(
     featured: false,
   }
 
-  // Insert avec géolocalisation ; si les colonnes lat/lng n'existent pas encore
-  // (migration add-geolocation.sql non exécutée), on réessaie sans elles.
   const withGeo = { ...base, lat: input.lat ?? null, lng: input.lng ?? null }
-  let res = await client.from('listings').insert(withGeo).select().single()
+  const withPromo: Record<string, unknown> = { ...withGeo }
+  if (input.promoPrice != null && input.promoUntil != null) {
+    withPromo.promo_price = input.promoPrice
+    withPromo.promo_until = new Date(input.promoUntil).toISOString()
+  }
+
+  // Insert avec toutes les colonnes optionnelles ; si certaines n'existent pas
+  // encore (migrations non exécutées), on réessaie sans elles, par paliers.
+  let res = await client.from('listings').insert(withPromo).select().single()
+  if (res.error && /promo_|column/i.test(res.error.message)) {
+    res = await client.from('listings').insert(withGeo).select().single()
+  }
   if (res.error && /lat|lng|column/i.test(res.error.message)) {
     res = await client.from('listings').insert(base).select().single()
   }
