@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation } from 'lucide-react'
+import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation, Truck } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm } from '../lib/geo'
@@ -34,6 +34,7 @@ export function Browse() {
   const cond = params.get('cond') ?? ''
   const min = params.get('min') ?? ''
   const max = params.get('max') ?? ''
+  const livr = params.get('livr') ?? ''
   const tri = (params.get('tri') as Sort) ?? 'recent'
   const loc: LocationFilter = {
     regionId: params.get('region') ?? undefined,
@@ -77,6 +78,7 @@ export function Browse() {
       if (loc.commune && l.commune !== loc.commune) return false
       if (min && l.price < Number(min)) return false
       if (max && l.price > Number(max)) return false
+      if (livr && !l.delivery) return false
       if (nq) {
         const hay = normalize(`${l.title} ${l.description} ${l.subcategory ?? ''}`)
         if (!hay.includes(nq)) return false
@@ -97,11 +99,11 @@ export function Browse() {
       })
     }
     return out
-  }, [listings, q, cat, sub, cond, min, max, tri, position, loc.regionId, loc.cityId, loc.commune])
+  }, [listings, q, cat, sub, cond, min, max, livr, tri, position, loc.regionId, loc.cityId, loc.commune])
 
   const activeCat = categoryById(cat)
   const activeFilters =
-    (cond ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (sub ? 1 : 0) + (tri !== 'recent' ? 1 : 0)
+    (cond ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (livr ? 1 : 0) + (sub ? 1 : 0) + (tri !== 'recent' ? 1 : 0)
 
   return (
     <div className="min-h-screen bg-[#f4f5f7]">
@@ -273,12 +275,28 @@ export function Browse() {
         cond={cond}
         min={min}
         max={max}
+        livr={livr}
         tri={tri}
+        hasPosition={!!position}
         onApply={(f) => update(f)}
       />
     </div>
   )
 }
+
+// Espace les milliers pour l'affichage : 1500000 -> "1 500 000"
+function groupThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+// Fourchettes de prix rapides (en FCFA), adaptées au marché ivoirien.
+const PRICE_PRESETS: { l: string; min: string; max: string }[] = [
+  { l: '≤ 25 000', min: '', max: '25000' },
+  { l: '25 000 – 100 000', min: '25000', max: '100000' },
+  { l: '100 000 – 500 000', min: '100000', max: '500000' },
+  { l: '500 000 – 2 M', min: '500000', max: '2000000' },
+  { l: '≥ 2 M', min: '2000000', max: '' },
+]
 
 // — Feuille de filtres avancés —
 function FilterSheet({
@@ -287,7 +305,9 @@ function FilterSheet({
   cond,
   min,
   max,
+  livr,
   tri,
+  hasPosition,
   onApply,
 }: {
   open: boolean
@@ -295,17 +315,60 @@ function FilterSheet({
   cond: string
   min: string
   max: string
+  livr: string
   tri: Sort
+  hasPosition: boolean
   onApply: (f: Record<string, string | undefined>) => void
 }) {
   const [c, setC] = useState(cond)
   const [mn, setMn] = useState(min)
   const [mx, setMx] = useState(max)
+  const [dl, setDl] = useState(!!livr)
   const [t, setT] = useState<Sort>(tri)
+
+  // Resynchronise à l'ouverture (si les filtres ont changé ailleurs).
+  useEffect(() => {
+    if (open) {
+      setC(cond)
+      setMn(min)
+      setMx(max)
+      setDl(!!livr)
+      setT(tri)
+    }
+  }, [open, cond, min, max, livr, tri])
+
+  const sortOptions: { v: Sort; l: string }[] = [
+    { v: 'recent', l: 'Plus récent' },
+    { v: 'prix-asc', l: 'Moins cher' },
+    { v: 'prix-desc', l: 'Plus cher' },
+    ...(hasPosition ? [{ v: 'distance' as Sort, l: 'Près de moi' }] : []),
+  ]
+
+  function reset() {
+    setC('')
+    setMn('')
+    setMx('')
+    setDl(false)
+    setT('recent')
+    onApply({ cond: undefined, min: undefined, max: undefined, livr: undefined, tri: undefined })
+    onClose()
+  }
+
+  function apply() {
+    onApply({
+      cond: c || undefined,
+      min: mn || undefined,
+      max: mx || undefined,
+      livr: dl ? '1' : undefined,
+      tri: t === 'recent' ? undefined : t,
+    })
+    onClose()
+  }
 
   return (
     <Sheet open={open} onClose={onClose} title="Filtrer les annonces">
       <div className="space-y-6">
+        {/* État */}
         <div>
           <p className="mb-2 text-sm font-bold text-gray-800">État</p>
           <div className="flex gap-2">
@@ -325,40 +388,79 @@ function FilterSheet({
           </div>
         </div>
 
+        {/* Prix */}
         <div>
           <p className="mb-2 text-sm font-bold text-gray-800">Prix (FCFA)</p>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {PRICE_PRESETS.map((p) => {
+              const active = mn === p.min && mx === p.max
+              return (
+                <button
+                  key={p.l}
+                  onClick={() => {
+                    setMn(active ? '' : p.min)
+                    setMx(active ? '' : p.max)
+                  }}
+                  className={`chip text-xs ${active ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+                >
+                  {p.l}
+                </button>
+              )
+            })}
+          </div>
           <div className="flex items-center gap-2">
-            <input
-              inputMode="numeric"
-              value={mn}
-              onChange={(e) => setMn(e.target.value.replace(/\D/g, ''))}
-              placeholder="Min"
-              className="input"
-            />
+            <div className="relative flex-1">
+              <input
+                inputMode="numeric"
+                value={groupThousands(mn)}
+                onChange={(e) => setMn(e.target.value.replace(/\D/g, ''))}
+                placeholder="Min"
+                className="input pr-12 text-right"
+              />
+              <span className="pointer-events-none absolute right-3 top-3.5 text-xs text-gray-400">FCFA</span>
+            </div>
             <span className="text-gray-400">—</span>
-            <input
-              inputMode="numeric"
-              value={mx}
-              onChange={(e) => setMx(e.target.value.replace(/\D/g, ''))}
-              placeholder="Max"
-              className="input"
-            />
+            <div className="relative flex-1">
+              <input
+                inputMode="numeric"
+                value={groupThousands(mx)}
+                onChange={(e) => setMx(e.target.value.replace(/\D/g, ''))}
+                placeholder="Max"
+                className="input pr-12 text-right"
+              />
+              <span className="pointer-events-none absolute right-3 top-3.5 text-xs text-gray-400">FCFA</span>
+            </div>
           </div>
         </div>
 
+        {/* Livraison */}
+        <button
+          onClick={() => setDl((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl border border-gray-200 px-4 py-3"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-gray-800">
+            <Truck size={18} className="text-primary-500" /> Livraison possible uniquement
+          </span>
+          <span
+            className={`relative h-6 w-11 rounded-full transition-colors ${dl ? 'bg-primary-500' : 'bg-gray-300'}`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${dl ? 'left-[22px]' : 'left-0.5'}`}
+            />
+          </span>
+        </button>
+
+        {/* Tri */}
         <div>
           <p className="mb-2 text-sm font-bold text-gray-800">Trier par</p>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { v: 'recent', l: 'Récent' },
-              { v: 'prix-asc', l: 'Prix ↑' },
-              { v: 'prix-desc', l: 'Prix ↓' },
-            ].map((o) => (
+          <div className="grid grid-cols-2 gap-2">
+            {sortOptions.map((o) => (
               <button
                 key={o.v}
-                onClick={() => setT(o.v as Sort)}
+                onClick={() => setT(o.v)}
                 className={`chip justify-center ${t === o.v ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
               >
+                {o.v === 'distance' && <Navigation size={14} className="mr-1" />}
                 {o.l}
               </button>
             ))}
@@ -366,26 +468,10 @@ function FilterSheet({
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
-            onClick={() => {
-              setC('')
-              setMn('')
-              setMx('')
-              setT('recent')
-              onApply({ cond: undefined, min: undefined, max: undefined, tri: undefined })
-              onClose()
-            }}
-            className="btn-outline flex-1"
-          >
+          <button onClick={reset} className="btn-outline flex-1">
             Réinitialiser
           </button>
-          <button
-            onClick={() => {
-              onApply({ cond: c || undefined, min: mn || undefined, max: mx || undefined, tri: t === 'recent' ? undefined : t })
-              onClose()
-            }}
-            className="btn-primary flex-1"
-          >
+          <button onClick={apply} className="btn-primary flex-1">
             Appliquer
           </button>
         </div>
