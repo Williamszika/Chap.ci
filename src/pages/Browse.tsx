@@ -179,7 +179,7 @@ export function Browse() {
         </div>
 
         {/* Catégories rapides */}
-        <div className="no-scrollbar flex items-center gap-2 border-t border-gray-50 px-3 py-2">
+        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-gray-50 px-3 py-2">
           <button
             onClick={() => update({ cat: undefined, sub: undefined })}
             className={`chip ${!cat ? 'border-primary-500 bg-primary-500 text-white' : ''}`}

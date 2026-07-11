@@ -12,6 +12,12 @@ body,
   height: 100%;
 }
 
+html,
+body {
+  /* Empêche le rebond/blanc de la page et le "swipe pour revenir en arrière" */
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   background: #f4f5f7;
@@ -28,10 +34,14 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Masque la barre de scroll pour les rangées horizontales */
+/* Rangées à défilement horizontal (catégories, filtres, carrousels) */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  /* Le défilement horizontal reste dans la rangée : il ne "déborde" pas sur la
+     page (pas de zone blanche ni de retour arrière du navigateur). */
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
