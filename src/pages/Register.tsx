@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown, LocateFixed } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
@@ -8,7 +8,9 @@ import { LocationSheet } from '../components/LocationSheet'
 import { Mark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
-import { locationLabel } from '../data/locations'
+import { getBestPosition, reverseGeocode } from '../lib/geo'
+import { locationLabel, resolveLocationByName } from '../data/locations'
+import type { Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
 export function Register() {
@@ -25,6 +27,8 @@ export function Register() {
   const [loc, setLoc] = useState<LocationFilter>({})
   const [locOpen, setLocOpen] = useState(false)
   const [address, setAddress] = useState('')
+  const [coords, setCoords] = useState<Coords | null>(null)
+  const [locating, setLocating] = useState(false)
 
   // Pré-remplissage depuis la position captée à l'ouverture du site.
   useEffect(() => {
@@ -33,8 +37,32 @@ export function Register() {
         prev.regionId ? prev : { regionId: place.regionId, cityId: place.cityId, commune: place.commune },
       )
       setAddress((prev) => prev || place.address || '')
+      if (place.lat != null && place.lng != null) {
+        setCoords((prev) => prev ?? { lat: place.lat!, lng: place.lng! })
+      }
     }
   }, [place])
+
+  // Géolocalise l'utilisateur (GPS) et verrouille sa localisation.
+  async function detectLocation() {
+    setLocating(true)
+    try {
+      const fix = await getBestPosition()
+      setCoords({ lat: fix.lat, lng: fix.lng })
+      const geo = await reverseGeocode(fix.lat, fix.lng)
+      const resolved = resolveLocationByName(geo?.suburb, geo?.city, geo?.region) ?? {}
+      if (resolved.regionId) {
+        setLoc({ regionId: resolved.regionId, cityId: resolved.cityId, commune: resolved.commune })
+      }
+      if (geo?.suburb) setAddress(geo.suburb)
+    } catch {
+      alert(
+        'Impossible d’obtenir votre position. Autorisez la localisation dans votre navigateur, puis réessayez.',
+      )
+    } finally {
+      setLocating(false)
+    }
+  }
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -66,8 +94,8 @@ export function Register() {
       city_id: loc.cityId,
       commune: loc.commune,
       address: address.trim() || undefined,
-      lat: place?.lat ?? null,
-      lng: place?.lng ?? null,
+      lat: coords?.lat ?? place?.lat ?? null,
+      lng: coords?.lng ?? place?.lng ?? null,
     }
   }
 
@@ -171,22 +199,39 @@ export function Register() {
           <p className="text-[11px] text-gray-400">Date de naissance</p>
         </section>
 
-        {/* Localisation (détectée à l'ouverture du site) */}
+        {/* Localisation — géolocalisée (GPS) et verrouillée */}
         <section className="space-y-2">
           <p className="text-sm font-bold text-gray-800">Votre localisation</p>
-          <button type="button" onClick={() => setLocOpen(true)} className="input flex items-center justify-between text-left">
-            <span className={loc.regionId ? 'text-gray-800' : 'text-gray-400'}>
-              {loc.regionId ? locationLabel(loc.regionId, loc.cityId, loc.commune) : 'Choisir région / ville / commune'}
+          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <span className="flex min-w-0 items-center gap-2">
+              <MapPin size={18} className="shrink-0 text-primary-500" />
+              <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
+                {loc.regionId
+                  ? locationLabel(loc.regionId, loc.cityId, loc.commune)
+                  : locating
+                    ? 'Détection de votre position…'
+                    : 'Position non détectée'}
+              </span>
             </span>
-            <MapPin size={18} className="text-gray-400" />
+            <Lock size={15} className="shrink-0 text-gray-400" />
+          </div>
+          <button
+            type="button"
+            onClick={detectLocation}
+            disabled={locating}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition active:scale-[0.99] disabled:opacity-60"
+          >
+            <LocateFixed size={16} />
+            {locating ? 'Localisation…' : loc.regionId ? 'Actualiser ma position (GPS)' : 'Activer ma position (GPS)'}
           </button>
-          {address && (
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Quartier / adresse"
-              className="input text-sm"
-            />
+          {!loc.regionId && !locating && (
+            <button
+              type="button"
+              onClick={() => setLocOpen(true)}
+              className="w-full text-center text-xs text-gray-400 underline"
+            >
+              La détection a échoué ? Choisir manuellement
+            </button>
           )}
         </section>
 
