@@ -19,6 +19,7 @@ import { LocationSheet } from '../components/LocationSheet'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm } from '../lib/geo'
+import { activePromo } from '../lib/promo'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { locationLabel } from '../data/locations'
 import type { LocationFilter } from '../types'
@@ -33,6 +34,7 @@ export function Home() {
   const { position, status, requestLocation } = useGeo()
 
   const featured = listings.filter((l) => l.featured).slice(0, 8)
+  const promos = useMemo(() => listings.filter((l) => activePromo(l)).slice(0, 10), [listings])
   const recent = listings.slice(0, 12)
 
   const nearby = useMemo(() => {
@@ -201,6 +203,33 @@ export function Home() {
         </div>
         <ChevronRight size={20} className="text-white/80" />
       </Link>
+
+      {/* Bons plans (promotions) */}
+      {promos.length > 0 && (
+        <section className="pb-5">
+          <div className="mb-3 flex items-center justify-between px-4">
+            <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
+              🏷️ Bons plans
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">
+                Prix réduits
+              </span>
+            </h2>
+            <button
+              onClick={() => navigate(`/explorer?${buildParams({ promo: '1' })}`)}
+              className="text-sm font-semibold text-primary-600"
+            >
+              Voir tout
+            </button>
+          </div>
+          <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
+            {promos.map((l) => (
+              <div key={l.id} className="w-40 shrink-0">
+                <ListingCard listing={l} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* À la une */}
       {featured.length > 0 && (

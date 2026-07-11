@@ -4,6 +4,7 @@ import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigatio
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm } from '../lib/geo'
+import { activePromo } from '../lib/promo'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { Sheet } from '../components/Sheet'
@@ -35,6 +36,7 @@ export function Browse() {
   const min = params.get('min') ?? ''
   const max = params.get('max') ?? ''
   const livr = params.get('livr') ?? ''
+  const promoOnly = params.get('promo') === '1'
   const tri = (params.get('tri') as Sort) ?? 'recent'
   const loc: LocationFilter = {
     regionId: params.get('region') ?? undefined,
@@ -79,6 +81,7 @@ export function Browse() {
       if (min && l.price < Number(min)) return false
       if (max && l.price > Number(max)) return false
       if (livr && !l.delivery) return false
+      if (promoOnly && !activePromo(l)) return false
       if (nq) {
         const hay = normalize(`${l.title} ${l.description} ${l.subcategory ?? ''}`)
         if (!hay.includes(nq)) return false
@@ -99,7 +102,7 @@ export function Browse() {
       })
     }
     return out
-  }, [listings, q, cat, sub, cond, min, max, livr, tri, position, loc.regionId, loc.cityId, loc.commune])
+  }, [listings, q, cat, sub, cond, min, max, livr, promoOnly, tri, position, loc.regionId, loc.cityId, loc.commune])
 
   const activeCat = categoryById(cat)
   const activeFilters =
@@ -187,6 +190,12 @@ export function Browse() {
             className={`chip ${tri === 'prix-asc' || tri === 'prix-desc' ? 'border-primary-200 bg-primary-50 text-primary-700' : ''}`}
           >
             Prix {tri === 'prix-asc' ? '↑' : tri === 'prix-desc' ? '↓' : ''}
+          </button>
+          <button
+            onClick={() => update({ promo: promoOnly ? undefined : '1' })}
+            className={`chip ${promoOnly ? 'border-red-500 bg-red-500 text-white' : 'border-red-200 text-red-600'}`}
+          >
+            🏷️ Bons plans
           </button>
         </div>
 
