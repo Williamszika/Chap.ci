@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check } from 'lucide-react'
+import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { categories, categoryById } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { LocationSheet } from '../components/LocationSheet'
-import { locationLabel } from '../data/locations'
+import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { useLocalStorage } from '../lib/useLocalStorage'
+import { getBestPosition, reverseGeocode } from '../lib/geo'
 import { coordsFor, type Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
@@ -32,6 +33,7 @@ export function PostAd() {
   const [loc, setLoc] = useState<LocationFilter>({})
   const [locOpen, setLocOpen] = useState(false)
   const [coords, setCoords] = useState<Coords | null>(null)
+  const [locating, setLocating] = useState(false)
   const [seller, setSeller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -66,6 +68,26 @@ export function PostAd() {
 
   function removeImage(i: number) {
     setImages((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  // Géolocalise l'utilisateur (GPS) et verrouille la localisation de l'annonce.
+  async function detect() {
+    setLocating(true)
+    try {
+      const fix = await getBestPosition()
+      setCoords({ lat: fix.lat, lng: fix.lng })
+      const geo = await reverseGeocode(fix.lat, fix.lng)
+      const resolved = resolveLocationByName(geo?.suburb, geo?.city, geo?.region) ?? {}
+      if (resolved.regionId) {
+        setLoc({ regionId: resolved.regionId, cityId: resolved.cityId, commune: resolved.commune })
+      }
+    } catch {
+      alert(
+        'Impossible d’obtenir votre position. Autorisez la localisation dans votre navigateur, puis réessayez.',
+      )
+    } finally {
+      setLocating(false)
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -268,18 +290,39 @@ export function PostAd() {
           </label>
         </Field>
 
-        {/* Localisation (pré-remplie depuis votre position) */}
+        {/* Localisation — géolocalisée (GPS) et verrouillée */}
         <Field label="Localisation">
+          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <span className="flex min-w-0 items-center gap-2">
+              <MapPin size={18} className="shrink-0 text-primary-500" />
+              <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
+                {loc.regionId
+                  ? locationLabel(loc.regionId, loc.cityId, loc.commune)
+                  : locating
+                    ? 'Détection de votre position…'
+                    : 'Position non détectée'}
+              </span>
+            </span>
+            <Lock size={15} className="shrink-0 text-gray-400" />
+          </div>
           <button
             type="button"
-            onClick={() => setLocOpen(true)}
-            className="input flex items-center justify-between text-left"
+            onClick={detect}
+            disabled={locating}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition active:scale-[0.99] disabled:opacity-60"
           >
-            <span className={loc.regionId ? 'text-gray-800' : 'text-gray-400'}>
-              {loc.regionId ? locationLabel(loc.regionId, loc.cityId, loc.commune) : 'Choisir la région / ville / commune'}
-            </span>
-            <MapPin size={18} className="text-gray-400" />
+            <LocateFixed size={16} />
+            {locating ? 'Localisation…' : loc.regionId ? 'Actualiser ma position (GPS)' : 'Activer ma position (GPS)'}
           </button>
+          {!loc.regionId && !locating && (
+            <button
+              type="button"
+              onClick={() => setLocOpen(true)}
+              className="mt-2 w-full text-center text-xs text-gray-400 underline"
+            >
+              La détection a échoué ? Choisir manuellement
+            </button>
+          )}
         </Field>
 
         {/* Livraison */}
