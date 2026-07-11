@@ -9,100 +9,176 @@ import {
 } from 'react'
 import type { Listing } from '../types'
 import { seedListings } from '../data/seedListings'
+import { isSupabaseConfigured } from '../lib/supabaseClient'
+import { fetchListings, createListing, deleteListingRemote } from '../lib/api'
+import { useAuth } from './AuthContext'
 
 const LS_LISTINGS = 'chapci.listings.v1'
 const LS_FAVORITES = 'chapci.favorites.v1'
+const LS_MYIDS = 'chapci.myids.v1'
+
+/** Données nécessaires pour créer une annonce (l'id et la date sont générés). */
+export type NewListingInput = Omit<Listing, 'id' | 'createdAt' | 'currency'>
+
+type Mode = 'supabase' | 'local'
 
 interface AppState {
   listings: Listing[]
+  loading: boolean
+  mode: Mode
   favorites: string[]
-  addListing: (listing: Listing) => void
-  deleteListing: (id: string) => void
+  addListing: (input: NewListingInput) => Promise<Listing>
+  deleteListing: (id: string) => Promise<void>
   toggleFavorite: (id: string) => void
   isFavorite: (id: string) => boolean
+  isMine: (id: string) => boolean
   getListing: (id: string) => Listing | undefined
+  refresh: () => Promise<void>
   resetDemo: () => void
 }
 
 const AppContext = createContext<AppState | null>(null)
 
-function loadUserListings(): Listing[] {
+function loadJSON<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(LS_LISTINGS)
-    if (!raw) return []
+    const raw = localStorage.getItem(key)
+    if (!raw) return fallback
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as Listing[]
-    return []
+    return parsed as T
   } catch {
-    return []
-  }
-}
-
-function loadFavorites(): string[] {
-  try {
-    const raw = localStorage.getItem(LS_FAVORITES)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed)) return parsed as string[]
-    return []
-  } catch {
-    return []
+    return fallback
   }
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Annonces créées par l'utilisateur (persistées) + annonces de démo
-  const [userListings, setUserListings] = useState<Listing[]>(() => loadUserListings())
-  const [favorites, setFavorites] = useState<string[]>(() => loadFavorites())
+  const { user } = useAuth()
 
+  const [userListings, setUserListings] = useState<Listing[]>(() =>
+    loadJSON<Listing[]>(LS_LISTINGS, []),
+  )
+  const [remoteListings, setRemoteListings] = useState<Listing[]>([])
+  const [favorites, setFavorites] = useState<string[]>(() => loadJSON<string[]>(LS_FAVORITES, []))
+  const [myIds, setMyIds] = useState<string[]>(() => loadJSON<string[]>(LS_MYIDS, []))
+  const [mode, setMode] = useState<Mode>('local')
+  const [loading, setLoading] = useState<boolean>(isSupabaseConfigured)
+
+  // Persistance locale
   useEffect(() => {
     localStorage.setItem(LS_LISTINGS, JSON.stringify(userListings))
   }, [userListings])
-
   useEffect(() => {
     localStorage.setItem(LS_FAVORITES, JSON.stringify(favorites))
   }, [favorites])
+  useEffect(() => {
+    localStorage.setItem(LS_MYIDS, JSON.stringify(myIds))
+  }, [myIds])
+
+  const refresh = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      setMode('local')
+      setLoading(false)
+      return
+    }
+    try {
+      const data = await fetchListings()
+      setRemoteListings(data)
+      setMode('supabase')
+    } catch (e) {
+      // Table absente ou hors-ligne : on bascule en mode local (démo + appareil)
+      console.warn('Supabase indisponible, mode local activé.', e)
+      setMode('local')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
 
   const listings = useMemo<Listing[]>(() => {
-    // Les annonces utilisateur d'abord (plus récentes), puis les démos
-    return [...userListings, ...seedListings].sort((a, b) => b.createdAt - a.createdAt)
-  }, [userListings])
+    // En mode Supabase : annonces partagées + éventuelles annonces créées
+    // localement avant l'activation du backend. Les annonces de démonstration
+    // enrichissent l'affichage (contenu d'exemple).
+    const base = mode === 'supabase' ? [...remoteListings, ...userListings] : userListings
+    const all = [...base, ...seedListings]
+    // Dédoublonnage par id (sécurité)
+    const seen = new Set<string>()
+    const unique = all.filter((l) => (seen.has(l.id) ? false : seen.add(l.id)))
+    return unique.sort((a, b) => b.createdAt - a.createdAt)
+  }, [mode, remoteListings, userListings])
 
-  const addListing = useCallback((listing: Listing) => {
-    setUserListings((prev) => [listing, ...prev])
-  }, [])
+  const addListing = useCallback(
+    async (input: NewListingInput): Promise<Listing> => {
+      if (mode === 'supabase') {
+        try {
+          const created = await createListing(input, user?.id ?? null)
+          setRemoteListings((prev) => [created, ...prev])
+          setMyIds((prev) => [created.id, ...prev])
+          return created
+        } catch (e) {
+          console.error('Échec de la création côté Supabase, repli local.', e)
+          // repli local
+        }
+      }
+      const local: Listing = {
+        ...input,
+        id: `user-${Date.now()}`,
+        currency: 'FCFA',
+        createdAt: Date.now(),
+      }
+      setUserListings((prev) => [local, ...prev])
+      setMyIds((prev) => [local.id, ...prev])
+      return local
+    },
+    [mode, user?.id],
+  )
 
-  const deleteListing = useCallback((id: string) => {
-    setUserListings((prev) => prev.filter((l) => l.id !== id))
-    setFavorites((prev) => prev.filter((f) => f !== id))
-  }, [])
+  const deleteListing = useCallback(
+    async (id: string) => {
+      if (mode === 'supabase' && !id.startsWith('user-') && !id.startsWith('seed-')) {
+        try {
+          await deleteListingRemote(id)
+          setRemoteListings((prev) => prev.filter((l) => l.id !== id))
+        } catch (e) {
+          console.error('Suppression impossible (droits).', e)
+          throw e
+        }
+      } else {
+        setUserListings((prev) => prev.filter((l) => l.id !== id))
+      }
+      setMyIds((prev) => prev.filter((x) => x !== id))
+      setFavorites((prev) => prev.filter((f) => f !== id))
+    },
+    [mode],
+  )
 
   const toggleFavorite = useCallback((id: string) => {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [id, ...prev],
-    )
+    setFavorites((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [id, ...prev]))
   }, [])
 
   const isFavorite = useCallback((id: string) => favorites.includes(id), [favorites])
-
-  const getListing = useCallback(
-    (id: string) => listings.find((l) => l.id === id),
-    [listings],
-  )
+  const isMine = useCallback((id: string) => myIds.includes(id), [myIds])
+  const getListing = useCallback((id: string) => listings.find((l) => l.id === id), [listings])
 
   const resetDemo = useCallback(() => {
     setUserListings([])
     setFavorites([])
+    setMyIds([])
   }, [])
 
   const value: AppState = {
     listings,
+    loading,
+    mode,
     favorites,
     addListing,
     deleteListing,
     toggleFavorite,
     isFavorite,
+    isMine,
     getListing,
+    refresh,
     resetDemo,
   }
 

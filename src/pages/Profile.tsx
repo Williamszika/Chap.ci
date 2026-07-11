@@ -10,18 +10,29 @@ import {
   ChevronRight,
   MapPin,
   Gift,
+  LogIn,
+  LogOut,
+  UserCircle,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { priceLabel } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { useLocalStorage } from '../lib/useLocalStorage'
 
 export function Profile() {
   const navigate = useNavigate()
-  const { listings, favorites, deleteListing, resetDemo } = useApp()
+  const { listings, favorites, deleteListing, resetDemo, isMine } = useApp()
+  const { user, enabled, signOut } = useAuth()
   const [seller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
 
-  const myListings = listings.filter((l) => l.id.startsWith('user-'))
+  const displayName =
+    (user?.user_metadata?.full_name as string | undefined) ||
+    seller.name ||
+    user?.email?.split('@')[0] ||
+    ''
+
+  const myListings = listings.filter((l) => isMine(l.id))
 
   return (
     <div className="min-h-screen">
@@ -29,12 +40,12 @@ export function Profile() {
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-6 pt-5 text-white">
         <div className="flex items-center gap-3">
           <div className="grid h-16 w-16 place-items-center rounded-full bg-white/20 text-2xl font-black">
-            {(seller.name || 'C').charAt(0).toUpperCase()}
+            {(displayName || 'C').charAt(0).toUpperCase()}
           </div>
-          <div>
-            <p className="text-lg font-black">{seller.name || 'Bienvenue 👋'}</p>
-            <p className="text-sm text-white/85">
-              {seller.phone || 'Publiez votre première annonce'}
+          <div className="min-w-0">
+            <p className="truncate text-lg font-black">{displayName || 'Bienvenue 👋'}</p>
+            <p className="truncate text-sm text-white/85">
+              {user?.email || seller.phone || 'Publiez votre première annonce'}
             </p>
           </div>
         </div>
@@ -55,6 +66,33 @@ export function Profile() {
         <button onClick={() => navigate('/publier')} className="btn-primary w-full py-3.5 text-base">
           <PlusCircle size={20} /> Publier une annonce
         </button>
+
+        {/* Compte utilisateur */}
+        {enabled &&
+          (user ? (
+            <section className="card flex items-center gap-3 p-4">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-emerald-100 text-emerald-600">
+                <UserCircle size={24} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-gray-900">Connecté</p>
+                <p className="truncate text-xs text-gray-500">{user.email}</p>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 active:scale-95"
+              >
+                <LogOut size={15} /> Déconnexion
+              </button>
+            </section>
+          ) : (
+            <button
+              onClick={() => navigate('/connexion')}
+              className="btn-outline w-full py-3.5 text-base"
+            >
+              <LogIn size={20} /> Se connecter / Créer un compte
+            </button>
+          ))}
 
         {/* Mes annonces */}
         <section>
@@ -87,8 +125,13 @@ export function Profile() {
                     </div>
                   </Link>
                   <button
-                    onClick={() => {
-                      if (confirm('Supprimer cette annonce ?')) deleteListing(l.id)
+                    onClick={async () => {
+                      if (!confirm('Supprimer cette annonce ?')) return
+                      try {
+                        await deleteListing(l.id)
+                      } catch {
+                        alert('Suppression impossible : vous devez être le propriétaire connecté.')
+                      }
                     }}
                     className="grid h-9 w-9 place-items-center rounded-full text-red-500 hover:bg-red-50"
                     aria-label="Supprimer"

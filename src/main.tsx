@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { AppProvider } from './store/AppContext'
+import { AuthProvider } from './store/AuthContext'
 import './index.css'
 
 // HashRouter : fonctionne partout sans configuration serveur — idéal pour
@@ -10,9 +11,11 @@ import './index.css'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
-      <AppProvider>
-        <App />
-      </AppProvider>
+      <AuthProvider>
+        <AppProvider>
+          <App />
+        </AppProvider>
+      </AuthProvider>
     </HashRouter>
   </StrictMode>,
 )

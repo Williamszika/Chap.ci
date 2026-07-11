@@ -7,6 +7,11 @@ dist-ssr/
 *.local
 *.tsbuildinfo
 
+# Variables d'environnement (secrets locaux)
+.env
+.env.*
+!.env.example
+
 # Capacitor natif (généré par `npx cap add`)
 /android
 /ios

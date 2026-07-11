@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Camera, X, MapPin, Check, ChevronDown } from 'lucide-react'
-import { useApp } from '../store/AppContext'
+import { useApp, type NewListingInput } from '../store/AppContext'
 import { categories, categoryById } from '../data/categories'
 import { LocationSheet } from '../components/LocationSheet'
 import { locationLabel } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { useLocalStorage } from '../lib/useLocalStorage'
-import type { Listing, LocationFilter } from '../types'
+import type { LocationFilter } from '../types'
 
 const MAX_PHOTOS = 5
 
@@ -29,6 +29,7 @@ export function PostAd() {
   const [locOpen, setLocOpen] = useState(false)
   const [seller, setSeller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const cat = categoryById(categoryId)
 
@@ -51,7 +52,7 @@ export function PostAd() {
     setImages((prev) => prev.filter((_, idx) => idx !== i))
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     if (!title.trim()) return setError('Ajoutez un titre à votre annonce.')
@@ -65,13 +66,11 @@ export function PostAd() {
     const finalImages =
       images.length > 0 ? images : [placeholderImage(title, emoji, subcategory)]
 
-    const listing: Listing = {
-      id: `user-${Date.now()}`,
+    const input: NewListingInput = {
       title: title.trim(),
       description: description.trim() || 'Aucune description fournie.',
       price: Number(price),
       negotiable,
-      currency: 'FCFA',
       categoryId,
       subcategory: subcategory || undefined,
       condition,
@@ -81,12 +80,18 @@ export function PostAd() {
       commune: loc.commune,
       sellerName: seller.name.trim(),
       sellerPhone: seller.phone.trim(),
-      createdAt: Date.now(),
       delivery,
       featured: false,
     }
-    addListing(listing)
-    navigate(`/annonce/${listing.id}`)
+
+    setSubmitting(true)
+    try {
+      const created = await addListing(input)
+      navigate(`/annonce/${created.id}`)
+    } catch {
+      setError("Échec de la publication. Vérifiez votre connexion et réessayez.")
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -296,8 +301,8 @@ export function PostAd() {
           </p>
         )}
 
-        <button type="submit" className="btn-primary w-full py-3.5 text-base">
-          <Check size={20} /> Publier mon annonce
+        <button type="submit" disabled={submitting} className="btn-primary w-full py-3.5 text-base">
+          <Check size={20} /> {submitting ? 'Publication…' : 'Publier mon annonce'}
         </button>
       </form>
 

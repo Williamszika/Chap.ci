@@ -8,6 +8,7 @@ import { PostAd } from './pages/PostAd'
 import { Favorites } from './pages/Favorites'
 import { Profile } from './pages/Profile'
 import { Donate } from './pages/Donate'
+import { Login } from './pages/Login'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/favoris" element={<Favorites />} />
           <Route path="/compte" element={<Profile />} />
           <Route path="/don" element={<Donate />} />
+          <Route path="/connexion" element={<Login />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
