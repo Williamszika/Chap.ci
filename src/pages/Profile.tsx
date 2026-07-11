@@ -9,6 +9,7 @@ import {
   Info,
   ChevronRight,
   MapPin,
+  Gift,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { priceLabel } from '../lib/format'
@@ -104,6 +105,7 @@ export function Profile() {
         <section className="card divide-y divide-gray-100 overflow-hidden">
           <Row to="/favoris" icon={<Heart size={18} className="text-red-500" />} label="Mes favoris" />
           <Row to="/explorer" icon={<Package size={18} className="text-primary-500" />} label="Parcourir les annonces" />
+          <Row to="/don" icon={<Gift size={18} className="text-ivoire-green" />} label="Soutenir Chap.ci (faire un don)" />
         </section>
 
         {/* Installer l'app */}

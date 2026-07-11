@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, MapPin, ChevronDown, Bell } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Search, MapPin, ChevronDown, Bell, Gift, ChevronRight } from 'lucide-react'
 import { categories } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { ListingCard } from '../components/ListingCard'
@@ -111,6 +111,21 @@ export function Home() {
           ))}
         </div>
       </section>
+
+      {/* Bannière don */}
+      <Link
+        to="/don"
+        className="mx-4 mb-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-ivoire-green to-emerald-500 px-4 py-3 text-white shadow-card active:scale-[0.99]"
+      >
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/20">
+          <Gift size={22} />
+        </span>
+        <div className="flex-1">
+          <p className="text-sm font-bold">Soutenir Chap.ci 🇨🇮</p>
+          <p className="text-xs text-white/85">Faites un don par Mobile Money</p>
+        </div>
+        <ChevronRight size={20} className="text-white/80" />
+      </Link>
 
       {/* À la une */}
       {featured.length > 0 && (

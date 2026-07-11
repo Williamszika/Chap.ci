@@ -7,6 +7,7 @@ import { ListingDetail } from './pages/ListingDetail'
 import { PostAd } from './pages/PostAd'
 import { Favorites } from './pages/Favorites'
 import { Profile } from './pages/Profile'
+import { Donate } from './pages/Donate'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/publier" element={<PostAd />} />
           <Route path="/favoris" element={<Favorites />} />
           <Route path="/compte" element={<Profile />} />
+          <Route path="/don" element={<Donate />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>

@@ -16,7 +16,9 @@ export function BottomNav() {
 
   // Masquée sur les pages plein écran
   const hidden =
-    location.pathname.startsWith('/annonce/') || location.pathname === '/publier'
+    location.pathname.startsWith('/annonce/') ||
+    location.pathname === '/publier' ||
+    location.pathname === '/don'
   if (hidden) return null
 
   return (

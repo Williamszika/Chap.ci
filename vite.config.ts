@@ -2,8 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Chemin de base : '/' en local, '/Chap.ci/' pour GitHub Pages.
+// Défini via la variable d'environnement VITE_BASE au moment du build.
+const base = process.env.VITE_BASE ?? '/'
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -19,8 +24,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         lang: 'fr',
-        start_url: '/',
-        scope: '/',
+        // start_url et scope sont dérivés automatiquement du `base` de Vite.
         categories: ['shopping', 'business', 'lifestyle'],
         icons: [
           {
@@ -45,7 +49,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
       },
       devOptions: {
         enabled: false,
