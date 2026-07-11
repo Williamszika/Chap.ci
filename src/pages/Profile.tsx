@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   AlertTriangle,
 } from 'lucide-react'
+import { Mark, Wordmark } from '../components/Logo'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
@@ -329,7 +330,9 @@ export function Profile() {
               Réinitialiser les données de démonstration
             </button>
 
-            <p className="pb-4 text-center text-xs text-gray-400">Chap.ci · v1.0 🇨🇮</p>
+            <p className="flex items-center justify-center gap-1.5 pb-4 text-center text-xs text-gray-400">
+              <Mark size={16} /> <Wordmark className="text-xs" ci="text-ivoire-green" /> · v1.0 🇨🇮
+            </p>
           </div>
         )}
       </div>

@@ -18,9 +18,9 @@ export default defineConfig({
         name: 'Chap.ci — Petites annonces Côte d’Ivoire',
         short_name: 'Chap.ci',
         description:
-          'Achetez et vendez partout en Côte d’Ivoire : Abidjan, Bouaké, Yamoussoukro… par district, région, ville et commune.',
+          'Achetez et vendez partout en Côte d’Ivoire, chap-chap : Abidjan, Bouaké, Yamoussoukro… par district, région, ville et commune.',
         theme_color: '#F77F00',
-        background_color: '#ffffff',
+        background_color: '#FFFDF9',
         display: 'standalone',
         orientation: 'portrait',
         lang: 'fr',
@@ -40,6 +40,12 @@ export default defineConfig({
             purpose: 'any',
           },
           {
+            src: 'icons/icon-maskable-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
             src: 'icons/icon-maskable-512.png',
             sizes: '512x512',
             type: 'image/png',
@@ -49,6 +55,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Inutile de précharger les alphabets non-latins (cyrillique, grec,
+        // vietnamien) : l'app est en français. Économise ~75 Ko de données.
+        globIgnores: ['**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
         navigateFallback: `${base}index.html`,
       },
       devOptions: {

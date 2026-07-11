@@ -1,14 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FF9E1B"/>
-      <stop offset="1" stop-color="#F26800"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Chap.ci">
+ <defs><linearGradient id="bgi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFA243"/><stop offset="0.55" stop-color="#F77F00"/><stop offset="1" stop-color="#D95F00"/></linearGradient></defs>
+ <rect width="1024" height="1024" rx="230" fill="url(#bgi)"/>
+ <rect width="1024" height="500" rx="230" fill="#FFFFFF" opacity="0.07"/>
+ <g transform="translate(222,205) scale(5.8)"><defs>
+    <linearGradient id="ogi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFA243"/><stop offset="0.5" stop-color="#F77F00"/><stop offset="1" stop-color="#D95F00"/>
     </linearGradient>
+    <linearGradient id="ggi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#009E60"/><stop offset="1" stop-color="#00784A"/>
+    </linearGradient>
+    <linearGradient id="shi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.28"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="dsi" x="-40%" y="-40%" width="190%" height="190%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.2" flood-color="#6E3400" flood-opacity="0.28"/>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <!-- Épingle de localisation -->
-  <path d="M256 108c-63 0-114 49-114 110 0 78 96 168 108 178a9 9 0 0 0 12 0c12-10 108-100 108-178 0-61-51-110-114-110z" fill="#ffffff" opacity="0.18"/>
-  <!-- Lettre C -->
-  <path d="M330 196a92 92 0 1 0 0 120" fill="none" stroke="#ffffff" stroke-width="42" stroke-linecap="round"/>
-  <circle cx="256" cy="256" r="14" fill="#009E60"/>
+  <g filter="url(#dsi)">
+    <path d="M50 4 C28 4 11 21 11 43 C11 69 41 90 50 97 C59 90 89 69 89 43 C89 21 72 4 50 4 Z" fill="#FFFFFF"/>
+    <path d="M50 4 C28 4 11 21 11 43 C11 51 13 58 17 65 C15 57 16 49 20 42 C29 26 48 21 62 27 C54 20 43 19 35 23 C42 12 57 8 69 14 C64 8 57 4 50 4 Z" fill="url(#shi)"/>
+  </g>
+  <path d="M63.5 30.4 A 18.6 18.6 0 1 0 63.5 53.6" fill="none" stroke="#F77F00" stroke-width="10" stroke-linecap="round"/></g>
 </svg>

@@ -5,6 +5,7 @@ import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
 import { LocationSheet } from '../components/LocationSheet'
+import { Mark } from '../components/Logo'
 import { locationLabel } from '../data/locations'
 import type { LocationFilter } from '../types'
 
@@ -125,7 +126,8 @@ export function Register() {
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
-        <h1 className="text-lg font-bold">Créer un compte</h1>
+        <Mark size={26} />
+        <h1 className="font-display text-lg font-bold">Créer un compte</h1>
       </header>
 
       {!enabled && (

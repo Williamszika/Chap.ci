@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { categories } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
+import { Mark, Wordmark } from '../components/Logo'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { useApp } from '../store/AppContext'
@@ -62,13 +63,11 @@ export function Home() {
       {/* En-tête orange */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-3 text-white">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/20 text-lg font-black">
-              C
-            </div>
+          <div className="flex items-center gap-2.5">
+            <Mark size={38} variant="white" />
             <div className="leading-none">
-              <p className="text-xl font-black tracking-tight">Chap.ci</p>
-              <p className="text-[11px] font-medium text-white/80">
+              <Wordmark className="text-xl" ci="text-white/75" />
+              <p className="mt-1 text-[11px] font-medium text-white/80">
                 Petites annonces · Côte d’Ivoire
               </p>
             </div>

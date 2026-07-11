@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#F77F00" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,12 +13,72 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta
       name="description"
-      content="Chap.ci — Achetez et vendez partout en Côte d'Ivoire. Petites annonces par district, région, ville et commune : Abidjan, Bouaké, Yamoussoukro, San-Pédro…"
+      content="Chap.ci — Achetez et vendez partout en Côte d'Ivoire, chap-chap. Petites annonces par district, région, ville et commune : Abidjan, Bouaké, Yamoussoukro, San-Pédro…"
     />
     <title>Chap.ci — Petites annonces en Côte d'Ivoire</title>
+    <style>
+      /* Écran de démarrage de la marque, affiché avant le chargement de l'app. */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: linear-gradient(180deg, #ffffff, #fff3e4);
+        transition: opacity 0.35s ease;
+      }
+      #app-splash.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #app-splash svg {
+        width: 92px;
+        height: 92px;
+        filter: drop-shadow(0 14px 26px rgba(217, 95, 0, 0.28));
+      }
+      #app-splash .wm {
+        font-family: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 30px;
+        letter-spacing: -1px;
+        color: #1b1a17;
+      }
+      #app-splash .wm .ci {
+        color: #009e60;
+      }
+      #app-splash .tag {
+        font-family: system-ui, sans-serif;
+        font-size: 12.5px;
+        color: #6b6559;
+        margin-top: -4px;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="app-splash" aria-hidden="true">
+      <svg viewBox="0 0 100 100" role="img" aria-label="Chap.ci">
+        <defs>
+          <linearGradient id="sog" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#FFA243" />
+            <stop offset="0.5" stop-color="#F77F00" />
+            <stop offset="1" stop-color="#D95F00" />
+          </linearGradient>
+          <linearGradient id="ssh" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#fff" stop-opacity="0.28" />
+            <stop offset="0.5" stop-color="#fff" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M50 4 C28 4 11 21 11 43 C11 69 41 90 50 97 C59 90 89 69 89 43 C89 21 72 4 50 4 Z" fill="url(#sog)" />
+        <path d="M50 4 C28 4 11 21 11 43 C11 51 13 58 17 65 C15 57 16 49 20 42 C29 26 48 21 62 27 C54 20 43 19 35 23 C42 12 57 8 69 14 C64 8 57 4 50 4 Z" fill="url(#ssh)" />
+        <path d="M63.5 30.4 A 18.6 18.6 0 1 0 63.5 53.6" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" />
+      </svg>
+      <div class="wm">Chap<span class="ci">.ci</span></div>
+      <div class="tag">Petites annonces · Côte d'Ivoire</div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

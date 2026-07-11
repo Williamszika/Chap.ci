@@ -1,6 +1,7 @@
-import { MapPin, Navigation, Loader2 } from 'lucide-react'
+import { Navigation, Loader2 } from 'lucide-react'
 import { useGeo } from '../store/GeoContext'
 import { locationLabel } from '../data/locations'
+import { Mark, Wordmark } from './Logo'
 
 /**
  * Pop-up affiché à l'ouverture du site : demande d'autoriser la localisation.
@@ -18,10 +19,13 @@ export function LocationGate() {
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/50" />
       <div className="relative z-10 w-full max-w-app rounded-t-3xl bg-white p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl">
-        <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-primary-50">
-          <MapPin size={34} className="text-primary-500" />
+        <div className="mb-4 flex flex-col items-center">
+          <Mark size={60} />
+          <Wordmark className="mt-2 text-xl text-ink" />
         </div>
-        <h2 className="text-center text-xl font-black text-gray-900">Activer votre position</h2>
+        <h2 className="text-center text-xl font-display font-extrabold text-gray-900">
+          Activer votre position
+        </h2>
         <p className="mt-2 text-center text-sm text-gray-500">
           Chap.ci utilise votre position pour vous montrer les annonces proches de vous et
           faciliter la création de votre compte. Vous pouvez la modifier à tout moment.

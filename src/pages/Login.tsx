@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Mail, Lock, Phone, Loader2, ShieldCheck } from 'lucide-react'
 import { useAuth, type OAuthProvider } from '../store/AuthContext'
+import { Mark, Wordmark } from '../components/Logo'
 
 function GoogleIcon() {
   return (
@@ -101,8 +102,8 @@ export function Login() {
 
       <div className="mx-auto max-w-sm px-6 pt-2">
         <div className="mb-5 flex flex-col items-center text-center">
-          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-500 text-2xl font-black text-white">C</div>
-          <h1 className="mt-3 text-2xl font-black text-gray-900">Chap.ci</h1>
+          <Mark size={64} />
+          <Wordmark className="mt-3 text-2xl text-ink" />
           <p className="text-sm text-gray-500">Connectez-vous à votre compte</p>
         </div>
 
