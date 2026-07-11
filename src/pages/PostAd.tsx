@@ -48,7 +48,6 @@ export function PostAd() {
   }, [place])
 
   const cat = categoryById(categoryId)
-  const gpsDetected = coords != null && place?.source === 'gps'
 
   function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -281,11 +280,6 @@ export function PostAd() {
             </span>
             <MapPin size={18} className="text-gray-400" />
           </button>
-          {gpsDetected && (
-            <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600">
-              <Check size={13} /> Position détectée automatiquement
-            </p>
-          )}
         </Field>
 
         {/* Livraison */}
