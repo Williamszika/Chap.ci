@@ -79,3 +79,46 @@ export interface Message {
   body: string
   createdAt: number
 }
+
+// — Panier & commandes —
+export interface CartItem {
+  listingId: string
+  title: string
+  price: number
+  image?: string
+  sellerId: string
+  sellerName: string
+}
+
+export interface OrderItem {
+  listingId: string | null
+  title: string
+  price: number
+  image?: string
+}
+
+export type OrderStatus = 'en_cours' | 'finalise' | 'annule'
+
+export interface Order {
+  id: string
+  buyerId: string
+  sellerId: string
+  conversationId: string | null
+  status: OrderStatus
+  createdAt: number
+  items: OrderItem[]
+  // enrichissements
+  otherName?: string
+}
+
+// — Avis —
+export interface Review {
+  id: string
+  listingId: string | null
+  sellerId: string
+  reviewerId: string
+  rating: number
+  comment?: string
+  createdAt: number
+  reviewerName?: string
+}

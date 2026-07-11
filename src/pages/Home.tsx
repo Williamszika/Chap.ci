@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Navigation,
   LocateFixed,
+  ShoppingCart,
 } from 'lucide-react'
 import { categories } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -17,6 +18,7 @@ import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
+import { useCart } from '../store/CartContext'
 import { haversineKm } from '../lib/geo'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { locationLabel } from '../data/locations'
@@ -30,6 +32,7 @@ export function Home() {
   const [q, setQ] = useState('')
 
   const { position, status, requestLocation } = useGeo()
+  const cart = useCart()
 
   const featured = listings.filter((l) => l.featured).slice(0, 8)
   const recent = listings.slice(0, 12)
@@ -74,11 +77,15 @@ export function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to="/messages"
-              className="rounded-full bg-white/15 p-2"
-              aria-label="Messages"
-            >
+            <Link to="/panier" className="relative rounded-full bg-white/15 p-2" aria-label="Panier">
+              <ShoppingCart size={20} />
+              {cart.count > 0 && (
+                <span className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-red-500 px-1 text-center text-[9px] font-bold">
+                  {cart.count}
+                </span>
+              )}
+            </Link>
+            <Link to="/messages" className="rounded-full bg-white/15 p-2" aria-label="Messages">
               <MessageSquare size={20} />
             </Link>
             <button className="relative rounded-full bg-white/15 p-2" aria-label="Notifications">

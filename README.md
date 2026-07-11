@@ -26,6 +26,11 @@ installable sur **iPhone (iOS)** et **Android**.
 - 👤 **Comptes utilisateurs** : création de compte et connexion (email / mot de passe)
 - 📍 **Géolocalisation** : position GPS des annonces (ou commune), distance
   « à X km de vous » sur chaque annonce, et tri **« Près de moi »**
+- 🛒 **Panier & demandes d'achat** : « Acheter » envoie une demande au vendeur
+  via la messagerie (regroupée par vendeur) — les contacts ne sont jamais exposés
+- ⭐ **Avis vérifiés** : seuls les acheteurs d'un article peuvent le noter
+- 🏪 **Profils vendeurs publics** (note, avis, annonces) + **tableau de bord**
+  (achats, ventes, annonces, paramètres)
 - 💚 **Faire un don** : soutien du site par **Mobile Money** (Orange Money,
   MTN MoMo, Moov Money, Wave) — numéros faciles à renseigner
 - ❤️ **Favoris** enregistrés
@@ -108,6 +113,10 @@ Pour activer le **backend partagé** :
    - Si vous aviez déjà créé les tables **avant** la géolocalisation, exécutez
      aussi [`supabase/add-geolocation.sql`](supabase/add-geolocation.sql) (ajoute
      les colonnes `lat`/`lng`).
+   - Pour le **panier, les demandes d'achat et les avis**, exécutez
+     [`supabase/add-orders-reviews.sql`](supabase/add-orders-reviews.sql)
+     (tables `orders`, `order_items`, `reviews` + sécurité RLS : un avis n'est
+     possible que si l'on a commandé l'article).
 2. **Comptes utilisateurs** : dans Supabase → **Authentication** → *Sign In / Providers*
    → **Email**. Pour des inscriptions immédiates (recommandé au lancement),
    désactivez **« Confirm email »**. Sinon, les utilisateurs devront confirmer

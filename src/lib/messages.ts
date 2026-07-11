@@ -50,6 +50,29 @@ export async function getOrCreateConversation(
   return (data as { id: string }).id
 }
 
+/** Ouvre/crée une conversation à partir des identifiants bruts (pour le panier). */
+export async function getOrCreateConversationRaw(
+  listingId: string,
+  sellerId: string,
+  buyerId: string,
+): Promise<string> {
+  if (!supabase) throw new Error('Supabase non configuré')
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('listing_id', listingId)
+    .eq('buyer_id', buyerId)
+    .maybeSingle()
+  if (existing) return (existing as { id: string }).id
+  const { data, error } = await supabase
+    .from('conversations')
+    .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId })
+    .select('id')
+    .single()
+  if (error) throw error
+  return (data as { id: string }).id
+}
+
 /** Liste les conversations de l'utilisateur, enrichies (annonce, interlocuteur, dernier message). */
 export async function fetchConversations(userId: string): Promise<Conversation[]> {
   if (!supabase) return []

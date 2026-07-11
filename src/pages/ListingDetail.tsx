@@ -1,12 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
   Heart,
   Share2,
   MapPin,
-  Phone,
-  MessageCircle,
   MessageSquare,
   BadgeCheck,
   Truck,
@@ -14,39 +12,71 @@ import {
   Tag,
   Clock,
   User,
-  CreditCard,
   Navigation,
+  ShoppingCart,
+  ShoppingBag,
+  ChevronRight,
+  Check,
 } from 'lucide-react'
-import { PaySheet } from '../components/PaySheet'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
+import { useCart } from '../store/CartContext'
 import { haversineKm, formatDistance } from '../lib/geo'
 import { getOrCreateConversation } from '../lib/messages'
+import { placeOrderForSeller } from '../lib/checkout'
+import { fetchReviewsForListing, createReview, averageRating } from '../lib/reviews'
+import { fetchPurchasedListingIds } from '../lib/orders'
 import { priceLabel, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { ListingCard } from '../components/ListingCard'
+import { Stars } from '../components/Stars'
+import type { Review } from '../types'
 
 export function ListingDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { getListing, isFavorite, toggleFavorite, listings } = useApp()
-  const { user, enabled } = useAuth()
+  const { user } = useAuth()
   const { position } = useGeo()
+  const cart = useCart()
   const listing = id ? getListing(id) : undefined
+
   const [imgIndex, setImgIndex] = useState(0)
-  const [startingChat, setStartingChat] = useState(false)
-  const [payOpen, setPayOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [added, setAdded] = useState(false)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [purchased, setPurchased] = useState(false)
+  const [showReview, setShowReview] = useState(false)
+  const [rating, setRating] = useState(5)
+  const [comment, setComment] = useState('')
+
+  const listingId = listing?.id
+  const sellerId = listing?.sellerId
+
+  useEffect(() => {
+    if (!listingId) return
+    let active = true
+    fetchReviewsForListing(listingId)
+      .then((r) => active && setReviews(r))
+      .catch(() => {})
+    if (user) {
+      fetchPurchasedListingIds(user.id)
+        .then((s) => active && setPurchased(s.has(listingId)))
+        .catch(() => {})
+    }
+    return () => {
+      active = false
+    }
+  }, [listingId, user])
 
   if (!listing) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
         <div className="text-5xl">🤔</div>
         <p className="font-semibold text-gray-700">Annonce introuvable</p>
-        <p className="text-sm text-gray-500">
-          Cette annonce a peut-être été retirée ou n’existe plus.
-        </p>
+        <p className="text-sm text-gray-500">Cette annonce a peut-être été retirée ou n’existe plus.</p>
         <Link to="/" className="btn-primary">
           Retour à l’accueil
         </Link>
@@ -56,11 +86,10 @@ export function ListingDetail() {
 
   const fav = isFavorite(listing.id)
   const cat = categoryById(listing.categoryId)
-  const phoneDigits = listing.sellerPhone.replace(/[^\d+]/g, '')
-  const waNumber = phoneDigits.replace(/^\+/, '')
-  const waText = encodeURIComponent(
-    `Bonjour, je suis intéressé(e) par votre annonce "${listing.title}" sur Chap.ci.`,
-  )
+  const { avg, count } = averageRating(reviews)
+  const isMine = user && sellerId && user.id === sellerId
+  const isDemo = !sellerId // annonce de démonstration (sans compte vendeur)
+  const inCart = cart.has(listing.id)
 
   const similar = listings
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
@@ -84,27 +113,84 @@ export function ListingDetail() {
     }
   }
 
-  const canMessage = enabled && !!listing.sellerId && user?.id !== listing.sellerId
-
-  async function contactSeller() {
+  function requireAuth(): boolean {
     if (!user) {
       navigate('/connexion')
-      return
+      return false
     }
-    if (!listing) return
-    setStartingChat(true)
+    return true
+  }
+
+  async function buyNow() {
+    if (isDemo) return
+    if (!requireAuth() || !listing || !sellerId || !user) return
+    setBusy(true)
+    try {
+      const convId = await placeOrderForSeller(user.id, {
+        sellerId,
+        sellerName: listing.sellerName,
+        items: [
+          {
+            listingId: listing.id,
+            title: listing.title,
+            price: listing.price,
+            image: listing.images[0],
+            sellerId,
+            sellerName: listing.sellerName,
+          },
+        ],
+        total: listing.price,
+      })
+      cart.remove(listing.id)
+      navigate(`/messages/${convId}`)
+    } catch {
+      alert('Échec de l’envoi de la demande. Réessayez.')
+      setBusy(false)
+    }
+  }
+
+  function addToCart() {
+    if (isDemo || !listing) return
+    if (!requireAuth()) return
+    cart.add(listing)
+    setAdded(true)
+    setTimeout(() => setAdded(false), 1600)
+  }
+
+  async function askQuestion() {
+    if (isDemo) return
+    if (!requireAuth() || !listing || !user) return
+    setBusy(true)
     try {
       const convId = await getOrCreateConversation(listing, user.id)
       navigate(`/messages/${convId}`)
     } catch {
-      alert('Impossible d’ouvrir la conversation pour le moment.')
-      setStartingChat(false)
+      alert('Impossible d’ouvrir la conversation.')
+      setBusy(false)
     }
   }
 
+  async function submitReview() {
+    if (!user || !listing || !sellerId) return
+    setBusy(true)
+    try {
+      await createReview({ listingId: listing.id, sellerId, reviewerId: user.id, rating, comment: comment.trim() })
+      const r = await fetchReviewsForListing(listing.id)
+      setReviews(r)
+      setShowReview(false)
+      setComment('')
+    } catch {
+      alert('Vous devez avoir commandé cet article pour laisser un avis.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const alreadyReviewed = user ? reviews.some((r) => r.reviewerId === user.id) : false
+
   return (
     <div className="min-h-screen bg-white pb-24">
-      {/* Galerie d'images */}
+      {/* Galerie */}
       <div className="relative">
         <div
           className="no-scrollbar flex aspect-square snap-x snap-mandatory overflow-x-auto bg-gray-100"
@@ -123,7 +209,6 @@ export function ListingDetail() {
           ))}
         </div>
 
-        {/* Boutons overlay */}
         <div className="safe-top absolute inset-x-0 top-0 flex items-center justify-between p-3">
           <button
             onClick={() => navigate(-1)}
@@ -150,15 +235,12 @@ export function ListingDetail() {
           </div>
         </div>
 
-        {/* Indicateurs */}
         {listing.images.length > 1 && (
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
             {listing.images.map((_, i) => (
               <span
                 key={i}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === imgIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60'
-                }`}
+                className={`h-1.5 rounded-full transition-all ${i === imgIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
               />
             ))}
           </div>
@@ -167,9 +249,7 @@ export function ListingDetail() {
 
       {/* Contenu */}
       <div className="px-4 py-4">
-        <p className="text-2xl font-black text-primary-600">
-          {priceLabel(listing.price, listing.negotiable)}
-        </p>
+        <p className="text-2xl font-black text-primary-600">{priceLabel(listing.price, listing.negotiable)}</p>
         <h1 className="mt-1 text-lg font-bold leading-snug text-gray-900">{listing.title}</h1>
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -224,55 +304,87 @@ export function ListingDetail() {
         </div>
 
         {/* Vendeur */}
-        <div className="mt-5 card p-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-100 text-primary-600">
-              <User size={24} />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-gray-900">{listing.sellerName}</p>
-              <p className="text-xs text-gray-500">Vendeur sur Chap.ci</p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-              <ShieldCheck size={13} /> Vérifié
-            </span>
+        <Link
+          to={sellerId ? `/vendeur/${sellerId}` : '#'}
+          onClick={(e) => {
+            if (!sellerId) e.preventDefault()
+          }}
+          className="mt-5 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card"
+        >
+          <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-100 text-primary-600">
+            <User size={24} />
           </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-bold text-gray-900">{listing.sellerName}</p>
+            {count > 0 ? (
+              <span className="flex items-center gap-1 text-xs text-gray-500">
+                <Stars value={avg} size={13} /> {avg.toFixed(1)} · {count} avis
+              </span>
+            ) : (
+              <p className="text-xs text-gray-400">Vendeur sur Chap.ci</p>
+            )}
+          </div>
+          {sellerId && <ChevronRight size={20} className="text-gray-300" />}
+        </Link>
+
+        {/* Avis */}
+        <div className="mt-5">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-gray-900">Avis {count > 0 ? `(${count})` : ''}</h2>
+            {user && purchased && !alreadyReviewed && !isMine && (
+              <button onClick={() => setShowReview((s) => !s)} className="text-sm font-semibold text-primary-600">
+                {showReview ? 'Annuler' : 'Laisser un avis'}
+              </button>
+            )}
+          </div>
+
+          {showReview && (
+            <div className="mb-3 rounded-2xl border border-gray-200 p-3">
+              <Stars value={rating} size={26} editable onChange={setRating} />
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Décrivez votre expérience avec ce vendeur…"
+                rows={3}
+                className="input mt-2 resize-none text-sm"
+              />
+              <button onClick={submitReview} disabled={busy} className="btn-primary mt-2 w-full py-2.5 text-sm">
+                Publier mon avis
+              </button>
+            </div>
+          )}
+
+          {reviews.length === 0 ? (
+            <p className="text-sm text-gray-400">Aucun avis pour le moment.</p>
+          ) : (
+            <div className="space-y-3">
+              {reviews.slice(0, 4).map((r) => (
+                <div key={r.id} className="rounded-xl bg-gray-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-800">{r.reviewerName}</span>
+                    <Stars value={r.rating} size={13} />
+                  </div>
+                  {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+                  <p className="mt-1 text-[11px] text-gray-400">{timeAgo(r.createdAt)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Payer par Mobile Money */}
-        <button
-          onClick={() => setPayOpen(true)}
-          className="mt-4 flex w-full items-center justify-between rounded-2xl border border-ivoire-green/30 bg-emerald-50 px-4 py-3.5 text-left active:scale-[0.99]"
-        >
-          <span className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-ivoire-green text-white">
-              <CreditCard size={20} />
-            </span>
-            <span>
-              <span className="block text-sm font-bold text-gray-900">Payer par Mobile Money</span>
-              <span className="block text-xs text-gray-500">Orange, MTN, Moov, Wave</span>
-            </span>
-          </span>
-          <span className="text-sm font-bold text-ivoire-green">{priceLabel(listing.price)}</span>
-        </button>
-
-        {/* Conseils sécurité */}
-        <div className="mt-4 rounded-2xl bg-amber-50 p-4">
+        {/* Sécurité */}
+        <div className="mt-5 rounded-2xl bg-amber-50 p-4">
           <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-amber-800">
-            <ShieldCheck size={16} /> Conseils de sécurité
+            <ShieldCheck size={16} /> Achetez en toute sécurité
           </p>
           <ul className="ml-1 list-disc space-y-0.5 pl-4 text-xs text-amber-700">
-            <li>Rencontrez le vendeur dans un lieu public et fréquenté.</li>
+            <li>Échangez uniquement via la messagerie de Chap.ci.</li>
+            <li>Rencontrez le vendeur dans un lieu public, ou privilégiez le paiement à la livraison.</li>
             <li>Vérifiez le produit avant de payer.</li>
-            <li>Ne payez jamais à l’avance sans avoir vu l’article.</li>
-            <li>
-              Chap.ci met en relation acheteurs et vendeurs : le paiement et la livraison se font
-              directement entre vous, hors de l’application.
-            </li>
           </ul>
         </div>
 
-        {/* Annonces similaires */}
+        {/* Similaires */}
         {similar.length > 0 && (
           <div className="mt-6">
             <h2 className="mb-3 text-base font-bold text-gray-900">Annonces similaires</h2>
@@ -287,33 +399,41 @@ export function ListingDetail() {
         )}
       </div>
 
-      {/* Barre de contact fixe */}
+      {/* Barre d'action fixe */}
       <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white px-4 py-3 shadow-nav safe-bottom">
-        {canMessage && (
-          <button
-            onClick={contactSeller}
-            disabled={startingChat}
-            className="btn-primary mb-2 w-full"
-          >
-            <MessageSquare size={18} /> {startingChat ? 'Ouverture…' : 'Envoyer un message'}
-          </button>
+        {isDemo ? (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-gray-500">Annonce de démonstration (exemple).</p>
+            <Link to="/publier" className="btn-primary py-2.5 text-sm">
+              Publier la mienne
+            </Link>
+          </div>
+        ) : isMine ? (
+          <Link to="/compte" className="btn-outline w-full py-3">
+            Gérer mon annonce
+          </Link>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button onClick={askQuestion} className="btn-outline shrink-0 px-3" aria-label="Poser une question">
+              <MessageSquare size={20} />
+            </button>
+            <button onClick={addToCart} className="btn-outline flex-1 px-2">
+              {added || inCart ? (
+                <>
+                  <Check size={18} className="text-ivoire-green" /> Au panier
+                </>
+              ) : (
+                <>
+                  <ShoppingCart size={18} /> Panier
+                </>
+              )}
+            </button>
+            <button onClick={buyNow} disabled={busy} className="btn-primary flex-1">
+              <ShoppingBag size={18} /> {busy ? '…' : 'Acheter'}
+            </button>
+          </div>
         )}
-        <div className="flex gap-2">
-          <a href={`tel:${phoneDigits}`} className="btn-outline flex-1">
-            <Phone size={18} /> Appeler
-          </a>
-          <a
-            href={`https://wa.me/${waNumber}?text=${waText}`}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-primary flex-1 bg-[#25D366] hover:bg-[#1eb958]"
-          >
-            <MessageCircle size={18} /> WhatsApp
-          </a>
-        </div>
       </div>
-
-      <PaySheet open={payOpen} onClose={() => setPayOpen(false)} listing={listing} />
     </div>
   )
 }

@@ -11,6 +11,8 @@ import { Donate } from './pages/Donate'
 import { Login } from './pages/Login'
 import { Messages } from './pages/Messages'
 import { Conversation } from './pages/Conversation'
+import { Cart } from './pages/Cart'
+import { SellerProfile } from './pages/SellerProfile'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -36,6 +38,8 @@ export default function App() {
           <Route path="/connexion" element={<Login />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Conversation />} />
+          <Route path="/panier" element={<Cart />} />
+          <Route path="/vendeur/:id" element={<SellerProfile />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>
