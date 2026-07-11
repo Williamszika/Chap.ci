@@ -127,7 +127,7 @@ export function ListingDetail() {
         <div className="safe-top absolute inset-x-0 top-0 flex items-center justify-between p-3">
           <button
             onClick={() => navigate(-1)}
-            className="grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow backdrop-blur"
+            className="grid h-10 w-10 place-items-center rounded-full bg-white shadow"
             aria-label="Retour"
           >
             <ArrowLeft size={20} />
@@ -135,14 +135,14 @@ export function ListingDetail() {
           <div className="flex gap-2">
             <button
               onClick={share}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow backdrop-blur"
+              className="grid h-10 w-10 place-items-center rounded-full bg-white shadow"
               aria-label="Partager"
             >
               <Share2 size={19} />
             </button>
             <button
               onClick={() => toggleFavorite(listing.id)}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/90 shadow backdrop-blur"
+              className="grid h-10 w-10 place-items-center rounded-full bg-white shadow"
               aria-label="Favori"
             >
               <Heart size={19} className={fav ? 'fill-red-500 text-red-500' : 'text-gray-700'} />
@@ -288,7 +288,7 @@ export function ListingDetail() {
       </div>
 
       {/* Barre de contact fixe */}
-      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white/95 px-4 py-3 shadow-nav backdrop-blur safe-bottom">
+      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white px-4 py-3 shadow-nav safe-bottom">
         {canMessage && (
           <button
             onClick={contactSeller}

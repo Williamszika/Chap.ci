@@ -26,8 +26,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <img
           src={listing.images[0]}
           alt={listing.title}
-          loading="lazy"
-          className="h-full w-full object-cover transition group-hover:scale-105"
+          className="h-full w-full object-cover"
         />
         {listing.featured && (
           <span className="absolute left-2 top-2 rounded-full bg-primary-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow">
@@ -39,7 +38,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             e.preventDefault()
             toggleFavorite(listing.id)
           }}
-          className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur transition active:scale-90"
+          className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow-sm transition active:scale-90"
           aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
           <Heart

@@ -24,7 +24,7 @@ export function BottomNav() {
   if (hidden) return null
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white/95 shadow-nav backdrop-blur safe-bottom">
+    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white shadow-nav safe-bottom">
       <div className="grid grid-cols-5">
         {items.map(({ to, label, icon: Icon, center, end }) => (
           <NavLink

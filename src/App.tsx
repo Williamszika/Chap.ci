@@ -22,7 +22,7 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-app flex-col bg-[#f4f5f7]">
+    <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-hidden bg-[#f4f5f7]">
       <ScrollToTop />
       <main className="flex-1 pb-20">
         <Routes>

@@ -52,11 +52,11 @@ export function Profile() {
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-white/15 p-3 text-center backdrop-blur">
+          <div className="rounded-2xl bg-white/20 p-3 text-center">
             <p className="text-2xl font-black">{myListings.length}</p>
             <p className="text-xs text-white/85">Mes annonces</p>
           </div>
-          <div className="rounded-2xl bg-white/15 p-3 text-center backdrop-blur">
+          <div className="rounded-2xl bg-white/20 p-3 text-center">
             <p className="text-2xl font-black">{favorites.length}</p>
             <p className="text-xs text-white/85">Favoris</p>
           </div>
