@@ -5,7 +5,6 @@ import App from './App'
 import { AppProvider } from './store/AppContext'
 import { AuthProvider } from './store/AuthContext'
 import { GeoProvider } from './store/GeoContext'
-import { CartProvider } from './store/CartContext'
 import './index.css'
 
 // HashRouter : fonctionne partout sans configuration serveur — idéal pour
@@ -16,9 +15,7 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <GeoProvider>
           <AppProvider>
-            <CartProvider>
-              <App />
-            </CartProvider>
+            <App />
           </AppProvider>
         </GeoProvider>
       </AuthProvider>

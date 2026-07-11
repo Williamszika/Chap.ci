@@ -113,10 +113,25 @@ Pour activer le **backend partagé** :
    - Si vous aviez déjà créé les tables **avant** la géolocalisation, exécutez
      aussi [`supabase/add-geolocation.sql`](supabase/add-geolocation.sql) (ajoute
      les colonnes `lat`/`lng`).
-   - Pour le **panier, les demandes d'achat et les avis**, exécutez
+   - Pour les **demandes d'achat et les avis**, exécutez
      [`supabase/add-orders-reviews.sql`](supabase/add-orders-reviews.sql)
      (tables `orders`, `order_items`, `reviews` + sécurité RLS : un avis n'est
      possible que si l'on a commandé l'article).
+   - Pour la **suppression de compte par l'utilisateur**, exécutez
+     [`supabase/add-account-deletion.sql`](supabase/add-account-deletion.sql).
+
+### Connexions avancées (à activer dans Supabase)
+
+- **Google / Apple** : Authentication → *Sign In / Providers* → activer Google
+  et Apple (renseigner les identifiants OAuth du fournisseur). Puis Authentication
+  → *URL Configuration* : ajouter `https://williamszika.github.io/Chap.ci/` en
+  *Site URL* et *Redirect URLs*.
+- **Téléphone (SMS)** : Authentication → *Sign In / Providers* → **Phone**, puis
+  configurer un fournisseur SMS (Twilio, Vonage, MessageBird…). Sans cela, l'envoi
+  du code SMS échoue.
+- **Double authentification (2FA / TOTP)** : Authentication → *Multi-Factor* →
+  activer **TOTP** (application d'authentification). Fonctionne sans configuration
+  externe.
 2. **Comptes utilisateurs** : dans Supabase → **Authentication** → *Sign In / Providers*
    → **Email**. Pour des inscriptions immédiates (recommandé au lancement),
    désactivez **« Confirm email »**. Sinon, les utilisateurs devront confirmer

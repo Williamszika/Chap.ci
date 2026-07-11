@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   PlusCircle,
@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   Store,
   MessageSquare,
-  ShoppingCart,
   Gift,
   LogIn,
   LogOut,
@@ -16,16 +15,19 @@ import {
   Star,
   CheckCircle2,
   MessageCircle,
+  Camera,
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
-import { useCart } from '../store/CartContext'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { priceLabel, formatPrice, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { fetchOrders, updateOrderStatus } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
-import { updateMyProfile } from '../lib/profiles'
+import { updateMyProfile, fetchProfile } from '../lib/profiles'
+import { downscaleImage } from '../lib/image'
 import type { Order, Review } from '../types'
 
 type Tab = 'achats' | 'ventes' | 'annonces' | 'params'
@@ -40,13 +42,13 @@ export function Profile() {
   const navigate = useNavigate()
   const { listings, deleteListing, resetDemo, isMine, favorites } = useApp()
   const { user, enabled, signOut } = useAuth()
-  const cart = useCart()
   const [seller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
 
   const [tab, setTab] = useState<Tab>('achats')
   const [purchases, setPurchases] = useState<Order[]>([])
   const [sales, setSales] = useState<Order[]>([])
   const [myReviews, setMyReviews] = useState<Review[]>([])
+  const [avatarUrl, setAvatarUrl] = useState<string>('')
 
   const myListings = listings.filter((l) => isMine(l.id))
   const displayName =
@@ -59,6 +61,7 @@ export function Profile() {
     fetchOrders(user.id, 'buyer').then((o) => active && setPurchases(o)).catch(() => {})
     fetchOrders(user.id, 'seller').then((o) => active && setSales(o)).catch(() => {})
     fetchReviewsForSeller(user.id).then((r) => active && setMyReviews(r)).catch(() => {})
+    fetchProfile(user.id).then((p) => active && setAvatarUrl(p?.avatarUrl ?? '')).catch(() => {})
     return () => {
       active = false
     }
@@ -78,8 +81,14 @@ export function Profile() {
       {/* En-tête */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-5 text-white">
         <div className="flex items-center gap-3">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-white/20 text-2xl font-black">
-            {(displayName || 'C').charAt(0).toUpperCase()}
+          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-white/20">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="grid h-full w-full place-items-center text-2xl font-black">
+                {(displayName || 'C').charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-black">{displayName || 'Bienvenue 👋'}</p>
@@ -99,14 +108,8 @@ export function Profile() {
         </div>
 
         {/* Actions rapides */}
-        <div className="mt-4 grid grid-cols-4 gap-2">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           <QuickAction icon={<PlusCircle size={20} />} label="Publier" onClick={() => navigate('/publier')} />
-          <QuickAction
-            icon={<ShoppingCart size={20} />}
-            label="Panier"
-            badge={cart.count}
-            onClick={() => navigate('/panier')}
-          />
           <QuickAction icon={<MessageSquare size={20} />} label="Messages" onClick={() => navigate('/messages')} />
           <QuickAction
             icon={<Heart size={20} />}
@@ -152,7 +155,7 @@ export function Profile() {
           (!user ? (
             <Empty text="Connectez-vous pour voir vos demandes d’achat." />
           ) : purchases.length === 0 ? (
-            <Empty text="Aucune demande d’achat. Ajoutez des articles au panier et envoyez votre demande !" cta />
+            <Empty text="Aucune demande d’achat. Cliquez « Acheter » sur une annonce pour envoyer une demande au vendeur." cta />
           ) : (
             <div className="space-y-3">
               {purchases.map((o) => (
@@ -258,7 +261,11 @@ export function Profile() {
         {/* PARAMÈTRES */}
         {tab === 'params' && (
           <div className="space-y-5">
+            {user && (
+              <AvatarUpload userId={user.id} currentUrl={avatarUrl} name={displayName} onUpdated={setAvatarUrl} />
+            )}
             {user && <SettingsForm userId={user.id} initialName={displayName} />}
+            {user && <TwoFactor />}
 
             {user && (
               <button onClick={() => navigate(`/vendeur/${user.id}`)} className="card flex w-full items-center gap-3 p-4">
@@ -283,10 +290,12 @@ export function Profile() {
             </section>
 
             {user && (
-              <button onClick={() => signOut()} className="btn-outline w-full py-3 text-red-600">
+              <button onClick={() => signOut()} className="btn-outline w-full py-3 text-gray-700">
                 <LogOut size={18} /> Déconnexion
               </button>
             )}
+
+            {user && <DeleteAccount />}
 
             <button
               onClick={() => {
@@ -419,6 +428,206 @@ function SettingsForm({ userId, initialName }: { userId: string; initialName: st
         />
         <button onClick={save} disabled={busy} className="btn-primary w-full py-2.5 text-sm">
           {saved ? 'Enregistré ✓' : busy ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function AvatarUpload({
+  userId,
+  currentUrl,
+  name,
+  onUpdated,
+}: {
+  userId: string
+  currentUrl: string
+  name: string
+  onUpdated: (url: string) => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBusy(true)
+    try {
+      const dataUrl = await downscaleImage(file, 256)
+      await updateMyProfile(userId, { avatar_url: dataUrl })
+      onUpdated(dataUrl)
+    } catch {
+      alert('Impossible d’enregistrer la photo.')
+    } finally {
+      setBusy(false)
+      e.target.value = ''
+    }
+  }
+
+  return (
+    <div className="card flex items-center gap-4 p-4">
+      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100">
+        {currentUrl ? (
+          <img src={currentUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full w-full place-items-center text-xl font-black text-gray-400">
+            {(name || 'C').charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
+      <div className="flex-1">
+        <p className="text-sm font-bold text-gray-800">Photo de profil</p>
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          className="mt-1 flex items-center gap-1 text-sm font-semibold text-primary-600"
+        >
+          <Camera size={15} /> {busy ? 'Chargement…' : currentUrl ? 'Changer la photo' : 'Ajouter une photo'}
+        </button>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+    </div>
+  )
+}
+
+function TwoFactor() {
+  const { enrollTotp, activateTotp, listTotp, unenrollTotp } = useAuth()
+  const [factors, setFactors] = useState<{ id: string; status: string }[]>([])
+  const [enroll, setEnroll] = useState<{ factorId: string; qr: string; secret: string } | null>(null)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const active = factors.some((f) => f.status === 'verified')
+
+  useEffect(() => {
+    listTotp().then(setFactors).catch(() => {})
+  }, [listTotp])
+
+  async function start() {
+    setMsg('')
+    setBusy(true)
+    const r = await enrollTotp()
+    setBusy(false)
+    if (r.error) return setMsg(r.error)
+    setEnroll({ factorId: r.factorId!, qr: r.qr!, secret: r.secret! })
+  }
+  async function validate() {
+    if (!enroll) return
+    setBusy(true)
+    const r = await activateTotp(enroll.factorId, code.trim())
+    setBusy(false)
+    if (r.error) return setMsg(r.error)
+    setEnroll(null)
+    setCode('')
+    setMsg('Double authentification activée ✓')
+    listTotp().then(setFactors).catch(() => {})
+  }
+  async function disable() {
+    const f = factors[0]
+    if (!f) return
+    if (!window.confirm('Désactiver la double authentification ?')) return
+    await unenrollTotp(f.id)
+    listTotp().then(setFactors).catch(() => {})
+    setMsg('Double authentification désactivée')
+  }
+
+  return (
+    <div className="card p-4">
+      <p className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-800">
+        <ShieldCheck size={16} /> Double authentification (2FA)
+      </p>
+      {active ? (
+        <div>
+          <p className="mb-2 text-sm text-emerald-600">✓ Activée — votre compte est protégé.</p>
+          <button onClick={disable} className="btn-outline w-full py-2 text-sm text-red-600">
+            Désactiver
+          </button>
+        </div>
+      ) : enroll ? (
+        <div>
+          <p className="mb-2 text-xs text-gray-500">
+            Scannez ce QR code avec Google Authenticator / Authy, ou saisissez la clé, puis entrez le code à 6 chiffres.
+          </p>
+          <div className="flex justify-center">
+            <img src={enroll.qr} alt="QR 2FA" className="h-40 w-40" />
+          </div>
+          <p className="mb-2 break-all text-center font-mono text-[11px] text-gray-500">{enroll.secret}</p>
+          <input
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            placeholder="Code à 6 chiffres"
+            maxLength={6}
+            className="input text-center tracking-widest"
+          />
+          <button onClick={validate} disabled={busy} className="btn-primary mt-2 w-full py-2.5 text-sm">
+            {busy ? 'Vérification…' : 'Activer'}
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-2 text-xs text-gray-500">
+            Ajoutez une couche de sécurité avec une application d’authentification.
+          </p>
+          <button onClick={start} disabled={busy} className="btn-outline w-full py-2.5 text-sm">
+            {busy ? '…' : 'Activer la 2FA'}
+          </button>
+        </div>
+      )}
+      {msg && <p className="mt-2 text-xs text-gray-500">{msg}</p>}
+    </div>
+  )
+}
+
+function DeleteAccount() {
+  const { deleteAccount } = useAuth()
+  const navigate = useNavigate()
+  const [confirming, setConfirming] = useState(false)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function del() {
+    setBusy(true)
+    const r = await deleteAccount()
+    setBusy(false)
+    if (r.error) return alert(r.error)
+    alert('Votre compte et toutes vos données ont été supprimés.')
+    navigate('/')
+  }
+
+  if (!confirming) {
+    return (
+      <button
+        onClick={() => setConfirming(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-3 text-sm font-semibold text-red-600"
+      >
+        <AlertTriangle size={16} /> Supprimer mon compte
+      </button>
+    )
+  }
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+      <p className="text-sm font-bold text-red-700">Supprimer définitivement mon compte</p>
+      <p className="mt-1 text-xs text-red-600">
+        Action irréversible. Toutes vos données (annonces, commandes, messages, avis, profil) seront
+        supprimées. Tapez <strong>SUPPRIMER</strong> pour confirmer.
+      </p>
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="SUPPRIMER"
+        className="input mt-2"
+      />
+      <div className="mt-2 flex gap-2">
+        <button onClick={() => { setConfirming(false); setText('') }} className="btn-outline flex-1 py-2 text-sm">
+          Annuler
+        </button>
+        <button
+          onClick={del}
+          disabled={text !== 'SUPPRIMER' || busy}
+          className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          {busy ? 'Suppression…' : 'Supprimer'}
         </button>
       </div>
     </div>

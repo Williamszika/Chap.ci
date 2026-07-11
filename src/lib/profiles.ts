@@ -26,7 +26,7 @@ export async function fetchProfile(id: string): Promise<PublicProfile | null> {
 
 export async function updateMyProfile(
   id: string,
-  fields: { full_name?: string; bio?: string; phone?: string },
+  fields: { full_name?: string; bio?: string; phone?: string; avatar_url?: string },
 ): Promise<void> {
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('profiles').update(fields).eq('id', id)

@@ -13,15 +13,12 @@ import {
   Clock,
   User,
   Navigation,
-  ShoppingCart,
   ShoppingBag,
   ChevronRight,
-  Check,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
-import { useCart } from '../store/CartContext'
 import { haversineKm, formatDistance } from '../lib/geo'
 import { getOrCreateConversation } from '../lib/messages'
 import { placeOrderForSeller } from '../lib/checkout'
@@ -40,12 +37,10 @@ export function ListingDetail() {
   const { getListing, isFavorite, toggleFavorite, listings } = useApp()
   const { user } = useAuth()
   const { position } = useGeo()
-  const cart = useCart()
   const listing = id ? getListing(id) : undefined
 
   const [imgIndex, setImgIndex] = useState(0)
   const [busy, setBusy] = useState(false)
-  const [added, setAdded] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
   const [purchased, setPurchased] = useState(false)
   const [showReview, setShowReview] = useState(false)
@@ -89,7 +84,6 @@ export function ListingDetail() {
   const { avg, count } = averageRating(reviews)
   const isMine = user && sellerId && user.id === sellerId
   const isDemo = !sellerId // annonce de démonstration (sans compte vendeur)
-  const inCart = cart.has(listing.id)
 
   const similar = listings
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
@@ -141,20 +135,11 @@ export function ListingDetail() {
         ],
         total: listing.price,
       })
-      cart.remove(listing.id)
       navigate(`/messages/${convId}`)
     } catch {
       alert('Échec de l’envoi de la demande. Réessayez.')
       setBusy(false)
     }
-  }
-
-  function addToCart() {
-    if (isDemo || !listing) return
-    if (!requireAuth()) return
-    cart.add(listing)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1600)
   }
 
   async function askQuestion() {
@@ -414,19 +399,8 @@ export function ListingDetail() {
           </Link>
         ) : (
           <div className="flex items-center gap-2">
-            <button onClick={askQuestion} className="btn-outline shrink-0 px-3" aria-label="Poser une question">
-              <MessageSquare size={20} />
-            </button>
-            <button onClick={addToCart} className="btn-outline flex-1 px-2">
-              {added || inCart ? (
-                <>
-                  <Check size={18} className="text-ivoire-green" /> Au panier
-                </>
-              ) : (
-                <>
-                  <ShoppingCart size={18} /> Panier
-                </>
-              )}
+            <button onClick={askQuestion} className="btn-outline flex-1">
+              <MessageSquare size={18} /> Contacter
             </button>
             <button onClick={buyNow} disabled={busy} className="btn-primary flex-1">
               <ShoppingBag size={18} /> {busy ? '…' : 'Acheter'}
