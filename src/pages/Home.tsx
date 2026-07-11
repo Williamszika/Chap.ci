@@ -18,6 +18,7 @@ import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
+import { useNotifications } from '../store/NotificationsContext'
 import { haversineKm } from '../lib/geo'
 import { activePromo } from '../lib/promo'
 import { useLocalStorage } from '../lib/useLocalStorage'
@@ -32,6 +33,7 @@ export function Home() {
   const [q, setQ] = useState('')
 
   const { position, status, requestLocation } = useGeo()
+  const { unreadCount } = useNotifications()
 
   const featured = listings.filter((l) => l.featured).slice(0, 8)
   const promos = useMemo(() => listings.filter((l) => activePromo(l)).slice(0, 10), [listings])
@@ -75,12 +77,19 @@ export function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/messages" className="rounded-full bg-white/15 p-2" aria-label="Messages">
+            <Link to="/messages" className="relative rounded-full bg-white/15 p-2" aria-label="Messages">
               <MessageSquare size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-primary-500">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
             <button className="relative rounded-full bg-white/15 p-2" aria-label="Notifications">
               <Bell size={20} />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-400" />
+              {unreadCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-400" />
+              )}
             </button>
           </div>
         </div>

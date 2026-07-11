@@ -100,7 +100,7 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
       : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
     supabase
       .from('messages')
-      .select('conversation_id,body,created_at')
+      .select('conversation_id,body,created_at,sender_id')
       .in('conversation_id', convIds)
       .order('created_at', { ascending: true }),
   ])
@@ -111,9 +111,14 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
   const profilesMap = new Map(
     (profilesRes.data ?? []).map((p) => [p.id, (p as { full_name: string | null }).full_name]),
   )
-  const lastByConv = new Map<string, { body: string; created_at: string }>()
-  for (const m of (msgsRes.data ?? []) as { conversation_id: string; body: string; created_at: string }[]) {
-    lastByConv.set(m.conversation_id, { body: m.body, created_at: m.created_at })
+  const lastByConv = new Map<string, { body: string; created_at: string; sender_id: string }>()
+  for (const m of (msgsRes.data ?? []) as {
+    conversation_id: string
+    body: string
+    created_at: string
+    sender_id: string
+  }[]) {
+    lastByConv.set(m.conversation_id, { body: m.body, created_at: m.created_at, sender_id: m.sender_id })
   }
 
   return convs.map((c): Conversation => {
@@ -131,6 +136,7 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
       otherName: profilesMap.get(otherId) || 'Utilisateur',
       lastMessage: last?.body,
       lastAt: last ? new Date(last.created_at).getTime() : new Date(c.created_at).getTime(),
+      lastSenderId: last?.sender_id,
     }
   })
 }
@@ -173,6 +179,26 @@ export function subscribeMessages(
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
+      (payload) => onInsert(msgRowToMessage(payload.new as MsgRow)),
+    )
+    .subscribe()
+  return () => {
+    client.removeChannel(channel)
+  }
+}
+
+/**
+ * Abonnement temps réel à TOUS les nouveaux messages visibles par l'utilisateur
+ * (RLS limite aux conversations dont il est membre). Sert au badge « non lus ».
+ */
+export function subscribeAllMessages(onInsert: (m: Message) => void): () => void {
+  const client = supabase
+  if (!client) return () => {}
+  const channel = client
+    .channel('messages:all')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages' },
       (payload) => onInsert(msgRowToMessage(payload.new as MsgRow)),
     )
     .subscribe()

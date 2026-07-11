@@ -5,6 +5,7 @@ import App from './App'
 import { AppProvider } from './store/AppContext'
 import { AuthProvider } from './store/AuthContext'
 import { GeoProvider } from './store/GeoContext'
+import { NotificationsProvider } from './store/NotificationsContext'
 // Polices de la marque (auto-hébergées → fonctionnent hors-ligne dans la PWA)
 import '@fontsource-variable/inter'
 import '@fontsource-variable/plus-jakarta-sans'
@@ -16,11 +17,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
       <AuthProvider>
-        <GeoProvider>
-          <AppProvider>
-            <App />
-          </AppProvider>
-        </GeoProvider>
+        <NotificationsProvider>
+          <GeoProvider>
+            <AppProvider>
+              <App />
+            </AppProvider>
+          </GeoProvider>
+        </NotificationsProvider>
       </AuthProvider>
     </HashRouter>
   </StrictMode>,

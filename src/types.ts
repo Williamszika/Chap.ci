@@ -74,6 +74,8 @@ export interface Conversation {
   otherName?: string
   lastMessage?: string
   lastAt?: number
+  /** id de l'expéditeur du dernier message (pour détecter les non-lus) */
+  lastSenderId?: string
 }
 
 export interface Message {

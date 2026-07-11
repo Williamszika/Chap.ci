@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Send } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
+import { useNotifications } from '../store/NotificationsContext'
 import {
   fetchConversation,
   fetchMessages,
@@ -14,6 +15,7 @@ export function Conversation() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { markRead, refresh } = useNotifications()
   const [conv, setConv] = useState<Conv | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
@@ -32,14 +34,21 @@ export function Conversation() {
       })
       .finally(() => active && setLoading(false))
 
+    // La conversation est ouverte → marquée comme lue.
+    markRead(id)
+
     const unsub = subscribeMessages(id, (m) => {
       setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]))
+      // Message reçu pendant la lecture : on garde la conversation « lue ».
+      if (m.senderId !== user.id) markRead(id)
     })
     return () => {
       active = false
       unsub()
+      // À la sortie, on rafraîchit la liste globale (badges à jour).
+      refresh()
     }
-  }, [id, user])
+  }, [id, user, markRead, refresh])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
