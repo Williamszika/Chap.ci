@@ -7,7 +7,7 @@ import { LocationSheet } from '../components/LocationSheet'
 import { locationLabel } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { useLocalStorage } from '../lib/useLocalStorage'
-import { getCurrentPosition } from '../lib/geo'
+import { getBestPosition } from '../lib/geo'
 import { coordsFor, type Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
@@ -59,8 +59,8 @@ export function PostAd() {
   async function captureGps() {
     setLocating(true)
     try {
-      const pos = await getCurrentPosition()
-      setCoords(pos)
+      const fix = await getBestPosition()
+      setCoords({ lat: fix.lat, lng: fix.lng })
     } catch {
       alert(
         'Impossible d’obtenir votre position. Autorisez la localisation dans votre navigateur, puis réessayez.',

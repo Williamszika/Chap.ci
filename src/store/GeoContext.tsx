@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Coords } from '../data/coords'
-import { getCurrentPosition, ipGeolocate, reverseGeocode } from '../lib/geo'
+import { getBestPosition, ipGeolocate, reverseGeocode } from '../lib/geo'
 import { resolveLocationByName } from '../data/locations'
 
 const LS_POS = 'chapci.geo.v1'
@@ -24,6 +24,8 @@ export interface Place {
   address?: string
   lat?: number
   lng?: number
+  /** Précision estimée en mètres (GPS uniquement). */
+  accuracy?: number
   source: 'gps' | 'ip'
 }
 
@@ -70,12 +72,20 @@ export function GeoProvider({ children }: { children: ReactNode }) {
   }, [decided])
 
   const resolvePlace = useCallback(
-    async (lat: number, lng: number, source: 'gps' | 'ip', ipCity?: string, ipRegion?: string) => {
+    async (
+      lat: number,
+      lng: number,
+      source: 'gps' | 'ip',
+      accuracy?: number,
+      ipCity?: string,
+      ipRegion?: string,
+    ) => {
       setPosition({ lat, lng })
       const geo = await reverseGeocode(lat, lng)
       const cityName = geo?.city || ipCity
       const suburb = geo?.suburb
-      const resolved = resolveLocationByName(suburb, cityName, ipRegion) ?? {}
+      const regionName = geo?.region || ipRegion
+      const resolved = resolveLocationByName(suburb, cityName, regionName) ?? {}
       setPlace({
         regionId: resolved.regionId,
         cityId: resolved.cityId,
@@ -83,6 +93,7 @@ export function GeoProvider({ children }: { children: ReactNode }) {
         address: suburb || geo?.address,
         lat,
         lng,
+        accuracy,
         source,
       })
     },
@@ -93,7 +104,7 @@ export function GeoProvider({ children }: { children: ReactNode }) {
     setStatus('loading')
     const ip = await ipGeolocate()
     if (ip && ip.lat != null && ip.lng != null) {
-      await resolvePlace(ip.lat, ip.lng, 'ip', ip.city, ip.region)
+      await resolvePlace(ip.lat, ip.lng, 'ip', undefined, ip.city, ip.region)
       setStatus('granted')
     } else {
       setStatus('unavailable')
@@ -110,8 +121,8 @@ export function GeoProvider({ children }: { children: ReactNode }) {
     setDecided(true)
     setStatus('loading')
     try {
-      const pos = await getCurrentPosition()
-      await resolvePlace(pos.lat, pos.lng, 'gps')
+      const fix = await getBestPosition()
+      await resolvePlace(fix.lat, fix.lng, 'gps', fix.accuracy)
       setStatus('granted')
     } catch {
       await captureIp() // refusé/indisponible -> repli IP
