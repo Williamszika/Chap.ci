@@ -85,6 +85,12 @@ export function ListingDetail() {
   const isMine = user && sellerId && user.id === sellerId
   const isDemo = !sellerId // annonce de démonstration (sans compte vendeur)
 
+  // Distance affichée seulement si pertinente (proche) — sinon masquée.
+  const distanceKm =
+    position && listing.lat != null && listing.lng != null
+      ? haversineKm(position, { lat: listing.lat, lng: listing.lng })
+      : null
+
   const similar = listings
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
     .slice(0, 6)
@@ -278,10 +284,10 @@ export function ListingDetail() {
             <Clock size={15} />
             {timeAgo(listing.createdAt)}
           </span>
-          {position && listing.lat != null && listing.lng != null && (
+          {distanceKm != null && distanceKm < 500 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700">
               <Navigation size={13} />
-              {formatDistance(haversineKm(position, { lat: listing.lat, lng: listing.lng }))} de vous
+              {formatDistance(distanceKm)} de vous
             </span>
           )}
         </div>

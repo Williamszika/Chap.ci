@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Heart, MapPin, BadgeCheck, Truck, Navigation } from 'lucide-react'
+import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
 import type { Listing } from '../types'
 import { priceLabel } from '../lib/format'
 import { locationLabel } from '../data/locations'
@@ -16,6 +16,8 @@ export function ListingCard({ listing }: { listing: Listing }) {
     position && listing.lat != null && listing.lng != null
       ? haversineKm(position, { lat: listing.lat, lng: listing.lng })
       : null
+  // On n'affiche la distance que si elle est pertinente (proche). Sinon rien.
+  const near = distance != null && distance < 500
 
   return (
     <Link
@@ -60,13 +62,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <span className="truncate">
             {listing.commune ?? locationLabel(listing.regionId, listing.cityId, listing.commune)}
           </span>
+          {near && (
+            <span className="shrink-0 font-semibold text-primary-600">· {formatDistance(distance!)}</span>
+          )}
         </div>
-        {distance != null && (
-          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary-50 px-1.5 py-0.5 text-[10px] font-semibold text-primary-700">
-            <Navigation size={10} /> {formatDistance(distance)}
-          </div>
-        )}
-        <div className="mt-1.5 flex items-center gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {listing.condition === 'neuf' && (
             <span className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
               <BadgeCheck size={11} /> Neuf
