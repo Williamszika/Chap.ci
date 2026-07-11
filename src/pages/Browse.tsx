@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation } from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -42,6 +42,16 @@ export function Browse() {
   }
 
   const [qInput, setQInput] = useState(q)
+
+  // Recentre automatiquement la catégorie / sous-catégorie active dans sa rangée
+  const activeCatRef = useRef<HTMLButtonElement>(null)
+  const activeSubRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    activeCatRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [cat])
+  useEffect(() => {
+    activeSubRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [sub])
 
   function update(next: Record<string, string | undefined>) {
     const p = new URLSearchParams(params)
@@ -189,6 +199,7 @@ export function Browse() {
           {categories.map((c) => (
             <button
               key={c.id}
+              ref={cat === c.id ? activeCatRef : null}
               onClick={() => update({ cat: c.id, sub: undefined })}
               className={`chip ${cat === c.id ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
             >
@@ -210,6 +221,7 @@ export function Browse() {
           {activeCat.subcategories.map((s) => (
             <button
               key={s}
+              ref={sub === s ? activeSubRef : null}
               onClick={() => update({ sub: s })}
               className={`chip text-xs ${sub === s ? 'border-gray-800 bg-gray-800 text-white' : ''}`}
             >
