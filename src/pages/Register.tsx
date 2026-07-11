@@ -1,28 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Mail,
-  Lock,
-  Phone,
-  User,
-  MapPin,
-  LocateFixed,
-  Loader2,
-  Check,
-  ChevronDown,
-} from 'lucide-react'
+import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
+import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
 import { LocationSheet } from '../components/LocationSheet'
-import { locationLabel, resolveLocationByName } from '../data/locations'
-import { getCurrentPosition, reverseGeocode, ipGeolocate } from '../lib/geo'
-import type { Coords } from '../data/coords'
+import { locationLabel } from '../data/locations'
 import type { LocationFilter } from '../types'
 
 export function Register() {
   const navigate = useNavigate()
   const { signUp, sendPhoneCode, verifyPhoneCode, enabled } = useAuth()
+  const { place } = useGeo()
 
   const [method, setMethod] = useState<'email' | 'phone'>('email')
   const [firstName, setFirstName] = useState('')
@@ -32,52 +21,17 @@ export function Register() {
 
   const [loc, setLoc] = useState<LocationFilter>({})
   const [locOpen, setLocOpen] = useState(false)
-  const [coords, setCoords] = useState<Coords | null>(null)
   const [address, setAddress] = useState('')
-  const [locating, setLocating] = useState(false)
-  const [autoLocating, setAutoLocating] = useState(true)
 
-  // Au chargement : on demande le GPS. S'il est accepté -> position précise (GPS).
-  // S'il est refusé/indisponible -> on bascule automatiquement sur l'IP.
+  // Pré-remplissage depuis la position captée à l'ouverture du site.
   useEffect(() => {
-    let active = true
-    ;(async () => {
-      let lat: number | undefined
-      let lng: number | undefined
-      let ipCity: string | undefined
-      let ipRegion: string | undefined
-      try {
-        const pos = await getCurrentPosition() // déclenche la demande d'autorisation
-        lat = pos.lat
-        lng = pos.lng
-      } catch {
-        // refusé ou indisponible -> géolocalisation par IP (sans permission)
-        const ip = await ipGeolocate()
-        if (ip) {
-          lat = ip.lat
-          lng = ip.lng
-          ipCity = ip.city
-          ipRegion = ip.region
-        }
-      }
-      if (!active) return
-      if (lat != null && lng != null) {
-        setCoords({ lat, lng })
-        const geo = await reverseGeocode(lat, lng)
-        if (!active) return
-        const cityName = geo?.city || ipCity
-        const suburb = geo?.suburb
-        const resolved = resolveLocationByName(suburb, cityName, ipRegion)
-        if (resolved) setLoc(resolved)
-        if (suburb) setAddress(suburb)
-        else if (geo?.address) setAddress(geo.address)
-      }
-      if (active) setAutoLocating(false)
-    })()
-    return () => {
-      active = false
+    if (place) {
+      setLoc((prev) =>
+        prev.regionId ? prev : { regionId: place.regionId, cityId: place.cityId, commune: place.commune },
+      )
+      setAddress((prev) => prev || place.address || '')
     }
-  }, [])
+  }, [place])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -88,21 +42,6 @@ export function Register() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
-
-  async function captureGps() {
-    setLocating(true)
-    setError('')
-    try {
-      const pos = await getCurrentPosition()
-      setCoords(pos)
-      const geo = await reverseGeocode(pos.lat, pos.lng)
-      if (geo?.address) setAddress(geo.address)
-    } catch {
-      setError('Impossible d’obtenir votre position. Autorisez la localisation, puis réessayez.')
-    } finally {
-      setLocating(false)
-    }
-  }
 
   function validateProfile(): string | null {
     if (!firstName.trim()) return 'Indiquez votre prénom.'
@@ -124,8 +63,8 @@ export function Register() {
       city_id: loc.cityId,
       commune: loc.commune,
       address: address.trim() || undefined,
-      lat: coords?.lat ?? null,
-      lng: coords?.lng ?? null,
+      lat: place?.lat ?? null,
+      lng: place?.lng ?? null,
     }
   }
 
@@ -227,16 +166,9 @@ export function Register() {
           <p className="text-[11px] text-gray-400">Date de naissance</p>
         </section>
 
-        {/* Localisation */}
+        {/* Localisation (détectée à l'ouverture du site) */}
         <section className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-bold text-gray-800">Où êtes-vous ?</p>
-            {autoLocating && (
-              <span className="flex items-center gap-1 text-[11px] text-primary-600">
-                <Loader2 size={12} className="animate-spin" /> Détection automatique…
-              </span>
-            )}
-          </div>
+          <p className="text-sm font-bold text-gray-800">Votre localisation</p>
           <button type="button" onClick={() => setLocOpen(true)} className="input flex items-center justify-between text-left">
             <span className={loc.regionId ? 'text-gray-800' : 'text-gray-400'}>
               {loc.regionId ? locationLabel(loc.regionId, loc.cityId, loc.commune) : 'Choisir région / ville / commune'}
@@ -251,24 +183,6 @@ export function Register() {
               className="input text-sm"
             />
           )}
-          <button
-            type="button"
-            onClick={captureGps}
-            className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold ${
-              coords ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'
-            }`}
-          >
-            {locating ? <Loader2 size={17} className="animate-spin" /> : coords ? <Check size={17} /> : <LocateFixed size={17} />}
-            {locating
-              ? 'Localisation…'
-              : coords
-                ? 'Position enregistrée — préciser au GPS'
-                : 'Préciser ma position au GPS (facultatif)'}
-          </button>
-          <p className="text-[11px] text-gray-400">
-            Si vous autorisez la localisation, votre position exacte (GPS) est utilisée ; sinon votre
-            ville est détectée automatiquement. Vous pouvez toujours corriger.
-          </p>
         </section>
 
         {/* Méthode de compte */}

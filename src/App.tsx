@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { BottomNav } from './components/BottomNav'
+import { LocationGate } from './components/LocationGate'
 import { Home } from './pages/Home'
 import { Browse } from './pages/Browse'
 import { ListingDetail } from './pages/ListingDetail'
@@ -44,6 +45,7 @@ export default function App() {
         </Routes>
       </main>
       <BottomNav />
+      <LocationGate />
     </div>
   )
 }

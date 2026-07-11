@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
+import { useGeo } from '../store/GeoContext'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { priceLabel, formatPrice, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
@@ -42,6 +43,7 @@ export function Profile() {
   const navigate = useNavigate()
   const { listings, deleteListing, resetDemo, isMine, favorites } = useApp()
   const { user, enabled, signOut } = useAuth()
+  const { place } = useGeo()
   const [seller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
 
   const [tab, setTab] = useState<Tab>('achats')
@@ -261,6 +263,23 @@ export function Profile() {
         {/* PARAMÈTRES */}
         {tab === 'params' && (
           <div className="space-y-5">
+            {place && (place.regionId || place.address) && (
+              <div className="card flex items-start gap-3 p-4">
+                <MapPin size={18} className="mt-0.5 shrink-0 text-primary-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-gray-800">Connecté depuis</p>
+                  <p className="truncate text-sm text-gray-600">
+                    {place.commune || place.address
+                      ? `${place.commune ?? ''}${place.commune && place.address ? ' · ' : ''}${place.address ?? ''}`
+                      : locationLabel(place.regionId, place.cityId, place.commune)}
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    {locationLabel(place.regionId, place.cityId, place.commune)} ·{' '}
+                    {place.source === 'gps' ? 'position GPS' : 'position approximative (IP)'}
+                  </p>
+                </div>
+              </div>
+            )}
             {user && (
               <AvatarUpload userId={user.id} currentUrl={avatarUrl} name={displayName} onUpdated={setAvatarUrl} />
             )}

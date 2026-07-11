@@ -30,6 +30,20 @@ export interface GeoAddress {
   suburb?: string
 }
 
+async function fetchJson(url: string, timeoutMs = 7000): Promise<any | null> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: ctrl.signal })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  } finally {
+    clearTimeout(t)
+  }
+}
+
 export interface IpLocation {
   lat: number
   lng: number
@@ -44,28 +58,14 @@ export interface IpLocation {
  */
 export async function ipGeolocate(): Promise<IpLocation | null> {
   // Fournisseur principal : ipwho.is (gratuit, CORS, sans clé)
-  try {
-    const res = await fetch('https://ipwho.is/')
-    if (res.ok) {
-      const d = await res.json()
-      if (d && d.success !== false && typeof d.latitude === 'number') {
-        return { lat: d.latitude, lng: d.longitude, city: d.city, region: d.region, country: d.country_code }
-      }
-    }
-  } catch {
-    /* on tente le suivant */
+  const d = await fetchJson('https://ipwho.is/')
+  if (d && d.success !== false && typeof d.latitude === 'number') {
+    return { lat: d.latitude, lng: d.longitude, city: d.city, region: d.region, country: d.country_code }
   }
   // Repli : ipapi.co
-  try {
-    const res = await fetch('https://ipapi.co/json/')
-    if (res.ok) {
-      const d = await res.json()
-      if (d && typeof d.latitude === 'number') {
-        return { lat: d.latitude, lng: d.longitude, city: d.city, region: d.region, country: d.country_code }
-      }
-    }
-  } catch {
-    /* ignore */
+  const d2 = await fetchJson('https://ipapi.co/json/')
+  if (d2 && typeof d2.latitude === 'number') {
+    return { lat: d2.latitude, lng: d2.longitude, city: d2.city, region: d2.region, country: d2.country_code }
   }
   return null
 }
@@ -75,19 +75,14 @@ export async function ipGeolocate(): Promise<IpLocation | null> {
  * Best-effort : renvoie null en cas d'échec / hors-ligne.
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<GeoAddress | null> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=fr&zoom=16`
-    const res = await fetch(url, { headers: { Accept: 'application/json' } })
-    if (!res.ok) return null
-    const data = await res.json()
-    const a = data.address ?? {}
-    return {
-      address: data.display_name,
-      city: a.city || a.town || a.village || a.municipality,
-      suburb: a.suburb || a.neighbourhood || a.quarter || a.city_district,
-    }
-  } catch {
-    return null
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=fr&zoom=16`
+  const data = await fetchJson(url)
+  if (!data) return null
+  const a = data.address ?? {}
+  return {
+    address: data.display_name,
+    city: a.city || a.town || a.village || a.municipality,
+    suburb: a.suburb || a.neighbourhood || a.quarter || a.city_district,
   }
 }
 
