@@ -49,11 +49,8 @@ jobs:
       - name: Repli SPA (404 -> index)
         run: cp dist/index.html dist/404.html
 
-      - name: Configurer Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
+      # ⚠️ Prérequis (à faire UNE fois) : dans GitHub, Settings > Pages >
+      # « Build and deployment » > Source : « GitHub Actions ».
       - name: Téléverser l'artefact
         uses: actions/upload-pages-artifact@v3
         with:

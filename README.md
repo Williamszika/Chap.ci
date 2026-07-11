@@ -20,11 +20,25 @@ installable sur **iPhone (iOS)** et **Android**.
 - 📦 **Fiche annonce** : galerie photos, prix (négociable), état, description,
   vendeur, contact direct par **appel** et **WhatsApp**, annonces similaires
 - ➕ **Publier une annonce** : envoi de photos, catégorie, prix, localisation,
-  livraison, coordonnées — persistées sur l'appareil
-- ❤️ **Favoris** enregistrés localement
-- 👤 **Compte** : mes annonces, statistiques, guide d'installation de l'app
+  livraison, coordonnées
+- 🗄️ **Backend Supabase** : annonces **partagées entre tous les utilisateurs**
+  (avec repli local automatique si le backend n'est pas configuré)
+- 👤 **Comptes utilisateurs** : création de compte et connexion (email / mot de passe)
+- 💚 **Faire un don** : soutien du site par **Mobile Money** (Orange Money,
+  MTN MoMo, Moov Money, Wave) — numéros faciles à renseigner
+- ❤️ **Favoris** enregistrés
 - 📱 **PWA** installable + configuration **Capacitor** pour les apps natives
 - 🌍 **Interface 100 % en français**, adaptée au marché ivoirien (FCFA, Orange/MTN/Moov…)
+
+---
+
+## 🔗 Application en ligne (test)
+
+Une fois GitHub Pages activé (voir plus bas), l'application est accessible à :
+
+**https://williamszika.github.io/Chap.ci/**
+
+Ouvrez cette adresse sur votre téléphone pour tester et installer l'app.
 
 ---
 
@@ -79,6 +93,47 @@ sur le **Google Play Store** et l'**App Store**.
 
 ---
 
+## 🗄️ Backend & base de données (Supabase)
+
+Les annonces et les comptes sont gérés par **[Supabase](https://supabase.com)**.
+Sans configuration, l'application fonctionne en **mode local** (démo + appareil).
+Pour activer le **backend partagé** :
+
+1. **Créer les tables** : ouvrez votre projet Supabase → **SQL Editor** →
+   *New query* → collez tout le fichier [`supabase/schema.sql`](supabase/schema.sql)
+   → **Run**. Cela crée les tables (profils, annonces, conversations, messages)
+   et les règles de sécurité (RLS).
+2. **Comptes utilisateurs** : dans Supabase → **Authentication** → *Sign In / Providers*
+   → **Email**. Pour des inscriptions immédiates (recommandé au lancement),
+   désactivez **« Confirm email »**. Sinon, les utilisateurs devront confirmer
+   leur email avant de se connecter.
+3. **Clés d'API** : l'URL et la clé publique (`anon` / `publishable`) sont lues
+   depuis les variables d'environnement `VITE_SUPABASE_URL` et
+   `VITE_SUPABASE_ANON_KEY` (voir `.env.example`), avec des valeurs par défaut
+   dans `src/lib/supabaseClient.ts`.
+
+> 🔒 La clé « publishable » est **publique par conception** : la sécurité repose
+> sur les règles **RLS**. Les mots de passe / codes PIN ne transitent jamais par le site.
+
+---
+
+## 🌍 Déploiement (URL de test)
+
+Le dépôt contient un workflow GitHub Actions
+([`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)) qui
+construit et publie automatiquement l'application sur **GitHub Pages** à chaque
+push.
+
+**Activation (à faire une seule fois)** : dans GitHub → **Settings** → **Pages**
+→ *Build and deployment* → **Source : « GitHub Actions »**. Le prochain
+déploiement publiera le site sur **https://williamszika.github.io/Chap.ci/**.
+
+Pour utiliser des clés Supabase différentes en production, ajoutez-les dans
+**Settings → Secrets and variables → Actions → Variables** :
+`VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`.
+
+---
+
 ## 🗂️ Structure du projet
 
 ```
@@ -127,14 +182,21 @@ node scripts/generate-icons.mjs
 
 ---
 
-## 📌 Feuille de route (idées d'évolution)
+## 📌 Feuille de route
 
-- Backend + authentification (téléphone / OTP)
-- Messagerie intégrée acheteur ↔ vendeur
-- Paiement mobile (Orange Money, MTN MoMo, Wave)
-- Boost d'annonces & comptes professionnels
-- Notifications push (via Capacitor)
-- Géolocalisation « autour de moi »
+Fait ✅
+- Backend Supabase + annonces partagées entre tous les utilisateurs
+- Comptes utilisateurs (email / mot de passe)
+- Option de don par Mobile Money
+- Déploiement web (GitHub Pages)
+
+À venir ⏳
+- 💬 Messagerie intégrée acheteur ↔ vendeur (temps réel — tables déjà prêtes)
+- 💳 Paiement mobile en ligne via une passerelle (CinetPay / PayDunya)
+- 🖼️ Photos via Supabase Storage (au lieu de l'encodage base64)
+- 🔔 Notifications push (via Capacitor)
+- 📍 Géolocalisation « autour de moi »
+- ⭐ Boost d'annonces & comptes professionnels
 
 ---
 
