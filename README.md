@@ -187,12 +187,14 @@ node scripts/generate-icons.mjs
 Fait ✅
 - Backend Supabase + annonces partagées entre tous les utilisateurs
 - Comptes utilisateurs (email / mot de passe)
+- Messagerie acheteur ↔ vendeur en temps réel
+- Paiement Mobile Money manuel (numéro du vendeur + USSD Orange/MTN/Moov/Wave)
 - Option de don par Mobile Money
 - Déploiement web (GitHub Pages)
 
 À venir ⏳
-- 💬 Messagerie intégrée acheteur ↔ vendeur (temps réel — tables déjà prêtes)
-- 💳 Paiement mobile en ligne via une passerelle (CinetPay / PayDunya)
+- 💳 Paiement mobile **automatisé** via une passerelle (CinetPay / PayDunya) —
+  confirmation automatique, nécessite un compte marchand
 - 🖼️ Photos via Supabase Storage (au lieu de l'encodage base64)
 - 🔔 Notifications push (via Capacitor)
 - 📍 Géolocalisation « autour de moi »

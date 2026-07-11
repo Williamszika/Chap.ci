@@ -14,7 +14,9 @@ import {
   Tag,
   Clock,
   User,
+  CreditCard,
 } from 'lucide-react'
+import { PaySheet } from '../components/PaySheet'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { getOrCreateConversation } from '../lib/messages'
@@ -31,6 +33,7 @@ export function ListingDetail() {
   const listing = id ? getListing(id) : undefined
   const [imgIndex, setImgIndex] = useState(0)
   const [startingChat, setStartingChat] = useState(false)
+  const [payOpen, setPayOpen] = useState(false)
 
   if (!listing) {
     return (
@@ -226,6 +229,23 @@ export function ListingDetail() {
           </div>
         </div>
 
+        {/* Payer par Mobile Money */}
+        <button
+          onClick={() => setPayOpen(true)}
+          className="mt-4 flex w-full items-center justify-between rounded-2xl border border-ivoire-green/30 bg-emerald-50 px-4 py-3.5 text-left active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-ivoire-green text-white">
+              <CreditCard size={20} />
+            </span>
+            <span>
+              <span className="block text-sm font-bold text-gray-900">Payer par Mobile Money</span>
+              <span className="block text-xs text-gray-500">Orange, MTN, Moov, Wave</span>
+            </span>
+          </span>
+          <span className="text-sm font-bold text-ivoire-green">{priceLabel(listing.price)}</span>
+        </button>
+
         {/* Conseils sécurité */}
         <div className="mt-4 rounded-2xl bg-amber-50 p-4">
           <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-amber-800">
@@ -278,6 +298,8 @@ export function ListingDetail() {
           </a>
         </div>
       </div>
+
+      <PaySheet open={payOpen} onClose={() => setPayOpen(false)} listing={listing} />
     </div>
   )
 }
