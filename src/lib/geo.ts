@@ -30,6 +30,46 @@ export interface GeoAddress {
   suburb?: string
 }
 
+export interface IpLocation {
+  lat: number
+  lng: number
+  city?: string
+  region?: string
+  country?: string
+}
+
+/**
+ * Géolocalisation approximative par adresse IP — SANS demander de permission.
+ * Renvoie une position au niveau ville. Best-effort (null si échec).
+ */
+export async function ipGeolocate(): Promise<IpLocation | null> {
+  // Fournisseur principal : ipwho.is (gratuit, CORS, sans clé)
+  try {
+    const res = await fetch('https://ipwho.is/')
+    if (res.ok) {
+      const d = await res.json()
+      if (d && d.success !== false && typeof d.latitude === 'number') {
+        return { lat: d.latitude, lng: d.longitude, city: d.city, region: d.region, country: d.country_code }
+      }
+    }
+  } catch {
+    /* on tente le suivant */
+  }
+  // Repli : ipapi.co
+  try {
+    const res = await fetch('https://ipapi.co/json/')
+    if (res.ok) {
+      const d = await res.json()
+      if (d && typeof d.latitude === 'number') {
+        return { lat: d.latitude, lng: d.longitude, city: d.city, region: d.region, country: d.country_code }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
 /**
  * Géocodage inversé (coordonnées → adresse) via OpenStreetMap Nominatim.
  * Best-effort : renvoie null en cas d'échec / hors-ligne.

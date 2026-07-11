@@ -1,4 +1,4 @@
-import type { Region, City } from '../types'
+import type { Region, City, LocationFilter } from '../types'
 
 /**
  * Découpage administratif de la Côte d'Ivoire.
@@ -167,3 +167,39 @@ export function locationLabel(regionId?: string, cityId?: string, commune?: stri
 
 /** Districts uniques, pour les regroupements dans le sélecteur de lieu */
 export const districts = Array.from(new Set(regions.map((r) => r.district)))
+
+function norm(s?: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+}
+
+function match(a: string, b: string): boolean {
+  if (!a || !b) return false
+  if (a === b) return true
+  // correspondance partielle seulement pour les noms assez longs
+  const short = a.length <= b.length ? a : b
+  const long = a.length <= b.length ? b : a
+  return short.length >= 4 && long.includes(short)
+}
+
+/**
+ * Fait correspondre un ou plusieurs noms détectés (ville, quartier…) à la
+ * localisation ivoirienne la plus proche : région / ville / commune.
+ */
+export function resolveLocationByName(...names: (string | undefined)[]): LocationFilter | null {
+  const candidates = names.map(norm).filter(Boolean)
+  // 1) Commune du District d'Abidjan ?
+  for (const c of candidates) {
+    const com = communesAbidjan.find((x) => match(norm(x), c))
+    if (com) return { regionId: 'abidjan', cityId: 'abidjan-ville', commune: com }
+  }
+  // 2) Ville connue ?
+  for (const c of candidates) {
+    const city = cities.find((x) => match(norm(x.name), c))
+    if (city) return { regionId: city.regionId, cityId: city.id }
+  }
+  return null
+}

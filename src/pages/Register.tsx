@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -15,8 +15,8 @@ import {
 import { useAuth } from '../store/AuthContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
 import { LocationSheet } from '../components/LocationSheet'
-import { locationLabel } from '../data/locations'
-import { getCurrentPosition, reverseGeocode } from '../lib/geo'
+import { locationLabel, resolveLocationByName } from '../data/locations'
+import { getCurrentPosition, reverseGeocode, ipGeolocate } from '../lib/geo'
 import type { Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
@@ -35,6 +35,49 @@ export function Register() {
   const [coords, setCoords] = useState<Coords | null>(null)
   const [address, setAddress] = useState('')
   const [locating, setLocating] = useState(false)
+  const [autoLocating, setAutoLocating] = useState(true)
+
+  // Au chargement : on demande le GPS. S'il est accepté -> position précise (GPS).
+  // S'il est refusé/indisponible -> on bascule automatiquement sur l'IP.
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      let lat: number | undefined
+      let lng: number | undefined
+      let ipCity: string | undefined
+      let ipRegion: string | undefined
+      try {
+        const pos = await getCurrentPosition() // déclenche la demande d'autorisation
+        lat = pos.lat
+        lng = pos.lng
+      } catch {
+        // refusé ou indisponible -> géolocalisation par IP (sans permission)
+        const ip = await ipGeolocate()
+        if (ip) {
+          lat = ip.lat
+          lng = ip.lng
+          ipCity = ip.city
+          ipRegion = ip.region
+        }
+      }
+      if (!active) return
+      if (lat != null && lng != null) {
+        setCoords({ lat, lng })
+        const geo = await reverseGeocode(lat, lng)
+        if (!active) return
+        const cityName = geo?.city || ipCity
+        const suburb = geo?.suburb
+        const resolved = resolveLocationByName(suburb, cityName, ipRegion)
+        if (resolved) setLoc(resolved)
+        if (suburb) setAddress(suburb)
+        else if (geo?.address) setAddress(geo.address)
+      }
+      if (active) setAutoLocating(false)
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -186,31 +229,46 @@ export function Register() {
 
         {/* Localisation */}
         <section className="space-y-2">
-          <p className="text-sm font-bold text-gray-800">Où êtes-vous ?</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-gray-800">Où êtes-vous ?</p>
+            {autoLocating && (
+              <span className="flex items-center gap-1 text-[11px] text-primary-600">
+                <Loader2 size={12} className="animate-spin" /> Détection automatique…
+              </span>
+            )}
+          </div>
           <button type="button" onClick={() => setLocOpen(true)} className="input flex items-center justify-between text-left">
             <span className={loc.regionId ? 'text-gray-800' : 'text-gray-400'}>
               {loc.regionId ? locationLabel(loc.regionId, loc.cityId, loc.commune) : 'Choisir région / ville / commune'}
             </span>
             <MapPin size={18} className="text-gray-400" />
           </button>
-          <button
-            type="button"
-            onClick={captureGps}
-            className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold ${
-              coords ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-primary-200 bg-primary-50 text-primary-700'
-            }`}
-          >
-            {locating ? <Loader2 size={17} className="animate-spin" /> : coords ? <Check size={17} /> : <LocateFixed size={17} />}
-            {locating ? 'Localisation…' : coords ? 'Position précise enregistrée' : 'Me géolocaliser précisément (GPS)'}
-          </button>
           {address && (
             <input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Adresse / quartier détecté"
+              placeholder="Quartier / adresse"
               className="input text-sm"
             />
           )}
+          <button
+            type="button"
+            onClick={captureGps}
+            className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold ${
+              coords ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            {locating ? <Loader2 size={17} className="animate-spin" /> : coords ? <Check size={17} /> : <LocateFixed size={17} />}
+            {locating
+              ? 'Localisation…'
+              : coords
+                ? 'Position enregistrée — préciser au GPS'
+                : 'Préciser ma position au GPS (facultatif)'}
+          </button>
+          <p className="text-[11px] text-gray-400">
+            Si vous autorisez la localisation, votre position exacte (GPS) est utilisée ; sinon votre
+            ville est détectée automatiquement. Vous pouvez toujours corriger.
+          </p>
         </section>
 
         {/* Méthode de compte */}
