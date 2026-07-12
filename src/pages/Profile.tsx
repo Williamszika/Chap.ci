@@ -367,6 +367,10 @@ export function Profile() {
               Réinitialiser les données de démonstration
             </button>
 
+            <Link to="/confidentialite" className="block text-center text-xs text-gray-500 underline">
+              Politique de confidentialité
+            </Link>
+
             <p className="flex items-center justify-center gap-1.5 pb-4 text-center text-xs text-gray-400">
               <Mark size={16} /> <Wordmark className="text-xs" ci="text-ivoire-green" /> · v1.0 🇨🇮
             </p>

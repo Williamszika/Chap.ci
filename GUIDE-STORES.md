@@ -1,125 +1,129 @@
-# Chap.ci — Mettre l'application sur Google Play et l'App Store
+# Chap.ci — Publier l'app sur Google Play et l'App Store
 
-> Chap.ci est aujourd'hui une **PWA** (site installable). Les stores ne distribuent pas des sites : ils distribuent des **paquets signés**. Il faut donc **emballer** ta PWA. Bonne nouvelle : aucun code à réécrire.
+> Chap.ci est prête pour les stores : le projet est configuré avec **Capacitor**,
+> qui empaquette exactement le même code web dans de **vraies applications natives**
+> Android et iOS. Ce guide donne les commandes exactes et la checklist des stores.
 
 ---
 
-## 0. Avant tout — préparer la PWA (obligatoire pour Google)
+## 0. Ce qui est déjà prêt dans le dépôt ✅
 
-Sans ça, l'emballage Android échoue.
-
-| Élément | État requis |
+| Élément | État |
 |---|---|
-| **HTTPS** | ✅ déjà bon (GitHub Pages) |
-| **Manifeste** (`manifest.webmanifest`) | à publier — **fourni dans ce dossier** |
-| **Service worker** avec gestionnaire `fetch` | requis (mode hors-ligne) |
-| **Icônes 192 px et 512 px** + **maskable** | ✅ fournies dans `icons/` |
-| **Nom de domaine à toi** | ⚠️ voir ci-dessous |
+| Config Capacitor (`capacitor.config.ts`) | ✅ appId `ci.chap.app`, nom « Chap.ci » |
+| Paquets natifs (`@capacitor/android`, `@capacitor/ios`) | ✅ installés |
+| Sources d'icône & splash (`assets/icon.png`, `assets/splash.png`) | ✅ fournies |
+| Écran de démarrage (SplashScreen) | ✅ configuré (fond crème) |
+| **Politique de confidentialité** (obligatoire pour les 2 stores) | ✅ page en ligne |
+| PWA (manifeste, service worker, icônes) | ✅ déjà en place |
 
-**Point important : le domaine.**
-Ton app est sur `williamszika.github.io/Chap.ci/` — un **sous-dossier d'un domaine GitHub**. Or, pour l'Android (TWA), il faut déposer un fichier de preuve de propriété à la **racine du domaine** (`/.well-known/assetlinks.json`), ce que tu ne contrôles pas sur `github.io`.
-→ **Achète `chap.ci`** (ou `chapci.com`) et fais-le pointer sur ton hébergement. C'est la première étape, non négociable pour un lancement propre. Ça règle aussi le cache et la crédibilité.
-
-Ajoute dans le `<head>` :
-```html
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="apple-touch-icon" href="/icons/icon-180.png">
-<meta name="theme-color" content="#F77F00">
-```
+**URL de la politique de confidentialité** (à coller dans les 2 stores) :
+`https://williamszika.github.io/Chap.ci/#/confidentialite`
+*(après achat du domaine : `https://chap.ci/#/confidentialite`)*
 
 ---
 
-## 1. Google Play — **c'est possible et officiel** ✅
+## 1. Prérequis (sur ton Mac)
 
-Google accepte les PWA via une **TWA** (Trusted Web Activity) : une coque Android qui affiche ton site en plein écran, sans barre de navigateur.
-
-### Étapes
-
-1. **Compte Google Play Console** — **25 $ une seule fois**.
-   ⚠️ **Choisis un compte "organisation"** si tu peux. Un **compte personnel neuf** est soumis à une obligation de **test fermé (~12 testeurs pendant 14 jours)** avant de pouvoir publier — le compte organisation évite cette attente.
-
-2. **Générer le paquet** — deux outils, aucun code :
-   - **PWABuilder** (Microsoft, interface graphique) : tu colles ton URL → il génère le `.aab`. Le plus simple.
-   - **Bubblewrap** (Google, ligne de commande) :
-     ```bash
-     npm i -g @bubblewrap/cli
-     bubblewrap init --manifest https://chap.ci/manifest.webmanifest
-     bubblewrap build
-     ```
-   Résultat : un **`.aab` signé** + un fichier **`assetlinks.json`**.
-
-3. **Preuve de propriété** — dépose `assetlinks.json` sur ton site à :
-   `https://chap.ci/.well-known/assetlinks.json`
-   (sans ça, l'app s'ouvre avec une barre d'adresse visible → refus / mauvaise note).
-
-4. **Garde ta clé de signature (keystore) en lieu sûr.**
-   Perdue = tu ne peux **plus jamais** mettre à jour l'app sous ce nom de paquet. Sauvegarde-la.
-
-5. **Fiche Play Store** : icône 512, bannière 1024×500, captures d'écran, description, **politique de confidentialité (URL obligatoire)**, formulaire « Sécurité des données », classification du contenu.
-
-6. **Soumettre.** Validation généralement rapide (quelques jours).
-
-### Ce qui fait refuser
-- App jugée « site web repackagé » sans valeur ajoutée → ta PWA doit **vraiment fonctionner** (recherche, publication d'annonce, hors-ligne).
-- Pas de politique de confidentialité.
-- Cibler un niveau d'API trop ancien (**API 35 / Android 15** attendu pour les nouvelles apps) — les outils ci-dessus s'en chargent.
+- **Node.js 18+** et le dépôt cloné (`npm install`).
+- **Android** : [Android Studio](https://developer.android.com/studio) (inclut le SDK + JDK).
+- **iOS** : **macOS** + **Xcode** (App Store) + **CocoaPods** (`sudo gem install cocoapods`).
+- **Comptes développeur** :
+  - **Google Play Console** — 25 $ une seule fois.
+  - **Apple Developer Program** — 99 $/an.
 
 ---
 
-## 2. Apple App Store — **plus strict** ⚠️
-
-Apple **refuse explicitement** les « sites web repackagés » (règle **4.2 — Minimum Functionality**). Une simple coque autour de `chap.ci` sera **rejetée**.
-
-### La bonne méthode : **Capacitor**
-Tu emballes ta PWA dans une vraie app iOS, **et tu ajoutes de vraies fonctions natives** pour justifier son existence :
+## 2. Générer les projets natifs (une seule fois)
 
 ```bash
-npm i @capacitor/core @capacitor/cli
-npx cap init "Chap.ci" ci.chap.app
-npx cap add ios
-npx cap open ios      # ouvre Xcode
+npm install
+npm run build                 # génère dist/
+npx cap add android           # crée le dossier android/
+npx cap add ios               # crée le dossier ios/  (macOS)
+npm run assets                # génère toutes les icônes + splash depuis assets/
+npx cap sync                  # copie le web + plugins dans les projets natifs
 ```
 
-**Ajoute au minimum 2–3 fonctions natives** (c'est ce qui fait passer la règle 4.2) :
-- 🔔 **Notifications push** (nouvelle annonce dans ta commune, réponse d'un vendeur) — l'argument le plus fort
-- 📷 **Appareil photo** natif pour publier une annonce
-- 📍 **Géolocalisation** native (annonces près de moi)
-- 🔗 **Deep links** / partage natif
-- Écran d'accueil natif (pas juste la WebView qui charge)
+> `npm run assets` utilise `@capacitor/assets` (installe `sharp` automatiquement sur
+> macOS) pour produire toutes les tailles d'icônes et de splash à partir de
+> `assets/icon.png` (1024×1024) et `assets/splash.png` (2732×2732).
 
-### Étapes
-1. **Apple Developer Program — 99 $/an.** ⚠️ La **vérification d'organisation peut prendre 2 à 4 semaines** : **commence par ça**, aujourd'hui.
-2. Build dans **Xcode** (il te faut un **Mac** — ou un service de build cloud type Codemagic/Ionic Appflow si tu n'en as pas).
-3. Envoi via **App Store Connect** : icône 1024, captures d'écran par taille d'écran, description, mots-clés, **politique de confidentialité**, « Privacy Nutrition Labels ».
-4. Revue : généralement **24–72 h**, mais prévois 1–2 allers-retours.
+À chaque modification du code web ensuite : `npm run build && npx cap sync`.
 
 ---
 
-## 3. Récapitulatif
+## 3. Android — Google Play 🤖
 
-| | Google Play | App Store |
-|---|---|---|
-| **PWA acceptée telle quelle ?** | ✅ oui (TWA) | ❌ non |
-| **Coût** | 25 $ une fois | 99 $ / an |
-| **Outil** | PWABuilder / Bubblewrap | Capacitor + Xcode |
-| **Mac nécessaire ?** | Non | Oui (ou build cloud) |
-| **Délai réaliste** | quelques jours (ou +14 j si compte perso) | 2–6 semaines (vérif. du compte incluse) |
-| **Piège principal** | `assetlinks.json` + keystore | règle 4.2 « site repackagé » |
+### A. Ouvrir et configurer
+```bash
+npm run cap:android           # build + sync + ouvre Android Studio
+```
+- Dans Android Studio : laisse-le télécharger le SDK/Gradle si demandé.
+- Vérifie le **version code** (entier, +1 à chaque mise à jour) et le **version name**
+  dans `android/app/build.gradle`.
 
-## 4. Ordre conseillé
+### B. Générer le paquet signé (.aab)
+1. **Build → Generate Signed Bundle / APK → Android App Bundle**.
+2. **Crée un keystore** (fichier `.jks`) et **garde-le précieusement + son mot de passe**.
+   > ⚠️ Keystore perdu = impossible de mettre à jour l'app sous ce nom. Sauvegarde-le.
+3. Choisis **release** → tu obtiens un fichier **`.aab`**.
 
-1. **Acheter le domaine `chap.ci`** et y déplacer l'app.
-2. Publier le **manifeste + icônes + service worker** (tout est dans ce dossier).
-3. Rédiger la **politique de confidentialité** (obligatoire des deux côtés).
-4. **Ouvrir le compte Apple maintenant** (la vérification est longue) — même si tu publies iOS en second.
-5. **Sortir sur Google Play d'abord** (rapide, peu cher, ta PWA est déjà prête).
-6. **Ajouter les fonctions natives** (push, caméra, géoloc) puis **soumettre à Apple**.
+### C. Publier sur la Play Console
+1. **Créer une application** → nom « Chap.ci », langue français.
+2. Téléverse le **`.aab`** dans un canal (test interne d'abord, puis production).
+3. Remplis la fiche : icône 512, bannière 1024×500, **captures d'écran** (min. 2),
+   description courte + longue, **URL de politique de confidentialité** (voir §0),
+   catégorie « Shopping », classification du contenu, formulaire **Sécurité des données**.
+4. ⚠️ **Compte perso neuf** : Google impose un **test fermé (~12 testeurs, 14 jours)**
+   avant la production. Un **compte organisation** évite cette attente.
 
-## 5. Ce qu'il te faut préparer dans les deux cas
+---
 
-- Icône **1024×1024** ✅ (fournie)
-- **Captures d'écran** de l'app (téléphone, et tablette pour Apple)
-- **Description** courte + longue, mots-clés
-- **Politique de confidentialité** hébergée à une URL publique
-- **Compte e-mail de contact** développeur
+## 4. iOS — App Store 🍎 (macOS requis)
+
+### A. Ouvrir Xcode
+```bash
+npm run cap:ios               # build + sync + ouvre Xcode
+```
+
+### B. Signer
+- Onglet **Signing & Capabilities** → connecte ton **compte Apple Developer** (Team).
+- **Bundle Identifier** : `ci.chap.app` (doit correspondre à un App ID créé sur
+  developer.apple.com).
+- Renseigne les **permissions** dans `ios/App/App/Info.plist` :
+  - `NSLocationWhenInUseUsageDescription` = « Chap.ci utilise votre position pour vous
+    montrer les annonces proches. »
+  - `NSCameraUsageDescription` / `NSPhotoLibraryUsageDescription` = « Pour ajouter des
+    photos à vos annonces. »
+
+### C. Envoyer
+1. **Product → Archive** → **Distribute App → App Store Connect**.
+2. Sur **appstoreconnect.apple.com** : crée l'app (Bundle ID `ci.chap.app`), remplis la
+   fiche (nom, sous-titre, description, mots-clés, **captures d'écran** par taille
+   d'iPhone requise), **URL de politique de confidentialité** (§0), catégorie, âge.
+3. Remplis **App Privacy** (données collectées : compte, localisation, contenu
+   utilisateur) et soumets pour **review** (souvent 24–48 h).
+
+---
+
+## 5. Le domaine `chap.ci` (fortement recommandé)
+
+Ton app est sur `williamszika.github.io/Chap.ci/`. Acheter **`chap.ci`** apporte :
+- une **URL de confidentialité** propre et crédible (obligatoire pour les stores),
+- la possibilité d'**App Links / Universal Links** (ouvrir l'app depuis un lien web),
+- une meilleure image de marque.
+Non bloquant pour publier, mais recommandé avant le lancement public.
+
+---
+
+## 6. Checklist avant soumission
+
+- [ ] `npm run build && npx cap sync` sans erreur
+- [ ] Icônes + splash générés (`npm run assets`)
+- [ ] App testée sur un vrai téléphone (recherche, publier une annonce, messagerie)
+- [ ] Politique de confidentialité en ligne (§0)
+- [ ] Captures d'écran préparées (Android + chaque taille d'iPhone)
+- [ ] Description courte + longue rédigées
+- [ ] Keystore Android sauvegardé / compte Apple Developer actif
+- [ ] Formulaires « Sécurité des données » (Google) et « App Privacy » (Apple) remplis
