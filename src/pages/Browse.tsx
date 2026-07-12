@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation, Truck } from 'lucide-react'
+import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation, Truck, Tag } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm } from '../lib/geo'
@@ -106,7 +106,7 @@ export function Browse() {
 
   const activeCat = categoryById(cat)
   const activeFilters =
-    (cond ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (livr ? 1 : 0) + (sub ? 1 : 0) + (tri !== 'recent' ? 1 : 0)
+    (cond ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (livr ? 1 : 0) + (promoOnly ? 1 : 0) + (sub ? 1 : 0) + (tri !== 'recent' ? 1 : 0)
 
   return (
     <div className="min-h-screen bg-[#f4f5f7]">
@@ -285,6 +285,7 @@ export function Browse() {
         min={min}
         max={max}
         livr={livr}
+        promoOnly={promoOnly}
         tri={tri}
         hasPosition={!!position}
         onApply={(f) => update(f)}
@@ -315,6 +316,7 @@ function FilterSheet({
   min,
   max,
   livr,
+  promoOnly,
   tri,
   hasPosition,
   onApply,
@@ -325,6 +327,7 @@ function FilterSheet({
   min: string
   max: string
   livr: string
+  promoOnly: boolean
   tri: Sort
   hasPosition: boolean
   onApply: (f: Record<string, string | undefined>) => void
@@ -333,6 +336,7 @@ function FilterSheet({
   const [mn, setMn] = useState(min)
   const [mx, setMx] = useState(max)
   const [dl, setDl] = useState(!!livr)
+  const [pr, setPr] = useState(promoOnly)
   const [t, setT] = useState<Sort>(tri)
 
   // Resynchronise à l'ouverture (si les filtres ont changé ailleurs).
@@ -342,9 +346,10 @@ function FilterSheet({
       setMn(min)
       setMx(max)
       setDl(!!livr)
+      setPr(promoOnly)
       setT(tri)
     }
-  }, [open, cond, min, max, livr, tri])
+  }, [open, cond, min, max, livr, promoOnly, tri])
 
   const sortOptions: { v: Sort; l: string }[] = [
     { v: 'recent', l: 'Plus récent' },
@@ -358,8 +363,9 @@ function FilterSheet({
     setMn('')
     setMx('')
     setDl(false)
+    setPr(false)
     setT('recent')
-    onApply({ cond: undefined, min: undefined, max: undefined, livr: undefined, tri: undefined })
+    onApply({ cond: undefined, min: undefined, max: undefined, livr: undefined, promo: undefined, tri: undefined })
     onClose()
   }
 
@@ -369,6 +375,7 @@ function FilterSheet({
       min: mn || undefined,
       max: mx || undefined,
       livr: dl ? '1' : undefined,
+      promo: pr ? '1' : undefined,
       tri: t === 'recent' ? undefined : t,
     })
     onClose()
@@ -441,6 +448,23 @@ function FilterSheet({
             </div>
           </div>
         </div>
+
+        {/* Bons plans (promotions) */}
+        <button
+          onClick={() => setPr((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl border border-gray-200 px-4 py-3"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-gray-800">
+            <Tag size={18} className="text-red-500" /> Bons plans (en promotion)
+          </span>
+          <span
+            className={`relative h-6 w-11 rounded-full transition-colors ${pr ? 'bg-red-500' : 'bg-gray-300'}`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${pr ? 'left-[22px]' : 'left-0.5'}`}
+            />
+          </span>
+        </button>
 
         {/* Livraison */}
         <button
