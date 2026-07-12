@@ -61,7 +61,7 @@ export function PostAd() {
   const promoPctNum = Number(promoPct) || 0
   const promoPreview =
     promoOn && promoPctNum > 0 && promoPctNum < 100 && priceNum > 0
-      ? { percent: promoPctNum, price: Math.round(priceNum * (1 - promoPctNum / 100)) }
+      ? { percent: promoPctNum, price: Math.floor(priceNum * (1 - promoPctNum / 100)) }
       : null
 
   function onFiles(e: React.ChangeEvent<HTMLInputElement>) {

@@ -5,6 +5,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react'
 import type { Conversation } from '../types'
@@ -43,6 +44,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [reads, setReads] = useState<Record<string, number>>(() => loadReads())
 
+  // Réf. toujours à jour des conversations (pour markRead sans re-création).
+  const convRef = useRef<Conversation[]>(conversations)
+  useEffect(() => {
+    convRef.current = conversations
+  }, [conversations])
+
   const refresh = useCallback(() => {
     if (!user) {
       setConversations([])
@@ -74,8 +81,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [user, refresh])
 
   const markRead = useCallback((conversationId: string) => {
+    // On mémorise au moins l'heure (serveur) du dernier message pour que le
+    // badge se vide même si l'horloge du téléphone est décalée.
+    const conv = convRef.current.find((c) => c.id === conversationId)
+    const ts = Math.max(conv?.lastAt ?? 0, Date.now())
     setReads((prev) => {
-      const next = { ...prev, [conversationId]: Date.now() }
+      const next = { ...prev, [conversationId]: ts }
       try {
         localStorage.setItem(LS_READS, JSON.stringify(next))
       } catch {

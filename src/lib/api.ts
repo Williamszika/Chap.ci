@@ -104,10 +104,12 @@ export async function createListing(
   // Insert avec toutes les colonnes optionnelles ; si certaines n'existent pas
   // encore (migrations non exécutées), on réessaie sans elles, par paliers.
   let res = await client.from('listings').insert(withPromo).select().single()
-  if (res.error && /promo_|column/i.test(res.error.message)) {
+  // Retire d'abord uniquement les colonnes promo si elles manquent…
+  if (res.error && /promo_/i.test(res.error.message)) {
     res = await client.from('listings').insert(withGeo).select().single()
   }
-  if (res.error && /lat|lng|column/i.test(res.error.message)) {
+  // …puis la géolocalisation si ces colonnes manquent aussi.
+  if (res.error && /\blat\b|\blng\b/i.test(res.error.message)) {
     res = await client.from('listings').insert(base).select().single()
   }
   if (res.error) throw res.error
