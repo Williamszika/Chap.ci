@@ -71,7 +71,13 @@ export function Conversation() {
     setMessages((prev) => [...prev, optimistic])
     try {
       const saved = await sendMessage(id, user.id, body)
-      setMessages((prev) => prev.map((m) => (m.id === optimistic.id ? saved : m)))
+      // Si le temps réel a déjà inséré ce message, on retire juste l'optimiste
+      // (évite un doublon / conflit de clé React) ; sinon on le remplace.
+      setMessages((prev) =>
+        prev.some((m) => m.id === saved.id)
+          ? prev.filter((m) => m.id !== optimistic.id)
+          : prev.map((m) => (m.id === optimistic.id ? saved : m)),
+      )
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
       setText(body)
