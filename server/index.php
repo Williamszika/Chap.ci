@@ -252,9 +252,12 @@ function smtp_send(array $s, string $from, string $fromName, string $to, string 
     . 'Subject: ' . mime_h($subject) . "\r\n"
     . 'MIME-Version: 1.0' . "\r\n"
     . 'Content-Type: text/html; charset=UTF-8' . "\r\n"
+    . 'Content-Transfer-Encoding: base64' . "\r\n"
     . 'X-Mailer: Chap.ci' . "\r\n";
-  $body = preg_replace('/^\./m', '..', $html); // dot-stuffing
-  fwrite($fp, $headers . "\r\n" . $body . "\r\n.\r\n");
+  // Corps en base64 (lignes de 76 car.) : évite l'erreur « message has lines too
+  // long for transport » (limite ~2048 car./ligne des serveurs mail).
+  $body = chunk_split(base64_encode($html));
+  fwrite($fp, $headers . "\r\n" . $body . ".\r\n");
   $sent = $read();
   $cmd('QUIT');
   fclose($fp);
@@ -280,13 +283,15 @@ function send_mail(array $config, string $to, string $subject, string $html): bo
   $headers = implode("\r\n", [
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
     'Date: ' . date('r'),
     'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . '>',
     'From: ' . mime_h($fromName) . ' <' . $from . '>',
     'Reply-To: ' . $replyTo,
     'X-Mailer: Chap.ci',
   ]);
-  return @mail($to, mime_h($subject), $html, $headers, '-f' . $from);
+  // Corps en base64 (lignes de 76 car.) : évite « lines too long for transport ».
+  return @mail($to, mime_h($subject), chunk_split(base64_encode($html)), $headers, '-f' . $from);
 }
 /** Bouton d'action réutilisable pour les emails. */
 function email_button(string $href, string $label): string {
