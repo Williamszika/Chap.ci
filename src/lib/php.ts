@@ -248,6 +248,14 @@ export async function phpFetchNewsletter(): Promise<{ email: string; createdAt: 
   const d = await req<{ subscribers: { email: string; createdAt: number }[] }>('/newsletter')
   return d.subscribers
 }
+export async function phpNewsletterStatus(): Promise<boolean> {
+  try {
+    const d = await req<{ subscribed: boolean }>('/newsletter/status')
+    return !!d.subscribed
+  } catch {
+    return true // en cas de doute, ne pas importuner
+  }
+}
 
 // ---- Administration ---------------------------------------------------------
 export async function phpAdminStats<T>(): Promise<T> {

@@ -31,6 +31,12 @@ export async function subscribeNewsletter(email: string): Promise<void> {
   if (error) throw error
 }
 
+/** L'utilisateur connecté est-il déjà abonné ? (pour ne pas afficher le popup en double) */
+export async function isSubscribed(): Promise<boolean> {
+  if (isPhp) return php.phpNewsletterStatus()
+  return true // hors PHP : on n'affiche pas le popup
+}
+
 /** Liste des abonnés (administrateur uniquement — le serveur vérifie les droits). */
 export async function fetchNewsletter(): Promise<Subscriber[]> {
   if (isPhp) return php.phpFetchNewsletter()

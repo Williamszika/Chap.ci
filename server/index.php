@@ -806,6 +806,14 @@ try {
     jout(['ok' => true]); // idempotent : déjà inscrit = succès aussi
   }
 
+  // L'utilisateur connecté est-il abonné à la newsletter ? (pour le popup)
+  if ($path === 'newsletter/status' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT 1 FROM newsletter WHERE email = ?');
+    $st->execute([strtolower($u['email'] ?? '')]);
+    jout(['subscribed' => (bool) $st->fetch()]);
+  }
+
   // Liste des abonnés : réservée aux administrateurs (export CSV côté app).
   if ($path === 'newsletter' && $method === 'GET') {
     $u = require_user($pdo, $secret);

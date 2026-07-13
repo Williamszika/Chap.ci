@@ -8,6 +8,7 @@ import { LocationSheet } from '../components/LocationSheet'
 import { Mark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
+import { subscribeNewsletter } from '../lib/newsletter'
 import { getBestPosition, reverseGeocode } from '../lib/geo'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import type { Coords } from '../data/coords'
@@ -74,6 +75,7 @@ export function Register() {
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
   const [accepted, setAccepted] = useState(false)
+  const [newsletterOptIn, setNewsletterOptIn] = useState(true)
 
   function validateProfile(): string | null {
     if (!firstName.trim()) return 'Indiquez votre prénom.'
@@ -128,6 +130,8 @@ export function Register() {
       const res = await signUp(email.trim(), password, `${firstName.trim()} ${lastName.trim()}`)
       setBusy(false)
       if (res.error) return setError(res.error)
+      // Inscription facultative à la newsletter (best-effort).
+      if (newsletterOptIn) subscribeNewsletter(email.trim()).catch(() => {})
       if (res.needsConfirmation) {
         setInfo('Compte créé ! Vérifiez votre email pour confirmer, puis connectez-vous.')
         return
@@ -292,6 +296,19 @@ export function Register() {
             <a href="#/confidentialite" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600 underline">
               Politique de confidentialité
             </a>.
+          </span>
+        </label>
+
+        {/* Inscription facultative à la newsletter */}
+        <label className="flex items-start gap-2.5 rounded-xl bg-primary-50/60 px-4 py-3">
+          <input
+            type="checkbox"
+            checked={newsletterOptIn}
+            onChange={(e) => setNewsletterOptIn(e.target.checked)}
+            className="mt-0.5 h-5 w-5 shrink-0 accent-primary-500"
+          />
+          <span className="text-sm text-gray-600">
+            📩 Je souhaite recevoir la <b>newsletter</b> : bons plans, promos et nouveautés. <span className="text-gray-400">(facultatif)</span>
           </span>
         </label>
 
