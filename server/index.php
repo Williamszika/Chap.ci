@@ -296,19 +296,22 @@ function email_layout(array $config, string $inner, string $preheader = ''): str
     if ($url) $social .= '<a href="' . htmlspecialchars($url) . '" style="color:#F77F00;text-decoration:none;margin:0 7px">' . htmlspecialchars($label) . '</a>';
   }
   $socialRow = $social ? '<p style="margin:8px 0">' . $social . '</p>' : '';
+  $domain = preg_replace('#^https?://#', '', $site); // ex : chap.ci
   return $pre
     . '<div style="background:#f4f5f7;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">'
     . '<div style="max-width:520px;margin:auto;color:#1f2937">'
-    // En-tête : logo + nom
+    // En-tête : logo + nom (cliquables → site)
     . '<div style="text-align:center;padding:8px 0 14px">'
+    . '<a href="' . $site . '" style="text-decoration:none;color:inherit;display:inline-block">'
     . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="60" height="60" style="border-radius:15px;display:inline-block">'
     . '<div style="font-size:20px;font-weight:bold;color:#111827;margin-top:8px">' . htmlspecialchars($name) . '</div>'
-    . '</div>'
+    . '</a></div>'
     // Carte : filet orange en haut + contenu
     . '<div style="background:#fff;border:1px solid #eef0f2;border-top:4px solid #F77F00;'
     . 'padding:26px 24px;border-radius:14px;box-shadow:0 1px 3px rgba(16,24,40,0.06)">' . $inner . '</div>'
     // Pied de page
     . '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:18px 8px 4px">'
+    . '<p style="margin:8px 0">Visitez notre site : <a href="' . $site . '" style="color:#F77F00;text-decoration:none;font-weight:bold">' . htmlspecialchars($domain) . '</a></p>'
     . '<p style="margin:8px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#F77F00;text-decoration:none">' . $contact . '</a></p>'
     . $socialRow
     . '<p style="margin:8px 0"><a href="' . $site . '/#/confidentialite" style="color:#9ca3af">Confidentialité</a> · '
