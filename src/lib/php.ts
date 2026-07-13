@@ -248,3 +248,20 @@ export async function phpFetchNewsletter(): Promise<{ email: string; createdAt: 
   const d = await req<{ subscribers: { email: string; createdAt: number }[] }>('/newsletter')
   return d.subscribers
 }
+
+// ---- Administration ---------------------------------------------------------
+export async function phpAdminStats<T>(): Promise<T> {
+  return req<T>('/admin/stats')
+}
+export async function phpAdminUsers<T>(): Promise<T> {
+  return req<T>('/admin/users')
+}
+export async function phpAdminListings<T>(): Promise<T> {
+  return req<T>('/admin/listings')
+}
+export async function phpAdminDeleteListing(id: string): Promise<void> {
+  await req(`/admin/listings/${id}`, { method: 'DELETE' })
+}
+export async function phpAdminOrders<T>(): Promise<T> {
+  return req<T>('/admin/orders')
+}

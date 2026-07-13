@@ -379,10 +379,10 @@ export function Profile() {
 
             {isAdminEmail(user?.email) && (
               <Link
-                to="/admin/newsletter"
+                to="/admin"
                 className="block text-center text-xs font-semibold text-primary-600 underline"
               >
-                📧 Abonnés newsletter (admin)
+                🛠️ Tableau de bord administrateur
               </Link>
             )}
 

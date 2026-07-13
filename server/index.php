@@ -567,6 +567,88 @@ try {
     jout(['count' => count($out), 'subscribers' => $out]);
   }
 
+  // ---------- ADMINISTRATION ----------
+  // Toutes les routes /api/admin/* exigent un compte administrateur.
+  if (($seg[0] ?? '') === 'admin') {
+    $u = require_user($pdo, $secret);
+    if (!is_admin($config, $u)) jerr('Accès réservé à l’administrateur.', 403);
+
+    // Vue d'ensemble : compteurs + activité récente.
+    if ($path === 'admin/stats' && $method === 'GET') {
+      $count = fn(string $t) => (int) $pdo->query("SELECT COUNT(*) AS c FROM $t")->fetch()['c'];
+      $ordersByStatus = [];
+      foreach ($pdo->query('SELECT status, COUNT(*) AS c FROM orders GROUP BY status')->fetchAll() as $r) {
+        $ordersByStatus[$r['status'] ?: 'inconnu'] = (int) $r['c'];
+      }
+      $ordersValue = (int) ($pdo->query('SELECT COALESCE(SUM(price),0) AS s FROM order_items')->fetch()['s']);
+      $recentListings = array_map('listing_out',
+        $pdo->query('SELECT * FROM listings ORDER BY created_at DESC LIMIT 5')->fetchAll());
+      $recentUsers = array_map(
+        fn($r) => ['id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—', 'createdAt' => iso_to_ms($r['created_at'])],
+        $pdo->query('SELECT u.id, u.email, u.created_at, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC LIMIT 5')->fetchAll());
+      jout([
+        'users' => $count('users'), 'listings' => $count('listings'),
+        'conversations' => $count('conversations'), 'messages' => $count('messages'),
+        'orders' => $count('orders'), 'reviews' => $count('reviews'),
+        'newsletter' => $count('newsletter'),
+        'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
+        'recentListings' => $recentListings, 'recentUsers' => $recentUsers,
+      ]);
+    }
+
+    // Utilisateurs.
+    if ($path === 'admin/users' && $method === 'GET') {
+      $rows = $pdo->query('SELECT u.id, u.email, u.created_at, p.full_name, p.phone, p.commune,
+          (SELECT COUNT(*) FROM listings l WHERE l.user_id = u.id) AS listings
+        FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC')->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
+        'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
+        'listings' => (int) $r['listings'], 'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Annonces (avec email du vendeur, pour la modération).
+    if ($path === 'admin/listings' && $method === 'GET') {
+      $rows = $pdo->query('SELECT l.*, u.email AS seller_email FROM listings l
+        LEFT JOIN users u ON u.id = l.user_id ORDER BY l.created_at DESC')->fetchAll();
+      jout(array_map(function ($r) {
+        $o = listing_out($r);
+        $o['sellerEmail'] = $r['seller_email'] ?: null;
+        return $o;
+      }, $rows));
+    }
+
+    // Modération : suppression d'une annonce par l'administrateur.
+    if (count($seg) === 3 && $seg[1] === 'listings' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Commandes (avec emails acheteur/vendeur et articles).
+    if ($path === 'admin/orders' && $method === 'GET') {
+      $orders = $pdo->query('SELECT o.*, b.email AS buyer_email, s.email AS seller_email
+        FROM orders o LEFT JOIN users b ON b.id = o.buyer_id LEFT JOIN users s ON s.id = o.seller_id
+        ORDER BY o.created_at DESC')->fetchAll();
+      $itemsStmt = $pdo->prepare('SELECT title, price, image FROM order_items WHERE order_id = ?');
+      $out = [];
+      foreach ($orders as $o) {
+        $itemsStmt->execute([$o['id']]);
+        $its = $itemsStmt->fetchAll();
+        $out[] = [
+          'id' => $o['id'], 'status' => $o['status'] ?: 'pending',
+          'buyerEmail' => $o['buyer_email'] ?: null, 'sellerEmail' => $o['seller_email'] ?: null,
+          'createdAt' => iso_to_ms($o['created_at']),
+          'items' => array_map(fn($it) => ['title' => $it['title'], 'price' => (int) $it['price'], 'image' => $it['image'] ?: null], $its),
+          'total' => array_sum(array_map(fn($it) => (int) $it['price'], $its)),
+        ];
+      }
+      jout($out);
+    }
+
+    jerr('Route admin inconnue: ' . $path, 404);
+  }
+
   if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso()]);
 
   jerr('Route inconnue: ' . $path, 404);
