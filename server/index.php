@@ -425,6 +425,64 @@ function campaign_html(array $config, string $message): string {
     . '<p style="margin-top:20px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
   return email_layout($config, $inner, mb_substr(trim(strip_tags($message)), 0, 90));
 }
+/** Sélectionne les annonces à mettre en avant (promos d'abord, puis récentes). */
+function digest_listings(PDO $pdo, int $limit = 6): array {
+  $rows = $pdo->query(
+    'SELECT id,title,price,images,commune,city_id,promo_price,promo_until FROM listings
+     ORDER BY (CASE WHEN promo_price IS NOT NULL THEN 0 ELSE 1 END), created_at DESC
+     LIMIT ' . (int) $limit
+  )->fetchAll();
+  return $rows;
+}
+/** Construit l'email « offres » avec des cartes d'annonces cliquables (type OLX/eBay). */
+function digest_html(array $config, array $rows, string $type): string {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $title = $type === 'weekly' ? '✨ La sélection de la semaine' : '🔥 Les bonnes affaires du jour';
+  $cards = '';
+  foreach ($rows as $r) {
+    $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
+    $img = $imgs[0] ?? '';
+    if ($img && $img[0] === '/') $img = $site . $img; // /uploads/... -> URL absolue
+    $imgCell = ($img && (str_starts_with($img, 'http')))
+      ? '<img src="' . htmlspecialchars($img) . '" width="92" height="92" style="width:92px;height:92px;object-fit:cover;display:block;border-radius:10px">'
+      : '<div style="width:92px;height:92px;border-radius:10px;background:#fff3e6;text-align:center;line-height:92px;font-size:34px">🛍️</div>';
+    $promoActive = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > now_iso());
+    $price = $promoActive
+      ? '<span style="color:#F77F00;font-weight:bold;font-size:16px">' . number_format((int) $r['promo_price'], 0, ',', ' ') . ' FCFA</span>'
+        . ' <span style="color:#aaa;text-decoration:line-through;font-size:12px">' . number_format((int) $r['price'], 0, ',', ' ') . '</span>'
+      : '<span style="color:#F77F00;font-weight:bold;font-size:16px">' . number_format((int) $r['price'], 0, ',', ' ') . ' FCFA</span>';
+    $loc = $r['commune'] ?: ($r['city_id'] ?: '');
+    $cards .=
+      '<a href="' . $site . '/#/annonce/' . htmlspecialchars($r['id']) . '" style="display:block;text-decoration:none;color:inherit;border:1px solid #eef0f2;border-radius:12px;overflow:hidden;margin-bottom:12px">'
+      . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr>'
+      . '<td style="width:92px;padding:8px" valign="top">' . $imgCell . '</td>'
+      . '<td style="padding:10px 12px 10px 4px" valign="top">'
+      . '<div style="font-weight:bold;color:#111827;font-size:15px">' . htmlspecialchars(mb_strimwidth($r['title'], 0, 60, '…')) . '</div>'
+      . '<div style="margin-top:4px">' . $price . ($promoActive ? ' <span style="background:#F77F00;color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:bold">PROMO</span>' : '') . '</div>'
+      . ($loc ? '<div style="color:#9ca3af;font-size:12px;margin-top:3px">📍 ' . htmlspecialchars($loc) . '</div>' : '')
+      . '</td></tr></table></a>';
+  }
+  $inner =
+    '<h2 style="margin-top:0">' . $title . '</h2>'
+    . '<p>Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇</p>'
+    . $cards
+    . email_button($site, 'Voir toutes les annonces')
+    . '<p style="margin-top:20px">Bonnes affaires,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return email_layout($config, $inner, $title . ' sur ' . $name);
+}
+/** Envoie l'email « offres » à tous les abonnés (par lots). Renvoie le nb envoyé. */
+function send_digest(array $config, PDO $pdo, string $type): array {
+  $rows = digest_listings($pdo, 6);
+  if (!$rows) return ['sent' => 0, 'listings' => 0, 'reason' => 'aucune annonce'];
+  $html = digest_html($config, $rows, $type);
+  $subject = $type === 'weekly' ? 'La sélection de la semaine ✨' : 'Les bonnes affaires du jour 🔥';
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  $subs = $pdo->query('SELECT email FROM newsletter')->fetchAll();
+  $sent = 0;
+  foreach ($subs as $s) { if (send_mail($config, $s['email'], $subject, $html, $from, $from)) $sent++; }
+  return ['sent' => $sent, 'listings' => count($rows), 'subscribers' => count($subs)];
+}
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
   $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
@@ -1002,6 +1060,20 @@ try {
       jout(['sent' => $sent, 'processed' => $processed, 'total' => $total, 'done' => (count($rows) < $limit || $processed >= $total)]);
     }
 
+    // Offres automatiques : infos pour la commande cron.
+    if ($path === 'admin/digest-info' && $method === 'GET') {
+      jout([
+        'cronKey' => $config['cron_key'] ?? '',
+        'site'    => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+      ]);
+    }
+    // Offres automatiques : envoi manuel immédiat (pour tester).
+    if ($path === 'admin/digest-send' && $method === 'POST') {
+      $b = body();
+      $type = (($b['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
+      jout(send_digest($config, $pdo, $type));
+    }
+
     // Diagnostic : envoie un email de test à l'administrateur connecté.
     if ($path === 'admin/test-email' && $method === 'POST') {
       $name = $config['mail_from_name'] ?? 'Chap.ci';
@@ -1015,6 +1087,16 @@ try {
     }
 
     jerr('Route admin inconnue: ' . $path, 404);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : offres du jour / de la semaine ----------
+  // Appelée par une tâche cron cPanel. Authentifiée par clé (pas de JWT).
+  if ($path === 'cron/digest' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $type = (($_GET['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
+    jout(send_digest($config, $pdo, $type));
   }
 
   if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso()]);

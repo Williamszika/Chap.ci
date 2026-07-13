@@ -10,11 +10,11 @@ import { emojiFor } from '../lib/placeholder'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
   fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
-  campaignCount, campaignSend,
+  campaignCount, campaignSend, digestInfo, digestSend,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy } from 'lucide-react'
 
 type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns'
 
@@ -499,6 +499,79 @@ function CampaignsTab() {
       <p className="px-1 text-xs text-gray-400">
         💡 Les abonnés peuvent répondre (ça arrive dans <b>hello@chap.ci</b>) et se désinscrire.
         Envoyez du contenu utile pour ne pas lasser.
+      </p>
+
+      <AutoOffers />
+    </div>
+  )
+}
+
+// ---------- Offres automatiques (programmées, type OLX/eBay) ----------
+function AutoOffers() {
+  const [info, setInfo] = useState<{ cronKey: string; site: string } | null>(null)
+  const [busy, setBusy] = useState<'' | 'daily' | 'weekly'>('')
+  const [msg, setMsg] = useState('')
+  const [copied, setCopied] = useState('')
+
+  useEffect(() => { digestInfo().then(setInfo).catch(() => {}) }, [])
+
+  const sendNow = async (type: 'daily' | 'weekly') => {
+    setBusy(type); setMsg('')
+    try {
+      const r = await digestSend(type)
+      setMsg(r.listings === 0
+        ? '⚠️ Aucune annonce à envoyer pour l’instant (publiez des annonces d’abord).'
+        : `✓ Offres envoyées à ${r.sent} abonné${r.sent > 1 ? 's' : ''} (${r.listings} annonces).`)
+    } catch (e) { setMsg('⚠️ ' + (e as Error).message) }
+    finally { setBusy('') }
+  }
+
+  const cmd = (type: string) =>
+    info ? `curl -s "${info.site}/api/cron/digest?key=${info.cronKey}&type=${type}" >/dev/null 2>&1` : ''
+
+  const copy = (type: string) => {
+    navigator.clipboard?.writeText(cmd(type))
+    setCopied(type)
+    setTimeout(() => setCopied(''), 1500)
+  }
+
+  return (
+    <div className="mt-2 space-y-3 rounded-2xl border border-primary-200 bg-primary-50/40 p-4">
+      <p className="flex items-center gap-1.5 font-display text-sm font-bold text-gray-800">
+        <CalendarClock size={16} className="text-primary-600" /> Offres automatiques (comme OLX / eBay)
+      </p>
+      <p className="text-sm text-gray-600">
+        Un email « <b>bonnes affaires du jour</b> » / « <b>sélection de la semaine</b> » avec de vraies
+        annonces (photo, prix, lien) envoyé <b>automatiquement</b> à tes abonnés. Teste-le, puis programme-le.
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => sendNow('daily')} disabled={!!busy} className="btn-outline py-2 text-sm disabled:opacity-50">
+          {busy === 'daily' ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Tester « du jour »
+        </button>
+        <button onClick={() => sendNow('weekly')} disabled={!!busy} className="btn-outline py-2 text-sm disabled:opacity-50">
+          {busy === 'weekly' ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Tester « de la semaine »
+        </button>
+      </div>
+      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
+
+      <div className="rounded-xl bg-white p-3">
+        <p className="mb-1.5 text-xs font-semibold text-gray-500">Pour l’AUTOMATISER (cPanel → Tâches planifiées / Cron Jobs) :</p>
+        {[['daily', 'Chaque jour à 8h', '0 8 * * *'], ['weekly', 'Chaque lundi à 8h', '0 8 * * 1']].map(([type, when, sched]) => (
+          <div key={type} className="mb-2">
+            <p className="text-xs text-gray-500">{when} — planning <code className="rounded bg-gray-100 px-1">{sched}</code></p>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd(type)}</code>
+              <button onClick={() => copy(type)} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50">
+                {copied === type ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-gray-400">
+        Colle la commande dans une nouvelle tâche planifiée cPanel avec le planning indiqué. Chaque déclenchement
+        enverra automatiquement les offres à tes abonnés. 🎯
       </p>
     </div>
   )

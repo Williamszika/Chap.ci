@@ -301,6 +301,12 @@ export async function phpCampaignCount(): Promise<number> {
 export async function phpCampaignSend(subject: string, message: string, offset: number, limit: number): Promise<{ sent: number; processed: number; total: number; done: boolean }> {
   return req('/admin/campaign/send', { method: 'POST', body: { subject, message, offset, limit } })
 }
+export async function phpDigestInfo(): Promise<{ cronKey: string; site: string }> {
+  return req('/admin/digest-info')
+}
+export async function phpDigestSend(type: 'daily' | 'weekly'): Promise<{ sent: number; listings: number; subscribers?: number; reason?: string }> {
+  return req('/admin/digest-send', { method: 'POST', body: { type } })
+}
 export interface SmtpSettings { host: string; port: string; secure: string; user: string; configured?: boolean }
 export async function phpGetSmtp(): Promise<SmtpSettings> {
   return req<SmtpSettings>('/admin/smtp')

@@ -96,6 +96,14 @@ export async function campaignSend(subject: string, message: string, offset: num
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpCampaignSend(subject, message, offset, limit)
 }
+export async function digestInfo() {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpDigestInfo()
+}
+export async function digestSend(type: 'daily' | 'weekly') {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpDigestSend(type)
+}
 
 export type SmtpSettings = php.SmtpSettings
 export async function getSmtp(): Promise<SmtpSettings> {

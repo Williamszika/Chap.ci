@@ -24,6 +24,10 @@ return [
   // aléatoire unique en production.
   'jwt_secret'  => getenv('CHAPCI_JWT_SECRET') ?: 'CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire',
 
+  // Clé secrète pour les tâches planifiées (envoi automatique des « offres du
+  // jour/semaine »). Utilisée dans la commande cron. Gardez-la privée.
+  'cron_key'    => getenv('CHAPCI_CRON_KEY') ?: 'chapci-cron-2026-a7f3e9',
+
   // Emails administrateurs : seuls ces comptes peuvent voir/exporter les abonnés
   // à la newsletter. Séparez par des virgules. METTEZ VOTRE email de compte.
   'admin_emails' => array_filter(array_map('trim',
