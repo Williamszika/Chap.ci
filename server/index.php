@@ -163,6 +163,10 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS admins (
       email VARCHAR(190) PRIMARY KEY, created_at $ts
     )$eng",
+    "CREATE TABLE IF NOT EXISTS user_interests (
+      user_id $id, category_id $txt, weight $intT, updated_at $ts,
+      PRIMARY KEY (user_id, category_id)
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 }
@@ -438,7 +442,11 @@ function digest_listings(PDO $pdo, int $limit = 6): array {
 function digest_html(array $config, array $rows, string $type): string {
   $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
   $name = $config['mail_from_name'] ?? 'Chap.ci';
-  $title = $type === 'weekly' ? '✨ La sélection de la semaine' : '🔥 Les bonnes affaires du jour';
+  $title = $type === 'weekly' ? '✨ La sélection de la semaine'
+    : ($type === 'perso' ? '✨ Sélectionné pour vous' : '🔥 Les bonnes affaires du jour');
+  $intro = $type === 'perso'
+    ? 'En fonction de ce qui vous intéresse, voici notre sélection 👇'
+    : 'Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇';
   $cards = '';
   foreach ($rows as $r) {
     $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
@@ -465,7 +473,7 @@ function digest_html(array $config, array $rows, string $type): string {
   }
   $inner =
     '<h2 style="margin-top:0">' . $title . '</h2>'
-    . '<p>Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇</p>'
+    . '<p>' . $intro . '</p>'
     . $cards
     . email_button($site, 'Voir toutes les annonces')
     . '<p style="margin-top:20px">Bonnes affaires,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
@@ -482,6 +490,31 @@ function send_digest(array $config, PDO $pdo, string $type): array {
   $sent = 0;
   foreach ($subs as $s) { if (send_mail($config, $s['email'], $subject, $html, $from, $from)) $sent++; }
   return ['sent' => $sent, 'listings' => count($rows), 'subscribers' => count($subs)];
+}
+/** « Agent » de recommandation : annonces des catégories préférées de l'utilisateur. */
+function suggestions_for_user(PDO $pdo, string $userId, int $limit = 6): array {
+  $c = $pdo->prepare('SELECT category_id FROM user_interests WHERE user_id = ? ORDER BY weight DESC, updated_at DESC LIMIT 3');
+  $c->execute([$userId]);
+  $cats = array_values(array_filter(array_column($c->fetchAll(), 'category_id')));
+  if (!$cats) return [];
+  $in = implode(',', array_fill(0, count($cats), '?'));
+  $st = $pdo->prepare(
+    "SELECT id,title,price,images,commune,city_id,promo_price,promo_until,category_id
+     FROM listings WHERE category_id IN ($in) AND (user_id IS NULL OR user_id <> ?)
+     ORDER BY (CASE WHEN promo_price IS NOT NULL THEN 0 ELSE 1 END), created_at DESC LIMIT " . (int) $limit
+  );
+  $st->execute(array_merge($cats, [$userId]));
+  return $st->fetchAll();
+}
+/** Envoie l'email de suggestions personnalisées à un utilisateur. */
+function send_suggestions(array $config, PDO $pdo, array $user): array {
+  if (empty($user['email'])) return ['sent' => 0, 'listings' => 0];
+  $rows = suggestions_for_user($pdo, $user['id'], 6);
+  if (!$rows) return ['sent' => 0, 'listings' => 0];
+  $html = digest_html($config, $rows, 'perso');
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  $ok = send_mail($config, $user['email'], 'Des annonces pour vous ✨', $html, $from, $from);
+  return ['sent' => $ok ? 1 : 0, 'listings' => count($rows)];
 }
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
@@ -1073,6 +1106,10 @@ try {
       $type = (($b['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
       jout(send_digest($config, $pdo, $type));
     }
+    // Suggestions personnalisées : test sur son propre compte.
+    if ($path === 'admin/suggestions-test' && $method === 'POST') {
+      jout(send_suggestions($config, $pdo, $u));
+    }
 
     // Diagnostic : envoie un email de test à l'administrateur connecté.
     if ($path === 'admin/test-email' && $method === 'POST') {
@@ -1089,6 +1126,28 @@ try {
     jerr('Route admin inconnue: ' . $path, 404);
   }
 
+  // ---------- CENTRES D'INTÉRÊT (l'« agent » observe) ----------
+  // Enregistre un signal d'intérêt (favori, recherche, catégorie consultée).
+  if ($path === 'interests' && $method === 'POST') {
+    $u = current_user($pdo, $secret); // silencieux si non connecté
+    $b = body();
+    $cat = trim((string) ($b['categoryId'] ?? ''));
+    if ($u && $cat !== '') {
+      $w = max(1, min(5, (int) ($b['weight'] ?? 1)));
+      $ex = $pdo->prepare('SELECT weight FROM user_interests WHERE user_id = ? AND category_id = ?');
+      $ex->execute([$u['id'], $cat]);
+      $row = $ex->fetch();
+      if ($row) {
+        $pdo->prepare('UPDATE user_interests SET weight = ?, updated_at = ? WHERE user_id = ? AND category_id = ?')
+            ->execute([min(1000, (int) $row['weight'] + $w), now_iso(), $u['id'], $cat]);
+      } else {
+        $pdo->prepare('INSERT INTO user_interests (user_id, category_id, weight, updated_at) VALUES (?,?,?,?)')
+            ->execute([$u['id'], $cat, $w, now_iso()]);
+      }
+    }
+    jout(['ok' => true]);
+  }
+
   // ---------- TÂCHE PLANIFIÉE : offres du jour / de la semaine ----------
   // Appelée par une tâche cron cPanel. Authentifiée par clé (pas de JWT).
   if ($path === 'cron/digest' && $method === 'GET') {
@@ -1097,6 +1156,22 @@ try {
     }
     $type = (($_GET['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
     jout(send_digest($config, $pdo, $type));
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : suggestions personnalisées (2×/semaine) ----------
+  if ($path === 'cron/suggestions' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $users = $pdo->query('SELECT DISTINCT ui.user_id AS id, u.email
+      FROM user_interests ui JOIN users u ON u.id = ui.user_id')->fetchAll();
+    $reached = 0; $emailed = 0;
+    foreach ($users as $usr) {
+      $r = send_suggestions($config, $pdo, $usr);
+      $reached++;
+      if ($r['sent']) $emailed++;
+    }
+    jout(['users' => $reached, 'emailed' => $emailed]);
   }
 
   if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso()]);

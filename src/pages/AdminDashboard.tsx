@@ -10,7 +10,7 @@ import { emojiFor } from '../lib/placeholder'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
   fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
-  campaignCount, campaignSend, digestInfo, digestSend,
+  campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
@@ -502,6 +502,62 @@ function CampaignsTab() {
       </p>
 
       <AutoOffers />
+      <SmartAgents />
+    </div>
+  )
+}
+
+// ---------- Agents intelligents (suggestions personnalisées) ----------
+function SmartAgents() {
+  const [info, setInfo] = useState<{ cronKey: string; site: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => { digestInfo().then(setInfo).catch(() => {}) }, [])
+
+  const test = async () => {
+    setBusy(true); setMsg('')
+    try {
+      const r = await suggestionsTest()
+      setMsg(r.listings === 0
+        ? 'ℹ️ Aucune suggestion pour votre compte (ajoutez des favoris / explorez des catégories, puis réessayez).'
+        : `✓ Email de suggestions envoyé (${r.listings} annonces choisies selon vos centres d’intérêt).`)
+    } catch (e) { setMsg('⚠️ ' + (e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  const cmd = info ? `curl -s "${info.site}/api/cron/suggestions?key=${info.cronKey}" >/dev/null 2>&1` : ''
+  const copy = () => { navigator.clipboard?.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 1500) }
+
+  return (
+    <div className="mt-2 space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+      <p className="flex items-center gap-1.5 font-display text-sm font-bold text-gray-800">
+        <ShieldCheck size={16} className="text-emerald-600" /> Agents intelligents (suggestions personnalisées)
+      </p>
+      <p className="text-sm text-gray-600">
+        Un « agent » observe automatiquement chaque utilisateur (<b>favoris</b>, <b>recherches</b>,
+        <b> catégories consultées</b>) et lui envoie par email des <b>suggestions d’articles qui
+        l’intéressent</b>. À programmer <b>2 fois par semaine</b>.
+      </p>
+
+      <button onClick={test} disabled={busy} className="btn-outline py-2 text-sm disabled:opacity-50">
+        {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Tester sur mon compte
+      </button>
+      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-gray-500'}`}>{msg}</p>}
+
+      <div className="rounded-xl bg-white p-3">
+        <p className="mb-1.5 text-xs font-semibold text-gray-500">
+          Pour l’AUTOMATISER (cPanel → Tâches planifiées) — <b>lundi &amp; jeudi à 9h</b> :
+          planning <code className="rounded bg-gray-100 px-1">0 9 * * 1,4</code>
+        </p>
+        <div className="mt-1 flex items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
+          <button onClick={copy} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50">
+            {copied ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

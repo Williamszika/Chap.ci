@@ -104,6 +104,10 @@ export async function digestSend(type: 'daily' | 'weekly') {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpDigestSend(type)
 }
+export async function suggestionsTest() {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpSuggestionsTest()
+}
 
 export type SmtpSettings = php.SmtpSettings
 export async function getSmtp(): Promise<SmtpSettings> {

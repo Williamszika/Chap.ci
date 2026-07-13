@@ -5,6 +5,7 @@ import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm } from '../lib/geo'
 import { activePromo } from '../lib/promo'
+import { recordInterest } from '../lib/interests'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { Sheet } from '../components/Sheet'
@@ -45,6 +46,9 @@ export function Browse() {
   }
 
   const [qInput, setQInput] = useState(q)
+
+  // Explorer une catégorie = signal d'intérêt (pour les suggestions par email).
+  useEffect(() => { if (cat) recordInterest(cat, 1) }, [cat])
 
   // Recentre automatiquement la catégorie / sous-catégorie active dans sa rangée
   const activeCatRef = useRef<HTMLButtonElement>(null)

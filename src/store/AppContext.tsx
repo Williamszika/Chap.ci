@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -11,6 +12,7 @@ import type { Listing } from '../types'
 import { seedListings } from '../data/seedListings'
 import { isSupabaseConfigured } from '../lib/supabaseClient'
 import { isPhp } from '../lib/backend'
+import { recordInterest } from '../lib/interests'
 import { fetchListings, createListing, deleteListingRemote } from '../lib/api'
 import { useAuth } from './AuthContext'
 
@@ -157,8 +159,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [mode],
   )
 
+  // Référence toujours à jour des annonces (pour retrouver une catégorie sans
+  // recréer les callbacks).
+  const listingsRef = useRef<Listing[]>([])
+  useEffect(() => { listingsRef.current = listings }, [listings])
+
   const toggleFavorite = useCallback((id: string) => {
-    setFavorites((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [id, ...prev]))
+    setFavorites((prev) => {
+      if (prev.includes(id)) return prev.filter((f) => f !== id)
+      // Ajout d'un favori = signal d'intérêt fort pour la catégorie de l'annonce.
+      const l = listingsRef.current.find((x) => x.id === id)
+      recordInterest(l?.categoryId, 2)
+      return [id, ...prev]
+    })
   }, [])
 
   const isFavorite = useCallback((id: string) => favorites.includes(id), [favorites])

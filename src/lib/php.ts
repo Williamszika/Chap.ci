@@ -307,6 +307,12 @@ export async function phpDigestInfo(): Promise<{ cronKey: string; site: string }
 export async function phpDigestSend(type: 'daily' | 'weekly'): Promise<{ sent: number; listings: number; subscribers?: number; reason?: string }> {
   return req('/admin/digest-send', { method: 'POST', body: { type } })
 }
+export async function phpRecordInterest(categoryId: string, weight = 1): Promise<void> {
+  try { await req('/interests', { method: 'POST', body: { categoryId, weight } }) } catch { /* silencieux */ }
+}
+export async function phpSuggestionsTest(): Promise<{ sent: number; listings: number }> {
+  return req('/admin/suggestions-test', { method: 'POST', body: {} })
+}
 export interface SmtpSettings { host: string; port: string; secure: string; user: string; configured?: boolean }
 export async function phpGetSmtp(): Promise<SmtpSettings> {
   return req<SmtpSettings>('/admin/smtp')

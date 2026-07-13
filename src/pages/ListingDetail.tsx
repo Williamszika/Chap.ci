@@ -26,6 +26,7 @@ import { fetchReviewsForListing, createReview, averageRating } from '../lib/revi
 import { fetchPurchasedListingIds } from '../lib/orders'
 import { priceLabel, formatPrice, timeAgo } from '../lib/format'
 import { activePromo, promoEndLabel } from '../lib/promo'
+import { recordInterest } from '../lib/interests'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { ListingCard } from '../components/ListingCard'
@@ -51,6 +52,11 @@ export function ListingDetail() {
 
   const listingId = listing?.id
   const sellerId = listing?.sellerId
+
+  // Consulter une annonce = signal d'intérêt pour sa catégorie.
+  useEffect(() => {
+    if (listing?.categoryId) recordInterest(listing.categoryId, 1)
+  }, [listing?.categoryId])
 
   useEffect(() => {
     if (!listingId) return
