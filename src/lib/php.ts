@@ -294,6 +294,13 @@ export async function phpRemoveModerator(email: string): Promise<void> {
 export async function phpAdminTestEmail(): Promise<{ sent: boolean; to: string; via: string }> {
   return req('/admin/test-email', { method: 'POST', body: {} })
 }
+export async function phpCampaignCount(): Promise<number> {
+  const d = await req<{ total: number }>('/admin/campaign/count')
+  return d.total
+}
+export async function phpCampaignSend(subject: string, message: string, offset: number, limit: number): Promise<{ sent: number; processed: number; total: number; done: boolean }> {
+  return req('/admin/campaign/send', { method: 'POST', body: { subject, message, offset, limit } })
+}
 export interface SmtpSettings { host: string; port: string; secure: string; user: string; configured?: boolean }
 export async function phpGetSmtp(): Promise<SmtpSettings> {
   return req<SmtpSettings>('/admin/smtp')

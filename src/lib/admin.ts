@@ -88,6 +88,15 @@ export async function sendTestEmail(): Promise<{ sent: boolean; to: string; via:
   return php.phpAdminTestEmail()
 }
 
+export async function campaignCount(): Promise<number> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpCampaignCount()
+}
+export async function campaignSend(subject: string, message: string, offset: number, limit: number) {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpCampaignSend(subject, message, offset, limit)
+}
+
 export type SmtpSettings = php.SmtpSettings
 export async function getSmtp(): Promise<SmtpSettings> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)

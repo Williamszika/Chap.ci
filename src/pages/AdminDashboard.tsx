@@ -10,12 +10,13 @@ import { emojiFor } from '../lib/placeholder'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
   fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
+  campaignCount, campaignSend,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2 } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -70,7 +71,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['orders','Commandes'],['newsletter','Abonnés'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['orders','Commandes'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -88,6 +89,7 @@ export function AdminDashboard() {
         {tab === 'users' && <UsersTab />}
         {tab === 'orders' && <OrdersTab />}
         {tab === 'newsletter' && <NewsletterTab />}
+        {tab === 'campaigns' && <CampaignsTab />}
         {tab === 'moderators' && <ModeratorsTab />}
         {tab === 'emails' && <EmailsTab />}
       </div>
@@ -427,6 +429,77 @@ function ModeratorsTab() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ---------- Campagnes (envoi promo aux abonnés) ----------
+function CampaignsTab() {
+  const [total, setTotal] = useState<number | null>(null)
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [result, setResult] = useState('')
+
+  useEffect(() => { campaignCount().then(setTotal).catch(() => setTotal(0)) }, [])
+
+  const send = async () => {
+    if (!subject.trim() || !message.trim()) { setResult('⚠️ Renseignez l’objet et le message.'); return }
+    if (!confirm(`Envoyer cette campagne à ${total ?? 0} abonné(s) ?`)) return
+    setSending(true); setProgress(0); setResult('')
+    let offset = 0, sent = 0, grand = total ?? 0
+    try {
+      // Envoi par lots pour respecter les quotas de l'hébergeur.
+      for (;;) {
+        const r = await campaignSend(subject.trim(), message.trim(), offset, 25)
+        sent += r.sent; grand = r.total; offset = r.processed
+        setProgress(grand ? Math.min(100, Math.round((offset / grand) * 100)) : 100)
+        if (r.done) break
+      }
+      setResult(`✓ Campagne envoyée à ${sent} abonné${sent > 1 ? 's' : ''} ! 🎉`)
+      setSubject(''); setMessage('')
+    } catch (e) { setResult('⚠️ ' + (e as Error).message) }
+    finally { setSending(false) }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
+        <p className="flex items-center gap-1.5 font-semibold"><Megaphone size={16} /> Campagne publicitaire</p>
+        <p className="mt-1 text-primary-700">
+          Écrivez une promo, elle part à vos <b>{total ?? '…'} abonné{(total ?? 0) > 1 ? 's' : ''}</b> depuis
+          <b> hello@chap.ci</b>, avec votre logo. Envoi progressif pour respecter les limites de l’hébergeur.
+        </p>
+      </div>
+
+      <div className="space-y-3 rounded-2xl bg-white p-4 shadow-card">
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-gray-500">Objet de l’email</label>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} disabled={sending} className="input"
+            placeholder="Ex : 🔥 Grande promo Tabaski — livraison offerte !" />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-gray-500">Message</label>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} disabled={sending} rows={7} className="input resize-y"
+            placeholder={"Bonjour,\n\nCette semaine sur Chap.ci : des centaines de bonnes affaires près de chez vous, et la livraison offerte sur les vélos et téléphones !\n\nProfitez-en vite."} />
+          <p className="mt-1 text-xs text-gray-400">Astuce : sautez une ligne pour créer un nouveau paragraphe.</p>
+        </div>
+        <button onClick={send} disabled={sending || (total ?? 0) === 0} className="btn-primary w-full py-3 disabled:opacity-50">
+          {sending ? <><Loader2 size={18} className="animate-spin" /> Envoi… {progress}%</> : <><Send size={18} /> Envoyer à {total ?? 0} abonné{(total ?? 0) > 1 ? 's' : ''}</>}
+        </button>
+        {sending && (
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="h-full rounded-full bg-primary-500 transition-all" style={{ width: `${progress}%` }} />
+          </div>
+        )}
+        {result && <p className={`text-sm ${result.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{result}</p>}
+      </div>
+
+      <p className="px-1 text-xs text-gray-400">
+        💡 Les abonnés peuvent répondre (ça arrive dans <b>hello@chap.ci</b>) et se désinscrire.
+        Envoyez du contenu utile pour ne pas lasser.
+      </p>
     </div>
   )
 }

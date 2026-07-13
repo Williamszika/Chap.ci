@@ -411,6 +411,20 @@ function send_order_buyer_email(array $config, string $to, array $items): bool {
   return send_mail($config, $to, 'Votre demande a bien été envoyée',
     email_layout($config, $inner, 'Votre demande d’achat a été transmise au vendeur.'));
 }
+/** Construit l'email HTML d'une campagne à partir d'un message texte libre. */
+function campaign_html(array $config, string $message): string {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  // Texte libre -> paragraphes HTML sûrs (les sauts de ligne sont conservés).
+  $paras = array_filter(array_map('trim', preg_split('/\n\s*\n/', $message)));
+  $body = '';
+  foreach ($paras as $p) $body .= '<p>' . nl2br(htmlspecialchars($p)) . '</p>';
+  if ($body === '') $body = '<p>' . nl2br(htmlspecialchars($message)) . '</p>';
+  $inner = $body
+    . email_button($site, 'Voir les annonces')
+    . '<p style="margin-top:20px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return email_layout($config, $inner, mb_substr(trim(strip_tags($message)), 0, 90));
+}
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
   $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
@@ -964,6 +978,28 @@ try {
         jerr('Écriture impossible dans le dossier api/ (droits). Renseignez plutôt le bloc smtp dans config.php.', 500);
       }
       jout(['ok' => true]);
+    }
+
+    // Campagnes : nombre d'abonnés destinataires.
+    if ($path === 'admin/campaign/count' && $method === 'GET') {
+      jout(['total' => (int) $pdo->query('SELECT COUNT(*) AS c FROM newsletter')->fetch()['c']]);
+    }
+    // Campagnes : envoi d'un LOT (l'app boucle avec offset croissant).
+    if ($path === 'admin/campaign/send' && $method === 'POST') {
+      $b = body();
+      $subject = trim((string) ($b['subject'] ?? ''));
+      $message = trim((string) ($b['message'] ?? ''));
+      if ($subject === '' || $message === '') jerr('Objet et message obligatoires.');
+      $offset = max(0, (int) ($b['offset'] ?? 0));
+      $limit  = min(40, max(1, (int) ($b['limit'] ?? 25)));
+      $total  = (int) $pdo->query('SELECT COUNT(*) AS c FROM newsletter')->fetch()['c'];
+      $rows = $pdo->query("SELECT email FROM newsletter ORDER BY created_at ASC LIMIT $limit OFFSET $offset")->fetchAll();
+      $html = campaign_html($config, $message);
+      $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+      $sent = 0;
+      foreach ($rows as $r) { if (send_mail($config, $r['email'], $subject, $html, $from, $from)) $sent++; }
+      $processed = $offset + count($rows);
+      jout(['sent' => $sent, 'processed' => $processed, 'total' => $total, 'done' => (count($rows) < $limit || $processed >= $total)]);
     }
 
     // Diagnostic : envoie un email de test à l'administrateur connecté.
