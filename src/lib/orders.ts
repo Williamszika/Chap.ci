@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient'
+import { isPhp } from './backend'
+import * as php from './php'
 import type { CartItem, Order, OrderItem, OrderStatus } from '../types'
 
 interface OrderRow {
@@ -24,6 +26,7 @@ export async function createOrder(
   items: CartItem[],
   conversationId: string | null,
 ): Promise<string> {
+  if (isPhp) return php.phpCreateOrder(sellerId, items, conversationId)
   if (!supabase) throw new Error('Supabase non configuré')
   const { data, error } = await supabase
     .from('orders')
@@ -47,6 +50,7 @@ export async function createOrder(
 
 /** Liste les commandes de l'utilisateur, en tant qu'acheteur ou vendeur. */
 export async function fetchOrders(userId: string, role: 'buyer' | 'seller'): Promise<Order[]> {
+  if (isPhp) return php.phpFetchOrders(role)
   if (!supabase) return []
   const col = role === 'buyer' ? 'buyer_id' : 'seller_id'
   const { data, error } = await supabase
@@ -88,6 +92,7 @@ export async function fetchOrders(userId: string, role: 'buyer' | 'seller'): Pro
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+  if (isPhp) return php.phpUpdateOrderStatus(orderId, status)
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('orders').update({ status }).eq('id', orderId)
   if (error) throw error
@@ -95,6 +100,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
 
 /** Renvoie l'ensemble des listing_id que l'utilisateur a commandés (pour autoriser les avis). */
 export async function fetchPurchasedListingIds(userId: string): Promise<Set<string>> {
+  if (isPhp) return php.phpPurchasedListingIds()
   if (!supabase) return new Set()
   const { data, error } = await supabase
     .from('orders')

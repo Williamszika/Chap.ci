@@ -149,13 +149,23 @@ function user_public(PDO $pdo, array $u): array {
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
 function save_data_uri(array $config, string $dataUri): ?string {
-  if (!preg_match('#^data:image/(\w+);base64,(.+)$#s', $dataUri, $m)) {
-    // Déjà une URL (http/https ou /uploads/…) : on la garde telle quelle.
-    return (str_starts_with($dataUri, 'http') || str_starts_with($dataUri, '/')) ? $dataUri : null;
-  }
-  $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : preg_replace('/[^a-z0-9]/', '', strtolower($m[1]));
-  $bin = base64_decode($m[2]);
-  if ($bin === false) return null;
+  // Déjà une URL (http/https ou /uploads/…) : on la garde telle quelle.
+  if (str_starts_with($dataUri, 'http') || str_starts_with($dataUri, '/')) return $dataUri;
+  // data:<meta>,<données> — on coupe au PREMIER virgule (le SVG peut contenir des virgules).
+  if (!str_starts_with($dataUri, 'data:')) return null;
+  $comma = strpos($dataUri, ',');
+  if ($comma === false) return null;
+  $meta = substr($dataUri, 5, $comma - 5); // ex: image/svg+xml;utf8  ou  image/png;base64
+  $data = substr($dataUri, $comma + 1);
+  if (!str_starts_with($meta, 'image/')) return null;
+  $isB64 = str_contains($meta, ';base64');
+  $mime = strtolower(explode(';', substr($meta, 6))[0]); // après "image/", avant le 1er ";"
+  $ext = str_contains($mime, 'svg') ? 'svg'
+       : (str_contains($mime, 'jpeg') || str_contains($mime, 'jpg') ? 'jpg'
+       : (str_contains($mime, 'webp') ? 'webp'
+       : (str_contains($mime, 'gif') ? 'gif' : (str_contains($mime, 'png') ? 'png' : 'img'))));
+  $bin = $isB64 ? base64_decode($data) : rawurldecode($data);
+  if ($bin === false || $bin === '') return null;
   $dir = $config['uploads_dir'];
   if (!is_dir($dir)) @mkdir($dir, 0775, true);
   // Sécurité : interdire l'exécution de scripts dans le dossier des photos.

@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient'
+import { isPhp } from './backend'
+import * as php from './php'
 import type { Review } from '../types'
 
 interface ReviewRow {
@@ -29,6 +31,7 @@ async function enrich(rows: ReviewRow[]): Promise<Review[]> {
 }
 
 export async function fetchReviewsForSeller(sellerId: string): Promise<Review[]> {
+  if (isPhp) return php.phpFetchReviewsForSeller(sellerId)
   if (!supabase) return []
   const { data, error } = await supabase
     .from('reviews')
@@ -40,6 +43,7 @@ export async function fetchReviewsForSeller(sellerId: string): Promise<Review[]>
 }
 
 export async function fetchReviewsForListing(listingId: string): Promise<Review[]> {
+  if (isPhp) return php.phpFetchReviewsForListing(listingId)
   if (!supabase) return []
   const { data, error } = await supabase
     .from('reviews')
@@ -57,6 +61,7 @@ export async function createReview(input: {
   rating: number
   comment?: string
 }): Promise<void> {
+  if (isPhp) return php.phpCreateReview({ listingId: input.listingId, sellerId: input.sellerId, rating: input.rating, comment: input.comment })
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('reviews').insert({
     listing_id: input.listingId,

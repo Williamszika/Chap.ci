@@ -10,8 +10,12 @@ import {
 import type { Listing } from '../types'
 import { seedListings } from '../data/seedListings'
 import { isSupabaseConfigured } from '../lib/supabaseClient'
+import { isPhp } from '../lib/backend'
 import { fetchListings, createListing, deleteListingRemote } from '../lib/api'
 import { useAuth } from './AuthContext'
+
+/** true si un backend distant (Supabase ou PHP) est disponible. */
+const remoteEnabled = isPhp || isSupabaseConfigured
 
 const LS_LISTINGS = 'chapci.listings.v1'
 const LS_FAVORITES = 'chapci.favorites.v1'
@@ -60,7 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>(() => loadJSON<string[]>(LS_FAVORITES, []))
   const [myIds, setMyIds] = useState<string[]>(() => loadJSON<string[]>(LS_MYIDS, []))
   const [mode, setMode] = useState<Mode>('local')
-  const [loading, setLoading] = useState<boolean>(isSupabaseConfigured)
+  const [loading, setLoading] = useState<boolean>(remoteEnabled)
 
   // Persistance locale
   useEffect(() => {
@@ -74,7 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [myIds])
 
   const refresh = useCallback(async () => {
-    if (!isSupabaseConfigured) {
+    if (!remoteEnabled) {
       setMode('local')
       setLoading(false)
       return

@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient'
+import { isPhp } from './backend'
+import * as php from './php'
 import type { Conversation, Message, Listing } from '../types'
 
 interface ConvRow {
@@ -29,8 +31,9 @@ export async function getOrCreateConversation(
   listing: Listing,
   buyerId: string,
 ): Promise<string> {
-  if (!supabase) throw new Error('Supabase non configuré')
   if (!listing.sellerId) throw new Error('Cette annonce n’a pas de compte vendeur.')
+  if (isPhp) return php.phpGetOrCreateConversation(listing.id, listing.sellerId)
+  if (!supabase) throw new Error('Supabase non configuré')
 
   const { data: existing, error: e1 } = await supabase
     .from('conversations')
@@ -56,6 +59,7 @@ export async function getOrCreateConversationRaw(
   sellerId: string,
   buyerId: string,
 ): Promise<string> {
+  if (isPhp) return php.phpGetOrCreateConversation(listingId, sellerId)
   if (!supabase) throw new Error('Supabase non configuré')
   const { data: existing } = await supabase
     .from('conversations')
@@ -75,6 +79,7 @@ export async function getOrCreateConversationRaw(
 
 /** Liste les conversations de l'utilisateur, enrichies (annonce, interlocuteur, dernier message). */
 export async function fetchConversations(userId: string): Promise<Conversation[]> {
+  if (isPhp) return php.phpFetchConversations()
   if (!supabase) return []
   const { data, error } = await supabase
     .from('conversations')
@@ -142,6 +147,7 @@ export async function fetchConversations(userId: string): Promise<Conversation[]
 }
 
 export async function fetchMessages(conversationId: string): Promise<Message[]> {
+  if (isPhp) return php.phpFetchMessages(conversationId)
   if (!supabase) return []
   const { data, error } = await supabase
     .from('messages')
@@ -157,6 +163,7 @@ export async function sendMessage(
   senderId: string,
   body: string,
 ): Promise<Message> {
+  if (isPhp) return php.phpSendMessage(conversationId, body)
   if (!supabase) throw new Error('Supabase non configuré')
   const { data, error } = await supabase
     .from('messages')
@@ -172,6 +179,7 @@ export function subscribeMessages(
   conversationId: string,
   onInsert: (m: Message) => void,
 ): () => void {
+  if (isPhp) return php.phpPollMessages(conversationId, onInsert)
   const client = supabase
   if (!client) return () => {}
   const channel = client
@@ -192,6 +200,7 @@ export function subscribeMessages(
  * (RLS limite aux conversations dont il est membre). Sert au badge « non lus ».
  */
 export function subscribeAllMessages(onInsert: (m: Message) => void): () => void {
+  if (isPhp) return php.phpPollAll(onInsert)
   const client = supabase
   if (!client) return () => {}
   const channel = client

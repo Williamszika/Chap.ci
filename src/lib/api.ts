@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient'
+import { isPhp } from './backend'
+import * as php from './php'
 import type { Listing } from '../types'
 
 // Ligne de la table `listings` côté Supabase (snake_case)
@@ -55,8 +57,9 @@ function rowToListing(r: ListingRow): Listing {
   }
 }
 
-/** Charge toutes les annonces partagées depuis Supabase. */
+/** Charge toutes les annonces partagées depuis le backend. */
 export async function fetchListings(): Promise<Listing[]> {
+  if (isPhp) return php.phpFetchListings()
   if (!supabase) throw new Error('Supabase non configuré')
   const { data, error } = await supabase
     .from('listings')
@@ -72,6 +75,7 @@ export async function createListing(
   input: Omit<Listing, 'id' | 'createdAt' | 'currency'>,
   userId: string | null,
 ): Promise<Listing> {
+  if (isPhp) return php.phpCreateListing(input)
   if (!supabase) throw new Error('Supabase non configuré')
   const client = supabase
 
@@ -118,6 +122,7 @@ export async function createListing(
 
 /** Supprime une annonce (RLS : seulement le propriétaire). */
 export async function deleteListingRemote(id: string): Promise<void> {
+  if (isPhp) return php.phpDeleteListing(id)
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('listings').delete().eq('id', id)
   if (error) throw error

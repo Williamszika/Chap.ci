@@ -8,6 +8,10 @@ import {
 } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
+import { isPhp } from '../lib/backend'
+import * as php from '../lib/php'
+
+const NOT_PHP = { error: 'Indisponible en auto-hébergé (utilisez email + mot de passe).' }
 
 interface AuthResult {
   error?: string
@@ -81,10 +85,15 @@ async function checkMfaRequired(): Promise<boolean> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState<boolean>(isSupabaseConfigured)
+  const [loading, setLoading] = useState<boolean>(isPhp || isSupabaseConfigured)
   const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
+    if (isPhp) {
+      setUser((php.phpGetStoredUser() as unknown as User) ?? null)
+      php.phpMe().then((u) => setUser((u as unknown as User) ?? null)).finally(() => setLoading(false))
+      return
+    }
     if (!supabase) {
       setLoading(false)
       return
@@ -102,6 +111,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = useCallback(async (email: string, password: string, fullName: string): Promise<AuthResult> => {
+    if (isPhp) {
+      try {
+        const u = await php.phpSignup(email, password, fullName)
+        setUser(u as unknown as User)
+        return { userId: u.id }
+      } catch (e) {
+        return { error: (e as Error).message }
+      }
+    }
     if (!supabase) return { error: 'Comptes indisponibles (Supabase non configuré).' }
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -114,6 +132,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
+    if (isPhp) {
+      try {
+        const u = await php.phpLogin(email, password)
+        setUser(u as unknown as User)
+        return {}
+      } catch (e) {
+        return { error: (e as Error).message }
+      }
+    }
     if (!supabase) return { error: 'Comptes indisponibles (Supabase non configuré).' }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: frError(error.message) }
@@ -122,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signInWithProvider = useCallback(async (provider: OAuthProvider): Promise<AuthResult> => {
+    if (isPhp) return NOT_PHP
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
@@ -132,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const sendPhoneCode = useCallback(async (phone: string): Promise<AuthResult> => {
+    if (isPhp) return NOT_PHP
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.signInWithOtp({ phone })
     if (error) return { error: frError(error.message) }
@@ -140,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyPhoneCode = useCallback(
     async (phone: string, token: string, fullName?: string): Promise<AuthResult> => {
+      if (isPhp) return NOT_PHP
       if (!supabase) return { error: 'Comptes indisponibles.' }
       const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
       if (error) return { error: frError(error.message) }
@@ -153,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const verifyLoginMfa = useCallback(async (code: string): Promise<AuthResult> => {
+    if (isPhp) return {}
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { data: factors, error: e0 } = await supabase.auth.mfa.listFactors()
     if (e0) return { error: frError(e0.message) }
@@ -166,12 +197,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    if (isPhp) { php.phpSignOut(); setUser(null); return }
     if (!supabase) return
     await supabase.auth.signOut()
     setUser(null)
   }, [])
 
   const sendPasswordReset = useCallback(async (email: string): Promise<AuthResult> => {
+    if (isPhp) return { error: 'La réinitialisation par email n’est pas disponible en auto-hébergé. Contactez le support du site.' }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() })
     if (error) return { error: frError(error.message) }
@@ -179,6 +212,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
+    if (isPhp) {
+      try { await php.phpUpdatePassword(newPassword); return {} } catch (e) { return { error: (e as Error).message } }
+    }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) return { error: frError(error.message) }
@@ -188,6 +224,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearRecovery = useCallback(() => setRecovery(false), [])
 
   const deleteAccount = useCallback(async (): Promise<AuthResult> => {
+    if (isPhp) {
+      try { await php.phpDeleteAccount(); setUser(null); return {} } catch (e) { return { error: (e as Error).message } }
+    }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.rpc('delete_my_account')
     if (error) return { error: frError(error.message) }
@@ -198,6 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // — 2FA (TOTP) —
   const enrollTotp = useCallback(async (): Promise<EnrollResult> => {
+    if (isPhp) return NOT_PHP
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
     if (error) return { error: frError(error.message) }
@@ -205,6 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const activateTotp = useCallback(async (factorId: string, code: string): Promise<AuthResult> => {
+    if (isPhp) return NOT_PHP
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { data: ch, error: e1 } = await supabase.auth.mfa.challenge({ factorId })
     if (e1 || !ch) return { error: frError(e1?.message) }
@@ -220,6 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const unenrollTotp = useCallback(async (factorId: string): Promise<AuthResult> => {
+    if (isPhp) return NOT_PHP
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.mfa.unenroll({ factorId })
     if (error) return { error: frError(error.message) }
@@ -229,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthState = {
     user,
     loading,
-    enabled: isSupabaseConfigured,
+    enabled: isPhp || isSupabaseConfigured,
     signUp,
     signIn,
     signInWithProvider,

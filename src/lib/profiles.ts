@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient'
+import { isPhp } from './backend'
+import * as php from './php'
 
 export interface PublicProfile {
   id: string
@@ -8,6 +10,7 @@ export interface PublicProfile {
 }
 
 export async function fetchProfile(id: string): Promise<PublicProfile | null> {
+  if (isPhp) return php.phpFetchProfile(id)
   if (!supabase) return null
   const { data, error } = await supabase
     .from('profiles')
@@ -42,6 +45,7 @@ export interface ProfileFields {
 }
 
 export async function updateMyProfile(id: string, fields: ProfileFields): Promise<void> {
+  if (isPhp) return php.phpUpdateProfile(fields)
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('profiles').update(fields).eq('id', id)
   if (error) throw error
@@ -49,6 +53,7 @@ export async function updateMyProfile(id: string, fields: ProfileFields): Promis
 
 /** Insère/met à jour le profil (upsert) — utile juste après l'inscription. */
 export async function upsertMyProfile(id: string, fields: ProfileFields): Promise<void> {
+  if (isPhp) return php.phpUpdateProfile(fields)
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('profiles').upsert({ id, ...fields })
   if (error) throw error
