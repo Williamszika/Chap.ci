@@ -10,6 +10,7 @@ import { LocationSheet } from '../components/LocationSheet'
 import { formatPrice } from '../lib/format'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
+import { downscaleListingImage } from '../lib/image'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { getBestPosition, reverseGeocode } from '../lib/geo'
 import { coordsFor, type Coords } from '../data/coords'
@@ -64,19 +65,28 @@ export function PostAd() {
       ? { percent: promoPctNum, price: Math.floor(priceNum * (1 - promoPctNum / 100)) }
       : null
 
-  function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     const room = MAX_PHOTOS - images.length
-    files.slice(0, room).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setImages((prev) => (prev.length < MAX_PHOTOS ? [...prev, reader.result as string] : prev))
-        }
-      }
-      reader.readAsDataURL(file)
-    })
     e.target.value = ''
+    // Compression AVANT stockage : une photo brute de téléphone (plusieurs Mo)
+    // ferait dépasser la limite d'upload du serveur et l'annonce partirait en
+    // « mode local » au lieu d'être enregistrée. On redimensionne à 1280 px max.
+    for (const file of files.slice(0, room)) {
+      try {
+        const dataUri = await downscaleListingImage(file)
+        setImages((prev) => (prev.length < MAX_PHOTOS ? [...prev, dataUri] : prev))
+      } catch {
+        // Repli : si la compression échoue, on lit le fichier tel quel.
+        const raw = await new Promise<string | null>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+          reader.onerror = () => resolve(null)
+          reader.readAsDataURL(file)
+        })
+        if (raw) setImages((prev) => (prev.length < MAX_PHOTOS ? [...prev, raw] : prev))
+      }
+    }
   }
 
   function removeImage(i: number) {

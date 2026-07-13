@@ -117,15 +117,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addListing = useCallback(
     async (input: NewListingInput): Promise<Listing> => {
       if (mode === 'supabase') {
-        try {
-          const created = await createListing(input, user?.id ?? null)
-          setRemoteListings((prev) => [created, ...prev])
-          setMyIds((prev) => [created.id, ...prev])
-          return created
-        } catch (e) {
-          console.error('Échec de la création côté Supabase, repli local.', e)
-          // repli local
-        }
+        // Le backend est joignable : l'annonce DOIT être enregistrée côté
+        // serveur (sinon elle n'apparaîtrait que sur cet appareil et jamais dans
+        // le catalogue partagé / les emails). En cas d'échec on RELANCE l'erreur
+        // pour que l'utilisateur soit prévenu, au lieu d'un faux succès local.
+        const created = await createListing(input, user?.id ?? null)
+        setRemoteListings((prev) => [created, ...prev])
+        setMyIds((prev) => [created.id, ...prev])
+        return created
       }
       const local: Listing = {
         ...input,
