@@ -520,9 +520,13 @@ function SmartAgents() {
     setBusy(true); setMsg('')
     try {
       const r = await suggestionsTest()
-      setMsg(r.listings === 0
-        ? 'ℹ️ Aucune suggestion pour votre compte (ajoutez des favoris / explorez des catégories, puis réessayez).'
-        : `✓ Email de suggestions envoyé (${r.listings} annonces choisies selon vos centres d’intérêt).`)
+      if (r.listings === 0) {
+        setMsg('ℹ️ Aucune annonce à suggérer pour l’instant (publiez d’autres annonces, puis réessayez).')
+      } else if (r.personalized === false) {
+        setMsg(`✓ Email d’aperçu envoyé (${r.listings} annonces récentes). Astuce : vos propres annonces ne se recommandent pas ; c’est pourquoi c’est un aperçu. Les vrais abonnés recevront des suggestions personnalisées selon leur historique.`)
+      } else {
+        setMsg(`✓ Email de suggestions envoyé (${r.listings} annonces choisies selon vos centres d’intérêt).`)
+      }
     } catch (e) { setMsg('⚠️ ' + (e as Error).message) }
     finally { setBusy(false) }
   }

@@ -523,15 +523,25 @@ function suggestions_for_user(PDO $pdo, string $userId, int $limit = 6): array {
   $st->execute(array_merge($cats, [$userId]));
   return $st->fetchAll();
 }
-/** Envoie l'email de suggestions personnalisées à un utilisateur. */
-function send_suggestions(array $config, PDO $pdo, array $user): array {
-  if (empty($user['email'])) return ['sent' => 0, 'listings' => 0];
+/**
+ * Envoie l'email de suggestions personnalisées à un utilisateur.
+ *
+ * $preview : mode « aperçu » réservé au test admin. Si l'utilisateur n'a pas
+ * encore d'historique — ou si les seules annonces disponibles sont les siennes
+ * (exclues de ses propres suggestions) — on montre les annonces récentes pour
+ * visualiser le rendu de l'email. Le cron réel appelle SANS ce mode : les vrais
+ * abonnés ne reçoivent que des suggestions authentiquement personnalisées.
+ */
+function send_suggestions(array $config, PDO $pdo, array $user, bool $preview = false): array {
+  if (empty($user['email'])) return ['sent' => 0, 'listings' => 0, 'reason' => 'email manquant'];
   $rows = suggestions_for_user($pdo, $user['id'], 6);
-  if (!$rows) return ['sent' => 0, 'listings' => 0];
+  $personalized = !empty($rows);
+  if (!$rows && $preview) $rows = digest_listings($pdo, 6); // aperçu : annonces récentes
+  if (!$rows) return ['sent' => 0, 'listings' => 0, 'personalized' => false, 'reason' => 'aucune annonce à suggérer'];
   $html = digest_html($config, $rows, 'perso');
   $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
   $ok = send_mail($config, $user['email'], 'Des annonces pour vous ✨', $html, $from, $from);
-  return ['sent' => $ok ? 1 : 0, 'listings' => count($rows)];
+  return ['sent' => $ok ? 1 : 0, 'listings' => count($rows), 'personalized' => $personalized];
 }
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
@@ -1123,9 +1133,9 @@ try {
       $type = (($b['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
       jout(send_digest($config, $pdo, $type));
     }
-    // Suggestions personnalisées : test sur son propre compte.
+    // Suggestions personnalisées : test sur son propre compte (mode aperçu).
     if ($path === 'admin/suggestions-test' && $method === 'POST') {
-      jout(send_suggestions($config, $pdo, $u));
+      jout(send_suggestions($config, $pdo, $u, true));
     }
 
     // Diagnostic : envoie un email de test à l'administrateur connecté.

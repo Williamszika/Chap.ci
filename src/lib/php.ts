@@ -310,7 +310,7 @@ export async function phpDigestSend(type: 'daily' | 'weekly'): Promise<{ sent: n
 export async function phpRecordInterest(categoryId: string, weight = 1): Promise<void> {
   try { await req('/interests', { method: 'POST', body: { categoryId, weight } }) } catch { /* silencieux */ }
 }
-export async function phpSuggestionsTest(): Promise<{ sent: number; listings: number }> {
+export async function phpSuggestionsTest(): Promise<{ sent: number; listings: number; personalized?: boolean }> {
   return req('/admin/suggestions-test', { method: 'POST', body: {} })
 }
 export interface SmtpSettings { host: string; port: string; secure: string; user: string; configured?: boolean }
