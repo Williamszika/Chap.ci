@@ -1,0 +1,19 @@
+# Chap.ci API — route toutes les requêtes /api/* vers index.php
+RewriteEngine On
+RewriteBase /api/
+
+# Ne pas réécrire les fichiers/dossiers réels
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Protéger la configuration et les données locales éventuelles
+<FilesMatch "^(config\.php)$">
+  Require all denied
+</FilesMatch>
+RedirectMatch 404 /api/data/.*
+
+# En-têtes CORS de secours (gérés aussi par index.php)
+<IfModule mod_headers.c>
+  Header set Access-Control-Allow-Origin "*"
+</IfModule>
