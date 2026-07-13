@@ -156,7 +156,7 @@ function migrate(PDO $pdo): void {
       negotiable $intT, category_id $txt, subcategory $txt, condition_v $txt, images $txt,
       region_id $txt, city_id $txt, commune $txt, lat $real, lng $real, seller_name $txt,
       seller_phone $txt, delivery $intT, featured $intT, promo_price $intT, promo_until $ts,
-      created_at $ts
+      attributes $txt, created_at $ts
     )$eng",
     "CREATE TABLE IF NOT EXISTS conversations (
       id $id PRIMARY KEY, listing_id $id, buyer_id $id, seller_id $id, created_at $ts
@@ -187,9 +187,11 @@ function migrate(PDO $pdo): void {
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
-  // Colonne ajoutée après coup : on la crée sur les bases déjà existantes.
+  // Colonnes ajoutées après coup : on les crée sur les bases déjà existantes.
   // (CREATE TABLE IF NOT EXISTS ne touche pas une table déjà présente.)
   try { $pdo->exec("ALTER TABLE user_interests ADD COLUMN subcategory $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN attributes $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
 }
 
@@ -659,6 +661,7 @@ function listing_out(array $r): array {
     'delivery' => (bool) $r['delivery'], 'featured' => (bool) $r['featured'],
     'promoPrice' => $r['promo_price'] !== null ? (int) $r['promo_price'] : null,
     'promoUntil' => $r['promo_until'] ? iso_to_ms($r['promo_until']) : null,
+    'attributes' => !empty($r['attributes']) ? (json_decode($r['attributes'], true) ?: null) : null,
   ];
 }
 
@@ -757,10 +760,21 @@ try {
     }
     $id = uuid();
     $promoUntil = !empty($b['promoUntil']) ? gmdate('Y-m-d\TH:i:s\Z', (int) ($b['promoUntil'] / 1000)) : null;
+    // Attributs spécifiques à la catégorie (marque, année, surface…) : on ne
+    // garde que des paires clé/valeur textuelles non vides.
+    $attrs = [];
+    if (!empty($b['attributes']) && is_array($b['attributes'])) {
+      foreach ($b['attributes'] as $k => $v) {
+        $k = substr(trim((string) $k), 0, 40);
+        $v = substr(trim((string) $v), 0, 120);
+        if ($k !== '' && $v !== '') $attrs[$k] = $v;
+      }
+    }
+    $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
     $pdo->prepare('INSERT INTO listings
       (id,user_id,title,description,price,negotiable,category_id,subcategory,condition_v,images,
-       region_id,city_id,commune,lat,lng,seller_name,seller_phone,delivery,featured,promo_price,promo_until,created_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+       region_id,city_id,commune,lat,lng,seller_name,seller_phone,delivery,featured,promo_price,promo_until,attributes,created_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
       ->execute([
         $id, $u['id'], trim($b['title']), trim($b['description'] ?? ''), (int) ($b['price'] ?? 0),
         !empty($b['negotiable']) ? 1 : 0, $b['categoryId'] ?? '', $b['subcategory'] ?? null,
@@ -768,7 +782,7 @@ try {
         $b['regionId'] ?? '', $b['cityId'] ?? '', $b['commune'] ?? null,
         isset($b['lat']) ? (float) $b['lat'] : null, isset($b['lng']) ? (float) $b['lng'] : null,
         $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0, 0,
-        isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, now_iso(),
+        isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, now_iso(),
       ]);
     $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$id]);
     jout(listing_out($st->fetch()));

@@ -29,6 +29,7 @@ import { activePromo, promoEndLabel } from '../lib/promo'
 import { recordInterest } from '../lib/interests'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
+import { formFor } from '../data/categoryForms'
 import { ListingCard } from '../components/ListingCard'
 import { PromoTag } from '../components/PromoTag'
 import { Stars } from '../components/Stars'
@@ -275,15 +276,16 @@ export function ListingDetail() {
         <h1 className="mt-1 text-lg font-bold leading-snug text-gray-900">{listing.title}</h1>
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {listing.condition === 'neuf' ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-              <BadgeCheck size={13} /> Neuf
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-              <Tag size={13} /> Occasion
-            </span>
-          )}
+          {formFor(listing.categoryId).condition &&
+            (listing.condition === 'neuf' ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                <BadgeCheck size={13} /> Neuf
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                <Tag size={13} /> Occasion
+              </span>
+            ))}
           {listing.delivery && (
             <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
               <Truck size={13} /> Livraison possible
@@ -316,6 +318,26 @@ export function ListingDetail() {
             </span>
           )}
         </div>
+
+        {/* Détails — attributs spécifiques à la catégorie (marque, année, surface…) */}
+        {listing.attributes && Object.keys(listing.attributes).length > 0 && (
+          <div className="mt-5">
+            <h2 className="mb-2 text-sm font-bold text-gray-900">Détails</h2>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+              {formFor(listing.categoryId).fields
+                .filter((f) => listing.attributes?.[f.key])
+                .map((f) => (
+                  <div key={f.key} className="rounded-xl bg-gray-50 px-3 py-2">
+                    <dt className="text-xs text-gray-400">{f.label}</dt>
+                    <dd className="text-sm font-semibold text-gray-800">
+                      {listing.attributes![f.key]}
+                      {f.unit ? ` ${f.unit}` : ''}
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+          </div>
+        )}
 
         {/* Description */}
         <div className="mt-5">

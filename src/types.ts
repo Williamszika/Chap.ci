@@ -53,6 +53,8 @@ export interface Listing {
   promoPrice?: number
   /** Fin de la promotion (timestamp ms). Passé ce délai, le prix normal revient. */
   promoUntil?: number
+  /** Attributs spécifiques à la catégorie (marque, année, surface, taille…). */
+  attributes?: Record<string, string>
 }
 
 export interface LocationFilter {

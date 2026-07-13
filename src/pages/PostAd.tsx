@@ -4,6 +4,7 @@ import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag } from 'luc
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { categories, categoryById } from '../data/categories'
+import { formFor, type AttrField } from '../data/categoryForms'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
@@ -28,6 +29,7 @@ export function PostAd() {
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [subcategory, setSubcategory] = useState('')
+  const [attrs, setAttrs] = useState<Record<string, string>>({})
   const [condition, setCondition] = useState<'neuf' | 'occasion'>('occasion')
   const [price, setPrice] = useState('')
   const [negotiable, setNegotiable] = useState(false)
@@ -56,6 +58,21 @@ export function PostAd() {
   }, [place])
 
   const cat = categoryById(categoryId)
+  const form = formFor(categoryId) // champs adaptés à la catégorie
+
+  // Sélectionne une catégorie et réinitialise ce qui en dépend.
+  function pickCategory(id: string) {
+    setCategoryId(id)
+    setSubcategory('')
+    setAttrs({})
+  }
+  const setAttr = (key: string, value: string) =>
+    setAttrs((prev) => {
+      const next = { ...prev }
+      if (value) next[key] = value
+      else delete next[key]
+      return next
+    })
 
   // Aperçu de la promotion (prix réduit calculé depuis le pourcentage).
   const priceNum = Number(price) || 0
@@ -137,7 +154,8 @@ export function PostAd() {
       negotiable,
       categoryId,
       subcategory: subcategory || undefined,
-      condition,
+      // « État » n'est envoyé que pour les catégories concernées (neutre sinon).
+      condition: form.condition ? condition : 'neuf',
       images: finalImages,
       regionId: loc.regionId!,
       cityId: loc.cityId ?? '',
@@ -146,10 +164,11 @@ export function PostAd() {
       lng: finalCoords?.lng,
       sellerName: seller.name.trim(),
       sellerPhone: seller.phone.trim(),
-      delivery,
+      delivery: form.delivery ? delivery : false,
       featured: false,
       promoPrice: promoPreview ? promoPreview.price : undefined,
       promoUntil: promoPreview ? Date.now() + Number(promoDays) * 86_400_000 : undefined,
+      attributes: Object.keys(attrs).length ? attrs : undefined,
     }
 
     setSubmitting(true)
@@ -234,10 +253,7 @@ export function PostAd() {
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => {
-                    setCategoryId(c.id)
-                    setSubcategory('')
-                  }}
+                  onClick={() => pickCategory(c.id)}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition active:scale-[0.98] ${
                     active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-700'
                   }`}
@@ -277,31 +293,38 @@ export function PostAd() {
           </Field>
         )}
 
-        {/* État */}
-        <Field label="État">
-          <div className="flex gap-2">
-            {(['occasion', 'neuf'] as const).map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCondition(c)}
-                className={`chip flex-1 justify-center capitalize ${
-                  condition === c ? 'border-primary-500 bg-primary-500 text-white' : ''
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </Field>
+        {/* Champs spécifiques à la catégorie (marque, année, surface, taille…) */}
+        {categoryId && form.fields.map((f) => (
+          <AttrInput key={f.key} field={f} value={attrs[f.key] ?? ''} onChange={(v) => setAttr(f.key, v)} />
+        ))}
 
-        {/* Prix */}
-        <Field label="Prix (FCFA)">
+        {/* État — masqué là où ça n'a pas de sens (emploi, service, immobilier…) */}
+        {form.condition && (
+          <Field label="État">
+            <div className="flex gap-2">
+              {(['occasion', 'neuf'] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCondition(c)}
+                  className={`chip flex-1 justify-center capitalize ${
+                    condition === c ? 'border-primary-500 bg-primary-500 text-white' : ''
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </Field>
+        )}
+
+        {/* Prix — libellé adapté (Salaire, Loyer, Tarif…) */}
+        <Field label={form.priceLabel ?? 'Prix (FCFA)'}>
           <input
             inputMode="numeric"
             value={price}
             onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
-            placeholder="Ex : 150000"
+            placeholder={form.pricePlaceholder ?? 'Ex : 150000'}
             className="input"
           />
           <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
@@ -434,16 +457,18 @@ export function PostAd() {
           )}
         </Field>
 
-        {/* Livraison */}
-        <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
-          <span className="text-sm font-medium text-gray-800">Livraison possible</span>
-          <input
-            type="checkbox"
-            checked={delivery}
-            onChange={(e) => setDelivery(e.target.checked)}
-            className="h-5 w-5 accent-primary-500"
-          />
-        </label>
+        {/* Livraison — masquée pour l'immobilier, l'emploi, les services… */}
+        {form.delivery && (
+          <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+            <span className="text-sm font-medium text-gray-800">Livraison possible</span>
+            <input
+              type="checkbox"
+              checked={delivery}
+              onChange={(e) => setDelivery(e.target.checked)}
+              className="h-5 w-5 accent-primary-500"
+            />
+          </label>
+        )}
 
         {/* Description */}
         <Field label="Description">
@@ -499,5 +524,70 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <label className="mb-2 block text-sm font-bold text-gray-800">{label}</label>
       {children}
     </div>
+  )
+}
+
+/** Champ d'attribut spécifique à une catégorie (texte / nombre / choix / oui-non). */
+function AttrInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: AttrField
+  value: string
+  onChange: (v: string) => void
+}) {
+  if (field.type === 'toggle') {
+    return (
+      <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+        <span className="text-sm font-medium text-gray-800">{field.label}</span>
+        <input
+          type="checkbox"
+          checked={value === 'Oui'}
+          onChange={(e) => onChange(e.target.checked ? 'Oui' : '')}
+          className="h-5 w-5 accent-primary-500"
+        />
+      </label>
+    )
+  }
+  if (field.type === 'chips') {
+    return (
+      <Field label={field.label}>
+        <div className="flex flex-wrap gap-2">
+          {field.options?.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => onChange(value === o ? '' : o)}
+              className={`chip ${value === o ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      </Field>
+    )
+  }
+  // text / number
+  return (
+    <Field label={field.label}>
+      <div className="relative">
+        <input
+          value={value}
+          inputMode={field.type === 'number' ? 'numeric' : 'text'}
+          onChange={(e) =>
+            onChange(field.type === 'number' ? e.target.value.replace(/\D/g, '') : e.target.value)
+          }
+          placeholder={field.placeholder}
+          className="input"
+          maxLength={80}
+        />
+        {field.unit && (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+            {field.unit}
+          </span>
+        )}
+      </div>
+    </Field>
   )
 }
