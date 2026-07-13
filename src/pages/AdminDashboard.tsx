@@ -331,11 +331,13 @@ function ModeratorsTab() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) { setMsg('Adresse email invalide.'); return }
     setBusy(true); setMsg('')
     try {
-      await addModerator(value)
+      const emailed = await addModerator(value)
       setEmail('')
       const fresh = await fetchModerators()
       setData(fresh)
-      setMsg('✓ Modérateur ajouté. Il aura accès en se connectant avec cet email.')
+      setMsg(emailed
+        ? '✓ Modérateur ajouté — un email de notification lui a été envoyé.'
+        : '✓ Modérateur ajouté. Il aura accès en se connectant avec cet email. (Notification email non envoyée — prévenez-le manuellement.)')
     } catch (e) { setMsg((e as Error).message) }
     finally { setBusy(false) }
   }

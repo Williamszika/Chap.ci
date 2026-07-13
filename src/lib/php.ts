@@ -276,8 +276,9 @@ export async function phpAdminCheck(): Promise<boolean> {
 export async function phpAdminModerators<T>(): Promise<T> {
   return req<T>('/admin/moderators')
 }
-export async function phpAddModerator(email: string): Promise<void> {
-  await req('/admin/moderators', { method: 'POST', body: { email } })
+export async function phpAddModerator(email: string): Promise<boolean> {
+  const d = await req<{ emailed?: boolean }>('/admin/moderators', { method: 'POST', body: { email } })
+  return !!d?.emailed
 }
 export async function phpRemoveModerator(email: string): Promise<void> {
   await req('/admin/moderators', { method: 'DELETE', body: { email } })

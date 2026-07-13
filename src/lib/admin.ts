@@ -73,7 +73,8 @@ export async function fetchModerators(): Promise<Moderators> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminModerators<Moderators>()
 }
-export async function addModerator(email: string): Promise<void> {
+/** Ajoute un modérateur. Renvoie true si l'email de notification a bien été envoyé. */
+export async function addModerator(email: string): Promise<boolean> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAddModerator(email)
 }

@@ -29,6 +29,14 @@ return [
   'admin_emails' => array_filter(array_map('trim',
     explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
 
+  // Emails envoyés par le site (notification des modérateurs, etc.).
+  // Utilisez une adresse de VOTRE domaine (créée dans cPanel) pour la
+  // délivrabilité (SPF/DKIM). 'site_url' = adresse publique du site.
+  'mail_from'      => getenv('CHAPCI_MAIL_FROM') ?: 'no-reply@chap.ci',
+  'mail_from_name' => getenv('CHAPCI_MAIL_FROM_NAME') ?: 'Chap.ci',
+  'mail_reply_to'  => getenv('CHAPCI_MAIL_REPLYTO') ?: 'contact@chap.ci',
+  'site_url'       => getenv('CHAPCI_SITE_URL') ?: 'https://chap.ci',
+
   // Dossier des photos (au niveau racine du site, servi directement en HTTP).
   'uploads_dir' => getenv('CHAPCI_UPLOADS_DIR') ?: __DIR__ . '/../uploads',
   // Chemin public des photos (relatif à la racine du site).

@@ -199,6 +199,51 @@ function is_admin(array $config, PDO $pdo, array $u): bool {
   return (bool) $st->fetch();
 }
 
+// ---- Emails (envoi natif PHP, compatible cPanel) ----------------------------
+function mime_h(string $s): string { return '=?UTF-8?B?' . base64_encode($s) . '?='; }
+/** Envoie un email HTML. Best-effort : renvoie false sans lever d'erreur si l'envoi échoue. */
+function send_mail(array $config, string $to, string $subject, string $html): bool {
+  if (!function_exists('mail')) return false;
+  $from     = $config['mail_from'] ?? 'no-reply@chap.ci';
+  $fromName = $config['mail_from_name'] ?? 'Chap.ci';
+  $replyTo  = $config['mail_reply_to'] ?? 'contact@chap.ci';
+  $headers  = implode("\r\n", [
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'From: ' . mime_h($fromName) . ' <' . $from . '>',
+    'Reply-To: ' . $replyTo,
+    'X-Mailer: Chap.ci',
+  ]);
+  return @mail($to, mime_h($subject), $html, $headers, '-f' . $from);
+}
+/** Notifie une personne qu'elle est devenue modératrice du site. */
+function send_moderator_email(array $config, string $to): bool {
+  $site = $config['site_url'] ?? 'https://chap.ci';
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $html =
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;color:#1f2937">'
+    . '<div style="background:#F77F00;color:#fff;padding:20px;border-radius:12px 12px 0 0">'
+    . '<h1 style="margin:0;font-size:20px">' . htmlspecialchars($name) . '</h1></div>'
+    . '<div style="border:1px solid #eee;border-top:0;padding:24px;border-radius:0 0 12px 12px">'
+    . '<h2 style="margin-top:0">Vous êtes modérateur 🎉</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Vous avez été nommé(e) <b>modérateur</b> de <b>' . htmlspecialchars($name) . '</b>. '
+    . 'Vous disposez désormais des mêmes accès que l’administrateur : statistiques, modération des '
+    . 'annonces, utilisateurs, commandes et abonnés.</p>'
+    . '<p style="text-align:center;margin:28px 0">'
+    . '<a href="' . htmlspecialchars($site) . '" style="background:#F77F00;color:#fff;text-decoration:none;'
+    . 'padding:12px 24px;border-radius:10px;font-weight:bold;display:inline-block">Accéder au tableau de bord</a></p>'
+    . '<p>Connectez-vous (ou créez un compte) sur <a href="' . htmlspecialchars($site) . '">' . htmlspecialchars($site) . '</a> '
+    . '<b>avec cette adresse email</b> (' . htmlspecialchars($to) . '), puis ouvrez le '
+    . '<b>Tableau de bord administrateur</b> depuis votre profil.</p>'
+    . '<p style="color:#6b7280;font-size:13px;margin-top:24px">Si vous ne vous attendiez pas à ce message, '
+    . 'ignorez-le : aucun accès n’est actif tant que vous ne vous connectez pas avec cette adresse.</p>'
+    . '</div>'
+    . '<p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px">' . htmlspecialchars($name) . ' — 100% ivoirien 🇨🇮</p>'
+    . '</div>';
+  return send_mail($config, $to, "Vous êtes désormais modérateur de $name", $html);
+}
+
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
 function save_data_uri(array $config, string $dataUri): ?string {
   // Déjà une URL (http/https ou /uploads/…) : on la garde telle quelle.
@@ -674,10 +719,13 @@ try {
       if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
       if (in_array($email, owner_emails($config), true)) jerr('Cet email est déjà propriétaire du site.');
       $ex = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?'); $ex->execute([$email]);
+      $emailed = false;
       if (!$ex->fetch()) {
         $pdo->prepare('INSERT INTO admins (email, created_at) VALUES (?,?)')->execute([$email, now_iso()]);
+        // Notifie le nouveau modérateur (best-effort : n'échoue pas l'ajout).
+        $emailed = send_moderator_email($config, $email);
       }
-      jout(['ok' => true]);
+      jout(['ok' => true, 'emailed' => $emailed]);
     }
     if ($path === 'admin/moderators' && $method === 'DELETE') {
       $b = body();
