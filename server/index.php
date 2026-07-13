@@ -216,33 +216,70 @@ function send_mail(array $config, string $to, string $subject, string $html): bo
   ]);
   return @mail($to, mime_h($subject), $html, $headers, '-f' . $from);
 }
+/** Bouton d'action réutilisable pour les emails. */
+function email_button(string $href, string $label): string {
+  return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px auto">'
+    . '<tr><td style="border-radius:12px;background:#F77F00">'
+    . '<a href="' . htmlspecialchars($href) . '" style="display:inline-block;padding:13px 30px;color:#fff;'
+    . 'text-decoration:none;font-weight:bold;font-size:15px;border-radius:12px">' . htmlspecialchars($label) . '</a>'
+    . '</td></tr></table>';
+}
 /** Gabarit HTML commun (logo + contenu + pied de page contact/réseaux/légal). */
-function email_layout(array $config, string $inner): string {
+function email_layout(array $config, string $inner, string $preheader = ''): string {
   $site    = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
   $name    = $config['mail_from_name'] ?? 'Chap.ci';
   $logo    = $site . '/icons/icon-192.png';
   $contact = $config['mail_reply_to'] ?? 'contact@chap.ci';
+  // Texte d'aperçu (masqué) affiché par les boîtes mail à côté de l'objet.
+  $pre = $preheader
+    ? '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f4f5f7">' . htmlspecialchars($preheader) . '</div>'
+    : '';
   // Réseaux sociaux (config.php 'social' => ['Facebook'=>'https://…', …]).
   $social = '';
   foreach (($config['social'] ?? []) as $label => $url) {
-    if ($url) $social .= '<a href="' . htmlspecialchars($url) . '" style="color:#F77F00;text-decoration:none;margin:0 6px">' . htmlspecialchars($label) . '</a>';
+    if ($url) $social .= '<a href="' . htmlspecialchars($url) . '" style="color:#F77F00;text-decoration:none;margin:0 7px">' . htmlspecialchars($label) . '</a>';
   }
   $socialRow = $social ? '<p style="margin:8px 0">' . $social . '</p>' : '';
-  return
-    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;color:#1f2937">'
-    . '<div style="text-align:center;padding:24px 0 10px">'
-    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="64" height="64" style="border-radius:16px;display:inline-block">'
+  return $pre
+    . '<div style="background:#f4f5f7;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">'
+    . '<div style="max-width:520px;margin:auto;color:#1f2937">'
+    // En-tête : logo + nom
+    . '<div style="text-align:center;padding:8px 0 14px">'
+    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="60" height="60" style="border-radius:15px;display:inline-block">'
     . '<div style="font-size:20px;font-weight:bold;color:#111827;margin-top:8px">' . htmlspecialchars($name) . '</div>'
     . '</div>'
-    . '<div style="background:#fff;border:1px solid #eee;padding:24px;border-radius:14px">' . $inner . '</div>'
-    . '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:16px 8px">'
+    // Carte : filet orange en haut + contenu
+    . '<div style="background:#fff;border:1px solid #eef0f2;border-top:4px solid #F77F00;'
+    . 'padding:26px 24px;border-radius:14px;box-shadow:0 1px 3px rgba(16,24,40,0.06)">' . $inner . '</div>'
+    // Pied de page
+    . '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:18px 8px 4px">'
     . '<p style="margin:8px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#F77F00;text-decoration:none">' . $contact . '</a></p>'
     . $socialRow
     . '<p style="margin:8px 0"><a href="' . $site . '/#/confidentialite" style="color:#9ca3af">Confidentialité</a> · '
     . '<a href="' . $site . '/#/conditions" style="color:#9ca3af">Conditions d’utilisation</a></p>'
     . '<p style="margin:10px 0 0">' . htmlspecialchars($name) . ' — 100% ivoirien 🇨🇮</p>'
-    . '</div>'
-    . '</div>';
+    . '</div></div></div>';
+}
+/** Email de bienvenue envoyé à la création d'un compte. */
+function send_welcome_email(array $config, string $to, string $fullName = ''): bool {
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name  = $config['mail_from_name'] ?? 'Chap.ci';
+  $hi    = trim($fullName) !== '' ? 'Bonjour ' . htmlspecialchars($fullName) . ',' : 'Bonjour,';
+  $inner =
+    '<h2 style="margin-top:0;color:#111827">Bienvenue sur ' . htmlspecialchars($name) . ' 🎉</h2>'
+    . '<p>' . $hi . '</p>'
+    . '<p>Votre compte est prêt ! Vous pouvez dès maintenant <b>acheter et vendre chap-chap</b> partout '
+    . 'en Côte d’Ivoire :</p>'
+    . '<ul style="padding-left:18px;line-height:1.7">'
+    . '<li>📸 <b>Publiez une annonce</b> en quelques secondes avec vos photos.</li>'
+    . '<li>📍 Découvrez les <b>bonnes affaires près de chez vous</b>.</li>'
+    . '<li>💬 Discutez en toute sécurité avec les vendeurs via la <b>messagerie</b>.</li>'
+    . '</ul>'
+    . email_button($site, 'Découvrir Chap.ci')
+    . '<p style="color:#6b7280;font-size:13px;margin-top:20px">Besoin d’aide ? Répondez simplement à cet '
+    . 'email, notre équipe vous accompagne.</p>';
+  return send_mail($config, $to, "Bienvenue sur $name 🎉",
+    email_layout($config, $inner, "Votre compte $name est prêt — achetez et vendez chap-chap partout en Côte d’Ivoire."));
 }
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
@@ -255,15 +292,14 @@ function send_moderator_email(array $config, string $to): bool {
     . '<p>Vous avez été nommé(e) <b>modérateur</b> de <b>' . htmlspecialchars($name) . '</b>. '
     . 'Vous disposez désormais des mêmes accès que l’administrateur : statistiques, modération des '
     . 'annonces, utilisateurs, commandes et abonnés.</p>'
-    . '<p style="text-align:center;margin:28px 0">'
-    . '<a href="' . $admin . '" style="background:#F77F00;color:#fff;text-decoration:none;'
-    . 'padding:12px 24px;border-radius:10px;font-weight:bold;display:inline-block">Ouvrir le tableau de bord</a></p>'
+    . email_button($admin, 'Ouvrir le tableau de bord')
     . '<p>Connectez-vous (ou créez un compte) sur <a href="' . htmlspecialchars($site) . '">' . htmlspecialchars($site) . '</a> '
     . '<b>avec cette adresse email</b> (' . htmlspecialchars($to) . '), puis ouvrez le '
     . '<b>Tableau de bord administrateur</b> depuis votre profil.</p>'
     . '<p style="color:#6b7280;font-size:13px;margin-top:24px">Si vous ne vous attendiez pas à ce message, '
     . 'ignorez-le : aucun accès n’est actif tant que vous ne vous connectez pas avec cette adresse.</p>';
-  return send_mail($config, $to, "Vous êtes désormais modérateur de $name", email_layout($config, $inner));
+  return send_mail($config, $to, "Vous êtes désormais modérateur de $name",
+    email_layout($config, $inner, "Vous êtes désormais modérateur de $name."));
 }
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
@@ -352,6 +388,8 @@ try {
         ->execute([$id, $email, password_hash($pass, PASSWORD_BCRYPT), now_iso()]);
     $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
         ->execute([$id, $name, now_iso()]);
+    // Email de bienvenue (best-effort : n'empêche jamais la création du compte).
+    send_welcome_email($config, $email, $name);
     $token = jwt_sign(['sub' => $id, 'email' => $email, 'exp' => time() + 60 * 60 * 24 * 30], $secret);
     jout(['token' => $token, 'user' => user_public($pdo, ['id' => $id, 'email' => $email])]);
   }
