@@ -16,11 +16,14 @@ export interface AdminStats {
   orders: number
   reviews: number
   newsletter: number
+  reportsOpen?: number
   ordersByStatus: Record<string, number>
   ordersValue: number
   recentListings: Listing[]
   recentUsers: { id: string; email: string; fullName: string; createdAt: number }[]
 }
+
+export type UserStatus = 'active' | 'restricted' | 'blocked'
 
 export interface AdminUser {
   id: string
@@ -28,7 +31,35 @@ export interface AdminUser {
   fullName: string
   phone?: string | null
   commune?: string | null
+  status: UserStatus
   listings: number
+  createdAt: number
+}
+
+export interface AdminUserDetail {
+  id: string
+  email: string
+  fullName: string
+  phone?: string | null
+  commune?: string | null
+  cityId?: string | null
+  regionId?: string | null
+  bio?: string | null
+  avatarUrl?: string | null
+  status: UserStatus
+  createdAt: number
+  listings: Listing[]
+}
+
+export interface Report {
+  id: string
+  listingId: string
+  listingTitle: string
+  listingHidden: boolean
+  reason: string
+  details?: string | null
+  reporterEmail?: string | null
+  status: 'open' | 'resolved'
   createdAt: number
 }
 
@@ -59,6 +90,31 @@ export async function fetchAdminListings(): Promise<AdminListing[]> {
 export async function deleteAdminListing(id: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminDeleteListing(id)
+}
+/** Masquer / réafficher une annonce (modération). */
+export async function setAdminListingHidden(id: string, hidden: boolean): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminSetListingHidden(id, hidden)
+}
+export async function fetchAdminUserDetail(id: string): Promise<AdminUserDetail> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminUserDetail<AdminUserDetail>(id)
+}
+export async function setUserStatus(id: string, status: UserStatus): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminSetUserStatus(id, status)
+}
+export async function deleteUser(id: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminDeleteUser(id)
+}
+export async function fetchReports(): Promise<Report[]> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminReports<Report[]>()
+}
+export async function resolveReport(id: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminResolveReport(id)
 }
 export async function fetchAdminOrders(): Promise<AdminOrder[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)

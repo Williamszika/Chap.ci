@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
+import { updateListingRemote } from '../lib/api'
+import type { Listing } from '../types'
 import { useGeo } from '../store/GeoContext'
 import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
@@ -21,9 +23,17 @@ const MAX_PHOTOS = 5
 
 export function PostAd() {
   const navigate = useNavigate()
-  const { addListing } = useApp()
+  const { addListing, getListing } = useApp()
   const { place } = useGeo()
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Mode édition : /modifier/:id — l'annonce est passée via l'état de navigation
+  // (ou retrouvée dans la liste). On préremplit alors le formulaire.
+  const { id: editId } = useParams()
+  const location = useLocation()
+  const editing = !!editId
+  const editListing =
+    ((location.state as { listing?: Listing } | null)?.listing) ?? (editId ? getListing(editId) : undefined)
 
   const [images, setImages] = useState<string[]>([])
   const [title, setTitle] = useState('')
@@ -45,6 +55,32 @@ export function PostAd() {
   const [seller, setSeller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const prefilled = useRef(false)
+
+  // Mode édition : préremplit une fois le formulaire avec l'annonce existante.
+  useEffect(() => {
+    if (!editing || !editListing || prefilled.current) return
+    prefilled.current = true
+    const l = editListing
+    setImages(l.images ?? [])
+    setTitle(l.title ?? '')
+    setCategoryId(l.categoryId ?? '')
+    setSubcategory(l.subcategory ?? '')
+    setAttrs(l.attributes ?? {})
+    setCondition(l.condition === 'neuf' ? 'neuf' : 'occasion')
+    setPrice(String(l.price ?? ''))
+    setNegotiable(!!l.negotiable)
+    setDelivery(!!l.delivery)
+    setDescription(l.description === 'Aucune description fournie.' ? '' : (l.description ?? ''))
+    setLoc({ regionId: l.regionId, cityId: l.cityId, commune: l.commune ?? undefined })
+    if (l.lat != null && l.lng != null) setCoords({ lat: l.lat, lng: l.lng })
+    if (l.sellerName || l.sellerPhone) setSeller({ name: l.sellerName ?? '', phone: l.sellerPhone ?? '' })
+    // Promotion en cours : on rétablit le pourcentage.
+    if (l.promoPrice && l.price > 0) {
+      setPromoOn(true)
+      setPromoPct(String(Math.round((1 - l.promoPrice / l.price) * 100)))
+    }
+  }, [editing, editListing, setSeller])
 
   // Pré-remplit la localisation avec la position captée à l'ouverture / la connexion.
   useEffect(() => {
@@ -173,7 +209,9 @@ export function PostAd() {
 
     setSubmitting(true)
     try {
-      const created = await addListing(input)
+      const created = editing && editId
+        ? await updateListingRemote(editId, input)
+        : await addListing(input)
       navigate(`/annonce/${created.id}`)
     } catch {
       setError("Échec de la publication. Vérifiez votre connexion et réessayez.")
@@ -187,7 +225,7 @@ export function PostAd() {
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
-        <h1 className="text-lg font-bold">Publier une annonce</h1>
+        <h1 className="text-lg font-bold">{editing ? 'Modifier l’annonce' : 'Publier une annonce'}</h1>
       </header>
 
       <form onSubmit={submit} className="space-y-6 px-4 py-5">
@@ -509,7 +547,7 @@ export function PostAd() {
         )}
 
         <button type="submit" disabled={submitting} className="btn-primary w-full py-3.5 text-base">
-          <Check size={20} /> {submitting ? 'Publication…' : 'Publier mon annonce'}
+          <Check size={20} /> {submitting ? 'Enregistrement…' : editing ? 'Enregistrer les modifications' : 'Publier mon annonce'}
         </button>
       </form>
 

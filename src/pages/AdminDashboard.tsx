@@ -3,20 +3,24 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Users, Package, MessageSquare, ShoppingBag, Star, Mail,
   Loader2, Lock, Download, Trash2, TrendingUp, Wallet, RefreshCw,
+  Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { formatPrice, timeAgo } from '../lib/format'
 import { emojiFor } from '../lib/placeholder'
+import { locationLabel } from '../data/locations'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
   fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
+  setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
+  type AdminUserDetail, type Report, type UserStatus,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -71,7 +75,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['orders','Commandes'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -84,9 +88,10 @@ export function AdminDashboard() {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-5">
-        {tab === 'overview' && stats && <Overview stats={stats} />}
+        {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} />}
         {tab === 'listings' && <ListingsTab />}
         {tab === 'users' && <UsersTab />}
+        {tab === 'reports' && <ReportsTab />}
         {tab === 'orders' && <OrdersTab />}
         {tab === 'newsletter' && <NewsletterTab />}
         {tab === 'campaigns' && <CampaignsTab />}
@@ -98,25 +103,36 @@ export function AdminDashboard() {
 }
 
 // ---------- Aperçu ----------
-function Overview({ stats }: { stats: AdminStats }) {
-  const cards = [
-    { icon: <Users size={18} />, label: 'Utilisateurs', value: stats.users },
-    { icon: <Package size={18} />, label: 'Annonces', value: stats.listings },
-    { icon: <ShoppingBag size={18} />, label: 'Commandes', value: stats.orders },
+function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }) {
+  const cards: { icon: ReactNode; label: string; value: number; tab?: Tab; alert?: boolean }[] = [
+    { icon: <Users size={18} />, label: 'Utilisateurs', value: stats.users, tab: 'users' },
+    { icon: <Package size={18} />, label: 'Annonces', value: stats.listings, tab: 'listings' },
+    { icon: <ShoppingBag size={18} />, label: 'Commandes', value: stats.orders, tab: 'orders' },
     { icon: <MessageSquare size={18} />, label: 'Conversations', value: stats.conversations },
     { icon: <Star size={18} />, label: 'Avis', value: stats.reviews },
-    { icon: <Mail size={18} />, label: 'Abonnés', value: stats.newsletter },
+    { icon: <Mail size={18} />, label: 'Abonnés', value: stats.newsletter, tab: 'newsletter' },
+    { icon: <Flag size={18} />, label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
   ]
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {cards.map((c) => (
-          <div key={c.label} className="rounded-2xl bg-white p-4 shadow-card">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-100 text-primary-600">{c.icon}</span>
-            <p className="mt-2 font-display text-2xl font-bold text-gray-900">{formatPrice(c.value)}</p>
-            <p className="text-xs text-gray-500">{c.label}</p>
-          </div>
-        ))}
+        {cards.map((c) => {
+          const clickable = !!c.tab
+          const Comp = clickable ? 'button' : 'div'
+          return (
+            <Comp
+              key={c.label}
+              {...(clickable ? { onClick: () => onGo(c.tab!), type: 'button' as const } : {})}
+              className={`rounded-2xl bg-white p-4 text-left shadow-card transition ${clickable ? 'active:scale-[0.98] hover:shadow-md' : ''} ${c.alert ? 'ring-2 ring-red-400' : ''}`}
+            >
+              <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${c.alert ? 'bg-red-100 text-red-600' : 'bg-primary-100 text-primary-600'}`}>{c.icon}</span>
+              <p className="mt-2 font-display text-2xl font-bold text-gray-900">{formatPrice(c.value)}</p>
+              <p className="flex items-center gap-1 text-xs text-gray-500">
+                {c.label}{clickable && <ChevronRight size={12} className="text-gray-300" />}
+              </p>
+            </Comp>
+          )
+        })}
       </div>
 
       <div className="rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card">
@@ -208,29 +224,225 @@ function ListingsTab() {
 }
 
 // ---------- Utilisateurs ----------
+const STATUS_BADGE: Record<UserStatus, { label: string; cls: string }> = {
+  active: { label: 'Actif', cls: 'bg-emerald-50 text-emerald-700' },
+  restricted: { label: 'Restreint', cls: 'bg-amber-50 text-amber-700' },
+  blocked: { label: 'Bloqué', cls: 'bg-red-50 text-red-700' },
+}
+
 function UsersTab() {
   const [items, setItems] = useState<AdminUser[] | null>(null)
   const [err, setErr] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
   const load = () => { setItems(null); setErr(''); fetchAdminUsers().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
+
+  if (selected) return <UserDetail id={selected} onBack={() => { setSelected(null); load() }} />
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
   return (
     <div className="space-y-2">
       <RowHead count={items.length} label="utilisateur" />
-      {items.map((u) => (
-        <div key={u.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card">
+      {items.map((u) => {
+        const b = STATUS_BADGE[u.status] ?? STATUS_BADGE.active
+        return (
+          <button key={u.id} onClick={() => setSelected(u.id)} className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-card transition hover:shadow-md active:scale-[0.99]">
+            <Avatar name={u.fullName} />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 truncate text-sm font-semibold text-gray-800">
+                {u.fullName}
+                {u.status !== 'active' && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${b.cls}`}>{b.label}</span>}
+              </p>
+              <p className="truncate text-xs text-gray-500">{u.email}</p>
+              <p className="text-xs text-gray-400">
+                {u.listings} annonce{u.listings > 1 ? 's' : ''}{u.commune ? ` · ${u.commune}` : ''} · inscrit {timeAgo(u.createdAt)}
+              </p>
+            </div>
+            <ChevronRight size={18} className="shrink-0 text-gray-300" />
+          </button>
+        )
+      })}
+      {items.length === 0 && <Empty>Aucun utilisateur.</Empty>}
+    </div>
+  )
+}
+
+function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
+  const [u, setU] = useState<AdminUserDetail | null>(null)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = () => { setU(null); setErr(''); fetchAdminUserDetail(id).then(setU).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [id])
+
+  const changeStatus = async (status: UserStatus) => {
+    setBusy(true)
+    try { await setUserStatus(id, status); load() }
+    catch (e) { alert((e as Error).message) } finally { setBusy(false) }
+  }
+  const removeUser = async () => {
+    if (!confirm(`Supprimer définitivement le compte de ${u?.email} et TOUT son contenu ? Action irréversible.`)) return
+    setBusy(true)
+    try { await deleteUser(id); onBack() }
+    catch (e) { alert((e as Error).message); setBusy(false) }
+  }
+  const toggleListing = async (lid: string, hidden: boolean) => {
+    try { await setAdminListingHidden(lid, hidden); load() } catch (e) { alert((e as Error).message) }
+  }
+  const removeListing = async (lid: string, title: string) => {
+    if (!confirm(`Supprimer « ${title} » ?`)) return
+    try { await deleteAdminListing(lid); load() } catch (e) { alert((e as Error).message) }
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!u) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  const b = STATUS_BADGE[u.status] ?? STATUS_BADGE.active
+
+  return (
+    <div className="space-y-4">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-800">
+        <ArrowLeft size={16} /> Retour aux utilisateurs
+      </button>
+
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <div className="flex items-center gap-3">
           <Avatar name={u.fullName} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-gray-800">{u.fullName}</p>
-            <p className="truncate text-xs text-gray-500">{u.email}</p>
-            <p className="text-xs text-gray-400">
-              {u.listings} annonce{u.listings > 1 ? 's' : ''}{u.commune ? ` · ${u.commune}` : ''} · inscrit {timeAgo(u.createdAt)}
+            <p className="flex items-center gap-2 font-semibold text-gray-900">
+              {u.fullName}
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${b.cls}`}>{b.label}</span>
             </p>
+            <p className="truncate text-sm text-gray-500">{u.email}</p>
+          </div>
+        </div>
+        <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+          {u.phone && <Info label="Téléphone" value={u.phone} />}
+          {(u.commune || u.cityId) && <Info label="Localisation" value={locationLabel(u.regionId ?? '', u.cityId ?? '', u.commune ?? undefined)} />}
+          <Info label="Inscrit" value={timeAgo(u.createdAt)} />
+          <Info label="Annonces" value={String(u.listings.length)} />
+        </dl>
+        {u.bio && <p className="mt-2 rounded-xl bg-gray-50 p-2 text-sm text-gray-600">{u.bio}</p>}
+      </div>
+
+      {/* Actions de modération */}
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <p className="mb-2 text-sm font-bold text-gray-800">Modération du compte</p>
+        <div className="grid grid-cols-3 gap-2">
+          <ModBtn active={u.status === 'active'} onClick={() => changeStatus('active')} disabled={busy} icon={<ShieldOk size={15} />} label="Actif" tone="emerald" />
+          <ModBtn active={u.status === 'restricted'} onClick={() => changeStatus('restricted')} disabled={busy} icon={<ShieldOff size={15} />} label="Restreindre" tone="amber" />
+          <ModBtn active={u.status === 'blocked'} onClick={() => changeStatus('blocked')} disabled={busy} icon={<Ban size={15} />} label="Bloquer" tone="red" />
+        </div>
+        <p className="mt-2 text-xs text-gray-400">
+          <b>Restreint</b> : ne peut plus publier. <b>Bloqué</b> : ne peut plus se connecter (ses annonces sont masquées).
+        </p>
+        <button onClick={removeUser} disabled={busy} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-200 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">
+          <UserX size={16} /> Supprimer ce compte
+        </button>
+      </div>
+
+      {/* Ses annonces */}
+      <div>
+        <p className="mb-2 text-sm font-bold text-gray-800">Annonces ({u.listings.length})</p>
+        <div className="space-y-2">
+          {u.listings.map((l) => (
+            <div key={l.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card">
+              <Thumb listing={l} />
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 truncate text-sm font-semibold text-gray-800">
+                  {l.title}
+                  {l.hidden && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">Masquée</span>}
+                </p>
+                <p className="text-sm font-bold text-primary-600">{formatPrice(l.price)} FCFA</p>
+              </div>
+              <button onClick={() => toggleListing(l.id, !l.hidden)} aria-label={l.hidden ? 'Afficher' : 'Masquer'} className="shrink-0 rounded-xl p-2 text-gray-500 hover:bg-gray-100">
+                {l.hidden ? <Eye size={17} /> : <EyeOff size={17} />}
+              </button>
+              <button onClick={() => removeListing(l.id, l.title)} aria-label="Supprimer" className="shrink-0 rounded-xl p-2 text-red-500 hover:bg-red-50">
+                <Trash2 size={17} />
+              </button>
+            </div>
+          ))}
+          {u.listings.length === 0 && <Empty>Aucune annonce.</Empty>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-gray-400">{label}</dt>
+      <dd className="font-medium text-gray-800">{value}</dd>
+    </div>
+  )
+}
+
+function ModBtn({ active, onClick, disabled, icon, label, tone }: { active: boolean; onClick: () => void; disabled: boolean; icon: ReactNode; label: string; tone: 'emerald' | 'amber' | 'red' }) {
+  const tones: Record<string, string> = {
+    emerald: 'border-emerald-500 bg-emerald-500 text-white',
+    amber: 'border-amber-500 bg-amber-500 text-white',
+    red: 'border-red-500 bg-red-500 text-white',
+  }
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-xs font-semibold transition disabled:opacity-50 ${active ? tones[tone] : 'border-gray-200 text-gray-600'}`}
+    >
+      {icon}{label}
+    </button>
+  )
+}
+
+// ---------- Signalements ----------
+function ReportsTab() {
+  const [items, setItems] = useState<Report[] | null>(null)
+  const [err, setErr] = useState('')
+  const load = () => { setItems(null); setErr(''); fetchReports().then(setItems).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+
+  const hide = async (r: Report) => {
+    try { await setAdminListingHidden(r.listingId, !r.listingHidden); load() } catch (e) { alert((e as Error).message) }
+  }
+  const resolve = async (r: Report) => {
+    try { await resolveReport(r.id); load() } catch (e) { alert((e as Error).message) }
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  return (
+    <div className="space-y-2">
+      <RowHead count={items.length} label="signalement" />
+      {items.map((r) => (
+        <div key={r.id} className={`rounded-2xl bg-white p-3 shadow-card ${r.status === 'open' ? 'ring-1 ring-red-100' : 'opacity-70'}`}>
+          <div className="flex items-start gap-2">
+            <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${r.status === 'open' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'}`}>
+              <Flag size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-800">
+                {r.reason}
+                {r.status === 'resolved' && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Traité</span>}
+                {r.listingHidden && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">Annonce masquée</span>}
+              </p>
+              <a href={`#/annonce/${r.listingId}`} className="block truncate text-sm text-primary-600 hover:underline">{r.listingTitle}</a>
+              {r.details && <p className="mt-1 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">{r.details}</p>}
+              <p className="mt-1 text-[11px] text-gray-400">Signalé par {r.reporterEmail || '—'} · {timeAgo(r.createdAt)}</p>
+              <div className="mt-2 flex gap-1.5">
+                <button onClick={() => hide(r)} className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                  {r.listingHidden ? <><Eye size={13} /> Réafficher</> : <><EyeOff size={13} /> Masquer l’annonce</>}
+                </button>
+                {r.status === 'open' && (
+                  <button onClick={() => resolve(r)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
+                    <CheckCircle2 size={13} /> Marquer traité
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       ))}
-      {items.length === 0 && <Empty>Aucun utilisateur.</Empty>}
+      {items.length === 0 && <Empty>Aucun signalement. 🎉</Empty>}
     </div>
   )
 }

@@ -55,6 +55,7 @@ export default function App() {
           <Route path="/explorer" element={<Browse />} />
           <Route path="/annonce/:id" element={<ListingDetail />} />
           <Route path="/publier" element={<PostAd />} />
+          <Route path="/modifier/:id" element={<PostAd />} />
           <Route path="/favoris" element={<Favorites />} />
           <Route path="/compte" element={<Profile />} />
           <Route path="/don" element={<Donate />} />

@@ -45,7 +45,7 @@ interface AuthState {
   /** true après un clic sur le lien de récupération de mot de passe reçu par email */
   recovery: boolean
   clearRecovery: () => void
-  deleteAccount: () => Promise<AuthResult>
+  deleteAccount: (password?: string) => Promise<AuthResult>
   // 2FA (TOTP)
   enrollTotp: () => Promise<EnrollResult>
   activateTotp: (factorId: string, code: string) => Promise<AuthResult>
@@ -223,9 +223,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearRecovery = useCallback(() => setRecovery(false), [])
 
-  const deleteAccount = useCallback(async (): Promise<AuthResult> => {
+  const deleteAccount = useCallback(async (password = ''): Promise<AuthResult> => {
     if (isPhp) {
-      try { await php.phpDeleteAccount(); setUser(null); return {} } catch (e) { return { error: (e as Error).message } }
+      try { await php.phpDeleteAccount(password); setUser(null); return {} } catch (e) { return { error: (e as Error).message } }
     }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.rpc('delete_my_account')

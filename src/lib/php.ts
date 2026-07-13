@@ -92,8 +92,8 @@ export async function phpMe(): Promise<PhpUser | null> {
 export async function phpUpdatePassword(password: string): Promise<void> {
   await req('/auth/password', { method: 'POST', body: { password } })
 }
-export async function phpDeleteAccount(): Promise<void> {
-  await req('/auth/delete', { method: 'POST', body: {} })
+export async function phpDeleteAccount(password: string): Promise<void> {
+  await req('/auth/delete', { method: 'POST', body: { password } })
   phpClearSession()
 }
 export function phpSignOut(): void {
@@ -109,6 +109,18 @@ export async function phpCreateListing(input: NewListingInput): Promise<Listing>
 }
 export async function phpDeleteListing(id: string): Promise<void> {
   await req(`/listings/${id}`, { method: 'DELETE' })
+}
+export async function phpMyListings(): Promise<Listing[]> {
+  return req<Listing[]>('/listings/mine')
+}
+export async function phpUpdateListing(id: string, input: NewListingInput): Promise<Listing> {
+  return req<Listing>(`/listings/${id}`, { method: 'PUT', body: input })
+}
+export async function phpSetListingHidden(id: string, hidden: boolean): Promise<void> {
+  await req(`/listings/${id}/visibility`, { method: 'POST', body: { hidden } })
+}
+export async function phpReportListing(listingId: string, reason: string, details: string): Promise<void> {
+  await req('/reports', { method: 'POST', body: { listingId, reason, details } })
 }
 
 // ---- Conversations & messages ----------------------------------------------
@@ -269,6 +281,24 @@ export async function phpAdminListings<T>(): Promise<T> {
 }
 export async function phpAdminDeleteListing(id: string): Promise<void> {
   await req(`/admin/listings/${id}`, { method: 'DELETE' })
+}
+export async function phpAdminUserDetail<T>(id: string): Promise<T> {
+  return req<T>(`/admin/users/${id}`)
+}
+export async function phpAdminSetUserStatus(id: string, status: string): Promise<void> {
+  await req(`/admin/users/${id}/status`, { method: 'POST', body: { status } })
+}
+export async function phpAdminDeleteUser(id: string): Promise<void> {
+  await req(`/admin/users/${id}`, { method: 'DELETE' })
+}
+export async function phpAdminSetListingHidden(id: string, hidden: boolean): Promise<void> {
+  await req(`/listings/${id}/visibility`, { method: 'POST', body: { hidden } })
+}
+export async function phpAdminReports<T>(): Promise<T> {
+  return req<T>('/admin/reports')
+}
+export async function phpAdminResolveReport(id: string): Promise<void> {
+  await req(`/admin/reports/${id}`, { method: 'POST', body: {} })
 }
 export async function phpAdminOrders<T>(): Promise<T> {
   return req<T>('/admin/orders')

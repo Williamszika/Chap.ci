@@ -55,6 +55,8 @@ export interface Listing {
   promoUntil?: number
   /** Attributs spécifiques à la catégorie (marque, année, surface, taille…). */
   attributes?: Record<string, string>
+  /** Annonce masquée (par le vendeur ou la modération) : invisible du public. */
+  hidden?: boolean
 }
 
 export interface LocationFilter {

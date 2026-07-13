@@ -15,6 +15,7 @@ import {
   Navigation,
   ShoppingBag,
   ChevronRight,
+  Flag,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -24,6 +25,7 @@ import { getOrCreateConversation } from '../lib/messages'
 import { placeOrderForSeller } from '../lib/checkout'
 import { fetchReviewsForListing, createReview, averageRating } from '../lib/reviews'
 import { fetchPurchasedListingIds } from '../lib/orders'
+import { reportListing } from '../lib/api'
 import { priceLabel, formatPrice, timeAgo } from '../lib/format'
 import { activePromo, promoEndLabel } from '../lib/promo'
 import { recordInterest } from '../lib/interests'
@@ -428,6 +430,9 @@ export function ListingDetail() {
           </ul>
         </div>
 
+        {/* Signalement */}
+        {!isMine && <ReportButton listingId={listing.id} />}
+
         {/* Similaires */}
         {similar.length > 0 && (
           <div className="mt-6">
@@ -466,6 +471,99 @@ export function ListingDetail() {
             )}
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+const REPORT_REASONS = [
+  'Arnaque / fraude',
+  'Produit interdit',
+  'Contenu offensant',
+  'Fausse annonce',
+  'Doublon',
+  'Autre',
+]
+
+/** Bouton « Signaler cette annonce » + formulaire de motif (utilisateurs connectés). */
+function ReportButton({ listingId }: { listingId: string }) {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [details, setDetails] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+
+  async function submit() {
+    if (!reason) return
+    setBusy(true)
+    try {
+      await reportListing(listingId, reason, details)
+      setDone(true)
+      setOpen(false)
+    } catch (e) {
+      alert((e as Error).message || 'Signalement impossible.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (done) {
+    return (
+      <p className="mt-4 text-center text-xs text-emerald-600">
+        ✓ Merci, votre signalement a été transmis à la modération.
+      </p>
+    )
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => (user ? setOpen(true) : navigate('/connexion'))}
+        className="mt-4 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-500"
+      >
+        <Flag size={13} /> Signaler cette annonce
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-red-100 bg-red-50/50 p-4">
+      <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-gray-800">
+        <Flag size={15} className="text-red-500" /> Signaler cette annonce
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {REPORT_REASONS.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setReason(r)}
+            className={`chip text-xs ${reason === r ? 'border-red-500 bg-red-500 text-white' : ''}`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        placeholder="Détails (facultatif) : expliquez le problème…"
+        rows={3}
+        maxLength={500}
+        className="input mt-2 resize-none text-sm"
+      />
+      <div className="mt-2 flex gap-2">
+        <button onClick={() => { setOpen(false); setReason(''); setDetails('') }} className="btn-outline flex-1 py-2 text-sm">
+          Annuler
+        </button>
+        <button
+          onClick={submit}
+          disabled={!reason || busy}
+          className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          {busy ? 'Envoi…' : 'Envoyer le signalement'}
+        </button>
       </div>
     </div>
   )

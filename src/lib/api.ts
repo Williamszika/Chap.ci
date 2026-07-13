@@ -127,3 +127,24 @@ export async function deleteListingRemote(id: string): Promise<void> {
   const { error } = await supabase.from('listings').delete().eq('id', id)
   if (error) throw error
 }
+
+/** Mes annonces (y compris masquées) — backend PHP uniquement. */
+export async function fetchMyListings(): Promise<Listing[]> {
+  if (isPhp) return php.phpMyListings()
+  return []
+}
+/** Modifier une annonce (PHP). */
+export async function updateListingRemote(id: string, input: Omit<Listing, 'id' | 'createdAt' | 'currency'>): Promise<Listing> {
+  if (isPhp) return php.phpUpdateListing(id, input)
+  throw new Error('Édition disponible avec le backend auto-hébergé.')
+}
+/** Masquer / réafficher une annonce (PHP). */
+export async function setListingHidden(id: string, hidden: boolean): Promise<void> {
+  if (isPhp) return php.phpSetListingHidden(id, hidden)
+  throw new Error('Indisponible.')
+}
+/** Signaler une annonce (PHP). */
+export async function reportListing(listingId: string, reason: string, details: string): Promise<void> {
+  if (isPhp) return php.phpReportListing(listingId, reason, details)
+  throw new Error('Le signalement nécessite le backend auto-hébergé.')
+}

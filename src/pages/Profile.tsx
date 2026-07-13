@@ -21,6 +21,9 @@ import {
   KeyRound,
   BarChart3,
   ChevronRight,
+  Pencil,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
@@ -36,8 +39,10 @@ import { locationLabel } from '../data/locations'
 import { fetchOrders, updateOrderStatus } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
+import { fetchMyListings, setListingHidden } from '../lib/api'
+import { isPhp } from '../lib/backend'
 import { downscaleImage } from '../lib/image'
-import type { Order, Review } from '../types'
+import type { Listing, Order, Review } from '../types'
 
 type Tab = 'achats' | 'ventes' | 'annonces' | 'params'
 
@@ -61,7 +66,18 @@ export function Profile() {
   const [myReviews, setMyReviews] = useState<Review[]>([])
   const [avatarUrl, setAvatarUrl] = useState<string>('')
 
-  const myListings = listings.filter((l) => isMine(l.id))
+  // Annonces du vendeur : en mode PHP on récupère TOUTES ses annonces (même
+  // masquées, absentes de la liste publique) pour pouvoir les gérer.
+  const [serverListings, setServerListings] = useState<Listing[]>([])
+  const reloadMine = useRef(async () => {})
+  reloadMine.current = async () => {
+    if (!isPhp || !user) return
+    try { setServerListings(await fetchMyListings()) } catch { /* ignore */ }
+  }
+  useEffect(() => { reloadMine.current() }, [user])
+
+  const localMine = listings.filter((l) => isMine(l.id))
+  const myListings = isPhp && user ? serverListings : localMine
   const displayName =
     (user?.user_metadata?.full_name as string | undefined) || seller.name || user?.email?.split('@')[0] || ''
   const rating = averageRating(myReviews)
@@ -294,32 +310,62 @@ export function Profile() {
             ) : (
               <div className="space-y-2">
                 {myListings.map((l) => (
-                  <div key={l.id} className="card flex items-center gap-3 p-2.5">
-                    <Link to={`/annonce/${l.id}`} className="flex flex-1 items-center gap-3">
-                      <img src={l.images[0]} alt="" className="h-16 w-16 rounded-xl object-cover" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-900">{l.title}</p>
-                        <p className="text-sm font-bold text-primary-600">{priceLabel(l.price, l.negotiable)}</p>
-                        <p className="flex items-center gap-1 text-[11px] text-gray-400">
-                          <MapPin size={11} />
-                          {locationLabel(l.regionId, l.cityId, l.commune)}
-                        </p>
-                      </div>
-                    </Link>
-                    <button
-                      onClick={async () => {
-                        if (!confirm('Supprimer cette annonce ?')) return
-                        try {
-                          await deleteListing(l.id)
-                        } catch {
-                          alert('Suppression impossible : vous devez être le propriétaire connecté.')
-                        }
-                      }}
-                      className="grid h-9 w-9 place-items-center rounded-full text-red-500 hover:bg-red-50"
-                      aria-label="Supprimer"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                  <div key={l.id} className="card p-2.5">
+                    <div className="flex items-center gap-3">
+                      <Link to={`/annonce/${l.id}`} className="flex flex-1 items-center gap-3">
+                        <div className="relative">
+                          <img src={l.images[0]} alt="" className={`h-16 w-16 rounded-xl object-cover ${l.hidden ? 'opacity-40' : ''}`} />
+                          {l.hidden && (
+                            <span className="absolute inset-0 grid place-items-center">
+                              <EyeOff size={18} className="text-gray-600" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900">{l.title}</p>
+                          <p className="text-sm font-bold text-primary-600">{priceLabel(l.price, l.negotiable)}</p>
+                          {l.hidden ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                              <EyeOff size={10} /> Masquée
+                            </span>
+                          ) : (
+                            <p className="flex items-center gap-1 text-[11px] text-gray-400">
+                              <MapPin size={11} />
+                              {locationLabel(l.regionId, l.cityId, l.commune)}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    </div>
+                    <div className="mt-2 flex gap-1.5 border-t border-gray-100 pt-2">
+                      <button
+                        onClick={() => navigate(`/modifier/${l.id}`, { state: { listing: l } })}
+                        className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        <Pencil size={14} /> Modifier
+                      </button>
+                      {isPhp && (
+                        <button
+                          onClick={async () => {
+                            try { await setListingHidden(l.id, !l.hidden); await reloadMine.current() }
+                            catch { alert('Action impossible.') }
+                          }}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                        >
+                          {l.hidden ? <><Eye size={14} /> Afficher</> : <><EyeOff size={14} /> Masquer</>}
+                        </button>
+                      )}
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Supprimer définitivement cette annonce ?')) return
+                          try { await deleteListing(l.id); await reloadMine.current() }
+                          catch { alert('Suppression impossible : vous devez être le propriétaire connecté.') }
+                        }}
+                        className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-red-500 hover:bg-red-50"
+                      >
+                        <Trash2 size={14} /> Supprimer
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -767,11 +813,12 @@ function DeleteAccount() {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [text, setText] = useState('')
+  const [pwd, setPwd] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function del() {
     setBusy(true)
-    const r = await deleteAccount()
+    const r = await deleteAccount(pwd)
     setBusy(false)
     if (r.error) return alert(r.error)
     alert('Votre compte et toutes vos données ont été supprimés.')
@@ -793,7 +840,7 @@ function DeleteAccount() {
       <p className="text-sm font-bold text-red-700">Supprimer définitivement mon compte</p>
       <p className="mt-1 text-xs text-red-600">
         Action irréversible. Toutes vos données (annonces, commandes, messages, avis, profil) seront
-        supprimées. Tapez <strong>SUPPRIMER</strong> pour confirmer.
+        supprimées. Tapez <strong>SUPPRIMER</strong> et saisissez votre mot de passe pour confirmer.
       </p>
       <input
         value={text}
@@ -801,13 +848,21 @@ function DeleteAccount() {
         placeholder="SUPPRIMER"
         className="input mt-2"
       />
+      <input
+        type="password"
+        value={pwd}
+        onChange={(e) => setPwd(e.target.value)}
+        placeholder="Votre mot de passe"
+        autoComplete="current-password"
+        className="input mt-2"
+      />
       <div className="mt-2 flex gap-2">
-        <button onClick={() => { setConfirming(false); setText('') }} className="btn-outline flex-1 py-2 text-sm">
+        <button onClick={() => { setConfirming(false); setText(''); setPwd('') }} className="btn-outline flex-1 py-2 text-sm">
           Annuler
         </button>
         <button
           onClick={del}
-          disabled={text !== 'SUPPRIMER' || busy}
+          disabled={text !== 'SUPPRIMER' || !pwd || busy}
           className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
           {busy ? 'Suppression…' : 'Supprimer'}
