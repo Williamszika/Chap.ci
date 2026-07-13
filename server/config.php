@@ -37,6 +37,14 @@ return [
   'mail_reply_to'  => getenv('CHAPCI_MAIL_REPLYTO') ?: 'contact@chap.ci',
   'site_url'       => getenv('CHAPCI_SITE_URL') ?: 'https://chap.ci',
 
+  // Réseaux sociaux affichés en pied des emails. Mettez vos liens (laissez
+  // vides pour masquer). Ex : 'https://facebook.com/votrepage'.
+  'social' => [
+    'Facebook'  => getenv('CHAPCI_FACEBOOK')  ?: '',
+    'Instagram' => getenv('CHAPCI_INSTAGRAM') ?: '',
+    'WhatsApp'  => getenv('CHAPCI_WHATSAPP')  ?: '',
+  ],
+
   // Dossier des photos (au niveau racine du site, servi directement en HTTP).
   'uploads_dir' => getenv('CHAPCI_UPLOADS_DIR') ?: __DIR__ . '/../uploads',
   // Chemin public des photos (relatif à la racine du site).

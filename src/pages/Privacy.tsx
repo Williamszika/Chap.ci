@@ -65,11 +65,16 @@ export function Privacy() {
             </p>
           </Section>
 
-          <Section title="4. Partage avec des tiers">
-            <ul className="ml-4 list-disc space-y-1.5">
-              <li><b>Supabase</b> : hébergement sécurisé de la base de données et de l’authentification.</li>
-              <li><b>Google / Apple</b> : uniquement si vous choisissez de vous connecter avec ces services (nom et email transmis pour créer le compte).</li>
-              <li><b>Services de géocodage</b> : conversion de coordonnées en nom de lieu (ville, commune).</li>
+          <Section title="4. Hébergement et partage avec des tiers">
+            <p>
+              Vos données sont stockées sur notre <b>propre serveur hébergé en Côte d’Ivoire</b> (hébergeur
+              TPE Cloud), dans une base de données sécurisée. Nous <b>ne vendons pas</b> et ne louons pas vos
+              données personnelles. Nous recourons à un nombre limité de prestataires :
+            </p>
+            <ul className="ml-4 mt-2 list-disc space-y-1.5">
+              <li><b>Notre hébergeur</b> : stockage sécurisé de la base de données et des photos.</li>
+              <li><b>Services de géocodage</b> : conversion de coordonnées GPS en nom de lieu (ville, commune).</li>
+              <li><b>Service d’emailing</b> : envoi éventuel de la newsletter et des emails du site (si vous y consentez).</li>
             </ul>
             <p className="mt-2">Ces prestataires sont soumis à leurs propres politiques de confidentialité.</p>
           </Section>
@@ -85,9 +90,9 @@ export function Privacy() {
 
           <Section title="6. Sécurité">
             <p>
-              Les mots de passe sont chiffrés, les accès aux données protégés par des règles de sécurité
-              (RLS) côté serveur, et la double authentification (2FA) est disponible pour renforcer la
-              protection de votre compte.
+              Les mots de passe sont <b>chiffrés</b> (hachage bcrypt) et ne sont jamais stockés en clair.
+              Les accès aux données sont <b>vérifiés côté serveur</b> à chaque requête (chacun n’accède
+              qu’à ses propres données). Les échanges avec le site sont protégés par <b>HTTPS</b>.
             </p>
           </Section>
 
@@ -98,10 +103,18 @@ export function Privacy() {
             </p>
           </Section>
 
-          <Section title="8. Vos droits">
-            <p>
-              Vous pouvez consulter, corriger ou supprimer vos données à tout moment depuis
-              l’application, ou nous contacter pour toute demande.
+          <Section title="8. Vos droits (RGPD)">
+            <p>Conformément à la réglementation sur la protection des données, vous disposez des droits suivants :</p>
+            <ul className="ml-4 mt-2 list-disc space-y-1.5">
+              <li><b>Accès</b> : savoir quelles données nous détenons sur vous.</li>
+              <li><b>Rectification</b> : corriger vos informations depuis <i>Compte → Paramètres</i>.</li>
+              <li><b>Suppression</b> (« droit à l’oubli ») : supprimer votre compte et toutes vos données.</li>
+              <li><b>Opposition</b> : vous désabonner de la newsletter à tout moment.</li>
+              <li><b>Portabilité</b> : demander une copie de vos données.</li>
+            </ul>
+            <p className="mt-2">
+              Pour exercer ces droits, utilisez l’application ou écrivez-nous à{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary-600">{CONTACT_EMAIL}</a>.
             </p>
           </Section>
 

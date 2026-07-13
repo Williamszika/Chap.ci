@@ -389,12 +389,15 @@ export function Profile() {
               Réinitialiser les données de démonstration
             </button>
 
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
               <Link to="/contact" className="text-xs text-gray-500 underline">
                 Nous contacter
               </Link>
               <Link to="/confidentialite" className="text-xs text-gray-500 underline">
                 Confidentialité
+              </Link>
+              <Link to="/conditions" className="text-xs text-gray-500 underline">
+                Conditions
               </Link>
             </div>
 

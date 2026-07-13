@@ -15,6 +15,7 @@ import { Register } from './pages/Register'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { Privacy } from './pages/Privacy'
+import { Terms } from './pages/Terms'
 import { Contact } from './pages/Contact'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { Messages } from './pages/Messages'
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
           <Route path="/nouveau-mot-de-passe" element={<ResetPassword />} />
           <Route path="/confidentialite" element={<Privacy />} />
+          <Route path="/conditions" element={<Terms />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/newsletter" element={<AdminDashboard />} />

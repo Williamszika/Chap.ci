@@ -73,6 +73,7 @@ export function Register() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [accepted, setAccepted] = useState(false)
 
   function validateProfile(): string | null {
     if (!firstName.trim()) return 'Indiquez votre prénom.'
@@ -116,6 +117,8 @@ export function Register() {
     setInfo('')
     const v = validateProfile()
     if (v) return setError(v)
+    if (!accepted)
+      return setError('Vous devez lire et accepter les Conditions d’utilisation et la Politique de confidentialité.')
 
     if (method === 'email') {
       if (!email.trim()) return setError('Renseignez votre adresse email.')
@@ -272,10 +275,30 @@ export function Register() {
           )}
         </section>
 
+        {/* Acceptation obligatoire des mentions légales */}
+        <label className="flex items-start gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
+          <input
+            type="checkbox"
+            checked={accepted}
+            onChange={(e) => { setAccepted(e.target.checked); setError('') }}
+            className="mt-0.5 h-5 w-5 shrink-0 accent-primary-500"
+          />
+          <span className="text-sm text-gray-600">
+            J’ai lu et j’accepte les{' '}
+            <a href="#/conditions" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600 underline">
+              Conditions d’utilisation
+            </a>{' '}
+            et la{' '}
+            <a href="#/confidentialite" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600 underline">
+              Politique de confidentialité
+            </a>.
+          </span>
+        </label>
+
         {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
         {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
 
-        <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
+        <button type="submit" disabled={busy || !enabled || !accepted} className="btn-primary w-full py-3.5 text-base">
           {busy ? (
             <Loader2 size={20} className="animate-spin" />
           ) : method === 'phone' && !otpSent ? (

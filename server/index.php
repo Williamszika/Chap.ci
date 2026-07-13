@@ -216,32 +216,54 @@ function send_mail(array $config, string $to, string $subject, string $html): bo
   ]);
   return @mail($to, mime_h($subject), $html, $headers, '-f' . $from);
 }
+/** Gabarit HTML commun (logo + contenu + pied de page contact/réseaux/légal). */
+function email_layout(array $config, string $inner): string {
+  $site    = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name    = $config['mail_from_name'] ?? 'Chap.ci';
+  $logo    = $site . '/icons/icon-192.png';
+  $contact = $config['mail_reply_to'] ?? 'contact@chap.ci';
+  // Réseaux sociaux (config.php 'social' => ['Facebook'=>'https://…', …]).
+  $social = '';
+  foreach (($config['social'] ?? []) as $label => $url) {
+    if ($url) $social .= '<a href="' . htmlspecialchars($url) . '" style="color:#F77F00;text-decoration:none;margin:0 6px">' . htmlspecialchars($label) . '</a>';
+  }
+  $socialRow = $social ? '<p style="margin:8px 0">' . $social . '</p>' : '';
+  return
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;color:#1f2937">'
+    . '<div style="text-align:center;padding:24px 0 10px">'
+    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="64" height="64" style="border-radius:16px;display:inline-block">'
+    . '<div style="font-size:20px;font-weight:bold;color:#111827;margin-top:8px">' . htmlspecialchars($name) . '</div>'
+    . '</div>'
+    . '<div style="background:#fff;border:1px solid #eee;padding:24px;border-radius:14px">' . $inner . '</div>'
+    . '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:16px 8px">'
+    . '<p style="margin:8px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#F77F00;text-decoration:none">' . $contact . '</a></p>'
+    . $socialRow
+    . '<p style="margin:8px 0"><a href="' . $site . '/#/confidentialite" style="color:#9ca3af">Confidentialité</a> · '
+    . '<a href="' . $site . '/#/conditions" style="color:#9ca3af">Conditions d’utilisation</a></p>'
+    . '<p style="margin:10px 0 0">' . htmlspecialchars($name) . ' — 100% ivoirien 🇨🇮</p>'
+    . '</div>'
+    . '</div>';
+}
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
-  $site = $config['site_url'] ?? 'https://chap.ci';
-  $name = $config['mail_from_name'] ?? 'Chap.ci';
-  $html =
-    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:auto;color:#1f2937">'
-    . '<div style="background:#F77F00;color:#fff;padding:20px;border-radius:12px 12px 0 0">'
-    . '<h1 style="margin:0;font-size:20px">' . htmlspecialchars($name) . '</h1></div>'
-    . '<div style="border:1px solid #eee;border-top:0;padding:24px;border-radius:0 0 12px 12px">'
-    . '<h2 style="margin-top:0">Vous êtes modérateur 🎉</h2>'
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name  = $config['mail_from_name'] ?? 'Chap.ci';
+  $admin = $site . '/#/admin';
+  $inner =
+    '<h2 style="margin-top:0">Vous êtes modérateur 🎉</h2>'
     . '<p>Bonjour,</p>'
     . '<p>Vous avez été nommé(e) <b>modérateur</b> de <b>' . htmlspecialchars($name) . '</b>. '
     . 'Vous disposez désormais des mêmes accès que l’administrateur : statistiques, modération des '
     . 'annonces, utilisateurs, commandes et abonnés.</p>'
     . '<p style="text-align:center;margin:28px 0">'
-    . '<a href="' . htmlspecialchars($site) . '" style="background:#F77F00;color:#fff;text-decoration:none;'
-    . 'padding:12px 24px;border-radius:10px;font-weight:bold;display:inline-block">Accéder au tableau de bord</a></p>'
+    . '<a href="' . $admin . '" style="background:#F77F00;color:#fff;text-decoration:none;'
+    . 'padding:12px 24px;border-radius:10px;font-weight:bold;display:inline-block">Ouvrir le tableau de bord</a></p>'
     . '<p>Connectez-vous (ou créez un compte) sur <a href="' . htmlspecialchars($site) . '">' . htmlspecialchars($site) . '</a> '
     . '<b>avec cette adresse email</b> (' . htmlspecialchars($to) . '), puis ouvrez le '
     . '<b>Tableau de bord administrateur</b> depuis votre profil.</p>'
     . '<p style="color:#6b7280;font-size:13px;margin-top:24px">Si vous ne vous attendiez pas à ce message, '
-    . 'ignorez-le : aucun accès n’est actif tant que vous ne vous connectez pas avec cette adresse.</p>'
-    . '</div>'
-    . '<p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px">' . htmlspecialchars($name) . ' — 100% ivoirien 🇨🇮</p>'
-    . '</div>';
-  return send_mail($config, $to, "Vous êtes désormais modérateur de $name", $html);
+    . 'ignorez-le : aucun accès n’est actif tant que vous ne vous connectez pas avec cette adresse.</p>';
+  return send_mail($config, $to, "Vous êtes désormais modérateur de $name", email_layout($config, $inner));
 }
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
