@@ -35,6 +35,8 @@ return [
   'mail_from'      => getenv('CHAPCI_MAIL_FROM') ?: 'no-reply@chap.ci',
   'mail_from_name' => getenv('CHAPCI_MAIL_FROM_NAME') ?: 'Chap.ci',
   'mail_reply_to'  => getenv('CHAPCI_MAIL_REPLYTO') ?: 'contact@chap.ci',
+  // Expéditeur de la NEWSLETTER (adresse à laquelle les gens peuvent répondre).
+  'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
   'site_url'       => getenv('CHAPCI_SITE_URL') ?: 'https://chap.ci',
 
   // Réseaux sociaux affichés en pied des emails. Mettez vos liens (laissez

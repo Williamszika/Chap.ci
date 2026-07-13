@@ -269,10 +269,10 @@ function smtp_send(array $s, string $from, string $fromName, string $to, string 
  * (fiable), sinon la fonction mail() de PHP. Best-effort : renvoie false sans
  * lever d'erreur si l'envoi échoue.
  */
-function send_mail(array $config, string $to, string $subject, string $html): bool {
-  $from     = $config['mail_from'] ?? 'no-reply@chap.ci';
+function send_mail(array $config, string $to, string $subject, string $html, ?string $from = null, ?string $replyTo = null): bool {
+  $from     = $from ?: ($config['mail_from'] ?? 'no-reply@chap.ci');
   $fromName = $config['mail_from_name'] ?? 'Chap.ci';
-  $replyTo  = $config['mail_reply_to'] ?? 'contact@chap.ci';
+  $replyTo  = $replyTo ?: ($config['mail_reply_to'] ?? 'contact@chap.ci');
   $smtp     = $config['smtp'] ?? [];
   if (!empty($smtp['pass'])) {
     if (smtp_send($smtp, $from, $fromName, $to, $subject, $html, $replyTo)) return true;
@@ -378,8 +378,10 @@ function send_newsletter_email(array $config, string $to): bool {
     . 'Recevez nos meilleures annonces et bons plans, avant tout le monde.</p>'
     . email_button($site, 'Voir les annonces')
     . '<p style="margin-top:22px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  // La newsletter part de hello@ (réponse possible), pas de no-reply@.
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
   return send_mail($config, $to, "Bienvenue dans la newsletter $name",
-    email_layout($config, $inner, "Votre inscription à la newsletter $name est confirmée."));
+    email_layout($config, $inner, "Votre inscription à la newsletter $name est confirmée."), $from, $from);
 }
 /** Notification au vendeur : une nouvelle demande d'achat. */
 function send_order_seller_email(array $config, string $to, array $items): bool {
