@@ -838,13 +838,13 @@ try {
       if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
       if (in_array($email, owner_emails($config), true)) jerr('Cet email est déjà propriétaire du site.');
       $ex = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?'); $ex->execute([$email]);
-      $emailed = false;
-      if (!$ex->fetch()) {
+      $already = (bool) $ex->fetch();
+      if (!$already) {
         $pdo->prepare('INSERT INTO admins (email, created_at) VALUES (?,?)')->execute([$email, now_iso()]);
-        // Notifie le nouveau modérateur (best-effort : n'échoue pas l'ajout).
-        $emailed = send_moderator_email($config, $email);
       }
-      jout(['ok' => true, 'emailed' => $emailed]);
+      // Envoie (ou renvoie) la notification à chaque ajout. Best-effort.
+      $emailed = send_moderator_email($config, $email);
+      jout(['ok' => true, 'emailed' => $emailed, 'already' => $already]);
     }
     if ($path === 'admin/moderators' && $method === 'DELETE') {
       $b = body();

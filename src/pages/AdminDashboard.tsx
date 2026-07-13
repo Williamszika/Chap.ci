@@ -13,7 +13,7 @@ import {
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send } from 'lucide-react'
 
 type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators'
 
@@ -344,13 +344,14 @@ function ModeratorsTab() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) { setMsg('Adresse email invalide.'); return }
     setBusy(true); setMsg('')
     try {
-      const emailed = await addModerator(value)
+      const { emailed, already } = await addModerator(value)
       setEmail('')
       const fresh = await fetchModerators()
       setData(fresh)
+      const base = already ? 'Cet email était déjà modérateur' : '✓ Modérateur ajouté'
       setMsg(emailed
-        ? '✓ Modérateur ajouté — un email de notification lui a été envoyé.'
-        : '✓ Modérateur ajouté. Il aura accès en se connectant avec cet email. (Notification email non envoyée — prévenez-le manuellement.)')
+        ? `${base} — email de notification envoyé.`
+        : `${base}. Envoi de l’email impossible : activez le SMTP dans api/config.php (mot de passe de no-reply@chap.ci).`)
     } catch (e) { setMsg((e as Error).message) }
     finally { setBusy(false) }
   }
@@ -359,6 +360,16 @@ function ModeratorsTab() {
     if (!confirm(`Retirer les droits de modérateur à ${m} ?`)) return
     try { await removeModerator(m); setData((p) => p ? { ...p, moderators: p.moderators.filter((x) => x.email !== m) } : p) }
     catch (e) { alert((e as Error).message) }
+  }
+
+  const resend = async (m: string) => {
+    setMsg('')
+    try {
+      const { emailed } = await addModerator(m)
+      setMsg(emailed
+        ? `✓ Email renvoyé à ${m}.`
+        : `Envoi impossible à ${m} : activez le SMTP dans api/config.php.`)
+    } catch (e) { setMsg((e as Error).message) }
   }
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
@@ -428,6 +439,9 @@ function ModeratorsTab() {
                   <span className="block truncate text-sm font-semibold text-gray-800">{m.email}</span>
                   <span className="text-xs text-gray-400">ajouté {timeAgo(m.createdAt)}</span>
                 </span>
+                <button onClick={() => resend(m.email)} aria-label="Renvoyer l’email" title="Renvoyer l’email" className="shrink-0 rounded-xl p-2 text-primary-500 transition hover:bg-primary-50">
+                  <Send size={17} />
+                </button>
                 <button onClick={() => remove(m.email)} aria-label="Retirer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
                   <Trash2 size={18} />
                 </button>
