@@ -181,11 +181,16 @@ function migrate(PDO $pdo): void {
       email VARCHAR(190) PRIMARY KEY, created_at $ts
     )$eng",
     "CREATE TABLE IF NOT EXISTS user_interests (
-      user_id $id, category_id $txt, weight $intT, updated_at $ts,
+      user_id $id, category_id $txt, weight $intT, subcategory $txt, updated_at $ts,
       PRIMARY KEY (user_id, category_id)
     )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
+
+  // Colonne ajoutée après coup : on la crée sur les bases déjà existantes.
+  // (CREATE TABLE IF NOT EXISTS ne touche pas une table déjà présente.)
+  try { $pdo->exec("ALTER TABLE user_interests ADD COLUMN subcategory $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
 }
 
 // ---- Auth courant -----------------------------------------------------------
@@ -456,14 +461,19 @@ function digest_listings(PDO $pdo, int $limit = 6): array {
   return $rows;
 }
 /** Construit l'email « offres » avec des cartes d'annonces cliquables (type OLX/eBay). */
-function digest_html(array $config, array $rows, string $type): string {
+function digest_html(array $config, array $rows, string $type, string $context = ''): string {
   $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
   $name = $config['mail_from_name'] ?? 'Chap.ci';
   $title = $type === 'weekly' ? '✨ La sélection de la semaine'
     : ($type === 'perso' ? '✨ Sélectionné pour vous' : '🔥 Les bonnes affaires du jour');
-  $intro = $type === 'perso'
-    ? 'En fonction de ce qui vous intéresse, voici notre sélection 👇'
-    : 'Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇';
+  if ($type === 'perso') {
+    // Message précis : on nomme la catégorie qui a motivé la sélection.
+    $intro = $context !== ''
+      ? 'Parce que vous vous intéressez à <b>' . htmlspecialchars($context) . '</b>, voici des articles similaires qui pourraient vous plaire 👇'
+      : 'Voici une sélection d’articles qui pourraient vous plaire 👇';
+  } else {
+    $intro = 'Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇';
+  }
   $cards = '';
   foreach ($rows as $r) {
     $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
@@ -508,20 +518,59 @@ function send_digest(array $config, PDO $pdo, string $type): array {
   foreach ($subs as $s) { if (send_mail($config, $s['email'], $subject, $html, $from, $from)) $sent++; }
   return ['sent' => $sent, 'listings' => count($rows), 'subscribers' => count($subs)];
 }
-/** « Agent » de recommandation : annonces des catégories préférées de l'utilisateur. */
+/** Libellé français d'une catégorie (miroir de src/data/categories.ts) pour les emails. */
+function category_label(?string $id): string {
+  static $labels = [
+    'vehicules' => 'Véhicules', 'immobilier' => 'Immobilier', 'telephones' => 'Téléphones',
+    'electronique' => 'Électronique', 'maison' => 'Maison & Meubles', 'mode' => 'Mode & Beauté',
+    'emploi' => 'Emploi', 'services' => 'Services', 'materiel-pro' => 'Matériel Pro',
+    'alimentation' => 'Alimentation & Boissons', 'agriculture' => 'Agriculture',
+    'animaux' => 'Animaux', 'loisirs' => 'Loisirs & Sport', 'bebe' => 'Bébé & Enfant',
+  ];
+  return $labels[$id] ?? '';
+}
+
+/**
+ * « Agent » de recommandation : annonces des catégories préférées de l'utilisateur,
+ * classées finement — catégorie la plus aimée d'abord, puis MÊME SOUS-CATÉGORIE
+ * (produits similaires), puis promotions, puis les plus récentes.
+ */
 function suggestions_for_user(PDO $pdo, string $userId, int $limit = 6): array {
-  $c = $pdo->prepare('SELECT category_id FROM user_interests WHERE user_id = ? ORDER BY weight DESC, updated_at DESC LIMIT 3');
+  $c = $pdo->prepare('SELECT category_id, subcategory, weight FROM user_interests WHERE user_id = ? ORDER BY weight DESC, updated_at DESC LIMIT 3');
   $c->execute([$userId]);
-  $cats = array_values(array_filter(array_column($c->fetchAll(), 'category_id')));
+  $interests = $c->fetchAll();
+  $cats = array_values(array_filter(array_column($interests, 'category_id')));
   if (!$cats) return [];
+  // Sous-catégorie et poids mémorisés par catégorie (pour scorer la similarité).
+  $subByCat = []; $weightByCat = [];
+  foreach ($interests as $it) {
+    $subByCat[$it['category_id']]    = (string) ($it['subcategory'] ?? '');
+    $weightByCat[$it['category_id']] = (int) $it['weight'];
+  }
   $in = implode(',', array_fill(0, count($cats), '?'));
+  // Vivier large, classé ensuite en PHP (portable MySQL/PostgreSQL/SQLite).
   $st = $pdo->prepare(
-    "SELECT id,title,price,images,commune,city_id,promo_price,promo_until,category_id
+    "SELECT id,title,price,images,commune,city_id,promo_price,promo_until,category_id,subcategory,created_at
      FROM listings WHERE category_id IN ($in) AND (user_id IS NULL OR user_id <> ?)
-     ORDER BY (CASE WHEN promo_price IS NOT NULL THEN 0 ELSE 1 END), created_at DESC LIMIT " . (int) $limit
+     ORDER BY created_at DESC LIMIT 60"
   );
   $st->execute(array_merge($cats, [$userId]));
-  return $st->fetchAll();
+  $rows = $st->fetchAll();
+  if (!$rows) return [];
+  $now = now_iso();
+  $score = function (array $r) use ($subByCat, $weightByCat, $now): int {
+    $s = ($weightByCat[$r['category_id']] ?? 0) * 10;          // catégorie préférée
+    $wantSub = $subByCat[$r['category_id']] ?? '';
+    if ($wantSub !== '' && (string) ($r['subcategory'] ?? '') === $wantSub) $s += 100; // similaire
+    $promo = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > $now);
+    if ($promo) $s += 5;                                        // promo
+    return $s;
+  };
+  usort($rows, function ($a, $b) use ($score) {
+    $d = $score($b) <=> $score($a);
+    return $d !== 0 ? $d : strcmp((string) $b['created_at'], (string) $a['created_at']); // récence
+  });
+  return array_slice($rows, 0, $limit);
 }
 /**
  * Envoie l'email de suggestions personnalisées à un utilisateur.
@@ -538,10 +587,13 @@ function send_suggestions(array $config, PDO $pdo, array $user, bool $preview = 
   $personalized = !empty($rows);
   if (!$rows && $preview) $rows = digest_listings($pdo, 6); // aperçu : annonces récentes
   if (!$rows) return ['sent' => 0, 'listings' => 0, 'personalized' => false, 'reason' => 'aucune annonce à suggérer'];
-  $html = digest_html($config, $rows, 'perso');
+  // Catégorie dominante (1re annonce classée) = ce qui motive la sélection.
+  $context = $personalized ? category_label($rows[0]['category_id'] ?? null) : '';
+  $html = digest_html($config, $rows, 'perso', $context);
   $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
   $ok = send_mail($config, $user['email'], 'Des annonces pour vous ✨', $html, $from, $from);
-  return ['sent' => $ok ? 1 : 0, 'listings' => count($rows), 'personalized' => $personalized];
+  return ['sent' => $ok ? 1 : 0, 'listings' => count($rows), 'personalized' => $personalized,
+          'category' => $context, 'titles' => array_column($rows, 'title')];
 }
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
@@ -1159,17 +1211,20 @@ try {
     $u = current_user($pdo, $secret); // silencieux si non connecté
     $b = body();
     $cat = trim((string) ($b['categoryId'] ?? ''));
+    $sub = trim((string) ($b['subcategory'] ?? ''));
     if ($u && $cat !== '') {
       $w = max(1, min(5, (int) ($b['weight'] ?? 1)));
-      $ex = $pdo->prepare('SELECT weight FROM user_interests WHERE user_id = ? AND category_id = ?');
+      $ex = $pdo->prepare('SELECT weight, subcategory FROM user_interests WHERE user_id = ? AND category_id = ?');
       $ex->execute([$u['id'], $cat]);
       $row = $ex->fetch();
       if ($row) {
-        $pdo->prepare('UPDATE user_interests SET weight = ?, updated_at = ? WHERE user_id = ? AND category_id = ?')
-            ->execute([min(1000, (int) $row['weight'] + $w), now_iso(), $u['id'], $cat]);
+        // On conserve la dernière sous-catégorie précise consultée (sinon l'ancienne).
+        $subToStore = $sub !== '' ? $sub : ($row['subcategory'] ?? null);
+        $pdo->prepare('UPDATE user_interests SET weight = ?, subcategory = ?, updated_at = ? WHERE user_id = ? AND category_id = ?')
+            ->execute([min(1000, (int) $row['weight'] + $w), $subToStore, now_iso(), $u['id'], $cat]);
       } else {
-        $pdo->prepare('INSERT INTO user_interests (user_id, category_id, weight, updated_at) VALUES (?,?,?,?)')
-            ->execute([$u['id'], $cat, $w, now_iso()]);
+        $pdo->prepare('INSERT INTO user_interests (user_id, category_id, weight, subcategory, updated_at) VALUES (?,?,?,?,?)')
+            ->execute([$u['id'], $cat, $w, $sub !== '' ? $sub : null, now_iso()]);
       }
     }
     jout(['ok' => true]);

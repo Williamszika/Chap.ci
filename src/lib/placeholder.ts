@@ -65,7 +65,9 @@ export const categoryEmoji: Record<string, string> = {
   emploi: '💼',
   services: '🛠️',
   'materiel-pro': '🏗️',
+  alimentation: '🍲',
   agriculture: '🌱',
+  animaux: '🐾',
   loisirs: '🏋️',
   bebe: '🍼',
 }
@@ -105,6 +107,23 @@ const subEmoji: Record<string, string> = {
   couture: '🧵',
   restauration: '🍽️',
   agriculture: '🚜',
+  miel: '🍯',
+  confiture: '🍯',
+  fruit: '🍎',
+  légume: '🥬',
+  céréale: '🌾',
+  tubercule: '🍠',
+  épice: '🌶️',
+  condiment: '🌶️',
+  boisson: '🥤',
+  terroir: '🥘',
+  plats: '🍽️',
+  volaille: '🐔',
+  bétail: '🐄',
+  chien: '🐕',
+  chat: '🐈',
+  oiseau: '🐦',
+  poisson: '🐟',
 }
 
 /** Choisit l'emoji le plus pertinent selon la catégorie et la sous-catégorie. */

@@ -166,9 +166,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const toggleFavorite = useCallback((id: string) => {
     setFavorites((prev) => {
       if (prev.includes(id)) return prev.filter((f) => f !== id)
-      // Ajout d'un favori = signal d'intérêt fort pour la catégorie de l'annonce.
+      // Ajout d'un favori = signal d'intérêt fort pour la catégorie (et la
+      // sous-catégorie) de l'annonce → suggestions « produits similaires ».
       const l = listingsRef.current.find((x) => x.id === id)
-      recordInterest(l?.categoryId, 2)
+      recordInterest(l?.categoryId, 2, l?.subcategory)
       return [id, ...prev]
     })
   }, [])

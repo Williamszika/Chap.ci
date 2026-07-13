@@ -69,11 +69,25 @@ export const categories: Category[] = [
     subcategories: ['Agriculture', 'Restauration', 'Industrie', 'Fournitures de bureau', 'Boutique & Commerce'],
   },
   {
+    id: 'alimentation',
+    name: 'Alimentation & Boissons',
+    icon: 'Apple',
+    color: 'bg-red-100 text-red-700',
+    subcategories: ['Produits du terroir', 'Miel & Confitures', 'Fruits & Légumes', 'Céréales & Tubercules', 'Épices & Condiments', 'Boissons', 'Plats préparés'],
+  },
+  {
     id: 'agriculture',
     name: 'Agriculture',
     icon: 'Sprout',
     color: 'bg-lime-100 text-lime-700',
     subcategories: ['Produits vivriers', 'Cacao & Café', 'Élevage', 'Semences & Intrants', 'Matériel agricole'],
+  },
+  {
+    id: 'animaux',
+    name: 'Animaux',
+    icon: 'PawPrint',
+    color: 'bg-yellow-100 text-yellow-700',
+    subcategories: ['Volaille', 'Bétail & Élevage', 'Chiens & Chats', 'Oiseaux & Poissons', 'Accessoires & Alimentation'],
   },
   {
     id: 'loisirs',

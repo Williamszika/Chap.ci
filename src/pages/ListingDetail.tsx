@@ -53,10 +53,10 @@ export function ListingDetail() {
   const listingId = listing?.id
   const sellerId = listing?.sellerId
 
-  // Consulter une annonce = signal d'intérêt pour sa catégorie.
+  // Consulter une annonce = signal d'intérêt pour sa catégorie et sa sous-catégorie.
   useEffect(() => {
-    if (listing?.categoryId) recordInterest(listing.categoryId, 1)
-  }, [listing?.categoryId])
+    if (listing?.categoryId) recordInterest(listing.categoryId, 1, listing.subcategory)
+  }, [listing?.categoryId, listing?.subcategory])
 
   useEffect(() => {
     if (!listingId) return
