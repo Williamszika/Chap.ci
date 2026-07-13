@@ -348,16 +348,15 @@ function send_welcome_email(array $config, string $to, string $fullName = ''): b
   $inner =
     '<h2 style="margin-top:0;color:#111827">Bienvenue sur ' . htmlspecialchars($name) . ' 🎉</h2>'
     . '<p>' . $hi . '</p>'
-    . '<p>Votre compte est prêt ! Vous pouvez dès maintenant <b>acheter et vendre chap-chap</b> partout '
-    . 'en Côte d’Ivoire :</p>'
-    . '<ul style="padding-left:18px;line-height:1.7">'
-    . '<li>📸 <b>Publiez une annonce</b> en quelques secondes avec vos photos.</li>'
-    . '<li>📍 Découvrez les <b>bonnes affaires près de chez vous</b>.</li>'
-    . '<li>💬 Discutez en toute sécurité avec les vendeurs via la <b>messagerie</b>.</li>'
+    . '<p>Votre compte est prêt. Achetez et vendez <b>chap-chap</b>, partout en Côte d’Ivoire :</p>'
+    . '<ul style="padding-left:18px;line-height:1.8">'
+    . '<li>📸 Publiez une annonce en quelques secondes.</li>'
+    . '<li>📍 Trouvez les bonnes affaires près de chez vous.</li>'
+    . '<li>💬 Échangez en toute sécurité avec la messagerie.</li>'
     . '</ul>'
-    . email_button($site, 'Découvrir Chap.ci')
-    . '<p style="color:#6b7280;font-size:13px;margin-top:20px">Besoin d’aide ? Répondez simplement à cet '
-    . 'email, notre équipe vous accompagne.</p>';
+    . email_button($site, 'Découvrir ' . htmlspecialchars($name))
+    . '<p style="margin-top:22px">Bonne découverte,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>'
+    . '<p style="color:#6b7280;font-size:13px;margin-top:14px">Une question ? Répondez simplement à cet email.</p>';
   return send_mail($config, $to, "Bienvenue sur $name 🎉",
     email_layout($config, $inner, "Votre compte $name est prêt — achetez et vendez chap-chap partout en Côte d’Ivoire."));
 }
@@ -367,19 +366,14 @@ function send_moderator_email(array $config, string $to): bool {
   $name  = $config['mail_from_name'] ?? 'Chap.ci';
   $admin = $site . '/#/admin';
   $inner =
-    '<h2 style="margin-top:0">Vous êtes modérateur 🎉</h2>'
+    '<h2 style="margin-top:0">Bienvenue dans l’équipe 🎉</h2>'
     . '<p>Bonjour,</p>'
-    . '<p>Vous avez été nommé(e) <b>modérateur</b> de <b>' . htmlspecialchars($name) . '</b>. '
-    . 'Vous disposez désormais des mêmes accès que l’administrateur : statistiques, modération des '
-    . 'annonces, utilisateurs, commandes et abonnés.</p>'
+    . '<p>Vous rejoignez la modération de <b>' . htmlspecialchars($name) . '</b>. Merci de votre confiance !</p>'
     . email_button($admin, 'Ouvrir le tableau de bord')
-    . '<p>Connectez-vous (ou créez un compte) sur <a href="' . htmlspecialchars($site) . '">' . htmlspecialchars($site) . '</a> '
-    . '<b>avec cette adresse email</b> (' . htmlspecialchars($to) . '), puis ouvrez le '
-    . '<b>Tableau de bord administrateur</b> depuis votre profil.</p>'
-    . '<p style="color:#6b7280;font-size:13px;margin-top:24px">Si vous ne vous attendiez pas à ce message, '
-    . 'ignorez-le : aucun accès n’est actif tant que vous ne vous connectez pas avec cette adresse.</p>';
-  return send_mail($config, $to, "Vous êtes désormais modérateur de $name",
-    email_layout($config, $inner, "Vous êtes désormais modérateur de $name."));
+    . '<p>Connectez-vous avec cette adresse (<b>' . htmlspecialchars($to) . '</b>) pour y accéder depuis votre profil.</p>'
+    . '<p style="margin-top:22px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return send_mail($config, $to, "Bienvenue dans l’équipe $name",
+    email_layout($config, $inner, "Vous rejoignez l’équipe de modération de $name."));
 }
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
