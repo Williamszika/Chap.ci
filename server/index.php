@@ -241,12 +241,18 @@ function smtp_send(array $s, string $from, string $fromName, string $to, string 
   $cmd('RCPT TO:<' . $to . '>');
   $d = $cmd('DATA');
   if (substr(ltrim($d), 0, 3) !== '354') { $cmd('QUIT'); fclose($fp); return false; }
-  $headers = 'From: ' . mime_h($fromName) . ' <' . $from . ">\r\n"
+  // En-têtes complets (Date + Message-ID sont EXIGÉS par les serveurs stricts
+  // comme ProtonMail ; sans eux le message est rejeté ou classé en spam).
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
+  $headers = 'Date: ' . date('r') . "\r\n"
+    . 'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . ">\r\n"
+    . 'From: ' . mime_h($fromName) . ' <' . $from . ">\r\n"
     . 'Reply-To: ' . $replyTo . "\r\n"
     . 'To: <' . $to . ">\r\n"
     . 'Subject: ' . mime_h($subject) . "\r\n"
     . 'MIME-Version: 1.0' . "\r\n"
-    . 'Content-Type: text/html; charset=UTF-8' . "\r\n";
+    . 'Content-Type: text/html; charset=UTF-8' . "\r\n"
+    . 'X-Mailer: Chap.ci' . "\r\n";
   $body = preg_replace('/^\./m', '..', $html); // dot-stuffing
   fwrite($fp, $headers . "\r\n" . $body . "\r\n.\r\n");
   $sent = $read();
@@ -270,9 +276,12 @@ function send_mail(array $config, string $to, string $subject, string $html): bo
     // Repli sur mail() si le SMTP échoue.
   }
   if (!function_exists('mail')) return false;
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
   $headers = implode("\r\n", [
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
+    'Date: ' . date('r'),
+    'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . '>',
     'From: ' . mime_h($fromName) . ' <' . $from . '>',
     'Reply-To: ' . $replyTo,
     'X-Mailer: Chap.ci',
