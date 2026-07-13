@@ -10,6 +10,23 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_WARNING);
 
 $config = require __DIR__ . '/config.php';
 
+// Valeurs par défaut pour les réglages ajoutés au fil des fonctionnalités
+// (crons, emails, réseaux sociaux…). Un `config.php` créé AVANT l'ajout d'une
+// fonctionnalité n'a pas forcément la clé correspondante : sans ce filet, la
+// valeur serait vide (ex. clé cron manquante -> « Clé invalide »). L'opérateur
+// `+` ne complète QUE les clés absentes — vos réglages existants sont préservés.
+$config += [
+  'cron_key'             => getenv('CHAPCI_CRON_KEY')      ?: 'chapci-cron-2026-a7f3e9',
+  'admin_emails'         => array_filter(array_map('trim',
+    explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
+  'mail_from'            => getenv('CHAPCI_MAIL_FROM')       ?: 'no-reply@chap.ci',
+  'mail_from_name'       => getenv('CHAPCI_MAIL_FROM_NAME')  ?: 'Chap.ci',
+  'mail_reply_to'        => getenv('CHAPCI_MAIL_REPLYTO')    ?: 'contact@chap.ci',
+  'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
+  'site_url'             => getenv('CHAPCI_SITE_URL')        ?: 'https://chap.ci',
+  'social'               => [],
+];
+
 // Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
 // prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.
 if (is_file(__DIR__ . '/smtp.local.php')) {
