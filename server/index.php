@@ -582,7 +582,11 @@ try {
   // Toutes les routes /api/admin/* exigent un compte administrateur.
   if (($seg[0] ?? '') === 'admin') {
     $u = require_user($pdo, $secret);
-    if (!is_admin($config, $pdo, $u)) jerr('Accès réservé à l’administrateur.', 403);
+    $userIsAdmin = is_admin($config, $pdo, $u);
+    // Vérification légère : indique si l'utilisateur connecté est admin
+    // (sans erreur 403) — sert à afficher/masquer le lien dans l'app.
+    if ($path === 'admin/check') jout(['admin' => $userIsAdmin]);
+    if (!$userIsAdmin) jerr('Accès réservé à l’administrateur.', 403);
 
     // Vue d'ensemble : compteurs + activité récente.
     if ($path === 'admin/stats' && $method === 'GET') {

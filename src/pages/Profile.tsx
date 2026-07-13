@@ -20,12 +20,13 @@ import {
   AlertTriangle,
   KeyRound,
   BarChart3,
+  ChevronRight,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { activePromo } from '../lib/promo'
-import { isAdminEmail } from '../lib/newsletter'
+import { useIsAdmin } from '../lib/useIsAdmin'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
@@ -50,6 +51,7 @@ export function Profile() {
   const navigate = useNavigate()
   const { listings, deleteListing, resetDemo, isMine, favorites } = useApp()
   const { user, enabled, signOut } = useAuth()
+  const isAdmin = useIsAdmin()
   const { place } = useGeo()
   const [seller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
 
@@ -136,6 +138,25 @@ export function Profile() {
           />
         </div>
       </header>
+
+      {/* Accès administrateur (propriétaire ou modérateur) */}
+      {isAdmin && (
+        <div className="px-4 pt-4">
+          <Link
+            to="/admin"
+            className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card transition active:scale-[0.99]"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20">
+              <ShieldCheck size={22} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold">Tableau de bord administrateur</span>
+              <span className="block text-sm text-white/85">Statistiques, modération, modérateurs…</span>
+            </span>
+            <ChevronRight size={20} className="shrink-0" />
+          </Link>
+        </div>
+      )}
 
       {/* Connexion requise */}
       {enabled && !user && (
@@ -377,7 +398,7 @@ export function Profile() {
               </Link>
             </div>
 
-            {isAdminEmail(user?.email) && (
+            {isAdmin && (
               <Link
                 to="/admin"
                 className="block text-center text-xs font-semibold text-primary-600 underline"

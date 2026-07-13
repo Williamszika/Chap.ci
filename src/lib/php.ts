@@ -265,6 +265,14 @@ export async function phpAdminDeleteListing(id: string): Promise<void> {
 export async function phpAdminOrders<T>(): Promise<T> {
   return req<T>('/admin/orders')
 }
+export async function phpAdminCheck(): Promise<boolean> {
+  try {
+    const d = await req<{ admin: boolean }>('/admin/check')
+    return !!d.admin
+  } catch {
+    return false
+  }
+}
 export async function phpAdminModerators<T>(): Promise<T> {
   return req<T>('/admin/moderators')
 }
