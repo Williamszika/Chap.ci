@@ -265,3 +265,12 @@ export async function phpAdminDeleteListing(id: string): Promise<void> {
 export async function phpAdminOrders<T>(): Promise<T> {
   return req<T>('/admin/orders')
 }
+export async function phpAdminModerators<T>(): Promise<T> {
+  return req<T>('/admin/moderators')
+}
+export async function phpAddModerator(email: string): Promise<void> {
+  await req('/admin/moderators', { method: 'POST', body: { email } })
+}
+export async function phpRemoveModerator(email: string): Promise<void> {
+  await req('/admin/moderators', { method: 'DELETE', body: { email } })
+}

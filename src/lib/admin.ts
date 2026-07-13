@@ -64,3 +64,20 @@ export async function fetchAdminOrders(): Promise<AdminOrder[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminOrders<AdminOrder[]>()
 }
+
+export interface Moderators {
+  owners: string[]
+  moderators: { email: string; createdAt: number }[]
+}
+export async function fetchModerators(): Promise<Moderators> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminModerators<Moderators>()
+}
+export async function addModerator(email: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAddModerator(email)
+}
+export async function removeModerator(email: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpRemoveModerator(email)
+}

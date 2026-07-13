@@ -9,11 +9,13 @@ import { formatPrice, timeAgo } from '../lib/format'
 import { emojiFor } from '../lib/placeholder'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
-  type AdminStats, type AdminUser, type AdminListing, type AdminOrder,
+  fetchModerators, addModerator, removeModerator,
+  type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
+import { ShieldCheck, UserPlus, Crown } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -68,7 +70,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['orders','Commandes'],['newsletter','Abonnés']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['orders','Commandes'],['newsletter','Abonnés'],['moderators','Modérateurs']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -86,6 +88,7 @@ export function AdminDashboard() {
         {tab === 'users' && <UsersTab />}
         {tab === 'orders' && <OrdersTab />}
         {tab === 'newsletter' && <NewsletterTab />}
+        {tab === 'moderators' && <ModeratorsTab />}
       </div>
     </div>
   )
@@ -307,6 +310,106 @@ function NewsletterTab() {
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+// ---------- Modérateurs ----------
+function ModeratorsTab() {
+  const [data, setData] = useState<Moderators | null>(null)
+  const [err, setErr] = useState('')
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const load = () => { setData(null); setErr(''); fetchModerators().then(setData).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const value = email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) { setMsg('Adresse email invalide.'); return }
+    setBusy(true); setMsg('')
+    try {
+      await addModerator(value)
+      setEmail('')
+      const fresh = await fetchModerators()
+      setData(fresh)
+      setMsg('✓ Modérateur ajouté. Il aura accès en se connectant avec cet email.')
+    } catch (e) { setMsg((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  const remove = async (m: string) => {
+    if (!confirm(`Retirer les droits de modérateur à ${m} ?`)) return
+    try { await removeModerator(m); setData((p) => p ? { ...p, moderators: p.moderators.filter((x) => x.email !== m) } : p) }
+    catch (e) { alert((e as Error).message) }
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!data) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
+        <p className="flex items-center gap-1.5 font-semibold"><ShieldCheck size={16} /> Rôles</p>
+        <p className="mt-1 text-primary-700">
+          Un modérateur a <b>exactement les mêmes accès</b> que toi au tableau de bord.
+          Le <b>propriétaire</b> ne peut pas être retiré.
+        </p>
+      </div>
+
+      <form onSubmit={add} className="flex flex-col gap-2 sm:flex-row">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => { setEmail(e.target.value); if (msg) setMsg('') }}
+          placeholder="email@du-moderateur.com"
+          autoComplete="off"
+          className="input"
+          aria-label="Email du modérateur"
+        />
+        <button type="submit" disabled={busy} className="btn-primary py-3 disabled:opacity-50">
+          {busy ? <Loader2 size={18} className="animate-spin" /> : <><UserPlus size={18} /> Ajouter</>}
+        </button>
+      </form>
+      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
+
+      <div>
+        <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Propriétaire</p>
+        <div className="space-y-2">
+          {data.owners.map((o) => (
+            <div key={o} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600"><Crown size={18} /></span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{o}</span>
+              <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800">Propriétaire</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Modérateurs ({data.moderators.length})
+        </p>
+        {data.moderators.length === 0 ? (
+          <Empty>Aucun modérateur. Ajoutez-en un ci-dessus.</Empty>
+        ) : (
+          <div className="space-y-2">
+            {data.moderators.map((m) => (
+              <div key={m.email} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600"><ShieldCheck size={18} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-gray-800">{m.email}</span>
+                  <span className="text-xs text-gray-400">ajouté {timeAgo(m.createdAt)}</span>
+                </span>
+                <button onClick={() => remove(m.email)} aria-label="Retirer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

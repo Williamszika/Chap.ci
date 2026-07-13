@@ -153,6 +153,9 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS newsletter (
       id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, created_at $ts
     )$eng",
+    "CREATE TABLE IF NOT EXISTS admins (
+      email VARCHAR(190) PRIMARY KEY, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 }
@@ -182,10 +185,18 @@ function user_public(PDO $pdo, array $u): array {
   $name = ($st->fetch()['full_name'] ?? null);
   return ['id' => $u['id'], 'email' => $u['email'], 'user_metadata' => ['full_name' => $name]];
 }
-/** L'utilisateur est-il administrateur (email listé dans config admin_emails) ? */
-function is_admin(array $config, array $u): bool {
-  $admins = array_map('strtolower', $config['admin_emails'] ?? []);
-  return in_array(strtolower($u['email'] ?? ''), $admins, true);
+/** Emails « propriétaires » (config.php) : admins permanents, non supprimables. */
+function owner_emails(array $config): array {
+  return array_values(array_map('strtolower', $config['admin_emails'] ?? []));
+}
+/** L'utilisateur est-il administrateur ? Propriétaire (config) OU modérateur (table admins). */
+function is_admin(array $config, PDO $pdo, array $u): bool {
+  $email = strtolower($u['email'] ?? '');
+  if ($email === '') return false;
+  if (in_array($email, owner_emails($config), true)) return true;
+  $st = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?');
+  $st->execute([$email]);
+  return (bool) $st->fetch();
 }
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
@@ -561,7 +572,7 @@ try {
   // Liste des abonnés : réservée aux administrateurs (export CSV côté app).
   if ($path === 'newsletter' && $method === 'GET') {
     $u = require_user($pdo, $secret);
-    if (!is_admin($config, $u)) jerr('Accès réservé à l’administrateur.', 403);
+    if (!is_admin($config, $pdo, $u)) jerr('Accès réservé à l’administrateur.', 403);
     $rows = $pdo->query('SELECT email, created_at FROM newsletter ORDER BY created_at DESC')->fetchAll();
     $out = array_map(fn($r) => ['email' => $r['email'], 'createdAt' => iso_to_ms($r['created_at'])], $rows);
     jout(['count' => count($out), 'subscribers' => $out]);
@@ -571,7 +582,7 @@ try {
   // Toutes les routes /api/admin/* exigent un compte administrateur.
   if (($seg[0] ?? '') === 'admin') {
     $u = require_user($pdo, $secret);
-    if (!is_admin($config, $u)) jerr('Accès réservé à l’administrateur.', 403);
+    if (!is_admin($config, $pdo, $u)) jerr('Accès réservé à l’administrateur.', 403);
 
     // Vue d'ensemble : compteurs + activité récente.
     if ($path === 'admin/stats' && $method === 'GET') {
@@ -644,6 +655,32 @@ try {
         ];
       }
       jout($out);
+    }
+
+    // Modérateurs : lister / ajouter / retirer (mêmes droits que l'admin).
+    if ($path === 'admin/moderators' && $method === 'GET') {
+      $mods = array_map(
+        fn($r) => ['email' => $r['email'], 'createdAt' => iso_to_ms($r['created_at'])],
+        $pdo->query('SELECT email, created_at FROM admins ORDER BY created_at DESC')->fetchAll());
+      jout(['owners' => owner_emails($config), 'moderators' => $mods]);
+    }
+    if ($path === 'admin/moderators' && $method === 'POST') {
+      $b = body();
+      $email = strtolower(trim($b['email'] ?? ''));
+      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+      if (in_array($email, owner_emails($config), true)) jerr('Cet email est déjà propriétaire du site.');
+      $ex = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?'); $ex->execute([$email]);
+      if (!$ex->fetch()) {
+        $pdo->prepare('INSERT INTO admins (email, created_at) VALUES (?,?)')->execute([$email, now_iso()]);
+      }
+      jout(['ok' => true]);
+    }
+    if ($path === 'admin/moderators' && $method === 'DELETE') {
+      $b = body();
+      $email = strtolower(trim($b['email'] ?? ''));
+      if (in_array($email, owner_emails($config), true)) jerr('Le propriétaire ne peut pas être retiré.', 403);
+      $pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
+      jout(['ok' => true]);
     }
 
     jerr('Route admin inconnue: ' . $path, 404);
