@@ -199,15 +199,71 @@ function is_admin(array $config, PDO $pdo, array $u): bool {
   return (bool) $st->fetch();
 }
 
-// ---- Emails (envoi natif PHP, compatible cPanel) ----------------------------
+// ---- Emails -----------------------------------------------------------------
 function mime_h(string $s): string { return '=?UTF-8?B?' . base64_encode($s) . '?='; }
-/** Envoie un email HTML. Best-effort : renvoie false sans lever d'erreur si l'envoi échoue. */
+
+/** Envoi authentifié via SMTP (fiable sur mutualisé). Renvoie false en cas d'échec. */
+function smtp_send(array $s, string $from, string $fromName, string $to, string $subject, string $html, string $replyTo): bool {
+  $host   = $s['host'] ?? 'localhost';
+  $port   = (int) ($s['port'] ?? 465);
+  $secure = strtolower($s['secure'] ?? 'ssl');
+  $remote = ($secure === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+  $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]]);
+  $fp = @stream_socket_client($remote, $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $ctx);
+  if (!$fp) return false;
+  stream_set_timeout($fp, 15);
+  $read = function () use ($fp) {
+    $data = '';
+    while (($line = fgets($fp, 515)) !== false) { $data .= $line; if (isset($line[3]) && $line[3] === ' ') break; }
+    return $data;
+  };
+  $cmd = function ($c) use ($fp, $read) { fwrite($fp, $c . "\r\n"); return $read(); };
+  $ok = fn($r, $code) => strncmp(ltrim($r), $code, 3) === 0 || strpos($r, "\n$code") !== false || substr($r, 0, 3) === $code;
+  $read();
+  $cmd('EHLO chap.ci');
+  if ($secure === 'tls') {
+    $cmd('STARTTLS');
+    if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) { fclose($fp); return false; }
+    $cmd('EHLO chap.ci');
+  }
+  $cmd('AUTH LOGIN');
+  $cmd(base64_encode($s['user'] ?? ''));
+  $auth = $cmd(base64_encode($s['pass'] ?? ''));
+  if (substr(ltrim($auth), 0, 3) !== '235') { $cmd('QUIT'); fclose($fp); return false; }
+  $cmd('MAIL FROM:<' . $from . '>');
+  $cmd('RCPT TO:<' . $to . '>');
+  $d = $cmd('DATA');
+  if (substr(ltrim($d), 0, 3) !== '354') { $cmd('QUIT'); fclose($fp); return false; }
+  $headers = 'From: ' . mime_h($fromName) . ' <' . $from . ">\r\n"
+    . 'Reply-To: ' . $replyTo . "\r\n"
+    . 'To: <' . $to . ">\r\n"
+    . 'Subject: ' . mime_h($subject) . "\r\n"
+    . 'MIME-Version: 1.0' . "\r\n"
+    . 'Content-Type: text/html; charset=UTF-8' . "\r\n";
+  $body = preg_replace('/^\./m', '..', $html); // dot-stuffing
+  fwrite($fp, $headers . "\r\n" . $body . "\r\n.\r\n");
+  $sent = $read();
+  $cmd('QUIT');
+  fclose($fp);
+  return substr(ltrim($sent), 0, 3) === '250';
+}
+
+/**
+ * Envoie un email HTML. Utilise SMTP si un mot de passe SMTP est configuré
+ * (fiable), sinon la fonction mail() de PHP. Best-effort : renvoie false sans
+ * lever d'erreur si l'envoi échoue.
+ */
 function send_mail(array $config, string $to, string $subject, string $html): bool {
-  if (!function_exists('mail')) return false;
   $from     = $config['mail_from'] ?? 'no-reply@chap.ci';
   $fromName = $config['mail_from_name'] ?? 'Chap.ci';
   $replyTo  = $config['mail_reply_to'] ?? 'contact@chap.ci';
-  $headers  = implode("\r\n", [
+  $smtp     = $config['smtp'] ?? [];
+  if (!empty($smtp['pass'])) {
+    if (smtp_send($smtp, $from, $fromName, $to, $subject, $html, $replyTo)) return true;
+    // Repli sur mail() si le SMTP échoue.
+  }
+  if (!function_exists('mail')) return false;
+  $headers = implode("\r\n", [
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
     'From: ' . mime_h($fromName) . ' <' . $from . '>',
@@ -793,6 +849,18 @@ try {
       if (in_array($email, owner_emails($config), true)) jerr('Le propriétaire ne peut pas être retiré.', 403);
       $pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
       jout(['ok' => true]);
+    }
+
+    // Diagnostic : envoie un email de test à l'administrateur connecté.
+    if ($path === 'admin/test-email' && $method === 'POST') {
+      $name = $config['mail_from_name'] ?? 'Chap.ci';
+      $inner = '<h2 style="margin-top:0">Email de test ✅</h2>'
+        . '<p>Bravo ! Si vous lisez ce message, l’envoi des emails de <b>' . htmlspecialchars($name) . '</b> '
+        . 'fonctionne correctement.</p>'
+        . '<p style="color:#6b7280;font-size:13px">Vous pouvez maintenant ajouter des modérateurs et vos '
+        . 'utilisateurs recevront bien leurs emails (bienvenue, notifications…).</p>';
+      $sent = send_mail($config, $u['email'], "Test d’envoi — $name", email_layout($config, $inner, 'Email de test Chap.ci'));
+      jout(['sent' => $sent, 'to' => $u['email'], 'via' => empty($config['smtp']['pass']) ? 'mail()' : 'smtp']);
     }
 
     jerr('Route admin inconnue: ' . $path, 404);

@@ -45,6 +45,22 @@ return [
     'WhatsApp'  => getenv('CHAPCI_WHATSAPP')  ?: '',
   ],
 
+  // --- Envoi des emails via SMTP (FORTEMENT recommandé) ---------------------
+  // Beaucoup d'hébergeurs bloquent la fonction mail() de PHP. Pour un envoi
+  // FIABLE, renseignez le mot de passe de la boîte no-reply@chap.ci ci-dessous :
+  // l'application enverra alors les emails via SMTP authentifié. Laissez 'pass'
+  // vide pour utiliser mail() (par défaut).
+  //   host   : serveur SMTP de votre hébergeur (souvent 'localhost' ou 'mail.chap.ci')
+  //   port   : 465 (SSL) ou 587 (TLS)
+  //   secure : 'ssl' pour 465, 'tls' pour 587
+  'smtp' => [
+    'host'   => getenv('CHAPCI_SMTP_HOST')   ?: 'localhost',
+    'port'   => getenv('CHAPCI_SMTP_PORT')   ?: '465',
+    'secure' => getenv('CHAPCI_SMTP_SECURE') ?: 'ssl',
+    'user'   => getenv('CHAPCI_SMTP_USER')   ?: 'no-reply@chap.ci',
+    'pass'   => getenv('CHAPCI_SMTP_PASS')   ?: '', // ← mot de passe de no-reply@chap.ci
+  ],
+
   // Dossier des photos (au niveau racine du site, servi directement en HTTP).
   'uploads_dir' => getenv('CHAPCI_UPLOADS_DIR') ?: __DIR__ . '/../uploads',
   // Chemin public des photos (relatif à la racine du site).

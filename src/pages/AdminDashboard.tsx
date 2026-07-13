@@ -9,11 +9,11 @@ import { formatPrice, timeAgo } from '../lib/format'
 import { emojiFor } from '../lib/placeholder'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
-  fetchModerators, addModerator, removeModerator,
+  fetchModerators, addModerator, removeModerator, sendTestEmail,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck } from 'lucide-react'
 
 type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators'
 
@@ -321,9 +321,22 @@ function ModeratorsTab() {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [testMsg, setTestMsg] = useState('')
 
   const load = () => { setData(null); setErr(''); fetchModerators().then(setData).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
+
+  const testEmail = async () => {
+    setTesting(true); setTestMsg('')
+    try {
+      const r = await sendTestEmail()
+      setTestMsg(r.sent
+        ? `✓ Email de test envoyé à ${r.to} (via ${r.via}). Vérifiez votre boîte — pensez aux spams.`
+        : `⚠️ L’envoi a échoué (via ${r.via}). Activez le SMTP dans api/config.php (mot de passe de no-reply@chap.ci).`)
+    } catch (e) { setTestMsg((e as Error).message) }
+    finally { setTesting(false) }
+  }
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -358,6 +371,17 @@ function ModeratorsTab() {
           Un modérateur a <b>exactement les mêmes accès</b> que toi au tableau de bord.
           Le <b>propriétaire</b> ne peut pas être retiré.
         </p>
+      </div>
+
+      {/* Diagnostic d'envoi d'email */}
+      <div className="rounded-2xl border border-gray-200 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-gray-600">Vérifier que les emails partent bien&nbsp;:</p>
+          <button onClick={testEmail} disabled={testing} className="btn-outline shrink-0 py-2 text-sm disabled:opacity-50">
+            {testing ? <Loader2 size={16} className="animate-spin" /> : <><MailCheck size={16} /> Email de test</>}
+          </button>
+        </div>
+        {testMsg && <p className={`mt-2 text-sm ${testMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{testMsg}</p>}
       </div>
 
       <form onSubmit={add} className="flex flex-col gap-2 sm:flex-row">

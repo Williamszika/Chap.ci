@@ -283,3 +283,6 @@ export async function phpAddModerator(email: string): Promise<boolean> {
 export async function phpRemoveModerator(email: string): Promise<void> {
   await req('/admin/moderators', { method: 'DELETE', body: { email } })
 }
+export async function phpAdminTestEmail(): Promise<{ sent: boolean; to: string; via: string }> {
+  return req('/admin/test-email', { method: 'POST', body: {} })
+}

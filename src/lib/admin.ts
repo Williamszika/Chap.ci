@@ -82,3 +82,8 @@ export async function removeModerator(email: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpRemoveModerator(email)
 }
+/** Envoie un email de test à l'administrateur connecté (diagnostic). */
+export async function sendTestEmail(): Promise<{ sent: boolean; to: string; via: string }> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminTestEmail()
+}
