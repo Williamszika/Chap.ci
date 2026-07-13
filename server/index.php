@@ -150,6 +150,9 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, listing_id $id, seller_id $id, reviewer_id $id, rating $intT,
       comment $txt, created_at $ts
     )$eng",
+    "CREATE TABLE IF NOT EXISTS newsletter (
+      id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 }
@@ -178,6 +181,11 @@ function user_public(PDO $pdo, array $u): array {
   $st->execute([$u['id']]);
   $name = ($st->fetch()['full_name'] ?? null);
   return ['id' => $u['id'], 'email' => $u['email'], 'user_metadata' => ['full_name' => $name]];
+}
+/** L'utilisateur est-il administrateur (email listé dans config admin_emails) ? */
+function is_admin(array $config, array $u): bool {
+  $admins = array_map('strtolower', $config['admin_emails'] ?? []);
+  return in_array(strtolower($u['email'] ?? ''), $admins, true);
 }
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
@@ -534,6 +542,29 @@ try {
     if (!$ex->fetch()) $pdo->prepare('INSERT INTO profiles (id,created_at) VALUES (?,?)')->execute([$u['id'], now_iso()]);
     if ($set) { $vals[] = $u['id']; $pdo->prepare('UPDATE profiles SET ' . implode(',', $set) . ' WHERE id = ?')->execute($vals); }
     jout(['ok' => true]);
+  }
+
+  // ---------- NEWSLETTER ----------
+  // Inscription publique : n'importe quel visiteur peut s'abonner.
+  if ($path === 'newsletter' && $method === 'POST') {
+    $b = body();
+    $email = strtolower(trim($b['email'] ?? ''));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    $ex = $pdo->prepare('SELECT id FROM newsletter WHERE email = ?'); $ex->execute([$email]);
+    if (!$ex->fetch()) {
+      $pdo->prepare('INSERT INTO newsletter (id,email,created_at) VALUES (?,?,?)')
+          ->execute([uuid(), $email, now_iso()]);
+    }
+    jout(['ok' => true]); // idempotent : déjà inscrit = succès aussi
+  }
+
+  // Liste des abonnés : réservée aux administrateurs (export CSV côté app).
+  if ($path === 'newsletter' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    if (!is_admin($config, $u)) jerr('Accès réservé à l’administrateur.', 403);
+    $rows = $pdo->query('SELECT email, created_at FROM newsletter ORDER BY created_at DESC')->fetchAll();
+    $out = array_map(fn($r) => ['email' => $r['email'], 'createdAt' => iso_to_ms($r['created_at'])], $rows);
+    jout(['count' => count($out), 'subscribers' => $out]);
   }
 
   if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso()]);

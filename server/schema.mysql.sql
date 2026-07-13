@@ -58,3 +58,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   reviewer_id VARCHAR(36), rating INTEGER, comment TEXT, created_at VARCHAR(32),
   INDEX (seller_id), INDEX (listing_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS newsletter (
+  id VARCHAR(36) PRIMARY KEY, email VARCHAR(190) UNIQUE, created_at VARCHAR(32)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

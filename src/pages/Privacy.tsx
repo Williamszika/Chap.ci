@@ -3,7 +3,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 
 // Adresse de contact affichée dans la politique — à personnaliser si besoin.
-const CONTACT_EMAIL = 'bracknetswilliam@gmail.com'
+const CONTACT_EMAIL = 'contact@chap.ci'
 const LAST_UPDATE = '12 juillet 2026'
 
 export function Privacy() {

@@ -16,6 +16,7 @@ import { CategoryIcon } from '../components/CategoryIcon'
 import { Mark, Wordmark } from '../components/Logo'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
+import { Newsletter } from '../components/Newsletter'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { useNotifications } from '../store/NotificationsContext'
@@ -273,6 +274,9 @@ export function Home() {
           ))}
         </div>
       </section>
+
+      {/* Newsletter « bons plans » */}
+      <Newsletter className="mb-6" />
 
       <LocationSheet
         open={locOpen}

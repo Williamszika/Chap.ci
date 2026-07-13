@@ -24,6 +24,11 @@ return [
   // aléatoire unique en production.
   'jwt_secret'  => getenv('CHAPCI_JWT_SECRET') ?: 'CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire',
 
+  // Emails administrateurs : seuls ces comptes peuvent voir/exporter les abonnés
+  // à la newsletter. Séparez par des virgules. METTEZ VOTRE email de compte.
+  'admin_emails' => array_filter(array_map('trim',
+    explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
+
   // Dossier des photos (au niveau racine du site, servi directement en HTTP).
   'uploads_dir' => getenv('CHAPCI_UPLOADS_DIR') ?: __DIR__ . '/../uploads',
   // Chemin public des photos (relatif à la racine du site).

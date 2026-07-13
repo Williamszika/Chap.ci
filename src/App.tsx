@@ -15,6 +15,8 @@ import { Register } from './pages/Register'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { Privacy } from './pages/Privacy'
+import { Contact } from './pages/Contact'
+import { AdminNewsletter } from './pages/AdminNewsletter'
 import { Messages } from './pages/Messages'
 import { Conversation } from './pages/Conversation'
 import { SellerProfile } from './pages/SellerProfile'
@@ -59,6 +61,8 @@ export default function App() {
           <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
           <Route path="/nouveau-mot-de-passe" element={<ResetPassword />} />
           <Route path="/confidentialite" element={<Privacy />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/admin/newsletter" element={<AdminNewsletter />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Conversation />} />
           <Route path="/vendeur/:id" element={<SellerProfile />} />

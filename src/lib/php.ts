@@ -239,3 +239,12 @@ export async function phpFetchProfile(id: string): Promise<PublicProfile | null>
 export async function phpUpdateProfile(fields: ProfileFields): Promise<void> {
   await req('/profile', { method: 'PUT', body: fields })
 }
+
+// ---- Newsletter -------------------------------------------------------------
+export async function phpSubscribeNewsletter(email: string): Promise<void> {
+  await req('/newsletter', { method: 'POST', body: { email } })
+}
+export async function phpFetchNewsletter(): Promise<{ email: string; createdAt: number }[]> {
+  const d = await req<{ subscribers: { email: string; createdAt: number }[] }>('/newsletter')
+  return d.subscribers
+}

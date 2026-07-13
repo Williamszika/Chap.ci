@@ -25,6 +25,7 @@ import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { activePromo } from '../lib/promo'
+import { isAdminEmail } from '../lib/newsletter'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
@@ -367,9 +368,23 @@ export function Profile() {
               Réinitialiser les données de démonstration
             </button>
 
-            <Link to="/confidentialite" className="block text-center text-xs text-gray-500 underline">
-              Politique de confidentialité
-            </Link>
+            <div className="flex items-center justify-center gap-4">
+              <Link to="/contact" className="text-xs text-gray-500 underline">
+                Nous contacter
+              </Link>
+              <Link to="/confidentialite" className="text-xs text-gray-500 underline">
+                Confidentialité
+              </Link>
+            </div>
+
+            {isAdminEmail(user?.email) && (
+              <Link
+                to="/admin/newsletter"
+                className="block text-center text-xs font-semibold text-primary-600 underline"
+              >
+                📧 Abonnés newsletter (admin)
+              </Link>
+            )}
 
             <p className="flex items-center justify-center gap-1.5 pb-4 text-center text-xs text-gray-400">
               <Mark size={16} /> <Wordmark className="text-xs" ci="text-ivoire-green" /> · v1.0 🇨🇮
