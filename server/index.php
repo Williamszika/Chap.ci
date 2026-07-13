@@ -10,6 +10,30 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_WARNING);
 
 $config = require __DIR__ . '/config.php';
 
+// ---- Compatibilité PHP 7.4 (certains hébergeurs démarrent sous PHP 7.4/8.0) --
+if (!function_exists('str_starts_with')) {
+  function str_starts_with(string $h, string $n): bool { return $n === '' || strncmp($h, $n, strlen($n)) === 0; }
+}
+if (!function_exists('str_contains')) {
+  function str_contains(string $h, string $n): bool { return $n === '' || strpos($h, $n) !== false; }
+}
+if (!function_exists('str_ends_with')) {
+  function str_ends_with(string $h, string $n): bool { return $n === '' || substr($h, -strlen($n)) === $n; }
+}
+
+// Toute erreur fatale PHP (souvent : mauvaise version de PHP ou extension
+// manquante) est renvoyée en JSON lisible plutôt qu'en page 500 vide.
+register_shutdown_function(function () {
+  $e = error_get_last();
+  if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+    if (!headers_sent()) {
+      http_response_code(500);
+      header('Content-Type: application/json; charset=utf-8');
+    }
+    echo json_encode(['error' => 'Erreur PHP : ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')']);
+  }
+});
+
 // ---- CORS -------------------------------------------------------------------
 header('Access-Control-Allow-Origin: ' . $config['cors_origin']);
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -18,12 +42,12 @@ header('Content-Type: application/json; charset=utf-8');
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') { http_response_code(204); exit; }
 
 // ---- Helpers ----------------------------------------------------------------
-function jout($data, int $code = 200): never {
+function jout($data, int $code = 200) {
   http_response_code($code);
   echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
   exit;
 }
-function jerr(string $msg, int $code = 400): never { jout(['error' => $msg], $code); }
+function jerr(string $msg, int $code = 400) { jout(['error' => $msg], $code); }
 function body(): array {
   $raw = file_get_contents('php://input');
   $d = json_decode($raw ?: '{}', true);
