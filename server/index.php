@@ -201,7 +201,13 @@ function listing_out(array $r): array {
 // =============================================================================
 //  Routeur
 // =============================================================================
-$pdo    = db($config);
+try {
+  $pdo = db($config);
+} catch (Throwable $e) {
+  // Cause la plus fréquente à l'installation : identifiants MySQL erronés dans
+  // config.php. On renvoie un message clair plutôt qu'une erreur 500 brute.
+  jerr('Connexion à la base de données impossible. Vérifiez les identifiants MySQL dans api/config.php (driver, host, name, user, pass). Détail : ' . $e->getMessage(), 500);
+}
 $secret = $config['jwt_secret'];
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
