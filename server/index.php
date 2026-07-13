@@ -144,7 +144,7 @@ function migrate(PDO $pdo): void {
   $eng  = ($sqlite || $pg) ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
   $stmts = [
     "CREATE TABLE IF NOT EXISTS users (
-      id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, password_hash $txt, created_at $ts
+      id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, password_hash $txt, status $txt, created_at $ts
     )$eng",
     "CREATE TABLE IF NOT EXISTS profiles (
       id $id PRIMARY KEY, full_name $txt, first_name $txt, last_name $txt, gender $txt,
@@ -156,7 +156,7 @@ function migrate(PDO $pdo): void {
       negotiable $intT, category_id $txt, subcategory $txt, condition_v $txt, images $txt,
       region_id $txt, city_id $txt, commune $txt, lat $real, lng $real, seller_name $txt,
       seller_phone $txt, delivery $intT, featured $intT, promo_price $intT, promo_until $ts,
-      attributes $txt, created_at $ts
+      attributes $txt, hidden $intT, created_at $ts
     )$eng",
     "CREATE TABLE IF NOT EXISTS conversations (
       id $id PRIMARY KEY, listing_id $id, buyer_id $id, seller_id $id, created_at $ts
@@ -184,6 +184,10 @@ function migrate(PDO $pdo): void {
       user_id $id, category_id $txt, weight $intT, subcategory $txt, updated_at $ts,
       PRIMARY KEY (user_id, category_id)
     )$eng",
+    "CREATE TABLE IF NOT EXISTS reports (
+      id $id PRIMARY KEY, listing_id $id, reporter_id $id, reason $txt, details $txt,
+      status $txt, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -192,6 +196,10 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE user_interests ADD COLUMN subcategory $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN attributes $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN hidden $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN status $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
 }
 
@@ -218,7 +226,13 @@ function user_public(PDO $pdo, array $u): array {
   $st = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
   $st->execute([$u['id']]);
   $name = ($st->fetch()['full_name'] ?? null);
-  return ['id' => $u['id'], 'email' => $u['email'], 'user_metadata' => ['full_name' => $name]];
+  $status = $u['status'] ?? null;
+  if ($status === null) {
+    $s = $pdo->prepare('SELECT status FROM users WHERE id = ?'); $s->execute([$u['id']]);
+    $status = $s->fetch()['status'] ?? null;
+  }
+  return ['id' => $u['id'], 'email' => $u['email'], 'status' => $status ?: 'active',
+          'user_metadata' => ['full_name' => $name]];
 }
 /** Emails « propriétaires » (config.php) : admins permanents, non supprimables. */
 function owner_emails(array $config): array {
@@ -612,6 +626,32 @@ function send_moderator_email(array $config, string $to): bool {
   return send_mail($config, $to, "Bienvenue dans l’équipe $name",
     email_layout($config, $inner, "Vous rejoignez l’équipe de modération de $name."));
 }
+/** Notifie les administrateurs qu'une annonce a été signalée. */
+function send_report_email(array $config, string $reporter, string $title, string $listingId, string $reason, string $details): void {
+  $admins = $config['admin_emails'] ?? [];
+  if (!$admins) return;
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $link = $site . '/#/annonce/' . rawurlencode($listingId);
+  $row = function (string $k, string $v): string {
+    return '<tr><td style="padding:4px 0;color:#6b7280;width:110px">' . $k . '</td><td style="padding:4px 0">' . $v . '</td></tr>';
+  };
+  $inner =
+    '<h2 style="margin-top:0">🚩 Nouveau signalement</h2>'
+    . '<p>Une annonce vient d’être signalée sur <b>' . htmlspecialchars($name) . '</b>.</p>'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:10px 0">'
+    . $row('Annonce', '<b>' . htmlspecialchars($title) . '</b>')
+    . $row('Motif', '<b>' . htmlspecialchars($reason) . '</b>')
+    . ($details !== '' ? $row('Détails', htmlspecialchars($details)) : '')
+    . $row('Signalé par', htmlspecialchars($reporter))
+    . '</table>'
+    . email_button($link, 'Voir l’annonce')
+    . '<p style="color:#6b7280;font-size:13px;margin-top:14px">Gérez les signalements depuis votre tableau de bord : '
+    . '<a href="' . $site . '/#/admin" style="color:#F77F00">Modération</a>.</p>';
+  $html = email_layout($config, $inner, 'Nouveau signalement sur ' . $name);
+  $subject = '🚩 Signalement — ' . mb_strimwidth($title, 0, 40, '…');
+  foreach ($admins as $to) send_mail($config, $to, $subject, $html);
+}
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
 function save_data_uri(array $config, string $dataUri): ?string {
@@ -662,6 +702,7 @@ function listing_out(array $r): array {
     'promoPrice' => $r['promo_price'] !== null ? (int) $r['promo_price'] : null,
     'promoUntil' => $r['promo_until'] ? iso_to_ms($r['promo_until']) : null,
     'attributes' => !empty($r['attributes']) ? (json_decode($r['attributes'], true) ?: null) : null,
+    'hidden' => !empty($r['hidden']),
   ];
 }
 
@@ -709,10 +750,12 @@ try {
   if ($path === 'auth/login' && $method === 'POST') {
     $b = body();
     $email = strtolower(trim($b['email'] ?? ''));
-    $st = $pdo->prepare('SELECT id,email,password_hash FROM users WHERE email = ?');
+    $st = $pdo->prepare('SELECT id,email,password_hash,status FROM users WHERE email = ?');
     $st->execute([$email]); $u = $st->fetch();
     if (!$u || !password_verify((string) ($b['password'] ?? ''), $u['password_hash']))
       jerr('Email ou mot de passe incorrect.', 401);
+    if (($u['status'] ?? 'active') === 'blocked')
+      jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403);
     $token = jwt_sign(['sub' => $u['id'], 'email' => $u['email'], 'exp' => time() + 60 * 60 * 24 * 30], $secret);
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
@@ -731,8 +774,13 @@ try {
   }
 
   if ($path === 'auth/delete' && $method === 'POST') {
-    $u = require_user($pdo, $secret); $id = $u['id'];
-    foreach (['reviews' => 'reviewer_id', 'reviews' => 'seller_id'] as $t => $c) {}
+    $u = require_user($pdo, $secret); $id = $u['id']; $b = body();
+    // Vérification : on redemande le mot de passe avant toute suppression.
+    $st = $pdo->prepare('SELECT password_hash FROM users WHERE id = ?'); $st->execute([$id]);
+    $hash = $st->fetch()['password_hash'] ?? '';
+    if (!password_verify((string) ($b['password'] ?? ''), $hash))
+      jerr('Mot de passe incorrect. Suppression annulée.', 403);
+    $pdo->prepare('DELETE FROM reports WHERE reporter_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM messages WHERE sender_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
     $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
@@ -746,12 +794,18 @@ try {
 
   // ---------- LISTINGS ----------
   if ($path === 'listings' && $method === 'GET') {
-    $rows = $pdo->query('SELECT * FROM listings ORDER BY created_at DESC LIMIT 500')->fetchAll();
+    // Le public ne voit pas les annonces masquées (par le vendeur ou la modération).
+    $rows = $pdo->query('SELECT * FROM listings WHERE hidden IS NULL OR hidden = 0 ORDER BY created_at DESC LIMIT 500')->fetchAll();
     jout(array_map('listing_out', $rows));
   }
 
   if ($path === 'listings' && $method === 'POST') {
     $u = require_user($pdo, $secret); $b = body();
+    // Comptes restreints/bloqués : publication interdite.
+    $stt = $pdo->prepare('SELECT status FROM users WHERE id = ?'); $stt->execute([$u['id']]);
+    $ustatus = $stt->fetch()['status'] ?? 'active';
+    if (in_array($ustatus, ['blocked', 'restricted'], true))
+      jerr('Votre compte ne peut pas publier d’annonce pour le moment. Contactez le support.', 403);
     if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
     $images = [];
     foreach ((array) ($b['images'] ?? []) as $img) {
@@ -788,6 +842,67 @@ try {
     jout(listing_out($st->fetch()));
   }
 
+  // Mes annonces — inclut les annonces masquées (gestion par le vendeur).
+  if ($path === 'listings/mine' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    jout(array_map('listing_out', $st->fetchAll()));
+  }
+
+  // Modifier son annonce.
+  if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'PUT') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
+    // Images : on garde les URLs existantes, on enregistre les nouvelles (data-URI).
+    $images = [];
+    foreach ((array) ($b['images'] ?? []) as $img) {
+      $img = (string) $img;
+      if ($img === '') continue;
+      if (strncmp($img, 'data:', 5) === 0) { $url = save_data_uri($config, $img); if ($url) $images[] = $url; }
+      else $images[] = $img;
+    }
+    $attrs = [];
+    if (!empty($b['attributes']) && is_array($b['attributes'])) {
+      foreach ($b['attributes'] as $k => $v) {
+        $k = substr(trim((string) $k), 0, 40); $v = substr(trim((string) $v), 0, 120);
+        if ($k !== '' && $v !== '') $attrs[$k] = $v;
+      }
+    }
+    $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+    $promoUntil = !empty($b['promoUntil']) ? gmdate('Y-m-d\TH:i:s\Z', (int) ($b['promoUntil'] / 1000)) : null;
+    $pdo->prepare('UPDATE listings SET title=?,description=?,price=?,negotiable=?,category_id=?,subcategory=?,
+        condition_v=?,images=?,region_id=?,city_id=?,commune=?,lat=?,lng=?,seller_name=?,seller_phone=?,
+        delivery=?,promo_price=?,promo_until=?,attributes=? WHERE id=?')
+      ->execute([
+        trim($b['title']), trim($b['description'] ?? ''), (int) ($b['price'] ?? 0),
+        !empty($b['negotiable']) ? 1 : 0, $b['categoryId'] ?? '', $b['subcategory'] ?? null,
+        ($b['condition'] ?? 'occasion'), json_encode($images, JSON_UNESCAPED_SLASHES),
+        $b['regionId'] ?? '', $b['cityId'] ?? '', $b['commune'] ?? null,
+        isset($b['lat']) ? (float) $b['lat'] : null, isset($b['lng']) ? (float) $b['lng'] : null,
+        $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0,
+        isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, $seg[1],
+      ]);
+    $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    jout(listing_out($st->fetch()));
+  }
+
+  // Masquer / réafficher son annonce (le vendeur, ou un admin).
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'visibility' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    $hidden = !empty($b['hidden']) ? 1 : 0;
+    $pdo->prepare('UPDATE listings SET hidden = ? WHERE id = ?')->execute([$hidden, $seg[1]]);
+    jout(['ok' => true, 'hidden' => (bool) $hidden]);
+  }
+
   if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'DELETE') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
@@ -795,6 +910,21 @@ try {
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
     $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---------- SIGNALEMENTS ----------
+  if ($path === 'reports' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $listingId = trim((string) ($b['listingId'] ?? ''));
+    $reason = substr(trim((string) ($b['reason'] ?? '')), 0, 80);
+    $details = substr(trim((string) ($b['details'] ?? '')), 0, 500);
+    if ($listingId === '' || $reason === '') jerr('Signalement incomplet (motif requis).');
+    $st = $pdo->prepare('SELECT title FROM listings WHERE id = ?'); $st->execute([$listingId]);
+    $title = $st->fetch()['title'] ?? '(annonce introuvable)';
+    $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at) VALUES (?,?,?,?,?,?,?)')
+        ->execute([uuid(), $listingId, $u['id'], $reason, $details ?: null, 'open', now_iso()]);
+    send_report_email($config, $u['email'], $title, $listingId, $reason, $details);
     jout(['ok' => true]);
   }
 
@@ -1049,6 +1179,7 @@ try {
         'conversations' => $count('conversations'), 'messages' => $count('messages'),
         'orders' => $count('orders'), 'reviews' => $count('reviews'),
         'newsletter' => $count('newsletter'),
+        'reportsOpen' => (int) ($pdo->query("SELECT COUNT(*) AS c FROM reports WHERE status = 'open'")->fetch()['c']),
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
         'recentListings' => $recentListings, 'recentUsers' => $recentUsers,
       ]);
@@ -1056,14 +1187,73 @@ try {
 
     // Utilisateurs.
     if ($path === 'admin/users' && $method === 'GET') {
-      $rows = $pdo->query('SELECT u.id, u.email, u.created_at, p.full_name, p.phone, p.commune,
+      $rows = $pdo->query('SELECT u.id, u.email, u.created_at, u.status, p.full_name, p.phone, p.commune,
           (SELECT COUNT(*) FROM listings l WHERE l.user_id = u.id) AS listings
         FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC')->fetchAll();
       jout(array_map(fn($r) => [
         'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
         'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
+        'status' => $r['status'] ?: 'active',
         'listings' => (int) $r['listings'], 'createdAt' => iso_to_ms($r['created_at']),
       ], $rows));
+    }
+
+    // Détail d'un utilisateur : profil complet + ses annonces (toutes, même masquées).
+    if (count($seg) === 3 && $seg[1] === 'users' && $method === 'GET') {
+      $st = $pdo->prepare('SELECT u.id, u.email, u.created_at, u.status, p.full_name, p.phone,
+          p.commune, p.city_id, p.region_id, p.bio, p.avatar_url
+        FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?');
+      $st->execute([$seg[2]]); $r = $st->fetch();
+      if (!$r) jerr('Utilisateur introuvable.', 404);
+      $ls = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
+      $ls->execute([$seg[2]]);
+      jout([
+        'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
+        'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
+        'cityId' => $r['city_id'] ?: null, 'regionId' => $r['region_id'] ?: null,
+        'bio' => $r['bio'] ?: null, 'avatarUrl' => $r['avatar_url'] ?: null,
+        'status' => $r['status'] ?: 'active', 'createdAt' => iso_to_ms($r['created_at']),
+        'listings' => array_map('listing_out', $ls->fetchAll()),
+      ]);
+    }
+
+    // Changer le statut d'un compte : active / restricted / blocked.
+    if (count($seg) === 4 && $seg[1] === 'users' && $seg[3] === 'status' && $method === 'POST') {
+      $b = body();
+      $status = in_array($b['status'] ?? '', ['active', 'restricted', 'blocked'], true) ? $b['status'] : null;
+      if (!$status) jerr('Statut invalide.');
+      // On ne peut pas bloquer un propriétaire (admin config permanent).
+      $st = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $st->execute([$seg[2]]);
+      $target = $st->fetch();
+      if (!$target) jerr('Utilisateur introuvable.', 404);
+      if (in_array(strtolower($target['email']), array_map('strtolower', $config['admin_emails'] ?? []), true))
+        jerr('Ce compte administrateur ne peut pas être modifié.', 403);
+      $pdo->prepare('UPDATE users SET status = ? WHERE id = ?')->execute([$status, $seg[2]]);
+      // Bloqué : on masque aussi ses annonces ; réactivé : on les réaffiche.
+      $pdo->prepare('UPDATE listings SET hidden = ? WHERE user_id = ?')
+          ->execute([$status === 'blocked' ? 1 : 0, $seg[2]]);
+      jout(['ok' => true, 'status' => $status]);
+    }
+
+    // Supprimer un compte (et tout son contenu).
+    if (count($seg) === 3 && $seg[1] === 'users' && $method === 'DELETE') {
+      $st = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $st->execute([$seg[2]]);
+      $target = $st->fetch();
+      if (!$target) jerr('Utilisateur introuvable.', 404);
+      if (in_array(strtolower($target['email']), array_map('strtolower', $config['admin_emails'] ?? []), true))
+        jerr('Ce compte administrateur ne peut pas être supprimé.', 403);
+      $id = $seg[2];
+      $pdo->prepare('DELETE FROM reports WHERE reporter_id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM messages WHERE sender_id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM orders WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ?')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM user_interests WHERE user_id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+      jout(['ok' => true]);
     }
 
     // Annonces (avec email du vendeur, pour la modération).
@@ -1080,6 +1270,30 @@ try {
     // Modération : suppression d'une annonce par l'administrateur.
     if (count($seg) === 3 && $seg[1] === 'listings' && $method === 'DELETE') {
       $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Signalements : liste pour la modération (les ouverts d'abord).
+    if ($path === 'admin/reports' && $method === 'GET') {
+      $rows = $pdo->query("SELECT r.*, l.title AS listing_title, l.hidden AS listing_hidden,
+          u.email AS reporter_email
+        FROM reports r
+        LEFT JOIN listings l ON l.id = r.listing_id
+        LEFT JOIN users u ON u.id = r.reporter_id
+        ORDER BY (CASE WHEN r.status = 'open' THEN 0 ELSE 1 END), r.created_at DESC LIMIT 200")->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'listingId' => $r['listing_id'],
+        'listingTitle' => $r['listing_title'] ?: '(annonce supprimée)',
+        'listingHidden' => !empty($r['listing_hidden']),
+        'reason' => $r['reason'], 'details' => $r['details'] ?: null,
+        'reporterEmail' => $r['reporter_email'] ?: null,
+        'status' => $r['status'] ?: 'open', 'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Marquer un signalement comme traité.
+    if (count($seg) === 3 && $seg[1] === 'reports' && $method === 'POST') {
+      $pdo->prepare('UPDATE reports SET status = ? WHERE id = ?')->execute(['resolved', $seg[2]]);
       jout(['ok' => true]);
     }
 
