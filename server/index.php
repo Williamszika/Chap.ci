@@ -1174,7 +1174,7 @@ try {
     jout(['users' => $reached, 'emailed' => $emailed]);
   }
 
-  if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso()]);
+  if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION]);
 
   jerr('Route inconnue: ' . $path, 404);
 } catch (Throwable $e) {
