@@ -360,6 +360,55 @@ function send_welcome_email(array $config, string $to, string $fullName = ''): b
   return send_mail($config, $to, "Bienvenue sur $name 🎉",
     email_layout($config, $inner, "Votre compte $name est prêt — achetez et vendez chap-chap partout en Côte d’Ivoire."));
 }
+/** Résumé lisible des articles d'une commande (ex : « Vélo » (+2 autres)). */
+function items_summary(array $items): string {
+  $titles = array_values(array_filter(array_map(fn($it) => trim((string) ($it['title'] ?? '')), $items)));
+  if (!$titles) return 'votre article';
+  $more = count($titles) - 1;
+  return $more > 0 ? '« ' . $titles[0] . ' » (+' . $more . ' autre' . ($more > 1 ? 's' : '') . ')' : '« ' . $titles[0] . ' »';
+}
+/** Confirmation d'inscription à la newsletter (à l'abonné). */
+function send_newsletter_email(array $config, string $to): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $inner =
+    '<h2 style="margin-top:0">C’est confirmé 🎉</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Vous êtes bien inscrit(e) à la newsletter de <b>' . htmlspecialchars($name) . '</b>. '
+    . 'Recevez nos meilleures annonces et bons plans, avant tout le monde.</p>'
+    . email_button($site, 'Voir les annonces')
+    . '<p style="margin-top:22px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return send_mail($config, $to, "Bienvenue dans la newsletter $name",
+    email_layout($config, $inner, "Votre inscription à la newsletter $name est confirmée."));
+}
+/** Notification au vendeur : une nouvelle demande d'achat. */
+function send_order_seller_email(array $config, string $to, array $items): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $inner =
+    '<h2 style="margin-top:0">Nouvelle demande d’achat 🛍️</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Bonne nouvelle ! Un acheteur souhaite acheter ' . htmlspecialchars(items_summary($items)) . '.</p>'
+    . '<p>Répondez-lui vite via la messagerie pour conclure la vente.</p>'
+    . email_button($site . '/#/messages', 'Répondre à l’acheteur')
+    . '<p style="margin-top:22px">Bonne vente,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return send_mail($config, $to, "Nouvelle demande d’achat sur $name",
+    email_layout($config, $inner, 'Un acheteur est intéressé par votre annonce.'));
+}
+/** Confirmation à l'acheteur : demande envoyée au vendeur. */
+function send_order_buyer_email(array $config, string $to, array $items): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $inner =
+    '<h2 style="margin-top:0">Demande envoyée ✅</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Votre demande d’achat pour ' . htmlspecialchars(items_summary($items)) . ' a bien été transmise au vendeur. '
+    . 'Il vous répondra directement via la messagerie.</p>'
+    . email_button($site . '/#/compte', 'Suivre ma demande')
+    . '<p style="margin-top:22px">Bon achat,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return send_mail($config, $to, 'Votre demande a bien été envoyée',
+    email_layout($config, $inner, 'Votre demande d’achat a été transmise au vendeur.'));
+}
 /** Notifie une personne qu'elle est devenue modératrice du site. */
 function send_moderator_email(array $config, string $to): bool {
   $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
@@ -624,10 +673,16 @@ try {
     $oid = uuid();
     $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,status,created_at) VALUES (?,?,?,?,?,?)')
         ->execute([$oid, $u['id'], $sellerId, $b['conversationId'] ?? null, 'en_cours', now_iso()]);
-    foreach ((array) ($b['items'] ?? []) as $it) {
+    $items = (array) ($b['items'] ?? []);
+    foreach ($items as $it) {
       $pdo->prepare('INSERT INTO order_items (id,order_id,listing_id,title,price,image) VALUES (?,?,?,?,?,?)')
           ->execute([uuid(), $oid, $it['listingId'] ?? null, $it['title'] ?? '', (int) ($it['price'] ?? 0), $it['image'] ?? null]);
     }
+    // Notifications email (best-effort) : vendeur + acheteur.
+    $se = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $se->execute([$sellerId]);
+    $sellerEmail = $se->fetch()['email'] ?? null;
+    if ($sellerEmail) send_order_seller_email($config, $sellerEmail, $items);
+    if (!empty($u['email'])) send_order_buyer_email($config, $u['email'], $items);
     jout(['id' => $oid]);
   }
 
@@ -744,6 +799,7 @@ try {
     if (!$ex->fetch()) {
       $pdo->prepare('INSERT INTO newsletter (id,email,created_at) VALUES (?,?,?)')
           ->execute([uuid(), $email, now_iso()]);
+      send_newsletter_email($config, $email); // confirmation (best-effort)
     }
     jout(['ok' => true]); // idempotent : déjà inscrit = succès aussi
   }
