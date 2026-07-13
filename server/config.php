@@ -8,11 +8,14 @@
 
 return [
   'db' => [
-    // 'mysql' en production (cPanel), 'sqlite' pour un test local.
-    'driver'      => getenv('CHAPCI_DB_DRIVER') ?: 'mysql',
+    // 'mysql' OU 'pgsql' en production (selon ce que propose cPanel),
+    // 'sqlite' pour un test local. Les tables se créent automatiquement.
+    'driver'      => getenv('CHAPCI_DB_DRIVER') ?: 'pgsql',
     'host'        => getenv('CHAPCI_DB_HOST') ?: 'localhost',
+    // Port : laissez vide (défaut MySQL 3306 / PostgreSQL 5432) ou précisez-le.
+    'port'        => getenv('CHAPCI_DB_PORT') ?: '',
     'name'        => getenv('CHAPCI_DB_NAME') ?: 'chapci',
-    'user'        => getenv('CHAPCI_DB_USER') ?: 'root',
+    'user'        => getenv('CHAPCI_DB_USER') ?: 'chapci',
     'pass'        => getenv('CHAPCI_DB_PASS') ?: '',
     'sqlite_path' => getenv('CHAPCI_SQLITE') ?: __DIR__ . '/data/chapci.sqlite',
   ],

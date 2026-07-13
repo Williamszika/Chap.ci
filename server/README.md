@@ -1,9 +1,10 @@
-# Chap.ci — Backend PHP/MySQL (auto-hébergé sur mutualisé cPanel / TPE Cloud)
+# Chap.ci — Backend PHP (MySQL **ou PostgreSQL**) auto-hébergé sur cPanel / TPE Cloud
 
-Ce dossier `server/` est un **backend complet en PHP + MySQL** qui remplace Supabase.
-Il tourne sur un **hébergement mutualisé classique** (cPanel, PHP 8+, MySQL) — donc
-compatible avec l'offre **TPE Cloud à 50 000 FCFA/an**. Aucun Docker, Node.js ou
-service externe requis.
+Ce dossier `server/` est un **backend complet en PHP** qui remplace Supabase.
+Il tourne sur un **hébergement mutualisé classique** (cPanel, PHP 8+, base **MySQL
+_ou_ PostgreSQL**) — donc compatible avec l'offre **TPE Cloud à 50 000 FCFA/an**.
+Aucun Docker, Node.js ou service externe requis. Choisissez le moteur proposé par
+votre cPanel via `driver` (`mysql` ou `pgsql`) — le reste est identique.
 
 Il gère : **comptes** (email + mot de passe, JWT), **annonces partagées**,
 **messagerie**, **commandes**, **avis** (réservés aux acheteurs), **profils**, et le
@@ -18,21 +19,23 @@ Il gère : **comptes** (email + mot de passe, JWT), **annonces partagées**,
 
 ## Déploiement sur cPanel (TPE Cloud) — pas à pas
 
-### 1. Base de données MySQL
-Dans cPanel → **Bases de données MySQL** :
+### 1. Base de données (MySQL **ou** PostgreSQL)
+Dans cPanel → **Bases de données MySQL** _ou_ **Bases de données PostgreSQL** (selon
+ce que propose votre hébergeur) :
 - Créez une base (ex. `monuser_chapci`)
 - Créez un utilisateur + mot de passe, et **ajoutez-le à la base avec TOUS les privilèges**.
 - Notez : nom de la base, utilisateur, mot de passe, hôte (souvent `localhost`).
 
 Les tables se créent **automatiquement** au premier appel de l'API (pas de SQL à
-importer). Un fichier `schema.mysql.sql` est fourni pour référence si vous préférez
-les créer à la main.
+importer, quel que soit le moteur).
 
 ### 2. Configurer
-Éditez `server/config.php` (ou définissez les variables d'environnement) :
+Éditez `server/config.php` (ou définissez les variables d'environnement). Mettez
+`mysql` ou `pgsql` selon votre base :
 ```php
-'driver' => 'mysql',
+'driver' => 'pgsql',   // ou 'mysql'
 'host'   => 'localhost',
+'port'   => '',        // laissez vide (5432 pgsql / 3306 mysql) ou précisez
 'name'   => 'monuser_chapci',
 'user'   => 'monuser_chapci',
 'pass'   => 'VOTRE_MOT_DE_PASSE',

@@ -64,27 +64,36 @@ function db(array $config): PDO {
   static $pdo = null;
   if ($pdo) return $pdo;
   $c = $config['db'];
+  $port = !empty($c['port']) ? ";port={$c['port']}" : '';
   if ($c['driver'] === 'sqlite') {
     @mkdir(dirname($c['sqlite_path']), 0775, true);
     $pdo = new PDO('sqlite:' . $c['sqlite_path']);
     $pdo->exec('PRAGMA foreign_keys = ON');
+  } elseif ($c['driver'] === 'pgsql') {
+    // PostgreSQL (proposé par certains cPanel, ex. TPE Cloud / paloma.hostns.io)
+    $dsn = "pgsql:host={$c['host']}$port;dbname={$c['name']}";
+    $pdo = new PDO($dsn, $c['user'], $c['pass']);
+    $pdo->exec("SET client_encoding TO 'UTF8'");
   } else {
-    $dsn = "mysql:host={$c['host']};dbname={$c['name']};charset=utf8mb4";
+    $dsn = "mysql:host={$c['host']}$port;dbname={$c['name']};charset=utf8mb4";
     $pdo = new PDO($dsn, $c['user'], $c['pass']);
   }
-  $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ATTR_ERRMODE ? PDO::ERRMODE_EXCEPTION : PDO::ERRMODE_EXCEPTION);
+  $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
   migrate($pdo);
   return $pdo;
 }
 function migrate(PDO $pdo): void {
-  $sqlite = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+  $drv    = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+  $sqlite = $drv === 'sqlite';
+  $pg     = $drv === 'pgsql';
   $id   = $sqlite ? 'TEXT' : 'VARCHAR(36)';
   $txt  = 'TEXT';
   $intT = 'INTEGER';
-  $real = $sqlite ? 'REAL' : 'DOUBLE';
+  $real = $sqlite ? 'REAL' : ($pg ? 'DOUBLE PRECISION' : 'DOUBLE');
   $ts   = $sqlite ? 'TEXT' : 'VARCHAR(32)';
-  $eng  = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
+  // PostgreSQL et SQLite n'ont pas de clause moteur/charset façon MySQL.
+  $eng  = ($sqlite || $pg) ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
   $stmts = [
     "CREATE TABLE IF NOT EXISTS users (
       id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, password_hash $txt, created_at $ts
@@ -206,7 +215,7 @@ try {
 } catch (Throwable $e) {
   // Cause la plus fréquente à l'installation : identifiants MySQL erronés dans
   // config.php. On renvoie un message clair plutôt qu'une erreur 500 brute.
-  jerr('Connexion à la base de données impossible. Vérifiez les identifiants MySQL dans api/config.php (driver, host, name, user, pass). Détail : ' . $e->getMessage(), 500);
+  jerr('Connexion à la base de données impossible. Vérifiez les identifiants dans api/config.php (driver mysql/pgsql, host, name, user, pass). Détail : ' . $e->getMessage(), 500);
 }
 $secret = $config['jwt_secret'];
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
