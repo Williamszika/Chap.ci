@@ -87,3 +87,13 @@ export async function sendTestEmail(): Promise<{ sent: boolean; to: string; via:
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminTestEmail()
 }
+
+export type SmtpSettings = php.SmtpSettings
+export async function getSmtp(): Promise<SmtpSettings> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpGetSmtp()
+}
+export async function saveSmtp(s: { host: string; port: string; secure: string; user: string; pass: string }): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpSaveSmtp(s)
+}

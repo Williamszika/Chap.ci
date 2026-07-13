@@ -10,6 +10,13 @@ error_reporting(E_ALL & ~E_DEPRECATED & ~E_WARNING);
 
 $config = require __DIR__ . '/config.php';
 
+// Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
+// prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.
+if (is_file(__DIR__ . '/smtp.local.php')) {
+  $smtpOverride = include __DIR__ . '/smtp.local.php';
+  if (is_array($smtpOverride)) $config['smtp'] = array_merge($config['smtp'] ?? [], $smtpOverride);
+}
+
 // ---- Compatibilité PHP 7.4 (certains hébergeurs démarrent sous PHP 7.4/8.0) --
 if (!function_exists('str_starts_with')) {
   function str_starts_with(string $h, string $n): bool { return $n === '' || strncmp($h, $n, strlen($n)) === 0; }
@@ -851,6 +858,37 @@ try {
       $email = strtolower(trim($b['email'] ?? ''));
       if (in_array($email, owner_emails($config), true)) jerr('Le propriétaire ne peut pas être retiré.', 403);
       $pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
+      jout(['ok' => true]);
+    }
+
+    // Réglages SMTP : lecture (sans le mot de passe).
+    if ($path === 'admin/smtp' && $method === 'GET') {
+      $s = $config['smtp'] ?? [];
+      jout([
+        'host'       => $s['host'] ?? 'localhost',
+        'port'       => (string) ($s['port'] ?? '465'),
+        'secure'     => $s['secure'] ?? 'ssl',
+        'user'       => $s['user'] ?? 'no-reply@chap.ci',
+        'configured' => !empty($s['pass']),
+      ]);
+    }
+    // Réglages SMTP : enregistrement (écrit api/smtp.local.php, protégé).
+    if ($path === 'admin/smtp' && $method === 'POST') {
+      $b = body();
+      $arr = [
+        'host'   => trim((string) ($b['host'] ?? 'localhost')) ?: 'localhost',
+        'port'   => trim((string) ($b['port'] ?? '465')) ?: '465',
+        'secure' => in_array(($b['secure'] ?? 'ssl'), ['ssl', 'tls'], true) ? $b['secure'] : 'ssl',
+        'user'   => trim((string) ($b['user'] ?? '')),
+        'pass'   => (string) ($b['pass'] ?? ''),
+      ];
+      if (!filter_var($arr['user'], FILTER_VALIDATE_EMAIL)) jerr('Utilisateur SMTP (email) invalide.');
+      if ($arr['pass'] === '') jerr('Renseignez le mot de passe de la boîte email.');
+      $php = "<?php\n// Réglages SMTP générés depuis le tableau de bord. Ne pas partager.\nreturn "
+        . var_export($arr, true) . ";\n";
+      if (@file_put_contents(__DIR__ . '/smtp.local.php', $php) === false) {
+        jerr('Écriture impossible dans le dossier api/ (droits). Renseignez plutôt le bloc smtp dans config.php.', 500);
+      }
       jout(['ok' => true]);
     }
 

@@ -9,13 +9,13 @@ import { formatPrice, timeAgo } from '../lib/format'
 import { emojiFor } from '../lib/placeholder'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
-  fetchModerators, addModerator, removeModerator, sendTestEmail,
-  type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators,
+  fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
+  type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2 } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -70,7 +70,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['orders','Commandes'],['newsletter','Abonnés'],['moderators','Modérateurs']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['orders','Commandes'],['newsletter','Abonnés'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -89,6 +89,7 @@ export function AdminDashboard() {
         {tab === 'orders' && <OrdersTab />}
         {tab === 'newsletter' && <NewsletterTab />}
         {tab === 'moderators' && <ModeratorsTab />}
+        {tab === 'emails' && <EmailsTab />}
       </div>
     </div>
   )
@@ -321,22 +322,9 @@ function ModeratorsTab() {
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
-  const [testing, setTesting] = useState(false)
-  const [testMsg, setTestMsg] = useState('')
 
   const load = () => { setData(null); setErr(''); fetchModerators().then(setData).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
-
-  const testEmail = async () => {
-    setTesting(true); setTestMsg('')
-    try {
-      const r = await sendTestEmail()
-      setTestMsg(r.sent
-        ? `✓ Email de test envoyé à ${r.to} (via ${r.via}). Vérifiez votre boîte — pensez aux spams.`
-        : `⚠️ L’envoi a échoué (via ${r.via}). Activez le SMTP dans api/config.php (mot de passe de no-reply@chap.ci).`)
-    } catch (e) { setTestMsg((e as Error).message) }
-    finally { setTesting(false) }
-  }
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -382,17 +370,6 @@ function ModeratorsTab() {
           Un modérateur a <b>exactement les mêmes accès</b> que toi au tableau de bord.
           Le <b>propriétaire</b> ne peut pas être retiré.
         </p>
-      </div>
-
-      {/* Diagnostic d'envoi d'email */}
-      <div className="rounded-2xl border border-gray-200 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-gray-600">Vérifier que les emails partent bien&nbsp;:</p>
-          <button onClick={testEmail} disabled={testing} className="btn-outline shrink-0 py-2 text-sm disabled:opacity-50">
-            {testing ? <Loader2 size={16} className="animate-spin" /> : <><MailCheck size={16} /> Email de test</>}
-          </button>
-        </div>
-        {testMsg && <p className={`mt-2 text-sm ${testMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{testMsg}</p>}
       </div>
 
       <form onSubmit={add} className="flex flex-col gap-2 sm:flex-row">
@@ -449,6 +426,117 @@ function ModeratorsTab() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ---------- Emails (configuration SMTP + test) ----------
+function EmailsTab() {
+  const [cfg, setCfg] = useState<SmtpSettings | null>(null)
+  const [err, setErr] = useState('')
+  const [host, setHost] = useState('localhost')
+  const [port, setPort] = useState('465')
+  const [secure, setSecure] = useState('ssl')
+  const [user, setUser] = useState('no-reply@chap.ci')
+  const [pass, setPass] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('')
+  const [testing, setTesting] = useState(false)
+  const [testMsg, setTestMsg] = useState('')
+
+  useEffect(() => {
+    getSmtp().then((s) => {
+      setCfg(s); setHost(s.host); setPort(s.port); setSecure(s.secure); setUser(s.user)
+    }).catch((e) => setErr((e as Error).message))
+  }, [])
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true); setSaveMsg('')
+    try {
+      await saveSmtp({ host, port, secure, user, pass })
+      setPass('')
+      setCfg((c) => (c ? { ...c, host, port, secure, user, configured: true } : c))
+      setSaveMsg('✓ Réglages enregistrés. Cliquez « Envoyer un email de test » pour vérifier.')
+    } catch (e) { setSaveMsg((e as Error).message) }
+    finally { setSaving(false) }
+  }
+
+  const test = async () => {
+    setTesting(true); setTestMsg('')
+    try {
+      const r = await sendTestEmail()
+      setTestMsg(r.sent
+        ? `✓ Email de test envoyé à ${r.to} (via ${r.via}). Vérifiez votre boîte — pensez aux spams.`
+        : `⚠️ L’envoi a échoué (via ${r.via}). Vérifiez le mot de passe et le serveur SMTP ci-dessus.`)
+    } catch (e) { setTestMsg((e as Error).message) }
+    finally { setTesting(false) }
+  }
+
+  if (err) return <Center><p className="text-sm text-red-600">⚠️ {err}</p></Center>
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
+        <p className="flex items-center gap-1.5 font-semibold"><MailCheck size={16} /> Envoi des emails</p>
+        <p className="mt-1 text-primary-700">
+          Pour que vos emails (bienvenue, modérateurs…) arrivent de façon <b>fiable</b>, renseignez le mot
+          de passe de votre boîte <b>no-reply@chap.ci</b>. L’application enverra alors les emails par SMTP.
+        </p>
+      </div>
+
+      {cfg && (
+        <p className={`text-sm font-medium ${cfg.configured ? 'text-emerald-600' : 'text-gray-500'}`}>
+          {cfg.configured
+            ? <><CheckCircle2 size={15} className="mr-1 inline" /> SMTP configuré et actif.</>
+            : 'SMTP non configuré — les emails utilisent mail() (moins fiable).'}
+        </p>
+      )}
+
+      <form onSubmit={save} className="space-y-3 rounded-2xl bg-white p-4 shadow-card">
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-gray-500">Boîte email (utilisateur SMTP)</label>
+          <input value={user} onChange={(e) => setUser(e.target.value)} className="input" autoComplete="off" placeholder="no-reply@chap.ci" />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-gray-500">Mot de passe de cette boîte</label>
+          <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" className="input" autoComplete="new-password"
+            placeholder={cfg?.configured ? '•••••••• (laisser vide pour ne pas changer)' : 'Mot de passe de no-reply@chap.ci'} />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="col-span-2">
+            <label className="mb-1 block text-xs font-semibold text-gray-500">Serveur SMTP</label>
+            <input value={host} onChange={(e) => setHost(e.target.value)} className="input" placeholder="localhost" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-gray-500">Port</label>
+            <input value={port} onChange={(e) => setPort(e.target.value)} inputMode="numeric" className="input" placeholder="465" />
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-gray-500">Sécurité</label>
+          <select value={secure} onChange={(e) => setSecure(e.target.value)} className="input">
+            <option value="ssl">SSL (port 465)</option>
+            <option value="tls">TLS / STARTTLS (port 587)</option>
+          </select>
+        </div>
+        <button type="submit" disabled={saving} className="btn-primary w-full py-3 disabled:opacity-50">
+          {saving ? <Loader2 size={18} className="animate-spin" /> : <><Save size={18} /> Enregistrer</>}
+        </button>
+        {saveMsg && <p className={`text-sm ${saveMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{saveMsg}</p>}
+      </form>
+
+      <div className="rounded-2xl border border-gray-200 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-gray-600">Vérifier l’envoi&nbsp;:</p>
+          <button onClick={test} disabled={testing} className="btn-outline shrink-0 py-2 text-sm disabled:opacity-50">
+            {testing ? <Loader2 size={16} className="animate-spin" /> : <><Send size={16} /> Envoyer un email de test</>}
+          </button>
+        </div>
+        {testMsg && <p className={`mt-2 text-sm ${testMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{testMsg}</p>}
+        <p className="mt-2 text-xs text-gray-400">
+          Astuce : si <b>localhost</b> ne marche pas, essayez <b>mail.chap.ci</b>. Port 465 = SSL, port 587 = TLS.
+        </p>
       </div>
     </div>
   )

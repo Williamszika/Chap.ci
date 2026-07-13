@@ -286,3 +286,10 @@ export async function phpRemoveModerator(email: string): Promise<void> {
 export async function phpAdminTestEmail(): Promise<{ sent: boolean; to: string; via: string }> {
   return req('/admin/test-email', { method: 'POST', body: {} })
 }
+export interface SmtpSettings { host: string; port: string; secure: string; user: string; configured?: boolean }
+export async function phpGetSmtp(): Promise<SmtpSettings> {
+  return req<SmtpSettings>('/admin/smtp')
+}
+export async function phpSaveSmtp(s: { host: string; port: string; secure: string; user: string; pass: string }): Promise<void> {
+  await req('/admin/smtp', { method: 'POST', body: s })
+}

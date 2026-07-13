@@ -8,7 +8,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
 
 # Protéger la configuration et les données locales éventuelles
-<FilesMatch "^(config\.php)$">
+<FilesMatch "^(config\.php|smtp\.local\.php)$">
   Require all denied
 </FilesMatch>
 RedirectMatch 404 /api/data/.*
