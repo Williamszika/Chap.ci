@@ -4,7 +4,7 @@ import { Mark, Wordmark } from '../components/Logo'
 
 // Adresse de contact affichée dans la politique — à personnaliser si besoin.
 const CONTACT_EMAIL = 'contact@chap.ci'
-const LAST_UPDATE = '12 juillet 2026'
+const LAST_UPDATE = '14 juillet 2026'
 
 export function Privacy() {
   const navigate = useNavigate()
@@ -31,10 +31,23 @@ export function Privacy() {
           <p>
             Chap.ci (« l’application ») est une plateforme de petites annonces en Côte d’Ivoire. La
             présente politique explique quelles données nous collectons, pourquoi, et comment vous
-            gardez le contrôle.
+            gardez le contrôle. Elle est établie conformément à la{' '}
+            <b>loi ivoirienne n° 2013-450 du 30 juillet 2013</b> relative à la protection des données
+            à caractère personnel.
           </p>
 
-          <Section title="1. Données que nous collectons">
+          <Section title="1. Responsable du traitement">
+            <p>
+              Le responsable du traitement des données est <b>Chap.ci</b>, éditeur de la plateforme,
+              joignable à{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary-600">{CONTACT_EMAIL}</a>.
+              Les traitements de données mis en œuvre par Chap.ci sont soumis à la loi n° 2013-450 et
+              aux formalités prévues auprès de l’<b>ARTCI</b> (Autorité de Régulation des
+              Télécommunications/TIC de Côte d’Ivoire), autorité de protection des données personnelles.
+            </p>
+          </Section>
+
+          <Section title="2. Données que nous collectons">
             <ul className="ml-4 list-disc space-y-1.5">
               <li><b>Compte</b> : prénom, nom, sexe, date de naissance, adresse email et/ou numéro de téléphone, photo de profil (facultative).</li>
               <li><b>Localisation</b> : votre position (GPS si vous l’autorisez, sinon estimation par adresse IP) pour afficher les annonces proches et situer vos annonces.</li>
@@ -44,20 +57,23 @@ export function Privacy() {
             </ul>
           </Section>
 
-          <Section title="2. Utilisation des données">
+          <Section title="3. Utilisation des données et consentement">
             <ul className="ml-4 list-disc space-y-1.5">
               <li>Créer et gérer votre compte, publier et afficher des annonces.</li>
               <li>Afficher les annonces proches de vous et calculer les distances.</li>
               <li>Permettre la communication acheteur ↔ vendeur via la messagerie intégrée.</li>
               <li>Assurer la sécurité (authentification, double authentification, prévention des abus).</li>
+              <li>Vous envoyer la newsletter et des alertes <b>uniquement si vous y avez consenti</b> (désinscription possible à tout moment).</li>
             </ul>
             <p className="mt-2">
-              Nous ne vendons pas vos données personnelles. Les coordonnées des vendeurs ne sont pas
+              Vos données sont collectées de manière <b>loyale et transparente</b>, pour des finalités
+              précises, et ne sont pas réutilisées de façon incompatible avec ces finalités. Nous{' '}
+              <b>ne vendons pas</b> vos données personnelles. Les coordonnées des vendeurs ne sont pas
               affichées publiquement : les échanges passent par la messagerie de l’application.
             </p>
           </Section>
 
-          <Section title="3. Localisation">
+          <Section title="4. Localisation">
             <p>
               La position sert uniquement à améliorer votre expérience (annonces à proximité, distance).
               Vous pouvez refuser l’accès GPS : l’application utilise alors une localisation approximative
@@ -65,7 +81,7 @@ export function Privacy() {
             </p>
           </Section>
 
-          <Section title="4. Hébergement et partage avec des tiers">
+          <Section title="5. Hébergement, partage et transferts">
             <p>
               Vos données sont stockées sur notre <b>propre serveur hébergé en Côte d’Ivoire</b> (hébergeur
               TPE Cloud), dans une base de données sécurisée. Nous <b>ne vendons pas</b> et ne louons pas vos
@@ -76,49 +92,77 @@ export function Privacy() {
               <li><b>Services de géocodage</b> : conversion de coordonnées GPS en nom de lieu (ville, commune).</li>
               <li><b>Service d’emailing</b> : envoi éventuel de la newsletter et des emails du site (si vous y consentez).</li>
             </ul>
-            <p className="mt-2">Ces prestataires sont soumis à leurs propres politiques de confidentialité.</p>
-          </Section>
-
-          <Section title="5. Conservation et suppression">
-            <p>
-              Vos données sont conservées tant que votre compte est actif. Vous pouvez{' '}
-              <b>supprimer votre compte à tout moment</b> depuis <i>Compte → Paramètres → Supprimer
-              mon compte</i>. La suppression efface définitivement votre profil, vos annonces, vos
-              commandes, vos messages et vos avis.
+            <p className="mt-2">
+              Tout transfert éventuel de données vers un pays tiers ne serait réalisé que dans le respect
+              des conditions prévues par la loi n° 2013-450 (niveau de protection suffisant et, le cas
+              échéant, autorisation de l’ARTCI).
             </p>
           </Section>
 
-          <Section title="6. Sécurité">
+          <Section title="6. Conservation et suppression">
+            <p>
+              Vos données sont conservées tant que votre compte est actif, et pas au-delà de la durée
+              nécessaire aux finalités pour lesquelles elles ont été collectées. Vous pouvez{' '}
+              <b>supprimer votre compte à tout moment</b> depuis <i>Compte → Paramètres → Supprimer
+              mon compte</i>. La suppression efface définitivement votre profil, vos annonces, vos
+              commandes, vos messages et vos avis. Certaines données peuvent toutefois être conservées
+              temporairement lorsque la loi l’exige (par exemple à des fins de preuve, de lutte contre
+              la fraude ou de réquisition judiciaire).
+            </p>
+          </Section>
+
+          <Section title="7. Sécurité">
             <p>
               Les mots de passe sont <b>chiffrés</b> (hachage bcrypt) et ne sont jamais stockés en clair.
               Les accès aux données sont <b>vérifiés côté serveur</b> à chaque requête (chacun n’accède
-              qu’à ses propres données). Les échanges avec le site sont protégés par <b>HTTPS</b>.
+              qu’à ses propres données). Les échanges avec le site sont protégés par <b>HTTPS</b>. Nous
+              prenons les mesures techniques et organisationnelles raisonnables pour préserver la
+              confidentialité et l’intégrité de vos données, conformément à la loi n° 2013-450.
             </p>
           </Section>
 
-          <Section title="7. Mineurs">
+          <Section title="8. Mineurs">
             <p>
               L’application n’est pas destinée aux personnes de moins de 18 ans. Nous ne collectons pas
               sciemment de données de mineurs.
             </p>
           </Section>
 
-          <Section title="8. Vos droits (RGPD)">
-            <p>Conformément à la réglementation sur la protection des données, vous disposez des droits suivants :</p>
+          <Section title="9. Vos droits (loi n° 2013-450)">
+            <p>
+              Conformément à la loi ivoirienne n° 2013-450 relative à la protection des données à
+              caractère personnel, vous disposez des droits suivants :
+            </p>
             <ul className="ml-4 mt-2 list-disc space-y-1.5">
-              <li><b>Accès</b> : savoir quelles données nous détenons sur vous.</li>
-              <li><b>Rectification</b> : corriger vos informations depuis <i>Compte → Paramètres</i>.</li>
-              <li><b>Suppression</b> (« droit à l’oubli ») : supprimer votre compte et toutes vos données.</li>
-              <li><b>Opposition</b> : vous désabonner de la newsletter à tout moment.</li>
-              <li><b>Portabilité</b> : demander une copie de vos données.</li>
+              <li><b>Information</b> : savoir comment et pourquoi vos données sont traitées (la présente politique).</li>
+              <li><b>Accès</b> : savoir quelles données nous détenons sur vous et en obtenir copie.</li>
+              <li><b>Rectification</b> : corriger vos informations depuis <i>Compte → Paramètres</i> ou sur demande.</li>
+              <li><b>Suppression</b> : supprimer votre compte et toutes vos données.</li>
+              <li><b>Opposition</b> : vous opposer, pour un motif légitime, à un traitement ; vous désabonner de la newsletter à tout moment.</li>
+              <li><b>Portabilité</b> (engagement volontaire) : demander une copie de vos données dans un format lisible.</li>
             </ul>
             <p className="mt-2">
               Pour exercer ces droits, utilisez l’application ou écrivez-nous à{' '}
               <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary-600">{CONTACT_EMAIL}</a>.
+              Nous répondons dans les meilleurs délais. Si vous estimez que vos droits ne sont pas
+              respectés, vous pouvez saisir l’<b>ARTCI</b> (
+              <a href="https://www.artci.ci" target="_blank" rel="noreferrer" className="font-semibold text-primary-600">artci.ci</a>
+              ), autorité de protection des données personnelles en Côte d’Ivoire.
             </p>
           </Section>
 
-          <Section title="9. Contact">
+          <Section title="10. Cadre juridique">
+            <p>Cette politique s’inscrit dans le cadre des textes suivants :</p>
+            <ul className="ml-4 mt-2 list-disc space-y-1.5">
+              <li><b>Loi n° 2013-450 du 30 juillet 2013</b> relative à la protection des données à caractère personnel ;</li>
+              <li><b>Loi n° 2013-451 du 30 juillet 2013</b> relative à la lutte contre la cybercriminalité ;</li>
+              <li><b>Loi n° 2013-546 du 30 juillet 2013</b> relative aux transactions électroniques ;</li>
+              <li><b>Acte additionnel A/SA.1/01/10 de la CEDEAO</b> relatif à la protection des données à caractère personnel ;</li>
+              <li>Réglementation de l’<b>ARTCI</b> applicable aux traitements de données.</li>
+            </ul>
+          </Section>
+
+          <Section title="11. Contact">
             <p>
               Pour toute question relative à cette politique :{' '}
               <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary-600">
