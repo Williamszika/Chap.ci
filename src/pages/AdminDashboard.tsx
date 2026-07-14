@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Users, Package, MessageSquare, ShoppingBag, Star, Mail,
   Loader2, Lock, Download, Trash2, TrendingUp, Wallet, RefreshCw,
-  Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX,
+  Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { formatPrice, timeAgo } from '../lib/format'
@@ -15,7 +15,7 @@ import {
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
-  listBackups, downloadBackup,
+  listBackups, downloadBackup, resetData,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
   type VisitStats, type VisitRange, type ResponseTime, type BackupFile,
@@ -1342,6 +1342,58 @@ function BackupTab() {
           </ul>
         )}
       </div>
+
+      {/* Zone de danger : réinitialisation des données de test */}
+      <ResetDataBox onDone={load} />
+    </div>
+  )
+}
+
+// ---------- Réinitialisation (repartir à zéro) ----------
+function ResetDataBox({ onDone }: { onDone: () => void }) {
+  const [accounts, setAccounts] = useState(false)
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const run = async () => {
+    if (confirm !== 'EFFACER') return
+    if (!window.confirm('Dernière confirmation : effacer définitivement les données de test ? Une sauvegarde de sécurité sera créée avant.')) return
+    setBusy(true); setMsg('')
+    try {
+      const r = await resetData(accounts)
+      const total = Object.values(r.deleted).reduce((s, n) => s + n, 0)
+      setMsg(`✓ ${total} enregistrement${total > 1 ? 's' : ''} effacé${total > 1 ? 's' : ''}. Sauvegarde de sécurité : ${r.backup ?? '—'}.`)
+      setConfirm('')
+      onDone()
+    } catch (e) { setMsg('⚠️ ' + (e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="mt-2 space-y-3 rounded-2xl border border-red-200 bg-red-50/50 p-4">
+      <p className="flex items-center gap-1.5 font-display text-sm font-bold text-red-700">
+        <AlertTriangle size={16} /> Zone de danger — repartir à zéro
+      </p>
+      <p className="text-sm text-gray-600">
+        Efface les <b>annonces, conversations, messages, commandes, avis, signalements, alertes et
+        statistiques de visites</b> pour lancer le site avec des données réelles. Une <b>sauvegarde de
+        sécurité</b> est créée automatiquement avant la suppression.
+      </p>
+      <label className="flex items-start gap-2 text-sm text-gray-700">
+        <input type="checkbox" checked={accounts} onChange={(e) => setAccounts(e.target.checked)} className="mt-0.5" />
+        <span>Effacer aussi les <b>comptes de test</b> et abonnés (garde votre compte administrateur).</span>
+      </label>
+      <div>
+        <label className="mb-1 block text-xs font-semibold text-gray-500">Tapez <b>EFFACER</b> pour confirmer</label>
+        <input value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="EFFACER"
+          className="w-full rounded-xl border border-red-200 px-3 py-2 text-sm outline-none focus:border-red-400" />
+      </div>
+      <button onClick={run} disabled={busy || confirm !== 'EFFACER'}
+        className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-40">
+        {busy ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} Réinitialiser les données
+      </button>
+      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
     </div>
   )
 }

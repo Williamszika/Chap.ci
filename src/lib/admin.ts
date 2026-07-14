@@ -245,3 +245,9 @@ export async function downloadBackup(file?: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpDownloadBackup(file)
 }
+export type ResetResult = php.ResetResult
+/** Efface les données de test (une sauvegarde de sécurité est créée avant). */
+export async function resetData(accounts: boolean): Promise<ResetResult> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpResetData(accounts)
+}

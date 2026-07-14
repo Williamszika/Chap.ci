@@ -413,6 +413,10 @@ export interface BackupFile { file: string; bytes: number; at: number }
 export async function phpAdminBackups(): Promise<{ cronKey: string; site: string; backups: BackupFile[] }> {
   return req('/admin/backups')
 }
+export interface ResetResult { ok: boolean; deleted: Record<string, number>; backup: string | null; accounts: boolean }
+export async function phpResetData(accounts: boolean): Promise<ResetResult> {
+  return req<ResetResult>('/admin/reset', { method: 'POST', body: { confirm: 'EFFACER', accounts } })
+}
 /** Télécharge un export JSON de la base (génère un fichier téléchargé par le navigateur). */
 export async function phpDownloadBackup(file?: string): Promise<void> {
   const token = phpGetToken()

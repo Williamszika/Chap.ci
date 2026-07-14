@@ -486,11 +486,11 @@ export function Profile() {
 
             <button
               onClick={() => {
-                if (confirm('Réinitialiser vos données locales (favoris, panier local) ?')) resetDemo()
+                if (confirm('Effacer vos données locales de cet appareil (favoris) ?')) resetDemo()
               }}
               className="w-full text-center text-sm text-gray-400"
             >
-              Réinitialiser les données de démonstration
+              Effacer mes données locales (favoris)
             </button>
 
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">

@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from 'react'
 import type { Listing } from '../types'
-import { seedListings } from '../data/seedListings'
 import { isSupabaseConfigured } from '../lib/supabaseClient'
 import { isPhp } from '../lib/backend'
 import { recordInterest } from '../lib/interests'
@@ -103,14 +102,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refresh])
 
   const listings = useMemo<Listing[]>(() => {
-    // En mode Supabase : annonces partagées + éventuelles annonces créées
-    // localement avant l'activation du backend. Les annonces de démonstration
-    // enrichissent l'affichage (contenu d'exemple).
+    // Uniquement les VRAIES annonces : en mode backend, les annonces partagées
+    // (+ celles créées localement avant l'activation du backend). Plus aucune
+    // annonce de démonstration — le site n'affiche que des données réelles.
     const base = mode === 'supabase' ? [...remoteListings, ...userListings] : userListings
-    const all = [...base, ...seedListings]
     // Dédoublonnage par id (sécurité)
     const seen = new Set<string>()
-    const unique = all.filter((l) => (seen.has(l.id) ? false : seen.add(l.id)))
+    const unique = base.filter((l) => (seen.has(l.id) ? false : seen.add(l.id)))
     return unique.sort((a, b) => b.createdAt - a.createdAt)
   }, [mode, remoteListings, userListings])
 

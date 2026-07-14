@@ -1608,6 +1608,56 @@ try {
       readfile($full); exit;
     }
 
+    // Réinitialisation : efface les données de test pour repartir à zéro.
+    // Une SAUVEGARDE automatique est créée avant toute suppression (filet de
+    // sécurité). Exige une confirmation explicite (« EFFACER »).
+    if ($path === 'admin/reset' && $method === 'POST') {
+      $b = body();
+      if (trim((string) ($b['confirm'] ?? '')) !== 'EFFACER') jerr('Confirmation requise (tapez EFFACER).', 400);
+      $withAccounts = !empty($b['accounts']);
+      // 1) Sauvegarde de sécurité avant purge.
+      $dir = __DIR__ . '/backups';
+      if (!is_dir($dir)) @mkdir($dir, 0700, true);
+      $backupFile = null;
+      if (is_dir($dir) && is_writable($dir)) {
+        if (!is_file($dir . '/.htaccess')) @file_put_contents($dir . '/.htaccess', "Require all denied\nDeny from all\n");
+        $dump = export_all($pdo);
+        $backupFile = 'chapci-avant-reset-' . gmdate('Y-m-d-His') . '.json';
+        @file_put_contents($dir . '/' . $backupFile, json_encode($dump, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+      }
+      // 2) Purge du catalogue + transactions + analytics (toujours).
+      $wipe = ['order_items', 'orders', 'messages', 'conversations', 'reviews', 'reports',
+               'user_interests', 'saved_searches', 'visits', 'listings'];
+      $deleted = [];
+      foreach ($wipe as $t) {
+        try { $before = (int) $pdo->query("SELECT COUNT(*) AS c FROM $t")->fetch()['c']; $pdo->exec("DELETE FROM $t"); $deleted[$t] = $before; }
+        catch (Throwable $e) { $deleted[$t] = 0; }
+      }
+      // 3) Comptes de test : on garde les administrateurs (config + table admins)
+      //    et l'administrateur connecté. Le reste (comptes + profils + newsletter) est effacé.
+      if ($withAccounts) {
+        $keep = owner_emails($config);
+        foreach ($pdo->query('SELECT email FROM admins')->fetchAll() as $a) $keep[] = strtolower($a['email']);
+        $keep[] = strtolower($u['email'] ?? '');
+        $keep = array_values(array_unique(array_filter($keep)));
+        $ph = $keep ? implode(',', array_fill(0, count($keep), '?')) : "''";
+        try {
+          // Profils des comptes supprimés.
+          $ids = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) NOT IN ($ph)");
+          $ids->execute($keep); $delIds = array_column($ids->fetchAll(), 'id');
+          $cntU = 0;
+          foreach ($delIds as $did) {
+            $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$did]);
+            $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$did]); $cntU++;
+          }
+          $deleted['users'] = $cntU;
+          $before = (int) $pdo->query('SELECT COUNT(*) AS c FROM newsletter')->fetch()['c'];
+          $pdo->exec('DELETE FROM newsletter'); $deleted['newsletter'] = $before;
+        } catch (Throwable $e) { /* ignore */ }
+      }
+      jout(['ok' => true, 'deleted' => $deleted, 'backup' => $backupFile, 'accounts' => $withAccounts]);
+    }
+
     // Vue d'ensemble : compteurs + activité récente.
     if ($path === 'admin/stats' && $method === 'GET') {
       $count = fn(string $t) => (int) $pdo->query("SELECT COUNT(*) AS c FROM $t")->fetch()['c'];
