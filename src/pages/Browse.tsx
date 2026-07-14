@@ -10,6 +10,7 @@ import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { Sheet } from '../components/Sheet'
 import { categories, categoryById } from '../data/categories'
+import { formFor } from '../data/categoryForms'
 import { locationLabel } from '../data/locations'
 import type { LocationFilter } from '../types'
 
@@ -47,6 +48,13 @@ export function Browse() {
 
   const [qInput, setQInput] = useState(q)
 
+  // Filtres d'attributs (a_<clé>, a_<clé>_min, a_<clé>_max) selon la catégorie.
+  const attrParams: Record<string, string> = {}
+  params.forEach((v, k) => { if (k.startsWith('a_') && v) attrParams[k] = v })
+
+  // Clé stable des filtres d'attributs (pour la mémoïsation).
+  const attrKey = Object.keys(attrParams).sort().map((k) => `${k}=${attrParams[k]}`).join('&')
+
   // Explorer une catégorie = signal d'intérêt (pour les suggestions par email).
   useEffect(() => { if (cat) recordInterest(cat, 1) }, [cat])
 
@@ -73,6 +81,16 @@ export function Browse() {
     update({ region: l.regionId, ville: l.cityId, commune: l.commune })
   }
 
+  // Change de catégorie et efface les filtres d'attributs de l'ancienne.
+  function changeCat(id?: string) {
+    const p = new URLSearchParams(params)
+    Array.from(p.keys()).filter((k) => k.startsWith('a_')).forEach((k) => p.delete(k))
+    if (id) p.set('cat', id)
+    else p.delete('cat')
+    p.delete('sub')
+    setParams(p, { replace: true })
+  }
+
   const results = useMemo(() => {
     const nq = normalize(q)
     let out = listings.filter((l) => {
@@ -86,6 +104,29 @@ export function Browse() {
       if (max && l.price > Number(max)) return false
       if (livr && !l.delivery) return false
       if (promoOnly && !activePromo(l)) return false
+      // Filtres par critères de la catégorie (marque, année, surface…).
+      if (cat) {
+        for (const f of formFor(cat).fields) {
+          if (f.type === 'number') {
+            const mn = attrParams[`a_${f.key}_min`]
+            const mx = attrParams[`a_${f.key}_max`]
+            if (mn || mx) {
+              const raw = l.attributes?.[f.key]
+              const val = Number(raw)
+              if (!raw || Number.isNaN(val)) return false
+              if (mn && val < Number(mn)) return false
+              if (mx && val > Number(mx)) return false
+            }
+          } else {
+            const want = attrParams[`a_${f.key}`]
+            if (want) {
+              const have = l.attributes?.[f.key] ?? ''
+              if (f.type === 'chips') { if (have !== want) return false }
+              else if (!normalize(have).includes(normalize(want))) return false
+            }
+          }
+        }
+      }
       if (nq) {
         const hay = normalize(`${l.title} ${l.description} ${l.subcategory ?? ''}`)
         if (!hay.includes(nq)) return false
@@ -106,11 +147,12 @@ export function Browse() {
       })
     }
     return out
-  }, [listings, q, cat, sub, cond, min, max, livr, promoOnly, tri, position, loc.regionId, loc.cityId, loc.commune])
+  }, [listings, q, cat, sub, cond, min, max, livr, promoOnly, tri, attrKey, position, loc.regionId, loc.cityId, loc.commune])
 
   const activeCat = categoryById(cat)
   const activeFilters =
-    (cond ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (livr ? 1 : 0) + (promoOnly ? 1 : 0) + (sub ? 1 : 0) + (tri !== 'recent' ? 1 : 0)
+    (cond ? 1 : 0) + (min ? 1 : 0) + (max ? 1 : 0) + (livr ? 1 : 0) + (promoOnly ? 1 : 0) + (sub ? 1 : 0) +
+    (tri !== 'recent' ? 1 : 0) + Object.keys(attrParams).length
 
   return (
     <div className="min-h-screen bg-[#f4f5f7]">
@@ -206,7 +248,7 @@ export function Browse() {
         {/* Catégories rapides */}
         <div className="no-scrollbar flex items-center gap-2 overflow-x-auto border-t border-gray-50 px-3 py-2">
           <button
-            onClick={() => update({ cat: undefined, sub: undefined })}
+            onClick={() => changeCat(undefined)}
             className={`chip ${!cat ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
           >
             Tout
@@ -215,7 +257,7 @@ export function Browse() {
             <button
               key={c.id}
               ref={cat === c.id ? activeCatRef : null}
-              onClick={() => update({ cat: c.id, sub: undefined })}
+              onClick={() => changeCat(c.id)}
               className={`chip ${cat === c.id ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
             >
               {c.name}
@@ -285,6 +327,8 @@ export function Browse() {
       <FilterSheet
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
+        catId={cat}
+        attrParams={attrParams}
         cond={cond}
         min={min}
         max={max}
@@ -316,6 +360,8 @@ const PRICE_PRESETS: { l: string; min: string; max: string }[] = [
 function FilterSheet({
   open,
   onClose,
+  catId,
+  attrParams,
   cond,
   min,
   max,
@@ -327,6 +373,8 @@ function FilterSheet({
 }: {
   open: boolean
   onClose: () => void
+  catId: string
+  attrParams: Record<string, string>
   cond: string
   min: string
   max: string
@@ -342,6 +390,10 @@ function FilterSheet({
   const [dl, setDl] = useState(!!livr)
   const [pr, setPr] = useState(promoOnly)
   const [t, setT] = useState<Sort>(tri)
+  const [av, setAv] = useState<Record<string, string>>(attrParams)
+
+  const attrFields = formFor(catId).fields
+  const attrKey = Object.entries(attrParams).sort().map(([k, v]) => `${k}=${v}`).join('&')
 
   // Resynchronise à l'ouverture (si les filtres ont changé ailleurs).
   useEffect(() => {
@@ -352,8 +404,10 @@ function FilterSheet({
       setDl(!!livr)
       setPr(promoOnly)
       setT(tri)
+      setAv(attrParams)
     }
-  }, [open, cond, min, max, livr, promoOnly, tri])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, cond, min, max, livr, promoOnly, tri, attrKey])
 
   const sortOptions: { v: Sort; l: string }[] = [
     { v: 'recent', l: 'Plus récent' },
@@ -362,14 +416,23 @@ function FilterSheet({
     ...(hasPosition ? [{ v: 'distance' as Sort, l: 'Près de moi' }] : []),
   ]
 
+  // Construit les paramètres d'attributs (a_clé / a_clé_min / a_clé_max).
+  function attrUpdate(values: Record<string, string>): Record<string, string | undefined> {
+    const out: Record<string, string | undefined> = {}
+    for (const f of attrFields) {
+      if (f.type === 'number') {
+        out[`a_${f.key}_min`] = values[`a_${f.key}_min`] || undefined
+        out[`a_${f.key}_max`] = values[`a_${f.key}_max`] || undefined
+      } else {
+        out[`a_${f.key}`] = values[`a_${f.key}`] || undefined
+      }
+    }
+    return out
+  }
+
   function reset() {
-    setC('')
-    setMn('')
-    setMx('')
-    setDl(false)
-    setPr(false)
-    setT('recent')
-    onApply({ cond: undefined, min: undefined, max: undefined, livr: undefined, promo: undefined, tri: undefined })
+    setC(''); setMn(''); setMx(''); setDl(false); setPr(false); setT('recent'); setAv({})
+    onApply({ cond: undefined, min: undefined, max: undefined, livr: undefined, promo: undefined, tri: undefined, ...attrUpdate({}) })
     onClose()
   }
 
@@ -381,6 +444,7 @@ function FilterSheet({
       livr: dl ? '1' : undefined,
       promo: pr ? '1' : undefined,
       tri: t === 'recent' ? undefined : t,
+      ...attrUpdate(av),
     })
     onClose()
   }
@@ -407,6 +471,54 @@ function FilterSheet({
             ))}
           </div>
         </div>
+
+        {/* Critères spécifiques à la catégorie (marque, année, surface…) */}
+        {attrFields.map((f) => (
+          <div key={f.key}>
+            <p className="mb-2 text-sm font-bold text-gray-800">{f.label}</p>
+            {f.type === 'chips' ? (
+              <div className="flex flex-wrap gap-2">
+                {f.options?.map((o) => {
+                  const active = av[`a_${f.key}`] === o
+                  return (
+                    <button
+                      key={o}
+                      onClick={() => setAv((p) => ({ ...p, [`a_${f.key}`]: active ? '' : o }))}
+                      className={`chip text-xs ${active ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+                    >
+                      {o}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : f.type === 'number' ? (
+              <div className="flex items-center gap-2">
+                <input
+                  inputMode="numeric"
+                  value={av[`a_${f.key}_min`] ?? ''}
+                  onChange={(e) => setAv((p) => ({ ...p, [`a_${f.key}_min`]: e.target.value.replace(/\D/g, '') }))}
+                  placeholder={`Min${f.unit ? ` (${f.unit})` : ''}`}
+                  className="input text-right"
+                />
+                <span className="text-gray-400">—</span>
+                <input
+                  inputMode="numeric"
+                  value={av[`a_${f.key}_max`] ?? ''}
+                  onChange={(e) => setAv((p) => ({ ...p, [`a_${f.key}_max`]: e.target.value.replace(/\D/g, '') }))}
+                  placeholder={`Max${f.unit ? ` (${f.unit})` : ''}`}
+                  className="input text-right"
+                />
+              </div>
+            ) : (
+              <input
+                value={av[`a_${f.key}`] ?? ''}
+                onChange={(e) => setAv((p) => ({ ...p, [`a_${f.key}`]: e.target.value }))}
+                placeholder={f.placeholder || `Filtrer par ${f.label.toLowerCase()}`}
+                className="input"
+              />
+            )}
+          </div>
+        ))}
 
         {/* Prix */}
         <div>
