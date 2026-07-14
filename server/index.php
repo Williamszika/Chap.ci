@@ -2183,6 +2183,51 @@ try {
     jout(['searches' => $checked, 'matched' => $matched, 'emailed' => $emailed]);
   }
 
+  // ---------- STATISTIQUES POUR LE RAPPORT D'ACTIVITÉ (routine hebdo) ----------
+  // Agrégats anonymes (aucune donnée personnelle). Authentifié par la clé cron.
+  if ($path === 'cron/stats' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $days = max(1, min(90, (int) ($_GET['days'] ?? 7)));
+    $since = gmdate('Y-m-d\TH:i:s', time() - $days * 86400);
+    $one = function (string $sql, array $p = []) use ($pdo) {
+      $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn();
+    };
+    $topCats = $pdo->prepare('SELECT category_id, COUNT(*) AS n FROM listings WHERE created_at >= ? GROUP BY category_id ORDER BY n DESC LIMIT 5');
+    $topCats->execute([$since]);
+    $topPaths = $pdo->prepare('SELECT path, COUNT(*) AS n FROM visits WHERE created_at >= ? GROUP BY path ORDER BY n DESC LIMIT 8');
+    $topPaths->execute([$since]);
+    jout([
+      'periodDays' => $days,
+      'since'      => $since,
+      'users'      => [
+        'total' => $one('SELECT COUNT(*) FROM users'),
+        'new'   => $one('SELECT COUNT(*) FROM users WHERE created_at >= ?', [$since]),
+      ],
+      'listings'   => [
+        'active' => $one('SELECT COUNT(*) FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)'),
+        'new'    => $one('SELECT COUNT(*) FROM listings WHERE created_at >= ?', [$since]),
+        'sold'   => $one('SELECT COUNT(*) FROM listings WHERE sold = 1'),
+        'hidden' => $one('SELECT COUNT(*) FROM listings WHERE hidden = 1'),
+      ],
+      'messages'   => [
+        'new'              => $one('SELECT COUNT(*) FROM messages WHERE created_at >= ?', [$since]),
+        'newConversations' => $one('SELECT COUNT(*) FROM conversations WHERE created_at >= ?', [$since]),
+      ],
+      'orders'     => ['new' => $one('SELECT COUNT(*) FROM orders WHERE created_at >= ?', [$since])],
+      'reviews'    => ['new' => $one('SELECT COUNT(*) FROM reviews WHERE created_at >= ?', [$since])],
+      'reports'    => ['new' => $one('SELECT COUNT(*) FROM reports WHERE created_at >= ?', [$since])],
+      'newsletter' => ['total' => $one('SELECT COUNT(*) FROM newsletter')],
+      'visits'     => [
+        'total'    => $one('SELECT COUNT(*) FROM visits WHERE created_at >= ?', [$since]),
+        'visitors' => $one('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?', [$since]),
+        'topPages' => $topPaths->fetchAll(),
+      ],
+      'topCategories' => $topCats->fetchAll(),
+    ]);
+  }
+
   // ---------- ENVOI D'UN RAPPORT PAR EMAIL (avec PDF joint) ----------
   // Appelé par la routine de sourcing (agents). Authentifié par la clé cron.
   // Corps JSON : { key, subject, html, pdf_base64, filename, to? }
