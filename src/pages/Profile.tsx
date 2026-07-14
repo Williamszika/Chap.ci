@@ -65,6 +65,10 @@ export function Profile() {
   const [sales, setSales] = useState<Order[]>([])
   const [myReviews, setMyReviews] = useState<Review[]>([])
   const [avatarUrl, setAvatarUrl] = useState<string>('')
+  // Filtres pilotés par les tuiles de statistiques (chaque tuile est cliquable).
+  const [salesFilter, setSalesFilter] = useState<'all' | 'en_cours' | 'finalise'>('all')
+  const [annoncesFilter, setAnnoncesFilter] = useState<'all' | 'promo'>('all')
+  const [showReviews, setShowReviews] = useState(false)
 
   // Annonces du vendeur : en mode PHP on récupère TOUTES ses annonces (même
   // masquées, absentes de la liste publique) pour pouvoir les gérer.
@@ -86,6 +90,8 @@ export function Profile() {
   const activePromoCount = myListings.filter((l) => activePromo(l)).length
   const salesOngoing = sales.filter((o) => o.status === 'en_cours').length
   const salesDone = sales.filter((o) => o.status === 'finalise').length
+  const shownSales = salesFilter === 'all' ? sales : sales.filter((o) => o.status === salesFilter)
+  const shownMine = annoncesFilter === 'promo' ? myListings.filter((l) => activePromo(l)) : myListings
   const revenue = sales
     .filter((o) => o.status === 'finalise')
     .reduce((sum, o) => sum + o.items.reduce((t, it) => t + it.price, 0), 0)
@@ -254,16 +260,36 @@ export function Profile() {
                   <BarChart3 size={16} className="text-primary-500" /> Vos statistiques
                 </p>
                 <div className="grid grid-cols-3 gap-2">
-                  <StatTile label="Annonces" value={myListings.length} />
-                  <StatTile label="Demandes" value={sales.length} />
-                  <StatTile label="En cours" value={salesOngoing} />
-                  <StatTile label="Finalisées" value={salesDone} />
+                  <StatTile
+                    label="Annonces" value={myListings.length}
+                    onClick={() => { setAnnoncesFilter('all'); setTab('annonces') }}
+                  />
+                  <StatTile
+                    label="Demandes" value={sales.length}
+                    active={!showReviews && salesFilter === 'all'}
+                    onClick={() => { setShowReviews(false); setSalesFilter('all') }}
+                  />
+                  <StatTile
+                    label="En cours" value={salesOngoing}
+                    active={!showReviews && salesFilter === 'en_cours'}
+                    onClick={() => { setShowReviews(false); setSalesFilter('en_cours') }}
+                  />
+                  <StatTile
+                    label="Finalisées" value={salesDone}
+                    active={!showReviews && salesFilter === 'finalise'}
+                    onClick={() => { setShowReviews(false); setSalesFilter('finalise') }}
+                  />
                   <StatTile
                     label="Note"
                     value={rating.count ? `${rating.avg.toFixed(1)}★` : '—'}
                     sub={rating.count ? `${rating.count} avis` : 'aucun avis'}
+                    active={showReviews}
+                    onClick={() => setShowReviews(true)}
                   />
-                  <StatTile label="Promos" value={activePromoCount} />
+                  <StatTile
+                    label="Promos" value={activePromoCount}
+                    onClick={() => { setAnnoncesFilter('promo'); setTab('annonces') }}
+                  />
                 </div>
                 {revenue > 0 && (
                   <div className="mt-3 rounded-xl bg-emerald-50 px-4 py-3">
@@ -275,26 +301,44 @@ export function Profile() {
                 )}
               </div>
 
-              {sales.length === 0 ? (
-                <Empty text="Aucune demande reçue pour l’instant. Publiez des annonces pour vendre !" />
+              {showReviews ? (
+                <SellerReviews reviews={myReviews} rating={rating} onClear={() => setShowReviews(false)} />
               ) : (
-                <div className="space-y-3">
-                  {sales.map((o) => (
-                    <OrderCard
-                      key={o.id}
-                      order={o}
-                      who={`Acheteur : ${o.otherName}`}
-                      onOpen={() => o.conversationId && navigate(`/messages/${o.conversationId}`)}
-                      footer={
-                        o.conversationId && (
-                          <button onClick={() => navigate(`/messages/${o.conversationId}`)} className="btn-primary w-full py-2 text-sm">
-                            <MessageCircle size={16} /> Répondre à l’acheteur
-                          </button>
-                        )
+                <>
+                  {salesFilter !== 'all' && (
+                    <FilterNote
+                      label={salesFilter === 'en_cours' ? 'En cours' : 'Finalisées'}
+                      onClear={() => setSalesFilter('all')}
+                    />
+                  )}
+                  {shownSales.length === 0 ? (
+                    <Empty
+                      text={
+                        salesFilter === 'all'
+                          ? 'Aucune demande reçue pour l’instant. Publiez des annonces pour vendre !'
+                          : 'Aucune demande dans cette catégorie.'
                       }
                     />
-                  ))}
-                </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {shownSales.map((o) => (
+                        <OrderCard
+                          key={o.id}
+                          order={o}
+                          who={`Acheteur : ${o.otherName}`}
+                          onOpen={() => o.conversationId && navigate(`/messages/${o.conversationId}`)}
+                          footer={
+                            o.conversationId && (
+                              <button onClick={() => navigate(`/messages/${o.conversationId}`)} className="btn-primary w-full py-2 text-sm">
+                                <MessageCircle size={16} /> Répondre à l’acheteur
+                              </button>
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))}
@@ -305,11 +349,14 @@ export function Profile() {
             <button onClick={() => navigate('/publier')} className="btn-primary mb-3 w-full py-3">
               <PlusCircle size={20} /> Publier une annonce
             </button>
-            {myListings.length === 0 ? (
-              <Empty text="Vous n’avez pas encore d’annonce." />
+            {annoncesFilter === 'promo' && (
+              <FilterNote label="En promotion" onClear={() => setAnnoncesFilter('all')} />
+            )}
+            {shownMine.length === 0 ? (
+              <Empty text={annoncesFilter === 'promo' ? 'Aucune annonce en promotion.' : 'Vous n’avez pas encore d’annonce.'} />
             ) : (
               <div className="space-y-2">
-                {myListings.map((l) => (
+                {shownMine.map((l) => (
                   <div key={l.id} className="card p-2.5">
                     <div className="flex items-center gap-3">
                       <Link to={`/annonce/${l.id}`} className="flex flex-1 items-center gap-3">
@@ -492,12 +539,70 @@ function QuickAction({
   )
 }
 
-function StatTile({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
+function StatTile({
+  label, value, sub, onClick, active,
+}: { label: string; value: number | string; sub?: string; onClick?: () => void; active?: boolean }) {
+  const box = `rounded-xl px-2 py-3 text-center transition ${
+    active ? 'bg-primary-500 shadow-sm' : 'bg-gray-50'
+  } ${onClick ? 'cursor-pointer hover:brightness-95 active:scale-[0.97]' : ''}`
+  const inner = (
+    <>
+      <p className={`text-xl font-black ${active ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+      <p className={`text-[11px] font-medium ${active ? 'text-white/90' : 'text-gray-500'}`}>{label}</p>
+      {sub && <p className={`text-[10px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{sub}</p>}
+    </>
+  )
+  if (onClick) return <button type="button" onClick={onClick} className={`${box} w-full`}>{inner}</button>
+  return <div className={box}>{inner}</div>
+}
+
+/** Bandeau indiquant le filtre actif, avec un bouton pour l'effacer. */
+function FilterNote({ label, onClear }: { label: string; onClear: () => void }) {
   return (
-    <div className="rounded-xl bg-gray-50 px-2 py-3 text-center">
-      <p className="text-xl font-black text-gray-900">{value}</p>
-      <p className="text-[11px] font-medium text-gray-500">{label}</p>
-      {sub && <p className="text-[10px] text-gray-400">{sub}</p>}
+    <div className="mb-3 flex items-center justify-between rounded-xl bg-primary-50 px-3 py-2 text-sm">
+      <span className="font-medium text-primary-700">Filtre : {label}</span>
+      <button onClick={onClear} className="text-xs font-semibold text-primary-600 underline">
+        Tout afficher
+      </button>
+    </div>
+  )
+}
+
+/** Avis reçus par le vendeur (affiché en cliquant sur la tuile « Note »). */
+function SellerReviews({
+  reviews, rating, onClear,
+}: { reviews: Review[]; rating: { avg: number; count: number }; onClear: () => void }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2">
+        <span className="flex items-center gap-1.5 text-sm font-bold text-amber-800">
+          <Star size={15} className="fill-amber-400 text-amber-400" />
+          {rating.count ? `${rating.avg.toFixed(1)} / 5 · ${rating.count} avis` : 'Aucun avis pour le moment'}
+        </span>
+        <button onClick={onClear} className="text-xs font-semibold text-amber-700 underline">
+          Retour
+        </button>
+      </div>
+      {reviews.length === 0 ? (
+        <Empty text="Vous n’avez pas encore reçu d’avis. Ils apparaîtront ici après vos ventes." />
+      ) : (
+        <div className="space-y-2">
+          {reviews.map((r) => (
+            <div key={r.id} className="card p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-800">{r.reviewerName || 'Acheteur'}</p>
+                <span className="flex items-center gap-0.5 text-amber-500">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} size={13} className={i < r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'} />
+                  ))}
+                </span>
+              </div>
+              {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+              <p className="mt-1 text-[11px] text-gray-400">{timeAgo(r.createdAt)}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
