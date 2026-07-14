@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation, Truck, Tag } from 'lucide-react'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation, Truck, Tag, Bell, Check } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm } from '../lib/geo'
 import { activePromo } from '../lib/promo'
 import { recordInterest } from '../lib/interests'
+import { createSavedSearch, savedSearchesEnabled } from '../lib/api'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { Sheet } from '../components/Sheet'
@@ -26,10 +28,12 @@ type Sort = 'recent' | 'prix-asc' | 'prix-desc' | 'distance'
 export function Browse() {
   const navigate = useNavigate()
   const { listings } = useApp()
+  const { user } = useAuth()
   const { position, status, requestLocation } = useGeo()
   const [params, setParams] = useSearchParams()
   const [locOpen, setLocOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [alertOpen, setAlertOpen] = useState(false)
 
   const q = params.get('q') ?? ''
   const cat = params.get('cat') ?? ''
@@ -243,6 +247,15 @@ export function Browse() {
           >
             🏷️ Bons plans
           </button>
+          {savedSearchesEnabled && (
+            <button
+              onClick={() => setAlertOpen(true)}
+              className="chip whitespace-nowrap border-primary-200 text-primary-700"
+            >
+              <Bell size={15} />
+              Créer une alerte
+            </button>
+          )}
         </div>
 
         {/* Catégories rapides */}
@@ -314,7 +327,7 @@ export function Browse() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {results.map((l) => (
               <ListingCard key={l.id} listing={l} />
             ))}
@@ -338,7 +351,138 @@ export function Browse() {
         hasPosition={!!position}
         onApply={(f) => update(f)}
       />
+
+      <AlertSheet
+        open={alertOpen}
+        onClose={() => setAlertOpen(false)}
+        loggedIn={!!user}
+        defaultLabel={describeSearch(params, activeCat?.name)}
+        params={alertParams(params)}
+        count={results.length}
+      />
     </div>
+  )
+}
+
+/** Query-string à sauvegarder pour l'alerte (on retire le tri, non pertinent). */
+function alertParams(params: URLSearchParams): string {
+  const p = new URLSearchParams(params)
+  p.delete('tri')
+  return p.toString()
+}
+
+/** Libellé lisible résumant les filtres actifs (nom par défaut de l'alerte). */
+function describeSearch(params: URLSearchParams, catName?: string): string {
+  const parts: string[] = []
+  const q = params.get('q')
+  if (q) parts.push(`« ${q} »`)
+  if (catName) parts.push(catName)
+  const sub = params.get('sub')
+  if (sub) parts.push(sub)
+  const commune = params.get('commune')
+  const ville = params.get('ville')
+  const region = params.get('region')
+  if (commune || ville || region) parts.push(locationLabel(region ?? undefined, ville ?? undefined, commune ?? undefined))
+  const min = params.get('min')
+  const max = params.get('max')
+  if (min && max) parts.push(`${groupThousands(min)}–${groupThousands(max)} F`)
+  else if (min) parts.push(`dès ${groupThousands(min)} F`)
+  else if (max) parts.push(`≤ ${groupThousands(max)} F`)
+  if (params.get('promo') === '1') parts.push('en promo')
+  if (params.get('livr')) parts.push('avec livraison')
+  return parts.length ? parts.join(' · ') : 'Toutes les nouvelles annonces'
+}
+
+/** Feuille « Créer une alerte » : nomme et enregistre une recherche sauvegardée. */
+function AlertSheet({
+  open,
+  onClose,
+  loggedIn,
+  defaultLabel,
+  params,
+  count,
+}: {
+  open: boolean
+  onClose: () => void
+  loggedIn: boolean
+  defaultLabel: string
+  params: string
+  count: number
+}) {
+  const [label, setLabel] = useState(defaultLabel)
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
+
+  // Réinitialise à chaque ouverture (le libellé par défaut suit les filtres).
+  useEffect(() => {
+    if (open) { setLabel(defaultLabel); setDone(false); setError('') }
+  }, [open, defaultLabel])
+
+  async function save() {
+    const name = label.trim()
+    if (!name) { setError('Donnez un nom à votre alerte.'); return }
+    setSaving(true)
+    setError('')
+    try {
+      await createSavedSearch(name, params)
+      setDone(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Échec de la création.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Créer une alerte">
+      {!loggedIn ? (
+        <div className="px-1 py-2 text-center">
+          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-primary-50">
+            <Bell size={26} className="text-primary-600" />
+          </div>
+          <p className="font-semibold text-gray-800">Connectez-vous pour créer une alerte</p>
+          <p className="mx-auto mt-1 max-w-xs text-sm text-gray-500">
+            Nous vous préviendrons par email dès qu’une nouvelle annonce correspond à votre recherche.
+          </p>
+          <Link to="/connexion" onClick={onClose} className="btn-primary mt-4 inline-flex">
+            Se connecter
+          </Link>
+        </div>
+      ) : done ? (
+        <div className="px-1 py-4 text-center">
+          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-emerald-50">
+            <Check size={28} className="text-emerald-600" />
+          </div>
+          <p className="font-semibold text-gray-800">Alerte créée ✅</p>
+          <p className="mx-auto mt-1 max-w-xs text-sm text-gray-500">
+            Vous recevrez un email dès qu’une nouvelle annonce correspond à « {label} ».
+          </p>
+          <button onClick={onClose} className="btn-primary mt-4">Terminé</button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">
+            Recevez un email dès qu’une <b>nouvelle annonce</b> correspond à cette recherche.
+            {count > 0 && <> {count} annonce{count > 1 ? 's' : ''} correspond{count > 1 ? 'ent' : ''} déjà.</>}
+          </p>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-gray-700">Nom de l’alerte</span>
+            <input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              maxLength={120}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] outline-none focus:border-primary-400"
+              placeholder="Ex. Voitures à Cocody"
+            />
+          </label>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <button onClick={save} disabled={saving} className="btn-primary w-full">
+            {saving ? 'Création…' : '🔔 Activer l’alerte'}
+          </button>
+        </div>
+      )}
+    </Sheet>
   )
 }
 

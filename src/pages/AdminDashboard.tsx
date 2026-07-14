@@ -15,14 +15,15 @@ import {
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
+  listBackups, downloadBackup,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
-  type VisitStats, type VisitRange, type ResponseTime,
+  type VisitStats, type VisitRange, type ResponseTime, type BackupFile,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews' | 'visitors'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews' | 'visitors' | 'backup'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -77,7 +78,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -89,7 +90,7 @@ export function AdminDashboard() {
         </nav>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-5 lg:max-w-6xl lg:px-6">
+      <div className="mx-auto max-w-2xl px-4 py-5 lg:max-w-[1600px] lg:px-6">
         {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} />}
         {tab === 'visitors' && <VisitorsTab />}
         {tab === 'listings' && <ListingsTab />}
@@ -102,6 +103,7 @@ export function AdminDashboard() {
         {tab === 'campaigns' && <CampaignsTab />}
         {tab === 'moderators' && <ModeratorsTab />}
         {tab === 'emails' && <EmailsTab />}
+        {tab === 'backup' && <BackupTab />}
       </div>
     </div>
   )
@@ -1232,6 +1234,113 @@ function EmailsTab() {
         <p className="mt-2 text-xs text-gray-400">
           Astuce : si <b>localhost</b> ne marche pas, essayez <b>mail.chap.ci</b>. Port 465 = SSL, port 587 = TLS.
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Sauvegarde de la base (export + cron automatique) ----------
+function BackupTab() {
+  const [info, setInfo] = useState<{ cronKey: string; site: string; backups: BackupFile[] } | null>(null)
+  const [err, setErr] = useState('')
+  const [downloading, setDownloading] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const load = () => listBackups().then(setInfo).catch((e) => setErr((e as Error).message))
+  useEffect(() => { load() }, [])
+
+  const downloadNow = async () => {
+    setDownloading(true)
+    try { await downloadBackup() } catch (e) { setErr((e as Error).message) }
+    finally { setDownloading(false) }
+  }
+
+  const cmd = info ? `curl -s "${info.site}/api/cron/backup?key=${info.cronKey}" >/dev/null 2>&1` : ''
+  const copy = () => {
+    navigator.clipboard?.writeText(cmd)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  const humanSize = (b: number) => (b > 1024 * 1024 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.max(1, Math.round(b / 1024))} Ko`)
+
+  if (err) return <ErrRetry msg={err} onRetry={() => { setErr(''); load() }} />
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
+        <p className="flex items-center gap-1.5 font-semibold"><Database size={16} /> Sauvegarde de la base</p>
+        <p className="mt-1 text-primary-700">
+          Exportez toute la base (comptes, annonces, messages, commandes, avis…) dans un fichier
+          <b> JSON</b>. Téléchargez-le quand vous voulez, ou <b>automatisez</b> une sauvegarde quotidienne.
+        </p>
+      </div>
+
+      {/* Téléchargement immédiat */}
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <p className="mb-1 font-display text-sm font-bold text-gray-800">Télécharger maintenant</p>
+        <p className="mb-3 text-sm text-gray-600">
+          Génère et télécharge un export complet de la base à cet instant. Conservez ce fichier en lieu sûr.
+        </p>
+        <button onClick={downloadNow} disabled={downloading} className="btn-primary py-2.5 text-sm disabled:opacity-50">
+          {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+          Télécharger la sauvegarde
+        </button>
+      </div>
+
+      {/* Automatisation via cron */}
+      <div className="space-y-3 rounded-2xl border border-primary-200 bg-primary-50/40 p-4">
+        <p className="flex items-center gap-1.5 font-display text-sm font-bold text-gray-800">
+          <CalendarClock size={16} className="text-primary-600" /> Sauvegarde automatique (quotidienne)
+        </p>
+        <p className="text-sm text-gray-600">
+          Programme une sauvegarde chaque nuit sur le serveur. Les <b>7 dernières</b> sont conservées et
+          vous recevez un email récapitulatif à chaque fois.
+        </p>
+        <div className="rounded-xl bg-white p-3">
+          <p className="mb-1.5 text-xs font-semibold text-gray-500">cPanel → Tâches planifiées / Cron Jobs :</p>
+          <p className="text-xs text-gray-500">Chaque jour à 3h — planning <code className="rounded bg-gray-100 px-1">0 3 * * *</code></p>
+          <div className="mt-1 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
+            <button onClick={copy} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50">
+              {copied ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sauvegardes présentes sur le serveur */}
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <div className="mb-2 flex items-center justify-between">
+          <p className="font-display text-sm font-bold text-gray-800">Sauvegardes sur le serveur</p>
+          <button onClick={load} className="text-xs font-semibold text-primary-600"><RefreshCw size={13} className="mr-1 inline" />Actualiser</button>
+        </div>
+        {!info ? (
+          <p className="py-3 text-sm text-gray-400">Chargement…</p>
+        ) : info.backups.length === 0 ? (
+          <p className="rounded-xl bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
+            Aucune sauvegarde automatique pour l’instant. Programmez le cron ci-dessus.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {info.backups.map((b) => (
+              <li key={b.file} className="flex items-center gap-2 rounded-xl border border-gray-100 p-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-600"><Database size={16} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-gray-800">{b.file}</span>
+                  <span className="block text-xs text-gray-500">{humanSize(b.bytes)} · {timeAgo(b.at)}</span>
+                </span>
+                <button
+                  onClick={() => downloadBackup(b.file).catch((e) => setErr((e as Error).message))}
+                  className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+                  aria-label="Télécharger"
+                >
+                  <Download size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

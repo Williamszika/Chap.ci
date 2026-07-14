@@ -46,7 +46,7 @@ export function Footer() {
 
   return (
     <footer className="mt-6 border-t border-gray-100 bg-white px-5 pb-24 pt-8 text-sm lg:pb-10">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-[1600px]">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {/* Marque */}
           <div>

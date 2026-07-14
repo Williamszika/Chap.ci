@@ -24,6 +24,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Backend runtime (base SQLite locale, sauvegardes générées)
+server/data/
+server/backups/
+*.sqlite
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json

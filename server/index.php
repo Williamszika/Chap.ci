@@ -191,6 +191,9 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS visits (
       id $id PRIMARY KEY, visitor_id $txt, path $txt, referrer $txt, created_at $ts
     )$eng",
+    "CREATE TABLE IF NOT EXISTS saved_searches (
+      id $id PRIMARY KEY, user_id $id, label $txt, params $txt, last_notified_at $ts, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -479,20 +482,8 @@ function digest_listings(PDO $pdo, int $limit = 6): array {
   )->fetchAll();
   return $rows;
 }
-/** Construit l'email « offres » avec des cartes d'annonces cliquables (type OLX/eBay). */
-function digest_html(array $config, array $rows, string $type, string $context = ''): string {
-  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
-  $name = $config['mail_from_name'] ?? 'Chap.ci';
-  $title = $type === 'weekly' ? '✨ La sélection de la semaine'
-    : ($type === 'perso' ? '✨ Sélectionné pour vous' : '🔥 Les bonnes affaires du jour');
-  if ($type === 'perso') {
-    // Message précis : on nomme la catégorie qui a motivé la sélection.
-    $intro = $context !== ''
-      ? 'Parce que vous vous intéressez à <b>' . htmlspecialchars($context) . '</b>, voici des articles similaires qui pourraient vous plaire 👇'
-      : 'Voici une sélection d’articles qui pourraient vous plaire 👇';
-  } else {
-    $intro = 'Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇';
-  }
+/** Rangée de cartes d'annonces cliquables (réutilisée : offres, suggestions, alertes). */
+function email_listing_cards(string $site, array $rows): string {
   $cards = '';
   foreach ($rows as $r) {
     $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
@@ -517,6 +508,23 @@ function digest_html(array $config, array $rows, string $type, string $context =
       . ($loc ? '<div style="color:#9ca3af;font-size:12px;margin-top:3px">📍 ' . htmlspecialchars($loc) . '</div>' : '')
       . '</td></tr></table></a>';
   }
+  return $cards;
+}
+/** Construit l'email « offres » avec des cartes d'annonces cliquables (type OLX/eBay). */
+function digest_html(array $config, array $rows, string $type, string $context = ''): string {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $title = $type === 'weekly' ? '✨ La sélection de la semaine'
+    : ($type === 'perso' ? '✨ Sélectionné pour vous' : '🔥 Les bonnes affaires du jour');
+  if ($type === 'perso') {
+    // Message précis : on nomme la catégorie qui a motivé la sélection.
+    $intro = $context !== ''
+      ? 'Parce que vous vous intéressez à <b>' . htmlspecialchars($context) . '</b>, voici des articles similaires qui pourraient vous plaire 👇'
+      : 'Voici une sélection d’articles qui pourraient vous plaire 👇';
+  } else {
+    $intro = 'Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇';
+  }
+  $cards = email_listing_cards($site, $rows);
   $inner =
     '<h2 style="margin-top:0">' . $title . '</h2>'
     . '<p>' . $intro . '</p>'
@@ -654,6 +662,133 @@ function send_report_email(array $config, string $reporter, string $title, strin
   $html = email_layout($config, $inner, 'Nouveau signalement sur ' . $name);
   $subject = '🚩 Signalement — ' . mb_strimwidth($title, 0, 40, '…');
   foreach ($admins as $to) send_mail($config, $to, $subject, $html);
+}
+
+// ---- Recherches sauvegardées (alertes email) --------------------------------
+/** Retire les accents pour une recherche insensible (miroir de normalize() côté React). */
+function search_norm(string $s): string {
+  $s = function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
+  return strtr($s, [
+    'à'=>'a','â'=>'a','ä'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e','î'=>'i','ï'=>'i',
+    'ô'=>'o','ö'=>'o','û'=>'u','ü'=>'u','ù'=>'u','ç'=>'c','œ'=>'oe',
+  ]);
+}
+/**
+ * Annonces correspondant à une recherche sauvegardée. `$paramsStr` est la
+ * query-string de /explorer (mêmes clés : q, cat, sub, cond, min, max, livr,
+ * promo, region, ville, commune). `$sinceIso` limite aux annonces plus récentes
+ * (pour n'alerter que sur les nouveautés).
+ */
+function search_matching_listings(PDO $pdo, string $paramsStr, string $sinceIso = ''): array {
+  $p = [];
+  parse_str($paramsStr, $p);
+  $q       = search_norm(trim((string) ($p['q'] ?? '')));
+  $cat     = trim((string) ($p['cat'] ?? ''));
+  $sub     = trim((string) ($p['sub'] ?? ''));
+  $cond    = trim((string) ($p['cond'] ?? ''));
+  $min     = (string) ($p['min'] ?? '');
+  $max     = (string) ($p['max'] ?? '');
+  $livr    = trim((string) ($p['livr'] ?? ''));
+  $promo   = ((string) ($p['promo'] ?? '')) === '1';
+  $region  = trim((string) ($p['region'] ?? ''));
+  $ville   = trim((string) ($p['ville'] ?? ''));
+  $commune = trim((string) ($p['commune'] ?? ''));
+  $rows = $pdo->query('SELECT * FROM listings WHERE hidden IS NULL OR hidden = 0 ORDER BY created_at DESC LIMIT 500')->fetchAll();
+  $now = now_iso();
+  $out = [];
+  foreach ($rows as $l) {
+    if ($sinceIso !== '' && (string) $l['created_at'] <= $sinceIso) continue;
+    if ($cat && ($l['category_id'] ?? '') !== $cat) continue;
+    if ($sub && ($l['subcategory'] ?? '') !== $sub) continue;
+    if ($cond && ($l['condition_v'] ?? '') !== $cond) continue;
+    if ($region && ($l['region_id'] ?? '') !== $region) continue;
+    if ($ville && ($l['city_id'] ?? '') !== $ville) continue;
+    if ($commune && ($l['commune'] ?? '') !== $commune) continue;
+    if ($min !== '' && (int) $l['price'] < (int) $min) continue;
+    if ($max !== '' && (int) $l['price'] > (int) $max) continue;
+    if ($livr && empty($l['delivery'])) continue;
+    if ($promo) {
+      $isPromo = !empty($l['promo_price']) && (empty($l['promo_until']) || $l['promo_until'] > $now);
+      if (!$isPromo) continue;
+    }
+    if ($q !== '') {
+      $hay = search_norm(($l['title'] ?? '') . ' ' . ($l['description'] ?? ''));
+      if (strpos($hay, $q) === false) continue;
+    }
+    // Filtres par attributs de catégorie (a_<clé> = valeur ; a_<clé>_min/max = plage).
+    $attrs = $l['attributes'] ? (json_decode($l['attributes'], true) ?: []) : [];
+    $attrOk = true;
+    foreach ($p as $k => $v) {
+      if (strncmp($k, 'a_', 2) !== 0 || $v === '') continue;
+      if (substr($k, -4) === '_min') {
+        $key = substr($k, 2, -4);
+        if (!isset($attrs[$key]) || (float) $attrs[$key] < (float) $v) { $attrOk = false; break; }
+      } elseif (substr($k, -4) === '_max') {
+        $key = substr($k, 2, -4);
+        if (!isset($attrs[$key]) || (float) $attrs[$key] > (float) $v) { $attrOk = false; break; }
+      } else {
+        $key = substr($k, 2);
+        if (!isset($attrs[$key]) || (string) $attrs[$key] !== (string) $v) { $attrOk = false; break; }
+      }
+    }
+    if (!$attrOk) continue;
+    $out[] = $l;
+  }
+  return $out;
+}
+/** Email « nouvelles annonces » pour une alerte (recherche sauvegardée). */
+function send_search_alert(array $config, array $user, string $label, array $rows, string $paramsStr): bool {
+  if (empty($user['email']) || !$rows) return false;
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $link = $site . '/#/explorer' . ($paramsStr ? '?' . $paramsStr : '');
+  $n = count($rows);
+  $inner =
+    '<h2 style="margin-top:0">🔔 Du nouveau pour votre alerte</h2>'
+    . '<p>Bonne nouvelle ! <b>' . $n . ' nouvelle' . ($n > 1 ? 's' : '') . ' annonce' . ($n > 1 ? 's' : '')
+    . '</b> correspond' . ($n > 1 ? 'ent' : '') . ' à votre recherche <b>« ' . htmlspecialchars($label) . ' »</b> 👇</p>'
+    . email_listing_cards($site, $rows)
+    . email_button($link, 'Voir toutes les annonces')
+    . '<p style="color:#6b7280;font-size:13px;margin-top:16px">Vous recevez cet email car vous avez créé une alerte sur '
+    . htmlspecialchars($name) . '. Gérez vos alertes depuis <a href="' . $site . '/#/profil" style="color:#F77F00">votre profil</a>.</p>';
+  $subject = '🔔 ' . $n . ' annonce' . ($n > 1 ? 's' : '') . ' pour « ' . mb_strimwidth($label, 0, 40, '…') . ' »';
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  return send_mail($config, $user['email'], $subject, email_layout($config, $inner, $subject . ' sur ' . $name), $from, $from);
+}
+
+// ---- Sauvegarde de la base (export JSON) ------------------------------------
+/** Exporte toutes les tables métier dans un tableau (pour sauvegarde / restauration). */
+function export_all(PDO $pdo): array {
+  $tables = ['users', 'profiles', 'listings', 'conversations', 'messages', 'orders',
+             'order_items', 'reviews', 'newsletter', 'admins', 'user_interests',
+             'reports', 'visits', 'saved_searches'];
+  $data = [];
+  foreach ($tables as $t) {
+    try { $data[$t] = $pdo->query("SELECT * FROM $t")->fetchAll(PDO::FETCH_ASSOC); }
+    catch (Throwable $e) { $data[$t] = []; /* table absente : on ignore */ }
+  }
+  $counts = [];
+  foreach ($data as $t => $rows) $counts[$t] = count($rows);
+  return ['app' => 'chap.ci', 'version' => 1, 'generated_at' => now_iso(), 'counts' => $counts, 'tables' => $data];
+}
+/** Prévient l'administrateur qu'une sauvegarde automatique vient d'être créée. */
+function send_backup_email(array $config, array $dump, string $file, int $bytes): void {
+  $admins = $config['admin_emails'] ?? [];
+  if (!$admins) return;
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $rows = '';
+  foreach ($dump['counts'] as $t => $c) {
+    $rows .= '<tr><td style="padding:3px 0;color:#6b7280">' . htmlspecialchars($t) . '</td>'
+      . '<td style="padding:3px 0;text-align:right"><b>' . (int) $c . '</b></td></tr>';
+  }
+  $kb = number_format($bytes / 1024, 0, ',', ' ');
+  $inner =
+    '<h2 style="margin-top:0">💾 Sauvegarde effectuée</h2>'
+    . '<p>Une sauvegarde automatique de la base de <b>' . htmlspecialchars($name) . '</b> a été créée sur le serveur.</p>'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:10px 0;font-size:14px">' . $rows . '</table>'
+    . '<p style="color:#6b7280;font-size:13px">Fichier : <b>' . htmlspecialchars($file) . '</b> (' . $kb . ' Ko). '
+    . 'Les 7 dernières sauvegardes sont conservées. Téléchargez-les depuis votre tableau de bord.</p>';
+  foreach ($admins as $to) send_mail($config, $to, "💾 Sauvegarde Chap.ci — $file", email_layout($config, $inner, 'Sauvegarde de la base'));
 }
 
 /** Série temporelle des visites selon la granularité (jour/semaine/mois/année). */
@@ -994,6 +1129,43 @@ try {
     jout(['ok' => true, 'autoHidden' => $autoHidden]);
   }
 
+  // ---------- RECHERCHES SAUVEGARDÉES (alertes email) ----------
+  // Liste mes alertes.
+  if ($path === 'searches' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM saved_searches WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => [
+      'id' => $r['id'], 'label' => $r['label'], 'params' => $r['params'],
+      'createdAt' => iso_to_ms($r['created_at']),
+    ], $st->fetchAll()));
+  }
+  // Créer une alerte (max 20 par personne).
+  if ($path === 'searches' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $label  = substr(trim((string) ($b['label'] ?? '')), 0, 120);
+    $params2 = ltrim(substr(trim((string) ($b['params'] ?? '')), 0, 600), '?');
+    if ($label === '') jerr('Nom de l’alerte manquant.');
+    $cnt = $pdo->prepare('SELECT COUNT(*) AS c FROM saved_searches WHERE user_id = ?');
+    $cnt->execute([$u['id']]);
+    if ((int) $cnt->fetch()['c'] >= 20) jerr('Vous avez atteint la limite de 20 alertes.', 400);
+    $id = uuid();
+    // Point de départ = maintenant : on n'alerte que sur les annonces publiées ensuite.
+    $pdo->prepare('INSERT INTO saved_searches (id,user_id,label,params,last_notified_at,created_at) VALUES (?,?,?,?,?,?)')
+        ->execute([$id, $u['id'], $label, $params2, now_iso(), now_iso()]);
+    jout(['id' => $id, 'label' => $label, 'params' => $params2, 'createdAt' => iso_to_ms(now_iso())]);
+  }
+  // Supprimer une alerte.
+  if (count($seg) === 2 && $seg[0] === 'searches' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id FROM saved_searches WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Alerte introuvable.', 404);
+    if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $pdo->prepare('DELETE FROM saved_searches WHERE id = ?')->execute([$seg[1]]);
+    jout(['ok' => true]);
+  }
+
   // ---------- CONVERSATIONS & MESSAGES ----------
   if ($path === 'conversations' && $method === 'GET') {
     $u = require_user($pdo, $secret); $id = $u['id'];
@@ -1238,6 +1410,38 @@ try {
     // (sans erreur 403) — sert à afficher/masquer le lien dans l'app.
     if ($path === 'admin/check') jout(['admin' => $userIsAdmin]);
     if (!$userIsAdmin) jerr('Accès réservé à l’administrateur.', 403);
+
+    // Sauvegarde immédiate : télécharge un export JSON complet de la base.
+    if ($path === 'admin/backup' && $method === 'GET') {
+      $dump = export_all($pdo);
+      $json = json_encode($dump, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+      $file = 'chapci-' . gmdate('Y-m-d-His') . '.json';
+      header('Content-Type: application/json; charset=utf-8');
+      header('Content-Disposition: attachment; filename="' . $file . '"');
+      header('Content-Length: ' . strlen($json));
+      echo $json; exit;
+    }
+    // Liste des sauvegardes automatiques présentes sur le serveur.
+    if ($path === 'admin/backups' && $method === 'GET') {
+      $dir = __DIR__ . '/backups';
+      $files = is_dir($dir) ? (glob($dir . '/chapci-*.json') ?: []) : [];
+      rsort($files);
+      $out = array_map(fn($f) => [
+        'file' => basename($f), 'bytes' => (int) @filesize($f), 'at' => iso_to_ms(gmdate('Y-m-d\TH:i:s\Z', (int) @filemtime($f))),
+      ], $files);
+      jout(['cronKey' => $config['cron_key'] ?? '', 'site' => rtrim($config['site_url'] ?? 'https://chap.ci', '/'), 'backups' => $out]);
+    }
+    // Télécharge une sauvegarde automatique précise (nom de fichier sécurisé).
+    if ($path === 'admin/backup/download' && $method === 'GET') {
+      $file = basename((string) ($_GET['file'] ?? ''));
+      if (!preg_match('/^chapci-[0-9\-]+\.json$/', $file)) jerr('Nom de fichier invalide.', 400);
+      $full = __DIR__ . '/backups/' . $file;
+      if (!is_file($full)) jerr('Sauvegarde introuvable.', 404);
+      header('Content-Type: application/json; charset=utf-8');
+      header('Content-Disposition: attachment; filename="' . $file . '"');
+      header('Content-Length: ' . (string) filesize($full));
+      readfile($full); exit;
+    }
 
     // Vue d'ensemble : compteurs + activité récente.
     if ($path === 'admin/stats' && $method === 'GET') {
@@ -1643,6 +1847,56 @@ try {
       if ($r['sent']) $emailed++;
     }
     jout(['users' => $reached, 'emailed' => $emailed]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : alertes « recherches sauvegardées » ----------
+  // Pour chaque alerte, on cherche les annonces publiées depuis la dernière
+  // notification. S'il y en a, on prévient par email et on avance le curseur.
+  if ($path === 'cron/alerts' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $searches = $pdo->query('SELECT s.*, u.email FROM saved_searches s JOIN users u ON u.id = s.user_id')->fetchAll();
+    $checked = 0; $emailed = 0; $matched = 0;
+    foreach ($searches as $s) {
+      $checked++;
+      $rows = search_matching_listings($pdo, (string) $s['params'], (string) ($s['last_notified_at'] ?? ''));
+      if ($rows) {
+        $rows = array_slice($rows, 0, 8);
+        $matched += count($rows);
+        if (send_search_alert($config, ['email' => $s['email']], (string) $s['label'], $rows, (string) $s['params'])) $emailed++;
+      }
+      // On avance toujours le curseur (évite de renvoyer les mêmes annonces).
+      $pdo->prepare('UPDATE saved_searches SET last_notified_at = ? WHERE id = ?')->execute([now_iso(), $s['id']]);
+    }
+    jout(['searches' => $checked, 'matched' => $matched, 'emailed' => $emailed]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : sauvegarde automatique de la base ----------
+  // Écrit un export JSON dans api/backups/ (dossier protégé), garde les 7 plus
+  // récents et prévient l'administrateur par email.
+  if ($path === 'cron/backup' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $dir = __DIR__ . '/backups';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    if (!is_dir($dir) || !is_writable($dir)) {
+      jerr('Dossier api/backups/ non inscriptible (droits).', 500);
+    }
+    // Protège le dossier des accès web directs.
+    if (!is_file($dir . '/.htaccess')) @file_put_contents($dir . '/.htaccess', "Require all denied\nDeny from all\n");
+    $dump = export_all($pdo);
+    $json = json_encode($dump, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $file = 'chapci-' . gmdate('Y-m-d-His') . '.json';
+    $bytes = @file_put_contents($dir . '/' . $file, $json);
+    if ($bytes === false) jerr('Écriture de la sauvegarde impossible.', 500);
+    // Rotation : ne conserver que les 7 sauvegardes les plus récentes.
+    $files = glob($dir . '/chapci-*.json') ?: [];
+    rsort($files);
+    foreach (array_slice($files, 7) as $old) @unlink($old);
+    send_backup_email($config, $dump, $file, (int) $bytes);
+    jout(['ok' => true, 'file' => $file, 'bytes' => (int) $bytes, 'counts' => $dump['counts']]);
   }
 
   if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION]);

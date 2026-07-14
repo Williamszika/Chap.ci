@@ -365,3 +365,39 @@ export async function phpGetSmtp(): Promise<SmtpSettings> {
 export async function phpSaveSmtp(s: { host: string; port: string; secure: string; user: string; pass: string }): Promise<void> {
   await req('/admin/smtp', { method: 'POST', body: s })
 }
+
+// ---- Recherches sauvegardées (alertes email) -------------------------------
+export interface SavedSearch { id: string; label: string; params: string; createdAt: number }
+export async function phpSavedSearches(): Promise<SavedSearch[]> {
+  return req<SavedSearch[]>('/searches')
+}
+export async function phpCreateSavedSearch(label: string, params: string): Promise<SavedSearch> {
+  return req<SavedSearch>('/searches', { method: 'POST', body: { label, params } })
+}
+export async function phpDeleteSavedSearch(id: string): Promise<void> {
+  await req(`/searches/${id}`, { method: 'DELETE' })
+}
+
+// ---- Sauvegarde de la base (admin) -----------------------------------------
+export interface BackupFile { file: string; bytes: number; at: number }
+export async function phpAdminBackups(): Promise<{ cronKey: string; site: string; backups: BackupFile[] }> {
+  return req('/admin/backups')
+}
+/** Télécharge un export JSON de la base (génère un fichier téléchargé par le navigateur). */
+export async function phpDownloadBackup(file?: string): Promise<void> {
+  const token = phpGetToken()
+  const url = file
+    ? `${API}/admin/backup/download?file=${encodeURIComponent(file)}`
+    : `${API}/admin/backup`
+  const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  if (!res.ok) throw new Error(`Erreur ${res.status}`)
+  const blob = await res.blob()
+  const name = file || `chapci-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(a.href)
+}

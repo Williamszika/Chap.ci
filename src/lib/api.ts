@@ -148,3 +148,20 @@ export async function reportListing(listingId: string, reason: string, details: 
   if (isPhp) return php.phpReportListing(listingId, reason, details)
   throw new Error('Le signalement nécessite le backend auto-hébergé.')
 }
+
+// ---- Recherches sauvegardées (alertes email) -------------------------------
+export type { SavedSearch } from './php'
+/** Les alertes ne sont disponibles qu'avec le backend auto-hébergé. */
+export const savedSearchesEnabled = isPhp
+export async function fetchSavedSearches(): Promise<php.SavedSearch[]> {
+  if (isPhp) return php.phpSavedSearches()
+  return []
+}
+export async function createSavedSearch(label: string, params: string): Promise<php.SavedSearch> {
+  if (isPhp) return php.phpCreateSavedSearch(label, params)
+  throw new Error('Les alertes nécessitent le backend auto-hébergé.')
+}
+export async function deleteSavedSearch(id: string): Promise<void> {
+  if (isPhp) return php.phpDeleteSavedSearch(id)
+  throw new Error('Indisponible.')
+}

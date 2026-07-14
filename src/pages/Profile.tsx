@@ -24,6 +24,8 @@ import {
   Pencil,
   Eye,
   EyeOff,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
@@ -39,7 +41,7 @@ import { locationLabel } from '../data/locations'
 import { fetchOrders, updateOrderStatus } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
-import { fetchMyListings, setListingHidden } from '../lib/api'
+import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, type SavedSearch } from '../lib/api'
 import { isPhp } from '../lib/backend'
 import { downscaleImage } from '../lib/image'
 import type { Listing, Order, Review } from '../types'
@@ -448,6 +450,7 @@ export function Profile() {
               <AvatarUpload userId={user.id} currentUrl={avatarUrl} name={displayName} onUpdated={setAvatarUrl} />
             )}
             {user && <SettingsForm userId={user.id} initialName={displayName} />}
+            {user && savedSearchesEnabled && <MyAlerts />}
             {user && <ChangePassword />}
             {user && <TwoFactor />}
 
@@ -517,6 +520,88 @@ export function Profile() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/** « Mes alertes » : recherches sauvegardées (notifications par email). */
+function MyAlerts() {
+  const navigate = useNavigate()
+  const [alerts, setAlerts] = useState<SavedSearch[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchSavedSearches()
+      .then((a) => active && setAlerts(a))
+      .catch(() => {})
+      .finally(() => active && setLoading(false))
+    return () => { active = false }
+  }, [])
+
+  async function remove(id: string) {
+    setBusy(id)
+    try {
+      await deleteSavedSearch(id)
+      setAlerts((prev) => prev.filter((a) => a.id !== id))
+    } catch {
+      alert('Suppression impossible pour le moment.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="card p-4">
+      <p className="mb-1 flex items-center gap-2 text-sm font-bold text-gray-800">
+        <Bell size={16} className="text-primary-500" /> Mes alertes
+      </p>
+      <p className="mb-3 text-xs text-gray-500">
+        Recevez un email dès qu’une nouvelle annonce correspond à vos recherches enregistrées.
+      </p>
+
+      {loading ? (
+        <p className="py-2 text-sm text-gray-400">Chargement…</p>
+      ) : alerts.length === 0 ? (
+        <div className="rounded-xl bg-gray-50 px-3 py-4 text-center">
+          <BellOff size={22} className="mx-auto mb-1.5 text-gray-300" />
+          <p className="text-sm text-gray-500">Aucune alerte pour l’instant.</p>
+          <button
+            onClick={() => navigate('/explorer')}
+            className="mt-2 text-sm font-semibold text-primary-600"
+          >
+            Créer une alerte depuis l’explorateur
+          </button>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {alerts.map((a) => (
+            <li key={a.id} className="flex items-center gap-2 rounded-xl border border-gray-100 p-2.5">
+              <button
+                onClick={() => navigate(`/explorer${a.params ? `?${a.params}` : ''}`)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-600">
+                  <Bell size={15} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-gray-800">{a.label}</span>
+                  <span className="block text-xs text-primary-600">Voir les annonces →</span>
+                </span>
+              </button>
+              <button
+                onClick={() => remove(a.id)}
+                disabled={busy === a.id}
+                className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                aria-label="Supprimer l’alerte"
+              >
+                <Trash2 size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

@@ -233,3 +233,15 @@ export async function saveSmtp(s: { host: string; port: string; secure: string; 
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpSaveSmtp(s)
 }
+
+// ---- Sauvegarde de la base --------------------------------------------------
+export type BackupFile = php.BackupFile
+export async function listBackups() {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminBackups()
+}
+/** Télécharge un export JSON complet de la base (immédiat ou une sauvegarde existante). */
+export async function downloadBackup(file?: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpDownloadBackup(file)
+}
