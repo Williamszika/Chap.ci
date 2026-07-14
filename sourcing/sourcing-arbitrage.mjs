@@ -199,6 +199,27 @@ function economics(c, rates) {
 
 const fmt = (n) => (n == null ? '?' : Math.round(n).toLocaleString('fr-FR'))
 
+// Liens de recherche cliquables vers la marketplace la plus adaptée.
+// On génère des recherches EN DIRECT (une annonce précise part vite) : le lien
+// montre toujours les annonces correspondantes du moment, filtrées par prix.
+function marketLinks(product, source, acqEUR) {
+  const words = String(product).replace(/[^a-zA-Z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean).slice(0, 4)
+  const enc = encodeURIComponent(words.join(' '))
+  const hy = words.join('-').toLowerCase()
+  const src = String(source || '').toLowerCase()
+  const cap = Math.max(30, Math.round((acqEUR || 100) * 1.8)) // plafond de prix (€)
+  const out = []
+  const add = (n, u) => { if (!out.some((x) => x[0] === n)) out.push([n, u]) }
+  if (src.includes('marktplaats')) add('Marktplaats', `https://www.marktplaats.nl/q/${hy}/`)
+  if (src.includes('leboncoin')) add('Leboncoin', `https://www.leboncoin.fr/recherche?text=${enc}`)
+  if (src.includes('wallapop')) add('Wallapop', `https://es.wallapop.com/search?keywords=${enc}`)
+  if (src.includes('vinted')) add('Vinted', `https://www.vinted.fr/catalog?search_text=${enc}`)
+  add('Kleinanzeigen', `https://www.kleinanzeigen.de/s-${hy}/k0`) // + gros marché d'occasion (DE)
+  add('eBay', `https://www.ebay.de/sch/i.html?_nkw=${enc}&_udhi=${cap}&_sop=15`) // prix max + tri prix croissant
+  return out.slice(0, 3)
+}
+const linkMd = (it) => marketLinks(it.product, it.europeSource, it.acquisitionEUR).map(([n, u]) => `[${n}](${u})`).join(' · ')
+
 // =============================================================================
 //  RAPPORT — assemblage markdown (chiffres exacts issus du JS).
 // =============================================================================
@@ -227,6 +248,12 @@ Seuils : marge ≥ ${CONFIG.minMarginPct} % **et** ≥ ${fmt(CONFIG.minMarginFCF
 ${rows}
 
 `
+  const links = `## 🔗 Où acheter — recherche en direct
+_Les liens ouvrent les annonces correspondantes du moment (une annonce précise part vite : mieux vaut une recherche fraîche, déjà filtrée par prix)._
+
+${items.map((it, i) => `${i + 1}. **${it.product}** (≤ ~${fmt(it.acquisitionEUR)} €) → ${linkMd(it)}`).join('\n')}
+
+`
   const advice = `## 💡 Conseils d'achat
 ${items.map((it) => `- **${it.product}** — ${it.buyingTip || it.notes || 'Vérifier l\'état réel et négocier sous le prix typique.'}${it.risk ? ` _(risque : ${it.risk})_` : ''}`).join('\n')}
 
@@ -234,7 +261,7 @@ ${items.map((it) => `- **${it.product}** — ${it.buyingTip || it.notes || 'Vér
   const outlook = marketOutlook ? `## 🔭 Note de marché\n${marketOutlook}\n\n` : ''
   const foot = `---
 _Prix indicatifs (recherche best-effort) — à vérifier au moment de l'achat. Import à déclarer et dédouaner en règle. Généré par le moteur de sourcing Chap.ci._`
-  return head + summary + table + advice + outlook + foot
+  return head + summary + table + links + advice + outlook + foot
 }
 
 // =============================================================================
