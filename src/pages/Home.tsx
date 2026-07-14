@@ -17,6 +17,7 @@ import { Mark, Wordmark } from '../components/Logo'
 import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { Newsletter } from '../components/Newsletter'
+import { IndependenceBanner } from '../components/IndependenceBanner'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { useNotifications } from '../store/NotificationsContext'
@@ -65,6 +66,11 @@ export function Home() {
 
   return (
     <div>
+      {/* Habillage festif « Fête de l'Indépendance » (auto : 1ᵉʳ→10 août, ou ?fete=a/b) */}
+      <div className="px-4">
+        <IndependenceBanner />
+      </div>
+
       {/* En-tête orange (bannière/héro sur desktop) */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-3 text-white md:mt-4 md:rounded-3xl md:px-10 md:pb-9 md:pt-8">
         <div className="flex items-center justify-between">
