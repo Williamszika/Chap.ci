@@ -2,6 +2,7 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { BottomNav } from './components/BottomNav'
 import { TopNav } from './components/TopNav'
+import { Footer } from './components/Footer'
 import { LocationGate } from './components/LocationGate'
 import { NewsletterPrompt } from './components/NewsletterPrompt'
 import { useAuth } from './store/AuthContext'
@@ -24,6 +25,7 @@ import { AdminDashboard } from './pages/AdminDashboard'
 import { Messages } from './pages/Messages'
 import { Conversation } from './pages/Conversation'
 import { SellerProfile } from './pages/SellerProfile'
+import { About } from './pages/About'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -71,6 +73,7 @@ export default function App() {
           <Route path="/confidentialite" element={<Privacy />} />
           <Route path="/conditions" element={<Terms />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/a-propos" element={<About />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/newsletter" element={<AdminDashboard />} />
           <Route path="/messages" element={<Messages />} />
@@ -79,6 +82,7 @@ export default function App() {
           <Route path="*" element={<Home />} />
           </Routes>
         </main>
+        <Footer />
       </div>
       <BottomNav />
       <LocationGate />
