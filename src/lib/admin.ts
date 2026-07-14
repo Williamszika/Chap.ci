@@ -21,6 +21,7 @@ export interface AdminStats {
     users: { day: number; week: number; month: number; year: number }
     listings: { day: number; week: number; month: number; year: number }
   }
+  series?: { date: string; users: number; listings: number }[]
   ordersByStatus: Record<string, number>
   ordersValue: number
   recentListings: Listing[]
@@ -123,6 +124,39 @@ export async function resolveReport(id: string): Promise<void> {
 export async function fetchAdminOrders(): Promise<AdminOrder[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminOrders<AdminOrder[]>()
+}
+
+export interface AdminConversation {
+  id: string
+  buyerEmail?: string | null
+  sellerEmail?: string | null
+  listingTitle?: string | null
+  messages: number
+  lastMessage?: string | null
+  createdAt: number
+}
+export interface AdminReview {
+  id: string
+  rating: number
+  comment?: string | null
+  reviewerName?: string | null
+  reviewerEmail?: string | null
+  sellerEmail?: string | null
+  listingId?: string | null
+  listingTitle?: string | null
+  createdAt: number
+}
+export async function fetchAdminConversations(): Promise<AdminConversation[]> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminConversations<AdminConversation[]>()
+}
+export async function fetchAdminReviews(): Promise<AdminReview[]> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminReviews<AdminReview[]>()
+}
+export async function deleteAdminReview(id: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminDeleteReview(id)
 }
 
 export interface Moderators {

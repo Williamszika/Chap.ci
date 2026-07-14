@@ -303,6 +303,15 @@ export async function phpAdminResolveReport(id: string): Promise<void> {
 export async function phpAdminOrders<T>(): Promise<T> {
   return req<T>('/admin/orders')
 }
+export async function phpAdminConversations<T>(): Promise<T> {
+  return req<T>('/admin/conversations')
+}
+export async function phpAdminReviews<T>(): Promise<T> {
+  return req<T>('/admin/reviews')
+}
+export async function phpAdminDeleteReview(id: string): Promise<void> {
+  await req(`/admin/reviews/${id}`, { method: 'DELETE' })
+}
 export async function phpAdminCheck(): Promise<boolean> {
   try {
     const d = await req<{ admin: boolean }>('/admin/check')

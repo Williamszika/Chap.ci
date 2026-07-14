@@ -1188,6 +1188,20 @@ try {
           'month' => $since($table, $cut(30)), 'year' => $since($table, $cut(365)),
         ];
       };
+      // Série journalière (14 derniers jours) pour les graphiques évolutifs.
+      $dailyMap = function (string $table) use ($pdo): array {
+        $m = [];
+        foreach ($pdo->query("SELECT substr(created_at,1,10) AS d, COUNT(*) AS c FROM $table GROUP BY substr(created_at,1,10)")->fetchAll() as $r) {
+          $m[$r['d']] = (int) $r['c'];
+        }
+        return $m;
+      };
+      $uMap = $dailyMap('users'); $lMap = $dailyMap('listings');
+      $series = [];
+      for ($i = 13; $i >= 0; $i--) {
+        $d = gmdate('Y-m-d', time() - $i * 86400);
+        $series[] = ['date' => $d, 'users' => $uMap[$d] ?? 0, 'listings' => $lMap[$d] ?? 0];
+      }
       jout([
         'users' => $count('users'), 'listings' => $count('listings'),
         'conversations' => $count('conversations'), 'messages' => $count('messages'),
@@ -1196,6 +1210,7 @@ try {
         'reportsOpen' => (int) ($pdo->query("SELECT COUNT(*) AS c FROM reports WHERE status = 'open'")->fetch()['c']),
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
         'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
+        'series' => $series,
         'recentListings' => $recentListings, 'recentUsers' => $recentUsers,
       ]);
     }
@@ -1309,6 +1324,48 @@ try {
     // Marquer un signalement comme traité.
     if (count($seg) === 3 && $seg[1] === 'reports' && $method === 'POST') {
       $pdo->prepare('UPDATE reports SET status = ? WHERE id = ?')->execute(['resolved', $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Conversations (supervision) : parties, annonce, nb de messages, dernier message.
+    if ($path === 'admin/conversations' && $method === 'GET') {
+      $rows = $pdo->query('SELECT c.*, b.email AS buyer_email, s.email AS seller_email,
+          l.title AS listing_title,
+          (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS msg_count,
+          (SELECT m2.body FROM messages m2 WHERE m2.conversation_id = c.id ORDER BY m2.created_at DESC LIMIT 1) AS last_body
+        FROM conversations c
+        LEFT JOIN users b ON b.id = c.buyer_id
+        LEFT JOIN users s ON s.id = c.seller_id
+        LEFT JOIN listings l ON l.id = c.listing_id
+        ORDER BY c.created_at DESC LIMIT 200')->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'buyerEmail' => $r['buyer_email'] ?: null, 'sellerEmail' => $r['seller_email'] ?: null,
+        'listingTitle' => $r['listing_title'] ?: null, 'messages' => (int) $r['msg_count'],
+        'lastMessage' => $r['last_body'] ?: null, 'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Avis (modération) : note, commentaire, auteur, vendeur, annonce.
+    if ($path === 'admin/reviews' && $method === 'GET') {
+      $rows = $pdo->query('SELECT r.*, ru.email AS reviewer_email, su.email AS seller_email,
+          p.full_name AS reviewer_name, l.title AS listing_title
+        FROM reviews r
+        LEFT JOIN users ru ON ru.id = r.reviewer_id
+        LEFT JOIN users su ON su.id = r.seller_id
+        LEFT JOIN profiles p ON p.id = r.reviewer_id
+        LEFT JOIN listings l ON l.id = r.listing_id
+        ORDER BY r.created_at DESC LIMIT 200')->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'rating' => (int) $r['rating'], 'comment' => $r['comment'] ?: null,
+        'reviewerName' => $r['reviewer_name'] ?: null, 'reviewerEmail' => $r['reviewer_email'] ?: null,
+        'sellerEmail' => $r['seller_email'] ?: null, 'listingId' => $r['listing_id'],
+        'listingTitle' => $r['listing_title'] ?: null, 'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Supprimer un avis abusif.
+    if (count($seg) === 3 && $seg[1] === 'reviews' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM reviews WHERE id = ?')->execute([$seg[2]]);
       jout(['ok' => true]);
     }
 

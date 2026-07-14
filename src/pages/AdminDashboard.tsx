@@ -14,13 +14,14 @@ import {
   fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
+  fetchAdminConversations, fetchAdminReviews, deleteAdminReview,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
-  type AdminUserDetail, type Report, type UserStatus,
+  type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -75,7 +76,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -93,6 +94,8 @@ export function AdminDashboard() {
         {tab === 'users' && <UsersTab />}
         {tab === 'reports' && <ReportsTab />}
         {tab === 'orders' && <OrdersTab />}
+        {tab === 'conversations' && <ConversationsTab />}
+        {tab === 'reviews' && <ReviewsTab />}
         {tab === 'newsletter' && <NewsletterTab />}
         {tab === 'campaigns' && <CampaignsTab />}
         {tab === 'moderators' && <ModeratorsTab />}
@@ -108,8 +111,8 @@ function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }
     { icon: <Users size={18} />, label: 'Utilisateurs', value: stats.users, tab: 'users' },
     { icon: <Package size={18} />, label: 'Annonces', value: stats.listings, tab: 'listings' },
     { icon: <ShoppingBag size={18} />, label: 'Commandes', value: stats.orders, tab: 'orders' },
-    { icon: <MessageSquare size={18} />, label: 'Conversations', value: stats.conversations },
-    { icon: <Star size={18} />, label: 'Avis', value: stats.reviews },
+    { icon: <MessageSquare size={18} />, label: 'Conversations', value: stats.conversations, tab: 'conversations' },
+    { icon: <Star size={18} />, label: 'Avis', value: stats.reviews, tab: 'reviews' },
     { icon: <Mail size={18} />, label: 'Abonnés', value: stats.newsletter, tab: 'newsletter' },
     { icon: <Flag size={18} />, label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
   ]
@@ -142,6 +145,9 @@ function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }
           <PeriodStats title="Nouvelles annonces" icon={<Package size={16} />} data={stats.periods.listings} onGo={() => onGo('listings')} />
         </>
       )}
+
+      {/* Graphique évolutif sur 14 jours */}
+      {stats.series && stats.series.length > 0 && <TrendChart series={stats.series} />}
 
       <div className="rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card">
         <span className="flex items-center gap-2 text-sm font-medium text-white/90"><Wallet size={16} /> Valeur totale des commandes</span>
@@ -225,6 +231,113 @@ function PeriodStats({
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Graphique évolutif (barres) sur 14 jours, avec bascule Inscrits / Annonces.
+function TrendChart({ series }: { series: { date: string; users: number; listings: number }[] }) {
+  const [metric, setMetric] = useState<'users' | 'listings'>('users')
+  const max = Math.max(1, ...series.map((d) => d[metric]))
+  const total = series.reduce((s, d) => s + d[metric], 0)
+  const dayNum = (iso: string) => iso.slice(8, 10)
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-card">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="flex items-center gap-2 text-sm font-bold text-gray-800">
+          <TrendingUp size={16} className="text-primary-500" /> Évolution (14 jours)
+        </p>
+        <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
+          <button onClick={() => setMetric('users')} className={`rounded-md px-2.5 py-1 ${metric === 'users' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Inscrits</button>
+          <button onClick={() => setMetric('listings')} className={`rounded-md px-2.5 py-1 ${metric === 'listings' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Annonces</button>
+        </div>
+      </div>
+      <div className="flex h-28 items-end gap-1">
+        {series.map((d) => {
+          const v = d[metric]
+          const h = Math.round((v / max) * 100)
+          return (
+            <div key={d.date} className="group flex flex-1 flex-col items-center justify-end" title={`${d.date} : ${v}`}>
+              <span className="mb-0.5 text-[9px] font-bold text-primary-600">{v > 0 ? v : ''}</span>
+              <div className="w-full rounded-t bg-primary-400 transition group-hover:bg-primary-500" style={{ height: `${Math.max(h, v > 0 ? 10 : 2)}%` }} />
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-1.5 flex justify-between text-[10px] text-gray-400">
+        <span>{dayNum(series[0].date)}</span>
+        <span className="font-semibold text-gray-500">{total} au total · 14 j</span>
+        <span>{dayNum(series[series.length - 1].date)}</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Conversations (supervision) ----------
+function ConversationsTab() {
+  const [items, setItems] = useState<AdminConversation[] | null>(null)
+  const [err, setErr] = useState('')
+  const load = () => { setItems(null); setErr(''); fetchAdminConversations().then(setItems).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  return (
+    <div className="space-y-2">
+      <RowHead count={items.length} label="conversation" />
+      {items.map((c) => (
+        <div key={c.id} className="rounded-2xl bg-white p-3 shadow-card">
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate text-sm font-semibold text-gray-800">{c.listingTitle || 'Conversation'}</p>
+            <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">{c.messages} msg</span>
+          </div>
+          <p className="mt-0.5 truncate text-xs text-gray-500">{c.buyerEmail || '—'} ↔ {c.sellerEmail || '—'}</p>
+          {c.lastMessage && <p className="mt-1 truncate rounded-lg bg-gray-50 px-2 py-1 text-xs text-gray-600">« {c.lastMessage} »</p>}
+          <p className="mt-1 text-[11px] text-gray-400">{timeAgo(c.createdAt)}</p>
+        </div>
+      ))}
+      {items.length === 0 && <Empty>Aucune conversation.</Empty>}
+    </div>
+  )
+}
+
+// ---------- Avis (modération) ----------
+function ReviewsTab() {
+  const [items, setItems] = useState<AdminReview[] | null>(null)
+  const [err, setErr] = useState('')
+  const load = () => { setItems(null); setErr(''); fetchAdminReviews().then(setItems).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+  const remove = async (r: AdminReview) => {
+    if (!confirm('Supprimer cet avis ?')) return
+    try { await deleteAdminReview(r.id); setItems((p) => (p ?? []).filter((x) => x.id !== r.id)) }
+    catch (e) { alert((e as Error).message) }
+  }
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  return (
+    <div className="space-y-2">
+      <RowHead count={items.length} label="avis" />
+      {items.map((r) => (
+        <div key={r.id} className="rounded-2xl bg-white p-3 shadow-card">
+          <div className="flex items-center justify-between">
+            <p className="truncate text-sm font-semibold text-gray-800">{r.reviewerName || r.reviewerEmail || 'Acheteur'}</p>
+            <span className="flex shrink-0 items-center gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} size={13} className={i < r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'} />
+              ))}
+            </span>
+          </div>
+          {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="truncate text-[11px] text-gray-400">
+              {r.listingTitle ? `Sur « ${r.listingTitle} » · ` : ''}{timeAgo(r.createdAt)}
+            </p>
+            <button onClick={() => remove(r)} className="shrink-0 rounded-lg p-1.5 text-red-500 hover:bg-red-50" aria-label="Supprimer l’avis">
+              <Trash2 size={15} />
+            </button>
+          </div>
+        </div>
+      ))}
+      {items.length === 0 && <Empty>Aucun avis.</Empty>}
     </div>
   )
 }
