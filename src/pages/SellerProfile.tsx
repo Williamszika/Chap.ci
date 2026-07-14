@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Store, MapPin, Package } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { fetchProfile, type PublicProfile } from '../lib/profiles'
-import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
+import { fetchReviewsForSeller, fetchReviewsForTarget, averageRating } from '../lib/reviews'
+import { isPhp } from '../lib/backend'
 import { ListingCard } from '../components/ListingCard'
 import { Stars } from '../components/Stars'
 import { timeAgo } from '../lib/format'
@@ -25,7 +26,8 @@ export function SellerProfile() {
   useEffect(() => {
     if (!id) return
     let active = true
-    Promise.all([fetchProfile(id), fetchReviewsForSeller(id)])
+    // Réputation unifiée : avis reçus comme vendeur ET comme acheteur (PHP).
+    Promise.all([fetchProfile(id), isPhp ? fetchReviewsForTarget(id) : fetchReviewsForSeller(id)])
       .then(([p, r]) => {
         if (!active) return
         setProfile(p)
@@ -125,7 +127,12 @@ export function SellerProfile() {
                 className={`card w-full p-3 text-left ${clickable ? 'transition hover:shadow-md active:scale-[0.99]' : ''}`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-800">{r.reviewerName}</span>
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+                    {r.reviewerName}
+                    {r.kind === 'buyer' && (
+                      <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-600">acheteur</span>
+                    )}
+                  </span>
                   <Stars value={r.rating} size={14} />
                 </div>
                 {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}

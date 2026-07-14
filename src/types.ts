@@ -57,6 +57,8 @@ export interface Listing {
   attributes?: Record<string, string>
   /** Annonce masquée (par le vendeur ou la modération) : invisible du public. */
   hidden?: boolean
+  /** Annonce vendue : retirée du public, badge « Vendu ». */
+  sold?: boolean
 }
 
 export interface LocationFilter {
@@ -131,4 +133,7 @@ export interface Review {
   comment?: string
   createdAt: number
   reviewerName?: string
+  /** Personne notée (vendeur ou acheteur). Avis à double sens. */
+  targetId?: string
+  kind?: 'seller' | 'buyer'
 }

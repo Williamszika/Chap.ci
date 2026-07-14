@@ -105,6 +105,18 @@ const sections: Section[] = [
         ),
       },
       {
+        q: 'Comment confirmer un achat et laisser un avis ?',
+        a: (
+          <>
+            Comme la transaction se fait de la main à la main (Mobile Money, espèces…), c’est vous qui la
+            confirmez. Dans la <b>conversation</b> avec le vendeur : cliquez sur <b>« J’ai acheté »</b>, puis
+            <b> « Bien reçu »</b> une fois l’article en main. Vous pouvez alors <b>noter le vendeur</b> ⭐.
+            Le vendeur, de son côté, peut vous noter en tant qu’acheteur. Si vous oubliez, on vous envoie un
+            petit rappel par email.
+          </>
+        ),
+      },
+      {
         q: 'Comment enregistrer une recherche pour être prévenu ?',
         a: (
           <>

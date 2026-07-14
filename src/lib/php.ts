@@ -232,16 +232,46 @@ export async function phpFetchReviewsForSeller(sellerId: string): Promise<Review
 export async function phpFetchReviewsForListing(listingId: string): Promise<Review[]> {
   return req<Review[]>(`/reviews?listing_id=${encodeURIComponent(listingId)}`)
 }
+export async function phpFetchReviewsForTarget(targetId: string): Promise<Review[]> {
+  return req<Review[]>(`/reviews?target_id=${encodeURIComponent(targetId)}`)
+}
 export async function phpCreateReview(input: {
   listingId: string
   sellerId: string
   rating: number
   comment?: string
+  targetId?: string
+  kind?: 'seller' | 'buyer'
 }): Promise<void> {
   await req('/reviews', {
     method: 'POST',
-    body: { listingId: input.listingId, sellerId: input.sellerId, rating: input.rating, comment: input.comment ?? null },
+    body: {
+      listingId: input.listingId, sellerId: input.sellerId,
+      targetId: input.targetId ?? input.sellerId, kind: input.kind ?? 'seller',
+      rating: input.rating, comment: input.comment ?? null,
+    },
   })
+}
+
+// ---- Suivi de transaction (« deal » d'une conversation) --------------------
+export interface DealState {
+  role: 'buyer' | 'seller'
+  listingId: string | null
+  listingTitle: string | null
+  sellerId: string
+  buyerId: string
+  otherId: string
+  otherName: string
+  order: { id: string; status: 'en_cours' | 'finalise' | 'annule'; sellerConfirmed: boolean } | null
+  sold: boolean
+  iReviewed: boolean
+  myRating: number | null
+}
+export async function phpGetDeal(convId: string): Promise<DealState> {
+  return req<DealState>(`/conversations/${convId}/deal`)
+}
+export async function phpDealAction(convId: string, action: 'bought' | 'received' | 'sold' | 'cancel'): Promise<void> {
+  await req(`/conversations/${convId}/deal`, { method: 'POST', body: { action } })
 }
 
 // ---- Profils ----------------------------------------------------------------

@@ -9,6 +9,7 @@ import {
   sendMessage,
   subscribeMessages,
 } from '../lib/messages'
+import { DealCard } from '../components/DealCard'
 import type { Conversation as Conv, Message } from '../types'
 
 export function Conversation() {
@@ -113,6 +114,9 @@ export function Conversation() {
           )}
         </div>
       </header>
+
+      {/* Suivi de transaction (achat / réception / avis) */}
+      {id && conv?.listingId && <DealCard convId={id} userId={user.id} />}
 
       {/* Messages */}
       <div className="flex-1 space-y-2 overflow-y-auto px-3 py-4">

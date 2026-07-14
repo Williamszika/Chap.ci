@@ -60,8 +60,14 @@ export async function createReview(input: {
   reviewerId: string
   rating: number
   comment?: string
+  /** Personne notée (par défaut le vendeur). Pour un avis vendeur→acheteur : l'acheteur. */
+  targetId?: string
+  kind?: 'seller' | 'buyer'
 }): Promise<void> {
-  if (isPhp) return php.phpCreateReview({ listingId: input.listingId, sellerId: input.sellerId, rating: input.rating, comment: input.comment })
+  if (isPhp) return php.phpCreateReview({
+    listingId: input.listingId, sellerId: input.sellerId, rating: input.rating, comment: input.comment,
+    targetId: input.targetId ?? input.sellerId, kind: input.kind ?? 'seller',
+  })
   if (!supabase) throw new Error('Supabase non configuré')
   const { error } = await supabase.from('reviews').insert({
     listing_id: input.listingId,
@@ -71,6 +77,12 @@ export async function createReview(input: {
     comment: input.comment ?? null,
   })
   if (error) throw error
+}
+
+/** Tous les avis REÇUS par une personne (comme vendeur et comme acheteur). PHP uniquement. */
+export async function fetchReviewsForTarget(targetId: string): Promise<Review[]> {
+  if (isPhp) return php.phpFetchReviewsForTarget(targetId)
+  return []
 }
 
 /** Note moyenne + nombre d'avis. */

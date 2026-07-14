@@ -445,7 +445,11 @@ export function ListingDetail() {
 
       {/* Barre d'action fixe */}
       <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white px-4 py-3 shadow-nav safe-bottom">
-        {isMine ? (
+        {listing.sold ? (
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-semibold text-gray-500">
+            <BadgeCheck size={18} /> Article vendu
+          </div>
+        ) : isMine ? (
           <Link to="/compte" className="btn-outline w-full py-3">
             Gérer mon annonce
           </Link>

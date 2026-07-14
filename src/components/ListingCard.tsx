@@ -36,12 +36,19 @@ export function ListingCard({ listing }: { listing: Listing }) {
         />
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
           {promo && <PromoTag percent={promo.percent} height={20} />}
-          {listing.featured && (
+          {listing.featured && !listing.sold && (
             <span className="rounded-full bg-primary-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
               À la une
             </span>
           )}
         </div>
+        {listing.sold && (
+          <div className="absolute inset-0 grid place-items-center bg-black/45">
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-gray-800 shadow">
+              Vendu
+            </span>
+          </div>
+        )}
         <button
           onClick={(e) => {
             e.preventDefault()

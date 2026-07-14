@@ -207,6 +207,25 @@ function migrate(PDO $pdo): void {
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE users ADD COLUMN status $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Suivi de transaction : annonce vendue, confirmation vendeur, relance d'avis.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN sold $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN listing_id $id"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN seller_confirmed $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN review_reminded_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN reminder_count $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Avis à double sens : qui est noté (target_id) et à quel titre (kind).
+  try { $pdo->exec("ALTER TABLE reviews ADD COLUMN target_id $id"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE reviews ADD COLUMN kind $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Rétro-compat : les avis existants notaient le vendeur.
+  try { $pdo->exec("UPDATE reviews SET target_id = seller_id WHERE target_id IS NULL OR target_id = ''"); } catch (Throwable $e) {}
+  try { $pdo->exec("UPDATE reviews SET kind = 'seller' WHERE kind IS NULL OR kind = ''"); } catch (Throwable $e) {}
 }
 
 // ---- Auth courant -----------------------------------------------------------
@@ -693,7 +712,7 @@ function search_matching_listings(PDO $pdo, string $paramsStr, string $sinceIso 
   $region  = trim((string) ($p['region'] ?? ''));
   $ville   = trim((string) ($p['ville'] ?? ''));
   $commune = trim((string) ($p['commune'] ?? ''));
-  $rows = $pdo->query('SELECT * FROM listings WHERE hidden IS NULL OR hidden = 0 ORDER BY created_at DESC LIMIT 500')->fetchAll();
+  $rows = $pdo->query('SELECT * FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) ORDER BY created_at DESC LIMIT 500')->fetchAll();
   $now = now_iso();
   $out = [];
   foreach ($rows as $l) {
@@ -789,6 +808,29 @@ function send_backup_email(array $config, array $dump, string $file, int $bytes)
     . '<p style="color:#6b7280;font-size:13px">Fichier : <b>' . htmlspecialchars($file) . '</b> (' . $kb . ' Ko). '
     . 'Les 7 dernières sauvegardes sont conservées. Téléchargez-les depuis votre tableau de bord.</p>';
   foreach ($admins as $to) send_mail($config, $to, "💾 Sauvegarde Chap.ci — $file", email_layout($config, $inner, 'Sauvegarde de la base'));
+}
+
+/** Invitation (ou relance) à laisser un avis après une transaction. */
+function send_review_invite_email(array $config, string $to, string $counterpartName, string $listingTitle, string $convId, string $role): bool {
+  if ($to === '') return false;
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $link = $site . '/#/messages/' . rawurlencode($convId);
+  $who  = htmlspecialchars($counterpartName ?: 'votre interlocuteur');
+  $what = $listingTitle !== '' ? ' pour <b>« ' . htmlspecialchars(mb_strimwidth($listingTitle, 0, 50, '…')) . ' »</b>' : '';
+  $intro = $role === 'seller'
+    ? 'Vous avez conclu une vente avec <b>' . $who . '</b>' . $what . '. Comment s’est passée la transaction ?'
+    : 'Vous avez conclu un achat avec <b>' . $who . '</b>' . $what . '. Comment s’est passée la transaction ?';
+  $inner =
+    '<h2 style="margin-top:0">⭐ Laissez un avis</h2>'
+    . '<p>' . $intro . '</p>'
+    . '<p>Votre avis aide toute la communauté <b>' . htmlspecialchars($name) . '</b> à acheter et vendre en confiance. '
+    . 'Ça ne prend que 10 secondes 👇</p>'
+    . email_button($link, 'Noter ' . $who)
+    . '<p style="color:#6b7280;font-size:13px;margin-top:16px">Si la transaction n’a finalement pas eu lieu, ignorez simplement cet email.</p>';
+  $subject = '⭐ Votre avis sur votre transaction avec ' . mb_strimwidth($counterpartName ?: 'un membre', 0, 30, '…');
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  return send_mail($config, $to, $subject, email_layout($config, $inner, $subject), $from, $from);
 }
 
 /** Série temporelle des visites selon la granularité (jour/semaine/mois/année). */
@@ -898,6 +940,7 @@ function listing_out(array $r): array {
     'promoUntil' => $r['promo_until'] ? iso_to_ms($r['promo_until']) : null,
     'attributes' => !empty($r['attributes']) ? (json_decode($r['attributes'], true) ?: null) : null,
     'hidden' => !empty($r['hidden']),
+    'sold' => !empty($r['sold']),
   ];
 }
 
@@ -990,7 +1033,7 @@ try {
   // ---------- LISTINGS ----------
   if ($path === 'listings' && $method === 'GET') {
     // Le public ne voit pas les annonces masquées (par le vendeur ou la modération).
-    $rows = $pdo->query('SELECT * FROM listings WHERE hidden IS NULL OR hidden = 0 ORDER BY created_at DESC LIMIT 500')->fetchAll();
+    $rows = $pdo->query('SELECT * FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) ORDER BY created_at DESC LIMIT 500')->fetchAll();
     jout(array_map('listing_out', $rows));
   }
 
@@ -1297,17 +1340,117 @@ try {
     jout(array_values(array_filter(array_column($st->fetchAll(), 'listing_id'))));
   }
 
-  // ---------- REVIEWS ----------
+  // ---------- SUIVI DE TRANSACTION (« deal » lié à une conversation) ----------
+  // État du deal pour l'utilisateur courant : rôle, commande, annonce vendue,
+  // avis déjà laissé. Sert à afficher la bonne action dans la conversation.
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'deal' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT * FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $isBuyer = $conv['buyer_id'] === $u['id']; $isSeller = $conv['seller_id'] === $u['id'];
+    if (!$isBuyer && !$isSeller) jerr('Non autorisé.', 403);
+    $otherId = $isBuyer ? $conv['seller_id'] : $conv['buyer_id'];
+    $os = $pdo->prepare('SELECT * FROM orders WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+    $os->execute([$seg[1]]); $order = $os->fetch() ?: null;
+    $listingId = $conv['listing_id']; $listingTitle = null; $sold = false;
+    if ($listingId) {
+      $ls = $pdo->prepare('SELECT title, sold FROM listings WHERE id = ?'); $ls->execute([$listingId]);
+      if ($lr = $ls->fetch()) { $listingTitle = $lr['title']; $sold = !empty($lr['sold']); }
+    }
+    $rv = $pdo->prepare('SELECT rating FROM reviews WHERE reviewer_id = ? AND target_id = ? ORDER BY created_at DESC LIMIT 1');
+    $rv->execute([$u['id'], $otherId]); $mine = $rv->fetch();
+    $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$otherId]);
+    jout([
+      'role' => $isBuyer ? 'buyer' : 'seller',
+      'listingId' => $listingId, 'listingTitle' => $listingTitle,
+      'sellerId' => $conv['seller_id'], 'buyerId' => $conv['buyer_id'],
+      'otherId' => $otherId, 'otherName' => ($pn->fetch()['full_name'] ?? null) ?: 'Utilisateur',
+      'order' => $order ? ['id' => $order['id'], 'status' => $order['status'] ?: 'en_cours',
+                           'sellerConfirmed' => !empty($order['seller_confirmed'])] : null,
+      'sold' => $sold,
+      'iReviewed' => $mine ? true : false,
+      'myRating' => $mine ? (int) $mine['rating'] : null,
+    ]);
+  }
+  // Action sur le deal : bought / received / sold / cancel.
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'deal' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $cs = $pdo->prepare('SELECT * FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $isBuyer = $conv['buyer_id'] === $u['id']; $isSeller = $conv['seller_id'] === $u['id'];
+    if (!$isBuyer && !$isSeller) jerr('Non autorisé.', 403);
+    $action = (string) ($b['action'] ?? '');
+    $listingId = $conv['listing_id'];
+    $os = $pdo->prepare('SELECT * FROM orders WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+    $os->execute([$seg[1]]); $order = $os->fetch() ?: null;
+    // Crée la commande « deal » à partir de la conversation (1 annonce).
+    $ensureOrder = function (string $status) use ($pdo, $conv, $listingId, &$order): array {
+      if ($order) return $order;
+      $oid = uuid();
+      $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,listing_id,status,created_at) VALUES (?,?,?,?,?,?,?)')
+          ->execute([$oid, $conv['buyer_id'], $conv['seller_id'], $conv['id'], $listingId, $status, now_iso()]);
+      if ($listingId) {
+        $ls = $pdo->prepare('SELECT title,price,images FROM listings WHERE id = ?'); $ls->execute([$listingId]);
+        if ($lr = $ls->fetch()) {
+          $imgs = json_decode($lr['images'] ?: '[]', true); $img = $imgs[0] ?? null;
+          $pdo->prepare('INSERT INTO order_items (id,order_id,listing_id,title,price,image) VALUES (?,?,?,?,?,?)')
+              ->execute([uuid(), $oid, $listingId, $lr['title'] ?? '', (int) ($lr['price'] ?? 0), $img]);
+        }
+      }
+      $s = $pdo->prepare('SELECT * FROM orders WHERE id = ?'); $s->execute([$oid]);
+      $order = $s->fetch();
+      return $order;
+    };
+    if ($action === 'bought' && $isBuyer) {
+      $ensureOrder('en_cours');
+      jout(['ok' => true, 'status' => 'en_cours']);
+    }
+    if ($action === 'received' && $isBuyer) {
+      $o = $ensureOrder('finalise');
+      $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['finalise', $o['id']]);
+      // Achat livré = annonce vendue : on la retire du public.
+      if ($listingId) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ?')->execute([$listingId]);
+      jout(['ok' => true, 'status' => 'finalise']);
+    }
+    if ($action === 'sold' && $isSeller) {
+      if ($listingId) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ? AND user_id = ?')->execute([$listingId, $u['id']]);
+      $o = $ensureOrder('en_cours');
+      $pdo->prepare('UPDATE orders SET seller_confirmed = 1 WHERE id = ?')->execute([$o['id']]);
+      jout(['ok' => true, 'sold' => true]);
+    }
+    if ($action === 'cancel') {
+      if ($order) $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['annule', $order['id']]);
+      if ($isSeller && $listingId) $pdo->prepare('UPDATE listings SET sold = 0 WHERE id = ? AND user_id = ?')->execute([$listingId, $u['id']]);
+      jout(['ok' => true, 'status' => 'annule']);
+    }
+    jerr('Action invalide pour votre rôle.', 400);
+  }
+
+  // ---------- REVIEWS (à double sens : acheteur ↔ vendeur) ----------
   if ($path === 'reviews' && $method === 'GET') {
     $sellerId = $_GET['seller_id'] ?? null; $listingId = $_GET['listing_id'] ?? null;
-    if ($sellerId) { $st = $pdo->prepare('SELECT * FROM reviews WHERE seller_id = ? ORDER BY created_at DESC'); $st->execute([$sellerId]); }
-    elseif ($listingId) { $st = $pdo->prepare('SELECT * FROM reviews WHERE listing_id = ? ORDER BY created_at DESC'); $st->execute([$listingId]); }
-    else jout([]);
+    $targetId = $_GET['target_id'] ?? null;
+    if ($targetId) {
+      // Tous les avis REÇUS par cette personne (comme vendeur et comme acheteur).
+      $st = $pdo->prepare('SELECT * FROM reviews WHERE target_id = ? ORDER BY created_at DESC');
+      $st->execute([$targetId]);
+    } elseif ($sellerId) {
+      // Rétro-compat : avis reçus en tant que VENDEUR.
+      $st = $pdo->prepare("SELECT * FROM reviews WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+        AND (kind = 'seller' OR kind IS NULL) ORDER BY created_at DESC");
+      $st->execute([$sellerId, $sellerId]);
+    } elseif ($listingId) {
+      $st = $pdo->prepare('SELECT * FROM reviews WHERE listing_id = ? ORDER BY created_at DESC');
+      $st->execute([$listingId]);
+    } else jout([]);
     $rows = $st->fetchAll(); $out = [];
     foreach ($rows as $r) {
       $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$r['reviewer_id']]);
       $out[] = [
         'id' => $r['id'], 'listingId' => $r['listing_id'], 'sellerId' => $r['seller_id'],
+        'targetId' => $r['target_id'] ?: $r['seller_id'], 'kind' => $r['kind'] ?: 'seller',
         'reviewerId' => $r['reviewer_id'], 'rating' => (int) $r['rating'], 'comment' => $r['comment'] ?: null,
         'createdAt' => iso_to_ms($r['created_at']), 'reviewerName' => ($pn->fetch()['full_name'] ?? null) ?: 'Utilisateur',
       ];
@@ -1318,13 +1461,35 @@ try {
   if ($path === 'reviews' && $method === 'POST') {
     $u = require_user($pdo, $secret); $b = body();
     $listingId = $b['listingId'] ?? null;
-    // Autorisation : seul un acheteur de cette annonce peut laisser un avis.
-    $chk = $pdo->prepare('SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
-      WHERE o.buyer_id = ? AND oi.listing_id = ? LIMIT 1');
-    $chk->execute([$u['id'], $listingId]);
-    if (!$chk->fetch()) jerr('Vous devez avoir commandé cet article pour laisser un avis.', 403);
-    $pdo->prepare('INSERT INTO reviews (id,listing_id,seller_id,reviewer_id,rating,comment,created_at) VALUES (?,?,?,?,?,?,?)')
-        ->execute([uuid(), $listingId, $b['sellerId'] ?? '', $u['id'], (int) ($b['rating'] ?? 5), $b['comment'] ?? null, now_iso()]);
+    $kind = (($b['kind'] ?? 'seller') === 'buyer') ? 'buyer' : 'seller';
+    // La cible : le vendeur (avis acheteur→vendeur) ou l'acheteur (avis vendeur→acheteur).
+    $targetId = trim((string) ($b['targetId'] ?? ($b['sellerId'] ?? '')));
+    if ($targetId === '' || $targetId === $u['id']) jerr('Destinataire de l’avis invalide.', 400);
+    // Autorisation : les deux doivent partager une transaction (commande commune).
+    $chk = $pdo->prepare('SELECT 1 FROM orders WHERE
+      ((buyer_id = ? AND seller_id = ?) OR (seller_id = ? AND buyer_id = ?)) LIMIT 1');
+    $chk->execute([$u['id'], $targetId, $u['id'], $targetId]);
+    if (!$chk->fetch()) {
+      // Rétro-compat acheteur→vendeur : autorisé si l'acheteur a commandé cette
+      // annonce ET que la cible est bien le vendeur de cette commande.
+      $chk2 = $pdo->prepare('SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
+        WHERE o.buyer_id = ? AND oi.listing_id = ? AND o.seller_id = ? LIMIT 1');
+      $chk2->execute([$u['id'], $listingId, $targetId]);
+      if (!$chk2->fetch()) jerr('Vous devez avoir conclu une transaction avec cette personne pour la noter.', 403);
+    }
+    // Un seul avis par personne notée (par annonce). Sinon on met à jour.
+    $ex = $pdo->prepare('SELECT id FROM reviews WHERE reviewer_id = ? AND target_id = ? AND (listing_id = ? OR ? = \'\') LIMIT 1');
+    $ex->execute([$u['id'], $targetId, $listingId, (string) $listingId]);
+    $rating = max(1, min(5, (int) ($b['rating'] ?? 5)));
+    $comment = $b['comment'] ?? null;
+    if ($row = $ex->fetch()) {
+      $pdo->prepare('UPDATE reviews SET rating = ?, comment = ?, created_at = ? WHERE id = ?')
+          ->execute([$rating, $comment, now_iso(), $row['id']]);
+    } else {
+      $pdo->prepare('INSERT INTO reviews (id,listing_id,seller_id,target_id,kind,reviewer_id,rating,comment,created_at)
+        VALUES (?,?,?,?,?,?,?,?,?)')
+        ->execute([uuid(), $listingId, ($kind === 'seller' ? $targetId : ($b['sellerId'] ?? '')), $targetId, $kind, $u['id'], $rating, $comment, now_iso()]);
+    }
     jout(['ok' => true]);
   }
 
@@ -1897,6 +2062,58 @@ try {
     foreach (array_slice($files, 7) as $old) @unlink($old);
     send_backup_email($config, $dump, $file, (int) $bytes);
     jout(['ok' => true, 'file' => $file, 'bytes' => (int) $bytes, 'counts' => $dump['counts']]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : invitations / relances d'avis ----------
+  // Pour chaque transaction conclue (réception confirmée OU vente confirmée),
+  // on invite par email la partie qui n'a pas encore laissé d'avis. Relance
+  // espacée de 3 jours, 2 fois maximum.
+  if ($path === 'cron/review-invites' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $minAge  = gmdate('Y-m-d\TH:i:s\Z', time() - 86400);      // conclu il y a ≥ 1 jour
+    $reDelay = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400);  // relance ≥ 3 jours après la dernière
+    $orders = $pdo->query("SELECT * FROM orders WHERE status = 'finalise' OR seller_confirmed = 1")->fetchAll();
+    $checked = 0; $emailed = 0;
+    foreach ($orders as $o) {
+      if ((string) ($o['created_at'] ?? '') > $minAge) continue;               // trop récent
+      if ((int) ($o['reminder_count'] ?? 0) >= 2) continue;                    // déjà relancé 2×
+      if (!empty($o['review_reminded_at']) && (string) $o['review_reminded_at'] > $reDelay) continue; // pas encore l'heure
+      $checked++;
+      $buyerId = $o['buyer_id']; $sellerId = $o['seller_id'];
+      $em = function (string $id) use ($pdo): string {
+        $s = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $s->execute([$id]);
+        return (string) ($s->fetch()['email'] ?? '');
+      };
+      $nm = function (string $id) use ($pdo): string {
+        $s = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $s->execute([$id]);
+        return (string) ($s->fetch()['full_name'] ?? '');
+      };
+      $reviewed = function (string $reviewer, string $target) use ($pdo): bool {
+        $s = $pdo->prepare('SELECT 1 FROM reviews WHERE reviewer_id = ? AND target_id = ? LIMIT 1');
+        $s->execute([$reviewer, $target]); return (bool) $s->fetch();
+      };
+      // Titre de l'annonce (via order_items ou listing_id).
+      $title = '';
+      $ti = $pdo->prepare('SELECT title FROM order_items WHERE order_id = ? LIMIT 1'); $ti->execute([$o['id']]);
+      $title = (string) ($ti->fetch()['title'] ?? '');
+      $convId = (string) ($o['conversation_id'] ?? '');
+      $sent = false;
+      // Acheteur → vendeur (priorité : « laissez un avis »).
+      if ($convId && !$reviewed($buyerId, $sellerId)) {
+        if (send_review_invite_email($config, $em($buyerId), $nm($sellerId), $title, $convId, 'buyer')) { $emailed++; $sent = true; }
+      }
+      // Vendeur → acheteur (uniquement s'il a confirmé la vente).
+      if ($convId && !empty($o['seller_confirmed']) && !$reviewed($sellerId, $buyerId)) {
+        if (send_review_invite_email($config, $em($sellerId), $nm($buyerId), $title, $convId, 'seller')) { $emailed++; $sent = true; }
+      }
+      if ($sent) {
+        $pdo->prepare('UPDATE orders SET review_reminded_at = ?, reminder_count = ? WHERE id = ?')
+            ->execute([now_iso(), (int) ($o['reminder_count'] ?? 0) + 1, $o['id']]);
+      }
+    }
+    jout(['orders' => $checked, 'emailed' => $emailed]);
   }
 
   if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION]);
