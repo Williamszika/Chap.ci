@@ -1,52 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
+import {
+  festiveMode, daysToFete, isFestiveDismissed, dismissFestive, onFestiveHide, FESTIVE_COLORS,
+} from '../lib/festive'
 
 /**
- * Habillage festif « Fête de l'Indépendance » 🇨🇮 (7 août).
- *  - « day »   : dégradé orange-blanc-vert + confettis (1ᵉʳ→6 août)
- *  - « night » : ciel + feux d'artifice aux couleurs du drapeau (7→10 août)
- * Test à tout moment : ajouter ?fete=a (jour) ou ?fete=b (nuit) ou ?fete=0 (masquer).
+ * Bandeau festif « Fête de l'Indépendance » 🇨🇮 (7 août), en haut de l'accueil.
+ * L'ambiance sur TOUT le site (confettis / feux) est gérée par <FestiveOverlay/>.
  */
-type Mode = 'day' | 'night'
-
-const OR = '#F77F00', OR2 = '#FF9A2E', VERT = '#009E60', VERT2 = '#00B86B', GOLD = '#F6B301', GOLD2 = '#FFD34E', WHITE = '#FFFFFF'
-const COLORS = [OR, WHITE, VERT, GOLD, OR2, VERT2]
-
-function param(name: string): string | null {
-  // HashRouter : le paramètre peut être dans la query classique OU après le ? du hash.
-  const search = new URLSearchParams(window.location.search)
-  if (search.has(name)) return search.get(name)
-  const hash = window.location.hash
-  const qi = hash.indexOf('?')
-  if (qi >= 0) return new URLSearchParams(hash.slice(qi + 1)).get(name)
-  return null
-}
-
-function computeMode(): Mode | null {
-  const f = param('fete')
-  if (f === '0') return null
-  if (f === 'a') return 'day'
-  if (f === 'b') return 'night'
-  const d = new Date()
-  if (d.getMonth() !== 7) return null // août = mois 7
-  const day = d.getDate()
-  if (day >= 1 && day <= 6) return 'day'
-  if (day >= 7 && day <= 10) return 'night'
-  return null
-}
-
-function daysToFete(): number {
-  const d = new Date()
-  const fete = new Date(d.getFullYear(), 7, 7)
-  return Math.max(0, Math.ceil((fete.getTime() - d.getTime()) / 86400000))
-}
+const OR = '#F77F00', OR2 = '#FF9A2E', VERT = '#009E60', VERT2 = '#00B86B', GOLD2 = '#FFD34E', WHITE = '#FFFFFF'
 
 export function IndependenceBanner() {
-  const mode = useMemo(computeMode, [])
-  const [hidden, setHidden] = useState(() => {
-    try { return sessionStorage.getItem('chapci.fete.hide') === (mode ?? '') && mode !== null } catch { return false }
-  })
+  const mode = useMemo(festiveMode, [])
+  const [hidden, setHidden] = useState(() => (mode ? isFestiveDismissed(mode) : false))
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => onFestiveHide(() => setHidden(true)), [])
 
   useEffect(() => {
     if (!mode || hidden) return
@@ -76,7 +45,7 @@ export function IndependenceBanner() {
         vx: (Math.random() - 0.5) * 0.6, vy: 1 + Math.random() * 1.7,
         wd: 5 + Math.random() * 5, ht: 7 + Math.random() * 6,
         rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.2,
-        c: COLORS[(Math.random() * COLORS.length) | 0],
+        c: FESTIVE_COLORS[(Math.random() * FESTIVE_COLORS.length) | 0],
       })
       const P = Array.from({ length: N }, () => spawn(true))
       const draw = () => {
@@ -100,7 +69,7 @@ export function IndependenceBanner() {
       const parts: Part[] = []; const shells: Shell[] = []
       let t = 0
       const burst = (x: number, y: number) => {
-        const col = COLORS[(Math.random() * COLORS.length) | 0]; const n = 40
+        const col = FESTIVE_COLORS[(Math.random() * FESTIVE_COLORS.length) | 0]; const n = 40
         for (let i = 0; i < n; i++) {
           const a = (i / n) * 6.283, sp = 1.2 + Math.random() * 2.3
           parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, c: col })
@@ -135,7 +104,7 @@ export function IndependenceBanner() {
 
   const close = () => {
     setHidden(true)
-    try { sessionStorage.setItem('chapci.fete.hide', mode) } catch { /* ignore */ }
+    dismissFestive(mode) // coupe aussi l'ambiance sur tout le site
   }
   const days = daysToFete()
   const isDay = mode === 'day'
