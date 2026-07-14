@@ -159,7 +159,7 @@ export function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-10 lg:mx-auto lg:my-6 lg:min-h-0 lg:max-w-xl lg:rounded-3xl lg:shadow-card">
+    <div className="min-h-screen bg-white pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-xl md:rounded-3xl md:shadow-card">
       <header className="safe-top flex items-center gap-3 border-b border-gray-100 px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />

@@ -55,8 +55,8 @@ export default function App() {
       <ScrollToTop />
       <RecoveryGate />
       <TopNav />
-      <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-hidden bg-[#f4f5f7] lg:max-w-[1600px] lg:bg-transparent lg:px-6 lg:shadow-none">
-        <main className="flex-1 pb-20 lg:pb-10 lg:pt-4">
+      <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-hidden bg-[#f4f5f7] md:max-w-[1600px] md:bg-transparent md:px-6 md:shadow-none">
+        <main className="flex-1 pb-20 md:pb-10 md:pt-4">
           <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/explorer" element={<Browse />} />

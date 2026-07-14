@@ -20,7 +20,7 @@ const steps = [
 export function About() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-white pb-16 lg:mx-auto lg:my-6 lg:min-h-0 lg:max-w-3xl lg:rounded-3xl lg:shadow-card lg:overflow-hidden">
+    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:rounded-3xl md:shadow-card md:overflow-hidden">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />

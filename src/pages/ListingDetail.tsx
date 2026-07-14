@@ -195,11 +195,11 @@ export function ListingDetail() {
   const alreadyReviewed = user ? reviews.some((r) => r.reviewerId === user.id) : false
 
   return (
-    <div className="min-h-screen bg-white pb-24 lg:mx-auto lg:my-6 lg:min-h-0 lg:max-w-2xl lg:overflow-hidden lg:rounded-3xl lg:shadow-card">
+    <div className="min-h-screen bg-white pb-24 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:overflow-hidden md:rounded-3xl md:shadow-card">
       {/* Galerie */}
       <div className="relative">
         <div
-          className="no-scrollbar flex aspect-square snap-x snap-mandatory overflow-x-auto bg-gray-100 lg:aspect-[4/3]"
+          className="no-scrollbar flex aspect-square snap-x snap-mandatory overflow-x-auto bg-gray-100 md:aspect-[4/3]"
           onScroll={(e) => {
             const el = e.currentTarget
             setImgIndex(Math.round(el.scrollLeft / el.clientWidth))

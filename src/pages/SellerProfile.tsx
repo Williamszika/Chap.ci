@@ -38,7 +38,7 @@ export function SellerProfile() {
   }, [id])
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] lg:mx-auto lg:max-w-4xl">
+    <div className="min-h-screen bg-[#f4f5f7] md:mx-auto md:max-w-4xl">
       {/* En-tête */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-6 pt-3 text-white">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="mb-3 p-1">
