@@ -126,7 +126,7 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:rounded-3xl md:bg-white md:shadow-card">
+    <div className="min-h-screen bg-[#f4f5f7] md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:rounded-3xl md:bg-white md:shadow-card lg:max-w-4xl">
       {/* En-tête */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-5 text-white">
         <div className="flex items-center gap-3">
@@ -225,7 +225,7 @@ export function Profile() {
           ) : purchases.length === 0 ? (
             <Empty text="Aucune demande d’achat. Cliquez « Acheter » sur une annonce pour envoyer une demande au vendeur." cta />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
               {purchases.map((o) => (
                 <OrderCard
                   key={o.id}
@@ -336,7 +336,7 @@ export function Profile() {
                       }
                     />
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
                       {shownSales.map((o) => (
                         <OrderCard
                           key={o.id}
@@ -371,7 +371,7 @@ export function Profile() {
             {shownMine.length === 0 ? (
               <Empty text={annoncesFilter === 'promo' ? 'Aucune annonce en promotion.' : 'Vous n’avez pas encore d’annonce.'} />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2.5 lg:space-y-0">
                 {shownMine.map((l) => (
                   <div key={l.id} className="card p-2.5">
                     <div className="flex items-center gap-3">
@@ -438,7 +438,7 @@ export function Profile() {
 
         {/* PARAMÈTRES */}
         {tab === 'params' && (
-          <div className="space-y-5">
+          <div className="space-y-5 lg:columns-2 lg:gap-5 lg:space-y-0 lg:[&>*]:mb-5 lg:[&>*]:break-inside-avoid">
             {place && (place.regionId || place.address) && (
               <div className="card flex items-start gap-3 p-4">
                 <MapPin size={18} className="mt-0.5 shrink-0 text-primary-500" />
