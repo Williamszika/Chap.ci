@@ -4,9 +4,12 @@ import { Mark, Wordmark } from '../components/Logo'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
 const LAST_UPDATE = '14 juillet 2026'
-// Renseignez ici l'immatriculation de l'entreprise quand elle est disponible
-// (ex. « RCCM CI-ABJ-2026-B-12345 ») : elle s'affichera dans les mentions légales.
-const EDITOR_RCCM = ''
+// Renseignez ces champs quand la société est immatriculée : ils s'affichent
+// dans les mentions légales (identification complète exigée par la loi 2013-546).
+const EDITOR_NAME = ''    // ex. « Chap.ci SARL »
+const EDITOR_RCCM = ''    // ex. « RCCM CI-ABJ-2026-B-12345 »
+const EDITOR_ADDRESS = '' // ex. « Cocody, Abidjan, Côte d'Ivoire »
+const EDITOR_NCC = ''     // numéro de compte contribuable (DGI)
 
 export function Terms() {
   const navigate = useNavigate()
@@ -48,7 +51,12 @@ export function Terms() {
 
           <Section title="2. Mentions légales — éditeur et hébergeur">
             <ul className="ml-4 list-disc space-y-1.5">
-              <li><b>Éditeur du service</b> : Chap.ci{EDITOR_RCCM ? <> — {EDITOR_RCCM}</> : null}, Côte d’Ivoire.</li>
+              <li>
+                <b>Éditeur du service</b> : {EDITOR_NAME || 'Chap.ci'}
+                {EDITOR_RCCM ? <>, société de droit ivoirien immatriculée au Registre du Commerce et du Crédit Mobilier sous le numéro {EDITOR_RCCM}</> : null}
+                {EDITOR_ADDRESS ? <>, dont le siège social est situé à {EDITOR_ADDRESS}</> : <>, Côte d’Ivoire</>}
+                {EDITOR_NCC ? <> — numéro de compte contribuable : {EDITOR_NCC}</> : null}.
+              </li>
               <li><b>Contact</b> : <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary-600">{CONTACT_EMAIL}</a> (nous répondons aux demandes dans les meilleurs délais).</li>
               <li><b>Hébergeur</b> : TPE Cloud, hébergement en Côte d’Ivoire.</li>
             </ul>
@@ -70,7 +78,7 @@ export function Terms() {
           <Section title="4. Règles de publication des annonces">
             <p>Vous êtes seul responsable du contenu que vous publiez. Il est <b>interdit</b> de publier :</p>
             <ul className="ml-4 list-disc space-y-1.5">
-              <li>des produits <b>illégaux</b> ou réglementés : armes, munitions, drogues, médicaments, espèces protégées, documents officiels ;</li>
+              <li>des produits <b>illégaux</b> ou réglementés : armes, munitions, drogues, espèces protégées, documents officiels, ainsi que tout <b>médicament</b>, produit pharmaceutique, dispositif médical, complément alimentaire ou produit présenté comme ayant des vertus thérapeutiques non homologué, et tout cosmétique dangereux ou éclaircissant interdit — la vente de médicaments en ligne hors du circuit pharmaceutique agréé est interdite en Côte d’Ivoire (réglementation de l’Autorité Ivoirienne de Régulation Pharmaceutique — AIRP) ;</li>
               <li>des <b>contrefaçons</b> ou produits volés ;</li>
               <li>du contenu à caractère <b>violent, haineux, pornographique</b> ou portant atteinte à la dignité ;</li>
               <li>des annonces <b>trompeuses</b>, frauduleuses (arnaques, fausses promotions) ou des doublons ;</li>
@@ -79,7 +87,8 @@ export function Terms() {
             <p className="mt-2">
               Les annonces doivent être <b>honnêtes</b> : prix réel, description fidèle, photos du bien réel.
               Les fraudes en ligne (escroquerie, usurpation d’identité, faux moyens de paiement) sont
-              réprimées par la <b>loi n° 2013-451 relative à la lutte contre la cybercriminalité</b> et
+              réprimées par la <b>loi n° 2013-451 du 19 juin 2013 relative à la lutte contre la
+              cybercriminalité</b>, telle que modifiée par la loi n° 2023-593 du 7 juin 2023, et
               peuvent être signalées aux autorités compétentes (Plateforme de Lutte Contre la
               Cybercriminalité — PLCC).
             </p>
@@ -94,14 +103,29 @@ export function Terms() {
               affichage des prix, garanties), et assumer leurs obligations fiscales. Chap.ci peut demander
               des justificatifs et suspendre les comptes professionnels non conformes.
             </p>
+            <p className="mt-2">
+              <b>Promotions et soldes.</b> Les mentions « soldes », « promotion », les prix barrés et
+              toute annonce de réduction de prix doivent respecter la réglementation ivoirienne,
+              notamment le <b>décret n° 2013-167 du 6 mars 2013</b> réglementant les soldes et ventes
+              promotionnelles : les soldes ne sont autorisées que pendant les périodes fixées par le
+              ministère chargé du Commerce (en 2026 : du 10 au 31 mars et du 10 au 31 août) ; en dehors
+              de ces périodes, toute vente promotionnelle est soumise à autorisation préalable. Toute
+              annonce de réduction doit afficher clairement le prix initial et le prix réduit. Le vendeur
+              est seul responsable du respect de ces règles ; Chap.ci peut retirer sans préavis toute
+              annonce promotionnelle non conforme.
+            </p>
           </Section>
 
           <Section title="6. Transactions entre membres">
             <p>
               Les échanges, paiements et livraisons se font <b>directement entre l’acheteur et le vendeur</b>.
               Chap.ci n’intervient pas dans la transaction et ne garantit ni la qualité, ni la conformité,
-              ni la livraison des biens. Nous vous recommandons la prudence : privilégiez les rencontres en
-              lieu public, vérifiez le bien avant de payer, et méfiez-vous des offres trop belles. Lorsque
+              ni la livraison des biens. Nous vous recommandons la plus grande prudence : privilégiez les
+              rencontres en lieu public, vérifiez le bien avant de payer, méfiez-vous des offres
+              anormalement avantageuses et <b>ne versez jamais d’avance ni d’acompte</b> (notamment par
+              mobile money) sans avoir vu le produit — l’exigence d’un paiement anticipé est le schéma
+              d’escroquerie le plus courant. En cas d’arnaque, signalez l’annonce dans l’application et
+              déposez plainte auprès de la <b>Plateforme de Lutte Contre la Cybercriminalité (PLCC)</b>. Lorsque
               le vendeur est un professionnel, l’acheteur bénéficie des protections prévues par la loi
               n° 2016-412 relative à la consommation.
             </p>

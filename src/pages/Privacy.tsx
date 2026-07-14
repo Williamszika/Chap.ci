@@ -32,7 +32,7 @@ export function Privacy() {
             Chap.ci (« l’application ») est une plateforme de petites annonces en Côte d’Ivoire. La
             présente politique explique quelles données nous collectons, pourquoi, et comment vous
             gardez le contrôle. Elle est établie conformément à la{' '}
-            <b>loi ivoirienne n° 2013-450 du 30 juillet 2013</b> relative à la protection des données
+            <b>loi ivoirienne n° 2013-450 du 19 juin 2013</b> relative à la protection des données
             à caractère personnel.
           </p>
 
@@ -154,8 +154,8 @@ export function Privacy() {
           <Section title="10. Cadre juridique">
             <p>Cette politique s’inscrit dans le cadre des textes suivants :</p>
             <ul className="ml-4 mt-2 list-disc space-y-1.5">
-              <li><b>Loi n° 2013-450 du 30 juillet 2013</b> relative à la protection des données à caractère personnel ;</li>
-              <li><b>Loi n° 2013-451 du 30 juillet 2013</b> relative à la lutte contre la cybercriminalité ;</li>
+              <li><b>Loi n° 2013-450 du 19 juin 2013</b> relative à la protection des données à caractère personnel ;</li>
+              <li><b>Loi n° 2013-451 du 19 juin 2013</b> relative à la lutte contre la cybercriminalité, telle que modifiée par la loi n° 2023-593 du 7 juin 2023 ;</li>
               <li><b>Loi n° 2013-546 du 30 juillet 2013</b> relative aux transactions électroniques ;</li>
               <li><b>Acte additionnel A/SA.1/01/10 de la CEDEAO</b> relatif à la protection des données à caractère personnel ;</li>
               <li>Réglementation de l’<b>ARTCI</b> applicable aux traitements de données.</li>

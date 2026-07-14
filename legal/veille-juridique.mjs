@@ -17,14 +17,14 @@ const DOMAINS = [
     key: 'donnees-personnelles',
     title: 'Protection des données personnelles & ARTCI',
     prompt: `Domaine : protection des données personnelles en Côte d'Ivoire.
-Cadre connu : loi n° 2013-450 du 30/07/2013 (protection des données à caractère personnel), ARTCI = autorité de contrôle (formalités de déclaration/autorisation des traitements), acte additionnel CEDEAO A/SA.1/01/10, Convention de Malabo (UA).
+Cadre connu : loi n° 2013-450 du 19/06/2013 (protection des données à caractère personnel), ARTCI = autorité de contrôle (formalités via la plateforme CERTINUM depuis juillet 2026, fichier national des correspondants — arrêté n° 0099/MTND/CAB du 16/08/2024), acte additionnel CEDEAO A/SA.1/01/10, Convention de Malabo (UA), révision de la loi 2013-450 en réflexion.
 Vérifie via la recherche web (WebSearch/WebFetch via ToolSearch) s'il existe : nouvelle loi ou révision, décrets d'application récents, décisions/communiqués ARTCI concernant les plateformes en ligne, nouvelles obligations (délégué à la protection des données, registres, notification de violations), sanctions récentes contre des plateformes.`,
   },
   {
     key: 'commerce-electronique',
     title: 'Commerce électronique & obligations des plateformes',
     prompt: `Domaine : commerce électronique et obligations des plateformes en ligne en Côte d'Ivoire.
-Cadre connu : loi n° 2013-546 du 30/07/2013 (transactions électroniques : identification de l'éditeur, contrat électronique, preuve), ordonnance n° 2012-293 (télécommunications/TIC).
+Cadre connu : loi n° 2013-546 du 30/07/2013 (transactions électroniques : identification de l'éditeur, contrat électronique, preuve, déclaration d'activité de commerce électronique), loi n° 2024-352 du 06/06/2024 relative aux communications électroniques (abroge l'ordonnance n° 2012-293), avant-projet de loi dédiée au commerce électronique (octobre 2024, non adopté — à surveiller).
 Vérifie via la recherche web s'il existe : nouvelles obligations d'identification/immatriculation des e-commerçants ou marketplaces, réglementation du commerce électronique ou du commerce social (réseaux sociaux), textes sur les places de marché, obligations de loyauté des plateformes, réglementation des avis en ligne, nouveaux décrets d'application.`,
   },
   {
@@ -45,7 +45,7 @@ Vérifie via la recherche web : l'annexe fiscale de l'année en cours (et ses me
     key: 'cybersecurite-contenus',
     title: 'Cybercriminalité, contenus illicites & produits interdits',
     prompt: `Domaine : cybercriminalité et contenus/produits illicites en Côte d'Ivoire.
-Cadre connu : loi n° 2013-451 du 30/07/2013 (lutte contre la cybercriminalité), PLCC (Plateforme de Lutte Contre la Cybercriminalité), listes de produits interdits ou réglementés à la vente (armes, médicaments, espèces protégées, etc.).
+Cadre connu : loi n° 2013-451 du 19/06/2013 (lutte contre la cybercriminalité), modifiée par la loi n° 2023-593 du 07/06/2023, PLCC (Plateforme de Lutte Contre la Cybercriminalité), AIRP (Autorité Ivoirienne de Régulation Pharmaceutique — interdiction de la vente en ligne de médicaments/compléments non homologués/cosmétiques éclaircissants), listes de produits interdits ou réglementés à la vente (armes, espèces protégées, etc.).
 Vérifie via la recherche web s'il existe : nouvelles infractions ou obligations pour les plateformes (retrait de contenus, signalement, coopération avec la PLCC), évolutions des produits interdits/réglementés à la vente en ligne, campagnes ou décisions récentes contre les arnaques en ligne, obligations de modération.`,
   },
 ]
