@@ -237,10 +237,9 @@ function PeriodStats({
   )
 }
 
-// Graphique évolutif (barres) sur 14 jours, avec bascule Inscrits / Annonces.
+// Graphique évolutif (courbe) sur 14 jours, avec bascule Inscrits / Annonces.
 function TrendChart({ series }: { series: { date: string; users: number; listings: number }[] }) {
   const [metric, setMetric] = useState<'users' | 'listings'>('users')
-  const max = Math.max(1, ...series.map((d) => d[metric]))
   const total = series.reduce((s, d) => s + d[metric], 0)
   const dayNum = (iso: string) => iso.slice(8, 10)
   return (
@@ -254,18 +253,7 @@ function TrendChart({ series }: { series: { date: string; users: number; listing
           <button onClick={() => setMetric('listings')} className={`rounded-md px-2.5 py-1 ${metric === 'listings' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Annonces</button>
         </div>
       </div>
-      <div className="flex h-28 items-end gap-1">
-        {series.map((d) => {
-          const v = d[metric]
-          const h = Math.round((v / max) * 100)
-          return (
-            <div key={d.date} className="group flex flex-1 flex-col items-center justify-end" title={`${d.date} : ${v}`}>
-              <span className="mb-0.5 text-[9px] font-bold text-primary-600">{v > 0 ? v : ''}</span>
-              <div className="w-full rounded-t bg-primary-400 transition group-hover:bg-primary-500" style={{ height: `${Math.max(h, v > 0 ? 10 : 2)}%` }} />
-            </div>
-          )
-        })}
-      </div>
+      <AreaChart values={series.map((d) => d[metric])} />
       <div className="mt-1.5 flex justify-between text-[10px] text-gray-400">
         <span>{dayNum(series[0].date)}</span>
         <span className="font-semibold text-gray-500">{total} au total · 14 j</span>
@@ -284,10 +272,10 @@ function formatDuration(sec: number | null): string {
   const d = Math.floor(sec / 86400); const h = Math.round((sec % 86400) / 3600); return h ? `${d} j ${h} h` : `${d} j`
 }
 
-/** Courbe (aire) des visites. */
-function AreaChart({ series, metric }: { series: { label: string; views: number; visitors: number }[]; metric: 'views' | 'visitors' }) {
+/** Courbe (aire) générique à partir d'une série de valeurs. */
+function AreaChart({ values }: { values: number[] }) {
   const W = 320, H = 120, pad = 8
-  const vals = series.map((s) => s[metric])
+  const vals = values
   const max = Math.max(1, ...vals)
   const n = Math.max(1, vals.length)
   const x = (i: number) => pad + (n === 1 ? 0 : (i / (n - 1)) * (W - 2 * pad))
@@ -367,7 +355,7 @@ function VisitorsTab() {
                 <button onClick={() => setMetric('views')} className={`rounded-md px-2.5 py-1 ${metric === 'views' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Pages vues</button>
               </div>
             </div>
-            <AreaChart series={s} metric={metric} />
+            <AreaChart values={s.map((x) => x[metric])} />
             <div className="mt-1 flex justify-between text-[10px] text-gray-400">
               <span>{labelAt(0)}</span>
               <span>{labelAt(Math.floor(s.length / 2))}</span>
