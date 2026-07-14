@@ -160,12 +160,12 @@ const CRITIC_SCHEMA = {
 // =============================================================================
 //  ÉCONOMIE — calcul déterministe (JS), marges toujours exactes.
 // =============================================================================
-function economics(c) {
+function economics(c, rates) {
   const acq = Math.max(1, c.acquisitionEUR)
   const w = Math.max(0.2, c.weightKg)
   const acqFees = acq * CONFIG.acqFeesPct / 100
-  const air = w * CONFIG.airRateEurPerKg
-  const sea = Math.max(CONFIG.seaMinEUR, w * CONFIG.seaRateEurPerKgEquiv)
+  const air = w * rates.air
+  const sea = Math.max(CONFIG.seaMinEUR, w * rates.sea)
   const useSea = w >= CONFIG.seaWorthKg && sea < air
   const freight = useSea ? sea : air
   const mode = useSea ? 'Maritime' : 'Aérien'
@@ -240,8 +240,12 @@ _Prix indicatifs (recherche best-effort) — à vérifier au moment de l'achat. 
 // =============================================================================
 //  WORKFLOW
 // =============================================================================
-const catHint = (args && args.categories) || 'libre (les agents choisissent les niches les plus rentables)'
-const dateLabel = (args && args.date) || null
+// args peut arriver en objet ou en chaîne JSON selon l'appelant → on normalise.
+let A = args
+if (typeof A === 'string') { try { A = JSON.parse(A) } catch { A = {} } }
+A = A || {}
+const catHint = A.categories || 'libre (les agents choisissent les niches les plus rentables)'
+const dateLabel = A.date || null
 
 phase('Étude')
 log('🔎 Étude de marché : demande Abidjan · sourcing Europe · logistique & douane')
@@ -250,20 +254,21 @@ const [demand, sourcing, logistics] = await parallel([
   () => agent(
     `Tu es analyste de marché pour Abidjan (Côte d'Ivoire). Objectif : lister les articles d'OCCASION/reconditionnés importés d'Europe que les Ivoiriens achètent le plus, avec leur PRIX DE REVENTE RÉALISTE à Abidjan en FCFA.
 Catégories visées : ${catHint}. Familles fortes à Abidjan : téléphones (iPhone/Samsung d'occasion), électronique (PC portables, TV, consoles PS4/PS5, appareils photo), électroménager compact, pièces auto, outillage/groupes électrogènes, vélos/fitness, mode de marque, puériculture.
-Utilise la recherche web (WebSearch/WebFetch via ToolSearch) pour estimer les prix de revente réels à Abidjan (marketplaces locales, groupes de vente, jumia.ci). Donne 12 à 18 articles PRÉCIS (modèle exact), pas de généralités.
-Sois RÉALISTE et conservateur sur les prix de revente. Rends la sortie structurée.`,
+Utilise la recherche web (WebSearch/WebFetch via ToolSearch) pour estimer les prix de revente RÉELS à Abidjan (jumia.ci, marketplaces locales, groupes de vente Facebook/WhatsApp). Donne 12 à 18 articles PRÉCIS (modèle exact), pas de généralités.
+IMPORTANT : donne le prix de revente RÉEL DU MARCHÉ actuel — celui auquel ça se vend VRAIMENT à Abidjan (l'électronique importée y est plus chère qu'en Europe : prime de rareté). Fournis low/typical/high. NE SOUS-ESTIME PAS : un iPhone 11 propre se revend ~140–170 k FCFA, une PS4 Slim+jeu ~130–160 k, une TV 43" Smart ~150–200 k, un reflex ~150–190 k. Sortie structurée.`,
     { label: 'demande-abidjan', phase: 'Étude', schema: DEMAND_SCHEMA, effort: 'medium' },
   ),
   () => agent(
     `Tu es acheteur/sourceur en Europe. Pour des articles d'occasion/reconditionnés/déstockage recherchés en Afrique de l'Ouest (téléphones, PC portables, TV, consoles, appareils photo, électroménager compact, pièces auto, outillage, vélos, mode de marque, puériculture), estime le PRIX D'ACHAT BAS TYPIQUE en € et le POIDS expédiable (article + emballage).
 Sources à considérer : Kleinanzeigen (Allemagne), Marktplaats (Pays-Bas), Leboncoin (France), Wallapop (Espagne), Vinted, déstockeurs/lots. Utilise la recherche web (WebSearch/WebFetch via ToolSearch) pour caler des fourchettes récentes.
-Donne 12 à 18 articles PRÉCIS avec prix d'achat typique + bas, poids réaliste (kg), état typique et la source la plus adaptée. Sois conservateur (prix qu'on trouve VRAIMENT, pas les plus bas rêvés). Sortie structurée.`,
+Donne 12 à 18 articles PRÉCIS avec prix d'achat BAS ATTEIGNABLE (le meilleur prix qu'un bon acheteur négocie VRAIMENT sur ces plateformes — c'est tout l'intérêt du sourcing) + le prix typique, poids réaliste (kg), état typique et la source la plus adaptée. Vise des prix réels et négociés, pas les plus bas rêvés ni le prix « affiché » moyen. Sortie structurée.`,
     { label: 'sourcing-europe', phase: 'Étude', schema: SOURCING_SCHEMA, effort: 'medium' },
   ),
   () => agent(
     `Tu es expert logistique & douane pour l'import Europe → Abidjan (Côte d'Ivoire).
 1) Donne des tarifs de fret « tout compris » réalistes : aérien (€/kg, groupage/transitaire) et maritime groupage LCL (équivalent €/kg).
-2) Pour chaque grande catégorie (Téléphones, Électronique, Maison & Électroménager, Matériel Pro/outillage, Véhicules-Pièces auto, Loisirs & Sport, Mode & Beauté, Bébé & Enfant), donne le DROIT DE DOUANE (TEC UEMOA, %) et signale si l'article est RÉGLEMENTÉ/interdit à l'import.
+2) Pour chaque grande catégorie (Téléphones, Électronique, Maison & Électroménager, Matériel Pro/outillage, Véhicules-Pièces auto, Loisirs & Sport, Mode & Beauté, Bébé & Enfant), donne le DROIT DE DOUANE (TEC UEMOA, %).
+restricted=true UNIQUEMENT pour les articles réellement interdits ou très réglementés à l'import (armes, médicaments, matériel radio soumis à licence, contrefaçons, certains produits d'occasion explicitement prohibés). L'électronique grand public, les téléphones, les pièces auto, la mode, la puériculture, l'électroménager courant NE SONT PAS restricted (restricted=false).
 Rappelle que s'ajoutent la TVA 18 % et des redevances (~2,5 %). Utilise la recherche web (WebSearch/WebFetch via ToolSearch) pour vérifier les taux et règles ivoiriennes récentes. Sortie structurée, en français.`,
     { label: 'logistique-douane', phase: 'Étude', schema: LOGISTICS_SCHEMA, effort: 'medium' },
   ),
@@ -274,7 +279,8 @@ log(`✅ Étude : ${demand?.products?.length || 0} produits demandés · ${sourc
 phase('Calcul')
 const consolidated = await agent(
   `Tu es l'économiste du projet. On te donne 3 jeux de données. FUSIONNE-les en une liste de CANDIDATS exploitables : chaque candidat = un article précis avec son prix d'achat Europe (€), son poids (kg), son prix de revente Abidjan (FCFA) et le droit de douane (%) de sa catégorie.
-Ne garde que les articles où l'on a À LA FOIS une source d'achat Europe crédible ET une revente Abidjan crédible. Vise 12 à 18 candidats. N'invente pas : si une donnée manque, prends l'estimation la plus prudente issue des jeux fournis. Marque restricted=true si la catégorie est réglementée.
+Ne garde que les articles où l'on a À LA FOIS une source d'achat Europe crédible ET une revente Abidjan crédible. Vise 12 à 18 candidats.
+Pour chaque candidat : acquisitionEUR = le PRIX D'ACHAT BAS ATTEIGNABLE en Europe (le bon deal négocié, pas le prix moyen — c'est le métier du sourceur d'acheter bas). resaleFCFA = le prix de revente TYPIQUE réel du marché d'Abidjan (ni le plus bas ni le plus haut extrême). N'invente pas : reste dans les fourchettes fournies. Marque restricted=true SEULEMENT pour un article réellement interdit/très réglementé (pas une catégorie grand public).
 NE CALCULE PAS les marges (c'est fait ailleurs) — fournis seulement les entrées brutes propres.
 
 DEMANDE ABIDJAN:
@@ -288,10 +294,18 @@ ${JSON.stringify(logistics?.customs || [])}`,
   { label: 'consolidation', phase: 'Calcul', schema: CONSOLIDATE_SCHEMA, effort: 'high' },
 )
 
+// --- Tarifs de fret réels de l'agent logistique (bornés), sinon valeurs CONFIG ---
+const inRange = (v, lo, hi, d) => (typeof v === 'number' && v >= lo && v <= hi ? v : d)
+const rates = {
+  air: inRange(logistics?.airRateEurPerKg, 5, 16, CONFIG.airRateEurPerKg),
+  sea: inRange(logistics?.seaRateEurPerKgEquiv, 1, 5, CONFIG.seaRateEurPerKgEquiv),
+}
+log(`🚚 Fret retenu : aérien ${rates.air} €/kg · maritime ${rates.sea} €/kg-équiv`)
+
 // --- Calcul déterministe des marges (JS) ---
 let computed = (consolidated?.candidates || [])
   .filter((c) => !c.restricted)
-  .map(economics)
+  .map((c) => economics(c, rates))
   .filter((c) => c.marginFCFA >= CONFIG.minMarginFCFA && c.marginPct >= CONFIG.minMarginPct)
   .sort((a, b) => b.totalProfitFCFA - a.totalProfitFCFA)
 
@@ -303,8 +317,8 @@ const shortlist = computed.slice(0, Math.max(CONFIG.topN + 4, 12))
 phase('Vérification')
 const critic = shortlist.length
   ? await agent(
-      `Tu es un vétéran du commerce d'import à Abidjan, sceptique. Voici des affaires candidates (achat Europe → revente Abidjan). Pour CHACUNE, dis « garder » ou « écarter » et le niveau de risque, en traquant les pièges : contrefaçon fréquente, marché déjà saturé, article réglementé/interdit, saisonnalité, SAV/pièces difficiles, revente surestimée. Ajoute un conseil d'achat concret (quelle version viser, quoi vérifier).
-Termine par une note de marché globale (3-5 phrases). Sois exigeant : mieux vaut écarter une fausse bonne affaire.
+      `Tu es un vétéran du commerce d'import à Abidjan, sceptique mais pragmatique. Voici des affaires candidates (achat Europe → revente Abidjan). Pour CHACUNE, dis « garder » ou « écarter » et le niveau de risque, en traquant les pièges : contrefaçon fréquente, marché déjà saturé, article réglementé/interdit, saisonnalité, SAV/pièces difficiles, revente très surestimée. Ajoute un conseil d'achat concret (quelle version viser, quoi vérifier).
+Par défaut, GARDE l'affaire avec une note de risque — n'écarte QUE si le risque est vraiment rédhibitoire (interdit, contrefaçon quasi-certaine, marché mort). Termine par une note de marché globale (3-5 phrases).
 
 CANDIDATS:
 ${JSON.stringify(shortlist.map((c) => ({ product: c.product, category: c.category, achatEUR: c.acquisitionEUR, reventeFCFA: c.resaleFCFA, margeFCFA: c.marginFCFA, margePct: c.marginPct, fret: c.freightMode })))}`,
