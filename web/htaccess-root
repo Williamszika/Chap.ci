@@ -1,0 +1,11 @@
+# Chap.ci — routage racine
+RewriteEngine On
+
+# Pages « crawlables » (SEO + aperçus WhatsApp/Facebook) -> seo.php
+RewriteRule ^annonce/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
+RewriteRule ^vendeur/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
+RewriteRule ^sitemap\.xml$ seo.php [L]
+
+# L'application (SPA) et sa page d'accueil
+DirectoryIndex index.html index.php
+Options -Indexes

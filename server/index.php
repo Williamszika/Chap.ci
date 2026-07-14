@@ -924,8 +924,14 @@ try {
     $title = $st->fetch()['title'] ?? '(annonce introuvable)';
     $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at) VALUES (?,?,?,?,?,?,?)')
         ->execute([uuid(), $listingId, $u['id'], $reason, $details ?: null, 'open', now_iso()]);
+    // Auto-masquage : au-delà de 3 signalements ouverts, l'annonce est masquée
+    // automatiquement en attendant la décision d'un administrateur.
+    $cnt = $pdo->prepare("SELECT COUNT(*) AS c FROM reports WHERE listing_id = ? AND status = 'open'");
+    $cnt->execute([$listingId]);
+    $autoHidden = (int) $cnt->fetch()['c'] >= 3;
+    if ($autoHidden) $pdo->prepare('UPDATE listings SET hidden = 1 WHERE id = ?')->execute([$listingId]);
     send_report_email($config, $u['email'], $title, $listingId, $reason, $details);
-    jout(['ok' => true]);
+    jout(['ok' => true, 'autoHidden' => $autoHidden]);
   }
 
   // ---------- CONVERSATIONS & MESSAGES ----------

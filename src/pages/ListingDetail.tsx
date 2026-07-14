@@ -46,6 +46,7 @@ export function ListingDetail() {
   const listing = id ? getListing(id) : undefined
 
   const [imgIndex, setImgIndex] = useState(0)
+  const [shareOpen, setShareOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
   const [purchased, setPurchased] = useState(false)
@@ -108,22 +109,16 @@ export function ListingDetail() {
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
     .slice(0, 6)
 
+  // Lien « propre » (crawlable, avec aperçu WhatsApp/Facebook via le serveur).
+  const shareUrl = `${window.location.origin}/annonce/${listing.id}`
+  const shareText = `${listing.title} — sur Chap.ci`
+
   async function share() {
-    const url = window.location.href
     if (navigator.share) {
-      try {
-        await navigator.share({ title: listing!.title, url })
-      } catch {
-        /* annulé */
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url)
-        alert('Lien copié !')
-      } catch {
-        /* ignore */
-      }
+      try { await navigator.share({ title: listing!.title, text: shareText, url: shareUrl }); return }
+      catch { /* annulé -> on ouvre le menu */ }
     }
+    setShareOpen(true)
   }
 
   function requireAuth(): boolean {
@@ -230,7 +225,7 @@ export function ListingDetail() {
           </button>
           <div className="flex gap-2">
             <button
-              onClick={share}
+              onClick={() => setShareOpen(true)}
               className="grid h-10 w-10 place-items-center rounded-full bg-white shadow"
               aria-label="Partager"
             >
@@ -470,6 +465,58 @@ export function ListingDetail() {
               </p>
             )}
           </>
+        )}
+      </div>
+
+      {shareOpen && (
+        <ShareSheet
+          url={shareUrl}
+          text={shareText}
+          onNative={share}
+          hasNative={typeof navigator !== 'undefined' && !!navigator.share}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Feuille de partage : WhatsApp, Facebook, copier le lien, partage natif. */
+function ShareSheet({
+  url, text, onClose, onNative, hasNative,
+}: { url: string; text: string; onClose: () => void; onNative: () => void; hasNative: boolean }) {
+  const [copied, setCopied] = useState(false)
+  const wa = `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`
+  const fb = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500) }
+    catch { /* ignore */ }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div className="w-full max-w-app rounded-t-3xl bg-white p-5 pb-8 safe-bottom" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-200" />
+        <p className="mb-3 text-center font-bold text-gray-800">Partager cette annonce</p>
+        <div className="grid grid-cols-3 gap-3">
+          <a href={wa} target="_blank" rel="noopener noreferrer" onClick={onClose} className="flex flex-col items-center gap-1.5">
+            <span className="grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white text-2xl">🟢</span>
+            <span className="text-xs font-medium text-gray-700">WhatsApp</span>
+          </a>
+          <a href={fb} target="_blank" rel="noopener noreferrer" onClick={onClose} className="flex flex-col items-center gap-1.5">
+            <span className="grid h-14 w-14 place-items-center rounded-full bg-[#1877F2] text-white text-xl font-black">f</span>
+            <span className="text-xs font-medium text-gray-700">Facebook</span>
+          </a>
+          <button onClick={copy} className="flex flex-col items-center gap-1.5">
+            <span className="grid h-14 w-14 place-items-center rounded-full bg-gray-100 text-gray-700">
+              {copied ? '✓' : '🔗'}
+            </span>
+            <span className="text-xs font-medium text-gray-700">{copied ? 'Copié !' : 'Copier'}</span>
+          </button>
+        </div>
+        {hasNative && (
+          <button onClick={() => { onClose(); onNative() }} className="btn-outline mt-4 w-full py-2.5 text-sm">
+            Plus d’options…
+          </button>
         )}
       </div>
     </div>
