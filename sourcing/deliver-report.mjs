@@ -28,6 +28,14 @@ const dateLabel = dateArg || res.generatedFor || ''
 const m = /## 🔭 Note de marché\n([\s\S]*?)\n\n---/.exec(res.report || '')
 const outlook = m ? m[1].trim() : ''
 
+// Réglages du cycle (issus du workflow) — pour l'affichage. Replis si absents.
+const cfg = res.config || {}
+const BUDGET = cfg.budgetEUR || 1000
+const FCFAPE = cfg.fcfaPerEur || 655.957
+const MINPCT = cfg.minMarginPct || 30
+const MINFCFA = cfg.minMarginFCFA || 20000
+const budgetFCFA = Math.round(BUDGET * FCFAPE)
+
 const fr = (n) => Number(n).toLocaleString('fr-FR')
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 function marketLinks(product, source, acqEUR) {
@@ -95,11 +103,11 @@ function buildPrintHtml() {
   <div class="page"><div class="flag"><i class="o"></i><i class="w"></i><i class="g"></i></div>
     <div class="head"><div><div class="brand"><span class="pin">📍</span> Chap<b>.ci</b></div>
       <h1>🛒➡️🇨🇮 Rapport de sourcing — <span class="em">Europe → Abidjan</span></h1></div>
-      <div class="meta"><div><b>${esc(dateLabel)}</b></div><div>Budget de référence : <b>1 000 €</b> (655 957 FCFA)</div>
-      <div>Taux 1 € = 655,957 FCFA · Douane 100 % formelle incluse</div><div>Seuils : marge ≥ <b>30 %</b> et ≥ <b>20 000 FCFA</b>/article</div></div></div>
-    <div class="brief"><div class="t">🏆 En bref</div><b>${items.length} affaires</b> retenues. La meilleure : <b>${esc(best.product)}</b> — acheté ~${fr(best.acquisitionEUR)} €, revendu ~${fr(best.resaleFCFA)} FCFA → <b>+${fr(best.marginFCFA)} FCFA/pièce</b> (marge ${best.marginPct} %). Avec 1 000 €, ~${best.unitsForBudget} unités → <b>${fr(best.totalProfitFCFA)} FCFA</b> de profit potentiel.</div>
-    <table><thead><tr><th style="text-align:center">#</th><th class="l">Article</th><th>Achat (€)</th><th>Fret</th><th>Revient (FCFA)</th><th>Revente Abidjan</th><th>Marge / u</th><th>Marge %</th><th>Unités / 1000 €</th><th>Profit total*</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="legend">* Profit total si tout le budget (1 000 €) est investi sur cet article. Fret : ✈️ aérien · 🚢 maritime.</div></div>
+      <div class="meta"><div><b>${esc(dateLabel)}</b></div><div>Budget de référence : <b>${fr(BUDGET)} €</b> (${fr(budgetFCFA)} FCFA)</div>
+      <div>Taux 1 € = 655,957 FCFA · Douane 100 % formelle incluse</div><div>Seuils : marge ≥ <b>${MINPCT} %</b> et ≥ <b>${fr(MINFCFA)} FCFA</b>/article</div></div></div>
+    <div class="brief"><div class="t">🏆 En bref</div><b>${items.length} affaires</b> retenues. La meilleure : <b>${esc(best.product)}</b> — acheté ~${fr(best.acquisitionEUR)} €, revendu ~${fr(best.resaleFCFA)} FCFA → <b>+${fr(best.marginFCFA)} FCFA/pièce</b> (marge ${best.marginPct} %). Avec ${fr(BUDGET)} €, ~${best.unitsForBudget} unités → <b>${fr(best.totalProfitFCFA)} FCFA</b> de profit potentiel.</div>
+    <table><thead><tr><th style="text-align:center">#</th><th class="l">Article</th><th>Achat (€)</th><th>Fret</th><th>Revient (FCFA)</th><th>Revente Abidjan</th><th>Marge / u</th><th>Marge %</th><th>Unités / ${fr(BUDGET)} €</th><th>Profit total*</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="legend">* Profit total si tout le budget (${fr(BUDGET)} €) est investi sur cet article. Fret : ✈️ aérien · 🚢 maritime.</div></div>
   <div class="page break"><div class="flag"><i class="o"></i><i class="w"></i><i class="g"></i></div>
     <div class="two"><div><h2>🔗 Où acheter</h2><div class="sub">Liens de recherche en direct — cliquez pour voir les annonces du moment (filtrées par prix).</div><ol class="links">${linksList}</ol></div>
     <div><h2>💡 Conseils d'achat</h2><ul class="tips">${conseils}</ul></div></div>
@@ -125,7 +133,7 @@ function buildEmailHtml() {
   return `<div style="max-width:640px;margin:0 auto;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2530">
   <div style="height:6px;border-radius:4px;overflow:hidden;display:flex"><div style="flex:1;background:#F77F00"></div><div style="flex:1;background:#fff;border:1px solid #eee"></div><div style="flex:1;background:#009E60"></div></div>
   <h2 style="margin:16px 0 2px">🛒➡️🇨🇮 Rapport de sourcing — Europe → Abidjan</h2>
-  <div style="color:#6b7280;font-size:13px">${esc(dateLabel)} · Budget de référence 1 000 € · douane 100 % formelle incluse</div>
+  <div style="color:#6b7280;font-size:13px">${esc(dateLabel)} · Budget de référence ${fr(BUDGET)} € · douane 100 % formelle incluse</div>
   <div style="margin:14px 0;background:#fff7ed;border-left:4px solid #F77F00;border-radius:8px;padding:11px 14px;font-size:14px">
     <b>${items.length} affaires</b> retenues. La meilleure : <b>${esc(best.product)}</b> — acheté ~${fr(best.acquisitionEUR)} €, revendu ~${fr(best.resaleFCFA)} FCFA → <b style="color:#047857">+${fr(best.marginFCFA)} FCFA/pièce</b> (marge ${best.marginPct} %).</div>
   <table style="width:100%;border-collapse:collapse;font-size:13px">

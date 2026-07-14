@@ -73,15 +73,15 @@ ROI (%)      =  Marge_nette / Capital_investi × 100
 
 ### Seuils de sélection (un article n'est proposé que si)
 
-- **Marge nette ≥ 30 %** du coût de revient **ET**
-- **Marge nette ≥ 20 000 FCFA** par unité (sinon l'effort logistique n'en vaut pas la peine), **ET**
+- **Marge nette ≥ 40 %** du coût de revient **ET**
+- **Marge nette ≥ 30 000 FCFA** par unité (sinon l'effort logistique n'en vaut pas la peine), **ET**
 - Article **non réglementé**, demande **avérée** à Abidjan, risque contrefaçon **faible**.
 
 ---
 
 ## 3. Contraintes du cycle (réglages actuels)
 
-- **Budget/capital par envoi :** **< 1 000 €** → priorité aux articles à **forte valeur au kilo**.
+- **Budget/capital par envoi :** **500 €** → priorité aux articles à **forte valeur au kilo**.
 - **Fret :** les agents **comparent aérien et maritime** et gardent le meilleur.
 - **Catégories :** **libres** — les agents choisissent les niches les plus rentables.
 - **Cibles prioritaires** (fort import vers Abidjan) : Téléphones, Électronique

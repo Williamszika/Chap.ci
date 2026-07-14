@@ -14,7 +14,7 @@ export const meta = {
 //  CONFIG — modifie ces valeurs pour recalibrer les agents.
 // =============================================================================
 const CONFIG = {
-  budgetEUR: 1000,            // capital par cycle d'achat/envoi
+  budgetEUR: 500,            // capital par cycle d'achat/envoi
   airRateEurPerKg: 11,       // fret aérien « tout compris » (groupage/transitaire)
   seaRateEurPerKgEquiv: 2.5, // fret maritime (groupage LCL), équivalent €/kg
   seaMinEUR: 40,             // minimum de facturation groupage maritime
@@ -24,8 +24,8 @@ const CONFIG = {
   localClearEUR: 6,          // dédouanement/manutention locale, amorti par article
   acqFeesPct: 5,             // frais d'acquisition (déplacement, négo, risque)
   sellFeesPct: 5,            // frais de vente/négo/retour à Abidjan
-  minMarginPct: 30,          // seuil : marge nette minimale (% du coût de revient)
-  minMarginFCFA: 20000,      // seuil : marge nette minimale par article
+  minMarginPct: 40,          // seuil : marge nette minimale (% du coût de revient)
+  minMarginFCFA: 30000,      // seuil : marge nette minimale par article
   fcfaPerEur: 655.957,       // taux fixe XOF↔EUR (arrimage à l'euro)
   topN: 10,                  // nombre d'affaires dans le rapport final
 }
@@ -367,4 +367,10 @@ phase('Rapport')
 const report = buildReport(finalItems, critic?.marketOutlook || '', dateLabel)
 log(`📄 Rapport prêt : ${finalItems.length} affaires recommandées`)
 
-return { report, items: finalItems, generatedFor: dateLabel }
+return {
+  report, items: finalItems, generatedFor: dateLabel,
+  config: {
+    budgetEUR: CONFIG.budgetEUR, minMarginPct: CONFIG.minMarginPct,
+    minMarginFCFA: CONFIG.minMarginFCFA, fcfaPerEur: CONFIG.fcfaPerEur,
+  },
+}
