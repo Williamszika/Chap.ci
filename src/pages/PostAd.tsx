@@ -220,7 +220,7 @@ export function PostAd() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-28 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:shadow-card">
+    <div className="min-h-screen bg-white pb-28 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:shadow-card lg:max-w-4xl">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3 md:rounded-t-3xl">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
@@ -228,7 +228,11 @@ export function PostAd() {
         <h1 className="text-lg font-bold">{editing ? 'Modifier l’annonce' : 'Publier une annonce'}</h1>
       </header>
 
-      <form onSubmit={submit} className="space-y-6 px-4 py-5">
+      <form onSubmit={submit} className="px-4 py-5 lg:px-8">
+        {/* 2 colonnes sur ordinateur, 1 colonne sur mobile/tablette (l'ordre reste identique) */}
+        <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
+        {/* ---- Colonne gauche : photos, titre, catégorie, état ---- */}
+        <div className="space-y-6">
         {/* Photos */}
         <div>
           <label className="mb-2 block text-sm font-bold text-gray-800">
@@ -356,6 +360,10 @@ export function PostAd() {
           </Field>
         )}
 
+        </div>{/* ---- fin colonne gauche ---- */}
+
+        {/* ---- Colonne droite : prix, promo, localisation, livraison, description ---- */}
+        <div className="space-y-6">
         {/* Prix — libellé adapté (Salaire, Loyer, Tarif…) */}
         <Field label={form.priceLabel ?? 'Prix (FCFA)'}>
           <input
@@ -520,10 +528,15 @@ export function PostAd() {
           />
         </Field>
 
+        </div>{/* ---- fin colonne droite ---- */}
+        </div>{/* ---- fin grille 2 colonnes ---- */}
+
+        {/* ---- Pleine largeur : coordonnées, erreur, bouton ---- */}
+        <div className="mt-6 space-y-6">
         {/* Coordonnées */}
         <div className="rounded-2xl bg-gray-50 p-4">
           <p className="mb-3 text-sm font-bold text-gray-800">Vos coordonnées</p>
-          <div className="space-y-3">
+          <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0">
             <input
               value={seller.name}
               onChange={(e) => setSeller({ ...seller, name: e.target.value })}
@@ -546,9 +559,10 @@ export function PostAd() {
           </p>
         )}
 
-        <button type="submit" disabled={submitting} className="btn-primary w-full py-3.5 text-base">
+        <button type="submit" disabled={submitting} className="btn-primary w-full py-3.5 text-base lg:mx-auto lg:flex lg:w-auto lg:min-w-[20rem]">
           <Check size={20} /> {submitting ? 'Enregistrement…' : editing ? 'Enregistrer les modifications' : 'Publier mon annonce'}
         </button>
+        </div>{/* ---- fin pleine largeur ---- */}
       </form>
 
       <LocationSheet open={locOpen} onClose={() => setLocOpen(false)} value={loc} onApply={setLoc} />
