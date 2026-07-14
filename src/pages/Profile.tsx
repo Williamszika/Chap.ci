@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   PlusCircle,
   Heart,
@@ -61,8 +61,14 @@ export function Profile() {
   const isAdmin = useIsAdmin()
   const { place } = useGeo()
   const [seller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
+  const location = useLocation()
 
-  const [tab, setTab] = useState<Tab>('achats')
+  // Onglet initial : piloté par la navigation (menu « Mon compte » du desktop).
+  const [tab, setTab] = useState<Tab>(() => ((location.state as { tab?: Tab } | null)?.tab) || 'achats')
+  useEffect(() => {
+    const t = (location.state as { tab?: Tab } | null)?.tab
+    if (t) setTab(t)
+  }, [location.state])
   const [purchases, setPurchases] = useState<Order[]>([])
   const [sales, setSales] = useState<Order[]>([])
   const [myReviews, setMyReviews] = useState<Review[]>([])
