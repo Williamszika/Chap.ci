@@ -31,7 +31,7 @@ export function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white lg:mx-auto lg:my-6 lg:min-h-0 lg:max-w-xl lg:rounded-3xl lg:shadow-card">
       <div className="mx-auto max-w-sm px-6 pt-10">
         <div className="mb-5 flex flex-col items-center text-center">
           <Mark size={56} />

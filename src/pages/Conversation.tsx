@@ -98,7 +98,7 @@ export function Conversation() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f4f5f7]">
+    <div className="flex min-h-screen flex-col bg-[#f4f5f7] lg:mx-auto lg:max-w-2xl">
       {/* En-tête */}
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-2.5">
         <button onClick={() => navigate('/messages')} aria-label="Retour" className="p-1">

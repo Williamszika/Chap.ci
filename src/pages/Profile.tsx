@@ -118,7 +118,7 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7]">
+    <div className="min-h-screen bg-[#f4f5f7] lg:mx-auto lg:my-6 lg:min-h-0 lg:max-w-3xl lg:rounded-3xl lg:bg-white lg:shadow-card">
       {/* En-tête */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-5 text-white">
         <div className="flex items-center gap-3">

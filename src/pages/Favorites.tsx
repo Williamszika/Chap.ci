@@ -33,7 +33,7 @@ export function Favorites() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 px-4 py-4">
+        <div className="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {favListings.map((l) => (
             <ListingCard key={l.id} listing={l} />
           ))}

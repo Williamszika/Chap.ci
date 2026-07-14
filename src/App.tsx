@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { BottomNav } from './components/BottomNav'
+import { TopNav } from './components/TopNav'
 import { LocationGate } from './components/LocationGate'
 import { NewsletterPrompt } from './components/NewsletterPrompt'
 import { useAuth } from './store/AuthContext'
@@ -46,11 +47,13 @@ function RecoveryGate() {
 
 export default function App() {
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-hidden bg-[#f4f5f7]">
+    <div className="min-h-screen bg-[#f4f5f7]">
       <ScrollToTop />
       <RecoveryGate />
-      <main className="flex-1 pb-20">
-        <Routes>
+      <TopNav />
+      <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-hidden bg-[#f4f5f7] lg:max-w-6xl lg:bg-transparent lg:shadow-none">
+        <main className="flex-1 pb-20 lg:pb-10 lg:pt-4">
+          <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/explorer" element={<Browse />} />
           <Route path="/annonce/:id" element={<ListingDetail />} />
@@ -72,8 +75,9 @@ export default function App() {
           <Route path="/messages/:id" element={<Conversation />} />
           <Route path="/vendeur/:id" element={<SellerProfile />} />
           <Route path="*" element={<Home />} />
-        </Routes>
-      </main>
+          </Routes>
+        </main>
+      </div>
       <BottomNav />
       <LocationGate />
       <NewsletterPrompt />

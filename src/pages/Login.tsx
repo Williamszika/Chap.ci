@@ -93,7 +93,7 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white lg:mx-auto lg:my-6 lg:min-h-0 lg:max-w-xl lg:rounded-3xl lg:shadow-card">
       <header className="safe-top flex items-center gap-3 px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />

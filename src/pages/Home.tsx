@@ -268,7 +268,7 @@ export function Home() {
             Voir plus
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {recent.map((l) => (
             <ListingCard key={l.id} listing={l} />
           ))}

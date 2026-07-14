@@ -38,7 +38,7 @@ export function SellerProfile() {
   }, [id])
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7]">
+    <div className="min-h-screen bg-[#f4f5f7] lg:mx-auto lg:max-w-4xl">
       {/* En-tête */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-6 pt-3 text-white">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="mb-3 p-1">
@@ -102,7 +102,7 @@ export function SellerProfile() {
             <p className="text-sm">Aucune annonce active.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 px-4 py-4">
+          <div className="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-3 lg:grid-cols-4">
             {sellerListings.map((l) => (
               <ListingCard key={l.id} listing={l} />
             ))}
