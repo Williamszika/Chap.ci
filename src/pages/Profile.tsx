@@ -292,12 +292,20 @@ export function Profile() {
                   />
                 </div>
                 {revenue > 0 && (
-                  <div className="mt-3 rounded-xl bg-emerald-50 px-4 py-3">
-                    <p className="text-xs font-semibold text-emerald-700">
-                      Chiffre d’affaires (ventes finalisées)
-                    </p>
-                    <p className="text-lg font-black text-emerald-700">{formatPrice(revenue)} FCFA</p>
-                  </div>
+                  <button
+                    onClick={() => { setShowReviews(false); setSalesFilter('finalise') }}
+                    className="mt-3 flex w-full items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-left transition hover:bg-emerald-100 active:scale-[0.99]"
+                  >
+                    <div>
+                      <p className="text-xs font-semibold text-emerald-700">
+                        Chiffre d’affaires (ventes finalisées)
+                      </p>
+                      <p className="text-lg font-black text-emerald-700">{formatPrice(revenue)} FCFA</p>
+                    </div>
+                    <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                      Détail <ChevronRight size={14} />
+                    </span>
+                  </button>
                 )}
               </div>
 

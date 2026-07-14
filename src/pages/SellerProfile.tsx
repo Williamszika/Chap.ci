@@ -61,14 +61,20 @@ export function SellerProfile() {
         </div>
         {profile?.bio && <p className="mt-3 text-sm text-white/90">{profile.bio}</p>}
         <div className="mt-4 flex gap-3">
-          <div className="rounded-xl bg-white/15 px-4 py-2 text-center">
+          <button
+            onClick={() => setTab('annonces')}
+            className={`rounded-xl px-4 py-2 text-center transition active:scale-95 ${tab === 'annonces' ? 'bg-white/30' : 'bg-white/15 hover:bg-white/25'}`}
+          >
             <p className="text-lg font-black">{sellerListings.length}</p>
             <p className="text-[11px] text-white/85">Annonces</p>
-          </div>
-          <div className="rounded-xl bg-white/15 px-4 py-2 text-center">
+          </button>
+          <button
+            onClick={() => setTab('avis')}
+            className={`rounded-xl px-4 py-2 text-center transition active:scale-95 ${tab === 'avis' ? 'bg-white/30' : 'bg-white/15 hover:bg-white/25'}`}
+          >
             <p className="text-lg font-black">{count}</p>
             <p className="text-[11px] text-white/85">Avis</p>
-          </div>
+          </button>
         </div>
       </header>
 
@@ -109,18 +115,27 @@ export function SellerProfile() {
         </div>
       ) : (
         <div className="space-y-3 px-4 py-4">
-          {reviews.map((r) => (
-            <div key={r.id} className="card p-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-800">{r.reviewerName}</span>
-                <Stars value={r.rating} size={14} />
-              </div>
-              {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
-              <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
-                <MapPin size={11} /> {timeAgo(r.createdAt)}
-              </p>
-            </div>
-          ))}
+          {reviews.map((r) => {
+            const clickable = !!r.listingId
+            const Comp = clickable ? 'button' : 'div'
+            return (
+              <Comp
+                key={r.id}
+                {...(clickable ? { onClick: () => navigate(`/annonce/${r.listingId}`), type: 'button' as const } : {})}
+                className={`card w-full p-3 text-left ${clickable ? 'transition hover:shadow-md active:scale-[0.99]' : ''}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-800">{r.reviewerName}</span>
+                  <Stars value={r.rating} size={14} />
+                </div>
+                {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
+                  <MapPin size={11} /> {timeAgo(r.createdAt)}
+                  {clickable && <span className="ml-auto font-semibold text-primary-500">Voir l’annonce ›</span>}
+                </p>
+              </Comp>
+            )
+          })}
         </div>
       )}
     </div>
