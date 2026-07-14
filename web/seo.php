@@ -51,9 +51,8 @@ if (preg_match('#/sitemap\.xml$#', $uri)) {
   header('Content-Type: application/xml; charset=utf-8');
   echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
   echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-  foreach (['/', '/#/explorer', '/#/don', '/#/contact'] as $p) {
-    echo '  <url><loc>' . h($site . $p) . "</loc></url>\n";
-  }
+  // Page d'accueil (les vues internes utilisent #/, non indexables : on les omet).
+  echo '  <url><loc>' . h($site . '/') . "</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
   if ($pdo) {
     $rows = $pdo->query('SELECT id, created_at FROM listings WHERE hidden IS NULL OR hidden = 0 ORDER BY created_at DESC LIMIT 5000')->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as $r) {
