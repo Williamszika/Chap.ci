@@ -17,6 +17,10 @@ export interface AdminStats {
   reviews: number
   newsletter: number
   reportsOpen?: number
+  periods?: {
+    users: { day: number; week: number; month: number; year: number }
+    listings: { day: number; week: number; month: number; year: number }
+  }
   ordersByStatus: Record<string, number>
   ordersValue: number
   recentListings: Listing[]

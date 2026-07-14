@@ -135,6 +135,14 @@ function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }
         })}
       </div>
 
+      {/* Statistiques temporelles : nouveaux inscrits / annonces par période */}
+      {stats.periods && (
+        <>
+          <PeriodStats title="Nouveaux inscrits" icon={<Users size={16} />} data={stats.periods.users} onGo={() => onGo('users')} />
+          <PeriodStats title="Nouvelles annonces" icon={<Package size={16} />} data={stats.periods.listings} onGo={() => onGo('listings')} />
+        </>
+      )}
+
       <div className="rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card">
         <span className="flex items-center gap-2 text-sm font-medium text-white/90"><Wallet size={16} /> Valeur totale des commandes</span>
         <p className="mt-1 font-display text-3xl font-bold">{formatPrice(stats.ordersValue)} <span className="text-lg">FCFA</span></p>
@@ -180,6 +188,43 @@ function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }
           </ul>
         )}
       </Block>
+    </div>
+  )
+}
+
+// Bloc de statistiques temporelles (jour / semaine / mois / année).
+function PeriodStats({
+  title, icon, data, onGo,
+}: {
+  title: string
+  icon: ReactNode
+  data: { day: number; week: number; month: number; year: number }
+  onGo: () => void
+}) {
+  const cells: { label: string; value: number }[] = [
+    { label: "Aujourd’hui", value: data.day },
+    { label: '7 jours', value: data.week },
+    { label: '30 jours', value: data.month },
+    { label: '1 an', value: data.year },
+  ]
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-card">
+      <p className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-100 text-primary-600">{icon}</span>
+        {title}
+      </p>
+      <div className="grid grid-cols-4 gap-2">
+        {cells.map((c) => (
+          <button
+            key={c.label}
+            onClick={onGo}
+            className="rounded-xl bg-gray-50 px-1 py-3 text-center transition hover:bg-primary-50 active:scale-[0.97]"
+          >
+            <p className="font-display text-xl font-bold text-gray-900">+{c.value}</p>
+            <p className="text-[10px] font-medium leading-tight text-gray-500">{c.label}</p>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

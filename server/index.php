@@ -1174,6 +1174,20 @@ try {
       $recentUsers = array_map(
         fn($r) => ['id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—', 'createdAt' => iso_to_ms($r['created_at'])],
         $pdo->query('SELECT u.id, u.email, u.created_at, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC LIMIT 5')->fetchAll());
+      // Statistiques temporelles : nouveaux inscrits / annonces par période
+      // (fenêtres glissantes). created_at est en ISO UTC, donc comparable en texte.
+      $cut = fn(int $days) => gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
+      $since = function (string $table, string $iso) use ($pdo): int {
+        $s = $pdo->prepare("SELECT COUNT(*) AS c FROM $table WHERE created_at >= ?");
+        $s->execute([$iso]);
+        return (int) $s->fetch()['c'];
+      };
+      $periodStats = function (string $table) use ($since, $cut) {
+        return [
+          'day' => $since($table, $cut(1)), 'week' => $since($table, $cut(7)),
+          'month' => $since($table, $cut(30)), 'year' => $since($table, $cut(365)),
+        ];
+      };
       jout([
         'users' => $count('users'), 'listings' => $count('listings'),
         'conversations' => $count('conversations'), 'messages' => $count('messages'),
@@ -1181,6 +1195,7 @@ try {
         'newsletter' => $count('newsletter'),
         'reportsOpen' => (int) ($pdo->query("SELECT COUNT(*) AS c FROM reports WHERE status = 'open'")->fetch()['c']),
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
+        'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
         'recentListings' => $recentListings, 'recentUsers' => $recentUsers,
       ]);
     }
