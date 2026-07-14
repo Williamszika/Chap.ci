@@ -90,7 +90,7 @@ export function AdminDashboard() {
         </nav>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-5 md:max-w-[1600px] md:px-6">
+      <div className="mx-auto max-w-2xl px-4 py-5 md:max-w-[1280px] md:px-6">
         {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} />}
         {tab === 'visitors' && <VisitorsTab />}
         {tab === 'listings' && <ListingsTab />}

@@ -26,6 +26,7 @@ import { Messages } from './pages/Messages'
 import { Conversation } from './pages/Conversation'
 import { SellerProfile } from './pages/SellerProfile'
 import { About } from './pages/About'
+import { Faq } from './pages/Faq'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -55,7 +56,7 @@ export default function App() {
       <ScrollToTop />
       <RecoveryGate />
       <TopNav />
-      <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-hidden bg-[#f4f5f7] md:max-w-[1600px] md:bg-transparent md:px-6 md:shadow-none">
+      <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-hidden bg-[#f4f5f7] md:max-w-[1280px] md:bg-transparent md:px-6 md:shadow-none">
         <main className="flex-1 pb-20 md:pb-10 md:pt-4">
           <Routes>
           <Route path="/" element={<Home />} />
@@ -74,6 +75,8 @@ export default function App() {
           <Route path="/conditions" element={<Terms />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/a-propos" element={<About />} />
+          <Route path="/aide" element={<Faq />} />
+          <Route path="/faq" element={<Faq />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/newsletter" element={<AdminDashboard />} />
           <Route path="/messages" element={<Messages />} />

@@ -145,15 +145,16 @@ export function Home() {
             Tout voir
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-3">
-          {categories.slice(0, 8).map((cat) => (
+        {/* 8 catégories sur mobile (2 rangées) ; toutes (2 rangées de 7) sur grand écran. */}
+        <div className="grid grid-cols-4 gap-3 sm:grid-cols-7">
+          {categories.map((cat, i) => (
             <button
               key={cat.id}
               onClick={() => navigate(`/explorer?${buildParams({ cat: cat.id })}`)}
-              className="flex flex-col items-center gap-1.5"
+              className={`flex flex-col items-center gap-1.5 ${i >= 8 ? 'hidden sm:flex' : ''}`}
             >
               <span
-                className={`grid h-14 w-14 place-items-center rounded-2xl ${cat.color}`}
+                className={`grid h-14 w-14 place-items-center rounded-2xl md:h-12 md:w-12 ${cat.color}`}
               >
                 <CategoryIcon name={cat.icon} size={24} />
               </span>

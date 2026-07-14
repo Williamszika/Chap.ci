@@ -494,6 +494,9 @@ export function Profile() {
             </button>
 
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              <Link to="/aide" className="text-xs text-gray-500 underline">
+                Aide & FAQ
+              </Link>
               <Link to="/contact" className="text-xs text-gray-500 underline">
                 Nous contacter
               </Link>

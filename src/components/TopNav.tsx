@@ -32,7 +32,7 @@ export function TopNav() {
 
   return (
     <header className="sticky top-0 z-40 hidden border-b border-gray-100 bg-white/95 backdrop-blur md:block">
-      <div className="mx-auto flex max-w-[1600px] items-center gap-2 px-4 py-3 lg:gap-6 lg:px-6">
+      <div className="mx-auto flex max-w-[1280px] items-center gap-2 px-4 py-3 lg:gap-6 lg:px-6">
         <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Accueil Chap.ci">
           <Logo size={30} />
         </Link>
