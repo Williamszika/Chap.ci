@@ -95,8 +95,22 @@ Ces réglages se changent en éditant la section **CONFIG** de
 
 ## 4. Livraison
 
-- **Email** à l'administrateur à chaque exécution (via la notification de la Routine).
+- **Email à l'administrateur avec le rapport PDF en pièce jointe**, à chaque exécution.
+  - La routine lance `deliver-report.mjs` : il génère le **PDF paysage** (Chromium système, sans dépendance npm) puis l'envoie via l'endpoint serveur **`POST /api/cron/report-email`** (authentifié par la clé cron, SMTP du site).
+  - Le corps de l'email contient déjà le **top des affaires + les liens d'achat** ; le **PDF complet** (tableau + tous les liens cliquables + conseils + note de marché) est **joint**.
+  - Repli : si le PDF échoue, l'email part en HTML seul ; la notification de la Routine sert de filet de sécurité (rapport en texte).
 - Fréquence : **3×/semaine — lundi, mercredi, vendredi (07:00 GMT = heure d'Abidjan).**
+
+### Fichiers du moteur
+| Fichier | Rôle |
+|---------|------|
+| `sourcing-arbitrage.mjs` | Workflow multi-agents (recherche → économie → rapport). |
+| `deliver-report.mjs` | Génère le PDF + envoie l'email (appelé par la routine). Aucune dépendance npm. |
+| `README.md` | Ce document (modèle économique + fonctionnement). |
+
+> ⚙️ **Côté serveur** : l'envoi d'email avec pièce jointe nécessite l'endpoint
+> `cron/report-email` (ajouté dans `server/index.php`). Il doit être **déployé**
+> sur chap.ci (`api/index.php`) pour que le PDF soit joint.
 
 ## 5. Limites (honnêteté)
 

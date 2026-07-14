@@ -360,6 +360,102 @@ function send_mail(array $config, string $to, string $subject, string $html, ?st
   // Corps en base64 (lignes de 76 car.) : évite « lines too long for transport ».
   return @mail($to, mime_h($subject), chunk_split(base64_encode($html)), $headers, '-f' . $from);
 }
+
+/**
+ * Construit un corps MIME multipart/mixed : partie HTML + une pièce jointe PDF.
+ * $pdfB64 = contenu du PDF déjà encodé en base64. L'en-tête Content-Type complet
+ * (avec la frontière) est renvoyé via $ctype.
+ */
+function mime_multipart(string $html, string $pdfB64, string $filename, string &$ctype): string {
+  $bnd = 'chapci_' . bin2hex(random_bytes(10));
+  $ctype = 'multipart/mixed; boundary="' . $bnd . '"';
+  $pdfB64 = preg_replace('/\s+/', '', $pdfB64); // base64 propre, on re-scinde ensuite
+  $nl = "\r\n";
+  $b  = '--' . $bnd . $nl;
+  $b .= 'Content-Type: text/html; charset=UTF-8' . $nl;
+  $b .= 'Content-Transfer-Encoding: base64' . $nl . $nl;
+  $b .= chunk_split(base64_encode($html)) . $nl;
+  $b .= '--' . $bnd . $nl;
+  $b .= 'Content-Type: application/pdf; name="' . $filename . '"' . $nl;
+  $b .= 'Content-Transfer-Encoding: base64' . $nl;
+  $b .= 'Content-Disposition: attachment; filename="' . $filename . '"' . $nl . $nl;
+  $b .= chunk_split($pdfB64) . $nl;
+  $b .= '--' . $bnd . '--' . $nl;
+  return $b;
+}
+
+/** Comme smtp_send, mais avec un Content-Type et un corps MIME déjà préparés (pièces jointes). */
+function smtp_send_mime(array $s, string $from, string $fromName, string $to, string $subject, string $replyTo, string $ctype, string $body): bool {
+  $host   = $s['host'] ?? 'localhost';
+  $port   = (int) ($s['port'] ?? 465);
+  $secure = strtolower($s['secure'] ?? 'ssl');
+  $remote = ($secure === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+  $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]]);
+  $fp = @stream_socket_client($remote, $errno, $errstr, 20, STREAM_CLIENT_CONNECT, $ctx);
+  if (!$fp) return false;
+  stream_set_timeout($fp, 20);
+  $read = function () use ($fp) {
+    $data = '';
+    while (($line = fgets($fp, 515)) !== false) { $data .= $line; if (isset($line[3]) && $line[3] === ' ') break; }
+    return $data;
+  };
+  $cmd = function ($c) use ($fp, $read) { fwrite($fp, $c . "\r\n"); return $read(); };
+  $read();
+  $cmd('EHLO chap.ci');
+  if ($secure === 'tls') {
+    $cmd('STARTTLS');
+    if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) { fclose($fp); return false; }
+    $cmd('EHLO chap.ci');
+  }
+  $cmd('AUTH LOGIN');
+  $cmd(base64_encode($s['user'] ?? ''));
+  $auth = $cmd(base64_encode($s['pass'] ?? ''));
+  if (substr(ltrim($auth), 0, 3) !== '235') { $cmd('QUIT'); fclose($fp); return false; }
+  $cmd('MAIL FROM:<' . $from . '>');
+  $cmd('RCPT TO:<' . $to . '>');
+  $d = $cmd('DATA');
+  if (substr(ltrim($d), 0, 3) !== '354') { $cmd('QUIT'); fclose($fp); return false; }
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
+  $headers = 'Date: ' . date('r') . "\r\n"
+    . 'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . ">\r\n"
+    . 'From: ' . mime_h($fromName) . ' <' . $from . ">\r\n"
+    . 'Reply-To: ' . $replyTo . "\r\n"
+    . 'To: <' . $to . ">\r\n"
+    . 'Subject: ' . mime_h($subject) . "\r\n"
+    . 'MIME-Version: 1.0' . "\r\n"
+    . 'Content-Type: ' . $ctype . "\r\n"
+    . 'X-Mailer: Chap.ci' . "\r\n";
+  fwrite($fp, $headers . "\r\n" . $body . ".\r\n");
+  $sent = $read();
+  $cmd('QUIT');
+  fclose($fp);
+  return substr(ltrim($sent), 0, 3) === '250';
+}
+
+/** Envoie un email HTML AVEC une pièce jointe PDF (SMTP, repli sur mail()). */
+function send_report_mail(array $config, string $to, string $subject, string $html, string $pdfB64, string $filename): bool {
+  $from     = $config['mail_from'] ?? 'no-reply@chap.ci';
+  $fromName = $config['mail_from_name'] ?? 'Chap.ci';
+  $replyTo  = $config['mail_reply_to'] ?? 'contact@chap.ci';
+  $ctype = '';
+  $body  = mime_multipart($html, $pdfB64, $filename, $ctype);
+  $smtp  = $config['smtp'] ?? [];
+  if (!empty($smtp['pass'])) {
+    if (smtp_send_mime($smtp, $from, $fromName, $to, $subject, $replyTo, $ctype, $body)) return true;
+  }
+  if (!function_exists('mail')) return false;
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
+  $headers = implode("\r\n", [
+    'MIME-Version: 1.0',
+    'Content-Type: ' . $ctype,
+    'Date: ' . date('r'),
+    'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . '>',
+    'From: ' . mime_h($fromName) . ' <' . $from . '>',
+    'Reply-To: ' . $replyTo,
+    'X-Mailer: Chap.ci',
+  ]);
+  return @mail($to, mime_h($subject), $body, $headers, '-f' . $from);
+}
 /** Bouton d'action réutilisable pour les emails. */
 function email_button(string $href, string $label): string {
   return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px auto">'
@@ -2085,6 +2181,30 @@ try {
       $pdo->prepare('UPDATE saved_searches SET last_notified_at = ? WHERE id = ?')->execute([now_iso(), $s['id']]);
     }
     jout(['searches' => $checked, 'matched' => $matched, 'emailed' => $emailed]);
+  }
+
+  // ---------- ENVOI D'UN RAPPORT PAR EMAIL (avec PDF joint) ----------
+  // Appelé par la routine de sourcing (agents). Authentifié par la clé cron.
+  // Corps JSON : { key, subject, html, pdf_base64, filename, to? }
+  if ($path === 'cron/report-email' && $method === 'POST') {
+    $b = body();
+    $key = (string) ($b['key'] ?? ($_GET['key'] ?? ''));
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $key)) jerr('Clé invalide.', 403);
+    $admins = array_values($config['admin_emails'] ?? []);
+    if (!empty($b['to']) && filter_var($b['to'], FILTER_VALIDATE_EMAIL)) $admins = [$b['to']];
+    if (!$admins) jerr('Aucun destinataire administrateur configuré.', 400);
+    $subject  = trim((string) ($b['subject'] ?? '')) ?: 'Rapport de sourcing — Chap.ci';
+    $html     = (string) ($b['html'] ?? '<p>Rapport de sourcing Chap.ci.</p>');
+    $pdf      = (string) ($b['pdf_base64'] ?? '');
+    $filename = preg_replace('/[^A-Za-z0-9._-]/', '_', (string) ($b['filename'] ?? 'rapport-sourcing.pdf'));
+    if ($filename === '') $filename = 'rapport-sourcing.pdf';
+    $sent = [];
+    foreach ($admins as $adm) {
+      $sent[$adm] = ($pdf !== '')
+        ? send_report_mail($config, $adm, $subject, $html, $pdf, $filename)
+        : send_mail($config, $adm, $subject, $html);
+    }
+    jout(['sent' => $sent, 'withPdf' => $pdf !== '']);
   }
 
   // ---------- TÂCHE PLANIFIÉE : sauvegarde automatique de la base ----------
