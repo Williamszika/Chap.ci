@@ -159,6 +159,27 @@ export async function deleteAdminReview(id: string): Promise<void> {
   return php.phpAdminDeleteReview(id)
 }
 
+export type VisitRange = 'day' | 'week' | 'month' | 'year'
+export interface VisitStats {
+  range: VisitRange
+  series: { label: string; views: number; visitors: number }[]
+  totalViews: number
+  totalVisitors: number
+}
+export interface ResponseTime {
+  count: number
+  avgSeconds: number | null
+  medianSeconds: number | null
+}
+export async function fetchVisits(range: VisitRange): Promise<VisitStats> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminVisits<VisitStats>(range)
+}
+export async function fetchResponseTime(): Promise<ResponseTime> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminResponseTime<ResponseTime>()
+}
+
 export interface Moderators {
   owners: string[]
   moderators: { email: string; createdAt: number }[]

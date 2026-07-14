@@ -312,6 +312,12 @@ export async function phpAdminReviews<T>(): Promise<T> {
 export async function phpAdminDeleteReview(id: string): Promise<void> {
   await req(`/admin/reviews/${id}`, { method: 'DELETE' })
 }
+export async function phpAdminVisits<T>(range: string): Promise<T> {
+  return req<T>(`/admin/visits?range=${encodeURIComponent(range)}`)
+}
+export async function phpAdminResponseTime<T>(): Promise<T> {
+  return req<T>('/admin/response-time')
+}
 export async function phpAdminCheck(): Promise<boolean> {
   try {
     const d = await req<{ admin: boolean }>('/admin/check')

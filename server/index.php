@@ -188,6 +188,9 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, listing_id $id, reporter_id $id, reason $txt, details $txt,
       status $txt, created_at $ts
     )$eng",
+    "CREATE TABLE IF NOT EXISTS visits (
+      id $id PRIMARY KEY, visitor_id $txt, path $txt, referrer $txt, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -651,6 +654,63 @@ function send_report_email(array $config, string $reporter, string $title, strin
   $html = email_layout($config, $inner, 'Nouveau signalement sur ' . $name);
   $subject = '🚩 Signalement — ' . mb_strimwidth($title, 0, 40, '…');
   foreach ($admins as $to) send_mail($config, $to, $subject, $html);
+}
+
+/** Série temporelle des visites selon la granularité (jour/semaine/mois/année). */
+function visit_series(PDO $pdo, string $range): array {
+  $now = time();
+  $buckets = []; $keyOf = null; $since = '';
+  if ($range === 'day') {
+    for ($i = 29; $i >= 0; $i--) { $ts = $now - $i * 86400; $buckets[] = ['key' => gmdate('Y-m-d', $ts), 'label' => gmdate('d/m', $ts)]; }
+    $keyOf = fn($c) => substr($c, 0, 10);
+    $since = gmdate('Y-m-d', $now - 29 * 86400) . 'T00:00:00Z';
+  } elseif ($range === 'week') {
+    for ($i = 11; $i >= 0; $i--) { $ts = $now - $i * 7 * 86400; $d = (int) gmdate('N', $ts); $mon = $ts - ($d - 1) * 86400; $buckets[] = ['key' => gmdate('Y-m-d', $mon), 'label' => gmdate('d/m', $mon)]; }
+    $keyOf = function ($c) { $t = strtotime($c); $d = (int) gmdate('N', $t); return gmdate('Y-m-d', $t - ($d - 1) * 86400); };
+    $since = $buckets[0]['key'] . 'T00:00:00Z';
+  } elseif ($range === 'year') {
+    $y = (int) gmdate('Y', $now);
+    for ($i = 4; $i >= 0; $i--) { $buckets[] = ['key' => (string) ($y - $i), 'label' => (string) ($y - $i)]; }
+    $keyOf = fn($c) => substr($c, 0, 4);
+    $since = ($y - 4) . '-01-01T00:00:00Z';
+  } else {
+    $range = 'month'; $y = (int) gmdate('Y', $now); $m = (int) gmdate('n', $now);
+    for ($i = 11; $i >= 0; $i--) { $mm = $m - $i; $yy = $y; while ($mm <= 0) { $mm += 12; $yy--; } $buckets[] = ['key' => sprintf('%04d-%02d', $yy, $mm), 'label' => sprintf('%02d/%02d', $mm, $yy % 100)]; }
+    $keyOf = fn($c) => substr($c, 0, 7);
+    $since = $buckets[0]['key'] . '-01T00:00:00Z';
+  }
+  $idx = []; foreach ($buckets as $i => $b) $idx[$b['key']] = $i;
+  $views = array_fill(0, count($buckets), 0);
+  $vsets = array_fill(0, count($buckets), []);
+  $st = $pdo->prepare('SELECT visitor_id, created_at FROM visits WHERE created_at >= ? ORDER BY created_at ASC LIMIT 200000');
+  $st->execute([$since]);
+  while ($row = $st->fetch()) {
+    $k = $keyOf($row['created_at']);
+    if (isset($idx[$k])) { $i = $idx[$k]; $views[$i]++; $vsets[$i][$row['visitor_id']] = true; }
+  }
+  $series = []; $totalViews = 0;
+  foreach ($buckets as $i => $b) { $series[] = ['label' => $b['label'], 'views' => $views[$i], 'visitors' => count($vsets[$i])]; $totalViews += $views[$i]; }
+  $tv = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) AS c FROM visits WHERE created_at >= ?');
+  $tv->execute([$since]);
+  return ['range' => $range, 'series' => $series, 'totalViews' => $totalViews, 'totalVisitors' => (int) $tv->fetch()['c']];
+}
+
+/** Temps de réponse moyen/médian aux messages (à chaque changement d'expéditeur). */
+function avg_response_time(PDO $pdo): array {
+  $rows = $pdo->query('SELECT conversation_id, sender_id, created_at FROM messages ORDER BY conversation_id, created_at ASC')->fetchAll();
+  $deltas = []; $curConv = null; $prevSender = null; $prevTs = null;
+  foreach ($rows as $r) {
+    if ($r['conversation_id'] !== $curConv) { $curConv = $r['conversation_id']; $prevSender = $r['sender_id']; $prevTs = strtotime($r['created_at']); continue; }
+    if ($r['sender_id'] !== $prevSender) {
+      $d = strtotime($r['created_at']) - $prevTs;
+      if ($d >= 0 && $d < 30 * 86400) $deltas[] = $d;
+    }
+    $prevSender = $r['sender_id']; $prevTs = strtotime($r['created_at']);
+  }
+  if (!$deltas) return ['count' => 0, 'avgSeconds' => null, 'medianSeconds' => null];
+  sort($deltas); $n = count($deltas);
+  $median = $n % 2 ? $deltas[intdiv($n, 2)] : ($deltas[$n / 2 - 1] + $deltas[$n / 2]) / 2;
+  return ['count' => $n, 'avgSeconds' => (int) round(array_sum($deltas) / $n), 'medianSeconds' => (int) round($median)];
 }
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
@@ -1125,6 +1185,18 @@ try {
     jout(['ok' => true]);
   }
 
+  // ---------- SUIVI DES VISITES (analytics) ----------
+  // Public : le front enregistre une vue de page (visiteur anonyme).
+  if ($path === 'track' && $method === 'POST') {
+    $b = body();
+    $vid = substr(trim((string) ($b['vid'] ?? '')), 0, 40) ?: 'anon';
+    $p   = substr(trim((string) ($b['path'] ?? '')), 0, 200) ?: '/';
+    $ref = substr(trim((string) ($b['ref'] ?? '')), 0, 200);
+    $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,created_at) VALUES (?,?,?,?,?)')
+        ->execute([uuid(), $vid, $p, $ref ?: null, now_iso()]);
+    jout(['ok' => true]);
+  }
+
   // ---------- NEWSLETTER ----------
   // Inscription publique : n'importe quel visiteur peut s'abonner.
   if ($path === 'newsletter' && $method === 'POST') {
@@ -1373,6 +1445,17 @@ try {
     if (count($seg) === 3 && $seg[1] === 'reviews' && $method === 'DELETE') {
       $pdo->prepare('DELETE FROM reviews WHERE id = ?')->execute([$seg[2]]);
       jout(['ok' => true]);
+    }
+
+    // Suivi des visiteurs (courbe par jour/semaine/mois/année).
+    if ($path === 'admin/visits' && $method === 'GET') {
+      $range = in_array($_GET['range'] ?? '', ['day', 'week', 'month', 'year'], true) ? $_GET['range'] : 'day';
+      jout(visit_series($pdo, $range));
+    }
+
+    // Temps de réponse moyen aux messages.
+    if ($path === 'admin/response-time' && $method === 'GET') {
+      jout(avg_response_time($pdo));
     }
 
     // Commandes (avec emails acheteur/vendeur et articles).

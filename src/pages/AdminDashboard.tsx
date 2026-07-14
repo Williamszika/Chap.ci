@@ -14,14 +14,15 @@ import {
   fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
-  fetchAdminConversations, fetchAdminReviews, deleteAdminReview,
+  fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
+  type VisitStats, type VisitRange, type ResponseTime,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews' | 'visitors'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -76,7 +77,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -90,6 +91,7 @@ export function AdminDashboard() {
 
       <div className="mx-auto max-w-2xl px-4 py-5 lg:max-w-6xl lg:px-6">
         {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} />}
+        {tab === 'visitors' && <VisitorsTab />}
         {tab === 'listings' && <ListingsTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'reports' && <ReportsTab />}
@@ -268,6 +270,134 @@ function TrendChart({ series }: { series: { date: string; users: number; listing
         <span>{dayNum(series[0].date)}</span>
         <span className="font-semibold text-gray-500">{total} au total · 14 j</span>
         <span>{dayNum(series[series.length - 1].date)}</span>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Visiteurs (analytics) ----------
+function formatDuration(sec: number | null): string {
+  if (sec == null) return '—'
+  if (sec < 60) return `${sec} s`
+  if (sec < 3600) return `${Math.round(sec / 60)} min`
+  if (sec < 86400) { const h = Math.floor(sec / 3600); const m = Math.round((sec % 3600) / 60); return m ? `${h} h ${m} min` : `${h} h` }
+  const d = Math.floor(sec / 86400); const h = Math.round((sec % 86400) / 3600); return h ? `${d} j ${h} h` : `${d} j`
+}
+
+/** Courbe (aire) des visites. */
+function AreaChart({ series, metric }: { series: { label: string; views: number; visitors: number }[]; metric: 'views' | 'visitors' }) {
+  const W = 320, H = 120, pad = 8
+  const vals = series.map((s) => s[metric])
+  const max = Math.max(1, ...vals)
+  const n = Math.max(1, vals.length)
+  const x = (i: number) => pad + (n === 1 ? 0 : (i / (n - 1)) * (W - 2 * pad))
+  const y = (v: number) => H - pad - (v / max) * (H - 2 * pad)
+  const line = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+  const area = `${x(0)},${H - pad} ${line} ${x(n - 1)},${H - pad}`
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-40 w-full" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#F77F00" stopOpacity="0.35" />
+          <stop offset="1" stopColor="#F77F00" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill="url(#areaGrad)" />
+      <polyline points={line} fill="none" stroke="#F77F00" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+const RANGES: { v: VisitRange; label: string }[] = [
+  { v: 'day', label: 'Jour' },
+  { v: 'week', label: 'Semaine' },
+  { v: 'month', label: 'Mois' },
+  { v: 'year', label: 'Année' },
+]
+
+function VisitorsTab() {
+  const [range, setRange] = useState<VisitRange>('day')
+  const [metric, setMetric] = useState<'visitors' | 'views'>('visitors')
+  const [data, setData] = useState<VisitStats | null>(null)
+  const [rt, setRt] = useState<ResponseTime | null>(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => { setData(null); setErr(''); fetchVisits(range).then(setData).catch((e) => setErr((e as Error).message)) }, [range])
+  useEffect(() => { fetchResponseTime().then(setRt).catch(() => {}) }, [])
+
+  const s = data?.series ?? []
+  const labelAt = (i: number) => s[i]?.label ?? ''
+
+  return (
+    <div className="space-y-4">
+      {/* Sélecteur de granularité */}
+      <div className="flex gap-2">
+        {RANGES.map((r) => (
+          <button
+            key={r.v}
+            onClick={() => setRange(r.v)}
+            className={`flex-1 rounded-xl py-2 text-sm font-semibold transition ${range === r.v ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {err ? <ErrRetry msg={err} onRetry={() => setRange((x) => x)} /> : !data ? <Center><Loader2 className="animate-spin" size={20} /></Center> : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-white p-4 shadow-card">
+              <p className="font-display text-2xl font-bold text-gray-900">{formatPrice(data.totalVisitors)}</p>
+              <p className="text-xs text-gray-500">Visiteurs uniques</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 shadow-card">
+              <p className="font-display text-2xl font-bold text-gray-900">{formatPrice(data.totalViews)}</p>
+              <p className="text-xs text-gray-500">Pages vues</p>
+            </div>
+          </div>
+
+          {/* Courbe */}
+          <div className="rounded-2xl bg-white p-4 shadow-card">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                <TrendingUp size={16} className="text-primary-500" /> Évolution des visites
+              </p>
+              <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
+                <button onClick={() => setMetric('visitors')} className={`rounded-md px-2.5 py-1 ${metric === 'visitors' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Visiteurs</button>
+                <button onClick={() => setMetric('views')} className={`rounded-md px-2.5 py-1 ${metric === 'views' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Pages vues</button>
+              </div>
+            </div>
+            <AreaChart series={s} metric={metric} />
+            <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+              <span>{labelAt(0)}</span>
+              <span>{labelAt(Math.floor(s.length / 2))}</span>
+              <span>{labelAt(s.length - 1)}</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Temps de réponse moyen */}
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <p className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-800">
+          <MessageSquare size={16} className="text-primary-500" /> Temps de réponse aux messages
+        </p>
+        {!rt ? (
+          <p className="text-sm text-gray-400">Chargement…</p>
+        ) : rt.count === 0 ? (
+          <p className="text-sm text-gray-500">Pas encore assez de messages pour calculer.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-gray-50 p-3 text-center">
+              <p className="font-display text-xl font-bold text-emerald-600">{formatDuration(rt.medianSeconds)}</p>
+              <p className="text-[11px] text-gray-500">Réponse habituelle (médiane)</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3 text-center">
+              <p className="font-display text-xl font-bold text-gray-800">{formatDuration(rt.avgSeconds)}</p>
+              <p className="text-[11px] text-gray-500">Moyenne ({formatPrice(rt.count)} réponses)</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

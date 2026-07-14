@@ -5,6 +5,7 @@ import { TopNav } from './components/TopNav'
 import { LocationGate } from './components/LocationGate'
 import { NewsletterPrompt } from './components/NewsletterPrompt'
 import { useAuth } from './store/AuthContext'
+import { trackPageView } from './lib/track'
 import { Home } from './pages/Home'
 import { Browse } from './pages/Browse'
 import { ListingDetail } from './pages/ListingDetail'
@@ -28,6 +29,7 @@ function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
+    trackPageView(pathname) // suivi anonyme des visites
   }, [pathname])
   return null
 }
