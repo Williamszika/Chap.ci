@@ -65,8 +65,8 @@ export function Home() {
 
   return (
     <div>
-      {/* En-tête orange */}
-      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-3 text-white">
+      {/* En-tête orange (bannière/héro sur desktop) */}
+      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-3 text-white lg:mt-4 lg:rounded-3xl lg:px-10 lg:pb-9 lg:pt-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Mark size={38} variant="white" />
@@ -95,10 +95,20 @@ export function Home() {
           </div>
         </div>
 
+        {/* Titre « héro » — visible uniquement sur grand écran */}
+        <div className="hidden lg:mt-6 lg:block">
+          <h1 className="font-display text-3xl font-extrabold leading-tight">
+            Achetez et vendez <span className="text-white/80">chap-chap</span> en Côte d’Ivoire 🇨🇮
+          </h1>
+          <p className="mt-1.5 text-white/85">
+            Des milliers d’annonces près de chez vous : voitures, téléphones, immobilier, mode, alimentation…
+          </p>
+        </div>
+
         {/* Sélecteur de lieu */}
         <button
           onClick={() => setLocOpen(true)}
-          className="mt-4 flex items-center gap-1.5 text-sm font-medium text-white/95"
+          className="mt-4 flex items-center gap-1.5 text-sm font-medium text-white/95 lg:mt-5"
         >
           <MapPin size={16} />
           <span className="max-w-[70vw] truncate">
@@ -107,16 +117,19 @@ export function Home() {
           <ChevronDown size={16} />
         </button>
 
-        {/* Barre de recherche */}
-        <form onSubmit={submitSearch} className="mt-3">
-          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
+        {/* Barre de recherche (plus grande sur desktop) */}
+        <form onSubmit={submitSearch} className="mt-3 lg:mt-5 lg:max-w-2xl">
+          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm lg:rounded-2xl lg:px-5 lg:py-4">
             <Search size={20} className="text-gray-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Rechercher une voiture, un téléphone…"
-              className="w-full bg-transparent text-[15px] text-gray-800 outline-none placeholder:text-gray-400"
+              className="w-full bg-transparent text-[15px] text-gray-800 outline-none placeholder:text-gray-400 lg:text-lg"
             />
+            <button type="submit" className="hidden rounded-xl bg-primary-500 px-5 py-2 text-sm font-semibold text-white lg:block">
+              Rechercher
+            </button>
           </div>
         </form>
       </header>

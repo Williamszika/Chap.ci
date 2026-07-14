@@ -88,7 +88,7 @@ export function AdminDashboard() {
         </nav>
       </header>
 
-      <div className="mx-auto max-w-2xl px-4 py-5">
+      <div className="mx-auto max-w-2xl px-4 py-5 lg:max-w-6xl lg:px-6">
         {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} />}
         {tab === 'listings' && <ListingsTab />}
         {tab === 'users' && <UsersTab />}
@@ -118,7 +118,7 @@ function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }
   ]
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {cards.map((c) => {
           const clickable = !!c.tab
           const Comp = clickable ? 'button' : 'div'
