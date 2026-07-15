@@ -84,6 +84,38 @@ function uuid(): string {
   return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($d), 4));
 }
 function now_iso(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
+
+// ---- Sécurité : IP client, journal d'audit, limitation de débit ------------
+/** IP réelle du visiteur (tient compte de Cloudflare / proxys). */
+function client_ip(): string {
+  foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $k) {
+    if (!empty($_SERVER[$k])) return substr(trim(explode(',', $_SERVER[$k])[0]), 0, 45);
+  }
+  return '0.0.0.0';
+}
+/** Journalise un événement de sécurité. Ne casse JAMAIS la requête en cas d'erreur. */
+function log_security_event(PDO $pdo, string $kind, ?string $email = null, string $detail = ''): void {
+  try {
+    $pdo->prepare('INSERT INTO security_events (id,kind,email,ip,ua,detail,created_at) VALUES (?,?,?,?,?,?,?)')
+        ->execute([uuid(), $kind, $email ? strtolower($email) : null, client_ip(),
+                   substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200), substr($detail, 0, 200), now_iso()]);
+  } catch (Throwable $e) { /* le journal ne doit jamais bloquer l'utilisateur */ }
+}
+/** Bloque en 429 si trop d'événements d'un type pour cette IP ou cet email dans la fenêtre. */
+function rate_limit(PDO $pdo, string $kind, ?string $email, int $limit, int $windowSec): void {
+  try {
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $windowSec);
+    $sql = 'SELECT COUNT(*) FROM security_events WHERE kind = ? AND created_at >= ? AND (ip = ?'
+         . ($email ? ' OR email = ?' : '') . ')';
+    $params = [$kind, $since, client_ip()];
+    if ($email) $params[] = strtolower($email);
+    $st = $pdo->prepare($sql); $st->execute($params);
+    if ((int) $st->fetchColumn() >= $limit) {
+      log_security_event($pdo, 'rate_limited', $email, $kind);
+      jerr('Trop de tentatives. Pour votre sécurité, réessayez dans quelques minutes.', 429);
+    }
+  } catch (Throwable $e) { /* en cas d'erreur DB, ne pas pénaliser un utilisateur légitime */ }
+}
 function iso_to_ms(?string $iso): int { return $iso ? (int) (strtotime($iso) * 1000) : 0; }
 function b64url(string $s): string { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
 function b64url_dec(string $s): string { return base64_decode(strtr($s, '-_', '+/')); }
@@ -194,6 +226,10 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS saved_searches (
       id $id PRIMARY KEY, user_id $id, label $txt, params $txt, last_notified_at $ts, created_at $ts
     )$eng",
+    // Journal d'audit de sécurité : connexions, inscriptions, blocages… (Le Greffier).
+    "CREATE TABLE IF NOT EXISTS security_events (
+      id $id PRIMARY KEY, kind $txt, email $txt, ip $txt, ua $txt, detail $txt, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -226,6 +262,11 @@ function migrate(PDO $pdo): void {
   // Rétro-compat : les avis existants notaient le vendeur.
   try { $pdo->exec("UPDATE reviews SET target_id = seller_id WHERE target_id IS NULL OR target_id = ''"); } catch (Throwable $e) {}
   try { $pdo->exec("UPDATE reviews SET kind = 'seller' WHERE kind IS NULL OR kind = ''"); } catch (Throwable $e) {}
+  // Consentement horodaté à l'inscription (Le Gardien du Consentement — loi 2013-450/2013-546).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN consent_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN cgu_version $txt"); } catch (Throwable $e) {}
+  // Index léger sur le journal de sécurité (accélère rate-limit et rapports).
+  try { $pdo->exec("CREATE INDEX idx_sec_events ON security_events (kind, created_at)"); } catch (Throwable $e) {}
 }
 
 // ---- Auth courant -----------------------------------------------------------
@@ -1066,15 +1107,21 @@ try {
     $email = strtolower(trim($b['email'] ?? ''));
     $pass  = (string) ($b['password'] ?? '');
     $name  = trim($b['full_name'] ?? '');
+    // Anti-abus : max 6 créations de compte par IP et par heure.
+    rate_limit($pdo, 'signup', null, 6, 3600);
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
     if (strlen($pass) < 8) jerr('Le mot de passe doit faire au moins 8 caractères.');
+    // Consentement obligatoire et horodaté (loi 2013-450 / 2013-546).
+    if (empty($b['consent'])) jerr('Vous devez accepter les CGU et la Politique de confidentialité.');
     $ex = $pdo->prepare('SELECT id FROM users WHERE email = ?'); $ex->execute([$email]);
     if ($ex->fetch()) jerr('Cet email a déjà un compte. Connectez-vous.');
     $id = uuid();
-    $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at) VALUES (?,?,?,?)')
-        ->execute([$id, $email, password_hash($pass, PASSWORD_BCRYPT), now_iso()]);
+    $cguVersion = substr((string) ($b['cguVersion'] ?? '2026-07-14'), 0, 32);
+    $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version) VALUES (?,?,?,?,?,?)')
+        ->execute([$id, $email, password_hash($pass, PASSWORD_BCRYPT), now_iso(), now_iso(), $cguVersion]);
     $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
         ->execute([$id, $name, now_iso()]);
+    log_security_event($pdo, 'signup', $email);
     // Email de bienvenue (best-effort : n'empêche jamais la création du compte).
     send_welcome_email($config, $email, $name);
     $token = jwt_sign(['sub' => $id, 'email' => $email, 'exp' => time() + 60 * 60 * 24 * 30], $secret);
@@ -1084,12 +1131,19 @@ try {
   if ($path === 'auth/login' && $method === 'POST') {
     $b = body();
     $email = strtolower(trim($b['email'] ?? ''));
+    // Anti-force brute : max 8 tentatives par IP/email sur 15 minutes.
+    rate_limit($pdo, 'login_fail', $email, 8, 900);
     $st = $pdo->prepare('SELECT id,email,password_hash,status FROM users WHERE email = ?');
     $st->execute([$email]); $u = $st->fetch();
-    if (!$u || !password_verify((string) ($b['password'] ?? ''), $u['password_hash']))
+    if (!$u || !password_verify((string) ($b['password'] ?? ''), $u['password_hash'])) {
+      log_security_event($pdo, 'login_fail', $email);
       jerr('Email ou mot de passe incorrect.', 401);
-    if (($u['status'] ?? 'active') === 'blocked')
+    }
+    if (($u['status'] ?? 'active') === 'blocked') {
+      log_security_event($pdo, 'login_blocked', $email);
       jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403);
+    }
+    log_security_event($pdo, 'login_ok', $email);
     $token = jwt_sign(['sub' => $u['id'], 'email' => $u['email'], 'exp' => time() + 60 * 60 * 24 * 30], $secret);
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
@@ -2226,6 +2280,54 @@ try {
       ],
       'topCategories' => $topCats->fetchAll(),
     ]);
+  }
+
+  // ---------- SYNTHÈSE SÉCURITÉ (Le Greffier — journal d'audit) ----------
+  // Compteurs d'événements + IP les plus actives sur les échecs. Clé cron.
+  if ($path === 'cron/security' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $days = max(1, min(90, (int) ($_GET['days'] ?? 1)));
+    $since = gmdate('Y-m-d\TH:i:s', time() - $days * 86400);
+    $counts = [];
+    $st = $pdo->prepare('SELECT kind, COUNT(*) AS n FROM security_events WHERE created_at >= ? GROUP BY kind');
+    $st->execute([$since]);
+    foreach ($st->fetchAll() as $r) $counts[$r['kind']] = (int) $r['n'];
+    // IP avec le plus d'échecs de connexion (signal d'attaque par force brute).
+    $ips = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind IN ('login_fail','rate_limited') AND created_at >= ? GROUP BY ip HAVING COUNT(*) >= 5 ORDER BY n DESC LIMIT 10");
+    $ips->execute([$since]);
+    $loginFail = $counts['login_fail'] ?? 0;
+    $loginOk   = $counts['login_ok'] ?? 0;
+    jout([
+      'periodDays'      => $days,
+      'since'           => $since,
+      'counts'          => $counts,
+      'suspiciousIps'   => $ips->fetchAll(),
+      'failRatio'       => ($loginOk + $loginFail) ? round($loginFail / ($loginOk + $loginFail), 2) : 0,
+      'rateLimited'     => $counts['rate_limited'] ?? 0,
+      'newSignups'      => $counts['signup'] ?? 0,
+    ]);
+  }
+
+  // ---------- MÉNAGE / MAINTENANCE (L'Intendant) ----------
+  // Purge les données temporaires anciennes + expire les vieilles annonces. Clé cron.
+  if ($path === 'cron/cleanup' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $done = [];
+    // Visites de plus de 120 jours (analytics anonymes, inutiles au-delà).
+    $d = gmdate('Y-m-d\TH:i:s', time() - 120 * 86400);
+    $st = $pdo->prepare('DELETE FROM visits WHERE created_at < ?'); $st->execute([$d]); $done['visits_purgees'] = $st->rowCount();
+    // Journal de sécurité de plus de 180 jours.
+    $d2 = gmdate('Y-m-d\TH:i:s', time() - 180 * 86400);
+    $st = $pdo->prepare('DELETE FROM security_events WHERE created_at < ?'); $st->execute([$d2]); $done['evenements_securite_purges'] = $st->rowCount();
+    // Annonces actives non vendues de plus de 90 jours → masquées (expirées), pas supprimées.
+    $d3 = gmdate('Y-m-d\TH:i:s', time() - 90 * 86400);
+    $st = $pdo->prepare('UPDATE listings SET hidden = 1 WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) AND created_at < ?');
+    $st->execute([$d3]); $done['annonces_expirees'] = $st->rowCount();
+    jout(['ok' => true, 'nettoyage' => $done]);
   }
 
   // ---------- ENVOI D'UN RAPPORT PAR EMAIL (avec PDF joint) ----------

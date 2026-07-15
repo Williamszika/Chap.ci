@@ -63,10 +63,14 @@ async function req<T>(
 }
 
 // ---- Auth -------------------------------------------------------------------
+// Version des mentions légales acceptée à l'inscription (consentement horodaté).
+export const CGU_VERSION = '2026-07-14'
 export async function phpSignup(email: string, password: string, fullName: string): Promise<PhpUser> {
   const d = await req<{ token: string; user: PhpUser }>('/auth/signup', {
     method: 'POST',
-    body: { email, password, full_name: fullName },
+    // Le formulaire n'autorise l'envoi que si la case CGU est cochée : on
+    // transmet le consentement + la version acceptée, horodatés côté serveur.
+    body: { email, password, full_name: fullName, consent: true, cguVersion: CGU_VERSION },
   })
   setSession(d.token, d.user)
   return d.user

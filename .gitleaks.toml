@@ -1,0 +1,19 @@
+# Configuration gitleaks pour Chap.ci — « La Garde ».
+# Utilise les règles par défaut de gitleaks, avec une liste d'exceptions pour les
+# valeurs PAR DÉFAUT documentées (remplacées en production par api/config.php ou
+# des variables d'environnement — elles ne donnent accès à rien sur le vrai site).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valeurs par défaut de développement, surchargées en production"
+regexes = [
+  # Clé cron par défaut (surchargée par CHAPCI_CRON_KEY / config.php en prod).
+  '''chapci-cron-2026-a7f3e9''',
+  # Secret JWT factice par défaut (surchargé par CHAPCI_JWT_SECRET / config.php).
+  '''CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire''',
+]
+paths = [
+  '''package-lock\.json''',
+  '''.*\.woff2?''',
+]

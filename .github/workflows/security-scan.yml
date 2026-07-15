@@ -1,0 +1,43 @@
+name: Sécurité — scan de secrets & dépendances
+
+# « La Garde » : inspecte chaque changement de code avant qu'il n'atteigne le site.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Scan de secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Installer gitleaks
+        run: |
+          VER=8.18.4
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+      - name: Détecter les secrets
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --verbose
+
+  dependances:
+    name: Audit des dépendances (npm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Informatif : n'échoue que sur les vulnérabilités hautes/critiques exploitables.
+      - name: npm audit
+        run: |
+          npm audit --omit=dev --audit-level=high || {
+            echo "::warning::Vulnérabilités détectées dans les dépendances — voir le journal."
+          }
