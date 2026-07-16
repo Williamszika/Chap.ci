@@ -58,7 +58,14 @@ async function req<T>(
   })
   const text = await res.text()
   const data = text ? JSON.parse(text) : null
-  if (!res.ok) throw new Error((data && data.error) || `Erreur ${res.status}`)
+  if (!res.ok) {
+    const err = new Error((data && data.error) || `Erreur ${res.status}`)
+    // Refus de modération : on transmet les raisons détaillées à l'appelant.
+    if (data && data.moderation && Array.isArray(data.reasons)) {
+      ;(err as Error & { moderation?: unknown }).moderation = data.reasons
+    }
+    throw err
+  }
   return data as T
 }
 

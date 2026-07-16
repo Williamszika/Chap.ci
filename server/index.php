@@ -146,6 +146,66 @@ function rate_limit(PDO $pdo, string $kind, ?string $email, int $limit, int $win
   } catch (Throwable $e) { /* en cas d'erreur DB, ne pas pénaliser un utilisateur légitime */ }
 }
 function iso_to_ms(?string $iso): int { return $iso ? (int) (strtotime($iso) * 1000) : 0; }
+
+// ---- Modération automatique (Le Gardien de publication) ---------------------
+/** Normalise un texte pour l'analyse : minuscules, sans accents, ponctuation -> espaces. */
+function mod_norm(string $s): string {
+  $s = mb_strtolower($s, 'UTF-8');
+  $s = strtr($s, [
+    'à'=>'a','â'=>'a','ä'=>'a','á'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+    'î'=>'i','ï'=>'i','í'=>'i','ô'=>'o','ö'=>'o','ó'=>'o','ù'=>'u','û'=>'u','ü'=>'u','ç'=>'c','ñ'=>'n',
+  ]);
+  $s = preg_replace('/[^a-z0-9]+/', ' ', $s);         // ponctuation/emoji -> espace
+  return ' ' . trim(preg_replace('/\s+/', ' ', $s)) . ' ';
+}
+/**
+ * Analyse le texte d'une annonce ou d'un message (anti-arnaque + contenu
+ * interdit). 100 % local, sans coût. Renvoie
+ *   ['ok' => bool, 'reasons' => [['code','label','advice'], ...]].
+ * Filtre les cas évidents ; la modération humaine (admin) reste le filet.
+ */
+function moderate_text(string $text): array {
+  $t = mod_norm($text);
+  $groups = [
+    ['code'=>'drogue','label'=>'Produits stupéfiants / drogues',
+     'advice'=>'La vente de drogues est illégale et strictement interdite sur Chap.ci.',
+     'terms'=>[' drogue',' stupefiant',' cannabis',' chanvre indien',' weed ',' marijuana',' ganja',' cocaine',' heroine',' crack ',' ecstasy',' mdma',' amphetamine',' methamphet',' kush ',' hashich',' hashish',' shabu']],
+    ['code'=>'arme','label'=>'Armes et munitions',
+     'advice'=>'La vente d’armes, de munitions ou d’explosifs est interdite.',
+     'terms'=>[' arme a feu',' pistolet',' revolver',' kalachnikov',' ak 47',' fusil d assaut',' munition',' cartouche a balle',' grenade',' explosif']],
+    ['code'=>'medicament','label'=>'Médicaments / produits pharmaceutiques',
+     'advice'=>'La vente de médicaments hors pharmacie agréée est interdite (réglementation AIRP).',
+     'terms'=>[' medicament',' viagra',' cialis',' cytotec',' misoprostol',' tramadol',' pilule abortive',' produit abortif']],
+    ['code'=>'faux','label'=>'Faux documents / fausse monnaie',
+     'advice'=>'Les faux papiers, faux diplômes ou la fausse monnaie sont illégaux.',
+     'terms'=>[' faux papier',' faux document',' faux diplome',' faux permis',' faux passeport',' vrai faux',' faux billet',' fausse monnaie',' faux argent']],
+    ['code'=>'sexuel_service','label'=>'Services à caractère sexuel',
+     'advice'=>'Les services de plaisir contre argent (escorte, prostitution…) sont interdits et illégaux.',
+     'terms'=>[' escort',' escorte',' prostitu',' plan cul',' coup d un soir',' call girl',' callgirl',' service de plaisir',' services de plaisir',' massage sexuel',' massage sensuel',' sexe contre',' sexe en echange',' gigolo',' sugar daddy',' sugar mummy',' rencontre coquine',' michetonnage']],
+    ['code'=>'contenu_sexuel','label'=>'Contenu sexuel / nudité',
+     'advice'=>'Les contenus pornographiques ou de nudité sont interdits sur Chap.ci.',
+     'terms'=>[' porno',' pornographie',' xxx ',' photo nue',' photos nues',' nudite',' sextape',' film x ',' contenu adulte',' nudes ',' hentai']],
+    ['code'=>'especes','label'=>'Espèces protégées',
+     'advice'=>'Le commerce d’ivoire, d’écailles ou d’espèces protégées est interdit.',
+     'terms'=>[' defense d ivoire',' ivoire d elephant',' ecaille de tortue',' pangolin',' corne de rhinoceros',' peau de leopard',' peau de panthere']],
+    ['code'=>'arnaque_avance','label'=>'Paiement à l’avance (signe d’arnaque)',
+     'advice'=>'Ne demandez jamais de paiement avant livraison. Retirez toute mention d’acompte, de frais d’avance ou de Western Union.',
+     'terms'=>[' payer d avance',' payez d avance',' paiement avant livraison',' paiement a l avance',' acompte avant',' frais de dossier',' frais d avance',' western union',' moneygram',' envoyez l argent',' caution avant',' payer avant de recevoir']],
+    ['code'=>'arnaque_gain','label'=>'Fausse promesse de gain (signe d’arnaque)',
+     'advice'=>'Les offres « argent facile », loteries ou placements garantis sont des arnaques interdites.',
+     'terms'=>[' argent facile',' gagnez de l argent facilement',' vous avez gagne',' loterie',' heritage a reclamer',' doublez votre argent',' placement garanti',' investissement garanti',' rendement garanti']],
+  ];
+  $reasons = [];
+  foreach ($groups as $g) {
+    foreach ($g['terms'] as $term) {
+      if (strpos($t, $term) !== false) {
+        $reasons[] = ['code'=>$g['code'], 'label'=>$g['label'], 'advice'=>$g['advice']];
+        break;
+      }
+    }
+  }
+  return ['ok' => count($reasons) === 0, 'reasons' => $reasons];
+}
 function b64url(string $s): string { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
 function b64url_dec(string $s): string { return base64_decode(strtr($s, '-_', '+/')); }
 
@@ -1565,6 +1625,15 @@ try {
     if (in_array($ustatus, ['blocked', 'restricted'], true))
       jerr('Votre compte ne peut pas publier d’annonce pour le moment. Contactez le support.', 403);
     if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
+    // Le Gardien : analyse anti-arnaque + contenu interdit AVANT publication.
+    $mod = moderate_text(($b['title'] ?? '') . ' ' . ($b['description'] ?? ''));
+    if (!$mod['ok']) {
+      log_security_event($pdo, 'listing_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $mod['reasons'])));
+      jout([
+        'error' => 'Votre annonce n’a pas pu être publiée : elle enfreint nos règles.',
+        'moderation' => true, 'reasons' => $mod['reasons'],
+      ], 422);
+    }
     $images = [];
     foreach ((array) ($b['images'] ?? []) as $img) {
       $url = save_data_uri($config, (string) $img, true); // true = filigrane Chap.ci
@@ -1616,6 +1685,15 @@ try {
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
     if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
+    // Le Gardien : re-vérifie le contenu à chaque modification.
+    $mod = moderate_text(($b['title'] ?? '') . ' ' . ($b['description'] ?? ''));
+    if (!$mod['ok']) {
+      log_security_event($pdo, 'listing_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $mod['reasons'])));
+      jout([
+        'error' => 'Votre annonce n’a pas pu être enregistrée : elle enfreint nos règles.',
+        'moderation' => true, 'reasons' => $mod['reasons'],
+      ], 422);
+    }
     // Images : on garde les URLs existantes, on enregistre les nouvelles (data-URI).
     $images = [];
     foreach ((array) ($b['images'] ?? []) as $img) {
@@ -1789,6 +1867,15 @@ try {
     if ($method === 'POST') {
       $b = body(); $bodyTxt = trim($b['body'] ?? '');
       if (!$bodyTxt) jerr('Message vide.');
+      // Modération du chat : on bloque le contenu clairement illégal (drogue,
+      // sexe, services de plaisir…), pas les questions de paiement légitimes.
+      $mod = moderate_text($bodyTxt);
+      $illegal = array_values(array_filter($mod['reasons'], fn($r) =>
+        in_array($r['code'], ['drogue','arme','faux','sexuel_service','contenu_sexuel','especes','medicament'], true)));
+      if ($illegal) {
+        log_security_event($pdo, 'message_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $illegal)));
+        jout(['error' => 'Message bloqué : il contient du contenu interdit.', 'moderation' => true, 'reasons' => $illegal], 422);
+      }
       $id = uuid(); $ts = now_iso();
       $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at) VALUES (?,?,?,?,?)')
           ->execute([$id, $convId, $u['id'], $bodyTxt, $ts]);

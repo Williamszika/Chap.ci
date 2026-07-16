@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2 } from 'lucide-react'
+import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, BookOpen } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { updateListingRemote } from '../lib/api'
 import type { Listing } from '../types'
@@ -21,6 +21,9 @@ import { coordsFor, type Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
 const MAX_PHOTOS = 5
+
+/** Raison de refus renvoyée par le Gardien de publication (modération). */
+type ModReason = { code: string; label: string; advice: string }
 
 export function PostAd() {
   const navigate = useNavigate()
@@ -56,6 +59,7 @@ export function PostAd() {
   const [locating, setLocating] = useState(false)
   const [seller, setSeller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const [error, setError] = useState('')
+  const [moderation, setModeration] = useState<ModReason[] | null>(null) // refus du Gardien
   const [submitting, setSubmitting] = useState(false)
   const prefilled = useRef(false)
 
@@ -182,6 +186,7 @@ export function PostAd() {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setModeration(null)
     if (!title.trim()) return setError('Ajoutez un titre à votre annonce.')
     if (!categoryId) return setError('Choisissez une catégorie.')
     if (!price.trim()) return setError('Indiquez un prix (0 pour « gratuit »).')
@@ -226,8 +231,14 @@ export function PostAd() {
         ? await updateListingRemote(editId, input)
         : await addListing(input)
       navigate(`/annonce/${created.id}`)
-    } catch {
-      setError("Échec de la publication. Vérifiez votre connexion et réessayez.")
+    } catch (e) {
+      const err = e as Error & { moderation?: ModReason[] }
+      if (err.moderation && err.moderation.length) {
+        setModeration(err.moderation)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        setError(err.message || 'Échec de la publication. Vérifiez votre connexion et réessayez.')
+      }
       setSubmitting(false)
     }
   }
@@ -242,6 +253,32 @@ export function PostAd() {
       </header>
 
       <form onSubmit={submit} className="px-4 py-5 lg:px-8">
+        {/* Refus du Gardien de publication (modération automatique) */}
+        {moderation && (
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p className="flex items-center gap-2 font-bold text-red-700">
+              <ShieldAlert size={18} /> Publication refusée
+            </p>
+            <p className="mt-1 text-sm text-red-600">
+              Votre annonce n’a pas été publiée car elle enfreint nos règles :
+            </p>
+            <ul className="mt-2.5 space-y-2">
+              {moderation.map((r) => (
+                <li key={r.code} className="rounded-xl border border-red-100 bg-white/70 p-2.5">
+                  <p className="text-sm font-semibold text-red-700">• {r.label}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-red-600/90">{r.advice}</p>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs leading-relaxed text-gray-600">
+              Corrigez votre annonce (titre et description), puis republiez. Pour en savoir plus, consultez nos{' '}
+              <a href="#/conditions" className="inline-flex items-center gap-1 font-semibold text-primary-600 underline">
+                <BookOpen size={12} /> Conditions d’utilisation
+              </a>. Si vous pensez qu’il s’agit d’une erreur, contactez le support.
+            </p>
+          </div>
+        )}
+
         {/* 2 colonnes sur ordinateur, 1 colonne sur mobile/tablette (l'ordre reste identique) */}
         <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
         {/* ---- Colonne gauche : photos, titre, catégorie, état ---- */}
