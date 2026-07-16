@@ -48,6 +48,7 @@ export async function getEditedImage(
   filter = '',
   maxDim = 1280,
   quality = 0.85,
+  bg: string | null = null,
 ): Promise<string> {
   const image = await createImage(src)
   const { width: bW, height: bH } = rotateSize(image.width, image.height, rotation)
@@ -74,6 +75,12 @@ export async function getEditedImage(
   out.height = outH
   const octx = out.getContext('2d')
   if (!octx) throw new Error('Canvas indisponible')
+  // Fond studio : on remplit d'abord la couleur ; les zones hors-photo (quand la
+  // photo est réduite pour laisser une marge) laissent apparaître ce fond.
+  if (bg) {
+    octx.fillStyle = bg
+    octx.fillRect(0, 0, outW, outH)
+  }
   octx.imageSmoothingQuality = 'high'
   octx.drawImage(
     canvas,

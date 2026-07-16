@@ -2,11 +2,24 @@ import { useCallback, useState } from 'react'
 import Cropper, { type Area } from 'react-easy-crop'
 import {
   X, Check, Crop as CropIcon, SlidersHorizontal, Sparkles, RotateCw, FlipHorizontal2,
-  Wand2, Loader2,
+  Wand2, Loader2, Palette,
 } from 'lucide-react'
 import { getEditedImage } from '../lib/cropImage'
 
-type Tab = 'crop' | 'adjust' | 'filter'
+type Tab = 'crop' | 'adjust' | 'filter' | 'bg'
+
+// Fonds « studio » : la photo est posée sur une couleur unie (sans détourage).
+const BACKGROUNDS: { label: string; value: string | null }[] = [
+  { label: 'Aucun', value: null },
+  { label: 'Blanc', value: '#FFFFFF' },
+  { label: 'Gris', value: '#F1F1F4' },
+  { label: 'Beige', value: '#F3ECE0' },
+  { label: 'Bleu', value: '#E4F0FB' },
+  { label: 'Vert', value: '#E7F4EA' },
+  { label: 'Rose', value: '#FBE9EF' },
+  { label: 'Orange', value: '#FDEEDC' },
+  { label: 'Noir', value: '#141414' },
+]
 
 // Amélioration auto (« ✨ Améliorer ») — rendu vif / punchy façon catalogue.
 const ENHANCE = { b: 1.07, c: 1.2, s: 1.4, extra: '' }
@@ -44,6 +57,9 @@ export function PhotoEditor({
   const [flipH, setFlipH] = useState(false)
   const [aspectSel, setAspectSel] = useState<number | 'orig'>('orig')
   const [naturalAspect, setNaturalAspect] = useState(3 / 4)
+  const [bg, setBg] = useState<string | null>(null) // fond studio
+  const [restrict, setRestrict] = useState(true) // false pour laisser une marge de fond
+  const [minZoom, setMinZoom] = useState(1)
 
   const [b, setB] = useState(1)
   const [c, setC] = useState(1)
@@ -63,11 +79,27 @@ export function PhotoEditor({
     setB(p.b); setC(p.c); setS(p.s); setExtra(p.extra)
   }
 
+  // Choix d'un fond studio : on « dézoome » pour créer une marge de couleur
+  // autour de la photo (sans détourage), et on autorise le repositionnement.
+  function chooseBg(color: string | null) {
+    setBg(color)
+    if (color) {
+      setRestrict(false)
+      setMinZoom(0.4)
+      setZoom((z) => (z > 0.95 ? 0.82 : z))
+    } else {
+      setRestrict(true)
+      setMinZoom(1)
+      setZoom((z) => Math.max(1, z))
+      setCrop({ x: 0, y: 0 })
+    }
+  }
+
   async function apply() {
     if (!pixels) return
     setBusy(true)
     try {
-      const out = await getEditedImage(src, pixels, rotation + tilt, { horizontal: flipH, vertical: false }, filter, 1280, 0.85)
+      const out = await getEditedImage(src, pixels, rotation + tilt, { horizontal: flipH, vertical: false }, filter, 1280, 0.85, bg)
       onApply(out)
     } catch {
       onApply(src) // repli : on garde la photo d'origine
@@ -95,8 +127,9 @@ export function PhotoEditor({
           image={src}
           crop={crop}
           zoom={zoom}
-          minZoom={1}
+          minZoom={minZoom}
           maxZoom={4}
+          restrictPosition={restrict}
           rotation={rotation + tilt}
           aspect={aspect}
           onCropChange={setCrop}
@@ -105,7 +138,7 @@ export function PhotoEditor({
           onMediaLoaded={(m) => setNaturalAspect(m.naturalWidth / m.naturalHeight)}
           objectFit="contain"
           showGrid={tab === 'crop'}
-          style={{ mediaStyle: { filter }, containerStyle: { background: '#000' } }}
+          style={{ mediaStyle: { filter }, containerStyle: { background: bg ?? '#000' } }}
         />
       </div>
 
@@ -118,7 +151,7 @@ export function PhotoEditor({
           <Sparkles size={17} /> Améliorer
         </button>
         <button
-          onClick={() => { applyPreset(RESET); setRotation(0); setTilt(0); setFlipH(false); setZoom(1) }}
+          onClick={() => { applyPreset(RESET); setRotation(0); setTilt(0); setFlipH(false); setZoom(1); chooseBg(null) }}
           className="rounded-full border border-white/25 px-4 py-2.5 text-sm font-semibold text-white/80 active:scale-95"
         >
           Réinitialiser
@@ -147,7 +180,26 @@ export function PhotoEditor({
               </button>
             </div>
             <Slider label="Redresser" value={tilt} min={-15} max={15} step={1} onChange={setTilt} suffix="°" />
-            <Slider label="Zoom" value={zoom} min={1} max={4} step={0.01} onChange={setZoom} />
+            <Slider label="Zoom" value={zoom} min={minZoom} max={4} step={0.01} onChange={setZoom} />
+          </div>
+        )}
+
+        {tab === 'bg' && (
+          <div className="space-y-2 pt-1">
+            <p className="text-[12px] text-white/60">Posez la photo sur un fond de couleur (dézoomez pour élargir la marge).</p>
+            <div className="no-scrollbar flex gap-2.5 overflow-x-auto pb-1">
+              {BACKGROUNDS.map((bgc) => (
+                <button key={bgc.label} onClick={() => chooseBg(bgc.value)} className="flex shrink-0 flex-col items-center gap-1.5">
+                  <span
+                    className={`grid h-12 w-12 place-items-center rounded-xl border-2 ${bg === bgc.value ? 'border-primary-400' : 'border-white/15'}`}
+                    style={{ background: bgc.value ?? 'repeating-conic-gradient(#666 0% 25%, #444 0% 50%) 50% / 12px 12px' }}
+                  >
+                    {bgc.value === null && <X size={16} className="text-white/70" />}
+                  </span>
+                  <span className="text-[11px] font-semibold text-white/80">{bgc.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -179,10 +231,11 @@ export function PhotoEditor({
       </div>
 
       {/* Onglets */}
-      <div className="safe-bottom grid grid-cols-3 border-t border-white/10">
+      <div className="safe-bottom grid grid-cols-4 border-t border-white/10">
         <TabBtn active={tab === 'crop'} onClick={() => setTab('crop')} icon={<CropIcon size={19} />} label="Recadrer" />
         <TabBtn active={tab === 'adjust'} onClick={() => setTab('adjust')} icon={<SlidersHorizontal size={19} />} label="Ajuster" />
         <TabBtn active={tab === 'filter'} onClick={() => setTab('filter')} icon={<Wand2 size={19} />} label="Filtres" />
+        <TabBtn active={tab === 'bg'} onClick={() => setTab('bg')} icon={<Palette size={19} />} label="Fond" />
       </div>
     </div>
   )
