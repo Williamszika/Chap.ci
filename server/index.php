@@ -25,6 +25,26 @@ $config += [
   'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
   'site_url'             => getenv('CHAPCI_SITE_URL')        ?: 'https://chap.ci',
   'social'               => [],
+  // Connexion Google (Sign-In) : ID client OAuth « Web ». Vide = désactivé.
+  'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
+  // Connexion par téléphone (code SMS). provider : 'twilio' | 'http' | '' (off).
+  'sms'                  => [
+    'provider'     => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
+    'debug'        => (getenv('CHAPCI_SMS_DEBUG')       ?: '') === '1',
+    'twilio_sid'   => getenv('CHAPCI_TWILIO_SID')       ?: '',
+    'twilio_token' => getenv('CHAPCI_TWILIO_TOKEN')     ?: '',
+    'twilio_from'  => getenv('CHAPCI_TWILIO_FROM')      ?: '',
+    'http_method'  => getenv('CHAPCI_SMS_HTTP_METHOD')  ?: 'GET',
+    'http_url'     => getenv('CHAPCI_SMS_HTTP_URL')     ?: '',
+    'http_auth'    => getenv('CHAPCI_SMS_HTTP_AUTH')    ?: '',
+    'sender'       => getenv('CHAPCI_SMS_SENDER')       ?: 'Chap.ci',
+  ],
+];
+// Un config.php antérieur peut définir 'sms' partiellement : on complète les
+// sous-clés manquantes sans écraser celles déjà renseignées.
+$config['sms'] = ($config['sms'] ?? []) + [
+  'provider' => '', 'debug' => false, 'twilio_sid' => '', 'twilio_token' => '',
+  'twilio_from' => '', 'http_method' => 'GET', 'http_url' => '', 'http_auth' => '', 'sender' => 'Chap.ci',
 ];
 
 // Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
@@ -139,6 +159,167 @@ function jwt_verify(string $token, string $secret): ?array {
   return $payload;
 }
 
+// ---- Requêtes HTTP sortantes (SMS, JWKS Google) -----------------------------
+/** Petit client HTTP (cURL si dispo, sinon flux). Renvoie ['status'=>int,'body'=>string]. */
+function http_fetch(string $url, array $opts = []): array {
+  $method  = strtoupper($opts['method'] ?? 'GET');
+  $headers = $opts['headers'] ?? [];
+  $body    = $opts['body']    ?? null;
+  $userpwd = $opts['userpwd'] ?? null; // "user:pass" pour l'auth Basic
+  if (function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    if ($headers) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    if ($body !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    if ($userpwd) curl_setopt($ch, CURLOPT_USERPWD, $userpwd);
+    $resp = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return $resp === false ? ['status' => 0, 'body' => ''] : ['status' => $status, 'body' => (string) $resp];
+  }
+  // Repli sans cURL (allow_url_fopen).
+  $hdr = $headers;
+  if ($userpwd) $hdr[] = 'Authorization: Basic ' . base64_encode($userpwd);
+  $ctx = stream_context_create([
+    'http' => ['method' => $method, 'header' => implode("\r\n", $hdr), 'content' => $body, 'timeout' => 15, 'ignore_errors' => true],
+    'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
+  ]);
+  $resp = @file_get_contents($url, false, $ctx);
+  $status = 0;
+  if (isset($http_response_header[0]) && preg_match('#\s(\d{3})\s#', $http_response_header[0], $m)) $status = (int) $m[1];
+  return ['status' => $status, 'body' => $resp === false ? '' : $resp];
+}
+
+// ---- Téléphone & SMS (connexion par code) -----------------------------------
+/** Normalise un numéro au format international (+225… pour la Côte d'Ivoire). */
+function normalize_phone(string $p): string {
+  $p = preg_replace('/[^0-9+]/', '', $p);
+  if ($p === '') return '';
+  if (strncmp($p, '00', 2) === 0) $p = '+' . substr($p, 2);       // 00225… -> +225…
+  if ($p[0] !== '+') {
+    if (strlen($p) === 10 && $p[0] === '0') $p = '+225' . $p;     // 07XXXXXXXX (10 ch.) -> +225…
+    elseif (strlen($p) === 8) $p = '+225' . $p;                    // ancien format 8 chiffres
+    else $p = '+' . $p;
+  }
+  return substr($p, 0, 20);
+}
+/** Envoie un SMS via le fournisseur configuré. Renvoie true si accepté. */
+function sms_send(array $config, string $to, string $text): bool {
+  $sms = $config['sms'] ?? [];
+  $provider = $sms['provider'] ?? '';
+  if ($provider === 'twilio') {
+    $sid = $sms['twilio_sid'] ?? ''; $token = $sms['twilio_token'] ?? ''; $from = $sms['twilio_from'] ?? '';
+    if ($sid === '' || $token === '' || $from === '') return false;
+    $url = 'https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode($sid) . '/Messages.json';
+    $post = http_build_query(['To' => $to, 'From' => $from, 'Body' => $text]);
+    $r = http_fetch($url, [
+      'method' => 'POST', 'body' => $post, 'userpwd' => "$sid:$token",
+      'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+    ]);
+    return $r['status'] >= 200 && $r['status'] < 300;
+  }
+  if ($provider === 'http') {
+    $url = $sms['http_url'] ?? '';
+    if ($url === '') return false;
+    $repl = ['{to}' => rawurlencode($to), '{text}' => rawurlencode($text), '{sender}' => rawurlencode($sms['sender'] ?? '')];
+    $url = strtr($url, $repl);
+    $headers = [];
+    if (!empty($sms['http_auth'])) $headers[] = 'Authorization: ' . $sms['http_auth'];
+    $r = http_fetch($url, ['method' => strtoupper($sms['http_method'] ?? 'GET'), 'headers' => $headers]);
+    return $r['status'] >= 200 && $r['status'] < 300;
+  }
+  return false;
+}
+
+// ---- Vérification d'un jeton Google (Sign-In) -------------------------------
+/** Encode une longueur en DER (ASN.1). */
+function der_len(int $len): string {
+  if ($len < 0x80) return chr($len);
+  $b = '';
+  while ($len > 0) { $b = chr($len & 0xff) . $b; $len >>= 8; }
+  return chr(0x80 | strlen($b)) . $b;
+}
+/** Construit une clé publique PEM (SubjectPublicKeyInfo) depuis un JWK RSA (n,e). */
+function jwk_to_pem(string $n_b64, string $e_b64): ?string {
+  $n = b64url_dec($n_b64); $e = b64url_dec($e_b64);
+  if ($n === '' || $e === '') return null;
+  $encInt = function (string $x): string {
+    if ($x === '') $x = "\x00";
+    if (ord($x[0]) & 0x80) $x = "\x00" . $x;   // entier positif
+    return "\x02" . der_len(strlen($x)) . $x;
+  };
+  $seq    = $encInt($n) . $encInt($e);
+  $rsaPub = "\x30" . der_len(strlen($seq)) . $seq;
+  $algId  = "\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01\x05\x00"; // rsaEncryption
+  $bitStr = "\x03" . der_len(strlen($rsaPub) + 1) . "\x00" . $rsaPub;
+  $spki   = "\x30" . der_len(strlen($algId) + strlen($bitStr)) . $algId . $bitStr;
+  return "-----BEGIN PUBLIC KEY-----\r\n" . chunk_split(base64_encode($spki), 64) . "-----END PUBLIC KEY-----\r\n";
+}
+/** Récupère (avec cache 1 h) les clés publiques de Google. */
+function google_jwks(): array {
+  $cache = sys_get_temp_dir() . '/chapci_google_jwks.json';
+  if (is_file($cache) && (time() - filemtime($cache)) < 3600) {
+    $j = json_decode((string) @file_get_contents($cache), true);
+    if (!empty($j['keys'])) return $j['keys'];
+  }
+  $r = http_fetch('https://www.googleapis.com/oauth2/v3/certs');
+  if ($r['status'] === 200) {
+    $j = json_decode($r['body'], true);
+    if (!empty($j['keys'])) { @file_put_contents($cache, $r['body']); return $j['keys']; }
+  }
+  if (is_file($cache)) { $j = json_decode((string) @file_get_contents($cache), true); if (!empty($j['keys'])) return $j['keys']; }
+  return [];
+}
+/**
+ * Vérifie un jeton d'identité Google (credential de Google Identity Services).
+ * 1) vérification locale RS256 via JWKS ; 2) repli sur l'endpoint tokeninfo.
+ * Renvoie les revendications si valide (email, name, picture…), sinon null.
+ */
+function google_verify_id_token(array $config, string $idToken): ?array {
+  $clientId = $config['google_client_id'] ?? '';
+  if ($clientId === '' || $idToken === '') return null;
+  $parts = explode('.', $idToken);
+  if (count($parts) !== 3) return null;
+  $header  = json_decode(b64url_dec($parts[0]), true);
+  $payload = json_decode(b64url_dec($parts[1]), true);
+  if (!is_array($header) || !is_array($payload)) return null;
+
+  $verified = false;
+  if (($header['alg'] ?? '') === 'RS256' && !empty($header['kid']) && function_exists('openssl_verify')) {
+    $pem = null;
+    foreach (google_jwks() as $k) {
+      if (($k['kid'] ?? '') === $header['kid'] && ($k['kty'] ?? '') === 'RSA') { $pem = jwk_to_pem($k['n'] ?? '', $k['e'] ?? ''); break; }
+    }
+    if ($pem) {
+      $ok = openssl_verify($parts[0] . '.' . $parts[1], b64url_dec($parts[2]), $pem, OPENSSL_ALGO_SHA256);
+      $verified = ($ok === 1);
+    }
+  }
+  // Repli : Google valide lui-même la signature via tokeninfo.
+  if (!$verified) {
+    $r = http_fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken));
+    if ($r['status'] === 200) {
+      $ti = json_decode($r['body'], true);
+      if (is_array($ti) && !empty($ti['sub'])) { $payload = $ti; $verified = true; }
+    }
+  }
+  if (!$verified) return null;
+
+  // Contrôle des revendications.
+  $iss = $payload['iss'] ?? '';
+  if ($iss !== 'accounts.google.com' && $iss !== 'https://accounts.google.com') return null;
+  if (($payload['aud'] ?? '') !== $clientId) return null;
+  $exp = (int) ($payload['exp'] ?? 0);
+  if ($exp && time() > $exp + 60) return null;   // 60 s de tolérance d'horloge
+  $ev = $payload['email_verified'] ?? false;
+  if ($ev !== true && $ev !== 'true' && $ev !== 1 && $ev !== '1') return null;
+  if (empty($payload['email'])) return null;
+  return $payload;
+}
+
 // ---- Base de données --------------------------------------------------------
 function db(array $config): PDO {
   static $pdo = null;
@@ -230,6 +411,10 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS security_events (
       id $id PRIMARY KEY, kind $txt, email $txt, ip $txt, ua $txt, detail $txt, created_at $ts
     )$eng",
+    // Codes de vérification par SMS (connexion par téléphone). Usage unique, expirent.
+    "CREATE TABLE IF NOT EXISTS otp_codes (
+      id $id PRIMARY KEY, phone $txt, code_hash $txt, attempts $intT, created_at $ts, expires_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -265,8 +450,13 @@ function migrate(PDO $pdo): void {
   // Consentement horodaté à l'inscription (Le Gardien du Consentement — loi 2013-450/2013-546).
   try { $pdo->exec("ALTER TABLE users ADD COLUMN consent_at $ts"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN cgu_version $txt"); } catch (Throwable $e) {}
+  // Connexion par téléphone / Google : numéro et méthode d'inscription du compte.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN auth_provider $txt"); } catch (Throwable $e) {}
   // Index léger sur le journal de sécurité (accélère rate-limit et rapports).
   try { $pdo->exec("CREATE INDEX idx_sec_events ON security_events (kind, created_at)"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
 }
 
 // ---- Auth courant -----------------------------------------------------------
@@ -1101,6 +1291,17 @@ $path = trim($path, '/');
 $seg  = $path === '' ? [] : explode('/', $path);
 
 try {
+  // ---------- CONFIG PUBLIQUE ----------
+  // Réglages non secrets exposés au frontend (l'ID client Google est public).
+  // Permet d'activer la connexion Google / téléphone sans reconstruire le site.
+  if ($path === 'config' && $method === 'GET') {
+    $sms = $config['sms'] ?? [];
+    jout([
+      'googleClientId' => (string) ($config['google_client_id'] ?? ''),
+      'phoneAuth'      => (($sms['provider'] ?? '') !== '' || !empty($sms['debug'])),
+    ]);
+  }
+
   // ---------- AUTH ----------
   if ($path === 'auth/signup' && $method === 'POST') {
     $b = body();
@@ -1164,9 +1365,11 @@ try {
   if ($path === 'auth/delete' && $method === 'POST') {
     $u = require_user($pdo, $secret); $id = $u['id']; $b = body();
     // Vérification : on redemande le mot de passe avant toute suppression.
+    // Les comptes créés via Google ou par téléphone n'ont pas de mot de passe :
+    // le jeton d'authentification (Bearer) suffit alors à prouver l'identité.
     $st = $pdo->prepare('SELECT password_hash FROM users WHERE id = ?'); $st->execute([$id]);
     $hash = $st->fetch()['password_hash'] ?? '';
-    if (!password_verify((string) ($b['password'] ?? ''), $hash))
+    if ($hash !== '' && $hash !== null && !password_verify((string) ($b['password'] ?? ''), $hash))
       jerr('Mot de passe incorrect. Suppression annulée.', 403);
     $pdo->prepare('DELETE FROM reports WHERE reporter_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM messages WHERE sender_id = ?')->execute([$id]);
@@ -1178,6 +1381,107 @@ try {
     $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
     jout(['ok' => true]);
+  }
+
+  // Connexion / inscription via Google (Sign-In). Reçoit le « credential »
+  // (jeton d'identité) de Google Identity Services, le vérifie, puis ouvre la
+  // session. Crée le compte à la première connexion.
+  if ($path === 'auth/google' && $method === 'POST') {
+    $b = body();
+    rate_limit($pdo, 'oauth', null, 30, 3600);
+    if (($config['google_client_id'] ?? '') === '')
+      jerr('La connexion Google n’est pas encore activée sur le serveur.', 400);
+    $cred = (string) ($b['credential'] ?? '');
+    if ($cred === '') jerr('Jeton Google manquant.');
+    $claims = google_verify_id_token($config, $cred);
+    if (!$claims) { log_security_event($pdo, 'oauth_fail', null, 'google'); jerr('Connexion Google invalide. Réessayez.', 401); }
+    $email = strtolower(trim((string) ($claims['email'] ?? '')));
+    $name  = trim((string) ($claims['name'] ?? ''));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Ce compte Google n’a pas d’adresse email valide.', 400);
+    $st = $pdo->prepare('SELECT id,email,status FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+    if (!$u) {
+      $id = uuid();
+      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?)')
+          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'google']);
+      $pdo->prepare('INSERT INTO profiles (id,full_name,avatar_url,created_at) VALUES (?,?,?,?)')
+          ->execute([$id, $name, (string) ($claims['picture'] ?? '') ?: null, now_iso()]);
+      log_security_event($pdo, 'signup', $email, 'google');
+      send_welcome_email($config, $email, $name);
+      $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
+    } else {
+      if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'google'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+      log_security_event($pdo, 'login_ok', $email, 'google');
+    }
+    $token = jwt_sign(['sub' => $u['id'], 'email' => $u['email'], 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+  }
+
+  // Connexion par téléphone — étape 1 : envoi d'un code à 6 chiffres par SMS.
+  if ($path === 'auth/phone/start' && $method === 'POST') {
+    $b = body();
+    $phone = normalize_phone((string) ($b['phone'] ?? ''));
+    if (strlen($phone) < 8) jerr('Numéro de téléphone invalide.');
+    // Anti-abus : max 5 envois par numéro/IP et par heure.
+    rate_limit($pdo, 'otp_send', $phone, 5, 3600);
+    $sms   = $config['sms'] ?? [];
+    $prov  = $sms['provider'] ?? '';
+    $debug = !empty($sms['debug']);
+    if ($prov === '' && !$debug)
+      jerr('La connexion par téléphone n’est pas encore activée sur le serveur.', 400);
+    $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+    $pdo->prepare('INSERT INTO otp_codes (id,phone,code_hash,attempts,created_at,expires_at) VALUES (?,?,?,?,?,?)')
+        ->execute([uuid(), $phone, password_hash($code, PASSWORD_BCRYPT), 0, now_iso(), gmdate('Y-m-d\TH:i:s\Z', time() + 600)]);
+    log_security_event($pdo, 'otp_send', $phone);
+    $text = "Chap.ci : votre code de verification est $code (valable 10 minutes). Ne le partagez avec personne.";
+    $delivered = ($prov !== '') ? sms_send($config, $phone, $text) : false;
+    if (!$delivered && !$debug) jerr('Envoi du SMS impossible pour le moment. Réessayez plus tard.', 502);
+    $resp = ['delivered' => $delivered];
+    if ($debug) $resp['debugCode'] = $code;   // ⚠️ mode test uniquement (sms.debug)
+    jout($resp);
+  }
+
+  // Connexion par téléphone — étape 2 : vérification du code + ouverture de session.
+  if ($path === 'auth/phone/verify' && $method === 'POST') {
+    $b = body();
+    $phone = normalize_phone((string) ($b['phone'] ?? ''));
+    $code  = preg_replace('/\D/', '', (string) ($b['code'] ?? ''));
+    $name  = trim((string) ($b['full_name'] ?? ''));
+    rate_limit($pdo, 'otp_verify_fail', $phone, 10, 900);
+    if ($phone === '' || $code === '') jerr('Numéro ou code manquant.');
+    $st = $pdo->prepare('SELECT id,code_hash,attempts,expires_at FROM otp_codes WHERE phone = ? ORDER BY created_at DESC');
+    $st->execute([$phone]); $row = $st->fetch();
+    if (!$row) jerr('Aucun code en attente. Demandez un nouveau code.', 400);
+    if (strtotime((string) $row['expires_at']) < time()) {
+      $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+      jerr('Code expiré. Demandez un nouveau code.', 400);
+    }
+    if ((int) $row['attempts'] >= 5) {
+      $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+      jerr('Trop d’essais. Demandez un nouveau code.', 429);
+    }
+    if (!password_verify($code, (string) $row['code_hash'])) {
+      $pdo->prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?')->execute([$row['id']]);
+      log_security_event($pdo, 'otp_verify_fail', $phone);
+      jerr('Code incorrect.', 401);
+    }
+    // Code valide : on le consomme, puis on trouve/crée le compte lié au numéro.
+    $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+    $st = $pdo->prepare('SELECT id,email,status FROM users WHERE phone = ?'); $st->execute([$phone]); $u = $st->fetch();
+    if (!$u) {
+      $id = uuid();
+      $pdo->prepare('INSERT INTO users (id,email,phone,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([$id, null, $phone, null, now_iso(), now_iso(), '2026-07-14', 'phone']);
+      $pdo->prepare('INSERT INTO profiles (id,full_name,phone,created_at) VALUES (?,?,?,?)')
+          ->execute([$id, $name, $phone, now_iso()]);
+      log_security_event($pdo, 'signup', $phone, 'phone');
+      $u = ['id' => $id, 'email' => null, 'status' => 'active'];
+    } else {
+      if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $phone, 'phone'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+      log_security_event($pdo, 'login_ok', $phone, 'phone');
+    }
+    $token = jwt_sign(['sub' => $u['id'], 'email' => $u['email'] ?? '', 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 
   // ---------- LISTINGS ----------

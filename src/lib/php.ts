@@ -83,6 +83,30 @@ export async function phpLogin(email: string, password: string): Promise<PhpUser
   setSession(d.token, d.user)
   return d.user
 }
+// Connexion / inscription via Google : on transmet le « credential » (jeton
+// d'identité) fourni par Google Identity Services ; le serveur le vérifie.
+export async function phpGoogleLogin(credential: string): Promise<PhpUser> {
+  const d = await req<{ token: string; user: PhpUser }>('/auth/google', {
+    method: 'POST',
+    body: { credential },
+  })
+  setSession(d.token, d.user)
+  return d.user
+}
+// Connexion par téléphone — étape 1 : demande d'un code par SMS.
+// En mode test serveur (sms.debug), le code est renvoyé dans `debugCode`.
+export async function phpPhoneStart(phone: string): Promise<{ delivered: boolean; debugCode?: string }> {
+  return req('/auth/phone/start', { method: 'POST', body: { phone } })
+}
+// Connexion par téléphone — étape 2 : vérification du code + ouverture de session.
+export async function phpPhoneVerify(phone: string, code: string, fullName?: string): Promise<PhpUser> {
+  const d = await req<{ token: string; user: PhpUser }>('/auth/phone/verify', {
+    method: 'POST',
+    body: { phone, code, full_name: fullName ?? '' },
+  })
+  setSession(d.token, d.user)
+  return d.user
+}
 export async function phpMe(): Promise<PhpUser | null> {
   if (!phpGetToken()) return null
   try {

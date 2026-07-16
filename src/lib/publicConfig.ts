@@ -1,0 +1,58 @@
+// =============================================================================
+//  Réglages publics récupérés au démarrage depuis le backend (/api/config).
+//  Permet d'activer la connexion Google / téléphone en éditant config.php,
+//  SANS reconstruire le site. L'ID client Google est une information publique.
+// =============================================================================
+import { useEffect, useState } from 'react'
+import { isPhp } from './backend'
+
+export interface PublicConfig {
+  googleClientId: string
+  phoneAuth: boolean
+}
+
+const API = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/$/, '')
+// Valeur éventuelle fixée au build (utile hors PHP / pour forcer un ID).
+const BUILD_GOOGLE = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ''
+
+let cache: PublicConfig | null = null
+let inflight: Promise<PublicConfig> | null = null
+
+export async function loadPublicConfig(): Promise<PublicConfig> {
+  if (cache) return cache
+  if (inflight) return inflight
+  const fallback: PublicConfig = { googleClientId: BUILD_GOOGLE, phoneAuth: false }
+  if (!isPhp) {
+    cache = fallback
+    return cache
+  }
+  inflight = fetch(API + '/config')
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((d: Partial<PublicConfig>) => {
+      cache = {
+        googleClientId: (d && d.googleClientId) || BUILD_GOOGLE,
+        phoneAuth: !!(d && d.phoneAuth),
+      }
+      return cache
+    })
+    .catch(() => {
+      cache = fallback
+      return cache
+    })
+  return inflight
+}
+
+export function getPublicConfig(): PublicConfig | null {
+  return cache
+}
+
+/** Hook : renvoie les réglages publics (null tant qu'ils ne sont pas chargés). */
+export function usePublicConfig(): PublicConfig | null {
+  const [cfg, setCfg] = useState<PublicConfig | null>(getPublicConfig())
+  useEffect(() => {
+    let alive = true
+    if (!cfg) loadPublicConfig().then((c) => { if (alive) setCfg(c) })
+    return () => { alive = false }
+  }, [cfg])
+  return cfg
+}

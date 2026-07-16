@@ -67,6 +67,36 @@ return [
     'pass'   => getenv('CHAPCI_SMTP_PASS')   ?: '', // ← mot de passe de no-reply@chap.ci
   ],
 
+  // --- Connexion Google (Sign-In) ------------------------------------------
+  // ID client OAuth « Web » créé dans Google Cloud Console :
+  //   console.cloud.google.com → API et services → Identifiants
+  //   → Créer des identifiants → ID client OAuth → Type « Application Web ».
+  //   • Origines JavaScript autorisées : https://chap.ci
+  //   • (le même identifiant doit être fourni au frontend : VITE_GOOGLE_CLIENT_ID)
+  // Laissez vide pour masquer/désactiver le bouton « Continuer avec Google ».
+  'google_client_id' => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
+
+  // --- Connexion par téléphone (code SMS) ----------------------------------
+  // provider : 'twilio', 'http' ou '' (désactivé).
+  //   • 'twilio' : renseignez twilio_sid / twilio_token / twilio_from.
+  //   • 'http'   : passerelle SMS générique (opérateur local). http_url est une
+  //                URL avec les jetons {to}, {text}, {sender}. Ex. :
+  //                'https://api.mon-sms.ci/send?to={to}&msg={text}&from={sender}'
+  //                http_auth = valeur de l'en-tête Authorization (ex. 'Bearer XXX').
+  // debug : true (CHAPCI_SMS_DEBUG=1) renvoie le code dans la réponse — PRATIQUE
+  //   POUR TESTER SANS SMS. ⚠️ REMETTEZ debug=false / provider réel en production.
+  'sms' => [
+    'provider'     => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
+    'debug'        => (getenv('CHAPCI_SMS_DEBUG')       ?: '') === '1',
+    'twilio_sid'   => getenv('CHAPCI_TWILIO_SID')       ?: '',
+    'twilio_token' => getenv('CHAPCI_TWILIO_TOKEN')     ?: '',
+    'twilio_from'  => getenv('CHAPCI_TWILIO_FROM')      ?: '', // n° ou Messaging Service SID
+    'http_method'  => getenv('CHAPCI_SMS_HTTP_METHOD')  ?: 'GET',
+    'http_url'     => getenv('CHAPCI_SMS_HTTP_URL')     ?: '',
+    'http_auth'    => getenv('CHAPCI_SMS_HTTP_AUTH')    ?: '',
+    'sender'       => getenv('CHAPCI_SMS_SENDER')       ?: 'Chap.ci',
+  ],
+
   // Dossier des photos (au niveau racine du site, servi directement en HTTP).
   'uploads_dir' => getenv('CHAPCI_UPLOADS_DIR') ?: __DIR__ . '/../uploads',
   // Chemin public des photos (relatif à la racine du site).

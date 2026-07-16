@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown, LocateFixed } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
+import { GoogleSignInButton } from '../components/GoogleSignInButton'
+import { usePublicConfig } from '../lib/publicConfig'
 import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
 import { LocationSheet } from '../components/LocationSheet'
@@ -16,7 +18,8 @@ import type { LocationFilter } from '../types'
 
 export function Register() {
   const navigate = useNavigate()
-  const { signUp, sendPhoneCode, verifyPhoneCode, enabled } = useAuth()
+  const { signUp, sendPhoneCode, verifyPhoneCode, signInWithGoogleCredential, enabled } = useAuth()
+  const googleEnabled = !!usePublicConfig()?.googleClientId
   const { place } = useGeo()
 
   const [method, setMethod] = useState<'email' | 'phone'>('email')
@@ -113,6 +116,17 @@ export function Register() {
     navigate('/compte')
   }
 
+  // Inscription rapide via Google : le compte (nom + email) est créé côté
+  // serveur ; l'utilisateur pourra compléter son profil dans les paramètres.
+  async function handleGoogleSignup(credential: string) {
+    setError('')
+    setBusy(true)
+    const res = await signInWithGoogleCredential(credential)
+    setBusy(false)
+    if (res.error) return setError(res.error)
+    navigate('/compte')
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -146,7 +160,7 @@ export function Register() {
         setBusy(false)
         if (res.error) return setError(res.error)
         setOtpSent(true)
-        setInfo('Un code vous a été envoyé par SMS.')
+        setInfo(res.debugCode ? `Mode test : votre code est ${res.debugCode}.` : 'Un code vous a été envoyé par SMS.')
       } else {
         if (!otp.trim()) return setError('Entrez le code reçu par SMS.')
         setBusy(true)
@@ -172,6 +186,24 @@ export function Register() {
         <p className="mx-4 mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
           Les comptes ne sont pas encore activés (backend non configuré).
         </p>
+      )}
+
+      {/* Inscription rapide via Google (si configurée) */}
+      {googleEnabled && (
+        <div className="px-4 pt-5">
+          <div className="flex flex-col items-center gap-2">
+            <GoogleSignInButton onCredential={handleGoogleSignup} text="signup_with" />
+          </div>
+          <p className="mt-2 text-center text-[11px] text-gray-400">
+            En continuant avec Google, vous acceptez nos{' '}
+            <a href="#/conditions" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">Conditions</a>{' '}
+            et la{' '}
+            <a href="#/confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">Politique de confidentialité</a>.
+          </p>
+          <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
+            <span className="h-px flex-1 bg-gray-200" /> ou avec le formulaire <span className="h-px flex-1 bg-gray-200" />
+          </div>
+        </div>
       )}
 
       <form onSubmit={submit} className="space-y-5 px-4 py-5">

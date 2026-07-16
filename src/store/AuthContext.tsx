@@ -18,6 +18,8 @@ interface AuthResult {
   needsConfirmation?: boolean
   mfaRequired?: boolean
   userId?: string
+  /** En mode test serveur (SMS debug) : code renvoyé pour tester sans SMS réel. */
+  debugCode?: string
 }
 
 export type OAuthProvider = 'google' | 'apple' | 'facebook'
@@ -36,6 +38,8 @@ interface AuthState {
   signUp: (email: string, password: string, fullName: string) => Promise<AuthResult>
   signIn: (email: string, password: string) => Promise<AuthResult>
   signInWithProvider: (provider: OAuthProvider) => Promise<AuthResult>
+  /** Connexion Google via un « credential » (jeton d'identité) de Google Identity Services. */
+  signInWithGoogleCredential: (credential: string) => Promise<AuthResult>
   sendPhoneCode: (phone: string) => Promise<AuthResult>
   verifyPhoneCode: (phone: string, token: string, fullName?: string) => Promise<AuthResult>
   verifyLoginMfa: (code: string) => Promise<AuthResult>
@@ -159,8 +163,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {} // redirection en cours
   }, [])
 
+  const signInWithGoogleCredential = useCallback(async (credential: string): Promise<AuthResult> => {
+    if (isPhp) {
+      try {
+        const u = await php.phpGoogleLogin(credential)
+        setUser(u as unknown as User)
+        return { userId: u.id }
+      } catch (e) {
+        return { error: (e as Error).message }
+      }
+    }
+    if (!supabase) return { error: 'Comptes indisponibles.' }
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: credential })
+    if (error) return { error: frError(error.message) }
+    if (await checkMfaRequired()) return { mfaRequired: true }
+    return { userId: data.user?.id }
+  }, [])
+
   const sendPhoneCode = useCallback(async (phone: string): Promise<AuthResult> => {
-    if (isPhp) return NOT_PHP
+    if (isPhp) {
+      try {
+        const r = await php.phpPhoneStart(phone)
+        return { debugCode: r.debugCode }
+      } catch (e) {
+        return { error: (e as Error).message }
+      }
+    }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.signInWithOtp({ phone })
     if (error) return { error: frError(error.message) }
@@ -169,7 +197,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyPhoneCode = useCallback(
     async (phone: string, token: string, fullName?: string): Promise<AuthResult> => {
-      if (isPhp) return NOT_PHP
+      if (isPhp) {
+        try {
+          const u = await php.phpPhoneVerify(phone, token, fullName)
+          setUser(u as unknown as User)
+          return { userId: u.id }
+        } catch (e) {
+          return { error: (e as Error).message }
+        }
+      }
       if (!supabase) return { error: 'Comptes indisponibles.' }
       const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
       if (error) return { error: frError(error.message) }
@@ -275,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signIn,
     signInWithProvider,
+    signInWithGoogleCredential,
     sendPhoneCode,
     verifyPhoneCode,
     verifyLoginMfa,
