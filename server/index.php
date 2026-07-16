@@ -27,6 +27,8 @@ $config += [
   'social'               => [],
   // Connexion Google (Sign-In) : ID client OAuth « Web ». Vide = désactivé.
   'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
+  // Filigrane « Chap.ci » au centre des photos d'annonce (1 = activé).
+  'watermark'            => (getenv('CHAPCI_WATERMARK') ?: '1') === '1',
   // Connexion par téléphone (code SMS). provider : 'twilio' | 'http' | '' (off).
   'sms'                  => [
     'provider'     => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
@@ -1225,7 +1227,58 @@ function avg_response_time(PDO $pdo): array {
 }
 
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
-function save_data_uri(array $config, string $dataUri): ?string {
+/**
+ * Applique le filigrane « Chap.ci » (api/watermark.png) au centre d'une image
+ * raster, en semi-transparent. Best-effort : ne lève jamais d'erreur, ne casse
+ * jamais l'upload (si GD absent ou format non géré, l'image reste inchangée).
+ *  $scale  = largeur du filigrane en fraction de la largeur de la photo.
+ *  $opacity< 1 réduit encore l'opacité (le PNG est déjà semi-transparent).
+ */
+function apply_watermark(string $file, string $ext, string $wmPath, float $opacity = 1.0, float $scale = 0.42): bool {
+  if (!function_exists('imagecreatetruecolor') || !is_file($wmPath)) return false;
+  $src = null;
+  if ($ext === 'jpg') $src = @imagecreatefromjpeg($file);
+  elseif ($ext === 'png') $src = @imagecreatefrompng($file);
+  elseif ($ext === 'webp' && function_exists('imagecreatefromwebp')) $src = @imagecreatefromwebp($file);
+  elseif ($ext === 'gif') $src = @imagecreatefromgif($file);
+  if (!$src) return false;
+  $wm = @imagecreatefrompng($wmPath);
+  if (!$wm) { imagedestroy($src); return false; }
+  $iw = imagesx($src); $ih = imagesy($src);
+  $ww = imagesx($wm); $wh = imagesy($wm);
+  if ($ww < 1 || $wh < 1) { imagedestroy($src); imagedestroy($wm); return false; }
+  if ($opacity < 0.999) wm_apply_opacity($wm, $opacity);
+  $tw = max(1, (int) round($iw * $scale));
+  $th = max(1, (int) round($wh * $tw / $ww));
+  $dx = (int) round(($iw - $tw) / 2);
+  $dy = (int) round(($ih - $th) / 2);
+  imagealphablending($src, true);
+  imagesavealpha($src, false);
+  imagecopyresampled($src, $wm, $dx, $dy, 0, 0, $tw, $th, $ww, $wh);
+  $ok = false;
+  if ($ext === 'jpg') $ok = @imagejpeg($src, $file, 82);
+  elseif ($ext === 'png') $ok = @imagepng($src, $file);
+  elseif ($ext === 'webp' && function_exists('imagewebp')) $ok = @imagewebp($src, $file, 82);
+  elseif ($ext === 'gif') $ok = @imagegif($src, $file);
+  imagedestroy($src); imagedestroy($wm);
+  return (bool) $ok;
+}
+/** Réduit l'opacité d'un filigrane PNG (GD : alpha 0=opaque … 127=transparent). */
+function wm_apply_opacity($wm, float $opacity): void {
+  imagealphablending($wm, false);
+  imagesavealpha($wm, true);
+  $w = imagesx($wm); $h = imagesy($wm);
+  for ($y = 0; $y < $h; $y++) {
+    for ($x = 0; $x < $w; $x++) {
+      $c = imagecolorat($wm, $x, $y);
+      $a = ($c >> 24) & 0x7F;
+      if ($a === 0x7F) continue;
+      $na = (int) min(127, 127 - (127 - $a) * $opacity);
+      imagesetpixel($wm, $x, $y, ($na << 24) | ($c & 0xFFFFFF));
+    }
+  }
+}
+function save_data_uri(array $config, string $dataUri, bool $watermark = false): ?string {
   // Déjà une URL (http/https ou /uploads/…) : on la garde telle quelle.
   if (str_starts_with($dataUri, 'http') || str_starts_with($dataUri, '/')) return $dataUri;
   // data:<meta>,<données> — on coupe au PREMIER virgule (le SVG peut contenir des virgules).
@@ -1251,7 +1304,13 @@ function save_data_uri(array $config, string $dataUri): ?string {
     @file_put_contents($ht, "Options -ExecCGI\n<FilesMatch \"\\.(php|phtml|phar|cgi|pl)$\">\n  Require all denied\n</FilesMatch>\n");
   }
   $name = date('Ym') . '-' . uuid() . '.' . $ext;
-  if (@file_put_contents("$dir/$name", $bin) === false) return null;
+  $full = "$dir/$name";
+  if (@file_put_contents($full, $bin) === false) return null;
+  // Filigrane « Chap.ci » au centre des photos d'annonce (jamais les SVG).
+  if ($watermark && $ext !== 'svg' && !empty($config['watermark'])) {
+    try { apply_watermark($full, $ext, __DIR__ . '/watermark.png'); }
+    catch (Throwable $e) { /* le filigrane ne doit jamais bloquer l'upload */ }
+  }
   return rtrim($config['uploads_path'], '/') . '/' . $name;
 }
 
@@ -1508,7 +1567,7 @@ try {
     if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
     $images = [];
     foreach ((array) ($b['images'] ?? []) as $img) {
-      $url = save_data_uri($config, (string) $img);
+      $url = save_data_uri($config, (string) $img, true); // true = filigrane Chap.ci
       if ($url) $images[] = $url;
     }
     $id = uuid();
@@ -1562,7 +1621,7 @@ try {
     foreach ((array) ($b['images'] ?? []) as $img) {
       $img = (string) $img;
       if ($img === '') continue;
-      if (strncmp($img, 'data:', 5) === 0) { $url = save_data_uri($config, $img); if ($url) $images[] = $url; }
+      if (strncmp($img, 'data:', 5) === 0) { $url = save_data_uri($config, $img, true); if ($url) $images[] = $url; }
       else $images[] = $img;
     }
     $attrs = [];
