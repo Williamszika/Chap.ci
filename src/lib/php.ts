@@ -162,6 +162,42 @@ export async function phpListingView(id: string): Promise<void> {
   try { await req(`/listings/${id}/view`, { method: 'POST', body: {} }) } catch { /* silencieux */ }
 }
 
+// ---- Favoris (côté serveur) -------------------------------------------------
+export async function phpGetFavorites(): Promise<string[]> {
+  try { return await req<string[]>('/favorites') } catch { return [] }
+}
+export async function phpAddFavorite(id: string): Promise<void> {
+  try { await req(`/favorites/${id}`, { method: 'POST', body: {} }) } catch { /* silencieux */ }
+}
+export async function phpRemoveFavorite(id: string): Promise<void> {
+  try { await req(`/favorites/${id}`, { method: 'DELETE' }) } catch { /* silencieux */ }
+}
+
+// ---- Notifications ----------------------------------------------------------
+export interface PhpNotification {
+  id: string; type: string; title: string; body: string; link: string; read: boolean; createdAt: number
+}
+export async function phpNotifications(): Promise<PhpNotification[]> {
+  return req<PhpNotification[]>('/notifications')
+}
+export async function phpNotifCount(): Promise<number> {
+  try { const d = await req<{ count: number }>('/notifications/count'); return d.count } catch { return 0 }
+}
+export async function phpNotifMarkRead(id?: string): Promise<void> {
+  try { await req('/notifications/read', { method: 'POST', body: id ? { id } : {} }) } catch { /* silencieux */ }
+}
+/** Efface des notifications : `ids` pour une sélection, rien pour tout effacer. */
+export async function phpNotifDelete(ids?: string[]): Promise<void> {
+  try { await req('/notifications', { method: 'DELETE', body: ids && ids.length ? { ids } : {} }) } catch { /* silencieux */ }
+}
+export interface NotifPrefs { favorite: boolean; message: boolean }
+export async function phpNotifPrefs(): Promise<NotifPrefs> {
+  try { return await req<NotifPrefs>('/notifications/prefs') } catch { return { favorite: true, message: true } }
+}
+export async function phpSaveNotifPrefs(p: NotifPrefs): Promise<void> {
+  await req('/notifications/prefs', { method: 'PUT', body: p })
+}
+
 // ---- Conversations & messages ----------------------------------------------
 export async function phpGetOrCreateConversation(listingId: string | null, sellerId: string): Promise<string> {
   const d = await req<{ id: string }>('/conversations', {

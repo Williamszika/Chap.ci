@@ -206,6 +206,19 @@ function moderate_text(string $text): array {
   }
   return ['ok' => count($reasons) === 0, 'reasons' => $reasons];
 }
+
+// ---- Notifications in-app ----------------------------------------------------
+/** Crée une notification pour un utilisateur, en respectant ses préférences. */
+function notify(PDO $pdo, string $userId, string $type, string $title, string $body, string $link = ''): void {
+  if ($userId === '') return;
+  try {
+    $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$userId]);
+    $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
+    if (isset($prefs[$type]) && !$prefs[$type]) return; // ce type est désactivé par l'utilisateur
+    $pdo->prepare('INSERT INTO notifications (id,user_id,type,title,body,link,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)')
+        ->execute([uuid(), $userId, $type, substr($title, 0, 120), substr($body, 0, 240), substr($link, 0, 200), now_iso()]);
+  } catch (Throwable $e) { /* une notification ne doit jamais casser l'action */ }
+}
 function b64url(string $s): string { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
 function b64url_dec(string $s): string { return base64_decode(strtr($s, '-_', '+/')); }
 
@@ -484,6 +497,15 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS otp_codes (
       id $id PRIMARY KEY, phone $txt, code_hash $txt, attempts $intT, created_at $ts, expires_at $ts
     )$eng",
+    // Favoris (côté serveur) : permet de notifier le vendeur.
+    "CREATE TABLE IF NOT EXISTS favorites (
+      user_id $id, listing_id $id, created_at $ts, PRIMARY KEY (user_id, listing_id)
+    )$eng",
+    // Notifications in-app (favoris, messages, modération…).
+    "CREATE TABLE IF NOT EXISTS notifications (
+      id $id PRIMARY KEY, user_id $id, type $txt, title $txt, body $txt, link $txt,
+      read_flag $intT, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -524,6 +546,9 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE users ADD COLUMN auth_provider $txt"); } catch (Throwable $e) {}
   // Compteur de vues par annonce (statistiques vendeur).
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
+  // Préférences de notifications (JSON : {favorite:bool, message:bool, ...}).
+  try { $pdo->exec("ALTER TABLE profiles ADD COLUMN notif_prefs $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_notif_user ON notifications (user_id, read_flag)"); } catch (Throwable $e) {}
   // Index léger sur le journal de sécurité (accélère rate-limit et rapports).
   try { $pdo->exec("CREATE INDEX idx_sec_events ON security_events (kind, created_at)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
@@ -1896,8 +1921,92 @@ try {
       $id = uuid(); $ts = now_iso();
       $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at) VALUES (?,?,?,?,?)')
           ->execute([$id, $convId, $u['id'], $bodyTxt, $ts]);
+      // Notifie le destinataire (l'autre participant de la conversation).
+      $recipient = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+      $sn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $sn->execute([$u['id']]);
+      $senderName = trim((string) ($sn->fetch()['full_name'] ?? '')) ?: 'Un utilisateur';
+      notify($pdo, (string) $recipient, 'message', 'Nouveau message',
+        $senderName . ' vous a envoyé un message.', '#/messages/' . $convId);
       jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'], 'body' => $bodyTxt, 'createdAt' => iso_to_ms($ts)]);
     }
+  }
+
+  // ---------- FAVORIS (côté serveur) ----------
+  if ($path === 'favorites' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT listing_id FROM favorites WHERE user_id = ?'); $st->execute([$u['id']]);
+    jout(array_map(fn($r) => $r['listing_id'], $st->fetchAll()));
+  }
+  if (count($seg) === 2 && $seg[0] === 'favorites' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $lid = $seg[1];
+    $ls = $pdo->prepare('SELECT user_id,title FROM listings WHERE id = ?'); $ls->execute([$lid]); $l = $ls->fetch();
+    if (!$l) jerr('Annonce introuvable.', 404);
+    $ex = $pdo->prepare('SELECT 1 FROM favorites WHERE user_id = ? AND listing_id = ?'); $ex->execute([$u['id'], $lid]);
+    if (!$ex->fetch()) {
+      $pdo->prepare('INSERT INTO favorites (user_id,listing_id,created_at) VALUES (?,?,?)')->execute([$u['id'], $lid, now_iso()]);
+      // Notifie le vendeur (anonymisé), sauf pour ses propres annonces.
+      if (!empty($l['user_id']) && $l['user_id'] !== $u['id']) {
+        notify($pdo, (string) $l['user_id'], 'favorite', 'Nouveau favori ❤️',
+          'Une personne a ajouté « ' . $l['title'] . ' » à ses favoris.', '#/annonce/' . $lid);
+      }
+    }
+    jout(['ok' => true]);
+  }
+  if (count($seg) === 2 && $seg[0] === 'favorites' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $pdo->prepare('DELETE FROM favorites WHERE user_id = ? AND listing_id = ?')->execute([$u['id'], $seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---------- NOTIFICATIONS ----------
+  if ($path === 'notifications' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($n) => [
+      'id' => $n['id'], 'type' => $n['type'], 'title' => $n['title'], 'body' => $n['body'],
+      'link' => $n['link'], 'read' => !empty($n['read_flag']), 'createdAt' => iso_to_ms($n['created_at']),
+    ], $st->fetchAll()));
+  }
+  if ($path === 'notifications/count' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND (read_flag IS NULL OR read_flag = 0)');
+    $st->execute([$u['id']]);
+    jout(['count' => (int) $st->fetchColumn()]);
+  }
+  if ($path === 'notifications/read' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!empty($b['id'])) $pdo->prepare('UPDATE notifications SET read_flag = 1 WHERE user_id = ? AND id = ?')->execute([$u['id'], $b['id']]);
+    else $pdo->prepare('UPDATE notifications SET read_flag = 1 WHERE user_id = ?')->execute([$u['id']]);
+    jout(['ok' => true]);
+  }
+  // Effacer des notifications : {ids:[...]} pour une sélection, sinon tout effacer.
+  if ($path === 'notifications' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret); $b = body();
+    $ids = $b['ids'] ?? null;
+    if (is_array($ids) && count($ids)) {
+      $ids = array_values(array_filter($ids, 'is_string'));
+      if ($ids) {
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $pdo->prepare("DELETE FROM notifications WHERE user_id = ? AND id IN ($in)")
+            ->execute(array_merge([$u['id']], $ids));
+      }
+    } else {
+      $pdo->prepare('DELETE FROM notifications WHERE user_id = ?')->execute([$u['id']]);
+    }
+    jout(['ok' => true]);
+  }
+  if ($path === 'notifications/prefs' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$u['id']]);
+    $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
+    jout(['favorite' => $prefs['favorite'] ?? true, 'message' => $prefs['message'] ?? true]);
+  }
+  if ($path === 'notifications/prefs' && $method === 'PUT') {
+    $u = require_user($pdo, $secret); $b = body();
+    $prefs = ['favorite' => !empty($b['favorite']), 'message' => !empty($b['message'])];
+    $pdo->prepare('UPDATE profiles SET notif_prefs = ? WHERE id = ?')->execute([json_encode($prefs), $u['id']]);
+    jout(['ok' => true]);
   }
 
   // ---------- ORDERS ----------

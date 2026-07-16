@@ -44,6 +44,8 @@ import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
 import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, type SavedSearch } from '../lib/api'
 import { isPhp } from '../lib/backend'
+import { phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs } from '../lib/php'
+import { NotificationBell } from '../components/NotificationBell'
 import { downscaleImage } from '../lib/image'
 import type { Listing, Order, Review } from '../types'
 
@@ -74,6 +76,7 @@ export function Profile() {
   const [sales, setSales] = useState<Order[]>([])
   const [myReviews, setMyReviews] = useState<Review[]>([])
   const [avatarUrl, setAvatarUrl] = useState<string>('')
+
   // Filtres pilotés par les tuiles de statistiques (chaque tuile est cliquable).
   const [salesFilter, setSalesFilter] = useState<'all' | 'en_cours' | 'finalise'>('all')
   const [annoncesFilter, setAnnoncesFilter] = useState<'all' | 'promo'>('all')
@@ -158,6 +161,7 @@ export function Profile() {
               <p className="text-sm text-white/85">Connectez-vous pour vendre et acheter</p>
             )}
           </div>
+          {user && <NotificationBell />}
         </div>
 
         {/* Actions rapides */}
@@ -474,6 +478,7 @@ export function Profile() {
             )}
             {user && <SettingsForm userId={user.id} initialName={displayName} />}
             {user && savedSearchesEnabled && <MyAlerts />}
+            {user && isPhp && <NotificationSettings />}
             {user && <ChangePassword />}
             {user && <TwoFactor />}
 
@@ -549,6 +554,49 @@ export function Profile() {
       </main>
       </div>
     </div>
+  )
+}
+
+/** Réglages des notifications : activer/désactiver par type. */
+function NotificationSettings() {
+  const [prefs, setPrefs] = useState<NotifPrefs>({ favorite: true, message: true })
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    let alive = true
+    phpNotifPrefs().then((p) => { if (alive) { setPrefs(p); setLoaded(true) } })
+    return () => { alive = false }
+  }, [])
+  function toggle(key: keyof NotifPrefs) {
+    const next = { ...prefs, [key]: !prefs[key] }
+    setPrefs(next)
+    phpSaveNotifPrefs(next).catch(() => {})
+  }
+  return (
+    <section className="card p-4">
+      <p className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
+        <Bell size={16} className="text-primary-500" /> Notifications
+      </p>
+      <div className="space-y-1">
+        <ToggleRow label="Favoris" desc="Quand une personne ajoute votre annonce à ses favoris" on={prefs.favorite} onToggle={() => toggle('favorite')} disabled={!loaded} />
+        <ToggleRow label="Messages" desc="Quand vous recevez un nouveau message" on={prefs.message} onToggle={() => toggle('message')} disabled={!loaded} />
+      </div>
+    </section>
+  )
+}
+
+function ToggleRow({ label, desc, on, onToggle, disabled }: {
+  label: string; desc: string; on: boolean; onToggle: () => void; disabled?: boolean
+}) {
+  return (
+    <button onClick={onToggle} disabled={disabled} className="flex w-full items-center gap-3 rounded-xl py-2 text-left disabled:opacity-50">
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-gray-800">{label}</span>
+        <span className="block text-xs leading-snug text-gray-500">{desc}</span>
+      </span>
+      <span className={`relative h-6 w-11 shrink-0 rounded-full transition ${on ? 'bg-primary-500' : 'bg-gray-300'}`}>
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      </span>
+    </button>
   )
 }
 

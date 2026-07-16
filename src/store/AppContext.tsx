@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '../lib/supabaseClient'
 import { isPhp } from '../lib/backend'
 import { recordInterest } from '../lib/interests'
 import { fetchListings, createListing, deleteListingRemote } from '../lib/api'
+import { phpGetFavorites, phpAddFavorite, phpRemoveFavorite } from '../lib/php'
 import { useAuth } from './AuthContext'
 
 /** true si un backend distant (Supabase ou PHP) est disponible. */
@@ -162,15 +163,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { listingsRef.current = listings }, [listings])
 
   const toggleFavorite = useCallback((id: string) => {
-    setFavorites((prev) => {
-      if (prev.includes(id)) return prev.filter((f) => f !== id)
+    const has = favorites.includes(id)
+    // Synchronise avec le serveur (en mode PHP + connecté) : l'ajout d'un favori
+    // crée une notification pour le vendeur.
+    if (isPhp && user) {
+      if (has) phpRemoveFavorite(id)
+      else phpAddFavorite(id)
+    }
+    if (!has) {
       // Ajout d'un favori = signal d'intérêt fort pour la catégorie (et la
       // sous-catégorie) de l'annonce → suggestions « produits similaires ».
       const l = listingsRef.current.find((x) => x.id === id)
       recordInterest(l?.categoryId, 2, l?.subcategory)
-      return [id, ...prev]
+    }
+    setFavorites((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [id, ...prev]))
+  }, [favorites, user])
+
+  // Charge les favoris du serveur à la connexion (mode PHP) et les fusionne.
+  useEffect(() => {
+    if (!isPhp || !user) return
+    let alive = true
+    phpGetFavorites().then((ids) => {
+      if (alive && ids.length) setFavorites((prev) => Array.from(new Set([...ids, ...prev])))
     })
-  }, [])
+    return () => { alive = false }
+  }, [user])
 
   const isFavorite = useCallback((id: string) => favorites.includes(id), [favorites])
   const isMine = useCallback((id: string) => myIds.includes(id), [myIds])

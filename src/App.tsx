@@ -28,6 +28,7 @@ import { Conversation } from './pages/Conversation'
 import { SellerProfile } from './pages/SellerProfile'
 import { About } from './pages/About'
 import { Faq } from './pages/Faq'
+import { Notifications } from './pages/Notifications'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Conversation />} />
           <Route path="/vendeur/:id" element={<SellerProfile />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="*" element={<Home />} />
           </Routes>
         </main>
