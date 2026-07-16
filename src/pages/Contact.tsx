@@ -9,7 +9,7 @@ const SUPPORT_EMAIL = 'support@chap.ci'
 export function Contact() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:shadow-card">
+    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:shadow-card lg:max-w-4xl">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
@@ -17,7 +17,7 @@ export function Contact() {
         <h1 className="font-display text-lg font-bold">Nous contacter</h1>
       </header>
 
-      <div className="mx-auto max-w-2xl px-5 py-6">
+      <div className="mx-auto max-w-2xl px-5 py-6 lg:max-w-4xl lg:px-8">
         <div className="mb-6 flex flex-col items-center text-center">
           <Mark size={48} />
           <Wordmark className="mt-2 text-xl text-ink" />
@@ -26,34 +26,39 @@ export function Contact() {
           </p>
         </div>
 
-        <div className="space-y-3">
-          <ContactCard
-            icon={<Mail size={22} />}
-            title="Contact général"
-            desc="Questions, partenariats, presse…"
-            email={CONTACT_EMAIL}
-          />
-          <ContactCard
-            icon={<LifeBuoy size={22} />}
-            title="Aide & support"
-            desc="Problème sur une annonce, un compte, un paiement…"
-            email={SUPPORT_EMAIL}
-          />
-        </div>
+        {/* Ordinateur : 2 colonnes (moyens de contact · newsletter). Tablette : cartes côte à côte. */}
+        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+          <div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              <ContactCard
+                icon={<Mail size={22} />}
+                title="Contact général"
+                desc="Questions, partenariats, presse…"
+                email={CONTACT_EMAIL}
+              />
+              <ContactCard
+                icon={<LifeBuoy size={22} />}
+                title="Aide & support"
+                desc="Problème sur une annonce, un compte, un paiement…"
+                email={SUPPORT_EMAIL}
+              />
+            </div>
 
-        <div className="mt-6 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
-          <p className="flex items-center gap-2 font-semibold text-gray-800">
-            <MessageSquare size={16} /> Astuce
-          </p>
-          <p className="mt-1">
-            Pour discuter d’une annonce précise, utilisez le bouton{' '}
-            <b>« Contacter le vendeur »</b> sur la page de l’annonce : votre échange reste au même
-            endroit dans <b>Messages</b>.
-          </p>
-        </div>
+            <div className="mt-6 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
+              <p className="flex items-center gap-2 font-semibold text-gray-800">
+                <MessageSquare size={16} /> Astuce
+              </p>
+              <p className="mt-1">
+                Pour discuter d’une annonce précise, utilisez le bouton{' '}
+                <b>« Contacter le vendeur »</b> sur la page de l’annonce : votre échange reste au même
+                endroit dans <b>Messages</b>.
+              </p>
+            </div>
+          </div>
 
-        <div className="mt-8">
-          <Newsletter />
+          <div className="mt-8 lg:mt-0">
+            <Newsletter />
+          </div>
         </div>
 
         <p className="mt-8 text-center text-xs text-gray-400">
