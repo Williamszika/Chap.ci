@@ -46,6 +46,13 @@ $config['sms'] = ($config['sms'] ?? []) + [
   'provider' => '', 'debug' => false, 'twilio_sid' => '', 'twilio_token' => '',
   'twilio_from' => '', 'http_method' => 'GET', 'http_url' => '', 'http_auth' => '', 'sender' => 'Chap.ci',
 ];
+// ID client Google du projet Chap.ci (public, non secret). Utilisé par défaut
+// tant que config.php n'en fournit pas un (permet d'activer la connexion Google
+// sans éditer config.php). Une variable d'env ou un config.php renseigné priment.
+if (empty($config['google_client_id'])) {
+  $config['google_client_id'] = getenv('CHAPCI_GOOGLE_CLIENT_ID')
+    ?: '564942885290-f1v7caemq0838kp6qickrsirk46vk4dl.apps.googleusercontent.com';
+}
 
 // Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
 // prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.
