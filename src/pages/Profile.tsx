@@ -126,9 +126,12 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:rounded-3xl md:bg-white md:shadow-card lg:max-w-4xl">
+    <div className="min-h-screen bg-[#f4f5f7] md:mx-auto md:min-h-0 md:max-w-3xl md:bg-transparent md:py-6 lg:max-w-5xl xl:max-w-6xl">
+      {/* Ordinateur / tablette : 2 volets (barre latérale + contenu). Mobile : empilé. */}
+      <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-6">
+      <aside className="md:sticky md:top-6 md:space-y-4">
       {/* En-tête */}
-      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-5 text-white">
+      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-5 text-white md:rounded-3xl md:shadow-card">
         <div className="flex items-center gap-3">
           <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-white/20">
             {avatarUrl ? (
@@ -171,7 +174,7 @@ export function Profile() {
 
       {/* Accès administrateur (propriétaire ou modérateur) */}
       {isAdmin && (
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 md:px-0 md:pt-0">
           <Link
             to="/admin"
             className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card transition active:scale-[0.99]"
@@ -190,15 +193,15 @@ export function Profile() {
 
       {/* Connexion requise */}
       {enabled && !user && (
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 md:px-0 md:pt-0">
           <button onClick={() => navigate('/connexion')} className="btn-primary w-full py-3.5">
             <LogIn size={20} /> Se connecter / Créer un compte
           </button>
         </div>
       )}
 
-      {/* Onglets */}
-      <div className="no-scrollbar sticky top-0 z-20 flex gap-1 overflow-x-auto border-b border-gray-100 bg-white px-2">
+      {/* Onglets — barre horizontale sur mobile, menu vertical dans la barre latérale sur ordinateur */}
+      <nav className="no-scrollbar sticky top-0 z-20 flex gap-1 overflow-x-auto border-b border-gray-100 bg-white px-2 md:static md:flex-col md:gap-1.5 md:overflow-visible md:rounded-3xl md:border-0 md:p-3 md:shadow-card">
         {([
           ['achats', 'Mes achats'],
           ['ventes', 'Mes ventes'],
@@ -208,16 +211,21 @@ export function Profile() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`shrink-0 whitespace-nowrap px-3 py-3 text-sm font-semibold ${
-              tab === t ? 'border-b-2 border-primary-500 text-primary-600' : 'text-gray-500'
+            className={`shrink-0 whitespace-nowrap px-3 py-3 text-sm font-semibold transition md:w-full md:rounded-xl md:px-4 md:py-2.5 md:text-left ${
+              tab === t
+                ? 'border-b-2 border-primary-500 text-primary-600 md:border-b-0 md:bg-primary-500 md:text-white md:shadow-sm'
+                : 'text-gray-500 md:text-gray-600 md:hover:bg-gray-100'
             }`}
           >
             {label}
           </button>
         ))}
-      </div>
+      </nav>
+      </aside>
 
-      <div className="px-4 py-4">
+      {/* Contenu principal */}
+      <main className="md:min-w-0">
+      <div className="px-4 py-4 md:px-0 md:pt-1">
         {/* ACHATS */}
         {tab === 'achats' &&
           (!user ? (
@@ -267,7 +275,7 @@ export function Profile() {
                 <p className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
                   <BarChart3 size={16} className="text-primary-500" /> Vos statistiques
                 </p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
                   <StatTile
                     label="Annonces" value={myListings.length}
                     onClick={() => { setAnnoncesFilter('all'); setTab('annonces') }}
@@ -528,6 +536,8 @@ export function Profile() {
             </p>
           </div>
         )}
+      </div>
+      </main>
       </div>
     </div>
   )
