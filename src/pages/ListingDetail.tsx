@@ -29,6 +29,8 @@ import { reportListing } from '../lib/api'
 import { priceLabel, formatPrice, timeAgo } from '../lib/format'
 import { activePromo, promoEndLabel } from '../lib/promo'
 import { recordInterest } from '../lib/interests'
+import { isPhp } from '../lib/backend'
+import { phpListingView } from '../lib/php'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { formFor } from '../data/categoryForms'
@@ -61,6 +63,15 @@ export function ListingDetail() {
   useEffect(() => {
     if (listing?.categoryId) recordInterest(listing.categoryId, 1, listing.subcategory)
   }, [listing?.categoryId, listing?.subcategory])
+
+  // Comptabilise une vue (une seule fois par session et par annonce).
+  useEffect(() => {
+    if (!isPhp || !listingId) return
+    const key = `chapci.viewed.${listingId}`
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+    phpListingView(listingId)
+  }, [listingId])
 
   useEffect(() => {
     if (!listingId) return

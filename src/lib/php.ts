@@ -157,6 +157,10 @@ export async function phpSetListingHidden(id: string, hidden: boolean): Promise<
 export async function phpReportListing(listingId: string, reason: string, details: string): Promise<void> {
   await req('/reports', { method: 'POST', body: { listingId, reason, details } })
 }
+/** Comptabilise une vue d'annonce (best-effort, silencieux). */
+export async function phpListingView(id: string): Promise<void> {
+  try { await req(`/listings/${id}/view`, { method: 'POST', body: {} }) } catch { /* silencieux */ }
+}
 
 // ---- Conversations & messages ----------------------------------------------
 export async function phpGetOrCreateConversation(listingId: string | null, sellerId: string): Promise<string> {

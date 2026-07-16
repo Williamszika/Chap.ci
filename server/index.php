@@ -522,6 +522,8 @@ function migrate(PDO $pdo): void {
   // Connexion par téléphone / Google : numéro et méthode d'inscription du compte.
   try { $pdo->exec("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN auth_provider $txt"); } catch (Throwable $e) {}
+  // Compteur de vues par annonce (statistiques vendeur).
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
   // Index léger sur le journal de sécurité (accélère rate-limit et rapports).
   try { $pdo->exec("CREATE INDEX idx_sec_events ON security_events (kind, created_at)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
@@ -1394,6 +1396,7 @@ function listing_out(array $r): array {
     'attributes' => !empty($r['attributes']) ? (json_decode($r['attributes'], true) ?: null) : null,
     'hidden' => !empty($r['hidden']),
     'sold' => !empty($r['sold']),
+    'views' => (int) ($r['views'] ?? 0),
   ];
 }
 
@@ -1675,6 +1678,20 @@ try {
     $st = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
     $st->execute([$u['id']]);
     jout(array_map('listing_out', $st->fetchAll()));
+  }
+
+  // Comptabiliser une vue d'annonce (statistiques). On n'incrémente pas les
+  // vues du propriétaire ; le frontend limite à une vue par visiteur/session.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'view' && $method === 'POST') {
+    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if ($row) {
+      $viewer = current_user($pdo, $secret);
+      if (!$viewer || $viewer['id'] !== $row['user_id']) {
+        $pdo->prepare('UPDATE listings SET views = COALESCE(views, 0) + 1 WHERE id = ?')->execute([$seg[1]]);
+      }
+    }
+    jout(['ok' => true]);
   }
 
   // Modifier son annonce.

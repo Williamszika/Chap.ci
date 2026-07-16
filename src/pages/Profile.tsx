@@ -24,6 +24,7 @@ import {
   Pencil,
   Eye,
   EyeOff,
+  BadgeCheck,
   Bell,
   BellOff,
 } from 'lucide-react'
@@ -395,16 +396,24 @@ export function Profile() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-gray-900">{l.title}</p>
                           <p className="text-sm font-bold text-primary-600">{priceLabel(l.price, l.negotiable)}</p>
-                          {l.hidden ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
-                              <EyeOff size={10} /> Masquée
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                            {l.sold ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">
+                                <BadgeCheck size={11} /> Vendue
+                              </span>
+                            ) : l.hidden ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-500">
+                                <EyeOff size={10} /> Masquée
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-600">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> En ligne
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-1 text-gray-500">
+                              <Eye size={12} /> {l.views ?? 0} vue{(l.views ?? 0) > 1 ? 's' : ''}
                             </span>
-                          ) : (
-                            <p className="flex items-center gap-1 text-[11px] text-gray-400">
-                              <MapPin size={11} />
-                              {locationLabel(l.regionId, l.cityId, l.commune)}
-                            </p>
-                          )}
+                          </div>
                         </div>
                       </Link>
                     </div>

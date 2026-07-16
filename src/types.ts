@@ -59,6 +59,8 @@ export interface Listing {
   hidden?: boolean
   /** Annonce vendue : retirée du public, badge « Vendu ». */
   sold?: boolean
+  /** Nombre de vues (statistiques vendeur). */
+  views?: number
 }
 
 export interface LocationFilter {
