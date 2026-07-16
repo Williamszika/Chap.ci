@@ -57,7 +57,16 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Inutile de précharger les alphabets non-latins (cyrillique, grec,
         // vietnamien) : l'app est en français. Économise ~75 Ko de données.
-        globIgnores: ['**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
+        // On EXCLUT aussi les bundles IA de détourage (onnxruntime, ~800 Ko) :
+        // ils ne doivent se télécharger QUE si l'utilisateur touche « Enlever le
+        // décor », pas pour tout le monde au 1er chargement (données mobiles).
+        globIgnores: [
+          '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
+          '**/ort*.js', '**/ort*.mjs', '**/ort*.wasm',
+        ],
+        // Le gros bundle IA dépasse la limite par défaut : on garde une marge
+        // sans forcer sa mise en cache (il est ignoré ci-dessus de toute façon).
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
       },
       devOptions: {

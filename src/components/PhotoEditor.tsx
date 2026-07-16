@@ -2,9 +2,18 @@ import { useCallback, useState } from 'react'
 import Cropper, { type Area } from 'react-easy-crop'
 import {
   X, Check, Crop as CropIcon, SlidersHorizontal, Sparkles, RotateCw, FlipHorizontal2,
-  Wand2, Loader2, Palette,
+  Wand2, Loader2, Palette, Scissors,
 } from 'lucide-react'
 import { getEditedImage } from '../lib/cropImage'
+
+function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result as string)
+    r.onerror = () => reject(new Error('Lecture impossible'))
+    r.readAsDataURL(blob)
+  })
+}
 
 type Tab = 'crop' | 'adjust' | 'filter' | 'bg'
 
@@ -60,6 +69,13 @@ export function PhotoEditor({
   const [bg, setBg] = useState<string | null>(null) // fond studio
   const [restrict, setRestrict] = useState(true) // false pour laisser une marge de fond
   const [minZoom, setMinZoom] = useState(1)
+  const [cutout, setCutout] = useState<string | null>(null) // photo détourée (fond transparent)
+  const [removing, setRemoving] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [aiError, setAiError] = useState<string | null>(null)
+
+  // Image de travail : la version détourée si le décor a été enlevé, sinon l'originale.
+  const workingSrc = cutout ?? src
 
   const [b, setB] = useState(1)
   const [c, setC] = useState(1)
@@ -79,19 +95,58 @@ export function PhotoEditor({
     setB(p.b); setC(p.c); setS(p.s); setExtra(p.extra)
   }
 
-  // Choix d'un fond studio : on « dézoome » pour créer une marge de couleur
-  // autour de la photo (sans détourage), et on autorise le repositionnement.
+  // Choix d'un fond : « Aucun » revient à l'original (et annule le détourage).
   function chooseBg(color: string | null) {
-    setBg(color)
-    if (color) {
-      setRestrict(false)
-      setMinZoom(0.4)
-      setZoom((z) => (z > 0.95 ? 0.82 : z))
-    } else {
+    if (color === null) {
+      setCutout(null)
+      setBg(null)
+      setAiError(null)
       setRestrict(true)
       setMinZoom(1)
       setZoom((z) => Math.max(1, z))
       setCrop({ x: 0, y: 0 })
+      return
+    }
+    setBg(color)
+    if (cutout) {
+      // Décor enlevé : le produit est déjà isolé, cadrage normal sur la couleur.
+      setRestrict(true)
+      setMinZoom(1)
+    } else {
+      // Cadre coloré simple : on dézoome pour créer une marge autour de la photo.
+      setRestrict(false)
+      setMinZoom(0.4)
+      setZoom((z) => (z > 0.95 ? 0.82 : z))
+    }
+  }
+
+  // Détourage IA : enlève le décor et pose le produit sur un fond de couleur.
+  // Charge le modèle à la demande (télécharge ~une fois). Ne casse jamais l'éditeur.
+  async function removeDecor() {
+    if (removing) return
+    setRemoving(true)
+    setAiError(null)
+    setProgress(0)
+    try {
+      const { removeBackground } = await import('@imgly/background-removal')
+      const blob = await removeBackground(src, {
+        model: 'isnet_fp16',
+        output: { format: 'image/png' },
+        progress: (_key: string, cur: number, total: number) => {
+          if (total > 0) setProgress(Math.min(100, Math.round((cur / total) * 100)))
+        },
+      })
+      const uri = await blobToDataURL(blob)
+      setCutout(uri)
+      setBg((prev) => prev ?? '#FFFFFF')
+      setRestrict(true)
+      setMinZoom(1)
+      setZoom(1)
+      setCrop({ x: 0, y: 0 })
+    } catch {
+      setAiError('Détourage impossible (connexion instable ou photo trop complexe). Réessayez, ou choisissez un fond simple.')
+    } finally {
+      setRemoving(false)
     }
   }
 
@@ -99,7 +154,7 @@ export function PhotoEditor({
     if (!pixels) return
     setBusy(true)
     try {
-      const out = await getEditedImage(src, pixels, rotation + tilt, { horizontal: flipH, vertical: false }, filter, 1280, 0.85, bg)
+      const out = await getEditedImage(workingSrc, pixels, rotation + tilt, { horizontal: flipH, vertical: false }, filter, 1280, 0.85, bg)
       onApply(out)
     } catch {
       onApply(src) // repli : on garde la photo d'origine
@@ -124,7 +179,7 @@ export function PhotoEditor({
       {/* Zone de recadrage */}
       <div className="relative flex-1">
         <Cropper
-          image={src}
+          image={workingSrc}
           crop={crop}
           zoom={zoom}
           minZoom={minZoom}
@@ -185,8 +240,28 @@ export function PhotoEditor({
         )}
 
         {tab === 'bg' && (
-          <div className="space-y-2 pt-1">
-            <p className="text-[12px] text-white/60">Posez la photo sur un fond de couleur (dézoomez pour élargir la marge).</p>
+          <div className="space-y-2.5 pt-1">
+            <button
+              onClick={removeDecor}
+              disabled={removing}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/12 py-2.5 text-sm font-bold text-white active:scale-95 disabled:opacity-60"
+            >
+              {removing ? (
+                <><Loader2 size={16} className="animate-spin" /> Détourage… {progress}%</>
+              ) : (
+                <><Scissors size={16} /> {cutout ? 'Refaire le détourage' : 'Enlever le décor (IA)'}</>
+              )}
+            </button>
+            {aiError ? (
+              <p className="text-[11px] leading-snug text-red-300">{aiError}</p>
+            ) : cutout ? (
+              <p className="text-[11px] text-emerald-300/90">✓ Décor enlevé — choisissez la couleur du fond ci-dessous.</p>
+            ) : (
+              <p className="text-[11px] leading-snug text-white/50">
+                « Enlever le décor » isole le produit sur un vrai fond de couleur (télécharge un modèle la 1ʳᵉ fois).
+                Sinon, choisissez une couleur : la photo sera posée dessus (dézoomez pour la marge).
+              </p>
+            )}
             <div className="no-scrollbar flex gap-2.5 overflow-x-auto pb-1">
               {BACKGROUNDS.map((bgc) => (
                 <button key={bgc.label} onClick={() => chooseBg(bgc.value)} className="flex shrink-0 flex-col items-center gap-1.5">
