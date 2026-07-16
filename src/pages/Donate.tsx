@@ -33,7 +33,7 @@ export function Donate() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:bg-white md:shadow-card">
+    <div className="min-h-screen bg-[#f4f5f7] pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:bg-white md:shadow-card lg:max-w-5xl">
       {/* En-tête */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-6 pt-3 text-white">
         <div className="flex items-center gap-3">
@@ -50,75 +50,81 @@ export function Donate() {
         </div>
       </header>
 
-      <div className="space-y-6 px-4 py-5">
-        {/* Pourquoi donner */}
-        <section className="card p-4">
-          <p className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-900">
-            <Heart size={16} className="text-red-500" /> Pourquoi faire un don ?
-          </p>
-          <ul className="space-y-1.5">
-            {donationCopy.why.map((w) => (
-              <li key={w} className="flex items-start gap-2 text-sm text-gray-600">
-                <Check size={16} className="mt-0.5 shrink-0 text-ivoire-green" />
-                {w}
-              </li>
-            ))}
-          </ul>
-        </section>
+      <div className="space-y-6 px-4 py-5 md:px-6">
+        {/* Ordinateur / tablette : 2 colonnes (pourquoi + montant · opérateurs). Mobile : une colonne. */}
+        <div className="space-y-6 md:grid md:grid-cols-2 md:items-start md:gap-5 md:space-y-0 lg:gap-6">
+          {/* Colonne gauche : pourquoi + choix du montant */}
+          <div className="space-y-6">
+            {/* Pourquoi donner */}
+            <section className="card p-4">
+              <p className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-900">
+                <Heart size={16} className="text-red-500" /> Pourquoi faire un don ?
+              </p>
+              <ul className="space-y-1.5">
+                {donationCopy.why.map((w) => (
+                  <li key={w} className="flex items-start gap-2 text-sm text-gray-600">
+                    <Check size={16} className="mt-0.5 shrink-0 text-ivoire-green" />
+                    {w}
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-        {/* Montant suggéré */}
-        <section>
-          <p className="mb-2 text-sm font-bold text-gray-800">Choisissez un montant (facultatif)</p>
-          <div className="grid grid-cols-3 gap-2">
-            {suggestedAmounts.map((a) => (
-              <button
-                key={a}
-                onClick={() => {
-                  setAmount(a)
-                  setCustom('')
+            {/* Montant suggéré */}
+            <section>
+              <p className="mb-2 text-sm font-bold text-gray-800">Choisissez un montant (facultatif)</p>
+              <div className="grid grid-cols-3 gap-2">
+                {suggestedAmounts.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => {
+                      setAmount(a)
+                      setCustom('')
+                    }}
+                    className={`chip justify-center py-2.5 ${
+                      amount === a ? 'border-primary-500 bg-primary-500 text-white' : ''
+                    }`}
+                  >
+                    {formatPrice(a)}
+                  </button>
+                ))}
+              </div>
+              <input
+                inputMode="numeric"
+                value={custom}
+                onChange={(e) => {
+                  setCustom(e.target.value.replace(/\D/g, ''))
+                  setAmount(null)
                 }}
-                className={`chip justify-center py-2.5 ${
-                  amount === a ? 'border-primary-500 bg-primary-500 text-white' : ''
-                }`}
-              >
-                {formatPrice(a)}
-              </button>
-            ))}
+                placeholder="Autre montant (FCFA)"
+                className="input mt-2"
+              />
+              {chosenAmount ? (
+                <p className="mt-2 text-center text-sm text-gray-600">
+                  Vous allez envoyer{' '}
+                  <span className="font-bold text-primary-600">{formatPrice(chosenAmount)} FCFA</span>{' '}
+                  via l’un des moyens ci-dessous.
+                </p>
+              ) : null}
+            </section>
           </div>
-          <input
-            inputMode="numeric"
-            value={custom}
-            onChange={(e) => {
-              setCustom(e.target.value.replace(/\D/g, ''))
-              setAmount(null)
-            }}
-            placeholder="Autre montant (FCFA)"
-            className="input mt-2"
-          />
-          {chosenAmount ? (
-            <p className="mt-2 text-center text-sm text-gray-600">
-              Vous allez envoyer{' '}
-              <span className="font-bold text-primary-600">{formatPrice(chosenAmount)} FCFA</span>{' '}
-              via l’un des moyens ci-dessous.
-            </p>
-          ) : null}
-        </section>
 
-        {/* Opérateurs */}
-        <section className="space-y-3">
-          <p className="text-sm font-bold text-gray-800">Envoyer par Mobile Money</p>
-          {donationOperators.map((op) => (
-            <OperatorCard
-              key={op.id}
-              op={op}
-              amount={chosenAmount}
-              copied={copied}
-              onCopy={copy}
-            />
-          ))}
-        </section>
+          {/* Colonne droite : opérateurs */}
+          <section className="space-y-3">
+            <p className="text-sm font-bold text-gray-800">Envoyer par Mobile Money</p>
+            {donationOperators.map((op) => (
+              <OperatorCard
+                key={op.id}
+                op={op}
+                amount={chosenAmount}
+                copied={copied}
+                onCopy={copy}
+              />
+            ))}
+          </section>
+        </div>
 
-        {/* Transparence */}
+        {/* Transparence (pleine largeur) */}
         <section className="rounded-2xl bg-amber-50 p-4">
           <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-amber-800">
             <ShieldCheck size={16} /> Sécurité & transparence
