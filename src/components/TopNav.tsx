@@ -24,13 +24,15 @@ const links = [
 export function TopNav() {
   const { favorites } = useApp()
   const location = useLocation()
-  // Masquée sur les pages « plein écran » (formulaire, détail, conversation…).
+  // Masquée sur les pages « plein écran » (formulaire, détail…). NB : la barre
+  // n'apparaît de toute façon qu'à partir de md (`hidden md:block`) ; on la garde
+  // donc sur la conversation `/messages/:id` pour l'affichage 2 volets ordinateur
+  // (elle reste invisible sur mobile, où le chat est en plein écran).
   const hidden =
     location.pathname === '/publier' ||
     location.pathname.startsWith('/modifier/') ||
     location.pathname === '/connexion' ||
     location.pathname === '/inscription' ||
-    location.pathname.startsWith('/messages/') ||
     location.pathname === '/admin' ||
     location.pathname.startsWith('/admin/')
   if (hidden) return null
