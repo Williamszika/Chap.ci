@@ -27,9 +27,18 @@ function iconFor(type: string) {
 export function NotificationBell({
   buttonClass,
   badgeClass,
+  align = 'responsive',
 }: {
   buttonClass?: string
   badgeClass?: string
+  /**
+   * Alignement du menu déroulant.
+   * - 'responsive' (défaut) : à droite sur mobile, à gauche (ouvre vers la
+   *   droite) sur ordinateur/tablette — adapté à la cloche placée dans la
+   *   barre latérale gauche du compte.
+   * - 'left' / 'right' : forcé.
+   */
+  align?: 'left' | 'right' | 'responsive'
 }) {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -96,6 +105,10 @@ export function NotificationBell({
   }
 
   const unread = count
+  const alignClass =
+    align === 'left' ? 'left-0'
+    : align === 'right' ? 'right-0'
+    : 'right-0 md:left-0 md:right-auto'
 
   return (
     <div ref={ref} className="relative shrink-0">
@@ -115,7 +128,7 @@ export function NotificationBell({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[22rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white text-gray-900 shadow-2xl">
+        <div className={`absolute ${alignClass} top-full z-50 mt-2 w-[22rem] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white text-gray-900 shadow-2xl`}>
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
             <p className="font-display text-sm font-bold">Notifications</p>
             {unread > 0 && (
