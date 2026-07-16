@@ -256,7 +256,7 @@ export function Faq() {
   }, [query])
 
   return (
-    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:shadow-card">
+    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:shadow-card lg:max-w-5xl xl:max-w-6xl">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
@@ -294,30 +294,33 @@ export function Faq() {
             </p>
           </div>
         ) : (
-          filtered.map((section, si) => (
-            <section key={section.title} className="mb-5">
-              <h3 className="mb-1 flex items-center gap-2 px-1 text-sm font-bold uppercase tracking-wide text-gray-500">
-                <span>{section.icon}</span> {section.title}
-              </h3>
-              <div className="rounded-2xl bg-gray-50/70 px-4">
-                {section.items.map((qa, ii) => {
-                  const key = `${si}:${ii}`
-                  return (
-                    <Item
-                      key={key}
-                      qa={qa}
-                      open={openKey === key}
-                      onToggle={() => setOpenKey(openKey === key ? null : key)}
-                    />
-                  )
-                })}
-              </div>
-            </section>
-          ))
+          // Ordinateur / tablette : rubriques réparties sur 2 colonnes (masonry).
+          <div className="md:columns-2 md:gap-5 lg:gap-6 md:[&>*]:break-inside-avoid">
+            {filtered.map((section, si) => (
+              <section key={section.title} className="mb-5">
+                <h3 className="mb-1 flex items-center gap-2 px-1 text-sm font-bold uppercase tracking-wide text-gray-500">
+                  <span>{section.icon}</span> {section.title}
+                </h3>
+                <div className="rounded-2xl bg-gray-50/70 px-4">
+                  {section.items.map((qa, ii) => {
+                    const key = `${si}:${ii}`
+                    return (
+                      <Item
+                        key={key}
+                        qa={qa}
+                        open={openKey === key}
+                        onToggle={() => setOpenKey(openKey === key ? null : key)}
+                      />
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
 
         {/* Bloc contact */}
-        <div className="mt-4 rounded-2xl border border-primary-100 bg-primary-50 p-5 text-center">
+        <div className="mt-4 rounded-2xl border border-primary-100 bg-primary-50 p-5 text-center md:mx-auto md:mt-6 md:max-w-2xl">
           <p className="font-bold text-primary-900">Vous n’avez pas trouvé votre réponse ?</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-primary-800/80">
             Notre équipe est là pour vous aider. Écrivez-nous, on revient vers vous rapidement.
