@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag } from 'lucide-react'
+import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2 } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { updateListingRemote } from '../lib/api'
 import type { Listing } from '../types'
@@ -14,6 +14,7 @@ import { formatPrice } from '../lib/format'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { downscaleListingImage } from '../lib/image'
+import { PhotoEditor } from '../components/PhotoEditor'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { getBestPosition, reverseGeocode } from '../lib/geo'
 import { coordsFor, type Coords } from '../data/coords'
@@ -36,6 +37,7 @@ export function PostAd() {
     ((location.state as { listing?: Listing } | null)?.listing) ?? (editId ? getListing(editId) : undefined)
 
   const [images, setImages] = useState<string[]>([])
+  const [editIndex, setEditIndex] = useState<number | null>(null) // photo en cours d'édition
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [subcategory, setSubcategory] = useState('')
@@ -125,10 +127,10 @@ export function PostAd() {
     // Compression AVANT stockage : une photo brute de téléphone (plusieurs Mo)
     // ferait dépasser la limite d'upload du serveur et l'annonce partirait en
     // « mode local » au lieu d'être enregistrée. On redimensionne à 1280 px max.
+    const added: string[] = []
     for (const file of files.slice(0, room)) {
       try {
-        const dataUri = await downscaleListingImage(file)
-        setImages((prev) => (prev.length < MAX_PHOTOS ? [...prev, dataUri] : prev))
+        added.push(await downscaleListingImage(file))
       } catch {
         // Repli : si la compression échoue, on lit le fichier tel quel.
         const raw = await new Promise<string | null>((resolve) => {
@@ -137,13 +139,24 @@ export function PostAd() {
           reader.onerror = () => resolve(null)
           reader.readAsDataURL(file)
         })
-        if (raw) setImages((prev) => (prev.length < MAX_PHOTOS ? [...prev, raw] : prev))
+        if (raw) added.push(raw)
       }
     }
+    if (!added.length) return
+    const startIndex = images.length
+    setImages((prev) => [...prev, ...added].slice(0, MAX_PHOTOS))
+    // Une seule photo ajoutée : on ouvre directement l'éditeur pour l'embellir.
+    if (added.length === 1) setEditIndex(startIndex)
   }
 
   function removeImage(i: number) {
     setImages((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  // Remplace la photo éditée par sa version recadrée / améliorée.
+  function applyEdited(dataUri: string) {
+    setImages((prev) => prev.map((src, idx) => (idx === editIndex ? dataUri : src)))
+    setEditIndex(null)
   }
 
   // Géolocalise l'utilisateur (GPS) et verrouille la localisation de l'annonce.
@@ -250,6 +263,14 @@ export function PostAd() {
                 >
                   <X size={13} />
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setEditIndex(i)}
+                  className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 py-1 text-[11px] font-semibold text-white"
+                  aria-label="Modifier la photo"
+                >
+                  <Wand2 size={12} /> Modifier
+                </button>
               </div>
             ))}
             {images.length < MAX_PHOTOS && (
@@ -271,7 +292,8 @@ export function PostAd() {
             onChange={onFiles}
           />
           <p className="mt-1.5 text-xs text-gray-400">
-            La première photo sera la couverture. Sans photo, une image sera générée.
+            Touchez <b className="font-semibold text-gray-500">✨ Modifier</b> pour recadrer et embellir une photo.
+            La première sera la couverture. Sans photo, une image sera générée.
           </p>
         </div>
 
@@ -566,6 +588,14 @@ export function PostAd() {
       </form>
 
       <LocationSheet open={locOpen} onClose={() => setLocOpen(false)} value={loc} onApply={setLoc} />
+
+      {editIndex !== null && images[editIndex] && (
+        <PhotoEditor
+          src={images[editIndex]}
+          onCancel={() => setEditIndex(null)}
+          onApply={applyEdited}
+        />
+      )}
     </div>
   )
 }
