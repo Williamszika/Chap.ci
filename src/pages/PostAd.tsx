@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, BookOpen } from 'lucide-react'
+import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2 } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { updateListingRemote } from '../lib/api'
 import type { Listing } from '../types'
@@ -14,6 +14,7 @@ import { formatPrice } from '../lib/format'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { downscaleListingImage } from '../lib/image'
+import { classifyImage } from '../lib/nsfw'
 import { PhotoEditor } from '../components/PhotoEditor'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { getBestPosition, reverseGeocode } from '../lib/geo'
@@ -41,6 +42,8 @@ export function PostAd() {
 
   const [images, setImages] = useState<string[]>([])
   const [editIndex, setEditIndex] = useState<number | null>(null) // photo en cours d'édition
+  const [checkingPhotos, setCheckingPhotos] = useState(false) // analyse NSFW en cours
+  const [photoError, setPhotoError] = useState('') // photos refusées (nudité)
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [subcategory, setSubcategory] = useState('')
@@ -131,20 +134,34 @@ export function PostAd() {
     // Compression AVANT stockage : une photo brute de téléphone (plusieurs Mo)
     // ferait dépasser la limite d'upload du serveur et l'annonce partirait en
     // « mode local » au lieu d'être enregistrée. On redimensionne à 1280 px max.
+    setPhotoError('')
+    setCheckingPhotos(true)
     const added: string[] = []
+    let blocked = 0
     for (const file of files.slice(0, room)) {
+      let uri: string | null = null
       try {
-        added.push(await downscaleListingImage(file))
+        uri = await downscaleListingImage(file)
       } catch {
         // Repli : si la compression échoue, on lit le fichier tel quel.
-        const raw = await new Promise<string | null>((resolve) => {
+        uri = await new Promise<string | null>((resolve) => {
           const reader = new FileReader()
           reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
           reader.onerror = () => resolve(null)
           reader.readAsDataURL(file)
         })
-        if (raw) added.push(raw)
       }
+      if (!uri) continue
+      // Analyse anti-nudité (locale, gratuite). Ne bloque pas en cas d'échec.
+      const verdict = await classifyImage(uri)
+      if (verdict.blocked) { blocked++; continue }
+      added.push(uri)
+    }
+    setCheckingPhotos(false)
+    if (blocked > 0) {
+      setPhotoError(
+        `${blocked} photo${blocked > 1 ? 's' : ''} refusée${blocked > 1 ? 's' : ''} : contenu à caractère sexuel / nudité détecté. Ces photos sont interdites sur Chap.ci.`,
+      )
     }
     if (!added.length) return
     const startIndex = images.length
@@ -332,6 +349,21 @@ export function PostAd() {
             Touchez <b className="font-semibold text-gray-500">✨ Modifier</b> pour recadrer et embellir une photo.
             La première sera la couverture. Sans photo, une image sera générée.
           </p>
+          {checkingPhotos && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+              <Loader2 size={13} className="animate-spin" /> Analyse des photos en cours…
+            </p>
+          )}
+          {photoError && (
+            <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+              <ShieldAlert size={14} className="mt-0.5 shrink-0" /> {photoError}
+            </p>
+          )}
+          {!photoError && !checkingPhotos && images.length > 0 && (
+            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-emerald-600">
+              <ShieldCheck size={12} /> Photos analysées automatiquement (anti-nudité).
+            </p>
+          )}
         </div>
 
         {/* Titre */}

@@ -63,6 +63,7 @@ export default defineConfig({
         globIgnores: [
           '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
           '**/ort*.js', '**/ort*.mjs', '**/ort*.wasm',
+          '**/nsfw*.js', // brique IA d'analyse des photos (TensorFlow + modèle) — à la demande
         ],
         // Le gros bundle IA dépasse la limite par défaut : on garde une marge
         // sans forcer sa mise en cache (il est ignoré ci-dessus de toute façon).
@@ -74,6 +75,22 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Isole l'IA d'analyse des photos (TensorFlow.js + modèle NSFW ~4 Mo)
+        // dans un chunk nommé « nsfw » : chargé à la demande (à la publication
+        // d'une photo) et EXCLU du précache PWA (cf. globIgnores) — aucun
+        // surcoût de données pour les visiteurs qui ne publient pas.
+        manualChunks(id) {
+          if (id.includes('nsfwjs') || id.includes('@tensorflow') || id.includes('model_imports')) {
+            return 'nsfw'
+          }
+          return undefined
+        },
+      },
+    },
+  },
   server: {
     host: true,
     port: 5173,
