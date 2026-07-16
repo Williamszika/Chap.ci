@@ -20,7 +20,7 @@ const steps = [
 export function About() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:rounded-3xl md:shadow-card md:overflow-hidden">
+    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:shadow-card lg:max-w-5xl">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
@@ -38,11 +38,11 @@ export function About() {
         </p>
       </div>
 
-      <div className="px-5 py-7">
+      <div className="px-5 py-7 md:px-8 lg:px-10">
         {/* Notre mission */}
         <section>
           <h2 className="text-base font-bold text-gray-900">Notre mission</h2>
-          <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
+          <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-gray-600">
             Chap.ci connecte les Ivoiriens pour acheter et vendre plus facilement, où qu’ils soient.
             Notre objectif : une plateforme <b>simple</b>, <b>sûre</b> et <b>rapide</b> — pensée pour nos réalités,
             nos villes, nos communes et nos moyens de paiement (Orange, MTN, Wave).
@@ -52,7 +52,7 @@ export function About() {
         {/* Points forts */}
         <section className="mt-7">
           <h2 className="text-base font-bold text-gray-900">Pourquoi Chap.ci ?</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {points.map((p) => (
               <div key={p.title} className="rounded-2xl border border-gray-100 p-4 shadow-card">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-100 text-primary-600">{p.icon}</span>
@@ -66,9 +66,9 @@ export function About() {
         {/* Comment ça marche */}
         <section className="mt-7">
           <h2 className="text-base font-bold text-gray-900">Comment ça marche ?</h2>
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 grid gap-3 md:grid-cols-3 md:gap-5">
             {steps.map((s) => (
-              <div key={s.n} className="flex items-start gap-3">
+              <div key={s.n} className="flex items-start gap-3 md:rounded-2xl md:border md:border-gray-100 md:p-4 md:shadow-card">
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-500 text-sm font-bold text-white">{s.n}</span>
                 <div>
                   <p className="font-semibold text-gray-800">{s.t}</p>
@@ -80,7 +80,7 @@ export function About() {
         </section>
 
         {/* CTA */}
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row md:mx-auto md:max-w-xl">
           <Link to="/publier" className="btn-primary flex-1 py-3">Publier une annonce</Link>
           <Link to="/explorer" className="btn-outline flex-1 py-3">Explorer les annonces</Link>
         </div>
