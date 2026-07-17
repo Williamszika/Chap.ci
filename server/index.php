@@ -435,12 +435,20 @@ function sms_send(array $config, string $to, string $text): bool {
     $sid = $sms['twilio_sid'] ?? ''; $token = $sms['twilio_token'] ?? ''; $from = $sms['twilio_from'] ?? '';
     if ($sid === '' || $token === '' || $from === '') return false;
     $url = 'https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode($sid) . '/Messages.json';
-    $post = http_build_query(['To' => $to, 'From' => $from, 'Body' => $text]);
+    // Un identifiant commençant par « MG » est un Messaging Service Twilio,
+    // sinon c'est un numéro d'expéditeur (ou un Sender ID alphanumérique).
+    $params = strncmp($from, 'MG', 2) === 0
+      ? ['To' => $to, 'MessagingServiceSid' => $from, 'Body' => $text]
+      : ['To' => $to, 'From' => $from, 'Body' => $text];
     $r = http_fetch($url, [
-      'method' => 'POST', 'body' => $post, 'userpwd' => "$sid:$token",
+      'method' => 'POST', 'body' => http_build_query($params), 'userpwd' => "$sid:$token",
       'headers' => ['Content-Type: application/x-www-form-urlencoded'],
     ]);
-    return $r['status'] >= 200 && $r['status'] < 300;
+    $ok = $r['status'] >= 200 && $r['status'] < 300;
+    // En cas d'échec, on journalise la réponse Twilio (code + message) pour le
+    // débogage côté serveur — jamais renvoyée au client.
+    if (!$ok) error_log('[chapci] Twilio SMS échec (' . ($r['status'] ?? '?') . ') : ' . substr((string) ($r['body'] ?? ''), 0, 300));
+    return $ok;
   }
   if ($provider === 'http') {
     $url = $sms['http_url'] ?? '';
