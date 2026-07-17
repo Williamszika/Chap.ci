@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2 } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
-import { updateListingRemote } from '../lib/api'
 import type { Listing } from '../types'
 import { useGeo } from '../store/GeoContext'
 import { categories, categoryById } from '../data/categories'
@@ -28,7 +27,7 @@ type ModReason = { code: string; label: string; advice: string }
 
 export function PostAd() {
   const navigate = useNavigate()
-  const { addListing, getListing } = useApp()
+  const { addListing, updateListing, getListing } = useApp()
   const { place } = useGeo()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -245,7 +244,7 @@ export function PostAd() {
     setSubmitting(true)
     try {
       const created = editing && editId
-        ? await updateListingRemote(editId, input)
+        ? await updateListing(editId, input)
         : await addListing(input)
       navigate(`/annonce/${created.id}`)
     } catch (e) {

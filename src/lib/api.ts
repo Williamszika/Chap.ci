@@ -133,10 +133,43 @@ export async function fetchMyListings(): Promise<Listing[]> {
   if (isPhp) return php.phpMyListings()
   return []
 }
-/** Modifier une annonce (PHP). */
+/** Modifier une annonce (PHP ou Supabase). */
 export async function updateListingRemote(id: string, input: Omit<Listing, 'id' | 'createdAt' | 'currency'>): Promise<Listing> {
   if (isPhp) return php.phpUpdateListing(id, input)
-  throw new Error('Édition disponible avec le backend auto-hébergé.')
+  if (!supabase) throw new Error('Supabase non configuré')
+  const client = supabase
+
+  const base: Record<string, unknown> = {
+    title: input.title,
+    description: input.description,
+    price: input.price,
+    negotiable: input.negotiable,
+    category_id: input.categoryId,
+    subcategory: input.subcategory ?? null,
+    condition: input.condition,
+    images: input.images,
+    region_id: input.regionId,
+    city_id: input.cityId || null,
+    commune: input.commune ?? null,
+    seller_name: input.sellerName,
+    seller_phone: input.sellerPhone,
+    delivery: input.delivery,
+  }
+  const withGeo = { ...base, lat: input.lat ?? null, lng: input.lng ?? null }
+  const withPromo: Record<string, unknown> = { ...withGeo }
+  withPromo.promo_price = input.promoPrice ?? null
+  withPromo.promo_until = input.promoUntil != null ? new Date(input.promoUntil).toISOString() : null
+
+  // Mêmes paliers de repli que la création si des colonnes optionnelles manquent.
+  let res = await client.from('listings').update(withPromo).eq('id', id).select().single()
+  if (res.error && /promo_/i.test(res.error.message)) {
+    res = await client.from('listings').update(withGeo).eq('id', id).select().single()
+  }
+  if (res.error && /\blat\b|\blng\b/i.test(res.error.message)) {
+    res = await client.from('listings').update(base).eq('id', id).select().single()
+  }
+  if (res.error) throw res.error
+  return rowToListing(res.data as ListingRow)
 }
 /** Masquer / réafficher une annonce (PHP). */
 export async function setListingHidden(id: string, hidden: boolean): Promise<void> {

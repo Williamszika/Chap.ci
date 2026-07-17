@@ -12,7 +12,7 @@ import type { Listing } from '../types'
 import { isSupabaseConfigured } from '../lib/supabaseClient'
 import { isPhp } from '../lib/backend'
 import { recordInterest } from '../lib/interests'
-import { fetchListings, createListing, deleteListingRemote } from '../lib/api'
+import { fetchListings, createListing, deleteListingRemote, updateListingRemote } from '../lib/api'
 import { phpGetFavorites, phpAddFavorite, phpRemoveFavorite } from '../lib/php'
 import { useAuth } from './AuthContext'
 
@@ -34,6 +34,7 @@ interface AppState {
   mode: Mode
   favorites: string[]
   addListing: (input: NewListingInput) => Promise<Listing>
+  updateListing: (id: string, input: NewListingInput) => Promise<Listing>
   deleteListing: (id: string) => Promise<void>
   toggleFavorite: (id: string) => void
   isFavorite: (id: string) => boolean
@@ -138,6 +139,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [mode, user?.id],
   )
 
+  const updateListing = useCallback(
+    async (id: string, input: NewListingInput): Promise<Listing> => {
+      const isLocal = id.startsWith('user-') || id.startsWith('seed-')
+      // Annonce partagée (backend PHP ou Supabase) : on met à jour côté serveur
+      // PUIS on rafraîchit le cache local, sinon la page détail resterait sur
+      // l'ancienne version.
+      if (mode === 'supabase' && !isLocal) {
+        const updated = await updateListingRemote(id, input)
+        setRemoteListings((prev) => prev.map((l) => (l.id === id ? updated : l)))
+        return updated
+      }
+      // Annonce locale (créée sur l'appareil, ou mode 100 % local) : mise à jour
+      // en mémoire, en conservant l'id et la date de création d'origine.
+      const base = userListings.find((l) => l.id === id)
+      const updated: Listing = {
+        ...(base as Listing),
+        ...input,
+        id,
+        currency: 'FCFA',
+        createdAt: base?.createdAt ?? Date.now(),
+      }
+      setUserListings((prev) => prev.map((l) => (l.id === id ? updated : l)))
+      return updated
+    },
+    [mode, userListings],
+  )
+
   const deleteListing = useCallback(
     async (id: string) => {
       if (mode === 'supabase' && !id.startsWith('user-') && !id.startsWith('seed-')) {
@@ -205,6 +233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     mode,
     favorites,
     addListing,
+    updateListing,
     deleteListing,
     toggleFavorite,
     isFavorite,
