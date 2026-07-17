@@ -873,6 +873,7 @@ function SettingsForm({ userId, initialName }: { userId: string; initialName: st
 function ChangePassword() {
   const { updatePassword } = useAuth()
   const [open, setOpen] = useState(false)
+  const [current, setCurrent] = useState('')
   const [pw, setPw] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
@@ -885,10 +886,11 @@ function ChangePassword() {
     if (!check.ok) return setError(`Mot de passe trop faible — ajoutez : ${check.missing.join(', ')}.`)
     if (pw !== confirm) return setError('Les deux mots de passe ne correspondent pas.')
     setBusy(true)
-    const res = await updatePassword(pw)
+    const res = await updatePassword(pw, current)
     setBusy(false)
     if (res.error) return setError(res.error)
     setDone(true)
+    setCurrent('')
     setPw('')
     setConfirm('')
     setTimeout(() => {
@@ -910,6 +912,14 @@ function ChangePassword() {
 
       {open && (
         <div className="mt-3 space-y-3">
+          <input
+            type="password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="Mot de passe actuel"
+            className="input"
+            autoComplete="current-password"
+          />
           <input
             type="password"
             value={pw}

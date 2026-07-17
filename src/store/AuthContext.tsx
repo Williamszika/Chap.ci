@@ -45,7 +45,7 @@ interface AuthState {
   verifyLoginMfa: (code: string) => Promise<AuthResult>
   signOut: () => Promise<void>
   sendPasswordReset: (email: string) => Promise<AuthResult>
-  updatePassword: (newPassword: string) => Promise<AuthResult>
+  updatePassword: (newPassword: string, currentPassword?: string) => Promise<AuthResult>
   /** true après un clic sur le lien de récupération de mot de passe reçu par email */
   recovery: boolean
   clearRecovery: () => void
@@ -247,9 +247,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {}
   }, [])
 
-  const updatePassword = useCallback(async (newPassword: string): Promise<AuthResult> => {
+  const updatePassword = useCallback(async (newPassword: string, currentPassword?: string): Promise<AuthResult> => {
     if (isPhp) {
-      try { await php.phpUpdatePassword(newPassword); return {} } catch (e) { return { error: (e as Error).message } }
+      try { await php.phpUpdatePassword(newPassword, currentPassword); return {} } catch (e) { return { error: (e as Error).message } }
     }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.updateUser({ password: newPassword })

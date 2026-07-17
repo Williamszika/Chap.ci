@@ -318,6 +318,20 @@ function jwt_verify(string $token, string $secret): ?array {
   if (isset($payload['exp']) && time() > $payload['exp']) return null;
   return $payload;
 }
+/**
+ * Émet un jeton de session pour un utilisateur, en y incluant sa version de
+ * session courante (P12). Un changement de mot de passe incrémente cette version
+ * → tous les jetons plus anciens deviennent invalides.
+ */
+function mk_token(PDO $pdo, string $userId, string $email, string $secret): string {
+  $sv = 0;
+  try {
+    $st = $pdo->prepare('SELECT session_version FROM users WHERE id = ?');
+    $st->execute([$userId]);
+    $sv = (int) ($st->fetchColumn() ?: 0);
+  } catch (Throwable $e) { /* colonne absente : version 0 */ }
+  return jwt_sign(['sub' => $userId, 'email' => $email, 'sv' => $sv, 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+}
 
 // ---- Requêtes HTTP sortantes (SMS, JWKS Google) -----------------------------
 /** Petit client HTTP (cURL si dispo, sinon flux). Renvoie ['status'=>int,'body'=>string]. */
@@ -622,6 +636,9 @@ function migrate(PDO $pdo): void {
   // Connexion par téléphone / Google : numéro et méthode d'inscription du compte.
   try { $pdo->exec("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN auth_provider $txt"); } catch (Throwable $e) {}
+  // P12 · Version de session : incrémentée à chaque changement de mot de passe
+  // pour invalider les anciens jetons (déconnexion des sessions ouvertes).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN session_version $intT DEFAULT 0"); } catch (Throwable $e) {}
   // Compteur de vues par annonce (statistiques vendeur).
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
   // Préférences de notifications (JSON : {favorite:bool, message:bool, ...}).
@@ -643,9 +660,14 @@ function current_user(PDO $pdo, string $secret): ?array {
   if (!preg_match('/Bearer\s+(.+)/i', $hdr, $m)) return null;
   $payload = jwt_verify(trim($m[1]), $secret);
   if (!$payload || empty($payload['sub'])) return null;
-  $st = $pdo->prepare('SELECT id, email FROM users WHERE id = ?');
+  $st = $pdo->prepare('SELECT id, email, session_version FROM users WHERE id = ?');
   $st->execute([$payload['sub']]);
-  return $st->fetch() ?: null;
+  $row = $st->fetch();
+  if (!$row) return null;
+  // P12 : un jeton dont la version de session ne correspond plus (mot de passe
+  // changé depuis) est rejeté → les anciennes sessions sont déconnectées.
+  if ((int) ($payload['sv'] ?? 0) !== (int) ($row['session_version'] ?? 0)) return null;
+  return ['id' => $row['id'], 'email' => $row['email']];
 }
 function require_user(PDO $pdo, string $secret): array {
   $u = current_user($pdo, $secret);
@@ -1579,7 +1601,7 @@ try {
     log_security_event($pdo, 'signup', $email);
     // Email de bienvenue (best-effort : n'empêche jamais la création du compte).
     send_welcome_email($config, $email, $name);
-    $token = jwt_sign(['sub' => $id, 'email' => $email, 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+    $token = mk_token($pdo, $id, $email, $secret);
     jout(['token' => $token, 'user' => user_public($pdo, ['id' => $id, 'email' => $email])]);
   }
 
@@ -1599,7 +1621,7 @@ try {
       jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403);
     }
     log_security_event($pdo, 'login_ok', $email);
-    $token = jwt_sign(['sub' => $u['id'], 'email' => $u['email'], 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+    $token = mk_token($pdo, $u['id'], $u['email'], $secret);
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 
@@ -1610,10 +1632,27 @@ try {
 
   if ($path === 'auth/password' && $method === 'POST') {
     $u = require_user($pdo, $secret); $b = body();
-    if (strlen((string) ($b['password'] ?? '')) < 8) jerr('Mot de passe trop court.');
-    $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
-        ->execute([password_hash($b['password'], PASSWORD_BCRYPT), $u['id']]);
-    jout(['ok' => true]);
+    $new = (string) ($b['password'] ?? '');
+    if (strlen($new) < 8) jerr('Mot de passe trop court.');
+    // P12 · Si le compte a déjà un mot de passe, exiger et vérifier l'actuel
+    // (les comptes Google/téléphone sans mot de passe peuvent en définir un).
+    $cur = $pdo->prepare('SELECT password_hash FROM users WHERE id = ?'); $cur->execute([$u['id']]);
+    $hash = (string) ($cur->fetchColumn() ?: '');
+    if ($hash !== '') {
+      $old = (string) ($b['currentPassword'] ?? $b['oldPassword'] ?? '');
+      if ($old === '' || !password_verify($old, $hash)) {
+        log_security_event($pdo, 'password_change_denied', $u['email'] ?? null);
+        jerr('Mot de passe actuel incorrect.', 403);
+      }
+    }
+    // Met à jour + incrémente la version de session (déconnecte les autres
+    // sessions ouvertes).
+    $pdo->prepare('UPDATE users SET password_hash = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+        ->execute([password_hash($new, PASSWORD_BCRYPT), $u['id']]);
+    log_security_event($pdo, 'password_changed', $u['email'] ?? null);
+    // Nouveau jeton pour la session courante (les anciens sont désormais invalides).
+    $token = mk_token($pdo, $u['id'], $u['email'] ?? '', $secret);
+    jout(['ok' => true, 'token' => $token]);
   }
 
   if ($path === 'auth/delete' && $method === 'POST') {
@@ -1666,7 +1705,7 @@ try {
       if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'google'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
       log_security_event($pdo, 'login_ok', $email, 'google');
     }
-    $token = jwt_sign(['sub' => $u['id'], 'email' => $u['email'], 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+    $token = mk_token($pdo, $u['id'], $u['email'], $secret);
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 
@@ -1691,7 +1730,9 @@ try {
     $delivered = ($prov !== '') ? sms_send($config, $phone, $text) : false;
     if (!$delivered && !$debug) jerr('Envoi du SMS impossible pour le moment. Réessayez plus tard.', 502);
     $resp = ['delivered' => $delivered];
-    if ($debug) $resp['debugCode'] = $code;   // ⚠️ mode test uniquement (sms.debug)
+    // P11 : ne JAMAIS renvoyer le code au client en production. Il n'est révélé
+    // que si le mode debug GLOBAL est explicitement activé (développement).
+    if ($debug && !empty($config['debug'])) $resp['debugCode'] = $code;
     jout($resp);
   }
 
@@ -1734,7 +1775,7 @@ try {
       if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $phone, 'phone'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
       log_security_event($pdo, 'login_ok', $phone, 'phone');
     }
-    $token = jwt_sign(['sub' => $u['id'], 'email' => $u['email'] ?? '', 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+    $token = mk_token($pdo, $u['id'], $u['email'] ?? '', $secret);
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 

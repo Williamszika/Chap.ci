@@ -64,7 +64,7 @@ export function Login() {
       if (res.error) return setError(res.error)
       setOtpSent(true)
       // En mode test serveur (SMS debug), le code est renvoyé pour pouvoir tester.
-      setInfo(res.debugCode ? `Mode test : votre code est ${res.debugCode}.` : 'Un code vous a été envoyé par SMS.')
+      setInfo(res.debugCode && import.meta.env.DEV ? `Mode test : votre code est ${res.debugCode}.` : 'Un code vous a été envoyé par SMS.')
     } else {
       if (!otp.trim()) return setError('Entrez le code reçu par SMS.')
       setBusy(true)

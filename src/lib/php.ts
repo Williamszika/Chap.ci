@@ -124,8 +124,14 @@ export async function phpMe(): Promise<PhpUser | null> {
     return phpGetStoredUser()
   }
 }
-export async function phpUpdatePassword(password: string): Promise<void> {
-  await req('/auth/password', { method: 'POST', body: { password } })
+export async function phpUpdatePassword(password: string, currentPassword?: string): Promise<void> {
+  const d = await req<{ ok?: boolean; token?: string }>('/auth/password', {
+    method: 'POST',
+    body: { password, currentPassword },
+  })
+  // Le serveur renvoie un nouveau jeton (les anciens sont invalidés) : on garde
+  // la session courante active en le stockant.
+  if (d && d.token) localStorage.setItem(TOKEN_KEY, d.token)
 }
 export async function phpDeleteAccount(password: string): Promise<void> {
   await req('/auth/delete', { method: 'POST', body: { password } })
