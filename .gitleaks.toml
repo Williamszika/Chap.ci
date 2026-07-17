@@ -12,6 +12,12 @@ regexes = [
   '''chapci-cron-2026-a7f3e9''',
   # Secret JWT factice par défaut (surchargé par CHAPCI_JWT_SECRET / config.php).
   '''CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire''',
+  # Clé Supabase « publishable / anon » : PUBLIQUE par conception (destinée au
+  # navigateur ; la sécurité des données repose sur les règles RLS Supabase).
+  '''sb_publishable_[A-Za-z0-9_]+''',
+  # Noms de clés localStorage « chapci.* » : ce sont des identifiants de stockage
+  # local, PAS des secrets (ex. chapci.nlPrompt.v1, chapci.geo.v1…).
+  '''chapci\.[A-Za-z0-9._-]+''',
 ]
 paths = [
   '''package-lock\.json''',
