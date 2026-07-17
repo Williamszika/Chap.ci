@@ -2065,19 +2065,40 @@ try {
   // ---------- ORDERS ----------
   if ($path === 'orders' && $method === 'POST') {
     $u = require_user($pdo, $secret); $b = body();
-    $sellerId = $b['sellerId'] ?? null;
-    if (!$sellerId) jerr('Vendeur manquant.');
+    $sellerId = trim((string) ($b['sellerId'] ?? ''));
+    if ($sellerId === '') jerr('Vendeur manquant.');
+    if ($sellerId === $u['id']) jerr('Vous ne pouvez pas commander auprès de vous-même.', 400);
+    // Le vendeur doit exister.
+    $se = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $se->execute([$sellerId]);
+    $seller = $se->fetch();
+    if (!$seller) jerr('Vendeur introuvable.', 404);
+    // Anti-abus (P2) : une VRAIE relation acheteur→vendeur est exigée — le
+    // demandeur doit avoir déjà contacté ce vendeur (conversation existante).
+    // Sans cela, on pourrait fabriquer de fausses commandes pour poster de faux
+    // avis (harcèlement) ou spammer un vendeur par email.
+    $cc = $pdo->prepare('SELECT 1 FROM conversations WHERE buyer_id = ? AND seller_id = ? LIMIT 1');
+    $cc->execute([$u['id'], $sellerId]);
+    if (!$cc->fetch()) jerr('Contactez d’abord le vendeur avant de passer commande.', 403);
+    // Chaque article commandé doit appartenir au vendeur indiqué (pas l'annonce
+    // d'un tiers rattachée à une fausse commande).
+    $items = (array) ($b['items'] ?? []);
+    foreach ($items as $it) {
+      $lid = trim((string) ($it['listingId'] ?? ''));
+      if ($lid !== '') {
+        $ls = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $ls->execute([$lid]);
+        $lr = $ls->fetch();
+        if ($lr && (string) $lr['user_id'] !== $sellerId) jerr('Article invalide pour ce vendeur.', 400);
+      }
+    }
     $oid = uuid();
     $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,status,created_at) VALUES (?,?,?,?,?,?)')
         ->execute([$oid, $u['id'], $sellerId, $b['conversationId'] ?? null, 'en_cours', now_iso()]);
-    $items = (array) ($b['items'] ?? []);
     foreach ($items as $it) {
       $pdo->prepare('INSERT INTO order_items (id,order_id,listing_id,title,price,image) VALUES (?,?,?,?,?,?)')
           ->execute([uuid(), $oid, $it['listingId'] ?? null, $it['title'] ?? '', (int) ($it['price'] ?? 0), $it['image'] ?? null]);
     }
     // Notifications email (best-effort) : vendeur + acheteur.
-    $se = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $se->execute([$sellerId]);
-    $sellerEmail = $se->fetch()['email'] ?? null;
+    $sellerEmail = $seller['email'] ?? null;
     if ($sellerEmail) send_order_seller_email($config, $sellerEmail, $items);
     if (!empty($u['email'])) send_order_buyer_email($config, $u['email'], $items);
     jout(['id' => $oid]);
