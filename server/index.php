@@ -143,10 +143,19 @@ register_shutdown_function(function () {
   }
 });
 
-// ---- CORS -------------------------------------------------------------------
+// ---- CORS + en-têtes de sécurité (P21) --------------------------------------
+// Origine autorisée : celle du site (pas « * »). Un « * » ou une valeur vide
+// (config.php ancien) est ramené à l'adresse du site.
+if (empty($config['cors_origin']) || $config['cors_origin'] === '*') {
+  $config['cors_origin'] = rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/');
+}
 header('Access-Control-Allow-Origin: ' . $config['cors_origin']);
+header('Vary: Origin');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: strict-origin-when-cross-origin');
 header('Content-Type: application/json; charset=utf-8');
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') { http_response_code(204); exit; }
 
@@ -504,6 +513,12 @@ function db(array $config): PDO {
     @mkdir(dirname($c['sqlite_path']), 0775, true);
     $pdo = new PDO('sqlite:' . $c['sqlite_path']);
     $pdo->exec('PRAGMA foreign_keys = ON');
+    // Robustesse SQLite (hébergements cPanel sans MySQL) : le mode WAL autorise
+    // des lectures concurrentes pendant une écriture, et busy_timeout fait
+    // patienter une requête au lieu de renvoyer « database is locked » (500)
+    // quand deux visiteurs écrivent en même temps (rate-limit, security_events…).
+    $pdo->exec('PRAGMA journal_mode = WAL');
+    $pdo->exec('PRAGMA busy_timeout = 5000');
   } elseif ($c['driver'] === 'pgsql') {
     // PostgreSQL (proposé par certains cPanel, ex. TPE Cloud / paloma.hostns.io)
     $dsn = "pgsql:host={$c['host']}$port;dbname={$c['name']}";
@@ -2435,10 +2450,14 @@ try {
     $b = body();
     $email = strtolower(trim($b['email'] ?? ''));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    // Anti-spam (P22) : max 5 inscriptions par IP/email et par heure — empêche
+    // d'inscrire en masse des adresses de tiers et de déclencher des emails.
+    rate_limit($pdo, 'newsletter', $email, 5, 3600);
     $ex = $pdo->prepare('SELECT id FROM newsletter WHERE email = ?'); $ex->execute([$email]);
     if (!$ex->fetch()) {
       $pdo->prepare('INSERT INTO newsletter (id,email,created_at) VALUES (?,?,?)')
           ->execute([uuid(), $email, now_iso()]);
+      log_security_event($pdo, 'newsletter', $email); // compteur anti-spam
       send_newsletter_email($config, $email); // confirmation (best-effort)
     }
     jout(['ok' => true]); // idempotent : déjà inscrit = succès aussi

@@ -11,9 +11,12 @@ export interface Subscriber {
   createdAt: number
 }
 
-/** Emails administrateurs (affichage du lien d'export côté app). Le serveur
- *  applique de son côté sa propre liste (config.php admin_emails). */
-const ADMIN_EMAILS = ((import.meta.env.VITE_ADMIN_EMAILS as string) || 'bracknetswilliam@gmail.com')
+/** Emails administrateurs pour l'affichage du lien d'export (repli Supabase
+ *  uniquement). Aucune adresse nominative n'est écrite en dur dans le code
+ *  livré au navigateur (P23) : à définir via VITE_ADMIN_EMAILS au build si
+ *  besoin. Sur le backend PHP, les droits admin sont vérifiés côté serveur
+ *  (/admin/check), donc ce repli n'est pas utilisé. */
+const ADMIN_EMAILS = ((import.meta.env.VITE_ADMIN_EMAILS as string) || '')
   .split(',')
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean)

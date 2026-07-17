@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
+import { useToast } from '../store/ToastContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm, formatDistance } from '../lib/geo'
 import { getOrCreateConversation } from '../lib/messages'
@@ -44,6 +45,7 @@ export function ListingDetail() {
   const navigate = useNavigate()
   const { getListing, isFavorite, toggleFavorite, listings } = useApp()
   const { user } = useAuth()
+  const toast = useToast()
   const { position } = useGeo()
   const listing = id ? getListing(id) : undefined
 
@@ -141,8 +143,8 @@ export function ListingDetail() {
   }
 
   function demoNotice() {
-    alert(
-      'Ceci est une annonce de démonstration (exemple). Publiez votre propre annonce, ou attendez de vraies annonces pour discuter avec un vendeur.',
+    toast.show(
+      'Annonce de démonstration (exemple). Publiez la vôtre, ou attendez de vraies annonces pour discuter avec un vendeur.',
     )
   }
 
@@ -169,7 +171,7 @@ export function ListingDetail() {
       })
       navigate(`/messages/${convId}`)
     } catch {
-      alert('Échec de l’envoi de la demande. Réessayez.')
+      toast.error('Échec de l’envoi de la demande. Réessayez.')
       setBusy(false)
     }
   }
@@ -182,7 +184,7 @@ export function ListingDetail() {
       const convId = await getOrCreateConversation(listing, user.id)
       navigate(`/messages/${convId}`)
     } catch {
-      alert('Impossible d’ouvrir la conversation.')
+      toast.error('Impossible d’ouvrir la conversation.')
       setBusy(false)
     }
   }
@@ -197,7 +199,7 @@ export function ListingDetail() {
       setShowReview(false)
       setComment('')
     } catch {
-      alert('Vous devez avoir commandé cet article pour laisser un avis.')
+      toast.error('Vous devez avoir commandé cet article pour laisser un avis.')
     } finally {
       setBusy(false)
     }
@@ -551,6 +553,7 @@ const REPORT_REASONS = [
 function ReportButton({ listingId }: { listingId: string }) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [details, setDetails] = useState('')
@@ -565,7 +568,7 @@ function ReportButton({ listingId }: { listingId: string }) {
       setDone(true)
       setOpen(false)
     } catch (e) {
-      alert((e as Error).message || 'Signalement impossible.')
+      toast.error((e as Error).message || 'Signalement impossible.')
     } finally {
       setBusy(false)
     }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ShoppingBag, Package, CheckCircle2, Star, Store, Loader2, BadgeCheck } from 'lucide-react'
 import { getDeal, dealAction, dealEnabled, type DealState } from '../lib/deal'
 import { createReview } from '../lib/reviews'
+import { useToast } from '../store/ToastContext'
 
 /**
  * Carte de suivi de transaction affichée en haut d'une conversation.
@@ -13,6 +14,7 @@ export function DealCard({ convId, userId }: { convId: string; userId: string })
   const [deal, setDeal] = useState<DealState | null>(null)
   const [busy, setBusy] = useState(false)
   const [reviewing, setReviewing] = useState(false)
+  const toast = useToast()
 
   const load = () => getDeal(convId).then((d) => d && setDeal(d))
   useEffect(() => {
@@ -28,7 +30,7 @@ export function DealCard({ convId, userId }: { convId: string; userId: string })
       await dealAction(convId, action)
       await load()
     } catch {
-      alert('Action impossible pour le moment.')
+      toast.error('Action impossible pour le moment.')
     } finally {
       setBusy(false)
     }
@@ -172,13 +174,14 @@ function ReviewForm({
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
+  const toast = useToast()
 
   async function submit() {
     setBusy(true)
     try {
       await onSubmit(rating, comment.trim())
     } catch {
-      alert('Impossible de publier l’avis pour le moment.')
+      toast.error('Impossible de publier l’avis pour le moment.')
     } finally {
       setBusy(false)
     }

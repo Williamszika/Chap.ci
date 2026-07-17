@@ -40,7 +40,7 @@ interface AppState {
   isFavorite: (id: string) => boolean
   isMine: (id: string) => boolean
   getListing: (id: string) => Listing | undefined
-  refresh: () => Promise<void>
+  refresh: () => Promise<Mode>
   resetDemo: () => void
 }
 
@@ -80,22 +80,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(LS_MYIDS, JSON.stringify(myIds))
   }, [myIds])
 
-  const refresh = useCallback(async () => {
+  // Référence toujours à jour du mode et du chargement (P24) : addListing peut
+  // ainsi savoir où enregistrer même si le chargement initial vient de finir.
+  const modeRef = useRef<Mode>('local')
+  const loadingRef = useRef<boolean>(remoteEnabled)
+
+  const refresh = useCallback(async (): Promise<Mode> => {
     if (!remoteEnabled) {
-      setMode('local')
-      setLoading(false)
-      return
+      setMode('local'); modeRef.current = 'local'
+      setLoading(false); loadingRef.current = false
+      return 'local'
     }
     try {
       const data = await fetchListings()
       setRemoteListings(data)
-      setMode('supabase')
+      setMode('supabase'); modeRef.current = 'supabase'
+      return 'supabase'
     } catch (e) {
       // Table absente ou hors-ligne : on bascule en mode local (démo + appareil)
       console.warn('Supabase indisponible, mode local activé.', e)
-      setMode('local')
+      setMode('local'); modeRef.current = 'local'
+      return 'local'
     } finally {
-      setLoading(false)
+      setLoading(false); loadingRef.current = false
     }
   }, [])
 
@@ -116,7 +123,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addListing = useCallback(
     async (input: NewListingInput): Promise<Listing> => {
-      if (mode === 'supabase') {
+      // P24 : si un backend existe mais que le chargement initial n'est pas
+      // terminé, on le laisse d'abord déterminer le mode — sinon, sur connexion
+      // lente, l'annonce partirait en local et ne serait jamais partagée.
+      let effectiveMode = modeRef.current
+      if (remoteEnabled && loadingRef.current) {
+        effectiveMode = await refresh()
+      }
+      if (effectiveMode === 'supabase') {
         // Le backend est joignable : l'annonce DOIT être enregistrée côté
         // serveur (sinon elle n'apparaîtrait que sur cet appareil et jamais dans
         // le catalogue partagé / les emails). En cas d'échec on RELANCE l'erreur
@@ -136,7 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setMyIds((prev) => [local.id, ...prev])
       return local
     },
-    [mode, user?.id],
+    [user?.id, refresh],
   )
 
   const updateListing = useCallback(
@@ -215,14 +229,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFavorites(next)
   }, [user])
 
-  // Charge les favoris du serveur à la connexion (mode PHP) et les fusionne.
+  // Favoris rattachés au COMPTE (P14) : à la connexion (PHP) on REMPLACE la liste
+  // locale par celle du serveur ; à la déconnexion on la vide — pour ne pas
+  // exposer les favoris d'un compte à l'utilisateur suivant sur le même appareil.
+  const prevUidRef = useRef<string | null | undefined>(undefined)
   useEffect(() => {
-    if (!isPhp || !user) return
-    let alive = true
-    phpGetFavorites().then((ids) => {
-      if (alive && ids.length) setFavorites((prev) => Array.from(new Set([...ids, ...prev])))
-    })
-    return () => { alive = false }
+    const uid = user?.id ?? null
+    const prev = prevUidRef.current
+    prevUidRef.current = uid
+    if (isPhp && uid) {
+      let alive = true
+      phpGetFavorites().then((ids) => { if (alive) { setFavorites(ids); favoritesRef.current = ids } }).catch(() => {})
+      return () => { alive = false }
+    }
+    // Vraie déconnexion (on avait un compte, maintenant plus) : on vide.
+    if (prev) { setFavorites([]); favoritesRef.current = [] }
   }, [user])
 
   const isFavorite = useCallback((id: string) => favorites.includes(id), [favorites])
