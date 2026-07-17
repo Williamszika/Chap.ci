@@ -171,7 +171,7 @@ export function Browse() {
               e.preventDefault()
               update({ q: qInput.trim() || undefined })
             }}
-            className="flex flex-1 items-center gap-2 rounded-xl bg-gray-100 px-3 py-2"
+            className="flex flex-1 items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 focus-within:ring-2 focus-within:ring-primary-400"
           >
             <Search size={18} className="text-gray-400" />
             <input

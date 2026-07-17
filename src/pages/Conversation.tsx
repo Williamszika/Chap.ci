@@ -164,7 +164,7 @@ export function Conversation() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Votre message…"
-              className="flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-[15px] outline-none"
+              className="flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-[15px] outline-none focus:bg-white focus:ring-2 focus:ring-primary-400"
             />
             <button
               type="submit"

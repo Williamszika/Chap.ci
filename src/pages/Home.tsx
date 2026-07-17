@@ -4,7 +4,6 @@ import {
   Search,
   MapPin,
   ChevronDown,
-  Bell,
   Gift,
   ChevronRight,
   MessageSquare,
@@ -18,6 +17,7 @@ import { ListingCard } from '../components/ListingCard'
 import { LocationSheet } from '../components/LocationSheet'
 import { Newsletter } from '../components/Newsletter'
 import { IndependenceBanner } from '../components/IndependenceBanner'
+import { NotificationBell } from '../components/NotificationBell'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { useNotifications } from '../store/NotificationsContext'
@@ -92,12 +92,8 @@ export function Home() {
                 </span>
               )}
             </Link>
-            <button className="relative rounded-full bg-white/15 p-2" aria-label="Notifications">
-              <Bell size={20} />
-              {unreadCount > 0 && (
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-400" />
-              )}
-            </button>
+            {/* Cloche fonctionnelle : ouvre le menu des notifications (P5). */}
+            <NotificationBell align="right" buttonClass="relative rounded-full bg-white/15 p-2 active:scale-95" />
           </div>
         </div>
 
@@ -125,7 +121,7 @@ export function Home() {
 
         {/* Barre de recherche (plus grande sur desktop) */}
         <form onSubmit={submitSearch} className="mt-3 md:mt-5 md:max-w-2xl">
-          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm md:rounded-2xl md:px-5 md:py-4">
+          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary-400 md:rounded-2xl md:px-5 md:py-4">
             <Search size={20} className="text-gray-400" />
             <input
               value={q}

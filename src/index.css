@@ -26,6 +26,21 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Accessibilité (P7) : filet de sécurité pour la navigation au clavier. Tout
+   élément interactif atteint au clavier montre un repère visible, même s'il a
+   été stylé avec « outline-none ». `:focus-visible` ne se déclenche qu'au
+   clavier (jamais au clic souris) — aucun bruit visuel pour les autres. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #f77f00;
+  outline-offset: 2px;
+}
+
 /* Prise en compte des encoches iPhone (safe-area) */
 .safe-top {
   padding-top: env(safe-area-inset-top);
