@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bell, Heart, MessageSquare, CheckCheck, Trash2, Check } from 'lucide-react'
 import {
@@ -22,21 +22,23 @@ export function Notifications() {
   const { user } = useAuth()
   const [items, setItems] = useState<PhpNotification[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false) // P15 : panne ≠ liste vide
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (!isPhp || !user) {
-      setLoading(false)
-      return
-    }
-    let alive = true
+  // P15 : on distingue une vraie absence de notifications d'une panne réseau,
+  // et on propose de réessayer plutôt que d'afficher « Aucune notification ».
+  const load = useCallback(() => {
+    if (!isPhp || !user) { setLoading(false); return }
+    setLoading(true)
+    setLoadError(false)
     phpNotifications()
-      .then((n) => { if (alive) setItems(n) })
-      .catch(() => {})
-      .finally(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
+      .then((n) => setItems(n))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
   }, [user])
+
+  useEffect(() => { load() }, [load])
 
   const unreadCount = items.filter((n) => !n.read).length
   const allSelected = items.length > 0 && selected.size === items.length
@@ -157,6 +159,14 @@ export function Notifications() {
           <Empty text="Connectez-vous pour voir vos notifications." />
         ) : loading ? (
           <p className="py-10 text-center text-sm text-gray-400">Chargement…</p>
+        ) : loadError ? (
+          <div className="grid place-items-center gap-3 py-16 text-center text-gray-500">
+            <Bell size={40} className="text-gray-300" />
+            <p className="text-sm">Impossible de charger vos notifications.<br />Vérifiez votre connexion.</p>
+            <button onClick={load} className="rounded-full bg-primary-500 px-5 py-2 text-sm font-semibold text-white active:scale-95">
+              Réessayer
+            </button>
+          </div>
         ) : items.length === 0 ? (
           <Empty text="Aucune notification pour l’instant." />
         ) : (

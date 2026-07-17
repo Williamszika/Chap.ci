@@ -190,8 +190,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const listingsRef = useRef<Listing[]>([])
   useEffect(() => { listingsRef.current = listings }, [listings])
 
+  // Référence synchrone des favoris (P25) : deux clics rapprochés sur le cœur
+  // lisent/écrivent la même source, donc l'action envoyée au serveur reste
+  // cohérente avec l'affichage (pas de double « ajout » ni de désynchro).
+  const favoritesRef = useRef<string[]>(favorites)
+  useEffect(() => { favoritesRef.current = favorites }, [favorites])
+
   const toggleFavorite = useCallback((id: string) => {
-    const has = favorites.includes(id)
+    const has = favoritesRef.current.includes(id)
+    const next = has ? favoritesRef.current.filter((f) => f !== id) : [id, ...favoritesRef.current]
+    favoritesRef.current = next // mis à jour immédiatement, avant le re-rendu
     // Synchronise avec le serveur (en mode PHP + connecté) : l'ajout d'un favori
     // crée une notification pour le vendeur.
     if (isPhp && user) {
@@ -204,8 +212,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const l = listingsRef.current.find((x) => x.id === id)
       recordInterest(l?.categoryId, 2, l?.subcategory)
     }
-    setFavorites((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [id, ...prev]))
-  }, [favorites, user])
+    setFavorites(next)
+  }, [user])
 
   // Charge les favoris du serveur à la connexion (mode PHP) et les fusionne.
   useEffect(() => {

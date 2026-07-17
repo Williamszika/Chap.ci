@@ -66,6 +66,11 @@ export function Home() {
 
   return (
     <div>
+      {/* Titre principal accessible sur mobile (P19) : lu par les lecteurs
+          d'écran, invisible ; sur grand écran c'est le titre héro qui sert de h1. */}
+      <h1 className="sr-only md:hidden">
+        Chap.ci — petites annonces et bonnes affaires en Côte d’Ivoire
+      </h1>
       {/* Habillage festif « Fête de l'Indépendance » (auto : 1ᵉʳ→10 août, ou ?fete=a/b) */}
       <div className="px-4">
         <IndependenceBanner />
@@ -110,7 +115,7 @@ export function Home() {
         {/* Sélecteur de lieu */}
         <button
           onClick={() => setLocOpen(true)}
-          className="mt-4 flex items-center gap-1.5 text-sm font-medium text-white/95 md:mt-5"
+          className="-ml-1.5 mt-3 flex min-h-[40px] items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-white/95 md:mt-4"
         >
           <MapPin size={16} />
           <span className="max-w-[70vw] truncate">
@@ -142,7 +147,7 @@ export function Home() {
           <h2 className="text-base font-bold text-gray-900">Catégories</h2>
           <button
             onClick={() => navigate(`/explorer?${buildParams()}`)}
-            className="text-sm font-semibold text-primary-600"
+            className="-mr-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600"
           >
             Tout voir
           </button>
@@ -156,7 +161,7 @@ export function Home() {
               className={`flex flex-col items-center gap-1.5 ${i >= 8 ? 'hidden sm:flex' : ''}`}
             >
               <span
-                className={`grid h-14 w-14 place-items-center rounded-2xl md:h-12 md:w-12 ${cat.color}`}
+                className={`grid h-14 w-14 place-items-center rounded-2xl md:h-16 md:w-16 ${cat.color}`}
               >
                 <CategoryIcon name={cat.icon} size={24} />
               </span>
@@ -176,7 +181,7 @@ export function Home() {
               <h2 className="text-base font-bold text-gray-900">📍 Près de vous</h2>
               <button
                 onClick={() => navigate(`/explorer?${buildParams({ tri: 'distance' })}`)}
-                className="text-sm font-semibold text-primary-600"
+                className="-mr-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600"
               >
                 Voir plus
               </button>

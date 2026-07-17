@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Mail, X, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { isSubscribed, subscribeNewsletter } from '../lib/newsletter'
@@ -13,6 +13,8 @@ export function NewsletterPrompt() {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle')
+  const cardRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
 
   useEffect(() => {
     if (!user?.email) return
@@ -32,6 +34,17 @@ export function NewsletterPrompt() {
     setOpen(false)
   }
 
+  // Accessibilité clavier (P16) : focus dans la fenêtre + fermeture par Échap.
+  useEffect(() => {
+    if (!open) return
+    const prev = document.activeElement as HTMLElement | null
+    cardRef.current?.querySelector<HTMLElement>('button')?.focus()
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismiss() }
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('keydown', onKey); prev?.focus?.() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   const subscribe = async () => {
     if (!user?.email) return
     setState('busy')
@@ -50,6 +63,10 @@ export function NewsletterPrompt() {
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={dismiss}>
       <div
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -70,7 +87,7 @@ export function NewsletterPrompt() {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
               <Mail size={24} />
             </span>
-            <h2 className="mt-3 font-display text-xl font-bold text-gray-900">Ne ratez aucun bon plan 📩</h2>
+            <h2 id={titleId} className="mt-3 font-display text-xl font-bold text-gray-900">Ne ratez aucun bon plan 📩</h2>
             <p className="mt-1.5 text-sm text-gray-600">
               Recevez les meilleures annonces et promos de Côte d’Ivoire, avant tout le monde — directement sur{' '}
               <b className="text-gray-800">{user?.email}</b>.

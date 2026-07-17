@@ -31,7 +31,7 @@ export function Newsletter({ className = '' }: { className?: string }) {
   return (
     <section className={`mx-4 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-card ${className}`}>
       {state === 'done' ? (
-        <div className="flex flex-col items-center py-2 text-center">
+        <div role="status" className="flex flex-col items-center py-2 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
             <Check size={26} />
           </span>
@@ -70,7 +70,7 @@ export function Newsletter({ className = '' }: { className?: string }) {
               {state === 'busy' ? <Loader2 size={18} className="animate-spin" /> : "S’inscrire"}
             </button>
           </form>
-          {state === 'error' && <p className="mt-2 text-sm text-white font-medium">⚠️ {error}</p>}
+          {state === 'error' && <p role="alert" className="mt-2 text-sm text-white font-medium">⚠️ {error}</p>}
           <p className="mt-2 text-xs text-white/85">
             Gratuit, sans spam. Désinscription à tout moment.
           </p>

@@ -54,13 +54,15 @@ export function ListingCard({ listing }: { listing: Listing }) {
             e.preventDefault()
             toggleFavorite(listing.id)
           }}
-          className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/95 shadow-sm transition active:scale-90"
+          className="absolute right-0.5 top-0.5 grid h-11 w-11 place-items-center transition active:scale-90"
           aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
-          <Heart
-            size={17}
-            className={fav ? 'fill-red-500 text-red-500' : 'text-gray-600'}
-          />
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-white/95 shadow-sm">
+            <Heart
+              size={17}
+              className={fav ? 'fill-red-500 text-red-500' : 'text-gray-600'}
+            />
+          </span>
         </button>
         {/* Badges état / livraison, en surimpression bas de l'image */}
         <div className="absolute bottom-1.5 left-1.5 flex flex-wrap gap-1">

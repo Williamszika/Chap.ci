@@ -30,6 +30,10 @@ export function PostAd() {
   const { addListing, updateListing, getListing } = useApp()
   const { place } = useGeo()
   const fileRef = useRef<HTMLInputElement>(null)
+  // P26 : garde de montage — évite de mettre à jour l'écran après l'avoir quitté
+  // (pendant l'analyse asynchrone des photos).
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
 
   // Mode édition : /modifier/:id — l'annonce est passée via l'état de navigation
   // (ou retrouvée dans la liste). On préremplit alors le formulaire.
@@ -153,9 +157,11 @@ export function PostAd() {
       if (!uri) continue
       // Analyse anti-nudité (locale, gratuite). Ne bloque pas en cas d'échec.
       const verdict = await classifyImage(uri)
+      if (!mountedRef.current) return // écran fermé pendant l'analyse (P26)
       if (verdict.blocked) { blocked++; continue }
       added.push(uri)
     }
+    if (!mountedRef.current) return
     setCheckingPhotos(false)
     if (blocked > 0) {
       setPhotoError(
