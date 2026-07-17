@@ -72,13 +72,13 @@ export function Home() {
       </div>
 
       {/* En-tête orange (bannière/héro sur desktop) */}
-      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-3 text-white md:mt-4 md:rounded-3xl md:px-10 md:pb-9 md:pt-8">
+      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-700 px-4 pb-5 pt-3 text-white md:mt-4 md:rounded-3xl md:px-10 md:pb-9 md:pt-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Mark size={38} variant="white" />
             <div className="leading-none">
-              <Wordmark className="text-xl" ci="text-white/75" />
-              <p className="mt-1 text-[11px] font-medium text-white/80">
+              <Wordmark className="text-xl" ci="text-white/90" />
+              <p className="mt-1 text-[11px] font-medium text-white/90 txt-legible">
                 Petites annonces · Côte d’Ivoire
               </p>
             </div>
@@ -99,10 +99,10 @@ export function Home() {
 
         {/* Titre « héro » — visible uniquement sur grand écran */}
         <div className="hidden md:mt-6 md:block">
-          <h1 className="font-display text-3xl font-extrabold leading-tight">
-            Achetez et vendez <span className="text-white/80">chap-chap</span> en Côte d’Ivoire 🇨🇮
+          <h1 className="font-display text-3xl font-extrabold leading-tight txt-legible">
+            Achetez et vendez <span className="text-white/90">chap-chap</span> en Côte d’Ivoire 🇨🇮
           </h1>
-          <p className="mt-1.5 text-white/85">
+          <p className="mt-1.5 text-white txt-legible">
             Des milliers d’annonces près de chez vous : voitures, téléphones, immobilier, mode, alimentation…
           </p>
         </div>
