@@ -1912,6 +1912,10 @@ try {
         $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0, 0,
         isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, now_iso(),
       ]);
+    // Notification de statut : l'annonce a passé la modération et est en ligne.
+    notify($pdo, $u['id'], 'listing', 'Annonce publiée ✅',
+      'Votre annonce « ' . mb_substr(trim($b['title']), 0, 60) . ' » est maintenant en ligne.',
+      '#/annonce/' . $id);
     $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$id]);
     jout(listing_out($st->fetch()));
   }

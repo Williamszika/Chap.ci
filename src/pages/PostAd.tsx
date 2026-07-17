@@ -4,6 +4,8 @@ import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, Shi
 import { useApp, type NewListingInput } from '../store/AppContext'
 import type { Listing } from '../types'
 import { useGeo } from '../store/GeoContext'
+import { useToast } from '../store/ToastContext'
+import { useNotifications } from '../store/NotificationsContext'
 import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -29,6 +31,8 @@ export function PostAd() {
   const navigate = useNavigate()
   const { addListing, updateListing, getListing } = useApp()
   const { place } = useGeo()
+  const toast = useToast()
+  const { refresh: refreshNotifs } = useNotifications()
   const fileRef = useRef<HTMLInputElement>(null)
   // P26 : garde de montage — évite de mettre à jour l'écran après l'avoir quitté
   // (pendant l'analyse asynchrone des photos).
@@ -197,7 +201,7 @@ export function PostAd() {
         setLoc({ regionId: resolved.regionId, cityId: resolved.cityId, commune: resolved.commune })
       }
     } catch {
-      alert(
+      toast.error(
         'Impossible d’obtenir votre position. Autorisez la localisation dans votre navigateur, puis réessayez.',
       )
     } finally {
@@ -252,14 +256,21 @@ export function PostAd() {
       const created = editing && editId
         ? await updateListing(editId, input)
         : await addListing(input)
+      // Notification de statut : l'annonce a passé la modération (texte + photos
+      // analysées à l'ajout) et est en ligne. Toast immédiat + la cloche est
+      // rafraîchie (le serveur y a déposé une notification « Annonce publiée »).
+      toast.success(editing ? 'Annonce mise à jour ✅' : 'Votre annonce est en ligne ✅')
+      refreshNotifs()
       navigate(`/annonce/${created.id}`)
     } catch (e) {
       const err = e as Error & { moderation?: ModReason[] }
       if (err.moderation && err.moderation.length) {
         setModeration(err.moderation)
+        toast.error('Publication refusée : contenu non autorisé.')
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
         setError(err.message || 'Échec de la publication. Vérifiez votre connexion et réessayez.')
+        toast.error('Échec de la publication. Réessayez.')
       }
       setSubmitting(false)
     }
