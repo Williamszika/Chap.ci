@@ -135,6 +135,13 @@ export function PhotoEditor({
       // rapide à exécuter que fp16 — nettement mieux adapté au mobile / réseau
       // ivoirien, pour une qualité de détourage très proche.
       const blob = await removeBackground(src, {
+        // Modèle IA hébergé sur chap.ci (dossier /imgly/) au lieu du CDN étranger
+        // staticimgly.com, souvent injoignable depuis la Côte d'Ivoire (« connexion
+        // instable »). Chargé depuis notre propre serveur = fiable.
+        publicPath: `${window.location.origin}${import.meta.env.BASE_URL}imgly/`,
+        // Exécution CPU : déterministe (pas de dépendance WebGPU) et wasm plus
+        // léger (~12 Mo au lieu de ~23 Mo) — adapté aux téléphones.
+        device: 'cpu',
         model: 'isnet_quint8',
         output: { format: 'image/png' },
         progress: (key: string, cur: number, total: number) => {

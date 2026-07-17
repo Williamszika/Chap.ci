@@ -8,19 +8,20 @@ const base = process.env.VITE_BASE ?? '/'
 
 // P3 · Content-Security-Policy : limite fortement l'impact d'une éventuelle
 // injection (XSS). script-src SANS 'unsafe-inline' (le point clé). Origines
-// autorisées : l'app elle-même, Google Sign-In, les services de géolocalisation
-// et le CDN du modèle de détourage (staticimgly). WebAssembly requis par l'IA
-// photo → 'wasm-unsafe-eval' ; workers onnx/tfjs → worker-src blob:.
+// autorisées : l'app elle-même, Google Sign-In et les services de
+// géolocalisation. Le modèle IA de détourage est désormais hébergé sur chap.ci
+// (dossier /imgly/), donc 'self' suffit — plus aucun CDN étranger. WebAssembly
+// requis par l'IA photo → 'wasm-unsafe-eval' ; workers onnx/tfjs → worker-src blob:.
 const CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "form-action 'self'",
-  "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com https://www.gstatic.com",
+  "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob: https://accounts.google.com https://www.gstatic.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co https://staticimgly.com",
+  "connect-src 'self' blob: data: https://accounts.google.com https://www.googleapis.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co",
   "worker-src 'self' blob:",
   "frame-src 'self' https://accounts.google.com",
   "manifest-src 'self'",
