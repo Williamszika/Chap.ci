@@ -121,7 +121,9 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   agriculture: {
-    condition: true,
+    // Produits agricoles (récoltes, semences, aliments) : « occasion / neuf »
+    // n'a pas de sens.
+    condition: false,
     delivery: true,
     fields: [{ key: 'quantite', label: 'Quantité disponible', type: 'text', placeholder: 'Ex : 50 kg, 1 tonne…' }],
   },

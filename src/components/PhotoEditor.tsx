@@ -72,6 +72,7 @@ export function PhotoEditor({
   const [cutout, setCutout] = useState<string | null>(null) // photo détourée (fond transparent)
   const [removing, setRemoving] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [phase, setPhase] = useState<'download' | 'work'>('work')
   const [aiError, setAiError] = useState<string | null>(null)
 
   // Image de travail : la version détourée si le décor a été enlevé, sinon l'originale.
@@ -127,12 +128,18 @@ export function PhotoEditor({
     setRemoving(true)
     setAiError(null)
     setProgress(0)
+    setPhase('download')
     try {
       const { removeBackground } = await import('@imgly/background-removal')
+      // Modèle « quint8 » (quantifié) : ~2× plus léger à télécharger et plus
+      // rapide à exécuter que fp16 — nettement mieux adapté au mobile / réseau
+      // ivoirien, pour une qualité de détourage très proche.
       const blob = await removeBackground(src, {
-        model: 'isnet_fp16',
+        model: 'isnet_quint8',
         output: { format: 'image/png' },
-        progress: (_key: string, cur: number, total: number) => {
+        progress: (key: string, cur: number, total: number) => {
+          // « fetch » = téléchargement du modèle (1ʳᵉ fois) ; sinon = calcul.
+          setPhase(key.startsWith('fetch') ? 'download' : 'work')
           if (total > 0) setProgress(Math.min(100, Math.round((cur / total) * 100)))
         },
       })
@@ -247,7 +254,7 @@ export function PhotoEditor({
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/12 py-2.5 text-sm font-bold text-white active:scale-95 disabled:opacity-60"
             >
               {removing ? (
-                <><Loader2 size={16} className="animate-spin" /> Détourage… {progress}%</>
+                <><Loader2 size={16} className="animate-spin" /> {phase === 'download' ? 'Téléchargement du modèle' : 'Détourage'}… {progress}%</>
               ) : (
                 <><Scissors size={16} /> {cutout ? 'Refaire le détourage' : 'Enlever le décor (IA)'}</>
               )}
