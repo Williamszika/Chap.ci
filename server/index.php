@@ -30,6 +30,10 @@ $config += [
   'mail_reply_to'        => getenv('CHAPCI_MAIL_REPLYTO')    ?: 'contact@chap.ci',
   'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
   'site_url'             => getenv('CHAPCI_SITE_URL')        ?: 'https://chap.ci',
+  // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
+  // explicitement. En production (défaut), les erreurs restent génériques côté
+  // client et les détails sont journalisés (error_log) côté serveur.
+  'debug'                => (getenv('CHAPCI_DEBUG') ?: '') === '1',
   'social'               => [],
   // Connexion Google (Sign-In) : ID client OAuth « Web ». Vide = désactivé.
   'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
@@ -125,13 +129,17 @@ if (!function_exists('str_ends_with')) {
 // Toute erreur fatale PHP (souvent : mauvaise version de PHP ou extension
 // manquante) est renvoyée en JSON lisible plutôt qu'en page 500 vide.
 register_shutdown_function(function () {
+  global $config;
   $e = error_get_last();
   if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
     if (!headers_sent()) {
       http_response_code(500);
       header('Content-Type: application/json; charset=utf-8');
     }
-    echo json_encode(['error' => 'Erreur PHP : ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')']);
+    $detail = 'Erreur PHP : ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')';
+    error_log('[chapci] ' . $detail);
+    // P13 : détails techniques réservés au mode debug ; sinon message générique.
+    echo json_encode(['error' => !empty($config['debug']) ? $detail : 'Erreur interne du serveur. Réessayez plus tard.']);
   }
 });
 
@@ -164,11 +172,33 @@ function now_iso(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
 
 // ---- Sécurité : IP client, journal d'audit, limitation de débit ------------
 /** IP réelle du visiteur (tient compte de Cloudflare / proxys). */
-function client_ip(): string {
-  foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $k) {
-    if (!empty($_SERVER[$k])) return substr(trim(explode(',', $_SERVER[$k])[0]), 0, 45);
+/** Vrai si $ip (IPv4) appartient à une plage Cloudflare (liste publique stable). */
+function ip_in_cloudflare(string $ip): bool {
+  static $ranges = ['173.245.48.0/20','103.21.244.0/22','103.22.200.0/22','103.31.4.0/22',
+    '141.101.64.0/18','108.162.192.0/18','190.93.240.0/20','188.114.96.0/20','197.234.240.0/22',
+    '198.41.128.0/17','162.158.0.0/15','104.16.0.0/13','104.24.0.0/14','172.64.0.0/13','131.0.72.0/22'];
+  $ipL = ip2long($ip);
+  if ($ipL === false) return false;
+  foreach ($ranges as $r) {
+    [$net, $bits] = explode('/', $r);
+    $mask = -1 << (32 - (int) $bits);
+    if ((($ipL & $mask) & 0xFFFFFFFF) === ((ip2long($net) & $mask) & 0xFFFFFFFF)) return true;
   }
-  return '0.0.0.0';
+  return false;
+}
+/**
+ * IP réelle du client. P10 : on ne fait confiance à l'en-tête « vraie IP » de
+ * Cloudflare QUE si la connexion vient effectivement d'une IP Cloudflare — sinon
+ * un attaquant falsifierait l'en-tête (ou X-Forwarded-For) pour changer d'IP à
+ * chaque requête et contourner la limitation de débit. En direct, on utilise
+ * REMOTE_ADDR, que le client ne peut pas usurper au niveau TCP.
+ */
+function client_ip(): string {
+  $remote = substr(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), 0, 45);
+  if (!empty($_SERVER['HTTP_CF_CONNECTING_IP']) && $remote !== '' && ip_in_cloudflare($remote)) {
+    return substr(trim((string) $_SERVER['HTTP_CF_CONNECTING_IP']), 0, 45);
+  }
+  return $remote !== '' ? $remote : '0.0.0.0';
 }
 /** Journalise un événement de sécurité. Ne casse JAMAIS la requête en cas d'erreur. */
 function log_security_event(PDO $pdo, string $kind, ?string $email = null, string $detail = ''): void {
@@ -1430,19 +1460,34 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
   if (!str_starts_with($meta, 'image/')) return null;
   $isB64 = str_contains($meta, ';base64');
   $mime = strtolower(explode(';', substr($meta, 6))[0]); // après "image/", avant le 1er ";"
-  $ext = str_contains($mime, 'svg') ? 'svg'
-       : (str_contains($mime, 'jpeg') || str_contains($mime, 'jpg') ? 'jpg'
-       : (str_contains($mime, 'webp') ? 'webp'
-       : (str_contains($mime, 'gif') ? 'gif' : (str_contains($mime, 'png') ? 'png' : 'img'))));
   $bin = $isB64 ? base64_decode($data) : rawurldecode($data);
   if ($bin === false || $bin === '') return null;
+  // P8 · Taille maximale par image (anti-saturation du disque du serveur).
+  if (strlen($bin) > 8 * 1024 * 1024) return null;
+  // P8 · Ne stocker que de VRAIES images. SVG : refuser tout contenu actif
+  // (script / gestionnaires d'événements / références externes). Raster :
+  // vérifier avec getimagesizefromstring et déduire l'extension du type réel.
+  if (str_contains($mime, 'svg')) {
+    if (preg_match('/<script|<foreignobject|<iframe|javascript:|\son\w+\s*=|href\s*=\s*["\']?\s*https?:/i', $bin)) return null;
+    $ext = 'svg';
+  } else {
+    $info = @getimagesizefromstring($bin);
+    $imap = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif', IMAGETYPE_WEBP => 'webp'];
+    if ($info === false || !isset($imap[$info[2]])) return null; // pas une image raster reconnue
+    $ext = $imap[$info[2]];
+  }
   $dir = $config['uploads_dir'];
   if (!is_dir($dir)) @mkdir($dir, 0775, true);
-  // Sécurité : interdire l'exécution de scripts dans le dossier des photos.
+  // Sécurité (P8) : interdire l'exécution de scripts ET neutraliser tout SVG
+  // servi (aucun script actif), même sur d'anciens fichiers déjà présents.
   $ht = "$dir/.htaccess";
-  if (!file_exists($ht)) {
-    @file_put_contents($ht, "Options -ExecCGI\n<FilesMatch \"\\.(php|phtml|phar|cgi|pl)$\">\n  Require all denied\n</FilesMatch>\n");
-  }
+  $htWant = "Options -ExecCGI\n"
+    . "<FilesMatch \"\\.(php|phtml|phar|cgi|pl|py|svgz)$\">\n  Require all denied\n</FilesMatch>\n"
+    . "<IfModule mod_headers.c>\n  Header set X-Content-Type-Options \"nosniff\"\n"
+    . "  <FilesMatch \"\\.svg$\">\n    Header set Content-Security-Policy \"script-src 'none'; object-src 'none'\"\n  </FilesMatch>\n"
+    . "</IfModule>\n";
+  $htHave = @is_readable($ht) ? (string) @file_get_contents($ht) : '';
+  if (strpos($htHave, "script-src 'none'") === false) @file_put_contents($ht, $htWant);
   $name = date('Ym') . '-' . uuid() . '.' . $ext;
   $full = "$dir/$name";
   if (@file_put_contents($full, $bin) === false) return null;
@@ -1486,7 +1531,9 @@ try {
 } catch (Throwable $e) {
   // Cause la plus fréquente à l'installation : identifiants MySQL erronés dans
   // config.php. On renvoie un message clair plutôt qu'une erreur 500 brute.
-  jerr('Connexion à la base de données impossible. Vérifiez les identifiants dans api/config.php (driver mysql/pgsql, host, name, user, pass). Détail : ' . $e->getMessage(), 500);
+  error_log('[chapci] DB: ' . $e->getMessage());
+  jerr('Connexion à la base de données impossible. Vérifiez les identifiants dans api/config.php (driver mysql/pgsql, host, name, user, pass).'
+    . (!empty($config['debug']) ? ' Détail : ' . $e->getMessage() : ''), 500);
 }
 $secret = $config['jwt_secret'];
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -3094,5 +3141,7 @@ try {
 
   jerr('Route inconnue: ' . $path, 404);
 } catch (Throwable $e) {
-  jerr('Erreur serveur: ' . $e->getMessage(), 500);
+  error_log('[chapci] ' . $e->getMessage());
+  // P13 : pas de détail technique côté client hors mode debug.
+  jerr(!empty($config['debug']) ? ('Erreur serveur : ' . $e->getMessage()) : 'Erreur serveur. Réessayez plus tard.', 500);
 }

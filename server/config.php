@@ -27,6 +27,11 @@ return [
   // (≥ 24 caractères aléatoires). NE mettez JAMAIS une valeur « exemple » ici.
   'jwt_secret'  => getenv('CHAPCI_JWT_SECRET') ?: '',
 
+  // Mode debug : laissez false en production. Mettez true (ou la variable
+  // d'environnement CHAPCI_DEBUG=1) uniquement le temps de diagnostiquer une
+  // panne : les messages d'erreur afficheront alors le détail technique.
+  'debug'       => (getenv('CHAPCI_DEBUG') ?: '') === '1',
+
   // Clé secrète des tâches planifiées (cron : sauvegardes, « offres du jour »…).
   // Laissez VIDE : générée automatiquement et affichée dans votre tableau de bord
   // admin (section Sauvegardes) pour construire l'URL cron. Surchargeable via
