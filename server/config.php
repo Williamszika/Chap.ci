@@ -20,13 +20,18 @@ return [
     'sqlite_path' => getenv('CHAPCI_SQLITE') ?: __DIR__ . '/data/chapci.sqlite',
   ],
 
-  // Secret pour signer les jetons de connexion (JWT). METTEZ une longue chaîne
-  // aléatoire unique en production.
-  'jwt_secret'  => getenv('CHAPCI_JWT_SECRET') ?: 'CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire',
+  // Secret pour signer les jetons de connexion (JWT).
+  // Laissez VIDE : un secret aléatoire fort est généré automatiquement et rangé
+  // hors du code (dossier data protégé), unique à votre installation. Vous pouvez
+  // aussi imposer le vôtre via la variable d'environnement CHAPCI_JWT_SECRET
+  // (≥ 24 caractères aléatoires). NE mettez JAMAIS une valeur « exemple » ici.
+  'jwt_secret'  => getenv('CHAPCI_JWT_SECRET') ?: '',
 
-  // Clé secrète pour les tâches planifiées (envoi automatique des « offres du
-  // jour/semaine »). Utilisée dans la commande cron. Gardez-la privée.
-  'cron_key'    => getenv('CHAPCI_CRON_KEY') ?: 'chapci-cron-2026-a7f3e9',
+  // Clé secrète des tâches planifiées (cron : sauvegardes, « offres du jour »…).
+  // Laissez VIDE : générée automatiquement et affichée dans votre tableau de bord
+  // admin (section Sauvegardes) pour construire l'URL cron. Surchargeable via
+  // CHAPCI_CRON_KEY. NE la laissez JAMAIS sur une valeur d'exemple publique.
+  'cron_key'    => getenv('CHAPCI_CRON_KEY') ?: '',
 
   // Emails administrateurs : seuls ces comptes peuvent voir/exporter les abonnés
   // à la newsletter. Séparez par des virgules. METTEZ VOTRE email de compte.

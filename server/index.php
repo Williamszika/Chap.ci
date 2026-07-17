@@ -16,7 +16,9 @@ $config = require __DIR__ . '/config.php';
 // valeur serait vide (ex. clé cron manquante -> « Clé invalide »). L'opérateur
 // `+` ne complète QUE les clés absentes — vos réglages existants sont préservés.
 $config += [
-  'cron_key'             => getenv('CHAPCI_CRON_KEY')      ?: 'chapci-cron-2026-a7f3e9',
+  // P1 · Aucun secret « en dur » dans le code public : vide = généré aléatoirement
+  // et persisté hors du code (voir chapci_hardened_secret plus bas).
+  'cron_key'             => getenv('CHAPCI_CRON_KEY')      ?: '',
   'admin_emails'         => array_filter(array_map('trim',
     explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
   // Destinataire des RAPPORTS automatiques (signalements, sauvegardes, alertes du
@@ -59,6 +61,48 @@ if (empty($config['google_client_id'])) {
   $config['google_client_id'] = getenv('CHAPCI_GOOGLE_CLIENT_ID')
     ?: '564942885290-f1v7caemq0838kp6qickrsirk46vk4dl.apps.googleusercontent.com';
 }
+
+// ---- P1 · Secrets forts, uniques par installation (JAMAIS en clair) ----------
+// Le jeton de connexion (JWT) et la clé des tâches automatiques (cron) ne doivent
+// jamais rester sur une valeur « par défaut » présente dans le code public : cela
+// permettrait à quiconque lit le code d'usurper n'importe quel compte ou de
+// déclencher les tâches (export de la base, emails en masse). Si l'opérateur n'a
+// pas défini un secret propre (assez long, non standard), on en génère un
+// aléatoire, rangé HORS du code (dossier data protégé), réutilisé ensuite : le
+// site continue de fonctionner sans intervention et sans secret devinable.
+function chapci_secret_dir(array $config): string {
+  $base = (string) ($config['sqlite_path'] ?? '');
+  $dir  = $base !== '' ? dirname($base) : (__DIR__ . '/data');
+  if (!is_dir($dir)) @mkdir($dir, 0700, true);
+  // Interdit l'accès web direct au dossier (secrets + base SQLite éventuelle).
+  $ht = $dir . '/.htaccess';
+  if (!file_exists($ht)) @file_put_contents($ht, "Require all denied\nDeny from all\n");
+  return $dir;
+}
+function chapci_hardened_secret(array $config, string $label, string $configured): string {
+  // Valeurs faibles/connues à ne jamais accepter en production.
+  $weak = ['', 'CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire', 'chapci-cron-2026-a7f3e9',
+           'changeme', 'secret', 'chapci', 'password', 'test'];
+  $configured = trim($configured);
+  if ($configured !== '' && strlen($configured) >= 24 && !in_array($configured, $weak, true)) {
+    return $configured; // l'opérateur gère déjà un vrai secret : on le respecte
+  }
+  // Sinon : charge (ou crée une seule fois) un secret aléatoire persistant.
+  $file = chapci_secret_dir($config) . '/.secret_' . $label;
+  $val  = @is_readable($file) ? trim((string) @file_get_contents($file)) : '';
+  if (strlen($val) < 32) {
+    try { $val = bin2hex(random_bytes(32)); }
+    catch (Throwable $e) { $val = hash('sha256', uniqid((string) mt_rand(), true) . $label . __DIR__); }
+    if (@file_put_contents($file, $val) !== false) @chmod($file, 0600);
+  }
+  // Repli ultime (dossier non inscriptible) : stable par installation, jamais la
+  // valeur publique du code.
+  return $val !== '' ? $val : hash('sha256', __DIR__ . '|' . $label);
+}
+$config['jwt_secret'] = chapci_hardened_secret($config, 'jwt',
+  (string) (getenv('CHAPCI_JWT_SECRET') ?: ($config['jwt_secret'] ?? '')));
+$config['cron_key'] = chapci_hardened_secret($config, 'cron',
+  (string) (getenv('CHAPCI_CRON_KEY') ?: ($config['cron_key'] ?? '')));
 
 // Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
 // prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.
