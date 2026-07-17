@@ -6,10 +6,44 @@ import { VitePWA } from 'vite-plugin-pwa'
 // Défini via la variable d'environnement VITE_BASE au moment du build.
 const base = process.env.VITE_BASE ?? '/'
 
+// P3 · Content-Security-Policy : limite fortement l'impact d'une éventuelle
+// injection (XSS). script-src SANS 'unsafe-inline' (le point clé). Origines
+// autorisées : l'app elle-même, Google Sign-In, les services de géolocalisation
+// et le CDN du modèle de détourage (staticimgly). WebAssembly requis par l'IA
+// photo → 'wasm-unsafe-eval' ; workers onnx/tfjs → worker-src blob:.
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com https://www.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co https://staticimgly.com",
+  "worker-src 'self' blob:",
+  "frame-src 'self' https://accounts.google.com",
+  "manifest-src 'self'",
+].join('; ')
+
+// Injecte la CSP dans index.html UNIQUEMENT au build de production. En dev, Vite
+// a besoin de scripts inline + eval + websocket (HMR) : on ne l'applique donc pas.
+const cspPlugin = {
+  name: 'chapci-csp',
+  apply: 'build' as const,
+  transformIndexHtml(html: string) {
+    return html.replace(
+      '<meta charset="UTF-8" />',
+      `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`,
+    )
+  },
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base,
   plugins: [
+    cspPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

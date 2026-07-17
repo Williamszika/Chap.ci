@@ -19,6 +19,12 @@ export interface PhpUser {
   user_metadata?: { full_name?: string | null }
 }
 
+/**
+ * P3 · Jeton « hérité » éventuellement encore présent en localStorage (sessions
+ * ouvertes avant la migration vers le cookie HttpOnly). On le lit uniquement pour
+ * le transmettre une dernière fois en repli (Bearer) le temps que le serveur
+ * repose la session en cookie ; il est ensuite effacé (voir phpMe).
+ */
 export function phpGetToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -33,8 +39,12 @@ export function phpGetStoredUser(): PhpUser | null {
     return null
   }
 }
-function setSession(token: string, user: PhpUser) {
-  localStorage.setItem(TOKEN_KEY, token)
+/**
+ * P3 · On NE stocke plus le jeton dans le navigateur : l'identité est portée par
+ * le cookie HttpOnly posé par le serveur (involable par une injection XSS). On ne
+ * met en cache que l'objet utilisateur (non sensible) pour un affichage instantané.
+ */
+function cacheUser(user: PhpUser) {
   localStorage.setItem(UID_KEY, user.id)
   localStorage.setItem(USER_KEY, JSON.stringify(user))
 }
@@ -49,11 +59,16 @@ async function req<T>(
   opts: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  // Repli « hérité » : si un ancien jeton traîne encore en localStorage, on le
+  // transmet en Bearer jusqu'à la migration vers le cookie (voir phpMe).
   const token = phpGetToken()
   if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(API + path, {
     method: opts.method || 'GET',
     headers,
+    // P3 · Envoie/reçoit le cookie de session HttpOnly (même origine, et origine
+    // croisée légitime grâce à Allow-Credentials côté serveur).
+    credentials: 'include',
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   })
   const text = await res.text()
@@ -79,7 +94,7 @@ export async function phpSignup(email: string, password: string, fullName: strin
     // transmet le consentement + la version acceptée, horodatés côté serveur.
     body: { email, password, full_name: fullName, consent: true, cguVersion: CGU_VERSION },
   })
-  setSession(d.token, d.user)
+  cacheUser(d.user)
   return d.user
 }
 export async function phpLogin(email: string, password: string): Promise<PhpUser> {
@@ -87,7 +102,7 @@ export async function phpLogin(email: string, password: string): Promise<PhpUser
     method: 'POST',
     body: { email, password },
   })
-  setSession(d.token, d.user)
+  cacheUser(d.user)
   return d.user
 }
 // Connexion / inscription via Google : on transmet le « credential » (jeton
@@ -97,7 +112,7 @@ export async function phpGoogleLogin(credential: string): Promise<PhpUser> {
     method: 'POST',
     body: { credential },
   })
-  setSession(d.token, d.user)
+  cacheUser(d.user)
   return d.user
 }
 // Connexion par téléphone — étape 1 : demande d'un code par SMS.
@@ -111,33 +126,43 @@ export async function phpPhoneVerify(phone: string, code: string, fullName?: str
     method: 'POST',
     body: { phone, code, full_name: fullName ?? '' },
   })
-  setSession(d.token, d.user)
+  cacheUser(d.user)
   return d.user
 }
 export async function phpMe(): Promise<PhpUser | null> {
-  if (!phpGetToken()) return null
+  // P3 · On tente toujours l'appel : la session peut être portée par le cookie
+  // HttpOnly (aucun jeton en localStorage) OU par un jeton hérité en repli.
   try {
     const d = await req<{ user: PhpUser | null }>('/auth/me')
-    if (d.user) localStorage.setItem(USER_KEY, JSON.stringify(d.user))
+    if (d.user) {
+      cacheUser(d.user)
+      // Migration terminée : le serveur vient de (re)poser le cookie, on efface
+      // l'éventuel jeton hérité du localStorage — il ne doit plus y traîner.
+      localStorage.removeItem(TOKEN_KEY)
+    } else {
+      // Aucune session valide (cookie absent/expiré) : on nettoie le cache local.
+      phpClearSession()
+    }
     return d.user
   } catch {
+    // Panne réseau : on garde l'affichage optimiste depuis le cache.
     return phpGetStoredUser()
   }
 }
 export async function phpUpdatePassword(password: string, currentPassword?: string): Promise<void> {
-  const d = await req<{ ok?: boolean; token?: string }>('/auth/password', {
-    method: 'POST',
-    body: { password, currentPassword },
-  })
-  // Le serveur renvoie un nouveau jeton (les anciens sont invalidés) : on garde
-  // la session courante active en le stockant.
-  if (d && d.token) localStorage.setItem(TOKEN_KEY, d.token)
+  // Le serveur invalide les anciens jetons ET repose le cookie de la session
+  // courante (P3) : rien à stocker côté navigateur. On efface au passage un
+  // éventuel jeton hérité pour ne pas réutiliser un ancien jeton invalidé.
+  await req('/auth/password', { method: 'POST', body: { password, currentPassword } })
+  localStorage.removeItem(TOKEN_KEY)
 }
 export async function phpDeleteAccount(password: string): Promise<void> {
   await req('/auth/delete', { method: 'POST', body: { password } })
   phpClearSession()
 }
-export function phpSignOut(): void {
+export async function phpSignOut(): Promise<void> {
+  // P3 · Le cookie de session est HttpOnly : seul le serveur peut l'effacer.
+  try { await req('/auth/logout', { method: 'POST', body: {} }) } catch { /* best-effort */ }
   phpClearSession()
 }
 

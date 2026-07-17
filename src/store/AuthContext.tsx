@@ -233,7 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    if (isPhp) { php.phpSignOut(); setUser(null); return }
+    if (isPhp) { await php.phpSignOut(); setUser(null); return }
     if (!supabase) return
     await supabase.auth.signOut()
     setUser(null)

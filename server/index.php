@@ -34,6 +34,10 @@ $config += [
   // explicitement. En production (défaut), les erreurs restent génériques côté
   // client et les détails sont journalisés (error_log) côté serveur.
   'debug'                => (getenv('CHAPCI_DEBUG') ?: '') === '1',
+  // P3 · Cookie de session HttpOnly. « Secure » (HTTPS obligatoire) par défaut ;
+  // seul CHAPCI_COOKIE_SECURE=0 le désactive (test local sur http). NB : on teste
+  // « !== '0' » et non « ?: » car la chaîne '0' est falsy en PHP.
+  'cookie_secure'        => getenv('CHAPCI_COOKIE_SECURE') !== '0',
   'social'               => [],
   // Connexion Google (Sign-In) : ID client OAuth « Web ». Vide = désactivé.
   'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
@@ -151,6 +155,9 @@ if (empty($config['cors_origin']) || $config['cors_origin'] === '*') {
 }
 header('Access-Control-Allow-Origin: ' . $config['cors_origin']);
 header('Vary: Origin');
+// P3 · L'origine est fixe (pas « * ») : on peut autoriser l'envoi du cookie de
+// session sur les appels croisés légitimes (ex. future app native).
+header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('X-Content-Type-Options: nosniff');
@@ -340,6 +347,37 @@ function mk_token(PDO $pdo, string $userId, string $email, string $secret): stri
     $sv = (int) ($st->fetchColumn() ?: 0);
   } catch (Throwable $e) { /* colonne absente : version 0 */ }
   return jwt_sign(['sub' => $userId, 'email' => $email, 'sv' => $sv, 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+}
+
+// ---- Session en cookie HttpOnly (P3) ---------------------------------------
+/** Nom du cookie qui porte le jeton d'authentification. */
+function session_cookie_name(): string { return 'chapci_session'; }
+/**
+ * P3 — Pose le jeton dans un cookie HttpOnly + Secure + SameSite=Lax : il devient
+ * inaccessible au JavaScript, donc involable par une éventuelle injection (XSS).
+ * Le navigateur le renvoie automatiquement sur chaque appel à l'API (même origine).
+ * SameSite=Lax + CORS verrouillé (P21) couvrent le risque CSRF.
+ */
+function set_session_cookie(array $config, string $token): void {
+  setcookie(session_cookie_name(), $token, [
+    'expires'  => time() + 60 * 60 * 24 * 30,
+    'path'     => '/',
+    'secure'   => !empty($config['cookie_secure']),
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  $_COOKIE[session_cookie_name()] = $token; // visible dès la requête courante
+}
+/** Efface le cookie de session (déconnexion). */
+function clear_session_cookie(array $config): void {
+  setcookie(session_cookie_name(), '', [
+    'expires'  => time() - 3600,
+    'path'     => '/',
+    'secure'   => !empty($config['cookie_secure']),
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  unset($_COOKIE[session_cookie_name()]);
 }
 
 // ---- Requêtes HTTP sortantes (SMS, JWKS Google) -----------------------------
@@ -667,13 +705,22 @@ function migrate(PDO $pdo): void {
 
 // ---- Auth courant -----------------------------------------------------------
 function current_user(PDO $pdo, string $secret): ?array {
-  $hdr = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-  if (!$hdr && function_exists('apache_request_headers')) {
-    $h = apache_request_headers();
-    $hdr = $h['Authorization'] ?? $h['authorization'] ?? '';
+  // P3 · Source principale : le cookie HttpOnly (protégé de l'XSS). Repli sur
+  // l'en-tête Authorization: Bearer pour les clients API, l'app native et les
+  // sessions « héritées » (avant migration vers le cookie).
+  $tok = '';
+  if (!empty($_COOKIE[session_cookie_name()])) {
+    $tok = (string) $_COOKIE[session_cookie_name()];
+  } else {
+    $hdr = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (!$hdr && function_exists('apache_request_headers')) {
+      $h = apache_request_headers();
+      $hdr = $h['Authorization'] ?? $h['authorization'] ?? '';
+    }
+    if (preg_match('/Bearer\s+(.+)/i', $hdr, $m)) $tok = trim($m[1]);
   }
-  if (!preg_match('/Bearer\s+(.+)/i', $hdr, $m)) return null;
-  $payload = jwt_verify(trim($m[1]), $secret);
+  if ($tok === '') return null;
+  $payload = jwt_verify($tok, $secret);
   if (!$payload || empty($payload['sub'])) return null;
   $st = $pdo->prepare('SELECT id, email, session_version FROM users WHERE id = ?');
   $st->execute([$payload['sub']]);
@@ -1617,6 +1664,7 @@ try {
     // Email de bienvenue (best-effort : n'empêche jamais la création du compte).
     send_welcome_email($config, $email, $name);
     $token = mk_token($pdo, $id, $email, $secret);
+    set_session_cookie($config, $token); // P3 : ouvre la session via cookie HttpOnly
     jout(['token' => $token, 'user' => user_public($pdo, ['id' => $id, 'email' => $email])]);
   }
 
@@ -1637,12 +1685,23 @@ try {
     }
     log_security_event($pdo, 'login_ok', $email);
     $token = mk_token($pdo, $u['id'], $u['email'], $secret);
+    set_session_cookie($config, $token); // P3
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 
   if ($path === 'auth/me' && $method === 'GET') {
     $u = current_user($pdo, $secret);
+    // P3 · Rafraîchit le cookie à chaque chargement (session « glissante ») ET
+    // migre en douceur une session héritée (jeton Bearer) vers le cookie HttpOnly.
+    if ($u) set_session_cookie($config, mk_token($pdo, $u['id'], $u['email'] ?? '', $secret));
     jout(['user' => $u ? user_public($pdo, $u) : null]);
+  }
+
+  // P3 · Déconnexion côté serveur : efface le cookie HttpOnly (le JavaScript ne
+  // peut pas le faire lui-même). Toujours « ok », même sans session.
+  if ($path === 'auth/logout' && $method === 'POST') {
+    clear_session_cookie($config);
+    jout(['ok' => true]);
   }
 
   if ($path === 'auth/password' && $method === 'POST') {
@@ -1667,6 +1726,7 @@ try {
     log_security_event($pdo, 'password_changed', $u['email'] ?? null);
     // Nouveau jeton pour la session courante (les anciens sont désormais invalides).
     $token = mk_token($pdo, $u['id'], $u['email'] ?? '', $secret);
+    set_session_cookie($config, $token); // P3 : la session courante reste ouverte
     jout(['ok' => true, 'token' => $token]);
   }
 
@@ -1688,6 +1748,7 @@ try {
     $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+    clear_session_cookie($config); // P3 : ferme la session du compte supprimé
     jout(['ok' => true]);
   }
 
@@ -1721,6 +1782,7 @@ try {
       log_security_event($pdo, 'login_ok', $email, 'google');
     }
     $token = mk_token($pdo, $u['id'], $u['email'], $secret);
+    set_session_cookie($config, $token); // P3
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 
@@ -1791,6 +1853,7 @@ try {
       log_security_event($pdo, 'login_ok', $phone, 'phone');
     }
     $token = mk_token($pdo, $u['id'], $u['email'] ?? '', $secret);
+    set_session_cookie($config, $token); // P3
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 
