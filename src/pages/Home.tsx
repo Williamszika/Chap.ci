@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Navigation,
   LocateFixed,
+  X,
 } from 'lucide-react'
 import { categories } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -27,12 +28,47 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { locationLabel } from '../data/locations'
 import type { LocationFilter } from '../types'
 
+/** Minuscules + sans accents, pour une recherche tolérante (« telephone » ⇔ « Téléphone »). */
+function norm(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+}
+
 export function Home() {
   const navigate = useNavigate()
   const { listings } = useApp()
   const [loc, setLoc] = useLocalStorage<LocationFilter>('chapci.loc.v1', {})
   const [locOpen, setLocOpen] = useState(false)
   const [q, setQ] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+
+  // Suggestions en direct sous la barre de recherche : catégories, sous-catégories
+  // et titres d'annonces qui correspondent à ce qu'on tape.
+  const suggestions = useMemo(() => {
+    const nq = norm(q)
+    if (nq.length < 1) return []
+    const out: { label: string; to: string; kind: 'cat' | 'sub' | 'ad' }[] = []
+    const seen = new Set<string>()
+    const add = (label: string, to: string, kind: 'cat' | 'sub' | 'ad') => {
+      const key = norm(label)
+      if (!key || seen.has(key)) return
+      seen.add(key)
+      out.push({ label, to, kind })
+    }
+    for (const c of categories) {
+      if (norm(c.name).includes(nq)) add(c.name, `/explorer?cat=${c.id}`, 'cat')
+    }
+    for (const c of categories) {
+      for (const s of c.subcategories) {
+        if (out.length >= 8) break
+        if (norm(s).includes(nq)) add(s, `/explorer?${new URLSearchParams({ cat: c.id, sub: s })}`, 'sub')
+      }
+    }
+    for (const l of listings) {
+      if (out.length >= 8) break
+      if (norm(l.title).includes(nq)) add(l.title, `/explorer?q=${encodeURIComponent(l.title)}`, 'ad')
+    }
+    return out.slice(0, 8)
+  }, [q, listings])
 
   const { position, status, requestLocation } = useGeo()
   const { unreadCount } = useNotifications()
@@ -51,12 +87,13 @@ export function Home() {
       .map((x) => x.l)
   }, [listings, position])
 
+  // On NE force PLUS le lieu enregistré dans la navigation : cliquer une catégorie
+  // (ou « Tout voir », ou rechercher) montre TOUTES les annonces correspondantes,
+  // pas seulement celles de la commune de l'utilisateur — sinon, sur une place de
+  // marché encore jeune, les catégories paraissaient vides. Le filtre par lieu
+  // reste disponible, explicite et effaçable, dans la page Explorer.
   function buildParams(extra: Record<string, string> = {}) {
-    const p = new URLSearchParams(extra)
-    if (loc.regionId) p.set('region', loc.regionId)
-    if (loc.cityId) p.set('ville', loc.cityId)
-    if (loc.commune) p.set('commune', loc.commune)
-    return p.toString()
+    return new URLSearchParams(extra).toString()
   }
 
   function submitSearch(e: React.FormEvent) {
@@ -125,19 +162,58 @@ export function Home() {
         </button>
 
         {/* Barre de recherche (plus grande sur desktop) */}
-        <form onSubmit={submitSearch} className="mt-3 md:mt-5 md:max-w-2xl">
+        <form onSubmit={submitSearch} className="relative mt-3 md:mt-5 md:max-w-2xl">
           <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary-400 md:rounded-2xl md:px-5 md:py-4">
             <Search size={20} className="text-gray-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
               placeholder="Rechercher une voiture, un téléphone…"
+              aria-label="Rechercher"
               className="w-full bg-transparent text-[15px] text-gray-800 outline-none placeholder:text-gray-400 md:text-lg"
             />
+            {q && (
+              <button type="button" onClick={() => setQ('')} aria-label="Effacer" className="shrink-0 text-gray-400">
+                <X size={18} />
+              </button>
+            )}
             <button type="submit" className="hidden rounded-xl bg-primary-500 px-5 py-2 text-sm font-semibold text-white md:block">
               Rechercher
             </button>
           </div>
+
+          {/* Suggestions en direct (catégories, sous-catégories, titres d'annonces) */}
+          {searchFocused && suggestions.length > 0 && (
+            <ul className="absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-xl bg-white py-1 text-gray-800 shadow-card">
+              {suggestions.map((s) => (
+                <li key={s.kind + s.label}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      setQ('')
+                      setSearchFocused(false)
+                      navigate(s.to)
+                    }}
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-gray-50"
+                  >
+                    <Search size={16} className="shrink-0 text-gray-400" />
+                    <span className="flex-1 truncate text-[15px]">{s.label}</span>
+                    {s.kind === 'cat' && (
+                      <span className="shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-600">
+                        Catégorie
+                      </span>
+                    )}
+                    {s.kind === 'sub' && (
+                      <span className="shrink-0 text-[11px] text-gray-400">Sous-catégorie</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </form>
       </header>
 

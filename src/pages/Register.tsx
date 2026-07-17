@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown, LocateFixed } from 'lucide-react'
+import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown, LocateFixed, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { usePublicConfig } from '../lib/publicConfig'
@@ -70,6 +70,8 @@ export function Register() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [phone, setPhone] = useState('+225 ')
   const [otpSent, setOtpSent] = useState(false)
   const [otp, setOtp] = useState('')
@@ -140,6 +142,7 @@ export function Register() {
       if (!email.trim()) return setError('Renseignez votre adresse email.')
       const pw = checkPassword(password)
       if (!pw.ok) return setError(`Mot de passe trop faible — ajoutez : ${pw.missing.join(', ')}.`)
+      if (password !== confirmPassword) return setError('Les deux mots de passe ne correspondent pas.')
       setBusy(true)
       const res = await signUp(email.trim(), password, `${firstName.trim()} ${lastName.trim()}`)
       setBusy(false)
@@ -294,9 +297,19 @@ export function Register() {
               </div>
               <div className="relative">
                 <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="input pl-10" autoComplete="new-password" />
+                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="input pl-10 pr-11" autoComplete="new-password" />
+                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Voir le mot de passe'} className="absolute right-2 top-1.5 grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:text-gray-600">
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
               <PasswordStrength value={password} />
+              <div className="relative">
+                <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmer le mot de passe" className="input pl-10" autoComplete="new-password" />
+                {confirmPassword.length > 0 && confirmPassword !== password && (
+                  <p className="mt-1 pl-1 text-xs font-medium text-red-500">Les deux mots de passe ne correspondent pas.</p>
+                )}
+              </div>
             </>
           ) : (
             <>

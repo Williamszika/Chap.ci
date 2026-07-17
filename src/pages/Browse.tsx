@@ -132,7 +132,11 @@ export function Browse() {
         }
       }
       if (nq) {
-        const hay = normalize(`${l.title} ${l.description} ${l.subcategory ?? ''}`)
+        // On inclut le NOM de la catégorie dans la recherche : « voiture » /
+        // « véhicule » trouve les annonces de la catégorie Véhicules même si le
+        // mot n'est pas dans le titre.
+        const catName = categoryById(l.categoryId)?.name ?? ''
+        const hay = normalize(`${l.title} ${l.description} ${l.subcategory ?? ''} ${catName}`)
         if (!hay.includes(nq)) return false
       }
       return true
@@ -209,16 +213,29 @@ export function Browse() {
               </span>
             )}
           </button>
-          <button
-            onClick={() => setLocOpen(true)}
-            className={`chip ${loc.regionId ? 'border-primary-200 bg-primary-50 text-primary-700' : ''}`}
-          >
-            <MapPin size={15} />
-            <span className="max-w-[40vw] truncate">
-              {loc.regionId ? locationLabel(loc.regionId, loc.cityId, loc.commune) : 'Localisation'}
+          {loc.regionId ? (
+            <span className="chip border-primary-200 bg-primary-50 !pr-1 text-primary-700">
+              <button onClick={() => setLocOpen(true)} className="flex items-center gap-1">
+                <MapPin size={15} />
+                <span className="max-w-[40vw] truncate">
+                  {locationLabel(loc.regionId, loc.cityId, loc.commune)}
+                </span>
+              </button>
+              <button
+                onClick={() => applyLocation({})}
+                aria-label="Retirer le filtre de lieu"
+                className="ml-1 grid h-5 w-5 place-items-center rounded-full hover:bg-primary-100"
+              >
+                <X size={13} />
+              </button>
             </span>
-            <ChevronDown size={14} />
-          </button>
+          ) : (
+            <button onClick={() => setLocOpen(true)} className="chip">
+              <MapPin size={15} />
+              <span>Localisation</span>
+              <ChevronDown size={14} />
+            </button>
+          )}
           <button
             onClick={async () => {
               if (tri === 'distance') {
