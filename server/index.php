@@ -19,6 +19,10 @@ $config += [
   'cron_key'             => getenv('CHAPCI_CRON_KEY')      ?: 'chapci-cron-2026-a7f3e9',
   'admin_emails'         => array_filter(array_map('trim',
     explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
+  // Destinataire des RAPPORTS automatiques (signalements, sauvegardes, alertes du
+  // « Bureau des développeurs »). Distinct des admins (qui gardent l'accès au site).
+  'report_email'         => array_filter(array_map('trim',
+    explode(',', getenv('CHAPCI_REPORT_EMAIL') ?: 'contact@chap.ci'))),
   'mail_from'            => getenv('CHAPCI_MAIL_FROM')       ?: 'no-reply@chap.ci',
   'mail_from_name'       => getenv('CHAPCI_MAIL_FROM_NAME')  ?: 'Chap.ci',
   'mail_reply_to'        => getenv('CHAPCI_MAIL_REPLYTO')    ?: 'contact@chap.ci',
@@ -590,6 +594,11 @@ function user_public(PDO $pdo, array $u): array {
 function owner_emails(array $config): array {
   return array_values(array_map('strtolower', $config['admin_emails'] ?? []));
 }
+/** Destinataires des rapports automatiques (repli sur les admins si non défini). */
+function report_recipients(array $config): array {
+  $r = array_filter((array) ($config['report_email'] ?? []));
+  return $r ? array_values($r) : ($config['admin_emails'] ?? []);
+}
 /** L'utilisateur est-il administrateur ? Propriétaire (config) OU modérateur (table admins). */
 function is_admin(array $config, PDO $pdo, array $u): bool {
   $email = strtolower($u['email'] ?? '');
@@ -1081,7 +1090,7 @@ function send_moderator_email(array $config, string $to): bool {
 }
 /** Notifie les administrateurs qu'une annonce a été signalée. */
 function send_report_email(array $config, string $reporter, string $title, string $listingId, string $reason, string $details): void {
-  $admins = $config['admin_emails'] ?? [];
+  $admins = report_recipients($config);
   if (!$admins) return;
   $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
   $name = $config['mail_from_name'] ?? 'Chap.ci';
@@ -1215,7 +1224,7 @@ function export_all(PDO $pdo): array {
 }
 /** Prévient l'administrateur qu'une sauvegarde automatique vient d'être créée. */
 function send_backup_email(array $config, array $dump, string $file, int $bytes): void {
-  $admins = $config['admin_emails'] ?? [];
+  $admins = report_recipients($config);
   if (!$admins) return;
   $name = $config['mail_from_name'] ?? 'Chap.ci';
   $rows = '';

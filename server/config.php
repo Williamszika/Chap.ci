@@ -33,6 +33,12 @@ return [
   'admin_emails' => array_filter(array_map('trim',
     explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
 
+  // Destinataire des RAPPORTS automatiques (signalements, sauvegardes, alertes du
+  // Bureau des développeurs). Séparé des admins : eux gardent l'accès au site,
+  // mais les rapports arrivent ici. Séparez plusieurs adresses par des virgules.
+  'report_email' => array_filter(array_map('trim',
+    explode(',', getenv('CHAPCI_REPORT_EMAIL') ?: 'contact@chap.ci'))),
+
   // Emails envoyés par le site (notification des modérateurs, etc.).
   // Utilisez une adresse de VOTRE domaine (créée dans cPanel) pour la
   // délivrabilité (SPF/DKIM). 'site_url' = adresse publique du site.
