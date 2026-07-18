@@ -75,7 +75,10 @@ export function FacebookSignInButton({
           const tok = resp?.authResponse?.accessToken
           if (tok) cb.current(tok)
         },
-        { scope: 'public_profile,email' },
+        // Uniquement le profil public (nom + photo) : disponible pour TOUS sans
+        // App Review ni vérification d'entreprise. L'email n'est plus demandé —
+        // le serveur crée une clé stable à partir de l'identifiant Facebook.
+        { scope: 'public_profile' },
       )
     } catch {
       setBusy(false)

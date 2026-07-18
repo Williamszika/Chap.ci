@@ -1879,12 +1879,18 @@ try {
     if ($tok === '') jerr('Jeton Facebook manquant.');
     $fb = facebook_verify_token($config, $tok);
     if (!$fb) { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
+    $fbId  = (string) ($fb['id'] ?? '');
     $email = strtolower(trim((string) ($fb['email'] ?? '')));
     $name  = trim((string) ($fb['name'] ?? ''));
-    // Facebook ne partage pas toujours l'email : on l'exige (comme Google) pour
-    // rattacher le compte de façon fiable.
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL))
-      jerr('Votre compte Facebook ne partage pas d’adresse email. Utilisez « Email » ou « Google ».', 400);
+    // Facebook ne partage pas toujours l'email (permission « email » non validée
+    // pour le grand public). On se rabat alors sur une clé stable dérivée de
+    // l'identifiant Facebook, pour que la connexion marche quand même et retrouve
+    // toujours le même compte. Aucun email n'est envoyé vers cette adresse fictive.
+    $realEmail = filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    if (!$realEmail) {
+      if ($fbId === '') { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
+      $email = 'fb_' . $fbId . '@facebook.chapci';
+    }
     $st = $pdo->prepare('SELECT id,email,status FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
     if (!$u) {
       $id = uuid();
@@ -1893,7 +1899,7 @@ try {
       $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
           ->execute([$id, $name, now_iso()]);
       log_security_event($pdo, 'signup', $email, 'facebook');
-      send_welcome_email($config, $email, $name);
+      if ($realEmail) send_welcome_email($config, $email, $name); // pas d'email vers une adresse fictive
       $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
     } else {
       if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'facebook'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
