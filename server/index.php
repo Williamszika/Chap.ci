@@ -91,7 +91,9 @@ if (empty($config['google_client_id'])) {
 // aléatoire, rangé HORS du code (dossier data protégé), réutilisé ensuite : le
 // site continue de fonctionner sans intervention et sans secret devinable.
 function chapci_secret_dir(array $config): string {
-  $base = (string) ($config['sqlite_path'] ?? '');
+  // La vraie clé est $config['db']['sqlite_path'] (et non 'sqlite_path' à la
+  // racine) : sinon le secret n'était jamais rangé à côté de la base.
+  $base = (string) ($config['db']['sqlite_path'] ?? $config['sqlite_path'] ?? '');
   $dir  = $base !== '' ? dirname($base) : (__DIR__ . '/data');
   if (!is_dir($dir)) @mkdir($dir, 0700, true);
   // Interdit l'accès web direct au dossier (secrets + base SQLite éventuelle).
@@ -840,6 +842,8 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("CREATE INDEX idx_sec_events ON security_events (kind, created_at)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
+  // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
+  try { $pdo->exec("CREATE INDEX idx_visits_visitor ON visits (visitor_id, created_at)"); } catch (Throwable $e) {}
 }
 
 // ---- Auth courant -----------------------------------------------------------
@@ -900,6 +904,11 @@ function report_recipients(array $config): array {
 function is_admin(array $config, PDO $pdo, array $u): bool {
   $email = strtolower($u['email'] ?? '');
   if ($email === '') return false;
+  // Un compte BLOQUÉ ne peut jamais être admin (même s'il est propriétaire config
+  // ou modérateur dans la table `admins`). On vérifie le statut à la source.
+  $ss = $pdo->prepare('SELECT status FROM users WHERE email = ?');
+  $ss->execute([$email]);
+  if ((string) ($ss->fetchColumn() ?: 'active') === 'blocked') return false;
   if (in_array($email, owner_emails($config), true)) return true;
   $st = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?');
   $st->execute([$email]);
@@ -1899,7 +1908,13 @@ try {
     $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
     $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
     $pdo->prepare('DELETE FROM orders WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
-    $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ?')->execute([$id, $id]);
+    $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ? OR target_id = ?')->execute([$id, $id, $id]);
+    // Nettoyage RGPD complet : aucune donnée liée ne doit survivre au compte
+    // (loi 2013-450, droit à l'effacement). Robuste si une table est absente.
+    foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
+              'saved_searches' => 'user_id', 'user_interests' => 'user_id'] as $tbl => $col) {
+      try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
+    }
     $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
@@ -2528,7 +2543,10 @@ try {
     $o = $st->fetch();
     if (!$o) jerr('Commande introuvable.', 404);
     if ($o['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
-    $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$b['status'] ?? 'en_cours', $seg[1]]);
+    // Statut restreint à une liste blanche (pas de valeur arbitraire en base).
+    $status = (string) ($b['status'] ?? 'en_cours');
+    if (!in_array($status, ['en_cours', 'finalise', 'annule'], true)) jerr('Statut de commande invalide.', 400);
+    $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $seg[1]]);
     jout(['ok' => true]);
   }
 
@@ -2727,6 +2745,14 @@ try {
   if ($path === 'track' && $method === 'POST') {
     $b = body();
     $vid = substr(trim((string) ($b['vid'] ?? '')), 0, 40) ?: 'anon';
+    // Anti-flood léger : au-delà de 300 visites/heure pour un même visiteur, on
+    // ignore silencieusement (le suivi n'est pas critique — on protège le disque).
+    try {
+      $since = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
+      $cc = $pdo->prepare('SELECT COUNT(*) FROM visits WHERE visitor_id = ? AND created_at >= ?');
+      $cc->execute([$vid, $since]);
+      if ((int) $cc->fetchColumn() >= 300) jout(['ok' => true]);
+    } catch (Throwable $e) { /* en cas d'erreur DB, ne pas bloquer */ }
     $p   = substr(trim((string) ($b['path'] ?? '')), 0, 200) ?: '/';
     $ref = substr(trim((string) ($b['ref'] ?? '')), 0, 200);
     $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,created_at) VALUES (?,?,?,?,?)')
@@ -2979,9 +3005,13 @@ try {
       $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
       $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
       $pdo->prepare('DELETE FROM orders WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
-      $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ?')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ? OR target_id = ?')->execute([$id, $id, $id]);
+      // Nettoyage RGPD complet (idem suppression par l'utilisateur).
+      foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
+                'saved_searches' => 'user_id', 'user_interests' => 'user_id'] as $tbl => $col) {
+        try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
+      }
       $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
-      $pdo->prepare('DELETE FROM user_interests WHERE user_id = ?')->execute([$id]);
       $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
       $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
       jout(['ok' => true]);
@@ -3298,7 +3328,7 @@ try {
       jerr('Clé invalide.', 403);
     }
     $days = max(1, min(90, (int) ($_GET['days'] ?? 7)));
-    $since = gmdate('Y-m-d\TH:i:s', time() - $days * 86400);
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
     $one = function (string $sql, array $p = []) use ($pdo) {
       $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn();
     };
@@ -3343,7 +3373,7 @@ try {
       jerr('Clé invalide.', 403);
     }
     $days = max(1, min(90, (int) ($_GET['days'] ?? 1)));
-    $since = gmdate('Y-m-d\TH:i:s', time() - $days * 86400);
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
     $sec = security_stats($pdo, $config, $since);
     jout([
       'periodDays'    => $days,
@@ -3365,13 +3395,13 @@ try {
     }
     $done = [];
     // Visites de plus de 120 jours (analytics anonymes, inutiles au-delà).
-    $d = gmdate('Y-m-d\TH:i:s', time() - 120 * 86400);
+    $d = gmdate('Y-m-d\TH:i:s\Z', time() - 120 * 86400);
     $st = $pdo->prepare('DELETE FROM visits WHERE created_at < ?'); $st->execute([$d]); $done['visits_purgees'] = $st->rowCount();
     // Journal de sécurité de plus de 180 jours.
-    $d2 = gmdate('Y-m-d\TH:i:s', time() - 180 * 86400);
+    $d2 = gmdate('Y-m-d\TH:i:s\Z', time() - 180 * 86400);
     $st = $pdo->prepare('DELETE FROM security_events WHERE created_at < ?'); $st->execute([$d2]); $done['evenements_securite_purges'] = $st->rowCount();
     // Annonces actives non vendues de plus de 90 jours → masquées (expirées), pas supprimées.
-    $d3 = gmdate('Y-m-d\TH:i:s', time() - 90 * 86400);
+    $d3 = gmdate('Y-m-d\TH:i:s\Z', time() - 90 * 86400);
     $st = $pdo->prepare('UPDATE listings SET hidden = 1 WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) AND created_at < ?');
     $st->execute([$d3]); $done['annonces_expirees'] = $st->rowCount();
     jout(['ok' => true, 'nettoyage' => $done]);
@@ -3386,7 +3416,7 @@ try {
       jerr('Clé invalide.', 403);
     }
     $days  = max(1, min(365, (int) ($_GET['days'] ?? 30)));
-    $since = gmdate('Y-m-d\TH:i:s', time() - $days * 86400);
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
     $one = function (string $sql, array $p = []) use ($pdo) {
       $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn();
     };

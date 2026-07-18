@@ -4,8 +4,11 @@
 //  distinguer « pages vues » et « visiteurs uniques ». Aucune donnée externe.
 // =============================================================================
 import { isPhp } from './backend'
+import { apiBase } from './native'
 
-const API = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/$/, '')
+// Base API cohérente avec le reste de l'app : relative sur le web, absolue
+// (https://chap.ci/api) dans l'app native Capacitor.
+const API = apiBase()
 const VID_KEY = 'chapci.vid'
 
 function visitorId(): string {

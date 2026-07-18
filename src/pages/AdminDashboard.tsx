@@ -942,10 +942,13 @@ function CampaignsTab() {
     try {
       // Envoi par lots pour respecter les quotas de l'hébergeur.
       for (;;) {
+        const prevOffset = offset
         const r = await campaignSend(subject.trim(), message.trim(), offset, 25)
         sent += r.sent; grand = r.total; offset = r.processed
         setProgress(grand ? Math.min(100, Math.round((offset / grand) * 100)) : 100)
         if (r.done) break
+        // Garde anti-boucle infinie : si le curseur n'avance plus, on s'arrête.
+        if (offset <= prevOffset) break
       }
       setResult(`✓ Campagne envoyée à ${sent} abonné${sent > 1 ? 's' : ''} ! 🎉`)
       setSubject(''); setMessage('')

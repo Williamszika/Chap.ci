@@ -50,6 +50,10 @@ function loadJSON<T>(key: string, fallback: T): T {
     const raw = localStorage.getItem(key)
     if (!raw) return fallback
     const parsed = JSON.parse(raw)
+    // Sécurité : si le type stocké ne correspond pas à celui attendu (donnée
+    // corrompue ou héritée d'une ancienne version), on revient au fallback plutôt
+    // que de planter le rendu — ex. `.filter` sur un non-tableau → écran blanc.
+    if (Array.isArray(fallback) !== Array.isArray(parsed)) return fallback
     return parsed as T
   } catch {
     return fallback
@@ -166,12 +170,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Annonce locale (créée sur l'appareil, ou mode 100 % local) : mise à jour
       // en mémoire, en conservant l'id et la date de création d'origine.
       const base = userListings.find((l) => l.id === id)
+      if (!base) {
+        // L'annonce n'est pas présente sur cet appareil (elle existe côté serveur,
+        // mais le mode est retombé en local). On NE prétend PAS l'avoir enregistrée :
+        // on signale l'échec pour que l'utilisateur réessaie une fois reconnecté.
+        throw new Error('Modification impossible hors connexion. Réessayez une fois reconnecté.')
+      }
       const updated: Listing = {
-        ...(base as Listing),
+        ...base,
         ...input,
         id,
         currency: 'FCFA',
-        createdAt: base?.createdAt ?? Date.now(),
+        createdAt: base.createdAt,
       }
       setUserListings((prev) => prev.map((l) => (l.id === id ? updated : l)))
       return updated
