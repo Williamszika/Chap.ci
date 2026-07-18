@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
 import type { Listing } from '../types'
@@ -13,6 +14,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const { isFavorite, toggleFavorite } = useApp()
   const { position } = useGeo()
   const fav = isFavorite(listing.id)
+  const [pop, setPop] = useState(false)
 
   const distance =
     position && listing.lat != null && listing.lng != null
@@ -53,11 +55,13 @@ export function ListingCard({ listing }: { listing: Listing }) {
           onClick={(e) => {
             e.preventDefault()
             toggleFavorite(listing.id)
+            setPop(true)
+            window.setTimeout(() => setPop(false), 320)
           }}
           className="absolute right-0.5 top-0.5 grid h-11 w-11 place-items-center transition active:scale-90"
           aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-white/95 shadow-sm">
+          <span className={`grid h-8 w-8 place-items-center rounded-full bg-white/95 shadow-sm ${pop ? 'animate-[heartpop_320ms_ease-out]' : ''}`}>
             <Heart
               size={17}
               className={fav ? 'fill-red-500 text-red-500' : 'text-gray-600'}

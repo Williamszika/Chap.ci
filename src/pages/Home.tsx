@@ -366,8 +366,14 @@ export function Home() {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {recent.map((l) => (
-            <ListingCard key={l.id} listing={l} />
+          {recent.map((l, i) => (
+            <div
+              key={l.id}
+              className="animate-fadeup"
+              style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
+            >
+              <ListingCard listing={l} />
+            </div>
           ))}
         </div>
       </section>

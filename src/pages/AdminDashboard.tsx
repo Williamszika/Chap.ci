@@ -980,7 +980,7 @@ function CampaignsTab() {
         </button>
         {sending && (
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-primary-500 transition-all" style={{ width: `${progress}%` }} />
+            <div className="h-full rounded-full bg-primary-500 transition-[width] duration-300 ease-smooth" style={{ width: `${progress}%` }} />
           </div>
         )}
         {result && <p className={`text-sm ${result.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{result}</p>}

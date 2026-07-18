@@ -259,7 +259,7 @@ export function ListingDetail() {
             {listing.images.map((_, i) => (
               <span
                 key={i}
-                className={`h-1.5 rounded-full transition-all ${i === imgIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
+                className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ease-smooth ${i === imgIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
               />
             ))}
           </div>
