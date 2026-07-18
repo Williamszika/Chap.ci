@@ -38,6 +38,10 @@ $config += [
   // seul CHAPCI_COOKIE_SECURE=0 le désactive (test local sur http). NB : on teste
   // « !== '0' » et non « ?: » car la chaîne '0' est falsy en PHP.
   'cookie_secure'        => getenv('CHAPCI_COOKIE_SECURE') !== '0',
+  // Sécurité : IP ou préfixes à IGNORER dans les stats « suspectes » (monitoring
+  // interne, Claude/Anthropic, ton IP fixe…). Virgules ; un préfixe finit par un
+  // point (ex. « 160.79. » ignore 160.79.*.*). Surchargeable via env/config.php.
+  'security_ignore_ips'  => getenv('CHAPCI_SECURITY_IGNORE_IPS') ?: '160.79.',
   'social'               => [],
   // Connexion Google (Sign-In) : ID client OAuth « Web ». Vide = désactivé.
   'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
@@ -246,6 +250,41 @@ function rate_limit(PDO $pdo, string $kind, ?string $email, int $limit, int $win
       jerr('Trop de tentatives. Pour votre sécurité, réessayez dans quelques minutes.', 429);
     }
   } catch (Throwable $e) { /* en cas d'erreur DB, ne pas pénaliser un utilisateur légitime */ }
+}
+/** Une IP correspond-elle à un motif d'exclusion (exact, ou préfixe finissant par '.') ? */
+function ip_ignored(string $ip, $patterns): bool {
+  if (is_string($patterns)) $patterns = array_filter(array_map('trim', explode(',', $patterns)));
+  foreach ((array) $patterns as $p) {
+    $p = (string) $p; if ($p === '') continue;
+    if ($ip === $p) return true;
+    if (substr($p, -1) === '.' && strncmp($ip, $p, strlen($p)) === 0) return true;
+  }
+  return false;
+}
+/** Synthèse sécurité NETTOYÉE (IP de monitoring exclues) sur la fenêtre $since→maintenant. */
+function security_stats(PDO $pdo, array $config, string $since): array {
+  $ignore = $config['security_ignore_ips'] ?? [];
+  $counts = [];
+  $st = $pdo->prepare('SELECT kind, COUNT(*) AS n FROM security_events WHERE created_at >= ? GROUP BY kind');
+  $st->execute([$since]);
+  foreach ($st->fetchAll() as $r) $counts[$r['kind']] = (int) $r['n'];
+  // IP suspectes (login_fail + rate_limited), hors IP ignorées, ≥ 5 événements.
+  $ipsSt = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind IN ('login_fail','rate_limited') AND created_at >= ? GROUP BY ip ORDER BY n DESC");
+  $ipsSt->execute([$since]);
+  $suspicious = [];
+  foreach ($ipsSt->fetchAll() as $r) {
+    if ((int) $r['n'] >= 5 && !ip_ignored((string) $r['ip'], $ignore)) $suspicious[] = ['ip' => $r['ip'], 'n' => (int) $r['n']];
+    if (count($suspicious) >= 10) break;
+  }
+  // login_fail hors IP ignorées → ratio honnête (pas faussé par le monitoring).
+  $fbi = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind = 'login_fail' AND created_at >= ? GROUP BY ip");
+  $fbi->execute([$since]);
+  $loginFail = 0;
+  foreach ($fbi->fetchAll() as $r) if (!ip_ignored((string) $r['ip'], $ignore)) $loginFail += (int) $r['n'];
+  $loginOk = $counts['login_ok'] ?? 0;
+  return ['counts' => $counts, 'loginOk' => $loginOk, 'loginFail' => $loginFail,
+          'ratio' => ($loginOk + $loginFail) ? round($loginFail / ($loginOk + $loginFail), 2) : 0,
+          'suspicious' => $suspicious];
 }
 function iso_to_ms(?string $iso): int { return $iso ? (int) (strtotime($iso) * 1000) : 0; }
 
@@ -3245,23 +3284,16 @@ try {
     }
     $days = max(1, min(90, (int) ($_GET['days'] ?? 1)));
     $since = gmdate('Y-m-d\TH:i:s', time() - $days * 86400);
-    $counts = [];
-    $st = $pdo->prepare('SELECT kind, COUNT(*) AS n FROM security_events WHERE created_at >= ? GROUP BY kind');
-    $st->execute([$since]);
-    foreach ($st->fetchAll() as $r) $counts[$r['kind']] = (int) $r['n'];
-    // IP avec le plus d'échecs de connexion (signal d'attaque par force brute).
-    $ips = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind IN ('login_fail','rate_limited') AND created_at >= ? GROUP BY ip HAVING COUNT(*) >= 5 ORDER BY n DESC LIMIT 10");
-    $ips->execute([$since]);
-    $loginFail = $counts['login_fail'] ?? 0;
-    $loginOk   = $counts['login_ok'] ?? 0;
+    $sec = security_stats($pdo, $config, $since);
     jout([
-      'periodDays'      => $days,
-      'since'           => $since,
-      'counts'          => $counts,
-      'suspiciousIps'   => $ips->fetchAll(),
-      'failRatio'       => ($loginOk + $loginFail) ? round($loginFail / ($loginOk + $loginFail), 2) : 0,
-      'rateLimited'     => $counts['rate_limited'] ?? 0,
-      'newSignups'      => $counts['signup'] ?? 0,
+      'periodDays'    => $days,
+      'since'         => $since,
+      'counts'        => $sec['counts'],
+      'suspiciousIps' => $sec['suspicious'],
+      'failRatio'     => $sec['ratio'],
+      'rateLimited'   => $sec['counts']['rate_limited'] ?? 0,
+      'newSignups'    => $sec['counts']['signup'] ?? 0,
+      'ignoredIps'    => $config['security_ignore_ips'] ?? [],
     ]);
   }
 
@@ -3320,16 +3352,11 @@ try {
       'Annonces masquées/expirées' => $one('SELECT COUNT(*) FROM listings WHERE hidden = 1'),
       'Abonnés newsletter'         => $one('SELECT COUNT(*) FROM newsletter'),
     ];
-    // Sécurité sur la période
-    $counts = [];
-    $st = $pdo->prepare('SELECT kind, COUNT(*) AS n FROM security_events WHERE created_at >= ? GROUP BY kind');
-    $st->execute([$since]);
-    foreach ($st->fetchAll() as $r) $counts[$r['kind']] = (int) $r['n'];
-    $loginOk = $counts['login_ok'] ?? 0; $loginFail = $counts['login_fail'] ?? 0;
-    $ratio = ($loginOk + $loginFail) ? (int) round(100 * $loginFail / ($loginOk + $loginFail)) : 0;
-    $ipsSt = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind IN ('login_fail','rate_limited') AND created_at >= ? GROUP BY ip HAVING COUNT(*) >= 5 ORDER BY n DESC LIMIT 5");
-    $ipsSt->execute([$since]);
-    $suspicious = $ipsSt->fetchAll();
+    // Sécurité sur la période (IP de monitoring exclues → pas de fausse alerte)
+    $sec = security_stats($pdo, $config, $since);
+    $loginOk = $sec['loginOk']; $loginFail = $sec['loginFail'];
+    $ratio = (int) round($sec['ratio'] * 100);
+    $suspicious = array_slice($sec['suspicious'], 0, 5);
 
     // Construction de l'email (charte via email_layout)
     $tbl = function (array $data) use ($fr): string {

@@ -38,6 +38,12 @@ return [
   // CHAPCI_CRON_KEY. NE la laissez JAMAIS sur une valeur d'exemple publique.
   'cron_key'    => getenv('CHAPCI_CRON_KEY') ?: '',
 
+  // IP ou préfixes à IGNORER dans les statistiques de sécurité « suspectes »
+  // (monitoring interne, Claude/Anthropic, votre IP fixe…). Séparez par des
+  // virgules ; un préfixe se termine par un point (ex. « 160.79. » ignore
+  // 160.79.*.*). Évite les fausses alertes sur votre propre surveillance.
+  'security_ignore_ips' => getenv('CHAPCI_SECURITY_IGNORE_IPS') ?: '160.79.',
+
   // Emails administrateurs : seuls ces comptes peuvent voir/exporter les abonnés
   // à la newsletter. Séparez par des virgules. METTEZ VOTRE email de compte.
   'admin_emails' => array_filter(array_map('trim',
