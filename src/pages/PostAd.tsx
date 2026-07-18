@@ -11,7 +11,7 @@ import { formFor, type AttrField } from '../data/categoryForms'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
-import { formatPrice } from '../lib/format'
+import { formatFCFA } from '../lib/format'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { downscaleListingImage } from '../lib/image'
@@ -559,10 +559,10 @@ export function PostAd() {
                   <PromoTag percent={promoPreview.percent} />
                   <span className="flex items-baseline gap-2">
                     <span className="text-base font-black text-red-600">
-                      {formatPrice(promoPreview.price)} FCFA
+                      {formatFCFA(promoPreview.price)}
                     </span>
                     <span className="text-xs text-gray-400 line-through">
-                      {formatPrice(priceNum)} FCFA
+                      {formatFCFA(priceNum)}
                     </span>
                   </span>
                 </div>

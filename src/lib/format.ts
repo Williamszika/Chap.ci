@@ -1,12 +1,21 @@
 // Formatage des prix et des dates en français (Côte d'Ivoire).
 
+/** Espace insécable : garde le nombre et son unité (FCFA) sur la même ligne. */
+const NBSP = ' '
+
+/** Nombre groupé à la française : « 1 500 » (séparateur = espace fine insécable). */
 export function formatPrice(value: number): string {
   return new Intl.NumberFormat('fr-FR').format(value)
 }
 
+/** Prix complet à la française : « 1 500 FCFA » (espace insécable avant l'unité). */
+export function formatFCFA(value: number): string {
+  return `${formatPrice(value)}${NBSP}FCFA`
+}
+
 export function priceLabel(value: number, negotiable = false): string {
   if (value === 0) return 'Gratuit'
-  return `${formatPrice(value)} FCFA${negotiable ? ' — à débattre' : ''}`
+  return `${formatFCFA(value)}${negotiable ? `${NBSP}— à débattre` : ''}`
 }
 
 export function timeAgo(timestamp: number): string {

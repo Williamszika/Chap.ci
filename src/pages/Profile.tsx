@@ -37,7 +37,7 @@ import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
 import { useLocalStorage } from '../lib/useLocalStorage'
-import { priceLabel, formatPrice, timeAgo } from '../lib/format'
+import { priceLabel, formatFCFA, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { fetchOrders, updateOrderStatus } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
@@ -321,7 +321,7 @@ export function Profile() {
                       <p className="text-xs font-semibold text-emerald-700">
                         Chiffre d’affaires (ventes finalisées)
                       </p>
-                      <p className="text-lg font-black text-emerald-700">{formatPrice(revenue)} FCFA</p>
+                      <p className="tnum text-lg font-black text-emerald-700">{formatFCFA(revenue)}</p>
                     </div>
                     <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
                       Détail <ChevronRight size={14} />
@@ -821,7 +821,7 @@ function OrderCard({
       <div className="border-t border-gray-100 px-4 py-2">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="text-gray-400">{timeAgo(order.createdAt)}</span>
-          <span className="font-bold text-gray-800">{formatPrice(total)} FCFA</span>
+          <span className="tnum font-bold text-gray-800">{formatFCFA(total)}</span>
         </div>
         {footer}
       </div>

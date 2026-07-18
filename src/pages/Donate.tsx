@@ -7,7 +7,7 @@ import {
   donationCopy,
   type DonationOperator,
 } from '../data/donation'
-import { formatPrice } from '../lib/format'
+import { formatFCFA, formatPrice } from '../lib/format'
 
 /** Encode un code USSD pour un lien tel: (# -> %23, * -> %2A) */
 function ussdLink(code: string): string {
@@ -102,7 +102,7 @@ export function Donate() {
               {chosenAmount ? (
                 <p className="mt-2 text-center text-sm text-gray-600">
                   Vous allez envoyer{' '}
-                  <span className="font-bold text-primary-600">{formatPrice(chosenAmount)} FCFA</span>{' '}
+                  <span className="tnum font-bold text-primary-600">{formatFCFA(chosenAmount)}</span>{' '}
                   via l’un des moyens ci-dessous.
                 </p>
               ) : null}
@@ -211,7 +211,7 @@ function OperatorCard({
         </div>
         {amount ? (
           <p className="mt-2 text-center text-[11px] text-gray-400">
-            Montant à saisir : {formatPrice(amount)} FCFA
+            Montant à saisir : {formatFCFA(amount)}
           </p>
         ) : null}
       </div>

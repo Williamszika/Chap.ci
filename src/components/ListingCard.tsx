@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
 import type { Listing } from '../types'
-import { formatPrice } from '../lib/format'
+import { formatFCFA } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
@@ -83,17 +83,17 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <div className="flex flex-wrap items-baseline gap-x-1.5">
           {promo ? (
             <>
-              <span className="whitespace-nowrap text-[16px] font-black text-red-600">
-                {formatPrice(promo.price)} FCFA
+              <span className="tnum whitespace-nowrap text-[16px] font-black text-red-600">
+                {formatFCFA(promo.price)}
               </span>
-              <span className="text-[11px] text-gray-400 line-through">
-                {formatPrice(promo.original)} FCFA
+              <span className="tnum text-[11px] text-gray-400 line-through">
+                {formatFCFA(promo.original)}
               </span>
             </>
           ) : (
             <>
-              <span className="whitespace-nowrap text-[16px] font-black text-primary-600">
-                {isFree ? 'Gratuit' : `${formatPrice(listing.price)} FCFA`}
+              <span className="tnum whitespace-nowrap text-[16px] font-black text-primary-600">
+                {isFree ? 'Gratuit' : formatFCFA(listing.price)}
               </span>
               {listing.negotiable && !isFree && (
                 <span className="text-[10px] font-medium text-gray-400">négociable</span>

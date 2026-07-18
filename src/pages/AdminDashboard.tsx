@@ -6,7 +6,7 @@ import {
   Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
-import { formatPrice, timeAgo } from '../lib/format'
+import { formatPrice, formatFCFA, timeAgo } from '../lib/format'
 import { emojiFor } from '../lib/placeholder'
 import { locationLabel } from '../data/locations'
 import {
@@ -488,7 +488,7 @@ function ListingsTab() {
           <Thumb listing={l} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-gray-800">{l.title}</p>
-            <p className="text-sm font-bold text-primary-600">{formatPrice(l.price)} FCFA</p>
+            <p className="tnum text-sm font-bold text-primary-600">{formatFCFA(l.price)}</p>
             <p className="truncate text-xs text-gray-400">{l.sellerEmail || l.sellerName || '—'} · {timeAgo(l.createdAt)}</p>
           </div>
           <button onClick={() => remove(l)} aria-label="Supprimer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
@@ -629,7 +629,7 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
                   {l.title}
                   {l.hidden && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">Masquée</span>}
                 </p>
-                <p className="text-sm font-bold text-primary-600">{formatPrice(l.price)} FCFA</p>
+                <p className="tnum text-sm font-bold text-primary-600">{formatFCFA(l.price)}</p>
               </div>
               <button onClick={() => toggleListing(l.id, !l.hidden)} aria-label={l.hidden ? 'Afficher' : 'Masquer'} className="shrink-0 rounded-xl p-2 text-gray-500 hover:bg-gray-100">
                 {l.hidden ? <Eye size={17} /> : <EyeOff size={17} />}
@@ -740,7 +740,7 @@ function OrdersTab() {
         <div key={o.id} className="rounded-2xl bg-white p-3 shadow-card">
           <div className="flex items-center justify-between">
             <span className="rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-700">{statusLabel(o.status)}</span>
-            <span className="text-sm font-bold text-gray-900">{formatPrice(o.total)} FCFA</span>
+            <span className="tnum text-sm font-bold text-gray-900">{formatFCFA(o.total)}</span>
           </div>
           <ul className="mt-2 space-y-0.5">
             {o.items.map((it, i) => (

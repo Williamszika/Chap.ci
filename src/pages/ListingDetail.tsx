@@ -27,7 +27,7 @@ import { placeOrderForSeller } from '../lib/checkout'
 import { fetchReviewsForListing, createReview, averageRating } from '../lib/reviews'
 import { fetchPurchasedListingIds } from '../lib/orders'
 import { reportListing } from '../lib/api'
-import { priceLabel, formatPrice, timeAgo } from '../lib/format'
+import { priceLabel, formatFCFA, timeAgo } from '../lib/format'
 import { activePromo, promoEndLabel } from '../lib/promo'
 import { recordInterest } from '../lib/interests'
 import { isPhp } from '../lib/backend'
@@ -272,8 +272,8 @@ export function ListingDetail() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <PromoTag percent={promo.percent} height={26} />
-              <span className="text-2xl font-black text-red-600">{formatPrice(promo.price)} FCFA</span>
-              <span className="text-base text-gray-400 line-through">{formatPrice(promo.original)} FCFA</span>
+              <span className="tnum text-2xl font-black text-red-600">{formatFCFA(promo.price)}</span>
+              <span className="tnum text-base text-gray-400 line-through">{formatFCFA(promo.original)}</span>
             </div>
             <p className="mt-1 text-xs font-semibold text-red-600">
               Promo jusqu’au {promoEndLabel(promo.until)}

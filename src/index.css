@@ -41,7 +41,16 @@ body {
   color: #1a1a1a;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  /* Rendu de texte soigné : ligatures/crénage, taille optique des polices variables. */
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
 }
+
+/* Typographie (skill) : titres équilibrés, paragraphes sans mot orphelin,
+   chiffres alignés en colonnes pour les prix (.tnum). */
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+.tnum { font-variant-numeric: tabular-nums; }
 
 /* Accessibilité (P7) : filet de sécurité pour la navigation au clavier. Tout
    élément interactif atteint au clavier montre un repère visible, même s'il a
