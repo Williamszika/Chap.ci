@@ -4,6 +4,23 @@
 
 :root {
   color-scheme: light;
+  /* Courbes de motion fortes (skill design) : ease-out UI + courbe iOS pour les feuilles.
+     Les built-in CSS sont trop mous ; celles-ci démarrent vite = ressenti réactif. */
+  --ease-smooth: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Accessibilité : respecter « animations réduites » du système. Les transitions
+   deviennent quasi instantanées (plus de mouvement), pour éviter la gêne. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 html,

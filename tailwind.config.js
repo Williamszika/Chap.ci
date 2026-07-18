@@ -46,6 +46,11 @@ export default {
       maxWidth: {
         app: '560px',
       },
+      transitionTimingFunction: {
+        // Courbes fortes réutilisables (classes ease-smooth / ease-drawer)
+        smooth: 'cubic-bezier(0.23, 1, 0.32, 1)',
+        drawer: 'cubic-bezier(0.32, 0.72, 0, 1)',
+      },
     },
   },
   plugins: [],
