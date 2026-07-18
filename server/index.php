@@ -43,24 +43,29 @@ $config += [
   'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
   // Filigrane « Chap.ci » au centre des photos d'annonce (1 = activé).
   'watermark'            => (getenv('CHAPCI_WATERMARK') ?: '1') === '1',
-  // Connexion par téléphone (code SMS). provider : 'twilio' | 'http' | '' (off).
+  // Connexion par téléphone (code SMS). provider : 'orange' | 'twilio' | 'http' | '' (off).
   'sms'                  => [
-    'provider'     => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
-    'debug'        => (getenv('CHAPCI_SMS_DEBUG')       ?: '') === '1',
-    'twilio_sid'   => getenv('CHAPCI_TWILIO_SID')       ?: '',
-    'twilio_token' => getenv('CHAPCI_TWILIO_TOKEN')     ?: '',
-    'twilio_from'  => getenv('CHAPCI_TWILIO_FROM')      ?: '',
-    'http_method'  => getenv('CHAPCI_SMS_HTTP_METHOD')  ?: 'GET',
-    'http_url'     => getenv('CHAPCI_SMS_HTTP_URL')     ?: '',
-    'http_auth'    => getenv('CHAPCI_SMS_HTTP_AUTH')    ?: '',
-    'sender'       => getenv('CHAPCI_SMS_SENDER')       ?: 'Chap.ci',
+    'provider'      => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
+    'debug'         => (getenv('CHAPCI_SMS_DEBUG')       ?: '') === '1',
+    'twilio_sid'    => getenv('CHAPCI_TWILIO_SID')       ?: '',
+    'twilio_token'  => getenv('CHAPCI_TWILIO_TOKEN')     ?: '',
+    'twilio_from'   => getenv('CHAPCI_TWILIO_FROM')      ?: '',
+    // Orange SMS API (Côte d'Ivoire) — recommandé pour la CI.
+    'orange_auth'   => getenv('CHAPCI_ORANGE_AUTH')      ?: '', // en-tête « Basic … » d'Orange Developer
+    'orange_sender' => getenv('CHAPCI_ORANGE_SENDER')    ?: '', // ex. « tel:+2250000 » (fourni par Orange)
+    'orange_name'   => getenv('CHAPCI_ORANGE_NAME')      ?: '', // nom affiché (facultatif, 11 car.)
+    'http_method'   => getenv('CHAPCI_SMS_HTTP_METHOD')  ?: 'GET',
+    'http_url'      => getenv('CHAPCI_SMS_HTTP_URL')     ?: '',
+    'http_auth'     => getenv('CHAPCI_SMS_HTTP_AUTH')    ?: '',
+    'sender'        => getenv('CHAPCI_SMS_SENDER')       ?: 'Chap.ci',
   ],
 ];
 // Un config.php antérieur peut définir 'sms' partiellement : on complète les
 // sous-clés manquantes sans écraser celles déjà renseignées.
 $config['sms'] = ($config['sms'] ?? []) + [
   'provider' => '', 'debug' => false, 'twilio_sid' => '', 'twilio_token' => '',
-  'twilio_from' => '', 'http_method' => 'GET', 'http_url' => '', 'http_auth' => '', 'sender' => 'Chap.ci',
+  'twilio_from' => '', 'orange_auth' => '', 'orange_sender' => '', 'orange_name' => '',
+  'http_method' => 'GET', 'http_url' => '', 'http_auth' => '', 'sender' => 'Chap.ci',
 ];
 // ID client Google du projet Chap.ci (public, non secret). Utilisé par défaut
 // tant que config.php n'en fournit pas un (permet d'activer la connexion Google
@@ -448,6 +453,48 @@ function sms_send(array $config, string $to, string $text): bool {
     // En cas d'échec, on journalise la réponse Twilio (code + message) pour le
     // débogage côté serveur — jamais renvoyée au client.
     if (!$ok) error_log('[chapci] Twilio SMS échec (' . ($r['status'] ?? '?') . ') : ' . substr((string) ($r['body'] ?? ''), 0, 300));
+    return $ok;
+  }
+  if ($provider === 'orange') {
+    // API Orange SMS (Afrique / Côte d'Ivoire) : OAuth2 « client_credentials »
+    // (jeton valable ~1 h) puis POST JSON. Idéal pour la CI : livraison locale,
+    // Sender ID déjà approuvé chez Orange, activation en self-service (~10 min).
+    $auth   = $sms['orange_auth']   ?? '';   // en-tête « Basic … » fourni par Orange Developer
+    $sender = $sms['orange_sender'] ?? '';    // adresse expéditeur fournie par Orange, ex. « tel:+2250000 »
+    $name   = $sms['orange_name']   ?? '';    // nom d'expéditeur affiché (facultatif, 11 car. max)
+    if ($auth === '' || $sender === '') return false;
+    // 1) Jeton d'accès — mis en cache pour la durée du process (évite de le
+    //    redemander à chaque SMS).
+    static $otok = null, $oexp = 0;
+    if ($otok === null || time() >= $oexp) {
+      $tr = http_fetch('https://api.orange.com/oauth/v3/token', [
+        'method'  => 'POST',
+        'headers' => ['Authorization: ' . $auth, 'Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'],
+        'body'    => 'grant_type=client_credentials',
+      ]);
+      $j = json_decode((string) ($tr['body'] ?? ''), true);
+      if (empty($j['access_token'])) {
+        error_log('[chapci] Orange OAuth échec (' . ($tr['status'] ?? '?') . ') : ' . substr((string) ($tr['body'] ?? ''), 0, 300));
+        return false;
+      }
+      $otok = (string) $j['access_token'];
+      $oexp = time() + max(60, (int) ($j['expires_in'] ?? 3600) - 60);
+    }
+    // 2) Envoi. La senderAddress doit être identique dans le corps et dans l'URL.
+    $req = [
+      'address'                => 'tel:+' . ltrim($to, '+'),
+      'senderAddress'          => $sender,
+      'outboundSMSTextMessage' => ['message' => $text],
+    ];
+    if ($name !== '') $req['senderName'] = substr($name, 0, 11);
+    $endpoint = 'https://api.orange.com/smsmessaging/v1/outbound/' . rawurlencode($sender) . '/requests';
+    $r = http_fetch($endpoint, [
+      'method'  => 'POST',
+      'headers' => ['Authorization: Bearer ' . $otok, 'Content-Type: application/json'],
+      'body'    => json_encode(['outboundSMSMessageRequest' => $req], JSON_UNESCAPED_UNICODE),
+    ]);
+    $ok = $r['status'] >= 200 && $r['status'] < 300;
+    if (!$ok) error_log('[chapci] Orange SMS échec (' . ($r['status'] ?? '?') . ') : ' . substr((string) ($r['body'] ?? ''), 0, 300));
     return $ok;
   }
   if ($provider === 'http') {

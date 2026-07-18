@@ -93,24 +93,31 @@ return [
   'google_client_id' => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
 
   // --- Connexion par téléphone (code SMS) ----------------------------------
-  // provider : 'twilio', 'http' ou '' (désactivé).
-  //   • 'twilio' : renseignez twilio_sid / twilio_token / twilio_from.
-  //   • 'http'   : passerelle SMS générique (opérateur local). http_url est une
-  //                URL avec les jetons {to}, {text}, {sender}. Ex. :
-  //                'https://api.mon-sms.ci/send?to={to}&msg={text}&from={sender}'
-  //                http_auth = valeur de l'en-tête Authorization (ex. 'Bearer XXX').
+  // provider : 'orange', 'twilio', 'http' ou '' (désactivé).
+  //   • 'orange' : API Orange SMS — RECOMMANDÉ pour la Côte d'Ivoire (livraison
+  //                locale immédiate, self-service ~10 min sur developer.orange.com).
+  //                Renseignez orange_auth (en-tête « Basic … » fourni par Orange),
+  //                orange_sender (adresse expéditeur, ex. 'tel:+2250000') et
+  //                éventuellement orange_name (nom affiché, 11 car. max).
+  //   • 'twilio' : renseignez twilio_sid / twilio_token / twilio_from. ⚠️ Pour la
+  //                CI, le Sender ID doit être pré-enregistré (~3 semaines).
+  //   • 'http'   : passerelle SMS générique. http_url avec les jetons {to}, {text},
+  //                {sender}. http_auth = en-tête Authorization (ex. 'Bearer XXX').
   // debug : true (CHAPCI_SMS_DEBUG=1) renvoie le code dans la réponse — PRATIQUE
   //   POUR TESTER SANS SMS. ⚠️ REMETTEZ debug=false / provider réel en production.
   'sms' => [
-    'provider'     => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
-    'debug'        => (getenv('CHAPCI_SMS_DEBUG')       ?: '') === '1',
-    'twilio_sid'   => getenv('CHAPCI_TWILIO_SID')       ?: '',
-    'twilio_token' => getenv('CHAPCI_TWILIO_TOKEN')     ?: '',
-    'twilio_from'  => getenv('CHAPCI_TWILIO_FROM')      ?: '', // n° ou Messaging Service SID
-    'http_method'  => getenv('CHAPCI_SMS_HTTP_METHOD')  ?: 'GET',
-    'http_url'     => getenv('CHAPCI_SMS_HTTP_URL')     ?: '',
-    'http_auth'    => getenv('CHAPCI_SMS_HTTP_AUTH')    ?: '',
-    'sender'       => getenv('CHAPCI_SMS_SENDER')       ?: 'Chap.ci',
+    'provider'      => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
+    'debug'         => (getenv('CHAPCI_SMS_DEBUG')       ?: '') === '1',
+    'twilio_sid'    => getenv('CHAPCI_TWILIO_SID')       ?: '',
+    'twilio_token'  => getenv('CHAPCI_TWILIO_TOKEN')     ?: '',
+    'twilio_from'   => getenv('CHAPCI_TWILIO_FROM')      ?: '', // n° ou Messaging Service SID
+    'orange_auth'   => getenv('CHAPCI_ORANGE_AUTH')      ?: '', // en-tête « Basic … » d'Orange Developer
+    'orange_sender' => getenv('CHAPCI_ORANGE_SENDER')    ?: '', // ex. 'tel:+2250000' (fourni par Orange)
+    'orange_name'   => getenv('CHAPCI_ORANGE_NAME')      ?: '', // nom affiché (facultatif, 11 car.)
+    'http_method'   => getenv('CHAPCI_SMS_HTTP_METHOD')  ?: 'GET',
+    'http_url'      => getenv('CHAPCI_SMS_HTTP_URL')     ?: '',
+    'http_auth'     => getenv('CHAPCI_SMS_HTTP_AUTH')    ?: '',
+    'sender'        => getenv('CHAPCI_SMS_SENDER')       ?: 'Chap.ci',
   ],
 
   // Dossier des photos (au niveau racine du site, servi directement en HTTP).
