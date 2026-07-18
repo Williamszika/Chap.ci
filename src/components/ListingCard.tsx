@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
 import type { Listing } from '../types'
 import { formatFCFA } from '../lib/format'
+import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { locationLabel } from '../data/locations'
 import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
@@ -24,6 +25,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const near = distance != null && distance < 500
   const isFree = listing.price === 0
   const promo = activePromo(listing)
+  // Image de secours si l'annonce n'a pas de photo (données importées/seed) ou si
+  // l'URL est cassée : évite l'icône « image brisée » du navigateur.
+  const fallbackImg = placeholderImage(listing.id, emojiFor(listing.categoryId, listing.subcategory), listing.subcategory)
 
   return (
     <Link
@@ -32,9 +36,14 @@ export function ListingCard({ listing }: { listing: Listing }) {
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <img
-          src={listing.images[0]}
+          src={listing.images[0] || fallbackImg}
           alt={listing.title}
+          loading="lazy"
           className="h-full w-full object-cover"
+          onError={(e) => {
+            const img = e.currentTarget
+            if (img.src !== fallbackImg) img.src = fallbackImg
+          }}
         />
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
           {promo && <PromoTag percent={promo.percent} height={20} />}

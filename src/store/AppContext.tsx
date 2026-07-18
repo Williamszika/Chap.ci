@@ -229,20 +229,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFavorites(next)
   }, [user])
 
-  // Favoris rattachés au COMPTE (P14) : à la connexion (PHP) on REMPLACE la liste
-  // locale par celle du serveur ; à la déconnexion on la vide — pour ne pas
-  // exposer les favoris d'un compte à l'utilisateur suivant sur le même appareil.
+  // Favoris rattachés au COMPTE (P14) — uniquement en mode PHP. En mode Supabase,
+  // les favoris restent LOCAUX à l'appareil : on n'y touche ni à la connexion ni à
+  // la déconnexion (sinon se déconnecter effacerait les favoris de l'appareil).
   const prevUidRef = useRef<string | null | undefined>(undefined)
   useEffect(() => {
+    if (!isPhp) return
     const uid = user?.id ?? null
     const prev = prevUidRef.current
     prevUidRef.current = uid
-    if (isPhp && uid) {
+    if (uid) {
       let alive = true
-      phpGetFavorites().then((ids) => { if (alive) { setFavorites(ids); favoritesRef.current = ids } }).catch(() => {})
+      // Connexion depuis un état anonyme : on FUSIONNE les favoris ajoutés hors
+      // connexion avec ceux du compte (au lieu de les écraser) et on pousse les
+      // nouveaux vers le serveur. Changement de compte (prev défini) : on remplace.
+      const localAnon = prev ? [] : [...favoritesRef.current]
+      phpGetFavorites()
+        .then((serverIds) => {
+          if (!alive) return
+          const merged = Array.from(new Set([...localAnon, ...serverIds]))
+          setFavorites(merged); favoritesRef.current = merged
+          localAnon.filter((id) => !serverIds.includes(id)).forEach((id) => phpAddFavorite(id))
+        })
+        .catch(() => {})
       return () => { alive = false }
     }
-    // Vraie déconnexion (on avait un compte, maintenant plus) : on vide.
+    // Vraie déconnexion (on avait un compte, maintenant plus) : on vide, pour ne pas
+    // exposer les favoris d'un compte à l'utilisateur suivant sur le même appareil.
     if (prev) { setFavorites([]); favoritesRef.current = [] }
   }, [user])
 

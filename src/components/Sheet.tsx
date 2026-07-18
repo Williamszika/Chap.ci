@@ -12,6 +12,14 @@ interface SheetProps {
 export function Sheet({ open, onClose, title, children }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  // `onClose` est presque toujours une fonction fléchée inline (identité qui change
+  // à chaque rendu du parent). On la garde dans un ref pour NE PAS relancer l'effet
+  // de focus ci-dessous à chaque re-render — sinon le focus saute sur le bouton « X »
+  // en pleine saisie (ex. champ « Prix min » d'un filtre).
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
   // Montage différé : on garde la feuille montée le temps de jouer l'animation
   // de SORTIE (transition interruptible) avant de la démonter.
   const [render, setRender] = useState(open)
@@ -57,7 +65,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key === 'Tab') {
@@ -83,7 +91,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
       document.body.style.overflow = ''
       prevActive?.focus?.()
     }
-  }, [open, render, onClose])
+  }, [open, render])
 
   if (!render) return null
 

@@ -202,15 +202,34 @@ function now_iso(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
 /** IP réelle du visiteur (tient compte de Cloudflare / proxys). */
 /** Vrai si $ip (IPv4) appartient à une plage Cloudflare (liste publique stable). */
 function ip_in_cloudflare(string $ip): bool {
-  static $ranges = ['173.245.48.0/20','103.21.244.0/22','103.22.200.0/22','103.31.4.0/22',
+  static $ranges = [
+    // IPv4 (https://www.cloudflare.com/ips-v4)
+    '173.245.48.0/20','103.21.244.0/22','103.22.200.0/22','103.31.4.0/22',
     '141.101.64.0/18','108.162.192.0/18','190.93.240.0/20','188.114.96.0/20','197.234.240.0/22',
-    '198.41.128.0/17','162.158.0.0/15','104.16.0.0/13','104.24.0.0/14','172.64.0.0/13','131.0.72.0/22'];
-  $ipL = ip2long($ip);
-  if ($ipL === false) return false;
+    '198.41.128.0/17','162.158.0.0/15','104.16.0.0/13','104.24.0.0/14','172.64.0.0/13','131.0.72.0/22',
+    // IPv6 (https://www.cloudflare.com/ips-v6) — sinon un visiteur IPv6 derrière
+    // Cloudflare n'était pas reconnu → CF-Connecting-IP ignoré → rate-limiting
+    // regroupé à tort sur quelques IP edge partagées.
+    '2400:cb00::/32','2606:4700::/32','2803:f800::/32','2405:b500::/32',
+    '2405:8100::/32','2a06:98c0::/29','2c0f:f248::/32',
+  ];
+  // Comparaison CIDR binaire générique (IPv4 = 4 octets, IPv6 = 16 octets).
+  $bin = @inet_pton($ip);
+  if ($bin === false) return false;
+  $len = strlen($bin);
   foreach ($ranges as $r) {
     [$net, $bits] = explode('/', $r);
-    $mask = -1 << (32 - (int) $bits);
-    if ((($ipL & $mask) & 0xFFFFFFFF) === ((ip2long($net) & $mask) & 0xFFFFFFFF)) return true;
+    $netBin = @inet_pton($net);
+    if ($netBin === false || strlen($netBin) !== $len) continue; // familles d'IP différentes
+    $bits  = (int) $bits;
+    $bytes = intdiv($bits, 8);
+    $rem   = $bits % 8;
+    if ($bytes > 0 && substr($bin, 0, $bytes) !== substr($netBin, 0, $bytes)) continue;
+    if ($rem !== 0) {
+      $maskByte = chr((0xFF << (8 - $rem)) & 0xFF);
+      if ((substr($bin, $bytes, 1) & $maskByte) !== (substr($netBin, $bytes, 1) & $maskByte)) continue;
+    }
+    return true;
   }
   return false;
 }
@@ -1496,6 +1515,13 @@ function export_all(PDO $pdo): array {
     try { $data[$t] = $pdo->query("SELECT * FROM $t")->fetchAll(PDO::FETCH_ASSOC); }
     catch (Throwable $e) { $data[$t] = []; /* table absente : on ignore */ }
   }
+  // Sécurité : on n'exporte JAMAIS les empreintes de mots de passe. Une
+  // sauvegarde (téléchargeable par un admin/modérateur, ou posée sur le disque)
+  // ne doit pas permettre de casser hors-ligne les mots de passe des comptes.
+  if (!empty($data['users'])) {
+    foreach ($data['users'] as &$row) { unset($row['password_hash']); }
+    unset($row);
+  }
   $counts = [];
   foreach ($data as $t => $rows) $counts[$t] = count($rows);
   return ['app' => 'chap.ci', 'version' => 1, 'generated_at' => now_iso(), 'counts' => $counts, 'tables' => $data];
@@ -1672,7 +1698,15 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
   // (script / gestionnaires d'événements / références externes). Raster :
   // vérifier avec getimagesizefromstring et déduire l'extension du type réel.
   if (str_contains($mime, 'svg')) {
-    if (preg_match('/<script|<foreignobject|<iframe|javascript:|\son\w+\s*=|href\s*=\s*["\']?\s*https?:/i', $bin)) return null;
+    // Refuse tout contenu ACTIF ou référence externe/embarquée. Le simple
+    // « espace avant on… » d'avant était contournable (<svg/onload=…>) : on
+    // bloque désormais les gestionnaires d'événements quel que soit le séparateur,
+    // les éléments dangereux (script, use, set, animate, image, a, iframe…) et les
+    // URLs javascript/data dans href/xlink:href.
+    if (preg_match('/<\s*(script|foreignobject|iframe|use|set|animate|animatetransform|animatemotion|image|a)\b/i', $bin)
+        || preg_match('/\bon[a-z][a-z0-9_-]*\s*=/i', $bin)
+        || preg_match('/(?:javascript|vbscript)\s*:/i', $bin)
+        || preg_match('/(?:xlink:)?href\s*=\s*["\']?\s*(?:https?|data|javascript)\s*:/i', $bin)) return null;
     $ext = 'svg';
   } else {
     $info = @getimagesizefromstring($bin);
@@ -3424,7 +3458,18 @@ try {
     $key = (string) ($b['key'] ?? ($_GET['key'] ?? ''));
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $key)) jerr('Clé invalide.', 403);
     $admins = array_values($config['admin_emails'] ?? []);
-    if (!empty($b['to']) && filter_var($b['to'], FILTER_VALIDATE_EMAIL)) $admins = [$b['to']];
+    // Destinataires AUTORISÉS = admins + destinataires de rapport configurés.
+    $allowed = array_values(array_unique(array_merge($admins, report_recipients($config))));
+    // Sécurité : un `to` explicite doit faire partie des destinataires autorisés.
+    // On n'envoie JAMAIS vers une adresse arbitraire — sinon la clé cron (connue
+    // des admins/modérateurs) permettrait d'expédier du HTML « from chap.ci » à
+    // n'importe quelle adresse (phishing crédible).
+    if (!empty($b['to']) && filter_var($b['to'], FILTER_VALIDATE_EMAIL)
+        && in_array(strtolower((string) $b['to']), array_map('strtolower', $allowed), true)) {
+      $admins = [(string) $b['to']];
+    } elseif (!$admins) {
+      $admins = $allowed; // repli : les destinataires de rapport configurés
+    }
     if (!$admins) jerr('Aucun destinataire administrateur configuré.', 400);
     $subject  = trim((string) ($b['subject'] ?? '')) ?: 'Rapport de sourcing — Chap.ci';
     $html     = (string) ($b['html'] ?? '<p>Rapport de sourcing Chap.ci.</p>');

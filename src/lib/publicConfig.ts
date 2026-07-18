@@ -37,11 +37,15 @@ export async function loadPublicConfig(): Promise<PublicConfig> {
         facebookAppId: (d && d.facebookAppId) || BUILD_FACEBOOK,
         phoneAuth: !!(d && d.phoneAuth),
       }
+      inflight = null
       return cache
     })
     .catch(() => {
-      cache = fallback
-      return cache
+      // Échec réseau : on NE met PAS le fallback en cache (sinon il resterait figé
+      // toute la session — les boutons Google/téléphone pourraient disparaître même
+      // après reconnexion). On libère inflight pour ré-essayer au prochain appel.
+      inflight = null
+      return fallback
     })
   return inflight
 }
