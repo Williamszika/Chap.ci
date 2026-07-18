@@ -1,7 +1,6 @@
 // =============================================================================
-//  Client du backend PHP/MySQL auto-hébergé (server/) — activé si VITE_BACKEND=php
-//  Reproduit les mêmes signatures que les libs Supabase pour un remplacement
-//  transparent (annonces, messagerie, commandes, avis, profils, comptes).
+//  Client du backend PHP auto-hébergé (server/) — base TPE Cloud. Unique backend
+//  du site (annonces, messagerie, commandes, avis, profils, comptes).
 // =============================================================================
 import type { Conversation, Listing, Message, Order, Review } from '../types'
 import type { NewListingInput } from '../store/AppContext'

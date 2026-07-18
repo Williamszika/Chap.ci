@@ -6,12 +6,19 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import type { User } from '@supabase/supabase-js'
-import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
-import { isPhp } from '../lib/backend'
 import * as php from '../lib/php'
 
-const NOT_PHP = { error: 'Indisponible en auto-hébergé (utilisez email + mot de passe).' }
+/**
+ * Utilisateur connecté. Le site est 100 % auto-hébergé sur la base TPE Cloud
+ * (backend PHP `server/`), unique backend du site.
+ */
+export interface User {
+  id: string
+  email: string
+  user_metadata?: { full_name?: string | null; avatar_url?: string | null }
+}
+
+const NOT_AVAILABLE = { error: 'Cette fonction n’est pas disponible sur ce site.' }
 
 interface AuthResult {
   error?: string
@@ -61,6 +68,7 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null)
 
+/** Traduit en français les messages d'erreur techniques éventuels. */
 function frError(message?: string): string {
   if (!message) return 'Une erreur est survenue.'
   const m = message.toLowerCase()
@@ -81,256 +89,127 @@ function frError(message?: string): string {
   return message
 }
 
-const redirectTo = () => window.location.origin + (import.meta.env.BASE_URL || '/')
-
-async function checkMfaRequired(): Promise<boolean> {
-  if (!supabase) return false
-  try {
-    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-    return !!data && data.nextLevel === 'aal2' && data.currentLevel !== 'aal2'
-  } catch {
-    return false
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState<boolean>(isPhp || isSupabaseConfigured)
-  const [recovery, setRecovery] = useState(false)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [recovery] = useState(false)
 
   useEffect(() => {
-    if (isPhp) {
-      setUser((php.phpGetStoredUser() as unknown as User) ?? null)
-      php.phpMe().then((u) => setUser((u as unknown as User) ?? null)).finally(() => setLoading(false))
-      return
-    }
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null)
-      setLoading(false)
-    })
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
-      // L'utilisateur a cliqué sur le lien « mot de passe oublié » reçu par email.
-      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
-    })
-    return () => sub.subscription.unsubscribe()
+    // Affichage instantané depuis le cache, puis confirmation par le serveur
+    // (session portée par le cookie HttpOnly).
+    setUser(php.phpGetStoredUser() ?? null)
+    php.phpMe().then((u) => setUser(u ?? null)).finally(() => setLoading(false))
   }, [])
 
   const signUp = useCallback(async (email: string, password: string, fullName: string): Promise<AuthResult> => {
-    if (isPhp) {
-      try {
-        const u = await php.phpSignup(email, password, fullName)
-        setUser(u as unknown as User)
-        return { userId: u.id }
-      } catch (e) {
-        return { error: frError((e as Error).message) }
-      }
+    try {
+      const u = await php.phpSignup(email, password, fullName)
+      setUser(u)
+      return { userId: u.id }
+    } catch (e) {
+      return { error: frError((e as Error).message) }
     }
-    if (!supabase) return { error: 'Comptes indisponibles (Supabase non configuré).' }
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName }, emailRedirectTo: redirectTo() },
-    })
-    if (error) return { error: frError(error.message) }
-    if (!data.session) return { needsConfirmation: true, userId: data.user?.id }
-    return { userId: data.user?.id }
   }, [])
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
-    if (isPhp) {
-      try {
-        const u = await php.phpLogin(email, password)
-        setUser(u as unknown as User)
-        return {}
-      } catch (e) {
-        return { error: frError((e as Error).message) }
-      }
+    try {
+      const u = await php.phpLogin(email, password)
+      setUser(u)
+      return {}
+    } catch (e) {
+      return { error: frError((e as Error).message) }
     }
-    if (!supabase) return { error: 'Comptes indisponibles (Supabase non configuré).' }
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: frError(error.message) }
-    if (await checkMfaRequired()) return { mfaRequired: true }
-    return {}
   }, [])
 
-  const signInWithProvider = useCallback(async (provider: OAuthProvider): Promise<AuthResult> => {
-    if (isPhp) return NOT_PHP
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: redirectTo() },
-    })
-    if (error) return { error: frError(error.message) }
-    return {} // redirection en cours
-  }, [])
+  // Connexion OAuth par redirection : non disponible (on utilise Google/Facebook
+  // par jeton, ci-dessous).
+  const signInWithProvider = useCallback(async (_provider: OAuthProvider): Promise<AuthResult> => NOT_AVAILABLE, [])
 
   const signInWithGoogleCredential = useCallback(async (credential: string): Promise<AuthResult> => {
-    if (isPhp) {
-      try {
-        const u = await php.phpGoogleLogin(credential)
-        setUser(u as unknown as User)
-        return { userId: u.id }
-      } catch (e) {
-        return { error: frError((e as Error).message) }
-      }
+    try {
+      const u = await php.phpGoogleLogin(credential)
+      setUser(u)
+      return { userId: u.id }
+    } catch (e) {
+      return { error: frError((e as Error).message) }
     }
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: credential })
-    if (error) return { error: frError(error.message) }
-    if (await checkMfaRequired()) return { mfaRequired: true }
-    return { userId: data.user?.id }
   }, [])
 
   const signInWithFacebookToken = useCallback(async (accessToken: string): Promise<AuthResult> => {
-    if (isPhp) {
-      try {
-        const u = await php.phpFacebookLogin(accessToken)
-        setUser(u as unknown as User)
-        return { userId: u.id }
-      } catch (e) {
-        return { error: frError((e as Error).message) }
-      }
+    try {
+      const u = await php.phpFacebookLogin(accessToken)
+      setUser(u)
+      return { userId: u.id }
+    } catch (e) {
+      return { error: frError((e as Error).message) }
     }
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'facebook', token: accessToken })
-    if (error) return { error: frError(error.message) }
-    if (await checkMfaRequired()) return { mfaRequired: true }
-    return { userId: data.user?.id }
   }, [])
 
   const sendPhoneCode = useCallback(async (phone: string): Promise<AuthResult> => {
-    if (isPhp) {
-      try {
-        const r = await php.phpPhoneStart(phone)
-        return { debugCode: r.debugCode }
-      } catch (e) {
-        return { error: frError((e as Error).message) }
-      }
+    try {
+      const r = await php.phpPhoneStart(phone)
+      return { debugCode: r.debugCode }
+    } catch (e) {
+      return { error: frError((e as Error).message) }
     }
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { error } = await supabase.auth.signInWithOtp({ phone })
-    if (error) return { error: frError(error.message) }
-    return {}
   }, [])
 
   const verifyPhoneCode = useCallback(
     async (phone: string, token: string, fullName?: string): Promise<AuthResult> => {
-      if (isPhp) {
-        try {
-          const u = await php.phpPhoneVerify(phone, token, fullName)
-          setUser(u as unknown as User)
-          return { userId: u.id }
-        } catch (e) {
-          return { error: frError((e as Error).message) }
-        }
+      try {
+        const u = await php.phpPhoneVerify(phone, token, fullName)
+        setUser(u)
+        return { userId: u.id }
+      } catch (e) {
+        return { error: frError((e as Error).message) }
       }
-      if (!supabase) return { error: 'Comptes indisponibles.' }
-      const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
-      if (error) return { error: frError(error.message) }
-      if (fullName && fullName.trim()) {
-        await supabase.auth.updateUser({ data: { full_name: fullName.trim() } })
-      }
-      if (await checkMfaRequired()) return { mfaRequired: true, userId: data.user?.id }
-      return { userId: data.user?.id }
     },
     [],
   )
 
-  const verifyLoginMfa = useCallback(async (code: string): Promise<AuthResult> => {
-    if (isPhp) return {}
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { data: factors, error: e0 } = await supabase.auth.mfa.listFactors()
-    if (e0) return { error: frError(e0.message) }
-    const totp = factors?.totp?.[0]
-    if (!totp) return { error: 'Aucun facteur 2FA trouvé.' }
-    const { data: ch, error: e1 } = await supabase.auth.mfa.challenge({ factorId: totp.id })
-    if (e1 || !ch) return { error: frError(e1?.message) }
-    const { error: e2 } = await supabase.auth.mfa.verify({ factorId: totp.id, challengeId: ch.id, code })
-    if (e2) return { error: frError(e2.message) }
-    return {}
-  }, [])
+  // Pas de 2FA sur le backend auto-hébergé : la connexion est directe.
+  const verifyLoginMfa = useCallback(async (_code: string): Promise<AuthResult> => ({}), [])
 
   const signOut = useCallback(async () => {
-    if (isPhp) { await php.phpSignOut(); setUser(null); return }
-    if (!supabase) return
-    await supabase.auth.signOut()
+    await php.phpSignOut()
     setUser(null)
   }, [])
 
-  const sendPasswordReset = useCallback(async (email: string): Promise<AuthResult> => {
-    if (isPhp) return { error: 'La réinitialisation par email n’est pas disponible en auto-hébergé. Contactez le support du site.' }
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() })
-    if (error) return { error: frError(error.message) }
-    return {}
-  }, [])
+  const sendPasswordReset = useCallback(async (_email: string): Promise<AuthResult> => ({
+    error: 'La réinitialisation par email n’est pas disponible sur ce site. Contactez le support à contact@chap.ci.',
+  }), [])
 
   const updatePassword = useCallback(async (newPassword: string, currentPassword?: string): Promise<AuthResult> => {
-    if (isPhp) {
-      try { await php.phpUpdatePassword(newPassword, currentPassword); return {} } catch (e) { return { error: frError((e as Error).message) } }
+    try {
+      await php.phpUpdatePassword(newPassword, currentPassword)
+      return {}
+    } catch (e) {
+      return { error: frError((e as Error).message) }
     }
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    if (error) return { error: frError(error.message) }
-    return {}
   }, [])
 
-  const clearRecovery = useCallback(() => setRecovery(false), [])
+  const clearRecovery = useCallback(() => {}, [])
 
   const deleteAccount = useCallback(async (password = ''): Promise<AuthResult> => {
-    if (isPhp) {
-      try { await php.phpDeleteAccount(password); setUser(null); return {} } catch (e) { return { error: frError((e as Error).message) } }
+    try {
+      await php.phpDeleteAccount(password)
+      setUser(null)
+      return {}
+    } catch (e) {
+      return { error: frError((e as Error).message) }
     }
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { error } = await supabase.rpc('delete_my_account')
-    if (error) return { error: frError(error.message) }
-    await supabase.auth.signOut()
-    setUser(null)
-    return {}
   }, [])
 
-  // — 2FA (TOTP) —
-  const enrollTotp = useCallback(async (): Promise<EnrollResult> => {
-    if (isPhp) return NOT_PHP
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
-    if (error) return { error: frError(error.message) }
-    return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret }
-  }, [])
-
-  const activateTotp = useCallback(async (factorId: string, code: string): Promise<AuthResult> => {
-    if (isPhp) return NOT_PHP
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { data: ch, error: e1 } = await supabase.auth.mfa.challenge({ factorId })
-    if (e1 || !ch) return { error: frError(e1?.message) }
-    const { error: e2 } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code })
-    if (e2) return { error: frError(e2.message) }
-    return {}
-  }, [])
-
-  const listTotp = useCallback(async () => {
-    if (!supabase) return []
-    const { data } = await supabase.auth.mfa.listFactors()
-    return (data?.totp ?? []).map((f) => ({ id: f.id, status: f.status }))
-  }, [])
-
-  const unenrollTotp = useCallback(async (factorId: string): Promise<AuthResult> => {
-    if (isPhp) return NOT_PHP
-    if (!supabase) return { error: 'Comptes indisponibles.' }
-    const { error } = await supabase.auth.mfa.unenroll({ factorId })
-    if (error) return { error: frError(error.message) }
-    return {}
-  }, [])
+  // — 2FA (TOTP) : non disponible sur le backend auto-hébergé —
+  const enrollTotp = useCallback(async (): Promise<EnrollResult> => NOT_AVAILABLE, [])
+  const activateTotp = useCallback(async (_factorId: string, _code: string): Promise<AuthResult> => NOT_AVAILABLE, [])
+  const listTotp = useCallback(async () => [], [])
+  const unenrollTotp = useCallback(async (_factorId: string): Promise<AuthResult> => NOT_AVAILABLE, [])
 
   const value: AuthState = {
     user,
     loading,
-    enabled: isPhp || isSupabaseConfigured,
+    enabled: true,
     signUp,
     signIn,
     signInWithProvider,

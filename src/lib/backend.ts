@@ -1,4 +1,5 @@
-// Sélecteur de backend (défini au build via VITE_BACKEND).
-//  - 'php'      : backend PHP/MySQL auto-hébergé (dossier server/) — TPE Cloud.
-//  - sinon      : Supabase (par défaut).
-export const isPhp = import.meta.env.VITE_BACKEND === 'php'
+// Le site est 100 % auto-hébergé sur la base TPE Cloud (backend PHP `server/`).
+// Il n'y a plus qu'un seul backend : `isPhp` est donc toujours vrai. La constante
+// est conservée pour les nombreux appels `if (isPhp)` du code (fonctions serveur :
+// notifications, alertes, deals, suivi…).
+export const isPhp = true

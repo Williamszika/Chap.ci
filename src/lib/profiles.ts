@@ -1,5 +1,3 @@
-import { supabase } from './supabaseClient'
-import { isPhp } from './backend'
 import * as php from './php'
 
 export interface PublicProfile {
@@ -10,21 +8,7 @@ export interface PublicProfile {
 }
 
 export async function fetchProfile(id: string): Promise<PublicProfile | null> {
-  if (isPhp) return php.phpFetchProfile(id)
-  if (!supabase) return null
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, bio, avatar_url')
-    .eq('id', id)
-    .maybeSingle()
-  if (error || !data) return null
-  const p = data as { id: string; full_name: string | null; bio: string | null; avatar_url: string | null }
-  return {
-    id: p.id,
-    fullName: p.full_name || 'Vendeur',
-    bio: p.bio ?? undefined,
-    avatarUrl: p.avatar_url ?? undefined,
-  }
+  return php.phpFetchProfile(id)
 }
 
 export interface ProfileFields {
@@ -44,17 +28,11 @@ export interface ProfileFields {
   lng?: number | null
 }
 
-export async function updateMyProfile(id: string, fields: ProfileFields): Promise<void> {
-  if (isPhp) return php.phpUpdateProfile(fields)
-  if (!supabase) throw new Error('Supabase non configuré')
-  const { error } = await supabase.from('profiles').update(fields).eq('id', id)
-  if (error) throw error
+export async function updateMyProfile(_id: string, fields: ProfileFields): Promise<void> {
+  return php.phpUpdateProfile(fields)
 }
 
 /** Insère/met à jour le profil (upsert) — utile juste après l'inscription. */
-export async function upsertMyProfile(id: string, fields: ProfileFields): Promise<void> {
-  if (isPhp) return php.phpUpdateProfile(fields)
-  if (!supabase) throw new Error('Supabase non configuré')
-  const { error } = await supabase.from('profiles').upsert({ id, ...fields })
-  if (error) throw error
+export async function upsertMyProfile(_id: string, fields: ProfileFields): Promise<void> {
+  return php.phpUpdateProfile(fields)
 }

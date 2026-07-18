@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Mail, Lock, Phone, Loader2, ShieldCheck } from 'lucide-react'
 import { useAuth, type OAuthProvider } from '../store/AuthContext'
-import { isPhp } from '../lib/backend'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { FacebookSignInButton } from '../components/FacebookSignInButton'
 import { PHONE_LOGIN_ENABLED } from '../lib/features'
@@ -24,8 +23,8 @@ export function Login() {
   const cfg = usePublicConfig()
   const googleEnabled = !!cfg?.googleClientId
   const facebookEnabled = !!cfg?.facebookAppId
-  // Apple n'est disponible que via Supabase ; en auto-hébergé (PHP), on le masque.
-  const showApple = !isPhp
+  // Connexion Apple non disponible sur le backend auto-hébergé : on la masque.
+  const showApple = false
 
   const [method, setMethod] = useState<'email' | 'phone'>('email')
   const [email, setEmail] = useState('')

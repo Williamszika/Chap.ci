@@ -9,15 +9,14 @@ import {
   type ReactNode,
 } from 'react'
 import type { Listing } from '../types'
-import { isSupabaseConfigured } from '../lib/supabaseClient'
 import { isPhp } from '../lib/backend'
 import { recordInterest } from '../lib/interests'
 import { fetchListings, createListing, deleteListingRemote, updateListingRemote } from '../lib/api'
 import { phpGetFavorites, phpAddFavorite, phpRemoveFavorite } from '../lib/php'
 import { useAuth } from './AuthContext'
 
-/** true si un backend distant (Supabase ou PHP) est disponible. */
-const remoteEnabled = isPhp || isSupabaseConfigured
+/** Le backend distant (base TPE Cloud) est toujours disponible. */
+const remoteEnabled = isPhp
 
 const LS_LISTINGS = 'chapci.listings.v1'
 const LS_FAVORITES = 'chapci.favorites.v1'
@@ -26,7 +25,7 @@ const LS_MYIDS = 'chapci.myids.v1'
 /** Données nécessaires pour créer une annonce (l'id et la date sont générés). */
 export type NewListingInput = Omit<Listing, 'id' | 'createdAt' | 'currency'>
 
-type Mode = 'supabase' | 'local'
+type Mode = 'remote' | 'local'
 
 interface AppState {
   listings: Listing[]
@@ -94,11 +93,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const data = await fetchListings()
       setRemoteListings(data)
-      setMode('supabase'); modeRef.current = 'supabase'
-      return 'supabase'
+      setMode('remote'); modeRef.current = 'remote'
+      return 'remote'
     } catch (e) {
-      // Table absente ou hors-ligne : on bascule en mode local (démo + appareil)
-      console.warn('Supabase indisponible, mode local activé.', e)
+      // Serveur injoignable : on bascule en mode local (annonces de l'appareil).
+      console.warn('Backend distant indisponible, mode local activé.', e)
       setMode('local'); modeRef.current = 'local'
       return 'local'
     } finally {
@@ -114,7 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Uniquement les VRAIES annonces : en mode backend, les annonces partagées
     // (+ celles créées localement avant l'activation du backend). Plus aucune
     // annonce de démonstration — le site n'affiche que des données réelles.
-    const base = mode === 'supabase' ? [...remoteListings, ...userListings] : userListings
+    const base = mode === 'remote' ? [...remoteListings, ...userListings] : userListings
     // Dédoublonnage par id (sécurité)
     const seen = new Set<string>()
     const unique = base.filter((l) => (seen.has(l.id) ? false : seen.add(l.id)))
@@ -130,7 +129,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (remoteEnabled && loadingRef.current) {
         effectiveMode = await refresh()
       }
-      if (effectiveMode === 'supabase') {
+      if (effectiveMode === 'remote') {
         // Le backend est joignable : l'annonce DOIT être enregistrée côté
         // serveur (sinon elle n'apparaîtrait que sur cet appareil et jamais dans
         // le catalogue partagé / les emails). En cas d'échec on RELANCE l'erreur
@@ -156,10 +155,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateListing = useCallback(
     async (id: string, input: NewListingInput): Promise<Listing> => {
       const isLocal = id.startsWith('user-') || id.startsWith('seed-')
-      // Annonce partagée (backend PHP ou Supabase) : on met à jour côté serveur
+      // Annonce partagée (base TPE Cloud) : on met à jour côté serveur
       // PUIS on rafraîchit le cache local, sinon la page détail resterait sur
       // l'ancienne version.
-      if (mode === 'supabase' && !isLocal) {
+      if (mode === 'remote' && !isLocal) {
         const updated = await updateListingRemote(id, input)
         setRemoteListings((prev) => prev.map((l) => (l.id === id ? updated : l)))
         return updated
@@ -182,7 +181,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteListing = useCallback(
     async (id: string) => {
-      if (mode === 'supabase' && !id.startsWith('user-') && !id.startsWith('seed-')) {
+      if (mode === 'remote' && !id.startsWith('user-') && !id.startsWith('seed-')) {
         try {
           await deleteListingRemote(id)
           setRemoteListings((prev) => prev.filter((l) => l.id !== id))
@@ -229,12 +228,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setFavorites(next)
   }, [user])
 
-  // Favoris rattachés au COMPTE (P14) — uniquement en mode PHP. En mode Supabase,
-  // les favoris restent LOCAUX à l'appareil : on n'y touche ni à la connexion ni à
-  // la déconnexion (sinon se déconnecter effacerait les favoris de l'appareil).
+  // Favoris rattachés au COMPTE (P14) : à la connexion on fusionne les favoris
+  // anonymes de l'appareil avec ceux du compte ; à la déconnexion on les retire de
+  // l'appareil (pour ne pas les exposer à l'utilisateur suivant).
   const prevUidRef = useRef<string | null | undefined>(undefined)
   useEffect(() => {
-    if (!isPhp) return
     const uid = user?.id ?? null
     const prev = prevUidRef.current
     prevUidRef.current = uid

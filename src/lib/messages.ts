@@ -1,219 +1,52 @@
-import { supabase } from './supabaseClient'
-import { isPhp } from './backend'
 import * as php from './php'
 import type { Conversation, Message, Listing } from '../types'
-
-interface ConvRow {
-  id: string
-  listing_id: string | null
-  buyer_id: string
-  seller_id: string
-  created_at: string
-}
-interface MsgRow {
-  id: string
-  conversation_id: string
-  sender_id: string
-  body: string
-  created_at: string
-}
-
-const msgRowToMessage = (r: MsgRow): Message => ({
-  id: r.id,
-  conversationId: r.conversation_id,
-  senderId: r.sender_id,
-  body: r.body,
-  createdAt: new Date(r.created_at).getTime(),
-})
 
 /** Ouvre la conversation existante entre l'acheteur et le vendeur, ou la crée. */
 export async function getOrCreateConversation(
   listing: Listing,
-  buyerId: string,
+  _buyerId: string,
 ): Promise<string> {
   if (!listing.sellerId) throw new Error('Cette annonce n’a pas de compte vendeur.')
-  if (isPhp) return php.phpGetOrCreateConversation(listing.id, listing.sellerId)
-  if (!supabase) throw new Error('Supabase non configuré')
-
-  const { data: existing, error: e1 } = await supabase
-    .from('conversations')
-    .select('id')
-    .eq('listing_id', listing.id)
-    .eq('buyer_id', buyerId)
-    .maybeSingle()
-  if (e1) throw e1
-  if (existing) return (existing as { id: string }).id
-
-  const { data, error } = await supabase
-    .from('conversations')
-    .insert({ listing_id: listing.id, buyer_id: buyerId, seller_id: listing.sellerId })
-    .select('id')
-    .single()
-  if (error) throw error
-  return (data as { id: string }).id
+  return php.phpGetOrCreateConversation(listing.id, listing.sellerId)
 }
 
 /** Ouvre/crée une conversation à partir des identifiants bruts (pour le panier). */
 export async function getOrCreateConversationRaw(
   listingId: string,
   sellerId: string,
-  buyerId: string,
+  _buyerId: string,
 ): Promise<string> {
-  if (isPhp) return php.phpGetOrCreateConversation(listingId, sellerId)
-  if (!supabase) throw new Error('Supabase non configuré')
-  const { data: existing } = await supabase
-    .from('conversations')
-    .select('id')
-    .eq('listing_id', listingId)
-    .eq('buyer_id', buyerId)
-    .maybeSingle()
-  if (existing) return (existing as { id: string }).id
-  const { data, error } = await supabase
-    .from('conversations')
-    .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId })
-    .select('id')
-    .single()
-  if (error) throw error
-  return (data as { id: string }).id
+  return php.phpGetOrCreateConversation(listingId, sellerId)
 }
 
 /** Liste les conversations de l'utilisateur, enrichies (annonce, interlocuteur, dernier message). */
-export async function fetchConversations(userId: string): Promise<Conversation[]> {
-  if (isPhp) return php.phpFetchConversations()
-  if (!supabase) return []
-  const { data, error } = await supabase
-    .from('conversations')
-    .select('*')
-    .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  const convs = (data as ConvRow[]) ?? []
-  if (convs.length === 0) return []
-
-  const listingIds = [...new Set(convs.map((c) => c.listing_id).filter(Boolean) as string[])]
-  const otherIds = [
-    ...new Set(convs.map((c) => (c.buyer_id === userId ? c.seller_id : c.buyer_id))),
-  ]
-  const convIds = convs.map((c) => c.id)
-
-  const [listingsRes, profilesRes, msgsRes] = await Promise.all([
-    listingIds.length
-      ? supabase.from('listings').select('id,title,images').in('id', listingIds)
-      : Promise.resolve({ data: [] as { id: string; title: string; images: string[] }[] }),
-    otherIds.length
-      ? supabase.from('profiles').select('id,full_name').in('id', otherIds)
-      : Promise.resolve({ data: [] as { id: string; full_name: string | null }[] }),
-    supabase
-      .from('messages')
-      .select('conversation_id,body,created_at,sender_id')
-      .in('conversation_id', convIds)
-      .order('created_at', { ascending: true }),
-  ])
-
-  const listingsMap = new Map(
-    (listingsRes.data ?? []).map((l) => [l.id, l as { id: string; title: string; images: string[] }]),
-  )
-  const profilesMap = new Map(
-    (profilesRes.data ?? []).map((p) => [p.id, (p as { full_name: string | null }).full_name]),
-  )
-  const lastByConv = new Map<string, { body: string; created_at: string; sender_id: string }>()
-  for (const m of (msgsRes.data ?? []) as {
-    conversation_id: string
-    body: string
-    created_at: string
-    sender_id: string
-  }[]) {
-    lastByConv.set(m.conversation_id, { body: m.body, created_at: m.created_at, sender_id: m.sender_id })
-  }
-
-  return convs.map((c): Conversation => {
-    const otherId = c.buyer_id === userId ? c.seller_id : c.buyer_id
-    const listing = c.listing_id ? listingsMap.get(c.listing_id) : undefined
-    const last = lastByConv.get(c.id)
-    return {
-      id: c.id,
-      listingId: c.listing_id,
-      buyerId: c.buyer_id,
-      sellerId: c.seller_id,
-      createdAt: new Date(c.created_at).getTime(),
-      listingTitle: listing?.title,
-      listingImage: listing?.images?.[0],
-      otherName: profilesMap.get(otherId) || 'Utilisateur',
-      lastMessage: last?.body,
-      lastAt: last ? new Date(last.created_at).getTime() : new Date(c.created_at).getTime(),
-      lastSenderId: last?.sender_id,
-    }
-  })
+export async function fetchConversations(_userId: string): Promise<Conversation[]> {
+  return php.phpFetchConversations()
 }
 
 export async function fetchMessages(conversationId: string): Promise<Message[]> {
-  if (isPhp) return php.phpFetchMessages(conversationId)
-  if (!supabase) return []
-  const { data, error } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true })
-  if (error) throw error
-  return (data as MsgRow[]).map(msgRowToMessage)
+  return php.phpFetchMessages(conversationId)
 }
 
 export async function sendMessage(
   conversationId: string,
-  senderId: string,
+  _senderId: string,
   body: string,
 ): Promise<Message> {
-  if (isPhp) return php.phpSendMessage(conversationId, body)
-  if (!supabase) throw new Error('Supabase non configuré')
-  const { data, error } = await supabase
-    .from('messages')
-    .insert({ conversation_id: conversationId, sender_id: senderId, body })
-    .select()
-    .single()
-  if (error) throw error
-  return msgRowToMessage(data as MsgRow)
+  return php.phpSendMessage(conversationId, body)
 }
 
-/** Abonnement temps réel aux nouveaux messages d'une conversation. */
+/** Abonnement (par sondage) aux nouveaux messages d'une conversation. */
 export function subscribeMessages(
   conversationId: string,
   onInsert: (m: Message) => void,
 ): () => void {
-  if (isPhp) return php.phpPollMessages(conversationId, onInsert)
-  const client = supabase
-  if (!client) return () => {}
-  const channel = client
-    .channel(`messages:${conversationId}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
-      (payload) => onInsert(msgRowToMessage(payload.new as MsgRow)),
-    )
-    .subscribe()
-  return () => {
-    client.removeChannel(channel)
-  }
+  return php.phpPollMessages(conversationId, onInsert)
 }
 
-/**
- * Abonnement temps réel à TOUS les nouveaux messages visibles par l'utilisateur
- * (RLS limite aux conversations dont il est membre). Sert au badge « non lus ».
- */
+/** Abonnement (par sondage) à TOUS les nouveaux messages de l'utilisateur (badge « non lus »). */
 export function subscribeAllMessages(onInsert: (m: Message) => void): () => void {
-  if (isPhp) return php.phpPollAll(onInsert)
-  const client = supabase
-  if (!client) return () => {}
-  const channel = client
-    .channel('messages:all')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages' },
-      (payload) => onInsert(msgRowToMessage(payload.new as MsgRow)),
-    )
-    .subscribe()
-  return () => {
-    client.removeChannel(channel)
-  }
+  return php.phpPollAll(onInsert)
 }
 
 /** Récupère une conversation seule (pour la page de discussion). */
