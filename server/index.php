@@ -1297,10 +1297,26 @@ function send_digest(array $config, PDO $pdo, string $type): array {
   $html = digest_html($config, $rows, $type);
   $subject = $type === 'weekly' ? 'La sélection de la semaine ✨' : 'Les bonnes affaires du jour 🔥';
   $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
-  $subs = $pdo->query('SELECT email FROM newsletter')->fetchAll();
-  $sent = 0;
-  foreach ($subs as $s) { if (send_mail($config, $s['email'], $subject, $html, $from, $from)) $sent++; }
-  return ['sent' => $sent, 'listings' => count($rows), 'subscribers' => count($subs)];
+  // Envoi potentiellement long à l'échelle : on lève la limite de temps globale et
+  // on parcourt les abonnés PAR LOTS (borne la mémoire), en réarmant le budget à
+  // chaque envoi. Évite un timeout (500) qui n'enverrait qu'une partie des emails.
+  @set_time_limit(0);
+  $sent = 0; $total = 0; $offset = 0; $chunk = 200;
+  while (true) {
+    $st = $pdo->prepare('SELECT email FROM newsletter ORDER BY created_at ASC LIMIT ? OFFSET ?');
+    $st->bindValue(1, $chunk, PDO::PARAM_INT); $st->bindValue(2, $offset, PDO::PARAM_INT);
+    $st->execute();
+    $subs = $st->fetchAll();
+    if (!$subs) break;
+    foreach ($subs as $s) {
+      @set_time_limit(30); // réarme le budget à chaque envoi
+      $total++;
+      if (send_mail($config, $s['email'], $subject, $html, $from, $from)) $sent++;
+    }
+    if (count($subs) < $chunk) break;
+    $offset += $chunk;
+  }
+  return ['sent' => $sent, 'listings' => count($rows), 'subscribers' => $total];
 }
 /** Libellé français d'une catégorie (miroir de src/data/categories.ts) pour les emails. */
 function category_label(?string $id): string {
@@ -3289,8 +3305,10 @@ try {
     }
     $users = $pdo->query('SELECT DISTINCT ui.user_id AS id, u.email
       FROM user_interests ui JOIN users u ON u.id = ui.user_id')->fetchAll();
+    @set_time_limit(0); // envois potentiellement longs : pas de timeout à l'échelle
     $reached = 0; $emailed = 0;
     foreach ($users as $usr) {
+      @set_time_limit(30); // réarme le budget à chaque utilisateur
       $r = send_suggestions($config, $pdo, $usr);
       $reached++;
       if ($r['sent']) $emailed++;
@@ -3306,8 +3324,10 @@ try {
       jerr('Clé invalide.', 403);
     }
     $searches = $pdo->query('SELECT s.*, u.email FROM saved_searches s JOIN users u ON u.id = s.user_id')->fetchAll();
+    @set_time_limit(0); // envois potentiellement longs : pas de timeout à l'échelle
     $checked = 0; $emailed = 0; $matched = 0;
     foreach ($searches as $s) {
+      @set_time_limit(30); // réarme le budget à chaque alerte
       $checked++;
       $rows = search_matching_listings($pdo, (string) $s['params'], (string) ($s['last_notified_at'] ?? ''));
       if ($rows) {
