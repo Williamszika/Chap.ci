@@ -81,3 +81,41 @@ sont relayés.
 
 > Le scan sécurité/bugs des 5 h est **léger et ciblé** (code récent, `npm audit`,
 > secrets, endpoints). L'audit **profond** reste mensuel pour ne pas gaspiller.
+
+---
+
+## Protocole v2 — communiquer avec le serveur & résoudre en profondeur
+
+Les bureaux restent des **routines Claude** (l'intelligence). Mais ils ne doivent
+pas travailler « à l'aveugle » : ils **s'appuient sur les données réelles du
+serveur** et **remontent à la cause racine** au lieu de décrire des symptômes.
+
+### 1. Communiquer avec le serveur (données réelles)
+Chaque bureau ancre son analyse sur les endpoints serveur (clé cron requise) :
+
+```
+curl -sS "https://chap.ci/api/cron/stats?key=<CLE_CRON>&days=30"     # activité
+curl -sS "https://chap.ci/api/cron/security?key=<CLE_CRON>&days=7"   # sécurité
+```
+
+- `<CLE_CRON>` = la clé cron réelle (définie dans `config.php` du serveur).
+- Ces endpoints sont en **lecture seule** (aucun effet de bord).
+- Un bureau qui parle de « baisse de trafic » ou « pic d'échecs » **cite les
+  chiffres réels** tirés de là — jamais d'affirmation non sourcée.
+
+### 2. Résoudre en profondeur (cause racine, pas symptôme)
+Face à un problème, le bureau **ne s'arrête pas au symptôme** :
+1. Reproduit / confirme avec les données (serveur, logs, code).
+2. Remonte à la **cause racine** (dans le code, les données ou la config).
+3. Propose un **correctif concret et vérifiable** :
+   - Code → `fichier:ligne` + **Avant/Après**.
+   - Config/serveur → **étapes exactes** (cPanel, config.php…).
+   - Toujours dire **comment vérifier** que le correctif marche.
+
+### 3. La règle d'or reste absolue
+Le bureau **PROPOSE** (diagnostic profond + correctif prêt). **Le Patron ORDONNE.**
+Le **Bureau Développement EXÉCUTE** (en session interactive, avec test). Aucun
+bureau n'applique/commite/déploie de lui-même — même pour un « problème profond ».
+
+> Résumé : **données réelles → cause racine → correctif prêt → validation du
+> Patron → exécution par le Dev.**
