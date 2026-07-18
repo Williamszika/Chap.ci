@@ -26,6 +26,12 @@ const config: CapacitorConfig = {
     contentInset: 'always',
   },
   plugins: {
+    // Requêtes réseau via la couche native : l'app (capacitor://localhost) peut
+    // ainsi appeler https://chap.ci/api sans être bloquée par le CORS du navigateur,
+    // et les cookies de session sont gérés nativement.
+    CapacitorHttp: {
+      enabled: true,
+    },
     SplashScreen: {
       launchShowDuration: 1200,
       backgroundColor: '#FFFDF9',

@@ -8,7 +8,8 @@ import type { NewListingInput } from '../store/AppContext'
 import type { ProfileFields, PublicProfile } from './profiles'
 import type { CartItem } from '../types'
 
-const API = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/$/, '')
+import { apiBase } from './native'
+const API = apiBase() // absolue dans l'app native, relative sur le web
 const TOKEN_KEY = 'chapci.php.token'
 const UID_KEY = 'chapci.php.uid'
 const USER_KEY = 'chapci.php.user'

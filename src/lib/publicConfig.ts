@@ -5,6 +5,7 @@
 // =============================================================================
 import { useEffect, useState } from 'react'
 import { isPhp } from './backend'
+import { apiBase } from './native'
 
 export interface PublicConfig {
   googleClientId: string
@@ -12,7 +13,7 @@ export interface PublicConfig {
   phoneAuth: boolean
 }
 
-const API = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/$/, '')
+const API = apiBase() // absolue dans l'app native, relative sur le web
 // Valeur éventuelle fixée au build (utile hors PHP / pour forcer un ID).
 const BUILD_GOOGLE = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ''
 const BUILD_FACEBOOK = (import.meta.env.VITE_FACEBOOK_APP_ID as string) || ''

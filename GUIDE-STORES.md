@@ -14,12 +14,19 @@
 | Paquets natifs (`@capacitor/android`, `@capacitor/ios`) | ✅ installés |
 | Sources d'icône & splash (`assets/icon.png`, `assets/splash.png`) | ✅ fournies |
 | Écran de démarrage (SplashScreen) | ✅ configuré (fond crème) |
+| **Connexion de l'app native au serveur** | ✅ automatique (voir ci-dessous) |
 | **Politique de confidentialité** (obligatoire pour les 2 stores) | ✅ page en ligne |
 | PWA (manifeste, service worker, icônes) | ✅ déjà en place |
 
 **URL de la politique de confidentialité** (à coller dans les 2 stores) :
-`https://williamszika.github.io/Chap.ci/#/confidentialite`
-*(après achat du domaine : `https://chap.ci/#/confidentialite`)*
+`https://chap.ci/#/confidentialite`
+
+**Connexion au serveur (déjà géré dans le code)** : l'app native tourne depuis
+`capacitor://localhost`, elle ne peut donc pas utiliser d'URL relatives. Le code
+détecte l'app native (`src/lib/native.ts`) et appelle automatiquement
+`https://chap.ci/api` (et `https://chap.ci/imgly/` pour le détourage). Le plugin
+`CapacitorHttp` est activé pour que ces appels ne soient pas bloqués par le CORS.
+→ **Tu n'as rien à changer** : `npm run build` puis `npx cap sync` suffit.
 
 ---
 

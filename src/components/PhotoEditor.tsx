@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import Cropper, { type Area } from 'react-easy-crop'
+import { assetOrigin } from '../lib/native'
 import {
   X, Check, Crop as CropIcon, SlidersHorizontal, Sparkles, RotateCw, FlipHorizontal2,
   Wand2, Loader2, Palette, Scissors,
@@ -138,7 +139,7 @@ export function PhotoEditor({
         // Modèle IA hébergé sur chap.ci (dossier /imgly/) au lieu du CDN étranger
         // staticimgly.com, souvent injoignable depuis la Côte d'Ivoire (« connexion
         // instable »). Chargé depuis notre propre serveur = fiable.
-        publicPath: `${window.location.origin}${import.meta.env.BASE_URL}imgly/`,
+        publicPath: `${assetOrigin()}${import.meta.env.BASE_URL}imgly/`,
         // Exécution CPU : déterministe (pas de dépendance WebGPU) et wasm plus
         // léger (~12 Mo au lieu de ~23 Mo) — adapté aux téléphones.
         device: 'cpu',
