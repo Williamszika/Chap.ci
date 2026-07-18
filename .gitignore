@@ -42,3 +42,8 @@ server/backups/
 
 # Réglages locaux Claude Code (permissions machine, non partagés)
 .claude/settings.local.json
+
+# Clés de signature Android/iOS (à garder hors du dépôt !)
+*.jks
+*.keystore
+android/key.properties
