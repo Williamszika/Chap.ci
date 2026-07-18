@@ -39,3 +39,6 @@ server/backups/
 *.njsproj
 *.sln
 *.sw?
+
+# Réglages locaux Claude Code (permissions machine, non partagés)
+.claude/settings.local.json
