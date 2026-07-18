@@ -15,6 +15,7 @@ import { categories } from '../data/categories'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { Mark, Wordmark } from '../components/Logo'
 import { ListingCard } from '../components/ListingCard'
+import { ListingCardSkeleton } from '../components/ListingCardSkeleton'
 import { LocationSheet } from '../components/LocationSheet'
 import { Newsletter } from '../components/Newsletter'
 import { IndependenceBanner } from '../components/IndependenceBanner'
@@ -35,7 +36,7 @@ function norm(s: string): string {
 
 export function Home() {
   const navigate = useNavigate()
-  const { listings } = useApp()
+  const { listings, loading } = useApp()
   const [loc, setLoc] = useLocalStorage<LocationFilter>('chapci.loc.v1', {})
   const [locOpen, setLocOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -114,7 +115,7 @@ export function Home() {
       </div>
 
       {/* En-tête orange (bannière/héro sur desktop) */}
-      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-700 px-4 pb-5 pt-3 text-white md:mt-4 md:rounded-3xl md:px-10 md:pb-9 md:pt-8">
+      <header className="safe-top bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.22),transparent_62%),linear-gradient(to_bottom,#F77F00,#D95F00)] px-4 pb-5 pt-3 text-white md:mt-4 md:rounded-3xl md:px-10 md:pb-9 md:pt-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Mark size={38} variant="white" />
@@ -139,13 +140,18 @@ export function Home() {
           </div>
         </div>
 
-        {/* Titre « héro » — visible uniquement sur grand écran */}
-        <div className="hidden md:mt-6 md:block">
-          <h1 className="font-display text-3xl font-extrabold leading-tight txt-legible">
+        {/* Titre « héro » — grand sur desktop, accroche compacte sur mobile */}
+        <div className="mt-3 md:mt-6">
+          {/* Desktop : grand titre (sert de h1 sur grand écran) */}
+          <h1 className="hidden font-display text-3xl font-extrabold leading-tight txt-legible md:block">
             Achetez et vendez <span className="text-white/90">chap-chap</span> en Côte d’Ivoire 🇨🇮
           </h1>
-          <p className="mt-1.5 text-white txt-legible">
+          <p className="mt-1.5 hidden text-white txt-legible md:block">
             Des milliers d’annonces près de chez vous : voitures, téléphones, immobilier, mode, alimentation…
+          </p>
+          {/* Mobile : accroche courte et punchy (le h1 mobile reste le sr-only ci-dessus) */}
+          <p className="font-display text-[19px] font-extrabold leading-tight txt-legible md:hidden">
+            Achetez &amp; vendez <span className="text-white/90">chap-chap</span> 🇨🇮
           </p>
         </div>
 
@@ -220,12 +226,12 @@ export function Home() {
       {/* Catégories */}
       <section className="px-4 py-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900">Catégories</h2>
+          <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">Catégories</h2>
           <button
             onClick={() => navigate(`/explorer?${buildParams()}`)}
-            className="-mr-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600"
+            className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
           >
-            Tout voir
+            Tout voir <ChevronRight size={15} />
           </button>
         </div>
         {/* 8 catégories sur mobile (2 rangées) ; toutes (2 rangées de 7) sur grand écran. */}
@@ -234,10 +240,10 @@ export function Home() {
             <button
               key={cat.id}
               onClick={() => navigate(`/explorer?${buildParams({ cat: cat.id })}`)}
-              className={`flex flex-col items-center gap-1.5 ${i >= 8 ? 'hidden sm:flex' : ''}`}
+              className={`flex flex-col items-center gap-1.5 transition active:scale-95 ${i >= 8 ? 'hidden sm:flex' : ''}`}
             >
               <span
-                className={`grid h-14 w-14 place-items-center rounded-2xl md:h-16 md:w-16 ${cat.color}`}
+                className={`grid h-14 w-14 place-items-center rounded-2xl shadow-sm md:h-16 md:w-16 ${cat.color}`}
               >
                 <CategoryIcon name={cat.icon} size={24} />
               </span>
@@ -254,12 +260,12 @@ export function Home() {
         nearby.length > 0 && (
           <section className="pb-5">
             <div className="mb-3 flex items-center justify-between px-4">
-              <h2 className="text-base font-bold text-gray-900">📍 Près de vous</h2>
+              <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">📍 Près de vous</h2>
               <button
                 onClick={() => navigate(`/explorer?${buildParams({ tri: 'distance' })}`)}
-                className="-mr-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600"
+                className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
               >
-                Voir plus
+                Voir plus <ChevronRight size={15} />
               </button>
             </div>
             <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
@@ -315,7 +321,7 @@ export function Home() {
       {promos.length > 0 && (
         <section className="pb-5">
           <div className="mb-3 flex items-center justify-between px-4">
-            <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
+            <h2 className="flex items-center gap-2 font-display text-[17px] font-extrabold tracking-tight text-gray-900">
               🏷️ Bons plans
               <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">
                 Prix réduits
@@ -323,9 +329,9 @@ export function Home() {
             </h2>
             <button
               onClick={() => navigate(`/explorer?${buildParams({ promo: '1' })}`)}
-              className="text-sm font-semibold text-primary-600"
+              className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
             >
-              Voir tout
+              Voir tout <ChevronRight size={15} />
             </button>
           </div>
           <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
@@ -342,7 +348,7 @@ export function Home() {
       {featured.length > 0 && (
         <section className="pb-5">
           <div className="mb-3 flex items-center justify-between px-4">
-            <h2 className="text-base font-bold text-gray-900">🔥 À la une</h2>
+            <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">🔥 À la une</h2>
           </div>
           <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-1">
             {featured.map((l) => (
@@ -354,27 +360,29 @@ export function Home() {
         </section>
       )}
 
-      {/* Annonces récentes */}
-      <section className="px-4 pb-6">
+      {/* Annonces récentes — vitrine principale, séparée par une fine ligne */}
+      <section className="border-t border-gray-100 px-4 pb-6 pt-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900">Annonces récentes</h2>
+          <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">Annonces récentes</h2>
           <button
             onClick={() => navigate(`/explorer?${buildParams({ tri: 'recent' })}`)}
-            className="text-sm font-semibold text-primary-600"
+            className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
           >
-            Voir plus
+            Voir plus <ChevronRight size={15} />
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {recent.map((l, i) => (
-            <div
-              key={l.id}
-              className="animate-fadeup"
-              style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
-            >
-              <ListingCard listing={l} />
-            </div>
-          ))}
+          {loading && recent.length === 0
+            ? Array.from({ length: 6 }).map((_, i) => <ListingCardSkeleton key={i} />)
+            : recent.map((l, i) => (
+                <div
+                  key={l.id}
+                  className="animate-fadeup"
+                  style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
+                >
+                  <ListingCard listing={l} />
+                </div>
+              ))}
         </div>
       </section>
 
