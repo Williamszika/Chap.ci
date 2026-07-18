@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown, LocateFixed, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
+import { FacebookSignInButton } from '../components/FacebookSignInButton'
 import { usePublicConfig } from '../lib/publicConfig'
 import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
@@ -10,6 +11,7 @@ import { LocationSheet } from '../components/LocationSheet'
 import { Mark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
+import { PHONE_LOGIN_ENABLED } from '../lib/features'
 import { subscribeNewsletter } from '../lib/newsletter'
 import { getBestPosition, reverseGeocode } from '../lib/geo'
 import { locationLabel, resolveLocationByName } from '../data/locations'
@@ -18,8 +20,10 @@ import type { LocationFilter } from '../types'
 
 export function Register() {
   const navigate = useNavigate()
-  const { signUp, sendPhoneCode, verifyPhoneCode, signInWithGoogleCredential, enabled } = useAuth()
-  const googleEnabled = !!usePublicConfig()?.googleClientId
+  const { signUp, sendPhoneCode, verifyPhoneCode, signInWithGoogleCredential, signInWithFacebookToken, enabled } = useAuth()
+  const cfg = usePublicConfig()
+  const googleEnabled = !!cfg?.googleClientId
+  const facebookEnabled = !!cfg?.facebookAppId
   const { place } = useGeo()
 
   const [method, setMethod] = useState<'email' | 'phone'>('email')
@@ -129,6 +133,15 @@ export function Register() {
     navigate('/compte')
   }
 
+  async function handleFacebookSignup(accessToken: string) {
+    setError('')
+    setBusy(true)
+    const res = await signInWithFacebookToken(accessToken)
+    setBusy(false)
+    if (res.error) return setError(res.error)
+    navigate('/compte')
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -191,14 +204,19 @@ export function Register() {
         </p>
       )}
 
-      {/* Inscription rapide via Google (si configurée) */}
-      {googleEnabled && (
+      {/* Inscription rapide via Google / Facebook (si configurées) */}
+      {(googleEnabled || facebookEnabled) && (
         <div className="px-4 pt-5">
           <div className="flex flex-col items-center gap-2">
-            <GoogleSignInButton onCredential={handleGoogleSignup} text="signup_with" />
+            {googleEnabled && (
+              <GoogleSignInButton onCredential={handleGoogleSignup} text="signup_with" />
+            )}
+            {facebookEnabled && (
+              <FacebookSignInButton onToken={handleFacebookSignup} label="S’inscrire avec Facebook" />
+            )}
           </div>
           <p className="mt-2 text-center text-[11px] text-gray-400">
-            En continuant avec Google, vous acceptez nos{' '}
+            En continuant, vous acceptez nos{' '}
             <a href="#/conditions" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">Conditions</a>{' '}
             et la{' '}
             <a href="#/confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">Politique de confidentialité</a>.
@@ -280,6 +298,8 @@ export function Register() {
         {/* Méthode de compte */}
         <section className="space-y-3">
           <p className="text-sm font-bold text-gray-800">Créer le compte avec</p>
+          {/* Onglet Téléphone masqué tant que le SMS n'est pas activé (PHONE_LOGIN_ENABLED). */}
+          {PHONE_LOGIN_ENABLED && (
           <div className="flex rounded-xl bg-gray-100 p-1">
             <button type="button" onClick={() => { setMethod('email'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
               <Mail size={15} className="mr-1 inline" /> Email
@@ -288,6 +308,7 @@ export function Register() {
               <Phone size={15} className="mr-1 inline" /> Téléphone
             </button>
           </div>
+          )}
 
           {method === 'email' ? (
             <>

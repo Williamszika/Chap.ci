@@ -92,6 +92,14 @@ return [
   // Laissez vide pour masquer/désactiver le bouton « Continuer avec Google ».
   'google_client_id' => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
 
+  // --- Connexion Facebook -------------------------------------------------
+  //   developers.facebook.com → créez une app → produit « Facebook Login »
+  //   → Paramètres : ajoutez le domaine https://chap.ci (URI de redirection OAuth).
+  //   App ID = public, App Secret = SECRET (à garder ici uniquement).
+  // Laissez vide pour masquer/désactiver le bouton « Continuer avec Facebook ».
+  'facebook_app_id'     => getenv('CHAPCI_FACEBOOK_APP_ID')     ?: '',
+  'facebook_app_secret' => getenv('CHAPCI_FACEBOOK_APP_SECRET') ?: '',
+
   // --- Connexion par téléphone (code SMS) ----------------------------------
   // provider : 'orange', 'twilio', 'http' ou '' (désactivé).
   //   • 'orange' : API Orange SMS — RECOMMANDÉ pour la Côte d'Ivoire (livraison

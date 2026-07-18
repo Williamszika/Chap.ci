@@ -40,6 +40,8 @@ interface AuthState {
   signInWithProvider: (provider: OAuthProvider) => Promise<AuthResult>
   /** Connexion Google via un « credential » (jeton d'identité) de Google Identity Services. */
   signInWithGoogleCredential: (credential: string) => Promise<AuthResult>
+  /** Connexion Facebook via le jeton d'accès du SDK Facebook. */
+  signInWithFacebookToken: (accessToken: string) => Promise<AuthResult>
   sendPhoneCode: (phone: string) => Promise<AuthResult>
   verifyPhoneCode: (phone: string, token: string, fullName?: string) => Promise<AuthResult>
   verifyLoginMfa: (code: string) => Promise<AuthResult>
@@ -180,6 +182,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { userId: data.user?.id }
   }, [])
 
+  const signInWithFacebookToken = useCallback(async (accessToken: string): Promise<AuthResult> => {
+    if (isPhp) {
+      try {
+        const u = await php.phpFacebookLogin(accessToken)
+        setUser(u as unknown as User)
+        return { userId: u.id }
+      } catch (e) {
+        return { error: (e as Error).message }
+      }
+    }
+    if (!supabase) return { error: 'Comptes indisponibles.' }
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'facebook', token: accessToken })
+    if (error) return { error: frError(error.message) }
+    if (await checkMfaRequired()) return { mfaRequired: true }
+    return { userId: data.user?.id }
+  }, [])
+
   const sendPhoneCode = useCallback(async (phone: string): Promise<AuthResult> => {
     if (isPhp) {
       try {
@@ -312,6 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signInWithProvider,
     signInWithGoogleCredential,
+    signInWithFacebookToken,
     sendPhoneCode,
     verifyPhoneCode,
     verifyLoginMfa,

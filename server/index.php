@@ -41,6 +41,9 @@ $config += [
   'social'               => [],
   // Connexion Google (Sign-In) : ID client OAuth « Web ». Vide = désactivé.
   'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
+  // Connexion Facebook : App ID (public) + App Secret (secret). Vide = désactivé.
+  'facebook_app_id'      => getenv('CHAPCI_FACEBOOK_APP_ID')     ?: '',
+  'facebook_app_secret'  => getenv('CHAPCI_FACEBOOK_APP_SECRET') ?: '',
   // Filigrane « Chap.ci » au centre des photos d'annonce (1 = activé).
   'watermark'            => (getenv('CHAPCI_WATERMARK') ?: '1') === '1',
   // Connexion par téléphone (code SMS). provider : 'orange' | 'twilio' | 'http' | '' (off).
@@ -594,6 +597,29 @@ function google_verify_id_token(array $config, string $idToken): ?array {
   if ($ev !== true && $ev !== 'true' && $ev !== 1 && $ev !== '1') return null;
   if (empty($payload['email'])) return null;
   return $payload;
+}
+
+/**
+ * Vérifie un jeton d'accès Facebook et renvoie l'identité { id, name, email }.
+ * 1) /debug_token (avec le jeton d'application) : le jeton est-il valide ET émis
+ *    pour NOTRE application ? 2) /me : récupère le profil. null si invalide.
+ */
+function facebook_verify_token(array $config, string $accessToken): ?array {
+  $appId  = $config['facebook_app_id'] ?? '';
+  $secret = $config['facebook_app_secret'] ?? '';
+  if ($appId === '' || $secret === '' || $accessToken === '') return null;
+  $appToken = $appId . '|' . $secret; // app access token
+  $r = http_fetch('https://graph.facebook.com/debug_token?input_token=' . urlencode($accessToken)
+    . '&access_token=' . urlencode($appToken));
+  if (($r['status'] ?? 0) !== 200) return null;
+  $d = json_decode((string) ($r['body'] ?? ''), true);
+  $data = is_array($d) ? ($d['data'] ?? null) : null;
+  if (!is_array($data) || empty($data['is_valid']) || (string) ($data['app_id'] ?? '') !== (string) $appId) return null;
+  $p = http_fetch('https://graph.facebook.com/me?fields=id,name,email&access_token=' . urlencode($accessToken));
+  if (($p['status'] ?? 0) !== 200) return null;
+  $me = json_decode((string) ($p['body'] ?? ''), true);
+  if (!is_array($me) || empty($me['id'])) return null;
+  return $me; // { id, name, email? }
 }
 
 // ---- Base de données --------------------------------------------------------
@@ -1691,6 +1717,7 @@ try {
     $sms = $config['sms'] ?? [];
     jout([
       'googleClientId' => (string) ($config['google_client_id'] ?? ''),
+      'facebookAppId'  => (string) ($config['facebook_app_id'] ?? ''),
       'phoneAuth'      => (($sms['provider'] ?? '') !== '' || !empty($sms['debug'])),
     ]);
   }
@@ -1838,6 +1865,42 @@ try {
     }
     $token = mk_token($pdo, $u['id'], $u['email'], $secret);
     set_session_cookie($config, $token); // P3
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+  }
+
+  // Connexion / inscription via Facebook. Reçoit le jeton d'accès du SDK
+  // Facebook, le vérifie (débog + profil), puis ouvre la session.
+  if ($path === 'auth/facebook' && $method === 'POST') {
+    $b = body();
+    rate_limit($pdo, 'oauth', null, 30, 3600);
+    if (($config['facebook_app_id'] ?? '') === '' || ($config['facebook_app_secret'] ?? '') === '')
+      jerr('La connexion Facebook n’est pas encore activée sur le serveur.', 400);
+    $tok = (string) ($b['accessToken'] ?? $b['token'] ?? '');
+    if ($tok === '') jerr('Jeton Facebook manquant.');
+    $fb = facebook_verify_token($config, $tok);
+    if (!$fb) { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
+    $email = strtolower(trim((string) ($fb['email'] ?? '')));
+    $name  = trim((string) ($fb['name'] ?? ''));
+    // Facebook ne partage pas toujours l'email : on l'exige (comme Google) pour
+    // rattacher le compte de façon fiable.
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL))
+      jerr('Votre compte Facebook ne partage pas d’adresse email. Utilisez « Email » ou « Google ».', 400);
+    $st = $pdo->prepare('SELECT id,email,status FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+    if (!$u) {
+      $id = uuid();
+      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?)')
+          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'facebook']);
+      $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
+          ->execute([$id, $name, now_iso()]);
+      log_security_event($pdo, 'signup', $email, 'facebook');
+      send_welcome_email($config, $email, $name);
+      $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
+    } else {
+      if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'facebook'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+      log_security_event($pdo, 'login_ok', $email, 'facebook');
+    }
+    $token = mk_token($pdo, $u['id'], $u['email'], $secret);
+    set_session_cookie($config, $token);
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 

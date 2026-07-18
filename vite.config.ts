@@ -17,13 +17,13 @@ const CSP = [
   "base-uri 'self'",
   "object-src 'none'",
   "form-action 'self'",
-  "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob: https://accounts.google.com https://www.gstatic.com",
+  "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob: https://accounts.google.com https://www.gstatic.com https://connect.facebook.net",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' blob: data: https://accounts.google.com https://www.googleapis.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co",
+  "connect-src 'self' blob: data: https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://www.facebook.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co",
   "worker-src 'self' blob:",
-  "frame-src 'self' https://accounts.google.com",
+  "frame-src 'self' https://accounts.google.com https://www.facebook.com https://staticxx.facebook.com",
   "manifest-src 'self'",
 ].join('; ')
 

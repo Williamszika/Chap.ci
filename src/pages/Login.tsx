@@ -4,6 +4,8 @@ import { ArrowLeft, Mail, Lock, Phone, Loader2, ShieldCheck } from 'lucide-react
 import { useAuth, type OAuthProvider } from '../store/AuthContext'
 import { isPhp } from '../lib/backend'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
+import { FacebookSignInButton } from '../components/FacebookSignInButton'
+import { PHONE_LOGIN_ENABLED } from '../lib/features'
 import { usePublicConfig } from '../lib/publicConfig'
 import { Mark, Wordmark } from '../components/Logo'
 
@@ -17,9 +19,11 @@ function AppleIcon() {
 
 export function Login() {
   const navigate = useNavigate()
-  const { signIn, signInWithProvider, signInWithGoogleCredential, sendPhoneCode, verifyPhoneCode, verifyLoginMfa, enabled } = useAuth()
-  // Connexion Google : activée si un ID client est configuré (runtime, /api/config).
-  const googleEnabled = !!usePublicConfig()?.googleClientId
+  const { signIn, signInWithProvider, signInWithGoogleCredential, signInWithFacebookToken, sendPhoneCode, verifyPhoneCode, verifyLoginMfa, enabled } = useAuth()
+  // Connexion Google / Facebook : activées si configurées (runtime, /api/config).
+  const cfg = usePublicConfig()
+  const googleEnabled = !!cfg?.googleClientId
+  const facebookEnabled = !!cfg?.facebookAppId
   // Apple n'est disponible que via Supabase ; en auto-hébergé (PHP), on le masque.
   const showApple = !isPhp
 
@@ -98,6 +102,14 @@ export function Login() {
     handle(res)
   }
 
+  async function handleFacebook(accessToken: string) {
+    setError('')
+    setBusy(true)
+    const res = await signInWithFacebookToken(accessToken)
+    setBusy(false)
+    handle(res)
+  }
+
   return (
     <div className="min-h-screen bg-white md:mx-auto md:my-6 md:min-h-0 md:max-w-xl md:rounded-3xl md:shadow-card">
       <header className="safe-top flex items-center gap-3 px-3 py-3">
@@ -134,11 +146,14 @@ export function Login() {
           </form>
         ) : (
           <>
-            {(googleEnabled || showApple) && (
+            {(googleEnabled || facebookEnabled || showApple) && (
               <>
                 <div className="flex flex-col items-center gap-2">
                   {googleEnabled && (
                     <GoogleSignInButton onCredential={handleGoogle} text="continue_with" />
+                  )}
+                  {facebookEnabled && (
+                    <FacebookSignInButton onToken={handleFacebook} />
                   )}
                   {showApple && (
                     <button onClick={() => oauth('apple')} disabled={!enabled} className="btn-outline w-full py-3">
@@ -153,14 +168,17 @@ export function Login() {
               </>
             )}
 
-            <div className="mb-4 flex rounded-xl bg-gray-100 p-1">
-              <button onClick={() => { setMethod('email'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
-                <Mail size={15} className="mr-1 inline" /> Email
-              </button>
-              <button onClick={() => { setMethod('phone'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'phone' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
-                <Phone size={15} className="mr-1 inline" /> Téléphone
-              </button>
-            </div>
+            {/* Onglet Téléphone masqué tant que le SMS n'est pas activé (PHONE_LOGIN_ENABLED). */}
+            {PHONE_LOGIN_ENABLED && (
+              <div className="mb-4 flex rounded-xl bg-gray-100 p-1">
+                <button onClick={() => { setMethod('email'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
+                  <Mail size={15} className="mr-1 inline" /> Email
+                </button>
+                <button onClick={() => { setMethod('phone'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'phone' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
+                  <Phone size={15} className="mr-1 inline" /> Téléphone
+                </button>
+              </div>
+            )}
 
             {method === 'email' ? (
               <form onSubmit={submitEmail} className="space-y-3">

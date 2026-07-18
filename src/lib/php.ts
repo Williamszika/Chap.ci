@@ -115,6 +115,16 @@ export async function phpGoogleLogin(credential: string): Promise<PhpUser> {
   cacheUser(d.user)
   return d.user
 }
+// Connexion / inscription via Facebook : on transmet le jeton d'accès obtenu par
+// le SDK Facebook ; le serveur le vérifie (débog + profil).
+export async function phpFacebookLogin(accessToken: string): Promise<PhpUser> {
+  const d = await req<{ token: string; user: PhpUser }>('/auth/facebook', {
+    method: 'POST',
+    body: { accessToken },
+  })
+  cacheUser(d.user)
+  return d.user
+}
 // Connexion par téléphone — étape 1 : demande d'un code par SMS.
 // En mode test serveur (sms.debug), le code est renvoyé dans `debugCode`.
 export async function phpPhoneStart(phone: string): Promise<{ delivered: boolean; debugCode?: string }> {

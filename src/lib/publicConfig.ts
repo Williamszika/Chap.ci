@@ -8,12 +8,14 @@ import { isPhp } from './backend'
 
 export interface PublicConfig {
   googleClientId: string
+  facebookAppId: string
   phoneAuth: boolean
 }
 
 const API = ((import.meta.env.VITE_API_URL as string) || '/api').replace(/\/$/, '')
 // Valeur éventuelle fixée au build (utile hors PHP / pour forcer un ID).
 const BUILD_GOOGLE = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || ''
+const BUILD_FACEBOOK = (import.meta.env.VITE_FACEBOOK_APP_ID as string) || ''
 
 let cache: PublicConfig | null = null
 let inflight: Promise<PublicConfig> | null = null
@@ -21,7 +23,7 @@ let inflight: Promise<PublicConfig> | null = null
 export async function loadPublicConfig(): Promise<PublicConfig> {
   if (cache) return cache
   if (inflight) return inflight
-  const fallback: PublicConfig = { googleClientId: BUILD_GOOGLE, phoneAuth: false }
+  const fallback: PublicConfig = { googleClientId: BUILD_GOOGLE, facebookAppId: BUILD_FACEBOOK, phoneAuth: false }
   if (!isPhp) {
     cache = fallback
     return cache
@@ -31,6 +33,7 @@ export async function loadPublicConfig(): Promise<PublicConfig> {
     .then((d: Partial<PublicConfig>) => {
       cache = {
         googleClientId: (d && d.googleClientId) || BUILD_GOOGLE,
+        facebookAppId: (d && d.facebookAppId) || BUILD_FACEBOOK,
         phoneAuth: !!(d && d.phoneAuth),
       }
       return cache
