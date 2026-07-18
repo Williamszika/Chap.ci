@@ -5,7 +5,7 @@
 //  Dépendances : AUCUNE (Node ≥ 18 + Chromium système + curl). Pas de npm.
 //  Config par variables d'env :
 //    CHAPCI_API       (déf. https://chap.ci/api)
-//    CHAPCI_CRON_KEY  (déf. chapci-cron-2026-a7f3e9)
+//    CHAPCI_CRON_KEY  (REQUIS : la clé cron valide du serveur, à passer en env)
 //    CHAPCI_MAIL_TO   (optionnel : forcer un destinataire)
 // =============================================================================
 import { readFileSync, writeFileSync, mkdtempSync, existsSync, globSync } from 'node:fs'
@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const API      = process.env.CHAPCI_API || 'https://chap.ci/api'
-const CRON_KEY = process.env.CHAPCI_CRON_KEY || 'chapci-cron-2026-a7f3e9'
+const CRON_KEY = process.env.CHAPCI_CRON_KEY || '' // REQUIS via env (l'ancienne clé en dur, invalide, a été retirée)
 const MAIL_TO  = process.env.CHAPCI_MAIL_TO || ''
 const [resultPath, dateArg] = process.argv.slice(2)
 if (!resultPath) { console.error('Usage: node deliver-report.mjs <result.json> "<date>"'); process.exit(2) }
