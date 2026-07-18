@@ -3285,6 +3285,84 @@ try {
     jout(['ok' => true, 'nettoyage' => $done]);
   }
 
+  // ---------- RAPPORT PÉRIODIQUE PAR EMAIL (serveur, sans Claude) ----------
+  // Envoie à report_email (contact@chap.ci) un récap : activité + sécurité +
+  // santé de la base. Appelé par une tâche cron cPanel (ex. mensuel : ?days=30).
+  // Lecture seule (aucune modification de données) hormis l'envoi de l'email.
+  if ($path === 'cron/report' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $days  = max(1, min(365, (int) ($_GET['days'] ?? 30)));
+    $since = gmdate('Y-m-d\TH:i:s', time() - $days * 86400);
+    $one = function (string $sql, array $p = []) use ($pdo) {
+      $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn();
+    };
+    $fr = function ($n): string { return number_format((int) $n, 0, ',', ' '); };
+
+    // Activité sur la période
+    $act = [
+      'Nouveaux inscrits'       => $one('SELECT COUNT(*) FROM users WHERE created_at >= ?', [$since]),
+      'Annonces publiées'       => $one('SELECT COUNT(*) FROM listings WHERE created_at >= ?', [$since]),
+      'Annonces vendues'        => $one('SELECT COUNT(*) FROM listings WHERE sold = 1 AND created_at >= ?', [$since]),
+      'Nouvelles conversations' => $one('SELECT COUNT(*) FROM conversations WHERE created_at >= ?', [$since]),
+      'Messages échangés'       => $one('SELECT COUNT(*) FROM messages WHERE created_at >= ?', [$since]),
+      'Commandes'               => $one('SELECT COUNT(*) FROM orders WHERE created_at >= ?', [$since]),
+      'Avis laissés'            => $one('SELECT COUNT(*) FROM reviews WHERE created_at >= ?', [$since]),
+      'Signalements'            => $one('SELECT COUNT(*) FROM reports WHERE created_at >= ?', [$since]),
+      'Visites'                 => $one('SELECT COUNT(*) FROM visits WHERE created_at >= ?', [$since]),
+      'Visiteurs uniques'       => $one('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?', [$since]),
+    ];
+    // Santé de la base (instantané)
+    $health = [
+      'Comptes au total'           => $one('SELECT COUNT(*) FROM users'),
+      'Annonces actives'           => $one('SELECT COUNT(*) FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)'),
+      'Annonces masquées/expirées' => $one('SELECT COUNT(*) FROM listings WHERE hidden = 1'),
+      'Abonnés newsletter'         => $one('SELECT COUNT(*) FROM newsletter'),
+    ];
+    // Sécurité sur la période
+    $counts = [];
+    $st = $pdo->prepare('SELECT kind, COUNT(*) AS n FROM security_events WHERE created_at >= ? GROUP BY kind');
+    $st->execute([$since]);
+    foreach ($st->fetchAll() as $r) $counts[$r['kind']] = (int) $r['n'];
+    $loginOk = $counts['login_ok'] ?? 0; $loginFail = $counts['login_fail'] ?? 0;
+    $ratio = ($loginOk + $loginFail) ? (int) round(100 * $loginFail / ($loginOk + $loginFail)) : 0;
+    $ipsSt = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind IN ('login_fail','rate_limited') AND created_at >= ? GROUP BY ip HAVING COUNT(*) >= 5 ORDER BY n DESC LIMIT 5");
+    $ipsSt->execute([$since]);
+    $suspicious = $ipsSt->fetchAll();
+
+    // Construction de l'email (charte via email_layout)
+    $tbl = function (array $data) use ($fr): string {
+      $rows = '';
+      foreach ($data as $label => $val) {
+        $rows .= '<tr><td style="padding:7px 0;border-bottom:1px solid #f0f0f0;color:#555">' . htmlspecialchars($label)
+               . '</td><td style="padding:7px 0;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#111">' . $fr($val) . '</td></tr>';
+      }
+      return '<table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 18px">' . $rows . '</table>';
+    };
+    $secLine = '<p style="font-size:14px;margin:6px 0 4px"><b>Connexions :</b> ' . $fr($loginOk) . ' réussies · ' . $fr($loginFail) . ' échouées (' . $ratio . '% d\'échec)</p>';
+    if ($suspicious) {
+      $parts = [];
+      foreach ($suspicious as $s) $parts[] = htmlspecialchars((string) $s['ip']) . ' (' . (int) $s['n'] . ')';
+      $secLine .= '<p style="font-size:14px;margin:6px 0;color:#b91c1c"><b>⚠️ IP à surveiller :</b> ' . implode(', ', $parts) . '</p>';
+    } else {
+      $secLine .= '<p style="font-size:14px;margin:6px 0;color:#059669">✅ Aucune IP suspecte sur la période.</p>';
+    }
+    $inner =
+      '<h2 style="margin-top:0;color:#111827">Rapport Chap.ci 📊</h2>'
+      . '<p style="color:#555;font-size:14px;margin:0 0 18px">Récapitulatif automatique — période : ' . $days . ' jours.</p>'
+      . '<h3 style="color:#F77F00;font-size:15px;margin:16px 0 4px">Activité</h3>' . $tbl($act)
+      . '<h3 style="color:#F77F00;font-size:15px;margin:16px 0 4px">Sécurité</h3>' . $secLine
+      . '<h3 style="color:#F77F00;font-size:15px;margin:22px 0 4px">Santé de la base</h3>' . $tbl($health)
+      . '<p style="color:#9ca3af;font-size:12px;margin-top:22px">Généré automatiquement par le serveur Chap.ci — aucune action requise, sauf en cas d\'alerte sécurité.</p>';
+    $html = email_layout($config, $inner, 'Rapport Chap.ci');
+    $subject = 'Rapport Chap.ci — ' . gmdate('d/m/Y');
+
+    $to = report_recipients($config); $sent = 0;
+    foreach ($to as $addr) { if (send_mail($config, $addr, $subject, $html)) $sent++; }
+    jout(['ok' => true, 'destinataires' => count($to), 'envoyes' => $sent, 'periodeJours' => $days]);
+  }
+
   // ---------- ENVOI D'UN RAPPORT PAR EMAIL (avec PDF joint) ----------
   // Appelé par la routine de sourcing (agents). Authentifié par la clé cron.
   // Corps JSON : { key, subject, html, pdf_base64, filename, to? }
