@@ -74,6 +74,10 @@ function frError(message?: string): string {
   if (m.includes('sms') || m.includes('phone provider') || m.includes('unsupported phone'))
     return 'La connexion par téléphone n’est pas encore activée sur le serveur.'
   if (m.includes('provider is not enabled')) return 'Ce mode de connexion n’est pas encore activé sur le serveur.'
+  // Échecs réseau bruts du navigateur (Safari « Load failed », Chrome « Failed to
+  // fetch »…) : message clair au lieu du jargon technique.
+  if (m.includes('load failed') || m.includes('failed to fetch') || m.includes('networkerror') || m.includes('network request failed'))
+    return 'Connexion au serveur impossible. Vérifiez votre connexion internet et réessayez.'
   return message
 }
 
@@ -123,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u as unknown as User)
         return { userId: u.id }
       } catch (e) {
-        return { error: (e as Error).message }
+        return { error: frError((e as Error).message) }
       }
     }
     if (!supabase) return { error: 'Comptes indisponibles (Supabase non configuré).' }
@@ -144,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u as unknown as User)
         return {}
       } catch (e) {
-        return { error: (e as Error).message }
+        return { error: frError((e as Error).message) }
       }
     }
     if (!supabase) return { error: 'Comptes indisponibles (Supabase non configuré).' }
@@ -172,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u as unknown as User)
         return { userId: u.id }
       } catch (e) {
-        return { error: (e as Error).message }
+        return { error: frError((e as Error).message) }
       }
     }
     if (!supabase) return { error: 'Comptes indisponibles.' }
@@ -189,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u as unknown as User)
         return { userId: u.id }
       } catch (e) {
-        return { error: (e as Error).message }
+        return { error: frError((e as Error).message) }
       }
     }
     if (!supabase) return { error: 'Comptes indisponibles.' }
@@ -205,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const r = await php.phpPhoneStart(phone)
         return { debugCode: r.debugCode }
       } catch (e) {
-        return { error: (e as Error).message }
+        return { error: frError((e as Error).message) }
       }
     }
     if (!supabase) return { error: 'Comptes indisponibles.' }
@@ -222,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(u as unknown as User)
           return { userId: u.id }
         } catch (e) {
-          return { error: (e as Error).message }
+          return { error: frError((e as Error).message) }
         }
       }
       if (!supabase) return { error: 'Comptes indisponibles.' }
@@ -268,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updatePassword = useCallback(async (newPassword: string, currentPassword?: string): Promise<AuthResult> => {
     if (isPhp) {
-      try { await php.phpUpdatePassword(newPassword, currentPassword); return {} } catch (e) { return { error: (e as Error).message } }
+      try { await php.phpUpdatePassword(newPassword, currentPassword); return {} } catch (e) { return { error: frError((e as Error).message) } }
     }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
@@ -280,7 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const deleteAccount = useCallback(async (password = ''): Promise<AuthResult> => {
     if (isPhp) {
-      try { await php.phpDeleteAccount(password); setUser(null); return {} } catch (e) { return { error: (e as Error).message } }
+      try { await php.phpDeleteAccount(password); setUser(null); return {} } catch (e) { return { error: frError((e as Error).message) } }
     }
     if (!supabase) return { error: 'Comptes indisponibles.' }
     const { error } = await supabase.rpc('delete_my_account')

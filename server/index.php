@@ -1888,7 +1888,7 @@ try {
     $email = strtolower(trim((string) ($claims['email'] ?? '')));
     $name  = trim((string) ($claims['name'] ?? ''));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Ce compte Google n’a pas d’adresse email valide.', 400);
-    $st = $pdo->prepare('SELECT id,email,status FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+    $st = $pdo->prepare('SELECT id,email,status,password_hash FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
     if (!$u) {
       $id = uuid();
       $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?)')
@@ -1900,6 +1900,16 @@ try {
       $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
     } else {
       if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'google'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+      // Anti-pré-détournement : si ce compte possédait un mot de passe local
+      // (potentiellement défini par un tiers AVANT que le vrai propriétaire ne se
+      // connecte via Google — qui, lui, prouve la possession de l'email), on
+      // l'invalide et on incrémente session_version pour couper toute session
+      // ouverte avec cet ancien mot de passe.
+      if (($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
+        $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+            ->execute(['google', $u['id']]);
+        log_security_event($pdo, 'oauth_password_reset', $email, 'google');
+      }
       log_security_event($pdo, 'login_ok', $email, 'google');
     }
     $token = mk_token($pdo, $u['id'], $u['email'], $secret);
@@ -1930,7 +1940,7 @@ try {
       if ($fbId === '') { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
       $email = 'fb_' . $fbId . '@facebook.chapci';
     }
-    $st = $pdo->prepare('SELECT id,email,status FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+    $st = $pdo->prepare('SELECT id,email,status,password_hash FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
     if (!$u) {
       $id = uuid();
       $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?)')
@@ -1942,6 +1952,12 @@ try {
       $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
     } else {
       if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'facebook'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+      // Anti-pré-détournement (voir Google) : invalide un mot de passe local éventuel.
+      if (($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
+        $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+            ->execute(['facebook', $u['id']]);
+        log_security_event($pdo, 'oauth_password_reset', $email, 'facebook');
+      }
       log_security_event($pdo, 'login_ok', $email, 'facebook');
     }
     $token = mk_token($pdo, $u['id'], $u['email'], $secret);
@@ -2266,8 +2282,17 @@ try {
 
   if ($path === 'conversations' && $method === 'POST') {
     $u = require_user($pdo, $secret); $b = body();
-    $listingId = $b['listingId'] ?? null; $sellerId = $b['sellerId'] ?? null;
-    if (!$sellerId) jerr('Vendeur manquant.');
+    $listingId = trim((string) ($b['listingId'] ?? '')); $sellerId = trim((string) ($b['sellerId'] ?? ''));
+    if ($sellerId === '') jerr('Vendeur manquant.');
+    if ($sellerId === $u['id']) jerr('Vous ne pouvez pas vous contacter vous-même.', 400);
+    // Sécurité : la conversation doit porter sur une annonce RÉELLE dont le vendeur
+    // indiqué est bien le propriétaire. Sinon, un utilisateur pourrait fabriquer une
+    // fausse relation acheteur→vendeur (spam de messages, fausses commandes/avis).
+    if ($listingId === '') jerr('Annonce manquante.', 400);
+    $lo = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $lo->execute([$listingId]);
+    $lr = $lo->fetch();
+    if (!$lr) jerr('Annonce introuvable.', 404);
+    if ((string) $lr['user_id'] !== $sellerId) jerr('Vendeur invalide pour cette annonce.', 400);
     $st = $pdo->prepare('SELECT id FROM conversations WHERE listing_id = ? AND buyer_id = ?');
     $st->execute([$listingId, $u['id']]);
     if ($ex = $st->fetch()) jout(['id' => $ex['id']]);
@@ -2412,16 +2437,17 @@ try {
     $cc = $pdo->prepare('SELECT 1 FROM conversations WHERE buyer_id = ? AND seller_id = ? LIMIT 1');
     $cc->execute([$u['id'], $sellerId]);
     if (!$cc->fetch()) jerr('Contactez d’abord le vendeur avant de passer commande.', 403);
-    // Chaque article commandé doit appartenir au vendeur indiqué (pas l'annonce
-    // d'un tiers rattachée à une fausse commande).
+    // Chaque article commandé doit référencer une annonce RÉELLE appartenant au
+    // vendeur indiqué. Une commande VIDE est refusée : sinon on pourrait créer une
+    // fausse commande (sans article) pour fabriquer un faux avis (harcèlement).
     $items = (array) ($b['items'] ?? []);
+    if (!$items) jerr('Commande vide.', 400);
     foreach ($items as $it) {
       $lid = trim((string) ($it['listingId'] ?? ''));
-      if ($lid !== '') {
-        $ls = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $ls->execute([$lid]);
-        $lr = $ls->fetch();
-        if ($lr && (string) $lr['user_id'] !== $sellerId) jerr('Article invalide pour ce vendeur.', 400);
-      }
+      if ($lid === '') jerr('Article invalide (annonce manquante).', 400);
+      $ls = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $ls->execute([$lid]);
+      $lr = $ls->fetch();
+      if (!$lr || (string) $lr['user_id'] !== $sellerId) jerr('Article invalide pour ce vendeur.', 400);
     }
     $oid = uuid();
     $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,status,created_at) VALUES (?,?,?,?,?,?)')

@@ -55,31 +55,83 @@ export function phpClearSession() {
   localStorage.removeItem(USER_KEY)
 }
 
+/**
+ * Erreur d'API enrichie du code HTTP (`status`). `status === 0` signale un échec
+ * réseau/timeout (pas de réponse du serveur), ce qui permet aux appelants de
+ * distinguer « hors-ligne » d'un vrai refus serveur (401/403…).
+ */
+export class ApiError extends Error {
+  status: number
+  moderation?: unknown
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function req<T>(
   path: string,
   opts: { method?: string; body?: unknown } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const hasBody = opts.body !== undefined
+  const headers: Record<string, string> = {}
+  // On ne pose Content-Type que s'il y a un corps : évite un préflight CORS
+  // inutile sur les GET (et reste conforme aux requêtes « simples »).
+  if (hasBody) headers['Content-Type'] = 'application/json'
   // Repli « hérité » : si un ancien jeton traîne encore en localStorage, on le
   // transmet en Bearer jusqu'à la migration vers le cookie (voir phpMe).
   const token = phpGetToken()
   if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch(API + path, {
-    method: opts.method || 'GET',
-    headers,
-    // P3 · Envoie/reçoit le cookie de session HttpOnly (même origine, et origine
-    // croisée légitime grâce à Allow-Credentials côté serveur).
-    credentials: 'include',
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  })
+
+  // Délai de garde : au-delà de 15 s on abandonne, pour ne jamais laisser un
+  // spinner bloqué indéfiniment sur un réseau instable (P·robustesse mobile).
+  const ctrl = new AbortController()
+  const timer = window.setTimeout(() => ctrl.abort(), 15000)
+  let res: Response
+  try {
+    res = await fetch(API + path, {
+      method: opts.method || 'GET',
+      headers,
+      // P3 · Envoie/reçoit le cookie de session HttpOnly (même origine, et origine
+      // croisée légitime grâce à Allow-Credentials côté serveur).
+      credentials: 'include',
+      body: hasBody ? JSON.stringify(opts.body) : undefined,
+      signal: ctrl.signal,
+    })
+  } catch (e) {
+    // Échec réseau réel (hors-ligne, DNS, CORS, timeout/abort) : message clair
+    // en français au lieu du « Load failed » / « Failed to fetch » brut.
+    const aborted = (e as Error)?.name === 'AbortError'
+    throw new ApiError(
+      aborted
+        ? 'Le serveur met trop de temps à répondre. Vérifiez votre connexion et réessayez.'
+        : 'Connexion au serveur impossible. Vérifiez votre connexion internet et réessayez.',
+      0,
+    )
+  } finally {
+    window.clearTimeout(timer)
+  }
+
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
-  if (!res.ok) {
-    const err = new Error((data && data.error) || `Erreur ${res.status}`)
-    // Refus de modération : on transmet les raisons détaillées à l'appelant.
-    if (data && data.moderation && Array.isArray(data.reasons)) {
-      ;(err as Error & { moderation?: unknown }).moderation = data.reasons
+  let data: unknown = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      // Réponse non-JSON (portail captif Wi-Fi, page d'erreur d'un proxy…) :
+      // on ne laisse pas planter le parsing, on renvoie une erreur lisible.
+      throw new ApiError(
+        res.ok ? 'Réponse inattendue du serveur. Vérifiez votre connexion.' : `Erreur ${res.status}`,
+        res.ok ? 0 : res.status,
+      )
     }
+  }
+  const obj = (data ?? {}) as { error?: string; moderation?: unknown; reasons?: unknown }
+  if (!res.ok) {
+    const err = new ApiError(obj.error || `Erreur ${res.status}`, res.status)
+    // Refus de modération : on transmet les raisons détaillées à l'appelant.
+    if (obj.moderation && Array.isArray(obj.reasons)) err.moderation = obj.reasons
     throw err
   }
   return data as T
@@ -155,8 +207,16 @@ export async function phpMe(): Promise<PhpUser | null> {
       phpClearSession()
     }
     return d.user
-  } catch {
-    // Panne réseau : on garde l'affichage optimiste depuis le cache.
+  } catch (e) {
+    // Session réellement invalide (401/403 : cookie expiré) → on nettoie et on
+    // considère l'utilisateur déconnecté. Sinon l'UI resterait « connectée »
+    // pendant que chaque action suivante échoue en 401 (état incohérent).
+    const status = e instanceof ApiError ? e.status : 0
+    if (status === 401 || status === 403) {
+      phpClearSession()
+      return null
+    }
+    // Vraie panne réseau (status 0) : on garde l'affichage optimiste depuis le cache.
     return phpGetStoredUser()
   }
 }
@@ -540,7 +600,12 @@ export async function phpDownloadBackup(file?: string): Promise<void> {
   const url = file
     ? `${API}/admin/backup/download?file=${encodeURIComponent(file)}`
     : `${API}/admin/backup`
-  const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  // P3 · La session est portée par le cookie HttpOnly : sans `credentials`, la
+  // requête part sans authentification → 401 (téléchargement de sauvegarde cassé).
+  const res = await fetch(url, {
+    credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
   if (!res.ok) throw new Error(`Erreur ${res.status}`)
   const blob = await res.blob()
   const name = file || `chapci-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`
