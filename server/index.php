@@ -3819,8 +3819,11 @@ try {
     $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
     $sec = security_stats($pdo, $config, $since);
 
-    // Intégrité de la table admins : une ligne « admin » ajoutée AUTREMENT que par
-    // le tableau de bord (injection, accès direct à la base) casse l'empreinte.
+    // On rassemble tous les motifs d'alerte dans une seule liste → un seul email.
+    $alerts = [];
+
+    // (a) Intégrité de la table admins : une ligne « admin » ajoutée AUTREMENT que
+    // par le tableau de bord (injection, accès direct à la base) casse l'empreinte.
     $fp = admins_fp_file($config);
     $expected = @is_readable($fp) ? trim((string) @file_get_contents($fp)) : '';
     $adminsTampered = false; $currentAdmins = [];
@@ -3829,38 +3832,59 @@ try {
     } elseif (!hash_equals($expected, admins_fingerprint($pdo))) {
       $adminsTampered = true;
       $currentAdmins = $pdo->query('SELECT email FROM admins ORDER BY email')->fetchAll(PDO::FETCH_COLUMN);
-      // Alerte email au PROPRIÉTAIRE, throttlée à 1×/24 h (via le journal d'audit).
-      $recent = $pdo->prepare("SELECT COUNT(*) FROM security_events WHERE kind = 'admins_tampered' AND created_at >= ?");
-      $recent->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 86400)]);
-      if ((int) $recent->fetchColumn() === 0) {
-        $list = $currentAdmins
-          ? '<ul><li>' . implode('</li><li>', array_map('htmlspecialchars', $currentAdmins)) . '</li></ul>'
-          : '<p>(aucun)</p>';
-        $html = '<p><b>⚠️ Alerte sécurité Chap.ci</b></p>'
-              . '<p>La liste des administrateurs/modérateurs a changé <b>en dehors du tableau de bord</b> '
-              . '(modification directe de la base — possible injection ou accès non autorisé).</p>'
-              . '<p>Comptes administrateurs actuellement enregistrés :</p>' . $list
-              . '<p>Si vous ne reconnaissez pas l’un d’eux : connectez-vous, ouvrez <b>Modérateurs</b> et '
-              . 'supprimez-le (cela réinitialise aussi cette alerte). En cas de doute, changez le mot de passe '
-              . 'de la base de données.</p>';
-        foreach (owner_emails($config) as $to) { send_mail($config, $to, 'Chap.ci — ⚠️ changement suspect des administrateurs', $html); }
-      }
+      $alerts[] = 'Liste des administrateurs modifiée HORS du tableau de bord (injection / accès direct '
+                . 'à la base). Comptes actuels : ' . (implode(', ', $currentAdmins) ?: '(aucun)') . '.';
       log_security_event($pdo, 'admins_tampered', null, implode(',', $currentAdmins));
     }
 
+    // (b) Seuils d'activité suspecte (surchargeable via config['security_alerts']).
+    $thr       = $config['security_alerts'] ?? [];
+    $loginFail  = (int) $sec['loginFail'];
+    $unlockFail = (int) ($sec['counts']['admin_unlock_fail'] ?? 0);
+    $mfaFail    = (int) ($sec['counts']['mfa_fail'] ?? 0);
+    $nSusp      = count($sec['suspicious']);
+    if ($loginFail  >= (int) ($thr['login_fail']        ?? 30)) $alerts[] = "Pic de connexions échouées : $loginFail sur $days j.";
+    if ($unlockFail >= (int) ($thr['admin_unlock_fail'] ?? 3))  $alerts[] = "Tentatives de déverrouillage admin ratées : $unlockFail (compte admin peut-être compromis).";
+    if ($mfaFail    >= (int) ($thr['mfa_fail']          ?? 5))  $alerts[] = "Échecs de code 2FA répétés : $mfaFail.";
+    if ($nSusp      >= (int) ($thr['suspicious_ips']    ?? 3)) {
+      $top = array_slice(array_map(fn($x) => $x['ip'] . ' (' . $x['n'] . ')', $sec['suspicious']), 0, 5);
+      $alerts[] = "$nSusp IP suspectes (≥ 5 échecs) : " . implode(', ', $top) . '.';
+    }
+
+    // Un SEUL email récapitulatif, throttlé à 1×/24 h (anti-spam) via le journal d'audit.
+    if ($alerts) {
+      $recent = $pdo->prepare("SELECT COUNT(*) FROM security_events WHERE kind = 'security_alert' AND created_at >= ?");
+      $recent->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 86400)]);
+      if ((int) $recent->fetchColumn() === 0) {
+        $items = '<ul><li>' . implode('</li><li>', array_map('htmlspecialchars', $alerts)) . '</li></ul>';
+        $html = '<p><b>⚠️ Alerte sécurité Chap.ci</b></p>'
+              . '<p>Le scan de sécurité a détecté <b>' . count($alerts) . ' point(s)</b> à vérifier :</p>' . $items
+              . '<p>Connectez-vous au tableau de bord pour investiguer (onglet Aperçu / Visiteurs). En cas de '
+              . 'doute sur un compte admin, ouvrez <b>Modérateurs</b>. Si un intrus y figure, supprimez-le ; '
+              . 'en cas de doute sérieux, changez le mot de passe de la base.</p>';
+        foreach (owner_emails($config) as $to) { send_mail($config, $to, 'Chap.ci — ⚠️ alerte sécurité', $html); }
+        log_security_event($pdo, 'security_alert', null, implode(' | ', $alerts));
+      }
+    }
+
     jout([
-      'periodDays'     => $days,
-      'since'          => $since,
-      'counts'         => $sec['counts'],
-      'suspiciousIps'  => $sec['suspicious'],
-      'failRatio'      => $sec['ratio'],
-      'rateLimited'    => $sec['counts']['rate_limited'] ?? 0,
-      'newSignups'     => $sec['counts']['signup'] ?? 0,
-      'ignoredIps'     => $config['security_ignore_ips'] ?? [],
+      'periodDays'      => $days,
+      'since'           => $since,
+      'counts'          => $sec['counts'],
+      'suspiciousIps'   => $sec['suspicious'],
+      'failRatio'       => $sec['ratio'],
+      'loginFail'       => $loginFail,
+      'adminUnlockFail' => $unlockFail,
+      'mfaFail'         => $mfaFail,
+      'rateLimited'     => $sec['counts']['rate_limited'] ?? 0,
+      'newSignups'      => $sec['counts']['signup'] ?? 0,
+      'ignoredIps'      => $config['security_ignore_ips'] ?? [],
       // Intégrité des rôles admin : « ok » ou « ALTÉRÉE » (+ liste si altérée).
       'adminsIntegrity' => $adminsTampered ? 'ALTÉRÉE' : 'ok',
       'adminsTampered'  => $adminsTampered,
       'currentAdmins'   => $currentAdmins,
+      // Motifs d'alerte de ce scan (vide = rien à signaler).
+      'alerts'          => $alerts,
     ]);
   }
 

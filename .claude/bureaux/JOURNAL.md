@@ -177,3 +177,15 @@ Format d'une entrée :
   modérateur légitime (pas de faux positif) → injection détectée → retour normal. Tout vert.
 - **Pour les autres bureaux** : 🛡️ Le Gardien — quand tu vois `adminsIntegrity: ALTÉRÉE` dans
   le JSON du scan, c'est **prioritaire** : une modification de la base hors app. Signale-le.
+
+---
+
+### 2026-07-19 — [Développement] Alertes email du scan sécurité (seuils)
+- **Fait** : `cron/security` envoie désormais **un seul email récapitulatif** au propriétaire
+  (throttlé 1×/24 h) regroupant tous les motifs détectés : **intégrité admins** altérée, **pic
+  de connexions échouées** (≥ 30/j), **déverrouillages admin ratés** (≥ 3), **échecs 2FA**
+  (≥ 5), **IP suspectes** (≥ 3). Seuils surchargeables via `config['security_alerts']`. Le JSON
+  du scan expose `alerts[]`, `loginFail`, `adminUnlockFail`, `mfaFail`. **Testé** (4 motifs
+  déclenchés, email throttlé à 1 même sur 2 scans). Nouvel événement audit `security_alert`.
+- **Pour les autres bureaux** : 🛡️ Le Gardien — le champ `alerts[]` du scan liste ce qui a
+  déclenché l'email ; s'il est non vide, priorise l'investigation.
