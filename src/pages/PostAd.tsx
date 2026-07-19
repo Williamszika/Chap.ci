@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2 } from 'lucide-react'
+import { ArrowLeft, Plus, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import type { Listing } from '../types'
 import { useGeo } from '../store/GeoContext'
@@ -8,7 +8,6 @@ import { useToast } from '../store/ToastContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
-import { CategoryIcon } from '../components/CategoryIcon'
 import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
 import { formatFCFA } from '../lib/format'
@@ -23,6 +22,14 @@ import { coordsFor, type Coords } from '../data/coords'
 import type { LocationFilter } from '../types'
 
 const MAX_PHOTOS = 5
+
+/** Emoji par catégorie — pour le menu déroulant « Catégorie » (façon artifact). */
+const CAT_EMOJI: Record<string, string> = {
+  telephones: '📱', vehicules: '🚗', immobilier: '🏠', mode: '👗',
+  electronique: '💻', maison: '🛋️', emploi: '💼', services: '🔧',
+  'materiel-pro': '🏗️', alimentation: '🍎', agriculture: '🌱',
+  animaux: '🐾', loisirs: '🎮', bebe: '👶',
+}
 
 /** Raison de refus renvoyée par le Gardien de publication (modération). */
 type ModReason = { code: string; label: string; advice: string }
@@ -407,27 +414,22 @@ export function PostAd() {
           />
         </Field>
 
-        {/* Catégorie — sélecteur visuel */}
+        {/* Catégorie — menu déroulant (façon artifact) */}
         <Field label="Catégorie">
-          <div className="grid grid-cols-2 gap-2">
-            {categories.map((c) => {
-              const active = categoryId === c.id
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => pickCategory(c.id)}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition active:scale-[0.98] ${
-                    active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-[#E6DAC6] text-gray-700'
-                  }`}
-                >
-                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${c.color}`}>
-                    <CategoryIcon name={c.icon} size={16} />
-                  </span>
-                  <span className="truncate">{c.name}</span>
-                </button>
-              )
-            })}
+          <div className="relative">
+            <select
+              value={categoryId}
+              onChange={(e) => pickCategory(e.target.value)}
+              className="input appearance-none pr-10"
+            >
+              <option value="">Choisir une catégorie…</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {CAT_EMOJI[c.id] ? `${CAT_EMOJI[c.id]}  ` : ''}{c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
         </Field>
 
@@ -488,7 +490,7 @@ export function PostAd() {
         {/* ---- Prix, promo, localisation, livraison, description ---- */}
         <div className="space-y-6">
         {/* Prix — libellé adapté (Salaire, Loyer, Tarif…) */}
-        <Field label={form.priceLabel ?? 'Prix (FCFA)'}>
+        <Field label={form.priceLabel ?? 'Prix'}>
           <div className="relative">
             <input
               inputMode="numeric"
