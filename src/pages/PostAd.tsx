@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Camera, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2 } from 'lucide-react'
+import { ArrowLeft, Plus, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2 } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import type { Listing } from '../types'
 import { useGeo } from '../store/GeoContext'
@@ -277,15 +277,28 @@ export function PostAd() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-28 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:shadow-card lg:max-w-4xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3 md:rounded-t-3xl">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
-          <ArrowLeft size={22} />
+    <div className="min-h-screen pb-28">
+      {/* En-tête / hero — grand titre display + sous-titre, comme la maquette. */}
+      <header className="mx-auto w-full max-w-3xl px-4 pt-5 lg:px-8">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          aria-label="Retour"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
+        >
+          <ArrowLeft size={18} /> Retour
         </button>
-        <h1 className="text-lg font-bold">{editing ? 'Modifier l’annonce' : 'Publier une annonce'}</h1>
+        <h1 className="font-display text-[26px] font-extrabold leading-tight text-ink md:text-3xl">
+          {editing ? 'Modifier l’annonce' : 'Publier une annonce'}
+        </h1>
+        <p className="mt-1.5 text-sm text-gray-500">
+          {editing
+            ? 'Mettez à jour les informations de votre annonce.'
+            : 'Gratuit · en ligne en 2 minutes'}
+        </p>
       </header>
 
-      <form onSubmit={submit} className="px-4 py-5 lg:px-8">
+      <form onSubmit={submit} className="mx-auto w-full max-w-3xl px-4 pb-8 pt-5 lg:px-8">
         {/* Refus du Gardien de publication (modération automatique) */}
         {moderation && (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4">
@@ -312,23 +325,23 @@ export function PostAd() {
           </div>
         )}
 
-        {/* 2 colonnes sur ordinateur, 1 colonne sur mobile/tablette (l'ordre reste identique) */}
-        <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
-        {/* ---- Colonne gauche : photos, titre, catégorie, état ---- */}
+        {/* Formulaire en une seule colonne, comme la maquette (mobile et ordinateur). */}
+        <div className="space-y-6">
+        {/* ---- Photos, titre, catégorie, état ---- */}
         <div className="space-y-6">
         {/* Photos */}
         <div>
           <label className="mb-2 block text-sm font-bold text-gray-800">
             Photos <span className="font-normal text-gray-400">({images.length}/{MAX_PHOTOS})</span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {images.map((src, i) => (
-              <div key={i} className="relative h-20 w-20 overflow-hidden rounded-xl">
+              <div key={i} className="group relative aspect-square overflow-hidden rounded-2xl border border-[#EFE6D7] bg-cream-100 shadow-card">
                 <img src={src} alt="" className="h-full w-full object-cover" />
                 <button
                   type="button"
                   onClick={() => removeImage(i)}
-                  className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
+                  className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white transition hover:bg-black/75"
                   aria-label="Supprimer la photo"
                 >
                   <X size={13} />
@@ -347,9 +360,10 @@ export function PostAd() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="grid h-20 w-20 place-items-center rounded-xl border-2 border-dashed border-gray-300 text-gray-400"
+                className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-[#E6DAC6] bg-cream-100 text-gray-400 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-500"
+                aria-label="Ajouter des photos"
               >
-                <Camera size={24} />
+                <Plus size={26} />
               </button>
             )}
           </div>
@@ -456,8 +470,10 @@ export function PostAd() {
                   key={c}
                   type="button"
                   onClick={() => setCondition(c)}
-                  className={`chip flex-1 justify-center capitalize ${
-                    condition === c ? 'border-primary-500 bg-primary-500 text-white' : ''
+                  className={`flex-1 rounded-xl border px-4 py-3 text-sm font-bold capitalize transition active:scale-[0.98] ${
+                    condition === c
+                      ? 'border-primary-500 bg-primary-500 text-white shadow-[0_6px_16px_-8px_rgba(247,127,0,0.6)]'
+                      : 'border-[#E6DAC6] bg-white text-gray-700 hover:bg-cream-100'
                   }`}
                 >
                   {c}
@@ -467,20 +483,25 @@ export function PostAd() {
           </Field>
         )}
 
-        </div>{/* ---- fin colonne gauche ---- */}
+        </div>{/* ---- fin premier groupe ---- */}
 
-        {/* ---- Colonne droite : prix, promo, localisation, livraison, description ---- */}
+        {/* ---- Prix, promo, localisation, livraison, description ---- */}
         <div className="space-y-6">
         {/* Prix — libellé adapté (Salaire, Loyer, Tarif…) */}
         <Field label={form.priceLabel ?? 'Prix (FCFA)'}>
-          <input
-            inputMode="numeric"
-            value={price}
-            onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
-            placeholder={form.pricePlaceholder ?? 'Ex : 150000'}
-            className="input"
-          />
-          <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+          <div className="relative">
+            <input
+              inputMode="numeric"
+              value={price}
+              onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
+              placeholder={form.pricePlaceholder ?? 'Ex : 150000'}
+              className="input pr-16 text-xl font-extrabold tabular-nums"
+            />
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">
+              FCFA
+            </span>
+          </div>
+          <label className="mt-2.5 flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
               checked={negotiable}
@@ -577,7 +598,7 @@ export function PostAd() {
 
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
         <Field label="Localisation">
-          <div className="flex items-center justify-between rounded-xl border border-[#E6DAC6] bg-gray-50 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-[#E6DAC6] bg-cream-100 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2">
               <MapPin size={18} className="shrink-0 text-primary-500" />
               <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
@@ -635,13 +656,13 @@ export function PostAd() {
           />
         </Field>
 
-        </div>{/* ---- fin colonne droite ---- */}
-        </div>{/* ---- fin grille 2 colonnes ---- */}
+        </div>{/* ---- fin second groupe ---- */}
+        </div>{/* ---- fin colonne unique ---- */}
 
         {/* ---- Pleine largeur : coordonnées, erreur, bouton ---- */}
         <div className="mt-6 space-y-6">
         {/* Coordonnées */}
-        <div className="rounded-2xl bg-[#FFF6EA] p-4">
+        <div className="card p-4">
           <p className="mb-3 text-sm font-bold text-gray-800">Vos coordonnées</p>
           <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0">
             <input

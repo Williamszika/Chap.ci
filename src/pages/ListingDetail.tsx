@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -9,12 +9,11 @@ import {
   BadgeCheck,
   Truck,
   ShieldCheck,
-  Tag,
   Clock,
-  User,
+  Eye,
+  Star,
   Navigation,
   ShoppingBag,
-  ChevronRight,
   Flag,
 } from 'lucide-react'
 import { useApp } from '../store/AppContext'
@@ -27,7 +26,7 @@ import { placeOrderForSeller } from '../lib/checkout'
 import { fetchReviewsForListing, createReview, averageRating } from '../lib/reviews'
 import { fetchPurchasedListingIds } from '../lib/orders'
 import { reportListing } from '../lib/api'
-import { priceLabel, formatFCFA, timeAgo } from '../lib/format'
+import { formatFCFA, timeAgo } from '../lib/format'
 import { activePromo, promoEndLabel } from '../lib/promo'
 import { recordInterest } from '../lib/interests'
 import { isPhp } from '../lib/backend'
@@ -57,6 +56,7 @@ export function ListingDetail() {
   const [showReview, setShowReview] = useState(false)
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
+  const galleryRef = useRef<HTMLDivElement>(null)
 
   const listingId = listing?.id
   const sellerId = listing?.sellerId
@@ -122,9 +122,33 @@ export function ListingDetail() {
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
     .slice(0, 6)
 
+  // Formulaire de la catégorie : détermine les attributs pertinents (marque, année…).
+  const form = formFor(listing.categoryId)
+  const sellerInitial = (listing.sellerName || '?').trim().charAt(0).toUpperCase() || '?'
+
+  // Grille d'attributs (mockup) : État · attributs de la catégorie · Livraison.
+  const attrItems: { label: string; value: string }[] = []
+  if (form.condition)
+    attrItems.push({ label: 'État', value: listing.condition === 'neuf' ? 'Neuf' : 'Occasion' })
+  for (const f of form.fields) {
+    const v = listing.attributes?.[f.key]
+    if (v) attrItems.push({ label: f.label, value: `${v}${f.unit ? ` ${f.unit}` : ''}` })
+  }
+  attrItems.push({ label: 'Livraison', value: listing.delivery ? 'Possible' : 'Sur place' })
+
+  // Bouton « Contacter » vert ivoire (comme le mockup), dans le même esprit que btn-primary.
+  const greenBtn =
+    'inline-flex items-center justify-center gap-2 rounded-xl bg-ivoire-green px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.55)] transition active:scale-[0.98] hover:brightness-105 disabled:opacity-50'
+
   // Lien « propre » (crawlable, avec aperçu WhatsApp/Facebook via le serveur).
   const shareUrl = `${window.location.origin}/annonce/${listing.id}`
   const shareText = `${listing.title} — sur Chap.ci`
+
+  function selectImage(i: number) {
+    setImgIndex(i)
+    const el = galleryRef.current
+    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+  }
 
   async function share() {
     if (navigator.share) {
@@ -208,258 +232,334 @@ export function ListingDetail() {
   const alreadyReviewed = user ? reviews.some((r) => r.reviewerId === user.id) : false
 
   return (
-    <div className="min-h-screen bg-white pb-24 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:overflow-hidden md:rounded-3xl md:shadow-card">
-      {/* Galerie */}
-      <div className="relative">
-        <div
-          className="no-scrollbar flex aspect-square snap-x snap-mandatory overflow-x-auto bg-gray-100 md:aspect-[4/3]"
-          onScroll={(e) => {
-            const el = e.currentTarget
-            setImgIndex(Math.round(el.scrollLeft / el.clientWidth))
-          }}
-        >
-          {listing.images.map((src, i) => (
-            <img
-              key={i}
-              src={src}
-              alt={`${listing.title} — photo ${i + 1}`}
-              className="h-full w-full shrink-0 snap-center object-cover"
-            />
-          ))}
-        </div>
-
-        <div className="safe-top absolute inset-x-0 top-0 flex items-center justify-between p-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="grid h-10 w-10 place-items-center rounded-full bg-white shadow"
-            aria-label="Retour"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShareOpen(true)}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white shadow"
-              aria-label="Partager"
+    <div className="min-h-screen bg-[#FFF6EA] pb-28 md:min-h-0 md:bg-transparent md:pb-10">
+      <div className="md:grid md:grid-cols-2 md:items-start md:gap-8 md:pt-2">
+        {/* Galerie — colonne gauche (collante sur ordinateur) */}
+        <div className="md:sticky md:top-20 md:self-start">
+          <div className="relative aspect-square overflow-hidden bg-cream-100 md:aspect-[4/3] md:rounded-3xl md:border md:border-[#EFE6D7]">
+            <div
+              ref={galleryRef}
+              className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto"
+              onScroll={(e) => {
+                const el = e.currentTarget
+                setImgIndex(Math.round(el.scrollLeft / el.clientWidth))
+              }}
             >
-              <Share2 size={19} />
-            </button>
-            <button
-              onClick={() => toggleFavorite(listing.id)}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white shadow"
-              aria-label="Favori"
-            >
-              <Heart size={19} className={fav ? 'fill-red-500 text-red-500' : 'text-gray-700'} />
-            </button>
-          </div>
-        </div>
-
-        {listing.images.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-            {listing.images.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ease-smooth ${i === imgIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Contenu */}
-      <div className="px-4 py-4">
-        {promo ? (
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <PromoTag percent={promo.percent} height={26} />
-              <span className="tnum text-2xl font-black text-red-600">{formatFCFA(promo.price)}</span>
-              <span className="tnum text-base text-gray-400 line-through">{formatFCFA(promo.original)}</span>
+              {listing.images.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt={`${listing.title} — photo ${i + 1}`}
+                  className="h-full w-full shrink-0 snap-center object-cover"
+                />
+              ))}
             </div>
-            <p className="mt-1 text-xs font-semibold text-red-600">
-              Promo jusqu’au {promoEndLabel(promo.until)}
-              {listing.negotiable ? ' · à débattre' : ''}
+
+            {/* Badges marketing (haut-gauche) */}
+            {listing.sold ? (
+              <div className="absolute inset-0 z-20 grid place-items-center bg-black/50">
+                <span className="rounded-full bg-white px-4 py-1.5 text-sm font-black uppercase tracking-wide text-gray-800 shadow">
+                  Vendu
+                </span>
+              </div>
+            ) : (
+              <div className="pointer-events-none absolute left-3 top-16 z-10 flex flex-col items-start gap-1.5 md:top-3">
+                {listing.featured && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow">
+                    <Star size={12} className="fill-white" /> À la une
+                  </span>
+                )}
+                {promo && <PromoTag percent={promo.percent} height={24} />}
+                {form.condition && listing.condition === 'neuf' && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 shadow">
+                    <BadgeCheck size={12} /> Neuf
+                  </span>
+                )}
+                {listing.delivery && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-sky-700 shadow">
+                    <Truck size={12} /> Livraison
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Retour (mobile) */}
+            <button
+              onClick={() => navigate(-1)}
+              className="absolute left-3 top-3 z-30 grid h-10 w-10 place-items-center rounded-full bg-white/95 shadow md:hidden"
+              aria-label="Retour"
+            >
+              <ArrowLeft size={20} />
+            </button>
+
+            {/* Partager (mobile) + favori */}
+            <div className="absolute right-3 top-3 z-30 flex gap-2">
+              <button
+                onClick={() => setShareOpen(true)}
+                className="grid h-10 w-10 place-items-center rounded-full bg-white/95 shadow md:hidden"
+                aria-label="Partager"
+              >
+                <Share2 size={19} />
+              </button>
+              <button
+                onClick={() => toggleFavorite(listing.id)}
+                className="grid h-10 w-10 place-items-center rounded-full bg-white/95 shadow"
+                aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              >
+                <Heart size={19} className={fav ? 'fill-red-500 text-red-500' : 'text-gray-700'} />
+              </button>
+            </div>
+          </div>
+
+          {/* Miniatures */}
+          {listing.images.length > 1 && (
+            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto px-4 md:px-0">
+              {listing.images.map((src, i) => (
+                <button
+                  key={i}
+                  onClick={() => selectImage(i)}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 bg-cream-100 transition ${
+                    i === imgIndex ? 'border-primary-500' : 'border-[#EFE6D7]'
+                  }`}
+                  aria-label={`Voir la photo ${i + 1}`}
+                >
+                  <img src={src} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Infos — colonne droite */}
+        <div className="px-4 pt-4 md:px-0 md:pt-0">
+          {/* Prix */}
+          {promo ? (
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <PromoTag percent={promo.percent} height={26} />
+                <span className="tnum font-display text-3xl font-black text-red-600">{formatFCFA(promo.price)}</span>
+                <span className="tnum text-base text-gray-400 line-through">{formatFCFA(promo.original)}</span>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-red-600">
+                Promo jusqu’au {promoEndLabel(promo.until)}
+                {listing.negotiable ? ' · à débattre' : ''}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="tnum font-display text-3xl font-black text-primary-700">
+                {listing.price === 0 ? 'Gratuit' : formatFCFA(listing.price)}
+              </span>
+              {listing.negotiable && listing.price !== 0 && (
+                <span className="text-sm font-medium text-gray-400">négociable</span>
+              )}
+            </div>
+          )}
+
+          {/* Titre */}
+          <h1 className="mt-2 font-display text-xl font-bold leading-snug text-gray-900 md:text-2xl">
+            {listing.title}
+          </h1>
+
+          {/* Méta : localisation · publié · vues · distance */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500">
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={15} />
+              {locationLabel(listing.regionId, listing.cityId, listing.commune)}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Clock size={15} />
+              {timeAgo(listing.createdAt)}
+            </span>
+            {listing.views != null && (
+              <span className="inline-flex items-center gap-1">
+                <Eye size={15} />
+                <span className="tnum">{listing.views}</span> vues
+              </span>
+            )}
+            {distanceKm != null && distanceKm < 500 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700">
+                <Navigation size={13} />
+                {formatDistance(distanceKm)} de vous
+              </span>
+            )}
+          </div>
+
+          {/* Catégorie (navigation) */}
+          {cat && (
+            <div className="mt-3">
+              <Link
+                to={`/explorer?cat=${cat.id}`}
+                className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700"
+              >
+                {cat.name}
+                {listing.subcategory ? ` · ${listing.subcategory}` : ''}
+              </Link>
+            </div>
+          )}
+
+          {/* Attributs — cartes façon mockup */}
+          {attrItems.length > 0 && (
+            <dl className="mt-5 grid grid-cols-2 gap-3">
+              {attrItems.map((a) => (
+                <div key={a.label} className="rounded-2xl border border-[#EFE6D7] bg-white px-4 py-3 shadow-card">
+                  <dt className="text-xs text-gray-400">{a.label}</dt>
+                  <dd className="mt-0.5 font-semibold text-gray-900">{a.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
+          {/* Description */}
+          <div className="mt-5">
+            <h2 className="mb-1.5 font-display text-sm font-bold text-gray-900">Description</h2>
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700">
+              {listing.description}
             </p>
           </div>
-        ) : (
-          <p className="text-2xl font-black text-primary-600">{priceLabel(listing.price, listing.negotiable)}</p>
-        )}
-        <h1 className="mt-1 text-lg font-bold leading-snug text-gray-900">{listing.title}</h1>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {formFor(listing.categoryId).condition &&
-            (listing.condition === 'neuf' ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                <BadgeCheck size={13} /> Neuf
+          {/* Vendeur */}
+          <Link
+            to={sellerId ? `/vendeur/${sellerId}` : '#'}
+            onClick={(e) => {
+              if (!sellerId) e.preventDefault()
+            }}
+            className="mt-5 flex items-center gap-3 rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-ivoire-green font-display text-lg font-bold text-white">
+              {sellerInitial}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-bold text-gray-900">{listing.sellerName}</p>
+              {count > 0 ? (
+                <span className="flex items-center gap-1 text-xs text-gray-500">
+                  <Stars value={avg} size={13} /> {avg.toFixed(1)} · {count} avis
+                </span>
+              ) : (
+                <p className="text-xs text-gray-400">Vendeur sur Chap.ci</p>
+              )}
+            </div>
+            {sellerId && (
+              <span className="shrink-0 rounded-xl border border-[#E6DAC6] bg-white px-4 py-2 font-display text-sm font-bold text-ink">
+                Voir
               </span>
+            )}
+          </Link>
+
+          {/* Actions — en ligne sur ordinateur (barre fixe sur mobile) */}
+          <div className="mt-5 hidden md:block">
+            {listing.sold ? (
+              <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-display font-semibold text-gray-500">
+                <BadgeCheck size={18} /> Article vendu
+              </div>
+            ) : isMine ? (
+              <Link to="/compte" className="btn-outline w-full">
+                Gérer mon annonce
+              </Link>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-                <Tag size={13} /> Occasion
-              </span>
-            ))}
-          {listing.delivery && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-              <Truck size={13} /> Livraison possible
-            </span>
-          )}
-          {cat && (
-            <Link
-              to={`/explorer?cat=${cat.id}`}
-              className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700"
-            >
-              {cat.name}
-              {listing.subcategory ? ` · ${listing.subcategory}` : ''}
-            </Link>
-          )}
-        </div>
+              <>
+                <div className="flex items-center gap-2">
+                  <button onClick={askQuestion} disabled={busy} className={`${greenBtn} flex-1`}>
+                    <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
+                  </button>
+                  <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
+                    <ShoppingBag size={18} /> Acheter
+                  </button>
+                  <button onClick={() => setShareOpen(true)} className="btn-outline shrink-0 px-3" aria-label="Partager">
+                    <Share2 size={18} />
+                  </button>
+                </div>
+                {isDemo && (
+                  <p className="mt-1.5 text-[11px] text-gray-400">
+                    Exemple de démonstration — publiez votre annonce pour recevoir de vrais messages.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500">
-          <span className="inline-flex items-center gap-1">
-            <MapPin size={15} />
-            {locationLabel(listing.regionId, listing.cityId, listing.commune)}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Clock size={15} />
-            {timeAgo(listing.createdAt)}
-          </span>
-          {distanceKm != null && distanceKm < 500 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700">
-              <Navigation size={13} />
-              {formatDistance(distanceKm)} de vous
-            </span>
-          )}
-        </div>
+          {/* Sécurité — remonté ici pour être vu AVANT de contacter / payer */}
+          <div className="mt-5 rounded-2xl bg-amber-50 p-4">
+            <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-amber-800">
+              <ShieldCheck size={16} /> Achetez en toute sécurité
+            </p>
+            <ul className="ml-1 list-disc space-y-0.5 pl-4 text-xs text-amber-700">
+              <li>Échangez uniquement via la messagerie de Chap.ci.</li>
+              <li>Rencontrez le vendeur dans un lieu public, ou privilégiez le paiement à la livraison.</li>
+              <li>Vérifiez le produit avant de payer.</li>
+            </ul>
+          </div>
 
-        {/* Détails — attributs spécifiques à la catégorie (marque, année, surface…) */}
-        {listing.attributes && Object.keys(listing.attributes).length > 0 && (
+          {/* Avis */}
           <div className="mt-5">
-            <h2 className="mb-2 text-sm font-bold text-gray-900">Détails</h2>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-              {formFor(listing.categoryId).fields
-                .filter((f) => listing.attributes?.[f.key])
-                .map((f) => (
-                  <div key={f.key} className="rounded-xl bg-gray-50 px-3 py-2">
-                    <dt className="text-xs text-gray-400">{f.label}</dt>
-                    <dd className="text-sm font-semibold text-gray-800">
-                      {listing.attributes![f.key]}
-                      {f.unit ? ` ${f.unit}` : ''}
-                    </dd>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="font-display text-sm font-bold text-gray-900">Avis {count > 0 ? `(${count})` : ''}</h2>
+              {user && purchased && !alreadyReviewed && !isMine && (
+                <button onClick={() => setShowReview((s) => !s)} className="text-sm font-semibold text-primary-600">
+                  {showReview ? 'Annuler' : 'Laisser un avis'}
+                </button>
+              )}
+            </div>
+
+            {showReview && (
+              <div className="mb-3 rounded-2xl border border-[#E6DAC6] p-3">
+                <Stars value={rating} size={26} editable onChange={setRating} />
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Décrivez votre expérience avec ce vendeur…"
+                  rows={3}
+                  className="input mt-2 resize-none text-sm"
+                />
+                <button onClick={submitReview} disabled={busy} className="btn-primary mt-2 w-full py-2.5 text-sm">
+                  Publier mon avis
+                </button>
+              </div>
+            )}
+
+            {reviews.length === 0 ? (
+              <p className="text-sm text-gray-400">Aucun avis pour le moment.</p>
+            ) : (
+              <div className="space-y-3">
+                {reviews.slice(0, 4).map((r) => (
+                  <div key={r.id} className="rounded-2xl border border-[#EFE6D7] bg-white p-3 shadow-card">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-800">{r.reviewerName}</span>
+                      <Stars value={r.rating} size={13} />
+                    </div>
+                    {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+                    <p className="mt-1 text-[11px] text-gray-400">{timeAgo(r.createdAt)}</p>
                   </div>
                 ))}
-            </dl>
-          </div>
-        )}
-
-        {/* Description */}
-        <div className="mt-5">
-          <h2 className="mb-1.5 text-sm font-bold text-gray-900">Description</h2>
-          <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700">
-            {listing.description}
-          </p>
-        </div>
-
-        {/* Vendeur */}
-        <Link
-          to={sellerId ? `/vendeur/${sellerId}` : '#'}
-          onClick={(e) => {
-            if (!sellerId) e.preventDefault()
-          }}
-          className="mt-5 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card"
-        >
-          <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-100 text-primary-600">
-            <User size={24} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-bold text-gray-900">{listing.sellerName}</p>
-            {count > 0 ? (
-              <span className="flex items-center gap-1 text-xs text-gray-500">
-                <Stars value={avg} size={13} /> {avg.toFixed(1)} · {count} avis
-              </span>
-            ) : (
-              <p className="text-xs text-gray-400">Vendeur sur Chap.ci</p>
-            )}
-          </div>
-          {sellerId && <ChevronRight size={20} className="text-gray-300" />}
-        </Link>
-
-        {/* Sécurité — remonté ici pour être vu AVANT de contacter / payer */}
-        <div className="mt-5 rounded-2xl bg-amber-50 p-4">
-          <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-amber-800">
-            <ShieldCheck size={16} /> Achetez en toute sécurité
-          </p>
-          <ul className="ml-1 list-disc space-y-0.5 pl-4 text-xs text-amber-700">
-            <li>Échangez uniquement via la messagerie de Chap.ci.</li>
-            <li>Rencontrez le vendeur dans un lieu public, ou privilégiez le paiement à la livraison.</li>
-            <li>Vérifiez le produit avant de payer.</li>
-          </ul>
-        </div>
-
-        {/* Avis */}
-        <div className="mt-5">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-gray-900">Avis {count > 0 ? `(${count})` : ''}</h2>
-            {user && purchased && !alreadyReviewed && !isMine && (
-              <button onClick={() => setShowReview((s) => !s)} className="text-sm font-semibold text-primary-600">
-                {showReview ? 'Annuler' : 'Laisser un avis'}
-              </button>
+              </div>
             )}
           </div>
 
-          {showReview && (
-            <div className="mb-3 rounded-2xl border border-[#E6DAC6] p-3">
-              <Stars value={rating} size={26} editable onChange={setRating} />
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Décrivez votre expérience avec ce vendeur…"
-                rows={3}
-                className="input mt-2 resize-none text-sm"
-              />
-              <button onClick={submitReview} disabled={busy} className="btn-primary mt-2 w-full py-2.5 text-sm">
-                Publier mon avis
-              </button>
-            </div>
-          )}
-
-          {reviews.length === 0 ? (
-            <p className="text-sm text-gray-400">Aucun avis pour le moment.</p>
-          ) : (
-            <div className="space-y-3">
-              {reviews.slice(0, 4).map((r) => (
-                <div key={r.id} className="rounded-xl bg-gray-50 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-800">{r.reviewerName}</span>
-                    <Stars value={r.rating} size={13} />
-                  </div>
-                  {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
-                  <p className="mt-1 text-[11px] text-gray-400">{timeAgo(r.createdAt)}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Signalement */}
+          {!isMine && <ReportButton listingId={listing.id} />}
         </div>
-
-        {/* Signalement */}
-        {!isMine && <ReportButton listingId={listing.id} />}
-
-        {/* Similaires */}
-        {similar.length > 0 && (
-          <div className="mt-6">
-            <h2 className="mb-3 text-base font-bold text-gray-900">Annonces similaires</h2>
-            <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4">
-              {similar.map((l) => (
-                <div key={l.id} className="w-40 shrink-0">
-                  <ListingCard listing={l} />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Barre d'action fixe */}
-      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-[#EFE6D7] bg-white px-4 py-3 shadow-nav safe-bottom">
+      {/* Similaires — pleine largeur sous les deux colonnes */}
+      {similar.length > 0 && (
+        <div className="mt-8 px-4 md:px-0">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-base font-bold text-gray-900">Annonces similaires</h2>
+          </div>
+          <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0">
+            {similar.map((l) => (
+              <div key={l.id} className="w-40 shrink-0 md:w-auto">
+                <ListingCard listing={l} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Barre d'action fixe — mobile uniquement */}
+      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-[#EFE6D7] bg-white px-4 py-3 shadow-nav safe-bottom md:hidden">
         {listing.sold ? (
-          <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-semibold text-gray-500">
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-display font-semibold text-gray-500">
             <BadgeCheck size={18} /> Article vendu
           </div>
         ) : isMine ? (
@@ -469,11 +569,11 @@ export function ListingDetail() {
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
-                <ShoppingBag size={18} /> {busy ? '…' : 'Acheter'}
+              <button onClick={askQuestion} disabled={busy} className={`${greenBtn} flex-[1.7]`}>
+                <MessageSquare size={18} /> {busy ? '…' : 'Contacter le vendeur'}
               </button>
-              <button onClick={askQuestion} disabled={busy} className="btn-primary flex-[1.7]">
-                <MessageSquare size={18} /> Contacter le vendeur
+              <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
+                <ShoppingBag size={18} /> Acheter
               </button>
             </div>
             {isDemo && (
