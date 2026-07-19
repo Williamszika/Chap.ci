@@ -105,6 +105,18 @@ const sections: Section[] = [
         ),
       },
       {
+        q: 'Comment se passe la livraison ?',
+        a: (
+          <>
+            La livraison est convenue <b>directement entre vous et le vendeur</b> dans la messagerie :
+            remise en main propre (idéalement dans un lieu public et fréquenté) ou livraison si le vendeur
+            l’a indiquée sur l’annonce (badge <b>« Livraison »</b>). Convenez à l’avance du <b>lieu</b>, de
+            l’<b>heure</b> et des éventuels <b>frais de livraison</b>. Chap.ci n’assure pas le transport et
+            n’est pas partie à la transaction : privilégiez le paiement au moment de la remise.
+          </>
+        ),
+      },
+      {
         q: 'Comment confirmer un achat et laisser un avis ?',
         a: (
           <>
@@ -182,6 +194,20 @@ const sections: Section[] = [
             Sur chaque annonce, utilisez le bouton <b>« Signaler »</b> et indiquez le motif. Notre équipe de
             modération examine les signalements. Une annonce trop signalée est automatiquement masquée en
             attendant vérification.
+          </>
+        ),
+      },
+      {
+        q: 'Que faire en cas de litige avec un acheteur ou un vendeur ?',
+        a: (
+          <>
+            Gardez d’abord votre calme et tout l’échange <b>dans la messagerie</b> Chap.ci (il sert de preuve).
+            Essayez de trouver un accord à l’amiable. Si la personne ne respecte pas ses engagements,
+            <b> signalez</b> l’annonce ou le profil, et écrivez-nous à <b>contact@chap.ci</b> en joignant les
+            détails. Chap.ci est un <b>intermédiaire technique</b> et n’est pas partie à la transaction : nous
+            ne pouvons pas rembourser, mais nous pouvons <b>sanctionner</b> un membre de mauvaise foi. En cas
+            d’escroquerie avérée, déposez plainte auprès de la <b>PLCC</b> (Plateforme de Lutte Contre la
+            Cybercriminalité).
           </>
         ),
       },

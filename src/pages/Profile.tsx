@@ -36,6 +36,7 @@ import { useIsAdmin } from '../lib/useIsAdmin'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
+import { useToast } from '../store/ToastContext'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { priceLabel, formatFCFA, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
@@ -63,6 +64,7 @@ export function Profile() {
   const { user, enabled, signOut } = useAuth()
   const isAdmin = useIsAdmin()
   const { place } = useGeo()
+  const toast = useToast()
   const [seller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const location = useLocation()
 
@@ -125,7 +127,7 @@ export function Profile() {
       await updateOrderStatus(order.id, 'finalise')
       setPurchases((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: 'finalise' } : o)))
     } catch {
-      alert('Action impossible pour le moment.')
+      toast.error('Action impossible pour le moment.')
     }
   }
 
@@ -432,7 +434,7 @@ export function Profile() {
                         <button
                           onClick={async () => {
                             try { await setListingHidden(l.id, !l.hidden); await reloadMine.current() }
-                            catch { alert('Action impossible.') }
+                            catch { toast.error('Action impossible.') }
                           }}
                           className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                         >
@@ -443,7 +445,7 @@ export function Profile() {
                         onClick={async () => {
                           if (!confirm('Supprimer définitivement cette annonce ?')) return
                           try { await deleteListing(l.id); await reloadMine.current() }
-                          catch { alert('Suppression impossible : vous devez être le propriétaire connecté.') }
+                          catch { toast.error('Suppression impossible : vous devez être le propriétaire connecté.') }
                         }}
                         className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-red-500 hover:bg-red-50"
                       >
@@ -602,6 +604,7 @@ function ToggleRow({ label, desc, on, onToggle, disabled }: {
 
 /** « Mes alertes » : recherches sauvegardées (notifications par email). */
 function MyAlerts() {
+  const toast = useToast()
   const navigate = useNavigate()
   const [alerts, setAlerts] = useState<SavedSearch[]>([])
   const [loading, setLoading] = useState(true)
@@ -622,7 +625,7 @@ function MyAlerts() {
       await deleteSavedSearch(id)
       setAlerts((prev) => prev.filter((a) => a.id !== id))
     } catch {
-      alert('Suppression impossible pour le moment.')
+      toast.error('Suppression impossible pour le moment.')
     } finally {
       setBusy(null)
     }
@@ -830,6 +833,7 @@ function OrderCard({
 }
 
 function SettingsForm({ userId, initialName }: { userId: string; initialName: string }) {
+  const toast = useToast()
   const [name, setName] = useState(initialName)
   const [bio, setBio] = useState('')
   const [saved, setSaved] = useState(false)
@@ -842,7 +846,7 @@ function SettingsForm({ userId, initialName }: { userId: string; initialName: st
       setSaved(true)
       setTimeout(() => setSaved(false), 1800)
     } catch {
-      alert('Enregistrement impossible.')
+      toast.error('Enregistrement impossible.')
     } finally {
       setBusy(false)
     }
@@ -960,6 +964,7 @@ function AvatarUpload({
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const toast = useToast()
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -970,7 +975,7 @@ function AvatarUpload({
       await updateMyProfile(userId, { avatar_url: dataUrl })
       onUpdated(dataUrl)
     } catch {
-      alert('Impossible d’enregistrer la photo.')
+      toast.error('Impossible d’enregistrer la photo.')
     } finally {
       setBusy(false)
       e.target.value = ''
@@ -1144,6 +1149,7 @@ function TwoFactor() {
 }
 
 function DeleteAccount() {
+  const toast = useToast()
   const { deleteAccount } = useAuth()
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
@@ -1155,8 +1161,8 @@ function DeleteAccount() {
     setBusy(true)
     const r = await deleteAccount(pwd)
     setBusy(false)
-    if (r.error) return alert(r.error)
-    alert('Votre compte et toutes vos données ont été supprimés.')
+    if (r.error) return toast.error(r.error)
+    toast.success('Votre compte et toutes vos données ont été supprimés.')
     navigate('/')
   }
 

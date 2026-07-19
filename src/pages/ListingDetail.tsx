@@ -381,6 +381,18 @@ export function ListingDetail() {
           {sellerId && <ChevronRight size={20} className="text-gray-300" />}
         </Link>
 
+        {/* Sécurité — remonté ici pour être vu AVANT de contacter / payer */}
+        <div className="mt-5 rounded-2xl bg-amber-50 p-4">
+          <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-amber-800">
+            <ShieldCheck size={16} /> Achetez en toute sécurité
+          </p>
+          <ul className="ml-1 list-disc space-y-0.5 pl-4 text-xs text-amber-700">
+            <li>Échangez uniquement via la messagerie de Chap.ci.</li>
+            <li>Rencontrez le vendeur dans un lieu public, ou privilégiez le paiement à la livraison.</li>
+            <li>Vérifiez le produit avant de payer.</li>
+          </ul>
+        </div>
+
         {/* Avis */}
         <div className="mt-5">
           <div className="mb-2 flex items-center justify-between">
@@ -424,18 +436,6 @@ export function ListingDetail() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Sécurité */}
-        <div className="mt-5 rounded-2xl bg-amber-50 p-4">
-          <p className="mb-1 flex items-center gap-1.5 text-sm font-bold text-amber-800">
-            <ShieldCheck size={16} /> Achetez en toute sécurité
-          </p>
-          <ul className="ml-1 list-disc space-y-0.5 pl-4 text-xs text-amber-700">
-            <li>Échangez uniquement via la messagerie de Chap.ci.</li>
-            <li>Rencontrez le vendeur dans un lieu public, ou privilégiez le paiement à la livraison.</li>
-            <li>Vérifiez le produit avant de payer.</li>
-          </ul>
         </div>
 
         {/* Signalement */}
