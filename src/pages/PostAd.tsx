@@ -286,7 +286,7 @@ export function PostAd() {
   return (
     <div className="min-h-screen pb-28">
       {/* En-tête / hero — grand titre display + sous-titre, comme la maquette. */}
-      <header className="mx-auto w-full max-w-3xl px-4 pt-5 lg:px-8">
+      <header className="mx-auto w-full max-w-5xl px-4 pt-5 lg:px-8">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -305,7 +305,7 @@ export function PostAd() {
         </p>
       </header>
 
-      <form onSubmit={submit} className="mx-auto w-full max-w-3xl px-4 pb-8 pt-5 lg:px-8">
+      <form onSubmit={submit} className="mx-auto w-full max-w-5xl px-4 pb-8 pt-5 lg:px-8">
         {/* Refus du Gardien de publication (modération automatique) */}
         {moderation && (
           <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4">
