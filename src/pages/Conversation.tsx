@@ -107,7 +107,7 @@ export function Conversation() {
     <MessagesLayout
       activeId={id}
       detail={
-        <div className="flex min-h-screen flex-col bg-[#f4f5f7] md:h-full md:min-h-0 md:bg-white">
+        <div className="flex min-h-screen flex-col bg-[#FFF6EA] md:h-full md:min-h-0 md:bg-white">
           {/* En-tête — le bouton « retour » n'est utile que sur mobile (la liste est visible sur ordinateur) */}
           <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-2.5 md:rounded-t-3xl">
             <button onClick={() => navigate('/messages')} aria-label="Retour" className="p-1 md:hidden">

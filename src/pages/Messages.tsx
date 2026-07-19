@@ -17,7 +17,7 @@ import { timeAgo } from '../lib/format'
 export function MessagesLayout({ activeId, detail }: { activeId?: string; detail: ReactNode }) {
   const hasDetail = !!activeId
   return (
-    <div className="min-h-screen bg-[#f4f5f7] md:mx-auto md:max-w-[1120px] md:px-4 md:py-4">
+    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-[1120px] md:px-4 md:py-4">
       <div className="md:grid md:h-[calc(100vh-7rem)] md:grid-cols-[360px_minmax(0,1fr)] md:gap-4">
         {/* Volet LISTE — masqué sur mobile quand une conversation est ouverte */}
         <aside

@@ -163,7 +163,7 @@ export function Browse() {
     (tri !== 'recent' ? 1 : 0) + Object.keys(attrParams).length
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7]">
+    <div className="min-h-screen bg-[#FFF6EA]">
       {/* En-tête sticky */}
       <div className="safe-top sticky top-0 z-30 bg-white shadow-sm">
         <div className="flex items-center gap-2 px-3 py-2.5">

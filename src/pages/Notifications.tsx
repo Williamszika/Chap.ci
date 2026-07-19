@@ -86,7 +86,7 @@ export function Notifications() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:bg-white md:shadow-card">
+    <div className="min-h-screen bg-[#FFF6EA] pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:bg-white md:shadow-card">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />

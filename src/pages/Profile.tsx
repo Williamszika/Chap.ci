@@ -132,7 +132,7 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] md:mx-auto md:min-h-0 md:max-w-3xl md:bg-transparent md:py-6 lg:max-w-5xl xl:max-w-6xl">
+    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:min-h-0 md:max-w-3xl md:bg-transparent md:py-6 lg:max-w-5xl xl:max-w-6xl">
       {/* Ordinateur / tablette : 2 volets (barre latérale + contenu). Mobile : empilé. */}
       <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-6">
       <aside className="md:sticky md:top-6 md:space-y-4">

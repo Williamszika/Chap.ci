@@ -33,7 +33,7 @@ export function Donate() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:bg-white md:shadow-card lg:max-w-5xl">
+    <div className="min-h-screen bg-[#FFF6EA] pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:bg-white md:shadow-card lg:max-w-5xl">
       {/* En-tête */}
       <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-6 pt-3 text-white">
         <div className="flex items-center gap-3">

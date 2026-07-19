@@ -28,6 +28,15 @@ export default {
         cream: {
           DEFAULT: '#FFFDF9',
           100: '#FFF3E4',
+          200: '#FFF6EA', // fond d'application chaud (artifact --bg2)
+        },
+        // Palette ivoirienne étendue (artifact) — accents chaleureux, à doser.
+        accent: {
+          gold: '#E8A100',
+          ocre: '#B5651D',
+          terracotta: '#C1440E',
+          sable: '#EAD9C0',
+          sky: '#2E7DB8',
         },
       },
       fontFamily: {
@@ -40,8 +49,10 @@ export default {
         ],
       },
       boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
-        nav: '0 -1px 8px rgba(0,0,0,0.06)',
+        // Ombres chaudes (teinte brune) de l'artifact — plus « ivoiriennes » que le gris neutre.
+        card: '0 1px 3px rgba(60,40,10,.09), 0 1px 2px rgba(60,40,10,.05)',
+        'card-lg': '0 12px 34px -10px rgba(120,70,10,.28), 0 6px 14px -8px rgba(120,70,10,.20)',
+        nav: '0 -1px 8px rgba(60,40,10,0.06)',
       },
       maxWidth: {
         app: '560px',
