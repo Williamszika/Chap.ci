@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { categories } from '../data/categories'
+import { PromoBanner } from '../components/PromoBanner'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { Mark, Wordmark } from '../components/Logo'
 import { ListingCard } from '../components/ListingCard'
@@ -222,6 +223,9 @@ export function Home() {
           )}
         </form>
       </header>
+
+      {/* Bannière publicitaire / mise en avant */}
+      <PromoBanner />
 
       {/* Catégories */}
       <section className="px-4 py-5">
