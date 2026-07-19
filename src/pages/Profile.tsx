@@ -40,6 +40,7 @@ import { useToast } from '../store/ToastContext'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { priceLabel, formatFCFA, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
+import { categories } from '../data/categories'
 import { fetchOrders, updateOrderStatus } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
@@ -110,6 +111,19 @@ export function Profile() {
     .filter((o) => o.status === 'finalise')
     .reduce((sum, o) => sum + o.items.reduce((t, it) => t + it.price, 0), 0)
 
+  // Données des panneaux du tableau de bord vendeur — dérivées des vraies annonces.
+  const hasViews = myListings.some((l) => (l.views ?? 0) > 0)
+  const topByViews = [...myListings].sort((a, b) => (b.views ?? 0) - (a.views ?? 0)).slice(0, 7)
+  const maxViews = Math.max(1, ...topByViews.map((l) => l.views ?? 0))
+  const categoryName = new Map(categories.map((c): [string, string] => [c.id, c.name]))
+  const catCounts = new Map<string, number>()
+  for (const l of myListings) catCounts.set(l.categoryId, (catCounts.get(l.categoryId) ?? 0) + 1)
+  const catDist = [...catCounts.entries()]
+    .map(([id, n]) => ({ name: categoryName.get(id) ?? id, n }))
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 4)
+  const catBarColors = ['bg-primary-500', 'bg-ivoire-green', 'bg-accent-gold', 'bg-accent-sky']
+
   useEffect(() => {
     if (!user) return
     let active = true
@@ -136,48 +150,77 @@ export function Profile() {
       {/* Ordinateur / tablette : 2 volets (barre latérale + contenu). Mobile : empilé. */}
       <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-6">
       <aside className="md:sticky md:top-6 md:space-y-4">
-      {/* En-tête */}
-      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-5 pt-5 text-white md:rounded-3xl md:shadow-card">
-        <div className="flex items-center gap-3">
-          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-white/20">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full w-full place-items-center text-2xl font-black">
-                {(displayName || 'C').charAt(0).toUpperCase()}
+      {/* En-tête — carte de profil « Mon compte » (fond crème, avatar orange). */}
+      <header className="px-4 pt-4 md:px-0 md:pt-0">
+        <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:rounded-3xl md:p-5">
+          <div className="flex items-center gap-3">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center text-2xl font-black">
+                  {(displayName || 'C').charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 truncate font-display text-lg font-black text-ink">
+                <span className="truncate">{displayName || 'Bienvenue 👋'}</span>
+                {user && (
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-bold text-ivoire-green">
+                    <BadgeCheck size={14} /> Vérifié
+                  </span>
+                )}
+              </p>
+              {user ? (
+                <>
+                  <p className="truncate text-sm text-gray-500">
+                    {user.email}
+                    {seller.phone ? ` · ${seller.phone}` : ''}
+                  </p>
+                  {rating.count > 0 && (
+                    <span className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-gray-700">
+                      <Star size={13} className="fill-amber-400 text-amber-400" /> {rating.avg.toFixed(1)} ·{' '}
+                      {rating.count} avis
+                    </span>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">Connectez-vous pour vendre et acheter</p>
+              )}
+            </div>
+            {user && (
+              <div className="flex shrink-0 items-center gap-2">
+                <NotificationBell />
+                <button onClick={() => setTab('params')} className="btn-outline px-3 py-2 text-sm">
+                  <Pencil size={15} /> Modifier
+                </button>
               </div>
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-black">{displayName || 'Bienvenue 👋'}</p>
-            {user ? (
-              rating.count > 0 ? (
-                <span className="flex items-center gap-1 text-sm text-white/90">
-                  <Star size={14} className="fill-amber-300 text-amber-300" /> {rating.avg.toFixed(1)} ·{' '}
-                  {rating.count} avis
-                </span>
-              ) : (
-                <p className="truncate text-sm text-white/85">{user.email}</p>
-              )
-            ) : (
-              <p className="text-sm text-white/85">Connectez-vous pour vendre et acheter</p>
-            )}
-          </div>
-          {user && <NotificationBell />}
-        </div>
 
-        {/* Actions rapides */}
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <QuickAction icon={<PlusCircle size={20} />} label="Publier" onClick={() => navigate('/publier')} />
-          <QuickAction icon={<MessageSquare size={20} />} label="Messages" onClick={() => navigate('/messages')} />
-          <QuickAction
-            icon={<Heart size={20} />}
-            label="Favoris"
-            badge={favorites.length}
-            onClick={() => navigate('/favoris')}
-          />
+          {/* Actions rapides */}
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <QuickAction icon={<PlusCircle size={20} />} label="Publier" onClick={() => navigate('/publier')} />
+            <QuickAction icon={<MessageSquare size={20} />} label="Messages" onClick={() => navigate('/messages')} />
+            <QuickAction
+              icon={<Heart size={20} />}
+              label="Favoris"
+              badge={favorites.length}
+              onClick={() => navigate('/favoris')}
+            />
+          </div>
         </div>
       </header>
+
+      {/* Récapitulatif du compte : annonces · favoris · note */}
+      {user && (
+        <div className="grid grid-cols-3 gap-2 px-4 pt-3 md:px-0 md:pt-0">
+          <MiniStat value={myListings.length} label="annonces" />
+          <MiniStat value={favorites.length} label="favoris" />
+          <MiniStat value={rating.count ? rating.avg.toFixed(1) : '—'} label="note" />
+        </div>
+      )}
 
       {/* Accès administrateur (propriétaire ou modérateur) */}
       {isAdmin && (
@@ -331,6 +374,60 @@ export function Profile() {
                   </button>
                 )}
               </div>
+
+              {/* Panneaux du tableau de bord (vues par annonce + répartition par catégorie). */}
+              {myListings.length > 0 && (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {hasViews && (
+                    <div className="card p-4">
+                      <p className="font-display text-base font-black text-ink">Vues des annonces</p>
+                      <p className="mb-4 text-xs text-gray-500">Vos annonces les plus vues</p>
+                      <div className="flex h-36 items-end gap-2">
+                        {topByViews.map((l) => {
+                          const pct = Math.round(((l.views ?? 0) / maxViews) * 100)
+                          const peak = (l.views ?? 0) === maxViews
+                          return (
+                            <div key={l.id} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                              <span className="tnum text-[10px] font-semibold text-gray-400">{l.views ?? 0}</span>
+                              <div className="flex w-full flex-1 items-end">
+                                <div
+                                  className={`w-full rounded-t-md ${peak ? 'bg-ivoire-green' : 'bg-gradient-to-t from-primary-600 to-primary-400'}`}
+                                  style={{ height: `${Math.max(6, pct)}%` }}
+                                  title={l.title}
+                                />
+                              </div>
+                              <span className="w-full truncate text-center text-[10px] text-gray-500">{l.title}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div className="card p-4">
+                    <p className="font-display text-base font-black text-ink">Répartition</p>
+                    <p className="mb-4 text-xs text-gray-500">Par catégorie</p>
+                    <div className="space-y-3">
+                      {catDist.map((c, i) => {
+                        const pct = Math.round((c.n / (myListings.length || 1)) * 100)
+                        return (
+                          <div key={c.name}>
+                            <div className="flex items-center justify-between text-[13px] font-semibold text-gray-700">
+                              <span className="min-w-0 truncate">{c.name}</span>
+                              <span className="tnum shrink-0">{pct} %</span>
+                            </div>
+                            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#EFE6D7]">
+                              <div
+                                className={`h-full rounded-full ${catBarColors[i % catBarColors.length]}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {showReviews ? (
                 <SellerReviews reviews={myReviews} rating={rating} onClear={() => setShowReviews(false)} />
@@ -697,16 +794,19 @@ function QuickAction({
   badge?: number
 }) {
   return (
-    <button onClick={onClick} className="relative flex flex-col items-center gap-1 rounded-2xl bg-white/15 py-2.5">
+    <button
+      onClick={onClick}
+      className="relative flex flex-col items-center gap-1 rounded-2xl border border-[#EFE6D7] bg-cream-200 py-2.5 text-primary-600 transition hover:bg-primary-50 active:scale-[0.98]"
+    >
       <span className="relative">
         {icon}
         {badge ? (
-          <span className="absolute -right-2.5 -top-1.5 min-w-[16px] rounded-full bg-red-500 px-1 text-center text-[9px] font-bold">
+          <span className="absolute -right-2.5 -top-1.5 min-w-[16px] rounded-full bg-red-500 px-1 text-center text-[9px] font-bold text-white">
             {badge}
           </span>
         ) : null}
       </span>
-      <span className="text-[11px] font-medium">{label}</span>
+      <span className="text-[11px] font-semibold text-gray-700">{label}</span>
     </button>
   )
 }
@@ -714,18 +814,28 @@ function QuickAction({
 function StatTile({
   label, value, sub, onClick, active,
 }: { label: string; value: number | string; sub?: string; onClick?: () => void; active?: boolean }) {
-  const box = `rounded-xl px-2 py-3 text-center transition ${
-    active ? 'bg-primary-500 shadow-sm' : 'bg-gray-50'
+  const box = `rounded-xl border px-2 py-3 text-center transition ${
+    active ? 'border-primary-500 bg-primary-500 shadow-sm' : 'border-[#EFE6D7] bg-cream-200'
   } ${onClick ? 'cursor-pointer hover:brightness-95 active:scale-[0.97]' : ''}`
   const inner = (
     <>
-      <p className={`text-xl font-black ${active ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+      <p className={`text-xl font-black ${active ? 'text-white' : 'text-primary-600'}`}>{value}</p>
       <p className={`text-[11px] font-medium ${active ? 'text-white/90' : 'text-gray-500'}`}>{label}</p>
       {sub && <p className={`text-[10px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{sub}</p>}
     </>
   )
   if (onClick) return <button type="button" onClick={onClick} className={`${box} w-full`}>{inner}</button>
   return <div className={box}>{inner}</div>
+}
+
+/** Petite tuile de récap du compte (annonces / favoris / note). */
+function MiniStat({ value, label }: { value: number | string; label: string }) {
+  return (
+    <div className="rounded-2xl border border-[#EFE6D7] bg-white px-2 py-3 text-center shadow-card">
+      <p className="tnum text-2xl font-black text-primary-600">{value}</p>
+      <p className="text-xs text-gray-500">{label}</p>
+    </div>
+  )
 }
 
 /** Bandeau indiquant le filtre actif, avec un bouton pour l'effacer. */

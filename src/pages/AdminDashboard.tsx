@@ -88,25 +88,31 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#FFF6EA] pb-16">
       <header className="safe-top sticky top-0 z-30 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md">
-        <div className="flex items-center gap-3 px-3 py-3">
+        <div className="flex items-center gap-2.5 px-3 py-3">
           <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
           <h1 className="font-display text-lg font-bold">Administration</h1>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white ${role.owner ? 'bg-ink' : 'bg-ivoire-green'}`}>
+            {role.owner ? 'Propriétaire' : 'Modérateur'}
+          </span>
           <button
             onClick={() => { adminLock(); setReload((n) => n + 1) }}
-            className="ml-auto flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600 active:scale-95"
+            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-[#E6DAC6] bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-cream-100 active:scale-95"
             title="Verrouiller le tableau de bord"
           >
             <Lock size={14} /> Verrouiller
           </button>
         </div>
-        <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => canSee(id)).map(([id,label]) => (
+        <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => canSee(id)).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${tab === id ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+              className={`flex shrink-0 items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${tab === id ? 'border border-primary-500 bg-primary-500 text-white shadow-sm' : 'border border-[#E6DAC6] bg-white text-gray-600 hover:bg-cream-100'}`}
             >
               {label}
+              {id === 'reports' && !!stats?.reportsOpen && (
+                <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{stats.reportsOpen}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -158,39 +164,41 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-6">
-      <div className="flex flex-col items-center text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-primary-600"><Lock size={26} /></span>
-        <h1 className="mt-4 font-display text-lg font-bold text-gray-900">Tableau de bord verrouillé</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {owner
-            ? 'Recevez un code par email, puis saisissez-le ici. Il expire dans 1 minute.'
-            : 'Entrez le code d’accès fourni par l’administrateur principal.'}
-        </p>
+      <div className="rounded-2xl border border-[#EFE6D7] bg-white p-6 shadow-card">
+        <div className="flex flex-col items-center text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 text-primary-600"><Lock size={30} /></span>
+          <h1 className="mt-4 font-display text-xl font-bold text-gray-900">Tableau de bord verrouillé</h1>
+          <p className="mt-1.5 text-sm leading-relaxed text-gray-500">
+            {owner
+              ? 'Recevez un code par email, puis saisissez-le ici. Il expire dans 1 minute.'
+              : 'Entrez le code d’accès fourni par l’administrateur principal.'}
+          </p>
+        </div>
+        <form onSubmit={submit} className="mt-5 space-y-3">
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+            placeholder="Code d’accès"
+            maxLength={16}
+            autoFocus
+            className="input text-center font-mono text-lg tracking-[0.3em]"
+          />
+          {err && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{err}</p>}
+          {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
+          <button type="submit" disabled={busy} className="btn-primary w-full py-3.5 text-base">
+            {busy ? <Loader2 size={20} className="animate-spin" /> : 'Déverrouiller'}
+          </button>
+        </form>
+        {owner ? (
+          <button onClick={sendEmail} disabled={busy} className="btn-outline mt-3 w-full py-2.5 text-sm">
+            <Mail size={16} /> Recevoir un code par email
+          </button>
+        ) : (
+          <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
+            Vous n’avez pas le code ? Demandez-le à l’administrateur principal du site.
+          </p>
+        )}
       </div>
-      <form onSubmit={submit} className="mt-5 space-y-3">
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-          placeholder="Code d’accès"
-          maxLength={16}
-          autoFocus
-          className="input text-center font-mono text-lg tracking-[0.3em]"
-        />
-        {err && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{err}</p>}
-        {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
-        <button type="submit" disabled={busy} className="btn-primary w-full py-3.5 text-base">
-          {busy ? <Loader2 size={20} className="animate-spin" /> : 'Déverrouiller'}
-        </button>
-      </form>
-      {owner ? (
-        <button onClick={sendEmail} disabled={busy} className="btn-outline mt-3 w-full py-2.5 text-sm">
-          <Mail size={16} /> Recevoir un code par email
-        </button>
-      ) : (
-        <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
-          Vous n’avez pas le code ? Demandez-le à l’administrateur principal du site.
-        </p>
-      )}
     </div>
   )
 }
