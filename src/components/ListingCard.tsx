@@ -32,7 +32,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
   return (
     <Link
       to={`/annonce/${listing.id}`}
-      className="card group block overflow-hidden transition active:scale-[0.98]"
+      className="card group block overflow-hidden transition duration-200 active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-card-lg"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <img
@@ -105,7 +105,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             </>
           ) : (
             <>
-              <span className="tnum whitespace-nowrap text-[16px] font-black text-primary-600">
+              <span className="tnum whitespace-nowrap font-display text-[16px] font-extrabold text-primary-700">
                 {isFree ? 'Gratuit' : formatFCFA(listing.price)}
               </span>
               {listing.negotiable && !isFree && (
