@@ -152,6 +152,90 @@ export function Profile() {
     navigate('/')
   }
 
+  // Accueil du compte connecté — mise en page pleine largeur (façon artifact),
+  // aussi bien sur mobile que sur ordinateur.
+  if (user && tab === 'accueil') {
+    return (
+      <div className="min-h-screen bg-[#FFF6EA] md:min-h-0 md:bg-transparent">
+        <div className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-4xl md:px-6 md:py-6 lg:max-w-5xl">
+          {/* Carte profil */}
+          <div className="flex items-center gap-4 rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:rounded-3xl md:p-5">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white md:h-20 md:w-20">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center text-2xl font-black md:text-3xl">
+                  {(displayName || 'C').charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 font-display text-lg font-black text-ink md:text-xl">
+                <span className="truncate">{displayName || 'Mon compte'}</span>
+                <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-bold text-ivoire-green">
+                  <BadgeCheck size={14} /> Vérifié
+                </span>
+              </p>
+              <p className="truncate text-sm text-gray-500">
+                {user.email}{seller.phone ? ` · ${seller.phone}` : ''}
+              </p>
+            </div>
+            <button onClick={() => setTab('params')} className="btn-outline shrink-0 px-4 py-2 text-sm">
+              <Pencil size={15} /> Modifier
+            </button>
+          </div>
+
+          {/* Récapitulatif : annonces · favoris · note */}
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <MiniStat value={myListings.length} label="annonces" />
+            <MiniStat value={favorites.length} label="favoris" />
+            <MiniStat value={rating.count ? rating.avg.toFixed(1) : '—'} label="note" />
+          </div>
+
+          {/* Accès administrateur */}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="mt-4 flex items-center gap-3 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card transition active:scale-[0.99]"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20"><ShieldCheck size={22} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-bold">Tableau de bord administrateur</span>
+                <span className="block text-sm text-white/85">Statistiques, modération, modérateurs…</span>
+              </span>
+              <ChevronRight size={20} className="shrink-0" />
+            </Link>
+          )}
+
+          {/* Mon activité */}
+          <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Mon activité</p>
+          <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
+            <AccountRow tint="ocre" icon={<Package size={20} />} label="Mes annonces" sub={`${myListings.length} en ligne · ${salesDone} vendue${salesDone > 1 ? 's' : ''}`} onClick={() => setTab('annonces')} />
+            <AccountRow tint="red" icon={<Heart size={20} className="fill-current" />} label="Mes favoris" badge={favorites.length || undefined} onClick={() => navigate('/favoris')} />
+            <AccountRow tint="gray" icon={<MessageSquare size={20} />} label="Messages" sub="Vos conversations" onClick={() => navigate('/messages')} />
+            <AccountRow tint="gold" icon={<ShoppingBag size={20} />} label="Mes commandes" sub={`${purchases.filter((o) => o.status === 'en_cours').length} en cours`} onClick={() => setTab('achats')} />
+            <AccountRow tint="green" icon={<BarChart3 size={20} />} label="Tableau de bord pro" sub="Statistiques & ventes" onClick={() => setTab('ventes')} />
+          </div>
+
+          {/* Compte & sécurité */}
+          <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Compte &amp; sécurité</p>
+          <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
+            <AccountRow tint="primary" icon={<Bell size={20} />} label="Notifications" onClick={() => navigate('/notifications')} />
+            <AccountRow tint="green" icon={<ShieldCheck size={20} />} label="Sécurité" sub="Mot de passe · double authentification" onClick={() => setTab('params')} />
+            <AccountRow tint="sky" icon={<MapPin size={20} />} label="Adresse & localisation" onClick={() => setTab('params')} />
+            <AccountRow tint="primary" icon={<HelpCircle size={20} />} label="Aide & support" onClick={() => navigate('/aide')} />
+            <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-red-50">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600"><LogOut size={20} /></span>
+              <span className="flex-1 font-semibold text-red-600">Se déconnecter</span>
+            </button>
+          </div>
+
+          <div className="h-6" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:min-h-0 md:max-w-3xl md:bg-transparent md:py-6 lg:max-w-5xl xl:max-w-6xl">
       {/* Ordinateur / tablette : 2 volets (barre latérale + contenu). Mobile : empilé. */}
@@ -285,37 +369,10 @@ export function Profile() {
       {/* Contenu principal */}
       <main className="md:min-w-0">
       <div className="px-4 py-4 md:px-0 md:pt-1">
-        {/* ACCUEIL DU COMPTE — menu façon artifact */}
-        {tab === 'accueil' &&
-          (user ? (
-            <div className="space-y-5">
-              <section>
-                <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Mon activité</p>
-                <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
-                  <AccountRow icon={<Package size={20} />} label="Mes annonces" sub={`${myListings.length} en ligne · ${salesDone} vendue${salesDone > 1 ? 's' : ''}`} onClick={() => setTab('annonces')} />
-                  <AccountRow icon={<Heart size={20} />} label="Mes favoris" sub={`${favorites.length} enregistrée${favorites.length > 1 ? 's' : ''}`} onClick={() => navigate('/favoris')} />
-                  <AccountRow icon={<MessageSquare size={20} />} label="Messages" sub="Vos conversations" onClick={() => navigate('/messages')} />
-                  <AccountRow icon={<ShoppingBag size={20} />} label="Mes commandes" sub={`${purchases.filter((o) => o.status === 'en_cours').length} en cours`} onClick={() => setTab('achats')} />
-                  <AccountRow icon={<BarChart3 size={20} />} label="Tableau de bord pro" sub="Statistiques & ventes" onClick={() => setTab('ventes')} />
-                </div>
-              </section>
-              <section>
-                <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Compte &amp; sécurité</p>
-                <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
-                  <AccountRow icon={<Bell size={20} />} label="Notifications" onClick={() => navigate('/notifications')} />
-                  <AccountRow icon={<ShieldCheck size={20} />} label="Sécurité" sub="Mot de passe · double authentification" onClick={() => setTab('params')} />
-                  <AccountRow icon={<MapPin size={20} />} label="Adresse & localisation" onClick={() => setTab('params')} />
-                  <AccountRow icon={<HelpCircle size={20} />} label="Aide & support" onClick={() => navigate('/aide')} />
-                  <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-red-50">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600"><LogOut size={20} /></span>
-                    <span className="flex-1 font-semibold text-red-600">Se déconnecter</span>
-                  </button>
-                </div>
-              </section>
-            </div>
-          ) : (
-            <Empty text="Connectez-vous pour accéder à votre compte." />
-          ))}
+        {/* ACCUEIL DU COMPTE (déconnecté) — la vue connectée est gérée en pleine largeur plus haut. */}
+        {tab === 'accueil' && !user && (
+          <Empty text="Connectez-vous pour accéder à votre compte." />
+        )}
 
         {/* Bouton retour au menu du compte (depuis un onglet) */}
         {tab !== 'accueil' && (
@@ -879,22 +936,37 @@ function StatTile({
   return <div className={box}>{inner}</div>
 }
 
-/** Ligne de menu du compte (icône · libellé · sous-titre · chevron). */
+const rowTints: Record<string, string> = {
+  primary: 'bg-primary-100 text-primary-600',
+  red: 'bg-red-100 text-red-500',
+  gray: 'bg-gray-100 text-gray-500',
+  gold: 'bg-amber-100 text-amber-600',
+  green: 'bg-ivoire-green/10 text-ivoire-green',
+  ocre: 'bg-accent-ocre/10 text-accent-ocre',
+  sky: 'bg-sky-100 text-sky-600',
+}
+
+/** Ligne de menu du compte (icône colorée · libellé · sous-titre · pastille · chevron). */
 function AccountRow({
-  icon, label, sub, onClick,
+  icon, tint = 'primary', label, sub, badge, onClick,
 }: {
   icon: React.ReactNode
+  tint?: keyof typeof rowTints
   label: string
   sub?: string
+  badge?: number
   onClick: () => void
 }) {
   return (
     <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-cream-100">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cream-100 text-primary-600">{icon}</span>
+      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${rowTints[tint]}`}>{icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-semibold text-gray-900">{label}</span>
         {sub ? <span className="block truncate text-xs text-gray-500">{sub}</span> : null}
       </span>
+      {badge ? (
+        <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-primary-500 px-2 text-xs font-bold text-white">{badge}</span>
+      ) : null}
       <ChevronRight size={18} className="shrink-0 text-gray-300" />
     </button>
   )
