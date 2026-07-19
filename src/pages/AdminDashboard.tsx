@@ -70,10 +70,10 @@ export function AdminDashboard() {
     return (
       <Shell>
         <Center>
-          <div className="flex flex-col items-center text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400"><Lock size={26} /></span>
-            <p className="mt-4 font-semibold text-gray-800">Accès réservé à l’administrateur</p>
-            <p className="mt-1 max-w-xs text-sm text-gray-500">Connectez-vous avec le compte administrateur du site pour accéder au tableau de bord.</p>
+          <div className="mx-auto flex max-w-sm flex-col items-center rounded-3xl border border-[#EFE6D7] bg-white px-6 py-10 text-center shadow-card">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 text-primary-600"><Lock size={30} /></span>
+            <h1 className="mt-4 font-display text-xl font-bold text-gray-900">Accès réservé à l’administrateur</h1>
+            <p className="mt-1.5 max-w-xs text-sm text-gray-500">Connectez-vous avec le compte administrateur du site pour accéder au tableau de bord.</p>
           </div>
         </Center>
       </Shell>

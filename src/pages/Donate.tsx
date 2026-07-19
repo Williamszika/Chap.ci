@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Copy, Check, Phone, Heart } from 'lucide-react'
+import { ArrowLeft, Copy, Check, Phone, Heart, ShieldCheck } from 'lucide-react'
 import { donationOperators, suggestedAmounts, donationCopy } from '../data/donation'
 import { formatFCFA, formatPrice } from '../lib/format'
 
@@ -179,6 +179,32 @@ export function Donate() {
 
           <p className="text-center text-xs text-gray-400">
             Paiement sécurisé · reçu envoyé par SMS
+          </p>
+
+          {/* Pourquoi faire un don */}
+          <section className="card p-5">
+            <h2 className="font-display text-base font-bold text-gray-900">Pourquoi faire un don ?</h2>
+            <ul className="mt-3 space-y-2.5">
+              {donationCopy.why.map((w) => (
+                <li key={w} className="flex items-start gap-2.5 text-sm text-gray-600">
+                  <Check size={18} className="mt-0.5 shrink-0 text-ivoire-green" />
+                  <span>{w}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* Sécurité & transparence */}
+          <section className="card p-5">
+            <h2 className="flex items-center gap-2 font-display text-base font-bold text-gray-900">
+              <ShieldCheck size={18} className="text-primary-500" /> Sécurité &amp; transparence
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">{donationCopy.transparency}</p>
+          </section>
+
+          {/* Remerciement */}
+          <p className="pt-1 text-center font-display text-base font-semibold text-primary-600">
+            {donationCopy.thankYou}
           </p>
         </div>
       </div>
