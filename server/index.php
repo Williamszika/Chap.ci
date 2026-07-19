@@ -417,6 +417,84 @@ function mk_token(PDO $pdo, string $userId, string $email, string $secret): stri
   return jwt_sign(['sub' => $userId, 'email' => $email, 'sv' => $sv, 'exp' => time() + 60 * 60 * 24 * 30], $secret);
 }
 
+// ---- 2FA / TOTP (RFC 6238 — compatible Google Authenticator / Authy) --------
+// Secret en base32, code à 6 chiffres, pas de 30 s, tolérance ±1 pas (petites
+// dérives d'horloge). Aucune dépendance externe : tout tient dans ce fichier.
+function totp_b32_encode(string $bin): string {
+  $A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; $out = ''; $bits = 0; $val = 0;
+  for ($i = 0, $n = strlen($bin); $i < $n; $i++) {
+    $val = ($val << 8) | ord($bin[$i]); $bits += 8;
+    while ($bits >= 5) { $bits -= 5; $out .= $A[($val >> $bits) & 31]; }
+  }
+  if ($bits > 0) $out .= $A[($val << (5 - $bits)) & 31];
+  return $out;
+}
+function totp_b32_decode(string $b32): string {
+  $A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  $b32 = strtoupper(preg_replace('/[^A-Za-z2-7]/', '', $b32) ?? '');
+  $out = ''; $bits = 0; $val = 0;
+  for ($i = 0, $n = strlen($b32); $i < $n; $i++) {
+    $idx = strpos($A, $b32[$i]); if ($idx === false) continue;
+    $val = ($val << 5) | $idx; $bits += 5;
+    if ($bits >= 8) { $bits -= 8; $out .= chr(($val >> $bits) & 0xFF); }
+  }
+  return $out;
+}
+function totp_secret_new(): string {
+  try { $bin = random_bytes(20); }
+  catch (Throwable $e) { $bin = ''; for ($i = 0; $i < 20; $i++) $bin .= chr(mt_rand(0, 255)); }
+  return totp_b32_encode($bin);
+}
+function totp_at(string $b32, int $counter): string {
+  $key = totp_b32_decode($b32);
+  $bin = pack('N', 0) . pack('N', $counter); // compteur 64 bits big-endian
+  $h = hash_hmac('sha1', $bin, $key, true);
+  $o = ord($h[19]) & 0x0F;
+  $num = ((ord($h[$o]) & 0x7F) << 24) | ((ord($h[$o + 1]) & 0xFF) << 16)
+       | ((ord($h[$o + 2]) & 0xFF) << 8) | (ord($h[$o + 3]) & 0xFF);
+  return str_pad((string) ($num % 1000000), 6, '0', STR_PAD_LEFT);
+}
+function totp_check(string $b32, string $code, int $window = 1): bool {
+  $code = preg_replace('/\D/', '', $code) ?? '';
+  if ($b32 === '' || strlen($code) !== 6) return false;
+  $t = (int) floor(time() / 30);
+  for ($i = -$window; $i <= $window; $i++) {
+    if (hash_equals(totp_at($b32, $t + $i), $code)) return true;
+  }
+  return false;
+}
+function totp_uri(string $b32, string $email): string {
+  $issuer = 'Chap.ci';
+  $label = rawurlencode($issuer) . ':' . rawurlencode($email);
+  $q = http_build_query(['secret' => $b32, 'issuer' => $issuer, 'algorithm' => 'SHA1', 'digits' => 6, 'period' => 30]);
+  return "otpauth://totp/$label?$q";
+}
+// Codes de secours (perte du téléphone) : 8 chiffres, stockés hachés (bcrypt).
+function recovery_codes_new(): array {
+  $codes = [];
+  for ($i = 0; $i < 8; $i++) {
+    try { $n = random_int(0, 99999999); } catch (Throwable $e) { $n = mt_rand(0, 99999999); }
+    $codes[] = str_pad((string) $n, 8, '0', STR_PAD_LEFT);
+  }
+  return $codes;
+}
+// Vérifie un code de secours ; s'il correspond, le retire de la liste (à usage unique).
+function recovery_consume(PDO $pdo, string $userId, string $recoveryJson, string $code): bool {
+  $code = preg_replace('/\D/', '', $code) ?? '';
+  if (strlen($code) !== 8 || $recoveryJson === '') return false;
+  $list = json_decode($recoveryJson, true);
+  if (!is_array($list)) return false;
+  foreach ($list as $i => $hash) {
+    if (is_string($hash) && $hash !== '' && password_verify($code, $hash)) {
+      unset($list[$i]);
+      $pdo->prepare('UPDATE users SET totp_recovery = ? WHERE id = ?')
+          ->execute([json_encode(array_values($list)), $userId]);
+      return true;
+    }
+  }
+  return false;
+}
+
 // ---- Session en cookie HttpOnly (P3) ---------------------------------------
 /** Nom du cookie qui porte le jeton d'authentification. */
 function session_cookie_name(): string { return 'chapci_session'; }
@@ -833,6 +911,12 @@ function migrate(PDO $pdo): void {
   // P12 · Version de session : incrémentée à chaque changement de mot de passe
   // pour invalider les anciens jetons (déconnexion des sessions ouvertes).
   try { $pdo->exec("ALTER TABLE users ADD COLUMN session_version $intT DEFAULT 0"); } catch (Throwable $e) {}
+  // Double authentification (2FA / TOTP) : secret actif, secret en cours
+  // d'enrôlement (non confirmé), interrupteur d'activation, codes de secours hachés.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_secret $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_pending $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_enabled $intT DEFAULT 0"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_recovery $txt"); } catch (Throwable $e) {}
   // Compteur de vues par annonce (statistiques vendeur).
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
   // Préférences de notifications (JSON : {favorite:bool, message:bool, ...}).
@@ -865,6 +949,9 @@ function current_user(PDO $pdo, string $secret): ?array {
   if ($tok === '') return null;
   $payload = jwt_verify($tok, $secret);
   if (!$payload || empty($payload['sub'])) return null;
+  // Un « jeton de défi » 2FA (émis entre le mot de passe et le code) ne vaut PAS
+  // une session : il ne sert qu'à /auth/2fa/verify. On le refuse partout ailleurs.
+  if (!empty($payload['mfa'])) return null;
   $st = $pdo->prepare('SELECT id, email, session_version FROM users WHERE id = ?');
   $st->execute([$payload['sub']]);
   $row = $st->fetch();
@@ -1544,7 +1631,12 @@ function export_all(PDO $pdo): array {
   // sauvegarde (téléchargeable par un admin/modérateur, ou posée sur le disque)
   // ne doit pas permettre de casser hors-ligne les mots de passe des comptes.
   if (!empty($data['users'])) {
-    foreach ($data['users'] as &$row) { unset($row['password_hash']); }
+    // On n'exporte JAMAIS les empreintes de mots de passe NI les secrets 2FA
+    // (secret TOTP, secret en attente, codes de secours) : une sauvegarde ne doit
+    // pas permettre de contourner l'authentification ou la double authentification.
+    foreach ($data['users'] as &$row) {
+      unset($row['password_hash'], $row['totp_secret'], $row['totp_pending'], $row['totp_recovery']);
+    }
     unset($row);
   }
   $counts = [];
@@ -1864,8 +1956,86 @@ try {
       jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403);
     }
     log_security_event($pdo, 'login_ok', $email);
+    // 2FA activée : on ne délivre PAS encore la session. On renvoie un « jeton de
+    // défi » de courte durée (5 min) ; la session n'est ouverte qu'après avoir
+    // validé un code sur /auth/2fa/verify.
+    $tf = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?'); $tf->execute([$u['id']]);
+    if ((int) ($tf->fetchColumn() ?: 0) === 1) {
+      $chal = jwt_sign(['sub' => $u['id'], 'mfa' => 1, 'exp' => time() + 300], $secret);
+      jout(['mfa_required' => true, 'mfa_token' => $chal]);
+    }
     $token = mk_token($pdo, $u['id'], $u['email'], $secret);
     set_session_cookie($config, $token); // P3
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+  }
+
+  // ---- Double authentification (2FA / TOTP) ---------------------------------
+  // État : la 2FA est-elle active sur mon compte ?
+  if ($path === 'auth/2fa/status' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?'); $st->execute([$u['id']]);
+    jout(['enabled' => (int) ($st->fetchColumn() ?: 0) === 1]);
+  }
+  // Étape 1 — génère un secret (non encore activé) + l'URI otpauth à scanner/ouvrir.
+  if ($path === 'auth/2fa/setup' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $sec = totp_secret_new();
+    $pdo->prepare('UPDATE users SET totp_pending = ? WHERE id = ?')->execute([$sec, $u['id']]);
+    jout(['factorId' => 'totp', 'secret' => $sec, 'uri' => totp_uri($sec, (string) ($u['email'] ?? ''))]);
+  }
+  // Étape 2 — vérifie un premier code contre le secret en attente → active la 2FA
+  // et renvoie (UNE seule fois) les codes de secours à conserver.
+  if ($path === 'auth/2fa/activate' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT totp_pending FROM users WHERE id = ?'); $st->execute([$u['id']]);
+    $pending = (string) ($st->fetchColumn() ?: '');
+    if ($pending === '') jerr('Commencez par générer un secret (étape 1).');
+    if (!totp_check($pending, (string) ($b['code'] ?? ''))) {
+      jerr('Code incorrect. Vérifiez l’heure de votre téléphone, puis réessayez.', 401);
+    }
+    $codes = recovery_codes_new();
+    $hashed = array_map(fn($c) => password_hash($c, PASSWORD_BCRYPT), $codes);
+    $pdo->prepare('UPDATE users SET totp_secret = ?, totp_pending = NULL, totp_enabled = 1, totp_recovery = ? WHERE id = ?')
+        ->execute([$pending, json_encode($hashed), $u['id']]);
+    log_security_event($pdo, '2fa_enabled', $u['email'] ?? null);
+    jout(['ok' => true, 'recoveryCodes' => $codes]);
+  }
+  // Désactive la 2FA — exige un code valide (TOTP ou code de secours).
+  if ($path === 'auth/2fa/disable' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT totp_secret, totp_recovery, totp_enabled FROM users WHERE id = ?'); $st->execute([$u['id']]);
+    $row = $st->fetch();
+    if (!$row || (int) ($row['totp_enabled'] ?? 0) !== 1) jout(['ok' => true]); // déjà désactivée
+    $code = (string) ($b['code'] ?? '');
+    if (!totp_check((string) $row['totp_secret'], $code)
+        && !recovery_consume($pdo, $u['id'], (string) ($row['totp_recovery'] ?? ''), $code)) {
+      jerr('Code incorrect.', 401);
+    }
+    $pdo->prepare('UPDATE users SET totp_secret = NULL, totp_pending = NULL, totp_enabled = 0, totp_recovery = NULL WHERE id = ?')
+        ->execute([$u['id']]);
+    log_security_event($pdo, '2fa_disabled', $u['email'] ?? null);
+    jout(['ok' => true]);
+  }
+  // Connexion — étape 2FA : échange le jeton de défi + un code contre une session.
+  if ($path === 'auth/2fa/verify' && $method === 'POST') {
+    $b = body();
+    $payload = jwt_verify((string) ($b['mfaToken'] ?? ''), $secret);
+    if (!$payload || empty($payload['sub']) || empty($payload['mfa'])) jerr('Session expirée. Reconnectez-vous.', 401);
+    $st = $pdo->prepare('SELECT id, email, status, totp_secret, totp_recovery FROM users WHERE id = ?');
+    $st->execute([$payload['sub']]); $u = $st->fetch();
+    if (!$u) jerr('Session expirée. Reconnectez-vous.', 401);
+    // Anti-force brute sur le code (6 chiffres) : 6 essais / 15 min par IP+email.
+    rate_limit($pdo, 'mfa_fail', (string) $u['email'], 6, 900);
+    if (($u['status'] ?? 'active') === 'blocked') jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403);
+    $code = (string) ($b['code'] ?? '');
+    if (!totp_check((string) $u['totp_secret'], $code)
+        && !recovery_consume($pdo, (string) $u['id'], (string) ($u['totp_recovery'] ?? ''), $code)) {
+      log_security_event($pdo, 'mfa_fail', $u['email'] ?? null);
+      jerr('Code incorrect.', 401);
+    }
+    log_security_event($pdo, 'mfa_ok', $u['email'] ?? null);
+    $token = mk_token($pdo, (string) $u['id'], (string) $u['email'], $secret);
+    set_session_cookie($config, $token);
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 

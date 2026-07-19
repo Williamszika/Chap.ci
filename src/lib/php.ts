@@ -149,10 +149,36 @@ export async function phpSignup(email: string, password: string, fullName: strin
   cacheUser(d.user)
   return d.user
 }
-export async function phpLogin(email: string, password: string): Promise<PhpUser> {
-  const d = await req<{ token: string; user: PhpUser }>('/auth/login', {
+export interface LoginResult { user?: PhpUser; mfaRequired?: boolean; mfaToken?: string }
+export async function phpLogin(email: string, password: string): Promise<LoginResult> {
+  const d = await req<{ token?: string; user?: PhpUser; mfa_required?: boolean; mfa_token?: string }>('/auth/login', {
     method: 'POST',
     body: { email, password },
+  })
+  // 2FA activée : le serveur ne délivre pas encore la session, il renvoie un
+  // jeton de défi. La session s'ouvrira après validation du code (phpTwoFAVerify).
+  if (d.mfa_required) return { mfaRequired: true, mfaToken: d.mfa_token }
+  if (d.user) cacheUser(d.user)
+  return { user: d.user }
+}
+
+// ---- Double authentification (2FA / TOTP) ----------------------------------
+export async function phpTwoFAStatus(): Promise<{ enabled: boolean }> {
+  try { return await req<{ enabled: boolean }>('/auth/2fa/status') } catch { return { enabled: false } }
+}
+export async function phpTwoFASetup(): Promise<{ factorId: string; secret: string; uri: string }> {
+  return req('/auth/2fa/setup', { method: 'POST', body: {} })
+}
+export async function phpTwoFAActivate(code: string): Promise<{ recoveryCodes: string[] }> {
+  return req('/auth/2fa/activate', { method: 'POST', body: { code } })
+}
+export async function phpTwoFADisable(code: string): Promise<void> {
+  await req('/auth/2fa/disable', { method: 'POST', body: { code } })
+}
+export async function phpTwoFAVerify(mfaToken: string, code: string): Promise<PhpUser> {
+  const d = await req<{ token: string; user: PhpUser }>('/auth/2fa/verify', {
+    method: 'POST',
+    body: { mfaToken, code },
   })
   cacheUser(d.user)
   return d.user

@@ -1006,10 +1006,13 @@ function AvatarUpload({
 function TwoFactor() {
   const { enrollTotp, activateTotp, listTotp, unenrollTotp } = useAuth()
   const [factors, setFactors] = useState<{ id: string; status: string }[]>([])
-  const [enroll, setEnroll] = useState<{ factorId: string; qr: string; secret: string } | null>(null)
+  const [enroll, setEnroll] = useState<{ factorId: string; uri: string; secret: string } | null>(null)
   const [code, setCode] = useState('')
+  const [disableCode, setDisableCode] = useState('')
+  const [recovery, setRecovery] = useState<string[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [copied, setCopied] = useState(false)
   const active = factors.some((f) => f.status === 'verified')
 
   useEffect(() => {
@@ -1022,7 +1025,7 @@ function TwoFactor() {
     const r = await enrollTotp()
     setBusy(false)
     if (r.error) return setMsg(r.error)
-    setEnroll({ factorId: r.factorId!, qr: r.qr!, secret: r.secret! })
+    setEnroll({ factorId: r.factorId!, uri: r.uri!, secret: r.secret! })
   }
   async function validate() {
     if (!enroll) return
@@ -1032,16 +1035,19 @@ function TwoFactor() {
     if (r.error) return setMsg(r.error)
     setEnroll(null)
     setCode('')
-    setMsg('Double authentification activée ✓')
+    setMsg('')
+    setRecovery(r.recoveryCodes && r.recoveryCodes.length ? r.recoveryCodes : [])
     listTotp().then(setFactors).catch(() => {})
   }
   async function disable() {
-    const f = factors[0]
-    if (!f) return
-    if (!window.confirm('Désactiver la double authentification ?')) return
-    await unenrollTotp(f.id)
+    if (!disableCode.trim()) return setMsg('Entrez un code pour désactiver.')
+    setBusy(true)
+    const r = await unenrollTotp(disableCode.trim())
+    setBusy(false)
+    if (r.error) return setMsg(r.error)
+    setDisableCode('')
+    setMsg('Double authentification désactivée.')
     listTotp().then(setFactors).catch(() => {})
-    setMsg('Double authentification désactivée')
   }
 
   return (
@@ -1049,22 +1055,67 @@ function TwoFactor() {
       <p className="mb-2 flex items-center gap-2 text-sm font-bold text-gray-800">
         <ShieldCheck size={16} /> Double authentification (2FA)
       </p>
-      {active ? (
+
+      {/* Codes de secours affichés une seule fois, juste après l'activation. */}
+      {recovery && (
+        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm font-bold text-amber-800">✓ 2FA activée. Notez vos codes de secours.</p>
+          <p className="mt-0.5 text-xs text-amber-700">
+            Chaque code ne sert qu’une fois. Ils permettent de vous connecter si vous perdez votre téléphone.
+            <b> Ils ne seront plus affichés.</b>
+          </p>
+          {recovery.length > 0 && (
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              {recovery.map((c) => (
+                <code key={c} className="rounded-lg bg-white px-2 py-1.5 text-center font-mono text-sm tracking-wider text-gray-800">
+                  {c.slice(0, 4)} {c.slice(4)}
+                </code>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => { navigator.clipboard?.writeText(recovery.join('\n')); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+            className="btn-outline mt-2 w-full py-1.5 text-xs"
+          >
+            {copied ? 'Copiés ✓' : 'Copier les codes'}
+          </button>
+          <button onClick={() => setRecovery(null)} className="btn-primary mt-1.5 w-full py-2 text-sm">
+            J’ai noté mes codes
+          </button>
+        </div>
+      )}
+
+      {active && !recovery ? (
         <div>
           <p className="mb-2 text-sm text-emerald-600">✓ Activée — votre compte est protégé.</p>
-          <button onClick={disable} className="btn-outline w-full py-2 text-sm text-red-600">
-            Désactiver
+          <p className="mb-1.5 text-xs text-gray-500">
+            Pour la désactiver, entrez un code de votre application (ou un code de secours).
+          </p>
+          <input
+            inputMode="numeric"
+            value={disableCode}
+            onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ''))}
+            placeholder="Code à 6 chiffres"
+            maxLength={8}
+            className="input text-center tracking-widest"
+          />
+          <button onClick={disable} disabled={busy} className="btn-outline mt-2 w-full py-2 text-sm text-red-600">
+            {busy ? 'Vérification…' : 'Désactiver'}
           </button>
         </div>
       ) : enroll ? (
         <div>
           <p className="mb-2 text-xs text-gray-500">
-            Scannez ce QR code avec Google Authenticator / Authy, ou saisissez la clé, puis entrez le code à 6 chiffres.
+            Ouvrez votre application d’authentification (Google Authenticator, Authy…), ajoutez la clé,
+            puis entrez le code à 6 chiffres généré.
           </p>
-          <div className="flex justify-center">
-            <img src={enroll.qr} alt="QR 2FA" className="h-40 w-40" />
-          </div>
-          <p className="mb-2 break-all text-center font-mono text-[11px] text-gray-500">{enroll.secret}</p>
+          <a href={enroll.uri} className="btn-primary mb-2 w-full py-2.5 text-sm">
+            <KeyRound size={16} /> Ouvrir dans mon app d’authentification
+          </a>
+          <p className="mb-1 text-center text-[11px] text-gray-400">ou saisissez cette clé manuellement :</p>
+          <p className="mb-2 break-all rounded-lg bg-gray-50 px-2 py-1.5 text-center font-mono text-xs tracking-wide text-gray-700">
+            {enroll.secret}
+          </p>
           <input
             inputMode="numeric"
             value={code}
@@ -1077,16 +1128,16 @@ function TwoFactor() {
             {busy ? 'Vérification…' : 'Activer'}
           </button>
         </div>
-      ) : (
+      ) : !recovery ? (
         <div>
           <p className="mb-2 text-xs text-gray-500">
-            Ajoutez une couche de sécurité avec une application d’authentification.
+            Ajoutez une couche de sécurité avec une application d’authentification. Recommandé pour les comptes administrateurs.
           </p>
           <button onClick={start} disabled={busy} className="btn-outline w-full py-2.5 text-sm">
             {busy ? '…' : 'Activer la 2FA'}
           </button>
         </div>
-      )}
+      ) : null}
       {msg && <p className="mt-2 text-xs text-gray-500">{msg}</p>}
     </div>
   )

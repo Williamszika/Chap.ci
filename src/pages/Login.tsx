@@ -135,9 +135,9 @@ export function Login() {
             <div className="flex flex-col items-center gap-2 py-2 text-center">
               <ShieldCheck size={40} className="text-primary-500" />
               <p className="font-bold text-gray-900">Double authentification</p>
-              <p className="text-sm text-gray-500">Entrez le code à 6 chiffres de votre application d’authentification.</p>
+              <p className="text-sm text-gray-500">Entrez le code à 6 chiffres de votre application d’authentification (ou un code de secours).</p>
             </div>
-            <input inputMode="numeric" value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))} placeholder="123456" maxLength={6} className="input text-center text-xl tracking-widest" />
+            <input inputMode="numeric" value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))} placeholder="123456" maxLength={8} className="input text-center text-xl tracking-widest" />
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
             <button type="submit" disabled={busy} className="btn-primary w-full py-3.5">
               {busy ? <Loader2 size={20} className="animate-spin" /> : 'Valider'}

@@ -90,3 +90,25 @@ Format d'une entrée :
   ligne), puis mettre à jour la clé de la routine depuis cet onglet.
 - **Pour les autres bureaux** : 🛡️ Le Gardien — une fois la clé à jour, ton scan sécurité
   et le ménage repartent automatiquement. La divergence de clé ne devrait plus se reproduire.
+
+---
+
+### 2026-07-19 — [Développement] 2FA (double authentification) livrée
+- **Fait** : implémentation **TOTP** (RFC 6238, compatible Google Authenticator / Authy)
+  côté backend PHP — sans dépendance externe. Répond à la question du Patron : « la clé
+  cron visible en admin n'est-elle pas risquée ? » → le vrai verrou, c'est de protéger le
+  **compte admin lui-même**, d'où la 2FA.
+  - Backend : colonnes `totp_secret/pending/enabled/recovery`, endpoints
+    `/auth/2fa/{status,setup,activate,disable,verify}`, bascule au login (jeton de **défi**
+    court de 5 min → session seulement après code validé), **codes de secours** à usage
+    unique (8, hachés bcrypt), anti-force-brute (6 essais/15 min), jeton de défi **refusé
+    comme session**, secrets 2FA **jamais exportés** dans les sauvegardes.
+  - Front : `AuthContext`/`php.ts` câblés (fin des stubs `NOT_AVAILABLE`), UI d'enrôlement
+    dans **Compte → Sécurité** (lien `otpauth://` + clé manuelle + codes de secours affichés
+    une fois), étape code au login. **Testé** de bout en bout (smoke test local, 7/7).
+- **Problèmes ouverts** : aucun bloquant. À déployer avec le prochain zip. QR image non
+  fournie (pas de lib) — remplacée par le lien `otpauth://` (ouvre l'app d'un tap) + clé
+  manuelle ; on pourra ajouter un vrai QR plus tard si besoin.
+- **Propositions au Patron** : activer la 2FA sur ton compte admin dès le déploiement.
+- **Pour les autres bureaux** : 🛡️ Le Gardien — nouvelle surface à surveiller : événements
+  `2fa_enabled/2fa_disabled/mfa_ok/mfa_fail` dans le journal d'audit.

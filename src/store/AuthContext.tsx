@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react'
 import * as php from '../lib/php'
@@ -27,13 +28,16 @@ interface AuthResult {
   userId?: string
   /** En mode test serveur (SMS debug) : code renvoyé pour tester sans SMS réel. */
   debugCode?: string
+  /** Codes de secours 2FA, renvoyés une seule fois à l'activation. */
+  recoveryCodes?: string[]
 }
 
 export type OAuthProvider = 'google' | 'apple' | 'facebook'
 
 interface EnrollResult {
   factorId?: string
-  qr?: string
+  /** URI otpauth:// à scanner (QR) ou à ouvrir dans l'app d'authentification. */
+  uri?: string
   secret?: string
   error?: string
 }
@@ -52,6 +56,7 @@ interface AuthState {
   sendPhoneCode: (phone: string) => Promise<AuthResult>
   verifyPhoneCode: (phone: string, token: string, fullName?: string) => Promise<AuthResult>
   verifyLoginMfa: (code: string) => Promise<AuthResult>
+  hasPendingMfa: () => boolean
   signOut: () => Promise<void>
   sendPasswordReset: (email: string) => Promise<AuthResult>
   updatePassword: (newPassword: string, currentPassword?: string) => Promise<AuthResult>
@@ -63,7 +68,7 @@ interface AuthState {
   enrollTotp: () => Promise<EnrollResult>
   activateTotp: (factorId: string, code: string) => Promise<AuthResult>
   listTotp: () => Promise<{ id: string; status: string }[]>
-  unenrollTotp: (factorId: string) => Promise<AuthResult>
+  unenrollTotp: (code: string) => Promise<AuthResult>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -111,10 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Jeton de défi 2FA conservé entre la saisie du mot de passe et celle du code
+  // (en mémoire uniquement : jamais persisté).
+  const mfaTokenRef = useRef('')
+
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     try {
-      const u = await php.phpLogin(email, password)
-      setUser(u)
+      const r = await php.phpLogin(email, password)
+      if (r.mfaRequired) {
+        mfaTokenRef.current = r.mfaToken || ''
+        return { mfaRequired: true }
+      }
+      if (r.user) setUser(r.user)
       return {}
     } catch (e) {
       return { error: frError((e as Error).message) }
@@ -167,8 +180,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  // Pas de 2FA sur le backend auto-hébergé : la connexion est directe.
-  const verifyLoginMfa = useCallback(async (_code: string): Promise<AuthResult> => ({}), [])
+  const verifyLoginMfa = useCallback(async (code: string): Promise<AuthResult> => {
+    if (!mfaTokenRef.current) return { error: 'Session expirée. Reconnectez-vous.' }
+    try {
+      const u = await php.phpTwoFAVerify(mfaTokenRef.current, code)
+      mfaTokenRef.current = ''
+      setUser(u)
+      return {}
+    } catch (e) {
+      return { error: frError((e as Error).message) }
+    }
+  }, [])
+  const hasPendingMfa = useCallback(() => mfaTokenRef.current !== '', [])
 
   const signOut = useCallback(async () => {
     await php.phpSignOut()
@@ -200,11 +223,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // — 2FA (TOTP) : non disponible sur le backend auto-hébergé —
-  const enrollTotp = useCallback(async (): Promise<EnrollResult> => NOT_AVAILABLE, [])
-  const activateTotp = useCallback(async (_factorId: string, _code: string): Promise<AuthResult> => NOT_AVAILABLE, [])
-  const listTotp = useCallback(async () => [], [])
-  const unenrollTotp = useCallback(async (_factorId: string): Promise<AuthResult> => NOT_AVAILABLE, [])
+  // — 2FA (TOTP) — application d'authentification (Google Authenticator / Authy) —
+  const enrollTotp = useCallback(async (): Promise<EnrollResult> => {
+    try {
+      const r = await php.phpTwoFASetup()
+      return { factorId: r.factorId, secret: r.secret, uri: r.uri }
+    } catch (e) {
+      return { error: frError((e as Error).message) }
+    }
+  }, [])
+  const activateTotp = useCallback(async (_factorId: string, code: string): Promise<AuthResult> => {
+    try {
+      const r = await php.phpTwoFAActivate(code)
+      return { recoveryCodes: r.recoveryCodes }
+    } catch (e) {
+      return { error: frError((e as Error).message) }
+    }
+  }, [])
+  const listTotp = useCallback(async () => {
+    const s = await php.phpTwoFAStatus()
+    return s.enabled ? [{ id: 'totp', status: 'verified' }] : []
+  }, [])
+  const unenrollTotp = useCallback(async (code: string): Promise<AuthResult> => {
+    try {
+      await php.phpTwoFADisable(code)
+      return {}
+    } catch (e) {
+      return { error: frError((e as Error).message) }
+    }
+  }, [])
 
   const value: AuthState = {
     user,
@@ -218,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sendPhoneCode,
     verifyPhoneCode,
     verifyLoginMfa,
+    hasPendingMfa,
     signOut,
     sendPasswordReset,
     updatePassword,
