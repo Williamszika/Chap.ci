@@ -86,8 +86,8 @@ export function AdminDashboard() {
     return <Shell><AdminUnlockGate owner={role.owner} onUnlocked={() => setReload((n) => n + 1)} /></Shell>
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      <header className="safe-top sticky top-0 z-30 border-b border-gray-100 bg-white">
+    <div className="min-h-screen bg-[#FFF6EA] pb-16">
+      <header className="safe-top sticky top-0 z-30 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md">
         <div className="flex items-center gap-3 px-3 py-3">
           <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
           <h1 className="font-display text-lg font-bold">Administration</h1>
@@ -751,7 +751,7 @@ function ModBtn({ active, onClick, disabled, icon, label, tone }: { active: bool
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-xs font-semibold transition disabled:opacity-50 ${active ? tones[tone] : 'border-gray-200 text-gray-600'}`}
+      className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-xs font-semibold transition disabled:opacity-50 ${active ? tones[tone] : 'border-[#E6DAC6] text-gray-600'}`}
     >
       {icon}{label}
     </button>
@@ -793,7 +793,7 @@ function ReportsTab() {
               {r.details && <p className="mt-1 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">{r.details}</p>}
               <p className="mt-1 text-[11px] text-gray-400">Signalé par {r.reporterEmail || '—'} · {timeAgo(r.createdAt)}</p>
               <div className="mt-2 flex gap-1.5">
-                <button onClick={() => hide(r)} className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                <button onClick={() => hide(r)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
                   {r.listingHidden ? <><Eye size={13} /> Réafficher</> : <><EyeOff size={13} /> Masquer l’annonce</>}
                 </button>
                 {r.status === 'open' && (
@@ -836,7 +836,7 @@ function OrdersTab() {
               </li>
             ))}
           </ul>
-          <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-400">
+          <p className="mt-2 border-t border-[#EFE6D7] pt-2 text-xs text-gray-400">
             {o.buyerEmail || '—'} → {o.sellerEmail || '—'} · {timeAgo(o.createdAt)}
           </p>
         </div>
@@ -879,7 +879,7 @@ function NewsletterTab() {
       </div>
       <p className="text-xs text-gray-400">Importez le CSV dans Brevo, Mailchimp ou MailerLite pour vos campagnes.</p>
       {subs.length === 0 ? <Empty>Aucun abonné pour l’instant.</Empty> : (
-        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white">
+        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white">
           {subs.map((s) => (
             <li key={s.email} className="flex items-center gap-3 px-4 py-3">
               <Mail size={16} className="shrink-0 text-primary-500" />
@@ -987,7 +987,7 @@ function ModeratorsTab() {
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Fonctionnalités autorisées</p>
           <div className="grid grid-cols-2 gap-1.5">
             {data.features.map((f) => (
-              <label key={f.key} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${perms.includes(f.key) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}`}>
+              <label key={f.key} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${perms.includes(f.key) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-[#E6DAC6] text-gray-600'}`}>
                 <input type="checkbox" checked={perms.includes(f.key)} onChange={() => toggle(f.key)} className="accent-primary-500" />
                 {f.label}
               </label>
@@ -1204,7 +1204,7 @@ function SmartAgents() {
         </p>
         <div className="mt-1 flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
-          <button onClick={copy} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50">
+          <button onClick={copy} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
             {copied ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
           </button>
         </div>
@@ -1269,7 +1269,7 @@ function AutoOffers() {
             <p className="text-xs text-gray-500">{when} — planning <code className="rounded bg-gray-100 px-1">{sched}</code></p>
             <div className="mt-1 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd(type)}</code>
-              <button onClick={() => copy(type)} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50">
+              <button onClick={() => copy(type)} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
                 {copied === type ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
               </button>
             </div>
@@ -1379,7 +1379,7 @@ function EmailsTab() {
         {saveMsg && <p className={`text-sm ${saveMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{saveMsg}</p>}
       </form>
 
-      <div className="rounded-2xl border border-gray-200 p-4">
+      <div className="rounded-2xl border border-[#E6DAC6] p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-gray-600">Vérifier l’envoi&nbsp;:</p>
           <button onClick={test} disabled={testing} className="btn-outline shrink-0 py-2 text-sm disabled:opacity-50">
@@ -1451,10 +1451,10 @@ function AutomationTab() {
           <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-3 py-2 text-[13px] text-gray-100">
             {reveal ? (key || '(aucune)') : masked}
           </code>
-          <button onClick={() => setReveal((v) => !v)} className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50" aria-label={reveal ? 'Masquer la clé' : 'Afficher la clé'}>
+          <button onClick={() => setReveal((v) => !v)} className="shrink-0 rounded-lg border border-[#E6DAC6] p-2 text-gray-600 hover:bg-gray-50" aria-label={reveal ? 'Masquer la clé' : 'Afficher la clé'}>
             {reveal ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
-          <button onClick={() => copy('key', key)} disabled={!key} className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Copier la clé">
+          <button onClick={() => copy('key', key)} disabled={!key} className="shrink-0 rounded-lg border border-[#E6DAC6] p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Copier la clé">
             {copied === 'key' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Copy size={16} />}
           </button>
         </div>
@@ -1478,7 +1478,7 @@ function AutomationTab() {
             </div>
             <div className="mt-2 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{urlFor(j)}</code>
-              <button onClick={() => copy(j.id, urlFor(j))} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50" aria-label="Copier l’URL">
+              <button onClick={() => copy(j.id, urlFor(j))} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50" aria-label="Copier l’URL">
                 {copied === j.id ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
               </button>
             </div>
@@ -1555,7 +1555,7 @@ function BackupTab() {
           <p className="text-xs text-gray-500">Chaque jour à 3h — planning <code className="rounded bg-gray-100 px-1">0 3 * * *</code></p>
           <div className="mt-1 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
-            <button onClick={copy} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50">
+            <button onClick={copy} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
               {copied ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
             </button>
           </div>
@@ -1577,7 +1577,7 @@ function BackupTab() {
         ) : (
           <ul className="space-y-2">
             {info.backups.map((b) => (
-              <li key={b.file} className="flex items-center gap-2 rounded-xl border border-gray-100 p-2.5">
+              <li key={b.file} className="flex items-center gap-2 rounded-xl border border-[#EFE6D7] p-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-600"><Database size={16} /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-gray-800">{b.file}</span>
@@ -1585,7 +1585,7 @@ function BackupTab() {
                 </span>
                 <button
                   onClick={() => downloadBackup(b.file).catch((e) => setErr((e as Error).message))}
-                  className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+                  className="shrink-0 rounded-lg border border-[#E6DAC6] p-2 text-gray-600 hover:bg-gray-50"
                   aria-label="Télécharger"
                 >
                   <Download size={16} />
@@ -1655,8 +1655,8 @@ function ResetDataBox({ onDone }: { onDone: () => void }) {
 function Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
+    <div className="min-h-screen bg-[#FFF6EA] pb-16">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
         <h1 className="font-display text-lg font-bold">Administration</h1>
       </header>

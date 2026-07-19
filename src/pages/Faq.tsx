@@ -243,7 +243,7 @@ const sections: Section[] = [
 
 function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => void }) {
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    <div className="border-b border-[#EFE6D7] last:border-0">
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between gap-3 py-3.5 text-left"
@@ -283,7 +283,7 @@ export function Faq() {
 
   return (
     <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:shadow-card lg:max-w-5xl xl:max-w-6xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>

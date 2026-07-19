@@ -208,7 +208,7 @@ export function Profile() {
       )}
 
       {/* Onglets — barre horizontale sur mobile, menu vertical dans la barre latérale sur ordinateur */}
-      <nav className="no-scrollbar sticky top-0 z-20 flex gap-1 overflow-x-auto border-b border-gray-100 bg-white px-2 md:static md:flex-col md:gap-1.5 md:overflow-visible md:rounded-3xl md:border-0 md:p-3 md:shadow-card">
+      <nav className="no-scrollbar sticky top-0 z-20 flex gap-1 overflow-x-auto border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-2 md:static md:flex-col md:gap-1.5 md:overflow-visible md:rounded-3xl md:border-0 md:p-3 md:shadow-card">
         {([
           ['achats', 'Mes achats'],
           ['ventes', 'Mes ventes'],
@@ -423,7 +423,7 @@ export function Profile() {
                         </div>
                       </Link>
                     </div>
-                    <div className="mt-2 flex gap-1.5 border-t border-gray-100 pt-2">
+                    <div className="mt-2 flex gap-1.5 border-t border-[#EFE6D7] pt-2">
                       <button
                         onClick={() => navigate(`/modifier/${l.id}`, { state: { listing: l } })}
                         className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
@@ -656,7 +656,7 @@ function MyAlerts() {
       ) : (
         <ul className="space-y-2">
           {alerts.map((a) => (
-            <li key={a.id} className="flex items-center gap-2 rounded-xl border border-gray-100 p-2.5">
+            <li key={a.id} className="flex items-center gap-2 rounded-xl border border-[#EFE6D7] p-2.5">
               <button
                 onClick={() => navigate(`/explorer${a.params ? `?${a.params}` : ''}`)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -808,7 +808,7 @@ function OrderCard({
   const st = statusLabel[order.status] ?? statusLabel.en_cours
   return (
     <div className="card overflow-hidden">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-[#EFE6D7] px-4 py-2.5">
         <span className="text-sm font-bold text-gray-900">{who}</span>
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
       </div>
@@ -821,7 +821,7 @@ function OrderCard({
           </div>
         ))}
       </button>
-      <div className="border-t border-gray-100 px-4 py-2">
+      <div className="border-t border-[#EFE6D7] px-4 py-2">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="text-gray-400">{timeAgo(order.createdAt)}</span>
           <span className="tnum font-bold text-gray-800">{formatFCFA(total)}</span>

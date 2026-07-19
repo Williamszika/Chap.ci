@@ -169,7 +169,7 @@ function OperatorCard({
 
       <div className="px-4 py-3">
         {/* Numéro + copier */}
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2.5">
+        <div className="flex items-center justify-between rounded-xl border border-[#E6DAC6] px-3 py-2.5">
           <span className="font-mono text-[15px] font-semibold tracking-tight text-gray-800">
             {op.number}
           </span>

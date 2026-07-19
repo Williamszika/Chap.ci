@@ -405,7 +405,7 @@ export function ListingDetail() {
           </div>
 
           {showReview && (
-            <div className="mb-3 rounded-2xl border border-gray-200 p-3">
+            <div className="mb-3 rounded-2xl border border-[#E6DAC6] p-3">
               <Stars value={rating} size={26} editable onChange={setRating} />
               <textarea
                 value={comment}
@@ -457,7 +457,7 @@ export function ListingDetail() {
       </div>
 
       {/* Barre d'action fixe */}
-      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-gray-100 bg-white px-4 py-3 shadow-nav safe-bottom">
+      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-[#EFE6D7] bg-white px-4 py-3 shadow-nav safe-bottom">
         {listing.sold ? (
           <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-semibold text-gray-500">
             <BadgeCheck size={18} /> Article vendu

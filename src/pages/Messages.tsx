@@ -21,14 +21,14 @@ export function MessagesLayout({ activeId, detail }: { activeId?: string; detail
       <div className="md:grid md:h-[calc(100vh-7rem)] md:grid-cols-[360px_minmax(0,1fr)] md:gap-4">
         {/* Volet LISTE — masqué sur mobile quand une conversation est ouverte */}
         <aside
-          className={`${hasDetail ? 'hidden md:block' : 'block'} md:h-full md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-gray-100 md:bg-white md:shadow-card`}
+          className={`${hasDetail ? 'hidden md:block' : 'block'} md:h-full md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card`}
         >
           <ConversationList activeId={activeId} />
         </aside>
 
         {/* Volet CONVERSATION — masqué sur mobile sur la page liste */}
         <main
-          className={`${hasDetail ? 'block' : 'hidden md:block'} md:h-full md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-gray-100 md:bg-white md:shadow-card`}
+          className={`${hasDetail ? 'block' : 'hidden md:block'} md:h-full md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card`}
         >
           {detail}
         </main>
@@ -62,7 +62,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3 md:rounded-t-3xl">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3 md:rounded-t-3xl">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1 md:hidden">
           <ArrowLeft size={22} />
         </button>

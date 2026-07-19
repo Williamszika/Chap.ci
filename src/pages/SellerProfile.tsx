@@ -81,7 +81,7 @@ export function SellerProfile() {
       </header>
 
       {/* Onglets */}
-      <div className="sticky top-0 z-20 flex border-b border-gray-100 bg-white">
+      <div className="sticky top-0 z-20 flex border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md">
         {(['annonces', 'avis'] as const).map((t) => (
           <button
             key={t}

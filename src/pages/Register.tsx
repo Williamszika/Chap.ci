@@ -190,7 +190,7 @@ export function Register() {
 
   return (
     <div className="min-h-screen bg-white pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-xl md:rounded-3xl md:shadow-card">
-      <header className="safe-top flex items-center gap-3 border-b border-gray-100 px-3 py-3">
+      <header className="safe-top flex items-center gap-3 border-b border-[#EFE6D7] px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
@@ -262,7 +262,7 @@ export function Register() {
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
         <section className="space-y-2">
           <p className="text-sm font-bold text-gray-800">Votre localisation</p>
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-[#E6DAC6] bg-gray-50 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2">
               <MapPin size={18} className="shrink-0 text-primary-500" />
               <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>

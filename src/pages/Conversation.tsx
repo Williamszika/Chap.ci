@@ -109,7 +109,7 @@ export function Conversation() {
       detail={
         <div className="flex min-h-screen flex-col bg-[#FFF6EA] md:h-full md:min-h-0 md:bg-white">
           {/* En-tête — le bouton « retour » n'est utile que sur mobile (la liste est visible sur ordinateur) */}
-          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-2.5 md:rounded-t-3xl">
+          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-2.5 md:rounded-t-3xl">
             <button onClick={() => navigate('/messages')} aria-label="Retour" className="p-1 md:hidden">
               <ArrowLeft size={22} />
             </button>
@@ -158,7 +158,7 @@ export function Conversation() {
           {/* Saisie */}
           <form
             onSubmit={send}
-            className="sticky bottom-0 flex items-center gap-2 border-t border-gray-100 bg-white px-3 py-2.5 safe-bottom md:rounded-b-3xl"
+            className="sticky bottom-0 flex items-center gap-2 border-t border-[#EFE6D7] bg-white px-3 py-2.5 safe-bottom md:rounded-b-3xl"
           >
             <input
               value={text}

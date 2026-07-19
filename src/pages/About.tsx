@@ -21,7 +21,7 @@ export function About() {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:shadow-card lg:max-w-5xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
@@ -54,7 +54,7 @@ export function About() {
           <h2 className="text-base font-bold text-gray-900">Pourquoi Chap.ci ?</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {points.map((p) => (
-              <div key={p.title} className="rounded-2xl border border-gray-100 p-4 shadow-card">
+              <div key={p.title} className="rounded-2xl border border-[#EFE6D7] p-4 shadow-card">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-100 text-primary-600">{p.icon}</span>
                 <p className="mt-2 font-bold text-gray-800">{p.title}</p>
                 <p className="mt-0.5 text-sm text-gray-500">{p.text}</p>
@@ -68,7 +68,7 @@ export function About() {
           <h2 className="text-base font-bold text-gray-900">Comment ça marche ?</h2>
           <div className="mt-3 grid gap-3 md:grid-cols-3 md:gap-5">
             {steps.map((s) => (
-              <div key={s.n} className="flex items-start gap-3 md:rounded-2xl md:border md:border-gray-100 md:p-4 md:shadow-card">
+              <div key={s.n} className="flex items-start gap-3 md:rounded-2xl md:border md:border-[#EFE6D7] md:p-4 md:shadow-card">
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-500 text-sm font-bold text-white">{s.n}</span>
                 <div>
                   <p className="font-semibold text-gray-800">{s.t}</p>

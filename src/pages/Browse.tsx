@@ -165,7 +165,7 @@ export function Browse() {
   return (
     <div className="min-h-screen bg-[#FFF6EA]">
       {/* En-tête sticky */}
-      <div className="safe-top sticky top-0 z-30 bg-white shadow-sm">
+      <div className="safe-top sticky top-0 z-30 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="flex items-center gap-2 px-3 py-2.5">
           <button onClick={() => navigate(-1)} className="p-1 text-gray-700" aria-label="Retour">
             <ArrowLeft size={22} />
@@ -489,7 +489,7 @@ function AlertSheet({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               maxLength={120}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] outline-none focus:border-primary-400"
+              className="w-full rounded-xl border border-[#E6DAC6] px-3 py-2.5 text-[15px] outline-none focus:border-primary-400"
               placeholder="Ex. Voitures à Cocody"
             />
           </label>
@@ -729,7 +729,7 @@ function FilterSheet({
         {/* Bons plans (promotions) */}
         <button
           onClick={() => setPr((v) => !v)}
-          className="flex w-full items-center justify-between rounded-xl border border-gray-200 px-4 py-3"
+          className="flex w-full items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3"
         >
           <span className="flex items-center gap-2 text-sm font-medium text-gray-800">
             <Tag size={18} className="text-red-500" /> Bons plans (en promotion)
@@ -746,7 +746,7 @@ function FilterSheet({
         {/* Livraison */}
         <button
           onClick={() => setDl((v) => !v)}
-          className="flex w-full items-center justify-between rounded-xl border border-gray-200 px-4 py-3"
+          className="flex w-full items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3"
         >
           <span className="flex items-center gap-2 text-sm font-medium text-gray-800">
             <Truck size={18} className="text-primary-500" /> Livraison possible uniquement

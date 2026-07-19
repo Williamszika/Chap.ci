@@ -278,7 +278,7 @@ export function PostAd() {
 
   return (
     <div className="min-h-screen bg-white pb-28 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:shadow-card lg:max-w-4xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3 md:rounded-t-3xl">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3 md:rounded-t-3xl">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
@@ -404,7 +404,7 @@ export function PostAd() {
                   type="button"
                   onClick={() => pickCategory(c.id)}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition active:scale-[0.98] ${
-                    active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-700'
+                    active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-[#E6DAC6] text-gray-700'
                   }`}
                 >
                   <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${c.color}`}>
@@ -493,7 +493,7 @@ export function PostAd() {
 
         {/* Promotion (facultatif) */}
         <div>
-          <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+          <label className="flex items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3">
             <span className="flex items-center gap-2 text-sm font-bold text-gray-800">
               <Tag size={18} className="text-red-500" /> Mettre en promotion
             </span>
@@ -577,7 +577,7 @@ export function PostAd() {
 
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
         <Field label="Localisation">
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-[#E6DAC6] bg-gray-50 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2">
               <MapPin size={18} className="shrink-0 text-primary-500" />
               <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
@@ -612,7 +612,7 @@ export function PostAd() {
 
         {/* Livraison — masquée pour l'immobilier, l'emploi, les services… */}
         {form.delivery && (
-          <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+          <label className="flex items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3">
             <span className="text-sm font-medium text-gray-800">Livraison possible</span>
             <input
               type="checkbox"
@@ -641,7 +641,7 @@ export function PostAd() {
         {/* ---- Pleine largeur : coordonnées, erreur, bouton ---- */}
         <div className="mt-6 space-y-6">
         {/* Coordonnées */}
-        <div className="rounded-2xl bg-gray-50 p-4">
+        <div className="rounded-2xl bg-[#FFF6EA] p-4">
           <p className="mb-3 text-sm font-bold text-gray-800">Vos coordonnées</p>
           <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0">
             <input
@@ -706,7 +706,7 @@ function AttrInput({
 }) {
   if (field.type === 'toggle') {
     return (
-      <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+      <label className="flex items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3">
         <span className="text-sm font-medium text-gray-800">{field.label}</span>
         <input
           type="checkbox"

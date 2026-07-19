@@ -10,7 +10,7 @@ export function Contact() {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-2xl md:rounded-3xl md:shadow-card lg:max-w-4xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-gray-100 bg-white px-3 py-3">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
@@ -83,7 +83,7 @@ function ContactCard({
   return (
     <a
       href={`mailto:${email}`}
-      className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 transition active:scale-[0.99] hover:border-primary-300 hover:bg-primary-50/40"
+      className="flex items-center gap-4 rounded-2xl border border-[#E6DAC6] bg-white p-4 transition active:scale-[0.99] hover:border-primary-300 hover:bg-primary-50/40"
     >
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
         {icon}
