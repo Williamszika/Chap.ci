@@ -35,7 +35,7 @@ pour validation, puis transmettre les ordres au Bureau Développement.
 |---|---|---|---|
 | **Sécurité** | 🛡️ *Le Gardien* | Scan sécurité + recherche de bugs + surveillance | **toutes les 5 h** (scan) · quotidien (santé) · mensuel (audit profond) |
 | **Développement** | 🔨 *Le Bâtisseur* | Implémente les propositions validées, build, tests, déploiement | à la demande (sessions interactives) |
-| **Design & Typographie** | 🎨 *L'Atelier* | Audit design + polices, système visuel, note ivoirienne | trimestriel |
+| **Design & Typographie** | 🎨 *L'Atelier* | Scan design (propositions, lecture seule) + système visuel, polices, note ivoirienne | **scan tous les 3 j** · audit profond trimestriel |
 | **Qualité & Modération** | 🧭 *Le Modérateur* | Modération des annonces (interdits, arnaques, doublons) | quotidien |
 | **Croissance** | 📣 *Le Crieur* | SEO, contenu marketing, veille concurrentielle | mensuel / hebdo |
 | **Données & Rapports** | 📊 *Le Comptable* | Rapport d'activité, sourcing import | hebdo / 3×semaine |
@@ -72,12 +72,13 @@ sont relayés.
 
 | Quand | Bureau / routine |
 |---|---|
-| **Toutes les 5 h** | 🛡️ Sécurité — scan & bugs |
-| Quotidien | Santé & sécurité serveur · Modération |
+| **Toutes les 5 h** | 🛡️ Sécurité — scan & bugs (+ santé serveur, fusionnée) |
+| Quotidien | Modération |
+| **Tous les 3 jours** | 🎨 Design — scan (propositions, lecture seule) |
 | Hebdo | Rapport d'activité · Marketing · Veille concurrence |
 | 3×/semaine | Sourcing import |
 | Mensuel | Audit sécurité profond · SEO · Veille juridique |
-| Trimestriel | Audit design + polices |
+| Trimestriel | Audit design profond |
 
 > Le scan sécurité/bugs des 5 h est **léger et ciblé** (code récent, `npm audit`,
 > secrets, endpoints). L'audit **profond** reste mensuel pour ne pas gaspiller.
