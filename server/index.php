@@ -1010,6 +1010,11 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, user_id $id, type $txt, title $txt, body $txt, link $txt,
       read_flag $intT, created_at $ts
     )$eng",
+    // Vues quotidiennes par annonce — suivi analytique du tableau de bord vendeur
+    // (série des vues par jour, tendances par période).
+    "CREATE TABLE IF NOT EXISTS listing_view_days (
+      listing_id $id, day VARCHAR(10), n $intT, PRIMARY KEY (listing_id, day)
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -1074,6 +1079,8 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
   try { $pdo->exec("CREATE INDEX idx_visits_visitor ON visits (visitor_id, created_at)"); } catch (Throwable $e) {}
+  // Requêtes par plage de dates du tableau de bord vendeur.
+  try { $pdo->exec("CREATE INDEX idx_view_days_day ON listing_view_days (day)"); } catch (Throwable $e) {}
 }
 
 // ---- Auth courant -----------------------------------------------------------
@@ -2589,6 +2596,71 @@ try {
     jout(array_map('listing_out', $st->fetchAll()));
   }
 
+  // Statistiques du tableau de bord vendeur : vues (avec tendance vs période
+  // précédente), annonces actives, demandes reçues, ventes, et série des vues
+  // sur les 7 derniers jours (pour le graphique). Chiffres 100 % réels.
+  if ($path === 'seller/analytics' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $period = $_GET['period'] ?? '7j';
+    $days = $period === 'annee' ? 365 : ($period === '30j' ? 30 : 7);
+    $now = time();
+    $dayStr = fn(int $t) => gmdate('Y-m-d', $t);
+    $tsStr  = fn(int $t) => gmdate('Y-m-d', $t) . 'T00:00:00Z';
+    $startCur  = $now - ($days - 1) * 86400;   // début période courante (jour)
+    $startPrev = $startCur - $days * 86400;    // début période précédente
+    $fCur = $dayStr($startCur); $fPrev = $dayStr($startPrev);
+    $tCur = $tsStr($startCur); $tPrev = $tsStr($startPrev);
+
+    // Annonces du vendeur + nombre d'actives (ni masquées ni vendues).
+    $ls = $pdo->prepare('SELECT id, hidden, sold FROM listings WHERE user_id = ?');
+    $ls->execute([$u['id']]);
+    $rows = $ls->fetchAll();
+    $ids = array_column($rows, 'id');
+    $active = 0;
+    foreach ($rows as $r) { if (empty($r['hidden']) && empty($r['sold'])) $active++; }
+
+    $viewsCur = 0; $viewsPrev = 0; $byDay = [];
+    if ($ids) {
+      $in = implode(',', array_fill(0, count($ids), '?'));
+      $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) AS s FROM listing_view_days WHERE day >= ? AND listing_id IN ($in)");
+      $q->execute(array_merge([$fCur], $ids)); $viewsCur = (int) $q->fetch()['s'];
+      $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) AS s FROM listing_view_days WHERE day >= ? AND day < ? AND listing_id IN ($in)");
+      $q->execute(array_merge([$fPrev, $fCur], $ids)); $viewsPrev = (int) $q->fetch()['s'];
+      $chartStart = $dayStr($now - 6 * 86400);
+      $q = $pdo->prepare("SELECT day, COALESCE(SUM(n),0) AS s FROM listing_view_days WHERE day >= ? AND listing_id IN ($in) GROUP BY day");
+      $q->execute(array_merge([$chartStart], $ids));
+      foreach ($q->fetchAll() as $r) $byDay[$r['day']] = (int) $r['s'];
+    }
+    // Série des 7 derniers jours (jours vides = 0).
+    $series = [];
+    for ($i = 6; $i >= 0; $i--) {
+      $t = $now - $i * 86400; $d = $dayStr($t);
+      $series[] = ['day' => $d, 'dow' => (int) gmdate('N', $t), 'n' => $byDay[$d] ?? 0];
+    }
+
+    // Demandes reçues (commandes en tant que vendeur) et ventes finalisées.
+    $cnt = function (string $extra, array $args) use ($pdo, $u) {
+      $q = $pdo->prepare("SELECT COUNT(*) AS c FROM orders WHERE seller_id = ? $extra");
+      $q->execute(array_merge([$u['id']], $args));
+      return (int) $q->fetch()['c'];
+    };
+    $demCur  = $cnt('AND created_at >= ?', [$tCur]);
+    $demPrev = $cnt('AND created_at >= ? AND created_at < ?', [$tPrev, $tCur]);
+    $venCur  = $cnt("AND status = 'finalise' AND created_at >= ?", [$tCur]);
+    $venPrev = $cnt("AND status = 'finalise' AND created_at >= ? AND created_at < ?", [$tPrev, $tCur]);
+
+    $trend = fn(int $cur, int $prev) => $prev <= 0 ? null : (int) round((($cur - $prev) / $prev) * 100);
+
+    jout([
+      'period' => $period,
+      'views' => ['value' => $viewsCur, 'trend' => $trend($viewsCur, $viewsPrev)],
+      'activeListings' => $active,
+      'demands' => ['value' => $demCur, 'trend' => $trend($demCur, $demPrev)],
+      'sales' => ['value' => $venCur, 'trend' => $trend($venCur, $venPrev)],
+      'series' => $series,
+    ]);
+  }
+
   // Comptabiliser une vue d'annonce (statistiques). On n'incrémente pas les
   // vues du propriétaire ; le frontend limite à une vue par visiteur/session.
   if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'view' && $method === 'POST') {
@@ -2598,6 +2670,15 @@ try {
       $viewer = current_user($pdo, $secret);
       if (!$viewer || $viewer['id'] !== $row['user_id']) {
         $pdo->prepare('UPDATE listings SET views = COALESCE(views, 0) + 1 WHERE id = ?')->execute([$seg[1]]);
+        // Série quotidienne des vues (tableau de bord vendeur). Upsert portable
+        // (UPDATE puis INSERT si absent) — compatible SQLite / PostgreSQL / MySQL.
+        $today = gmdate('Y-m-d');
+        $up = $pdo->prepare('UPDATE listing_view_days SET n = n + 1 WHERE listing_id = ? AND day = ?');
+        $up->execute([$seg[1], $today]);
+        if ($up->rowCount() < 1) {
+          try { $pdo->prepare('INSERT INTO listing_view_days (listing_id, day, n) VALUES (?, ?, 1)')->execute([$seg[1], $today]); }
+          catch (Throwable $e) { $pdo->prepare('UPDATE listing_view_days SET n = n + 1 WHERE listing_id = ? AND day = ?')->execute([$seg[1], $today]); }
+        }
       }
     }
     jout(['ok' => true]);

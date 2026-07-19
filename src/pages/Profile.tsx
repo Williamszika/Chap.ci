@@ -47,7 +47,7 @@ import { categories } from '../data/categories'
 import { fetchOrders, updateOrderStatus } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
-import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, type SavedSearch } from '../lib/api'
+import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
 import { isPhp } from '../lib/backend'
 import { phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs } from '../lib/php'
 import { downscaleImage } from '../lib/image'
@@ -81,6 +81,10 @@ export function Profile() {
   const [sales, setSales] = useState<Order[]>([])
   const [myReviews, setMyReviews] = useState<Review[]>([])
   const [avatarUrl, setAvatarUrl] = useState<string>('')
+
+  // Tableau de bord vendeur : période + statistiques réelles (vues, tendances…).
+  const [period, setPeriod] = useState<'7j' | '30j' | 'annee'>('7j')
+  const [analytics, setAnalytics] = useState<SellerAnalytics | null>(null)
 
   // Filtres pilotés par les tuiles de statistiques (chaque tuile est cliquable).
   const [salesFilter, setSalesFilter] = useState<'all' | 'en_cours' | 'finalise'>('all')
@@ -135,6 +139,14 @@ export function Profile() {
       active = false
     }
   }, [user])
+
+  // Statistiques réelles du tableau de bord (rechargées au changement de période).
+  useEffect(() => {
+    if (!user || !isPhp || tab !== 'ventes') return
+    let active = true
+    fetchSellerAnalytics(period).then((a) => active && setAnalytics(a)).catch(() => {})
+    return () => { active = false }
+  }, [user, tab, period])
 
   async function markReceived(order: Order) {
     try {
@@ -319,12 +331,27 @@ export function Profile() {
             <Empty text="Connectez-vous pour voir vos ventes et statistiques." />
           ) : (
             <div className="space-y-4">
-              {/* 4 cartes clés — vos vrais chiffres (pas de tendances tant que l'historique n'est pas suivi) */}
+              {/* Sélecteur de période — recharge les vraies statistiques */}
+              <div className="flex justify-end">
+                <div className="flex rounded-xl border border-[#E6DAC6] bg-white p-0.5 text-xs font-bold shadow-card">
+                  {([['7j', '7 j'], ['30j', '30 j'], ['annee', 'Année']] as const).map(([p, lab]) => (
+                    <button
+                      key={p}
+                      onClick={() => setPeriod(p)}
+                      className={`rounded-lg px-3 py-1.5 transition ${period === p ? 'bg-primary-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      {lab}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4 cartes clés — vos vrais chiffres (tendances réelles vs période précédente) */}
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <DashStat tint="primary" icon={<Eye size={18} />} value={myListings.reduce((s, l) => s + (l.views ?? 0), 0)} label="Vues" />
-                <DashStat tint="green" icon={<Package size={18} />} value={myListings.length} label="Annonces actives" />
-                <DashStat tint="sky" icon={<MessageSquare size={18} />} value={sales.length} label="Demandes reçues" />
-                <DashStat tint="gold" icon={<ShoppingBag size={18} />} value={salesDone} label="Ventes" />
+                <DashStat tint="primary" icon={<Eye size={18} />} value={analytics ? analytics.views.value : myListings.reduce((s, l) => s + (l.views ?? 0), 0)} label="Vues" trend={analytics?.views.trend} />
+                <DashStat tint="green" icon={<Package size={18} />} value={analytics ? analytics.activeListings : myListings.length} label="Annonces actives" />
+                <DashStat tint="sky" icon={<MessageSquare size={18} />} value={analytics ? analytics.demands.value : sales.length} label="Demandes reçues" trend={analytics?.demands.trend} />
+                <DashStat tint="gold" icon={<ShoppingBag size={18} />} value={analytics ? analytics.sales.value : salesDone} label="Ventes" trend={analytics?.sales.trend} />
               </div>
 
               {revenue > 0 && (
@@ -343,7 +370,32 @@ export function Profile() {
               {/* Panneaux du tableau de bord (vues par annonce + répartition par catégorie). */}
               {myListings.length > 0 && (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  {hasViews && (
+                  {analytics ? (
+                    <div className="card p-4">
+                      <p className="font-display text-base font-black text-ink">Vues des annonces</p>
+                      <p className="mb-4 text-xs text-gray-500">7 derniers jours</p>
+                      <div className="flex h-36 items-end gap-2">
+                        {analytics.series.map((d) => {
+                          const dmax = Math.max(1, ...analytics.series.map((s) => s.n))
+                          const pct = Math.round((d.n / dmax) * 100)
+                          const peak = d.n === dmax && d.n > 0
+                          const lbl = ['L', 'M', 'M', 'J', 'V', 'S', 'D'][d.dow - 1]
+                          return (
+                            <div key={d.day} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                              <span className="tnum text-[10px] font-semibold text-gray-400">{d.n}</span>
+                              <div className="flex w-full flex-1 items-end">
+                                <div
+                                  className={`w-full rounded-t-md ${peak ? 'bg-ivoire-green' : 'bg-gradient-to-t from-primary-600 to-primary-400'}`}
+                                  style={{ height: `${Math.max(6, pct)}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-gray-500">{lbl}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : hasViews ? (
                     <div className="card p-4">
                       <p className="font-display text-base font-black text-ink">Vues des annonces</p>
                       <p className="mb-4 text-xs text-gray-500">Vos annonces les plus vues</p>
@@ -367,7 +419,7 @@ export function Profile() {
                         })}
                       </div>
                     </div>
-                  )}
+                  ) : null}
                   <div className="card p-4">
                     <p className="font-display text-base font-black text-ink">Répartition</p>
                     <p className="mb-4 text-xs text-gray-500">Par catégorie</p>
@@ -804,20 +856,28 @@ function AccountRow({
   )
 }
 
-/** Grande carte clé du tableau de bord (icône colorée + valeur + libellé). */
+/** Grande carte clé du tableau de bord (icône colorée + valeur + libellé + tendance). */
 function DashStat({
-  icon, tint = 'primary', value, label,
+  icon, tint = 'primary', value, label, trend,
 }: {
   icon: React.ReactNode
   tint?: keyof typeof rowTints
   value: number | string
   label: string
+  trend?: number | null
 }) {
   return (
     <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
       <span className={`inline-grid h-10 w-10 place-items-center rounded-xl ${rowTints[tint]}`}>{icon}</span>
       <p className="tnum mt-3 font-display text-3xl font-black text-ink">{value}</p>
-      <p className="mt-0.5 text-sm text-gray-500">{label}</p>
+      <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-gray-500">
+        <span>{label}</span>
+        {trend != null && trend !== 0 && (
+          <span className={`inline-flex items-center gap-0.5 text-xs font-bold ${trend > 0 ? 'text-ivoire-green' : 'text-red-500'}`}>
+            {trend > 0 ? '▲' : '▼'} {Math.abs(trend)} %
+          </span>
+        )}
+      </p>
     </div>
   )
 }

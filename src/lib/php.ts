@@ -289,6 +289,18 @@ export async function phpDeleteListing(id: string): Promise<void> {
 export async function phpMyListings(): Promise<Listing[]> {
   return req<Listing[]>('/listings/mine')
 }
+/** Statistiques réelles du tableau de bord vendeur (vues, tendances, série). */
+export interface SellerAnalytics {
+  period: string
+  views: { value: number; trend: number | null }
+  activeListings: number
+  demands: { value: number; trend: number | null }
+  sales: { value: number; trend: number | null }
+  series: { day: string; dow: number; n: number }[]
+}
+export async function phpSellerAnalytics(period: string): Promise<SellerAnalytics> {
+  return req<SellerAnalytics>(`/seller/analytics?period=${encodeURIComponent(period)}`)
+}
 export async function phpUpdateListing(id: string, input: NewListingInput): Promise<Listing> {
   return req<Listing>(`/listings/${id}`, { method: 'PUT', body: input })
 }

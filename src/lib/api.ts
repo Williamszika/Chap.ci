@@ -27,6 +27,12 @@ export async function fetchMyListings(): Promise<Listing[]> {
   return php.phpMyListings()
 }
 
+/** Statistiques réelles du tableau de bord vendeur (vues, tendances, série). */
+export async function fetchSellerAnalytics(period: string) {
+  return php.phpSellerAnalytics(period)
+}
+export type { SellerAnalytics } from './php'
+
 /** Modifier une annonce. */
 export async function updateListingRemote(id: string, input: Omit<Listing, 'id' | 'createdAt' | 'currency'>): Promise<Listing> {
   return php.phpUpdateListing(id, input)
