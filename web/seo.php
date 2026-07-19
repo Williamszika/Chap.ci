@@ -124,6 +124,28 @@ function render_page(string $title, string $desc, string $img, string $canon, st
   echo "<meta name=\"twitter:title\" content=\"$t\">\n";
   echo "<meta name=\"twitter:description\" content=\"$d\">\n";
   if ($i !== '') echo "<meta name=\"twitter:image\" content=\"$i\">\n";
+  echo "<meta name=\"robots\" content=\"index, follow\">\n";
+  // Données structurées JSON-LD (schema.org) : Google affiche prix, disponibilité
+  // et image directement dans les résultats (rich results) → plus de visibilité.
+  if ($l) {
+    $ld = [
+      '@context' => 'https://schema.org', '@type' => 'Product',
+      'name' => (string) ($l['title'] ?? ''),
+      'description' => $desc,
+      'category' => (string) ($l['category_id'] ?? ''),
+      'offers' => [
+        '@type' => 'Offer',
+        'price' => (int) ($l['promo_price'] ?: $l['price']),
+        'priceCurrency' => 'XOF', // franc CFA (FCFA)
+        'availability' => empty($l['sold']) ? 'https://schema.org/InStock' : 'https://schema.org/SoldOutOfStock',
+        'url' => $canon,
+        'areaServed' => 'CI',
+      ],
+    ];
+    if ($img !== '') $ld['image'] = $img;
+    echo '<script type="application/ld+json">'
+       . json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "</script>\n";
+  }
   // Humains : redirection vers l'app. Robots : on garde le contenu.
   if (!$isBot) echo "<script>location.replace(" . json_encode($appUrl) . ");</script>\n";
   echo "<style>body{font-family:system-ui,Arial,sans-serif;margin:0;background:#f4f5f7;color:#111}"

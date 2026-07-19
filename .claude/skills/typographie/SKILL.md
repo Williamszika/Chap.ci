@@ -115,10 +115,47 @@ La plupart ci-dessus ont des **chiffres tabulaires** (`tabular-nums`). Pour des 
 - Pas de Comic Sans, Papyrus, ni police système par défaut non chargée.
 - Pas plus de **2 familles** à l'écran en même temps.
 
-### Où les récupérer
-- **Google Fonts** (fonts.google.com) — Inter, Manrope, Plus Jakarta Sans, Sora, Work Sans, IBM Plex, Space Grotesk, Bricolage Grotesque, Fraunces, Anton, Archivo, Bebas Neue.
-- **Fontshare** (fontshare.com) — Clash Display, Satoshi, General Sans (gratuits, usage commercial).
-- Toujours **auto-héberger** ou sous-ensembler pour la perf (connexions mobiles ivoiriennes) + `font-display: swap`.
+### Où récupérer des polices gratuites (sources autorisées)
+
+Les bureaux **Design (🎨 L'Atelier)** et **Croissance/Marketing (📣 Le Crieur)** peuvent
+puiser dans **toutes** ces bibliothèques gratuites. **Règle non négociable : vérifier la
+LICENCE de chaque police avant de l'utiliser** (Chap.ci est un site **commercial**).
+
+| Source | Lien | Licence typique | À vérifier |
+| --- | --- | --- | --- |
+| **Google Fonts** ⭐ | fonts.google.com | OFL / Apache 2.0 | ✅ usage commercial OK par défaut |
+| **Fontshare** ⭐ | fontshare.com | Licence Fontshare (gratuite) | ✅ commercial OK (lire la licence) |
+| **Font Squirrel** ⭐ | fontsquirrel.com | 100 % « commercial-use » filtré | ✅ filtre déjà sur usage commercial |
+| **The League of Moveable Type** ⭐ | theleagueofmoveabletype.com | OFL (open-source) | ✅ libre, commercial OK |
+| **Open Foundry** ⭐ | open-foundry.com | Open-source (OFL/MIT) | ✅ libre, commercial OK |
+| **1001 Fonts** | 1001fonts.com | **mixte** | ⚠️ filtrer « Commercial Use » + lire la licence |
+| **FontSpace** | fontspace.com | **mixte** | ⚠️ beaucoup « personal use only » — vérifier chaque police |
+| **DaFont** | dafont.com | **mixte** | ⚠️ souvent « free for personal use » — **vérifier avant tout usage commercial** |
+
+**Priorité d'usage** (du plus sûr au plus prudent) :
+1. **Google Fonts / Fontshare / Font Squirrel / The League / Open Foundry** → licences
+   claires (OFL, Apache, MIT) : commercial autorisé, on peut adopter directement.
+2. **1001 Fonts / FontSpace / DaFont** → **cas par cas** : n'utiliser qu'une police
+   dont la licence dit **explicitement** « free for commercial use » (ou OFL/Apache/MIT).
+   Dans le doute → ne pas l'utiliser, ou prévoir l'achat de la licence commerciale.
+
+### Procédure d'intégration (pour l'Atelier et le Crieur)
+
+1. **Choisir** la police et **noter sa licence** (copier le texte de licence + l'URL source).
+2. **Vérifier les accents français** avec `Côte d’Ivoire — À LA UNE — 250 000 FCFA`
+   (é è à ç ï î ô œ ù) — écarter toute police au jeu de glyphes incomplet.
+3. **Auto-héberger** : télécharger les fichiers, convertir en **woff2**, **sous-ensembler**
+   au latin (perf mobile ivoirienne), servir en local. **Ne jamais hotlinker** un CDN
+   externe (perf + RGPD : le hotlink Google Fonts expose l'IP du visiteur à un tiers).
+4. Déclarer en `@font-face` avec **`font-display: swap`**.
+5. Garder la **règle des 2 familles max** à l'écran (voir plus haut) : une bibliothèque
+   riche sert à **choisir mieux**, pas à empiler les polices.
+6. Conserver une trace des licences dans le dépôt (ex. `public/fonts/LICENSES.md`).
+
+> ⚠️ La **proposition** de nouvelles polices reste une **proposition** : l'Atelier/le
+> Crieur les recommandent (avec la preuve de licence) ; le **Dev** les intègre après
+> validation du Patron, avec build + tests. Aucun changement de police en production
+> sans passer par cette validation.
 
 ## Checklist typo
 - [ ] 2 familles max (Inter + Plus Jakarta) — pas de 3ᵉ

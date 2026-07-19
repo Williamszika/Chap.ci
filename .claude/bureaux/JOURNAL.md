@@ -230,3 +230,30 @@ Format d'une entrée :
   *Tableau de bord → Tâches auto* et la coller dans le prompt de la routine.
 - **Pour les autres bureaux** : 🛡️ Le Gardien — excellent scan (0 🔴, hardening confirmé).
   Nouvelle donnée pour toi : les pics de `cron_fail` = tentatives de balayage de clé.
+
+---
+
+### 2026-07-19 — [Secrétariat] Réorganisation des bureaux (ordre du Patron)
+- **Fait** : refonte de l'organisation → **8 bureaux** au lieu de 7.
+  - **Fusions** : Santé serveur → dans la Sécurité ; **Modération → dans la Sécurité**
+    (nouveau bureau **« Confiance & Sécurité »**, chef 🛡️ Le Gardien) ; **Rapport
+    d'activité + Sourcing** réunis en une seule routine du bureau **Données**.
+  - **Créations** : **⚡ Performance & Fiabilité** (Le Mécanicien) et **🤝 Support &
+    Expérience** (Le Concierge).
+  - **Croissance (📣 Le Crieur)** : cadence portée à **tous les 2 jours** ; mission
+    élargie → **SEO + Google + poussée des mots-clés des annonces sur tout le net**
+    (site *et* app), IndexNow, données structurées.
+  - **Skills créés** (`.claude/skills/`) : `seo-ivoirien`, `moderation-ci`,
+    `perf-mobile-ci`, `a11y-contraste` + affectations par bureau documentées.
+  - **Polices gratuites** : capacité ajoutée aux bureaux Design 🎨 et Croissance 📣
+    (Google Fonts, Fontshare, Font Squirrel, The League, Open Foundry, 1001 Fonts,
+    FontSpace, DaFont) — **vérification de licence obligatoire** (site commercial),
+    procédure d'auto-hébergement woff2 dans le skill `typographie`.
+  - **SEO technique (Dev, gain immédiat)** : `web/seo.php` sert désormais des **données
+    structurées JSON-LD Product/Offer** (prix FCFA/XOF, dispo, image) + `meta robots`
+    sur chaque fiche annonce → *rich results* Google. `php -l` OK.
+- **Problèmes ouverts** : robots.txt et ping IndexNow **pas encore** en place (proposés
+  par le Crieur) ; à implémenter par le Dev sur validation.
+- **Propositions au Patron** : créer les 4 nouvelles routines (prompts fournis :
+  `routine-croissance/-performance/-support.md`) et les 4 skills dans claude.ai.
+- **Pour les autres bureaux** : nouveaux prompts de référence dans `.claude/bureaux/`.
