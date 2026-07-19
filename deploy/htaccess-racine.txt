@@ -1,0 +1,21 @@
+# =============================================================================
+#  Chap.ci — En-têtes de sécurité pour la RACINE du site
+#  À placer/fusionner dans  public_html/.htaccess  (crée le fichier s'il
+#  n'existe pas). Les endpoints /api/ ont déjà leurs propres en-têtes ; ceci
+#  couvre les pages du site (le frontend).
+#
+#  ⚠️ Si tu as DÉJÀ un public_html/.htaccess avec des règles, n'écrase pas le
+#  fichier : ajoute juste le bloc ci-dessous à la fin.
+# =============================================================================
+<IfModule mod_headers.c>
+  # Empêche le navigateur de « deviner » un type de fichier (anti-sniffing).
+  Header always set X-Content-Type-Options "nosniff"
+  # Empêche l'affichage du site dans une iframe d'un autre domaine (anti-clickjacking).
+  Header always set X-Frame-Options "SAMEORIGIN"
+  # Ne divulgue pas l'URL complète en referrer vers les autres sites.
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # Restreint la géolocalisation au site lui-même ; le reste garde les défauts.
+  Header always set Permissions-Policy "geolocation=(self)"
+  # Force HTTPS pendant 6 mois (le site est déjà en HTTPS).
+  Header always set Strict-Transport-Security "max-age=15552000"
+</IfModule>

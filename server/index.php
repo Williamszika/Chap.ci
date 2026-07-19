@@ -2699,17 +2699,21 @@ try {
     // La cible : le vendeur (avis acheteur→vendeur) ou l'acheteur (avis vendeur→acheteur).
     $targetId = trim((string) ($b['targetId'] ?? ($b['sellerId'] ?? '')));
     if ($targetId === '' || $targetId === $u['id']) jerr('Destinataire de l’avis invalide.', 400);
-    // Autorisation : les deux doivent partager une transaction (commande commune).
-    $chk = $pdo->prepare('SELECT 1 FROM orders WHERE
+    // Autorisation : la vente doit avoir été CONFIRMÉE PAR LE VENDEUR
+    // (seller_confirmed = 1). C'est le seul signal qu'un acheteur ne peut PAS
+    // falsifier : il peut créer et même « finaliser » lui-même une commande sur une
+    // vraie annonce, mais pas la confirmer côté vendeur. Sans cette condition, un
+    // acheteur pourrait poster un faux avis diffamatoire sur un vendeur qu'il a
+    // seulement contacté (cohérent avec le garde-fou du cron review-invites).
+    $chk = $pdo->prepare('SELECT 1 FROM orders WHERE seller_confirmed = 1 AND
       ((buyer_id = ? AND seller_id = ?) OR (seller_id = ? AND buyer_id = ?)) LIMIT 1');
     $chk->execute([$u['id'], $targetId, $u['id'], $targetId]);
     if (!$chk->fetch()) {
-      // Rétro-compat acheteur→vendeur : autorisé si l'acheteur a commandé cette
-      // annonce ET que la cible est bien le vendeur de cette commande.
+      // Rétro-compat acheteur→vendeur par annonce — commande confirmée par le vendeur.
       $chk2 = $pdo->prepare('SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
-        WHERE o.buyer_id = ? AND oi.listing_id = ? AND o.seller_id = ? LIMIT 1');
+        WHERE o.buyer_id = ? AND oi.listing_id = ? AND o.seller_id = ? AND o.seller_confirmed = 1 LIMIT 1');
       $chk2->execute([$u['id'], $listingId, $targetId]);
-      if (!$chk2->fetch()) jerr('Vous devez avoir conclu une transaction avec cette personne pour la noter.', 403);
+      if (!$chk2->fetch()) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur.', 403);
     }
     // Un seul avis par personne notée (par annonce). Sinon on met à jour.
     $ex = $pdo->prepare('SELECT id FROM reviews WHERE reviewer_id = ? AND target_id = ? AND (listing_id = ? OR ? = \'\') LIMIT 1');
@@ -3598,8 +3602,10 @@ try {
       $title = (string) ($ti->fetch()['title'] ?? '');
       $convId = (string) ($o['conversation_id'] ?? '');
       $sent = false;
-      // Acheteur → vendeur (priorité : « laissez un avis »).
-      if ($convId && !$reviewed($buyerId, $sellerId)) {
+      // Acheteur → vendeur (priorité : « laissez un avis ») — uniquement si le
+      // vendeur a confirmé la vente (cohérent avec la règle des avis : pas d'avis
+      // sur une transaction non confirmée par le vendeur).
+      if ($convId && !empty($o['seller_confirmed']) && !$reviewed($buyerId, $sellerId)) {
         if (send_review_invite_email($config, $em($buyerId), $nm($sellerId), $title, $convId, 'buyer')) { $emailed++; $sent = true; }
       }
       // Vendeur → acheteur (uniquement s'il a confirmé la vente).
