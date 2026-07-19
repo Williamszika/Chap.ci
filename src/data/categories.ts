@@ -3,8 +3,16 @@ import type { Category } from '../types'
 /**
  * Catégories de petites annonces, adaptées au marché ivoirien.
  * Les icônes correspondent à des composants de `lucide-react`.
+ * Ordre aligné sur la maquette du Bureau du Design (Téléphones en tête).
  */
 export const categories: Category[] = [
+  {
+    id: 'telephones',
+    name: 'Téléphones',
+    icon: 'Smartphone',
+    color: 'bg-violet-100 text-violet-700',
+    subcategories: ['Smartphones', 'Téléphones fixes', 'Accessoires', 'Tablettes', 'Réparation'],
+  },
   {
     id: 'vehicules',
     name: 'Véhicules',
@@ -20,11 +28,11 @@ export const categories: Category[] = [
     subcategories: ['Location', 'Vente', 'Terrains', 'Bureaux & Commerces', 'Colocation', 'Location vacances'],
   },
   {
-    id: 'telephones',
-    name: 'Téléphones',
-    icon: 'Smartphone',
-    color: 'bg-violet-100 text-violet-700',
-    subcategories: ['Smartphones', 'Téléphones fixes', 'Accessoires', 'Tablettes', 'Réparation'],
+    id: 'mode',
+    name: 'Mode & Beauté',
+    icon: 'Shirt',
+    color: 'bg-pink-100 text-pink-700',
+    subcategories: ['Vêtements Femme', 'Vêtements Homme', 'Chaussures', 'Sacs & Bijoux', 'Pagnes & Tissus', 'Beauté & Cosmétiques'],
   },
   {
     id: 'electronique',
@@ -39,13 +47,6 @@ export const categories: Category[] = [
     icon: 'Sofa',
     color: 'bg-amber-100 text-amber-700',
     subcategories: ['Meubles', 'Électroménager', 'Décoration', 'Cuisine', 'Jardin & Bricolage', 'Literie'],
-  },
-  {
-    id: 'mode',
-    name: 'Mode & Beauté',
-    icon: 'Shirt',
-    color: 'bg-pink-100 text-pink-700',
-    subcategories: ['Vêtements Femme', 'Vêtements Homme', 'Chaussures', 'Sacs & Bijoux', 'Pagnes & Tissus', 'Beauté & Cosmétiques'],
   },
   {
     id: 'emploi',
