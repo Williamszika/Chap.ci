@@ -66,3 +66,27 @@ Format d'une entrée :
 - **Pour les autres bureaux** : 🛡️ **Le Gardien — excellent catch**, la faille « avis »
   était subtile (elle avait survécu au Lot 1). La surface d'attaque est désormais fermée
   des deux côtés (achat→vendeur ET vendeur→achat). Continue le scan 5 h. 🙌
+
+---
+
+### 2026-07-19 — [Développement] Suite au 403 cron récurrent (rapport routine)
+- **Fait** : la routine « Santé & sécurité » a re-signalé un **403 sur `/api/cron/security`,
+  `/stats`, `/cleanup` (2ᵉ jour)** — sa clé cron ne correspond plus à celle du serveur.
+  Diagnostic du Gardien confirmé (le serveur accepte soit `config.php`/`CHAPCI_CRON_KEY`,
+  soit la clé auto-générée `data/.secret_cron` ; les deux peuvent diverger de celle des
+  routines, et `config.php` n'est pas versionné donc invisible du dépôt).
+  - ✅ **Correctif durable livré** : nouvel onglet **« Tâches auto »** dans le tableau de
+    bord admin (`AdminDashboard.tsx`) qui affiche la **clé réellement active** (via
+    `admin/digest-info`, déjà admin-only) + **toutes** les URLs cron prêtes à copier
+    (sécurité, ménage, sauvegarde, digest, suggestions, alertes, invitations-avis, stats,
+    rapport) avec leur planning cPanel. **Source unique** pour recopier la clé partout.
+  - 📄 **Prompt de routine canonique** documenté dans `.claude/bureaux/routine-securite.md`
+    (placeholder `CLE_CRON_ICI`, jamais la vraie clé). Build OK.
+- **Problèmes ouverts** :
+  - 🔑 **Action Patron requise** : récupérer la clé sur *Tableau de bord → Tâches auto* et
+    la coller dans le prompt de la routine Sécurité (lève le 403). Le code ne peut pas le
+    faire — l'édition des routines est bloquée côté plateforme (`-32003`) en session auto.
+- **Propositions au Patron** : déployer le zip (pour activer l'onglet « Tâches auto » en
+  ligne), puis mettre à jour la clé de la routine depuis cet onglet.
+- **Pour les autres bureaux** : 🛡️ Le Gardien — une fois la clé à jour, ton scan sécurité
+  et le ménage repartent automatiquement. La divergence de clé ne devrait plus se reproduire.

@@ -21,9 +21,9 @@ import {
   type VisitStats, type VisitRange, type ResponseTime, type BackupFile,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews' | 'visitors' | 'backup'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -78,7 +78,7 @@ export function AdminDashboard() {
           <h1 className="font-display text-lg font-bold">Administration</h1>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -104,6 +104,7 @@ export function AdminDashboard() {
         {tab === 'moderators' && <ModeratorsTab />}
         {tab === 'emails' && <EmailsTab />}
         {tab === 'backup' && <BackupTab />}
+        {tab === 'automation' && <AutomationTab />}
       </div>
     </div>
   )
@@ -1237,6 +1238,103 @@ function EmailsTab() {
         <p className="mt-2 text-xs text-gray-400">
           Astuce : si <b>localhost</b> ne marche pas, essayez <b>mail.chap.ci</b>. Port 465 = SSL, port 587 = TLS.
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Tâches automatiques (clé cron + URLs prêtes à copier) ----------
+// Registre des tâches planifiées du serveur. Chaque entrée génère une URL cron
+// prête à copier, avec la clé RÉELLEMENT active (récupérée via digestInfo).
+const CRON_JOBS: { id: string; label: string; desc: string; query?: string; schedule: string; cronExpr: string }[] = [
+  { id: 'security',       label: 'Surveillance sécurité',       desc: 'Compte les tentatives de connexion suspectes et repère les IP à surveiller.', query: '?days=1',  schedule: 'Chaque jour à 8h',    cronExpr: '0 8 * * *' },
+  { id: 'cleanup',        label: 'Ménage / maintenance',        desc: 'Purge les vieilles données et masque les annonces de plus de 90 jours.',                        schedule: 'Chaque jour à 4h',    cronExpr: '0 4 * * *' },
+  { id: 'backup',         label: 'Sauvegarde de la base',       desc: 'Sauvegarde complète (7 dernières conservées) + email récapitulatif.',                          schedule: 'Chaque jour à 3h',    cronExpr: '0 3 * * *' },
+  { id: 'digest',         label: 'Résumé du jour',              desc: 'Envoie aux abonnés les nouvelles annonces du jour.',                          query: '?type=daily', schedule: 'Chaque jour à 18h',   cronExpr: '0 18 * * *' },
+  { id: 'suggestions',    label: 'Suggestions personnalisées',  desc: 'Recommande à chaque utilisateur des annonces selon ses centres d’intérêt.',                     schedule: 'Lundi & jeudi à 9h',  cronExpr: '0 9 * * 1,4' },
+  { id: 'alerts',         label: 'Alertes recherches',          desc: 'Prévient quand une annonce correspond à une recherche sauvegardée.',                            schedule: 'Toutes les 2 heures', cronExpr: '0 */2 * * *' },
+  { id: 'review-invites', label: 'Invitations à noter',         desc: 'Invite l’acheteur à laisser un avis après une vente confirmée par le vendeur.',                 schedule: 'Chaque jour à 10h',   cronExpr: '0 10 * * *' },
+  { id: 'stats',          label: 'Statistiques hebdo',          desc: 'Agrégats anonymes d’activité (pour le rapport hebdomadaire).', query: '?days=7',                schedule: 'Lundi à 7h',          cronExpr: '0 7 * * 1' },
+  { id: 'report',         label: 'Rapport mensuel',             desc: 'Envoie à contact@chap.ci un récap activité + sécurité + santé de la base.',   query: '?days=30',  schedule: 'Le 1er du mois à 7h', cronExpr: '0 7 1 * *' },
+]
+
+function AutomationTab() {
+  const [info, setInfo] = useState<{ cronKey: string; site: string } | null>(null)
+  const [err, setErr] = useState('')
+  const [reveal, setReveal] = useState(false)
+  const [copied, setCopied] = useState('')
+
+  const load = () => { setErr(''); digestInfo().then(setInfo).catch((e) => setErr((e as Error).message)) }
+  useEffect(() => { load() }, [])
+
+  const copy = (id: string, text: string) => {
+    navigator.clipboard?.writeText(text)
+    setCopied(id); setTimeout(() => setCopied(''), 1500)
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!info) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const key = info.cronKey
+  const masked = key ? `${key.slice(0, 4)}${'•'.repeat(Math.max(8, key.length - 8))}${key.slice(-4)}` : '(aucune)'
+  const urlFor = (j: typeof CRON_JOBS[number]) => `${info.site}/api/cron/${j.id}${j.query ? `${j.query}&` : '?'}key=${key}`
+
+  return (
+    <div className="space-y-4">
+      {/* Intro */}
+      <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
+        <p className="flex items-center gap-1.5 font-semibold"><KeyRound size={16} /> Clé des tâches automatiques</p>
+        <p className="mt-1 text-primary-700">
+          Toutes les tâches planifiées (sécurité, ménage, sauvegarde, emails…) <b>et les routines
+          claude.ai</b> utilisent cette <b>même clé</b>. Si tu la changes un jour, reviens ici : c’est la
+          <b> seule source</b> à recopier partout. Un <b>403 « Clé invalide »</b> = la clé utilisée
+          ailleurs ne correspond plus à celle-ci.
+        </p>
+      </div>
+
+      {/* La clé active */}
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <p className="mb-2 font-display text-sm font-bold text-gray-800">Ta clé active</p>
+        <div className="flex items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-3 py-2 text-[13px] text-gray-100">
+            {reveal ? (key || '(aucune)') : masked}
+          </code>
+          <button onClick={() => setReveal((v) => !v)} className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50" aria-label={reveal ? 'Masquer la clé' : 'Afficher la clé'}>
+            {reveal ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+          <button onClick={() => copy('key', key)} disabled={!key} className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Copier la clé">
+            {copied === 'key' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Copy size={16} />}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          <b>Pour une routine claude.ai</b> : copie cette clé, puis dans le prompt de la routine remplace
+          ce qu’il y a après <code className="rounded bg-gray-100 px-1">key=</code>. Ne la partage jamais publiquement.
+        </p>
+      </div>
+
+      {/* Les URLs cron prêtes à copier */}
+      <div className="space-y-2.5">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">URLs prêtes à copier</p>
+        {CRON_JOBS.map((j) => (
+          <div key={j.id} className="rounded-2xl bg-white p-3.5 shadow-card">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-display text-sm font-bold text-gray-800">{j.label}</p>
+                <p className="mt-0.5 text-xs text-gray-600">{j.desc}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">{j.schedule}</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{urlFor(j)}</code>
+              <button onClick={() => copy(j.id, urlFor(j))} className="shrink-0 rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50" aria-label="Copier l’URL">
+                {copied === j.id ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-400">
+              cPanel → Tâches planifiées — <code className="rounded bg-gray-100 px-1">{j.cronExpr}</code>
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   )
