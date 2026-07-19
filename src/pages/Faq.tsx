@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronDown, Search, HelpCircle, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Search, Plus, Minus, MessageSquare } from 'lucide-react'
 
 type QA = { q: string; a: React.ReactNode }
 type Section = { title: string; icon: string; items: QA[] }
@@ -243,20 +243,19 @@ const sections: Section[] = [
 
 function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => void }) {
   return (
-    <div className="border-b border-[#EFE6D7] last:border-0">
+    <div className={`card overflow-hidden transition-shadow ${open ? 'shadow-card-lg' : ''}`}>
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 py-3.5 text-left"
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left md:px-6"
         aria-expanded={open}
       >
-        <span className="text-[15px] font-semibold text-gray-800">{qa.q}</span>
-        <ChevronDown
-          size={18}
-          className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-        />
+        <span className="font-display text-[15px] font-bold text-ink md:text-base">{qa.q}</span>
+        <span className={`shrink-0 transition-colors ${open ? 'text-primary-500' : 'text-gray-400'}`}>
+          {open ? <Minus size={18} /> : <Plus size={18} />}
+        </span>
       </button>
       {open && (
-        <p className="pb-4 pr-6 text-[14px] leading-relaxed text-gray-600">{qa.a}</p>
+        <p className="px-5 pb-5 text-[14px] leading-relaxed text-gray-600 md:px-6">{qa.a}</p>
       )}
     </div>
   )
@@ -282,52 +281,51 @@ export function Faq() {
   }, [query])
 
   return (
-    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:shadow-card lg:max-w-5xl xl:max-w-6xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
+    <div className="min-h-screen pb-16">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 px-3 py-3 backdrop-blur-md">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
         <h1 className="font-display text-lg font-bold">Aide & FAQ</h1>
       </header>
 
-      {/* Héro */}
-      <div className="bg-gradient-to-b from-primary-500 to-primary-600 px-6 py-8 text-center text-white">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white/20">
-          <HelpCircle size={30} />
-        </span>
-        <h2 className="mt-3 font-display text-2xl font-extrabold">Comment pouvons-nous vous aider ?</h2>
-        <p className="mx-auto mt-1 max-w-md text-white/85">
-          Trouvez rapidement une réponse à vos questions sur l’achat, la vente et la sécurité sur Chap.ci.
+      {/* Héro — fond crème chaleureux, grand titre d'affichage */}
+      <div className="bg-gradient-to-b from-primary-50 via-cream-100 to-transparent px-6 pb-10 pt-10 text-center md:pb-14 md:pt-14">
+        <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl md:text-5xl">
+          Questions fréquentes
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-gray-600 md:text-lg">
+          Tout ce qu’il faut savoir pour acheter et vendre sereinement.
         </p>
-        <div className="mx-auto mt-4 flex max-w-md items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
-          <Search size={18} className="text-gray-400" />
+        <div className="mx-auto mt-6 flex max-w-lg items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-4 py-3 shadow-card">
+          <Search size={18} className="shrink-0 text-gray-400" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher une question…"
-            className="w-full bg-transparent text-[15px] text-gray-800 outline-none placeholder:text-gray-400"
+            className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-gray-400"
           />
         </div>
       </div>
 
-      <div className="px-4 py-6 md:px-6">
+      <div className="px-4 py-8 md:px-6 md:py-10">
         {filtered.length === 0 ? (
-          <div className="py-14 text-center">
+          <div className="mx-auto max-w-md py-14 text-center">
             <p className="text-4xl">🔎</p>
-            <p className="mt-2 font-semibold text-gray-700">Aucune réponse trouvée</p>
+            <p className="mt-3 font-display font-bold text-ink">Aucune réponse trouvée</p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-gray-500">
               Essayez d’autres mots, ou contactez-nous directement — on vous répond vite.
             </p>
           </div>
         ) : (
-          // Ordinateur / tablette : rubriques réparties sur 2 colonnes (masonry).
-          <div className="md:columns-2 md:gap-5 lg:gap-6 md:[&>*]:break-inside-avoid">
+          // Une seule colonne large (mobile → ordinateur), rubriques empilées.
+          <div className="mx-auto w-full max-w-3xl space-y-10 md:max-w-5xl lg:max-w-6xl">
             {filtered.map((section, si) => (
-              <section key={section.title} className="mb-5">
-                <h3 className="mb-1 flex items-center gap-2 px-1 text-sm font-bold uppercase tracking-wide text-gray-500">
-                  <span>{section.icon}</span> {section.title}
+              <section key={section.title}>
+                <h3 className="mb-3 flex items-center gap-2 px-1 font-display text-sm font-bold uppercase tracking-wide text-gray-500">
+                  <span className="text-base">{section.icon}</span> {section.title}
                 </h3>
-                <div className="rounded-2xl bg-gray-50/70 px-4">
+                <div className="space-y-3">
                   {section.items.map((qa, ii) => {
                     const key = `${si}:${ii}`
                     return (
@@ -346,12 +344,12 @@ export function Faq() {
         )}
 
         {/* Bloc contact */}
-        <div className="mt-4 rounded-2xl border border-primary-100 bg-primary-50 p-5 text-center md:mx-auto md:mt-6 md:max-w-2xl">
-          <p className="font-bold text-primary-900">Vous n’avez pas trouvé votre réponse ?</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-primary-800/80">
+        <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-primary-100 bg-primary-50 p-6 text-center md:max-w-5xl lg:max-w-6xl">
+          <p className="font-display text-lg font-bold text-primary-900">Vous n’avez pas trouvé votre réponse ?</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-primary-800/80">
             Notre équipe est là pour vous aider. Écrivez-nous, on revient vers vous rapidement.
           </p>
-          <Link to="/contact" className="btn-primary mt-3 inline-flex">
+          <Link to="/contact" className="btn-primary mt-4 inline-flex">
             <MessageSquare size={18} /> Nous contacter
           </Link>
         </div>
