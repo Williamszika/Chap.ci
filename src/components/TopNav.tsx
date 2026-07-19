@@ -1,33 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Home, Search, Heart, MessageSquare, User, PlusCircle, ChevronDown,
+  Search, Heart, MessageSquare, User, PlusCircle, ChevronDown,
   Package, ShoppingBag, Store, Bell, ShieldCheck, HelpCircle, Settings,
   LogOut, LogIn, UserPlus,
 } from 'lucide-react'
 import { Logo } from './Logo'
+import { NotificationBell } from './NotificationBell'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useIsAdmin } from '../lib/useIsAdmin'
 
-const links = [
-  { to: '/', label: 'Accueil', icon: Home, end: true },
-  { to: '/explorer', label: 'Explorer', icon: Search, end: false },
-  { to: '/favoris', label: 'Favoris', icon: Heart, end: false },
-  { to: '/messages', label: 'Messages', icon: MessageSquare, end: false },
-]
-
 /**
- * Barre de navigation supérieure — affichée uniquement sur grand écran (desktop).
- * Sur mobile, c'est la BottomNav qui s'affiche.
+ * Barre de navigation supérieure (ordinateur) — reproduit la barre de l'artifact :
+ * logo · Accueil · Explorer · Près de moi · Vendre · recherche · ❤ · 🔔 ·
+ * Connexion / S'inscrire (ou menu du compte si connecté). Sur mobile, c'est la
+ * BottomNav qui s'affiche.
  */
 export function TopNav() {
   const { favorites } = useApp()
+  const { user } = useAuth()
   const location = useLocation()
-  // Masquée sur les pages « plein écran » (formulaire, détail…). NB : la barre
-  // n'apparaît de toute façon qu'à partir de md (`hidden md:block`) ; on la garde
-  // donc sur la conversation `/messages/:id` pour l'affichage 2 volets ordinateur
-  // (elle reste invisible sur mobile, où le chat est en plein écran).
+  const navigate = useNavigate()
+  const [qInput, setQInput] = useState('')
+
   const hidden =
     location.pathname === '/publier' ||
     location.pathname.startsWith('/modifier/') ||
@@ -37,41 +33,90 @@ export function TopNav() {
     location.pathname.startsWith('/admin/')
   if (hidden) return null
 
+  const isExplorer = location.pathname === '/explorer'
+  const near = location.search.includes('tri=distance')
+  const promo = location.search.includes('promo=1')
+  const nav = [
+    { label: 'Accueil', to: '/', active: location.pathname === '/' },
+    { label: 'Explorer', to: '/explorer', active: isExplorer && !near && !promo },
+    { label: 'Près de moi', to: '/explorer?tri=distance', active: isExplorer && near },
+    { label: 'Vendre', to: '/publier', active: location.pathname === '/publier' },
+  ]
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault()
+    const q = qInput.trim()
+    navigate(q ? `/explorer?q=${encodeURIComponent(q)}` : '/explorer')
+  }
+
   return (
     <header className="sticky top-0 z-40 hidden border-b border-[#EFE6D7] bg-[#FFF6EA]/85 backdrop-blur-md md:block">
-      <div className="mx-auto flex max-w-[1280px] items-center gap-2 px-4 py-3 lg:gap-6 lg:px-6">
-        <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Accueil Chap.ci">
+      <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-3 lg:gap-5 lg:px-6">
+        <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="Accueil Chap.ci">
           <Logo size={30} />
         </Link>
 
-        <nav className="flex flex-1 items-center gap-0.5 lg:gap-1">
-          {links.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `relative flex items-center gap-1.5 rounded-full px-2.5 py-2 text-sm font-semibold transition lg:px-3.5 ${
-                  isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-gray-50'
-                }`
-              }
+        <nav className="flex shrink-0 items-center gap-0.5 lg:gap-1">
+          {nav.map((it) => (
+            <Link
+              key={it.label}
+              to={it.to}
+              className={`whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-semibold transition lg:px-3 ${
+                it.active ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-cream-100'
+              }`}
             >
-              <Icon size={18} />
-              {label}
-              {to === '/favoris' && favorites.length > 0 && (
-                <span className="ml-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                  {favorites.length}
-                </span>
-              )}
-            </NavLink>
+              {it.label}
+            </Link>
           ))}
         </nav>
 
-        <Link to="/publier" className="btn-primary shrink-0 px-3 py-2 text-sm lg:px-4">
-          <PlusCircle size={18} /> Publier<span className="hidden lg:inline">&nbsp;une annonce</span>
+        <form
+          onSubmit={submitSearch}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-primary-400"
+        >
+          <Search size={18} className="shrink-0 text-gray-400" />
+          <input
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            placeholder="Rechercher un produit, une marque…"
+            aria-label="Rechercher"
+            className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+          />
+        </form>
+
+        <Link
+          to="/favoris"
+          aria-label="Favoris"
+          className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
+        >
+          <Heart size={19} />
+          {favorites.length > 0 && (
+            <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              {favorites.length}
+            </span>
+          )}
         </Link>
 
-        <AccountMenu />
+        <NotificationBell
+          align="right"
+          buttonClass="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
+        />
+
+        {user ? (
+          <AccountMenu />
+        ) : (
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              to="/connexion"
+              className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-cream-100"
+            >
+              Connexion
+            </Link>
+            <Link to="/inscription" className="btn-primary whitespace-nowrap px-4 py-2 text-sm">
+              S’inscrire
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   )

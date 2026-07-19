@@ -1,14 +1,14 @@
 import { Link, useLocation } from 'react-router-dom'
 import { Mark, Wordmark } from './Logo'
 
-const cols: { title: string; links: { to: string; label: string }[] }[] = [
+const cols: { title: string; links: { to: string; label: string; state?: unknown }[] }[] = [
   {
     title: 'Explorer',
     links: [
       { to: '/explorer', label: 'Toutes les annonces' },
       { to: '/explorer', label: 'Catégories' },
-      { to: '/explorer', label: 'Près de moi' },
-      { to: '/aide', label: 'Bons plans' },
+      { to: '/explorer?tri=distance', label: 'Près de moi' },
+      { to: '/explorer?promo=1', label: 'Bons plans' },
     ],
   },
   {
@@ -16,8 +16,8 @@ const cols: { title: string; links: { to: string; label: string }[] }[] = [
     links: [
       { to: '/publier', label: 'Publier' },
       { to: '/aide', label: 'Conseils vendeur' },
-      { to: '/compte', label: 'Boutique pro' },
-      { to: '/compte', label: 'Tableau de bord' },
+      { to: '/compte', label: 'Boutique pro', state: { tab: 'ventes' } },
+      { to: '/compte', label: 'Tableau de bord', state: { tab: 'annonces' } },
     ],
   },
   {
@@ -87,7 +87,7 @@ export function Footer() {
               <ul className="space-y-2">
                 {c.links.map((l, i) => (
                   <li key={c.title + i}>
-                    <Link to={l.to} className="text-white/70 transition hover:text-primary-400">
+                    <Link to={l.to} state={l.state} className="text-white/70 transition hover:text-primary-400">
                       {l.label}
                     </Link>
                   </li>
