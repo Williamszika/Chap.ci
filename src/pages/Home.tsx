@@ -116,7 +116,7 @@ export function Home() {
       </div>
 
       {/* En-tête orange (bannière/héro sur desktop) */}
-      <header className="safe-top bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.22),transparent_62%),linear-gradient(to_bottom,#F77F00,#D95F00)] px-4 pb-5 pt-3 text-white md:mt-4 md:rounded-3xl md:px-10 md:pb-9 md:pt-8">
+      <header className="safe-top bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.22),transparent_62%),linear-gradient(to_bottom,#F77F00,#D95F00)] px-4 pb-4 pt-3 text-white md:mt-4 md:rounded-3xl md:px-8 md:pb-6 md:pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Mark size={38} variant="white" />
@@ -141,17 +141,17 @@ export function Home() {
           </div>
         </div>
 
-        {/* Titre « héro » — grand sur desktop, accroche compacte sur mobile */}
-        <div className="mt-3 md:mt-6">
-          {/* Desktop : grand titre (sert de h1 sur grand écran) */}
-          <h1 className="hidden font-display text-3xl font-extrabold leading-tight txt-legible md:block">
+        {/* Titre « héro » — compact (l'accent visuel est mis sur la bannière pub) */}
+        <div className="mt-2.5 md:mt-3.5">
+          {/* Desktop : titre (sert de h1 sur grand écran) */}
+          <h1 className="hidden font-display text-2xl font-extrabold leading-tight txt-legible md:block">
             Achetez et vendez <span className="text-white/90">chap-chap</span> en Côte d’Ivoire 🇨🇮
           </h1>
-          <p className="mt-1.5 hidden text-white txt-legible md:block">
-            Des milliers d’annonces près de chez vous : voitures, téléphones, immobilier, mode, alimentation…
+          <p className="mt-1 hidden text-sm text-white txt-legible md:block">
+            Des milliers d’annonces près de chez vous : voitures, téléphones, immobilier, mode…
           </p>
           {/* Mobile : accroche courte et punchy (le h1 mobile reste le sr-only ci-dessus) */}
-          <p className="font-display text-[19px] font-extrabold leading-tight txt-legible md:hidden">
+          <p className="font-display text-[17px] font-extrabold leading-tight txt-legible md:hidden">
             Achetez &amp; vendez <span className="text-white/90">chap-chap</span> 🇨🇮
           </p>
         </div>
@@ -159,7 +159,7 @@ export function Home() {
         {/* Sélecteur de lieu */}
         <button
           onClick={() => setLocOpen(true)}
-          className="-ml-1.5 mt-3 flex min-h-[40px] items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-white/95 md:mt-4"
+          className="-ml-1.5 mt-2 flex min-h-[40px] items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-white/95 md:mt-2.5"
         >
           <MapPin size={16} />
           <span className="max-w-[70vw] truncate">
@@ -169,8 +169,8 @@ export function Home() {
         </button>
 
         {/* Barre de recherche (plus grande sur desktop) */}
-        <form onSubmit={submitSearch} className="relative mt-3 md:mt-5 md:max-w-2xl">
-          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary-400 md:rounded-2xl md:px-5 md:py-4">
+        <form onSubmit={submitSearch} className="relative mt-2.5 md:mt-3.5 md:max-w-2xl">
+          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary-400 md:rounded-2xl md:px-5 md:py-3">
             <Search size={20} className="text-gray-400" />
             <input
               value={q}
