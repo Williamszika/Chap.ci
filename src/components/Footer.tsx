@@ -46,7 +46,7 @@ export function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="mt-6 border-t border-gray-100 bg-white px-5 pb-24 pt-8 text-sm md:pb-10">
+    <footer className="mt-6 border-t border-[#EFE6D7] bg-white px-5 pb-24 pt-8 text-sm md:pb-10">
       <div className="mx-auto max-w-[1280px]">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {/* Marque */}
@@ -76,7 +76,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-gray-100 pt-5 text-xs text-gray-400 sm:flex-row">
+        <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-[#EFE6D7] pt-5 text-xs text-gray-400 sm:flex-row">
           <p>© {year} Chap.ci — Tous droits réservés</p>
           <p>Fait avec ❤️ en Côte d’Ivoire 🇨🇮</p>
         </div>
