@@ -11,10 +11,10 @@ export function Favorites() {
 
   return (
     <div className="min-h-screen">
-      <header className="safe-top bg-white px-4 pb-3 pt-4 shadow-sm">
-        <h1 className="text-xl font-black text-gray-900">Mes favoris</h1>
-        <p className="text-sm text-gray-500">
-          {favListings.length} annonce{favListings.length > 1 ? 's' : ''} enregistrée
+      <header className="safe-top px-4 pb-2 pt-5">
+        <h1 className="font-display text-2xl font-extrabold text-gray-900">Mes favoris</h1>
+        <p className="mt-0.5 text-sm text-gray-500">
+          {favListings.length} annonce{favListings.length > 1 ? 's' : ''} sauvegardée
           {favListings.length > 1 ? 's' : ''}
         </p>
       </header>

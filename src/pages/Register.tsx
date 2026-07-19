@@ -8,7 +8,7 @@ import { usePublicConfig } from '../lib/publicConfig'
 import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
 import { LocationSheet } from '../components/LocationSheet'
-import { Mark } from '../components/Logo'
+import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { PHONE_LOGIN_ENABLED } from '../lib/features'
@@ -190,13 +190,20 @@ export function Register() {
 
   return (
     <div className="min-h-screen bg-white pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-xl md:rounded-3xl md:shadow-card">
-      <header className="safe-top flex items-center gap-3 border-b border-[#EFE6D7] px-3 py-3">
+      <header className="safe-top flex items-center gap-3 px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
           <ArrowLeft size={22} />
         </button>
-        <Mark size={26} />
-        <h1 className="font-display text-lg font-bold">Créer un compte</h1>
       </header>
+
+      <div className="mb-1 flex flex-col items-center px-6 text-center">
+        <div className="flex items-center gap-2">
+          <Mark size={32} />
+          <Wordmark className="text-xl text-ink" />
+        </div>
+        <h1 className="mt-4 font-display text-[26px] font-extrabold leading-tight text-ink">Créer un compte</h1>
+        <p className="mt-1 text-[15px] text-gray-500">C’est gratuit, en 30 secondes.</p>
+      </div>
 
       {!enabled && (
         <p className="mx-4 mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">

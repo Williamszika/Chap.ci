@@ -118,10 +118,13 @@ export function Login() {
       </header>
 
       <div className="mx-auto max-w-sm px-6 pt-2">
-        <div className="mb-5 flex flex-col items-center text-center">
-          <Mark size={64} />
-          <Wordmark className="mt-3 text-2xl text-ink" />
-          <p className="text-sm text-gray-500">Connectez-vous à votre compte</p>
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="flex items-center gap-2">
+            <Mark size={32} />
+            <Wordmark className="text-xl text-ink" />
+          </div>
+          <h1 className="mt-4 font-display text-[26px] font-extrabold leading-tight text-ink">Bienvenue&nbsp;👋</h1>
+          <p className="mt-1 text-[15px] text-gray-500">Connectez-vous pour vendre et acheter chap-chap.</p>
         </div>
 
         {!enabled && (
@@ -161,8 +164,8 @@ export function Login() {
                   )}
                 </div>
 
-                <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
-                  <span className="h-px flex-1 bg-gray-200" /> ou <span className="h-px flex-1 bg-gray-200" />
+                <div className="my-5 flex items-center gap-3 text-xs text-gray-400">
+                  <span className="h-px flex-1 bg-[#E6DAC6]" /> ou <span className="h-px flex-1 bg-[#E6DAC6]" />
                 </div>
               </>
             )}
@@ -180,14 +183,20 @@ export function Login() {
             )}
 
             {method === 'email' ? (
-              <form onSubmit={submitEmail} className="space-y-3">
-                <div className="relative">
-                  <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse email" className="input pl-10" autoComplete="email" />
+              <form onSubmit={submitEmail} className="space-y-3.5">
+                <div>
+                  <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-gray-700">Adresse email</label>
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                    <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.ci" className="input pl-10" autoComplete="email" />
+                  </div>
                 </div>
-                <div className="relative">
-                  <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="input pl-10" autoComplete="current-password" />
+                <div>
+                  <label htmlFor="login-password" className="mb-1.5 block text-sm font-semibold text-gray-700">Mot de passe</label>
+                  <div className="relative">
+                    <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                    <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="input pl-10" autoComplete="current-password" />
+                  </div>
                 </div>
                 <div className="text-right">
                   <button
