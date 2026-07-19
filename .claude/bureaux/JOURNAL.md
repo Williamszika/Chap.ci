@@ -160,3 +160,20 @@ Format d'une entrée :
 - **Pour les autres bureaux** : 🛡️ Le Gardien — nouveaux événements audit `moderator_added/updated`,
   et rappel : un modérateur compromis ne peut PAS s'auto-promouvoir (section `moderators`
   réservée au propriétaire) ni toucher aux sauvegardes / à la clé cron.
+
+---
+
+### 2026-07-19 — [Développement] Alerte d'intégrité de la table admins
+- **Fait** : détection d'une ligne « admin » ajoutée **hors du tableau de bord** (injection /
+  accès direct à la base). L'app enregistre une **empreinte** (`api/data/.admins_fp`) de
+  l'ensemble des admins à chaque changement légitime (création/suppression de modérateur,
+  purge). Le **scan sécurité** (`cron/security`) recompare : si l'empreinte ne correspond
+  plus → `adminsIntegrity: ALTÉRÉE` dans le rapport **＋ email d'alerte au propriétaire**
+  (throttlé 1×/24 h, liste les comptes admin actuels). Se réinitialise quand l'admin
+  supprime l'intrus via l'app. Nouvel événement audit `admins_tampered`.
+- **Pourquoi** : un attaquant qui obtiendrait une ligne admin par injection reste de toute
+  façon borné (jamais propriétaire — statut hors base ; fonctions sensibles réservées au
+  proprio). Cette alerte ajoute la **détection** au reste (prévention). **Testé** : ok →
+  modérateur légitime (pas de faux positif) → injection détectée → retour normal. Tout vert.
+- **Pour les autres bureaux** : 🛡️ Le Gardien — quand tu vois `adminsIntegrity: ALTÉRÉE` dans
+  le JSON du scan, c'est **prioritaire** : une modification de la base hors app. Signale-le.

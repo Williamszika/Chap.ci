@@ -1120,6 +1120,24 @@ function admin_can(array $config, PDO $pdo, array $u, string $feature): bool {
   return in_array($feature, admin_permissions_for($pdo, $email), true);
 }
 
+// ---- Intégrité de la table admins (détection d'une ligne « admin » injectée) --
+// Empreinte de l'ensemble des admins (emails triés). L'app enregistre l'empreinte
+// « légitime » dans un fichier protégé à CHAQUE changement passé par le tableau de
+// bord. Le scan sécurité recompare : si la base a été modifiée AUTREMENT que par
+// l'app (injection, accès direct à la base), l'empreinte ne correspond plus → alerte.
+function admins_fingerprint(PDO $pdo): string {
+  try { $rows = $pdo->query('SELECT email FROM admins ORDER BY email')->fetchAll(PDO::FETCH_COLUMN); }
+  catch (Throwable $e) { $rows = []; }
+  return hash('sha256', implode('|', array_map('strtolower', (array) $rows)));
+}
+function admins_fp_file(array $config): string { return chapci_secret_dir($config) . '/.admins_fp'; }
+/** Rebaseline : enregistre l'empreinte courante comme « légitime » (après un
+ *  changement fait via l'app). */
+function admins_fp_save(array $config, PDO $pdo): void {
+  $f = admins_fp_file($config);
+  if (@file_put_contents($f, admins_fingerprint($pdo)) !== false) @chmod($f, 0600);
+}
+
 // ---- Emails -----------------------------------------------------------------
 function mime_h(string $s): string { return '=?UTF-8?B?' . base64_encode($s) . '?='; }
 
@@ -2018,6 +2036,7 @@ try {
 $resetMarker = chapci_secret_dir($config) . '/.reset_admins_v2';
 if (!file_exists($resetMarker)) {
   try { $pdo->exec('DELETE FROM admins'); } catch (Throwable $e) { /* table absente : rien à faire */ }
+  admins_fp_save($config, $pdo); // référence d'intégrité = ensemble vide (propriétaire seul)
   @file_put_contents($resetMarker, now_iso());
 }
 $secret = $config['jwt_secret'];
@@ -3564,6 +3583,7 @@ try {
         $pdo->prepare('INSERT INTO admins (email, created_at, permissions, access_code_hash) VALUES (?,?,?,?)')
             ->execute([$email, now_iso(), json_encode($perms), $codeHash]);
       }
+      admins_fp_save($config, $pdo); // changement légitime : met à jour la référence d'intégrité
       $emailed = send_moderator_email($config, $email); // notification (sans le code)
       log_security_event($pdo, $already ? 'moderator_updated' : 'moderator_added', $email);
       // Le code EN CLAIR n'est renvoyé qu'une fois (si (re)défini) pour que l'admin
@@ -3575,6 +3595,8 @@ try {
       $email = strtolower(trim($b['email'] ?? ''));
       if (in_array($email, owner_emails($config), true)) jerr('Le propriétaire ne peut pas être retiré.', 403);
       $pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
+      admins_fp_save($config, $pdo); // changement légitime : met à jour la référence d'intégrité
+      log_security_event($pdo, 'moderator_removed', $email);
       jout(['ok' => true]);
     }
 
@@ -3796,15 +3818,49 @@ try {
     $days = max(1, min(90, (int) ($_GET['days'] ?? 1)));
     $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
     $sec = security_stats($pdo, $config, $since);
+
+    // Intégrité de la table admins : une ligne « admin » ajoutée AUTREMENT que par
+    // le tableau de bord (injection, accès direct à la base) casse l'empreinte.
+    $fp = admins_fp_file($config);
+    $expected = @is_readable($fp) ? trim((string) @file_get_contents($fp)) : '';
+    $adminsTampered = false; $currentAdmins = [];
+    if ($expected === '') {
+      admins_fp_save($config, $pdo); // 1re exécution : on établit la référence
+    } elseif (!hash_equals($expected, admins_fingerprint($pdo))) {
+      $adminsTampered = true;
+      $currentAdmins = $pdo->query('SELECT email FROM admins ORDER BY email')->fetchAll(PDO::FETCH_COLUMN);
+      // Alerte email au PROPRIÉTAIRE, throttlée à 1×/24 h (via le journal d'audit).
+      $recent = $pdo->prepare("SELECT COUNT(*) FROM security_events WHERE kind = 'admins_tampered' AND created_at >= ?");
+      $recent->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 86400)]);
+      if ((int) $recent->fetchColumn() === 0) {
+        $list = $currentAdmins
+          ? '<ul><li>' . implode('</li><li>', array_map('htmlspecialchars', $currentAdmins)) . '</li></ul>'
+          : '<p>(aucun)</p>';
+        $html = '<p><b>⚠️ Alerte sécurité Chap.ci</b></p>'
+              . '<p>La liste des administrateurs/modérateurs a changé <b>en dehors du tableau de bord</b> '
+              . '(modification directe de la base — possible injection ou accès non autorisé).</p>'
+              . '<p>Comptes administrateurs actuellement enregistrés :</p>' . $list
+              . '<p>Si vous ne reconnaissez pas l’un d’eux : connectez-vous, ouvrez <b>Modérateurs</b> et '
+              . 'supprimez-le (cela réinitialise aussi cette alerte). En cas de doute, changez le mot de passe '
+              . 'de la base de données.</p>';
+        foreach (owner_emails($config) as $to) { send_mail($config, $to, 'Chap.ci — ⚠️ changement suspect des administrateurs', $html); }
+      }
+      log_security_event($pdo, 'admins_tampered', null, implode(',', $currentAdmins));
+    }
+
     jout([
-      'periodDays'    => $days,
-      'since'         => $since,
-      'counts'        => $sec['counts'],
-      'suspiciousIps' => $sec['suspicious'],
-      'failRatio'     => $sec['ratio'],
-      'rateLimited'   => $sec['counts']['rate_limited'] ?? 0,
-      'newSignups'    => $sec['counts']['signup'] ?? 0,
-      'ignoredIps'    => $config['security_ignore_ips'] ?? [],
+      'periodDays'     => $days,
+      'since'          => $since,
+      'counts'         => $sec['counts'],
+      'suspiciousIps'  => $sec['suspicious'],
+      'failRatio'      => $sec['ratio'],
+      'rateLimited'    => $sec['counts']['rate_limited'] ?? 0,
+      'newSignups'     => $sec['counts']['signup'] ?? 0,
+      'ignoredIps'     => $config['security_ignore_ips'] ?? [],
+      // Intégrité des rôles admin : « ok » ou « ALTÉRÉE » (+ liste si altérée).
+      'adminsIntegrity' => $adminsTampered ? 'ALTÉRÉE' : 'ok',
+      'adminsTampered'  => $adminsTampered,
+      'currentAdmins'   => $currentAdmins,
     ]);
   }
 
