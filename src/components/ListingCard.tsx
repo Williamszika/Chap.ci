@@ -105,7 +105,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             </>
           ) : (
             <>
-              <span className="tnum whitespace-nowrap font-display text-[16px] font-extrabold text-primary-700">
+              <span className={`tnum whitespace-nowrap font-display text-[16px] font-extrabold ${isFree ? 'text-ivoire-green' : 'text-primary-700'}`}>
                 {isFree ? 'Gratuit' : formatFCFA(listing.price)}
               </span>
               {listing.negotiable && !isFree && (

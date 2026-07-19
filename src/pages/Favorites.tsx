@@ -11,8 +11,8 @@ export function Favorites() {
 
   return (
     <div className="min-h-screen">
-      <header className="safe-top px-4 pb-2 pt-5">
-        <h1 className="font-display text-2xl font-extrabold text-gray-900">Mes favoris</h1>
+      <header className="safe-top px-4 pb-2 pt-5 md:px-6 md:pt-7">
+        <h1 className="font-display text-2xl font-extrabold text-gray-900 md:text-[28px]">Mes favoris</h1>
         <p className="mt-0.5 text-sm text-gray-500">
           {favListings.length} annonce{favListings.length > 1 ? 's' : ''} sauvegardée
           {favListings.length > 1 ? 's' : ''}
@@ -33,7 +33,7 @@ export function Favorites() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-3 md:gap-4 md:px-6 lg:grid-cols-4 lg:gap-5">
           {favListings.map((l) => (
             <ListingCard key={l.id} listing={l} />
           ))}
