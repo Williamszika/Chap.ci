@@ -3,32 +3,44 @@ import { Mark, Wordmark } from './Logo'
 
 const cols: { title: string; links: { to: string; label: string }[] }[] = [
   {
-    title: 'Chap.ci',
-    links: [
-      { to: '/a-propos', label: 'Présentation' },
-      { to: '/aide', label: 'Aide & FAQ' },
-      { to: '/contact', label: 'Nous contacter' },
-      { to: '/don', label: 'Nous soutenir' },
-    ],
-  },
-  {
     title: 'Explorer',
     links: [
       { to: '/explorer', label: 'Toutes les annonces' },
-      { to: '/publier', label: 'Publier une annonce' },
-      { to: '/favoris', label: 'Mes favoris' },
+      { to: '/explorer', label: 'Catégories' },
+      { to: '/explorer', label: 'Près de moi' },
+      { to: '/aide', label: 'Bons plans' },
     ],
   },
   {
-    title: 'Légal',
+    title: 'Vendre',
     links: [
-      { to: '/conditions', label: 'Conditions d’utilisation' },
-      { to: '/confidentialite', label: 'Confidentialité (RGPD)' },
+      { to: '/publier', label: 'Publier' },
+      { to: '/aide', label: 'Conseils vendeur' },
+      { to: '/compte', label: 'Boutique pro' },
+      { to: '/compte', label: 'Tableau de bord' },
+    ],
+  },
+  {
+    title: 'Aide',
+    links: [
+      { to: '/aide', label: 'Centre d’aide' },
+      { to: '/aide', label: 'Sécurité' },
+      { to: '/contact', label: 'Signaler' },
+      { to: '/contact', label: 'Contact' },
+    ],
+  },
+  {
+    title: 'Chap.ci',
+    links: [
+      { to: '/a-propos', label: 'À propos' },
+      { to: '/confidentialite', label: 'Confidentialité' },
+      { to: '/conditions', label: 'CGU' },
+      { to: '/contact', label: 'Nous rejoindre' },
     ],
   },
 ]
 
-/** Pied de page — masqué sur les écrans « plein écran » (formulaires, chat…). */
+/** Pied de page sombre (design artifact) — masqué sur les écrans « plein écran ». */
 export function Footer() {
   const { pathname } = useLocation()
   const hidden =
@@ -46,27 +58,36 @@ export function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="mt-6 border-t border-[#EFE6D7] bg-white px-5 pb-24 pt-8 text-sm md:pb-10">
-      <div className="mx-auto max-w-[1280px]">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+    <footer className="mt-8 bg-ink text-sm text-white/70">
+      {/* Liseré drapeau ivoirien : orange · blanc · vert */}
+      <div className="flex h-1 w-full">
+        <div className="flex-1 bg-primary-500" />
+        <div className="flex-1 bg-white" />
+        <div className="flex-1 bg-ivoire-green" />
+      </div>
+
+      <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-10 md:pb-10">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
           {/* Marque */}
-          <div>
+          <div className="lg:pr-8">
             <Link to="/" className="flex items-center gap-2">
               <Mark size={30} />
-              <Wordmark className="text-lg text-ink" />
+              <Wordmark className="text-lg text-white" />
             </Link>
-            <p className="mt-2 max-w-xs text-gray-500">
-              Le site de petites annonces 100 % ivoirien. Achetez et vendez chap-chap partout en Côte d’Ivoire 🇨🇮
+            <p className="mt-3 max-w-xs leading-relaxed text-white/60">
+              La marketplace 100 % ivoirienne. Achetez et vendez chap-chap, partout en Côte d’Ivoire — en toute
+              sécurité.
             </p>
+            <p className="mt-4 text-xs text-white/40">Paiement : Orange · MTN · Wave · Moov</p>
           </div>
 
           {cols.map((c) => (
             <div key={c.title}>
-              <p className="mb-2 font-bold text-gray-800">{c.title}</p>
-              <ul className="space-y-1.5">
-                {c.links.map((l) => (
-                  <li key={l.to}>
-                    <Link to={l.to} className="text-gray-500 transition hover:text-primary-600">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-white/50">{c.title}</p>
+              <ul className="space-y-2">
+                {c.links.map((l, i) => (
+                  <li key={c.title + i}>
+                    <Link to={l.to} className="text-white/70 transition hover:text-primary-400">
                       {l.label}
                     </Link>
                   </li>
@@ -76,9 +97,9 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-[#EFE6D7] pt-5 text-xs text-gray-400 sm:flex-row">
-          <p>© {year} Chap.ci — Tous droits réservés</p>
-          <p>Fait avec ❤️ en Côte d’Ivoire 🇨🇮</p>
+        <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-6 text-xs text-white/40 sm:flex-row">
+          <p>© {year} Chap.ci — Fait avec ❤️ à Abidjan 🇨🇮</p>
+          <p>Tous droits réservés</p>
         </div>
       </div>
     </footer>
