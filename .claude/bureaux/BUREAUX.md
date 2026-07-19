@@ -200,6 +200,7 @@ bureau n'applique/commite/déploie de lui-même — même pour un « problème p
 | 📊 Données & Rapports (rapport + sourcing) | `routine-donnees.md` | `0 8 * * 1` |
 | ⚡ Performance & Fiabilité | `routine-performance.md` | `0 7 * * 1` |
 | 🤝 Support & Expérience | `routine-support.md` | `0 10 * * 1` |
+| ⚖️ Juridique | `routine-juridique.md` | `0 9 1 * *` |
 
 > Chaque routine est **lecture seule / proposition** (sauf la modération, action
 > admin réversible). La clé cron réelle ne figure **jamais** dans ces fichiers ni
