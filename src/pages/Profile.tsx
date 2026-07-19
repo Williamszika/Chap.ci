@@ -27,6 +27,8 @@ import {
   BadgeCheck,
   Bell,
   BellOff,
+  Package,
+  HelpCircle,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
@@ -51,7 +53,7 @@ import { NotificationBell } from '../components/NotificationBell'
 import { downscaleImage } from '../lib/image'
 import type { Listing, Order, Review } from '../types'
 
-type Tab = 'achats' | 'ventes' | 'annonces' | 'params'
+type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'params'
 
 const statusLabel: Record<string, { label: string; cls: string }> = {
   en_cours: { label: 'En cours', cls: 'bg-amber-50 text-amber-700' },
@@ -70,7 +72,7 @@ export function Profile() {
   const location = useLocation()
 
   // Onglet initial : piloté par la navigation (menu « Mon compte » du desktop).
-  const [tab, setTab] = useState<Tab>(() => ((location.state as { tab?: Tab } | null)?.tab) || 'achats')
+  const [tab, setTab] = useState<Tab>(() => ((location.state as { tab?: Tab } | null)?.tab) || 'accueil')
   useEffect(() => {
     const t = (location.state as { tab?: Tab } | null)?.tab
     if (t) setTab(t)
@@ -143,6 +145,11 @@ export function Profile() {
     } catch {
       toast.error('Action impossible pour le moment.')
     }
+  }
+
+  async function logout() {
+    try { await signOut() } catch { /* ignore */ }
+    navigate('/')
   }
 
   return (
@@ -250,7 +257,8 @@ export function Profile() {
         </div>
       )}
 
-      {/* Onglets — barre horizontale sur mobile, menu vertical dans la barre latérale sur ordinateur */}
+      {/* Onglets — masqués sur l'accueil du compte (menu façon artifact). */}
+      {tab !== 'accueil' && (
       <nav className="no-scrollbar sticky top-0 z-20 flex gap-1 overflow-x-auto border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-2 md:static md:flex-col md:gap-1.5 md:overflow-visible md:rounded-3xl md:border-0 md:p-3 md:shadow-card">
         {([
           ['achats', 'Mes achats'],
@@ -271,11 +279,54 @@ export function Profile() {
           </button>
         ))}
       </nav>
+      )}
       </aside>
 
       {/* Contenu principal */}
       <main className="md:min-w-0">
       <div className="px-4 py-4 md:px-0 md:pt-1">
+        {/* ACCUEIL DU COMPTE — menu façon artifact */}
+        {tab === 'accueil' &&
+          (user ? (
+            <div className="space-y-5">
+              <section>
+                <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Mon activité</p>
+                <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
+                  <AccountRow icon={<Package size={20} />} label="Mes annonces" sub={`${myListings.length} en ligne · ${salesDone} vendue${salesDone > 1 ? 's' : ''}`} onClick={() => setTab('annonces')} />
+                  <AccountRow icon={<Heart size={20} />} label="Mes favoris" sub={`${favorites.length} enregistrée${favorites.length > 1 ? 's' : ''}`} onClick={() => navigate('/favoris')} />
+                  <AccountRow icon={<MessageSquare size={20} />} label="Messages" sub="Vos conversations" onClick={() => navigate('/messages')} />
+                  <AccountRow icon={<ShoppingBag size={20} />} label="Mes commandes" sub={`${purchases.filter((o) => o.status === 'en_cours').length} en cours`} onClick={() => setTab('achats')} />
+                  <AccountRow icon={<BarChart3 size={20} />} label="Tableau de bord pro" sub="Statistiques & ventes" onClick={() => setTab('ventes')} />
+                </div>
+              </section>
+              <section>
+                <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Compte &amp; sécurité</p>
+                <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
+                  <AccountRow icon={<Bell size={20} />} label="Notifications" onClick={() => navigate('/notifications')} />
+                  <AccountRow icon={<ShieldCheck size={20} />} label="Sécurité" sub="Mot de passe · double authentification" onClick={() => setTab('params')} />
+                  <AccountRow icon={<MapPin size={20} />} label="Adresse & localisation" onClick={() => setTab('params')} />
+                  <AccountRow icon={<HelpCircle size={20} />} label="Aide & support" onClick={() => navigate('/aide')} />
+                  <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-red-50">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600"><LogOut size={20} /></span>
+                    <span className="flex-1 font-semibold text-red-600">Se déconnecter</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          ) : (
+            <Empty text="Connectez-vous pour accéder à votre compte." />
+          ))}
+
+        {/* Bouton retour au menu du compte (depuis un onglet) */}
+        {tab !== 'accueil' && (
+          <button
+            onClick={() => setTab('accueil')}
+            className="mb-3 -ml-1 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
+          >
+            <ChevronRight size={16} className="rotate-180" /> Mon compte
+          </button>
+        )}
+
         {/* ACHATS */}
         {tab === 'achats' &&
           (!user ? (
@@ -826,6 +877,27 @@ function StatTile({
   )
   if (onClick) return <button type="button" onClick={onClick} className={`${box} w-full`}>{inner}</button>
   return <div className={box}>{inner}</div>
+}
+
+/** Ligne de menu du compte (icône · libellé · sous-titre · chevron). */
+function AccountRow({
+  icon, label, sub, onClick,
+}: {
+  icon: React.ReactNode
+  label: string
+  sub?: string
+  onClick: () => void
+}) {
+  return (
+    <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-cream-100">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cream-100 text-primary-600">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold text-gray-900">{label}</span>
+        {sub ? <span className="block truncate text-xs text-gray-500">{sub}</span> : null}
+      </span>
+      <ChevronRight size={18} className="shrink-0 text-gray-300" />
+    </button>
+  )
 }
 
 /** Petite tuile de récap du compte (annonces / favoris / note). */
