@@ -98,7 +98,8 @@ export default defineConfig({
         globIgnores: [
           '**/*cyrillic*', '**/*greek*', '**/*vietnamese*',
           '**/ort*.js', '**/ort*.mjs', '**/ort*.wasm',
-          '**/nsfw*.js', // brique IA d'analyse des photos (TensorFlow + modèle) — à la demande
+          // Brique IA d'analyse des photos (TensorFlow + modèle) — chargée à la demande.
+          '**/nsfw*.js', '**/*tensorflow*', '**/*tfjs*', '**/*mobilenet*',
         ],
         // Le gros bundle IA dépasse la limite par défaut : on garde une marge
         // sans forcer sa mise en cache (il est ignoré ci-dessus de toute façon).
@@ -111,13 +112,24 @@ export default defineConfig({
     }),
   ],
   build: {
+    // Ne JAMAIS précharger les gros chunks IA (TensorFlow/nsfw, détourage ort) :
+    // ils ne servent qu'à la publication d'une photo, pas à la navigation.
+    modulePreload: {
+      resolveDependencies: (_url, deps) =>
+        deps.filter((d) => !/nsfw|tensorflow|tfjs|mobilenet/.test(d)),
+    },
     rollupOptions: {
       output: {
-        // Isole l'IA d'analyse des photos (TensorFlow.js + modèle NSFW ~4 Mo)
-        // dans un chunk nommé « nsfw » : chargé à la demande (à la publication
-        // d'une photo) et EXCLU du précache PWA (cf. globIgnores) — aucun
-        // surcoût de données pour les visiteurs qui ne publient pas.
+        // Empêche Rollup de « hisser » les imports transitifs dans le bundle
+        // d'entrée : sans ça, l'entrée importe statiquement le chunk nsfw (via une
+        // dépendance transitive) et l'accueil retélécharge tout le modèle IA.
+        hoistTransitiveImports: false,
         manualChunks(id) {
+          // Les helpers partagés générés par Rollup/Vite (préchargement +
+          // interop CommonJS) doivent rester HORS du chunk nsfw : sinon le bundle
+          // principal les importe DEPUIS nsfw et l'accueil retélécharge tout le
+          // modèle IA (~2,8 Mo). On les isole dans un petit chunk « helpers ».
+          if (id.includes('preload-helper') || id.includes('commonjsHelpers')) return 'helpers'
           if (id.includes('nsfwjs') || id.includes('@tensorflow') || id.includes('model_imports')) {
             return 'nsfw'
           }

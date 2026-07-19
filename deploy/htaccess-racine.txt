@@ -19,3 +19,17 @@
   # Force HTTPS pendant 6 mois (le site est déjà en HTTPS).
   Header always set Strict-Transport-Security "max-age=15552000"
 </IfModule>
+
+# --- Cache des fichiers versionnés (perf : 2e visite = zéro retéléchargement) ---
+# Vite renomme chaque fichier avec un hash à chaque build → un cache très long est
+# sûr (un changement de contenu = un nouveau nom, jamais servi périmé).
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|mjs|css|woff2?|ttf|otf|eot)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  # EXCEPTIONS : le service worker et les scripts PWA ne sont PAS hashés et doivent
+  # pouvoir se mettre à jour → jamais de cache long, sinon l'app ne se met plus à jour.
+  <FilesMatch "^(sw|registerSW|workbox-.+)\.js$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

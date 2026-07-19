@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { BottomNav } from './components/BottomNav'
 import { TopNav } from './components/TopNav'
 import { Footer } from './components/Footer'
@@ -11,7 +11,6 @@ import { trackPageView } from './lib/track'
 import { Home } from './pages/Home'
 import { Browse } from './pages/Browse'
 import { ListingDetail } from './pages/ListingDetail'
-import { PostAd } from './pages/PostAd'
 import { Favorites } from './pages/Favorites'
 import { Profile } from './pages/Profile'
 import { Donate } from './pages/Donate'
@@ -29,6 +28,11 @@ import { SellerProfile } from './pages/SellerProfile'
 import { About } from './pages/About'
 import { Faq } from './pages/Faq'
 import { Notifications } from './pages/Notifications'
+
+// « Publier une annonce » est chargée à la demande (lazy) : elle tire un gros
+// module d'analyse d'image (nsfw, ~2,8 Mo) qui ne doit PAS peser sur l'accueil.
+// Seuls les visiteurs qui publient le téléchargent.
+const PostAd = lazy(() => import('./pages/PostAd').then((m) => ({ default: m.PostAd })))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -60,6 +64,7 @@ export default function App() {
       <TopNav />
       <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-clip bg-[#f4f5f7] md:max-w-[1280px] md:bg-transparent md:px-6 md:shadow-none">
         <main className="flex-1 pb-20 md:pb-10 md:pt-4">
+          <Suspense fallback={<div className="py-20 text-center text-gray-400">Chargement…</div>}>
           <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/explorer" element={<Browse />} />
@@ -87,6 +92,7 @@ export default function App() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="*" element={<Home />} />
           </Routes>
+          </Suspense>
         </main>
         <Footer />
       </div>
