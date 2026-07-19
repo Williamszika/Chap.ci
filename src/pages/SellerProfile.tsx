@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Store, MapPin, Package } from 'lucide-react'
+import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check, BadgeCheck } from 'lucide-react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
+import { useToast } from '../store/ToastContext'
 import { fetchProfile, type PublicProfile } from '../lib/profiles'
 import { fetchReviewsForSeller, fetchReviewsForTarget, averageRating } from '../lib/reviews'
+import { getOrCreateConversation } from '../lib/messages'
 import { isPhp } from '../lib/backend'
 import { ListingCard } from '../components/ListingCard'
 import { Stars } from '../components/Stars'
@@ -14,14 +17,19 @@ export function SellerProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { listings } = useApp()
+  const { user } = useAuth()
+  const toast = useToast()
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
-  const [tab, setTab] = useState<'annonces' | 'avis'>('annonces')
+  const [tab, setTab] = useState<'annonces' | 'avis' | 'apropos'>('annonces')
   const [loading, setLoading] = useState(true)
+  const [following, setFollowing] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   const sellerListings = listings.filter((l) => l.sellerId === id)
   const displayName = profile?.fullName || sellerListings[0]?.sellerName || 'Vendeur'
   const { avg, count } = averageRating(reviews)
+  const location = sellerListings[0]?.commune ?? null
 
   useEffect(() => {
     if (!id) return
@@ -39,61 +47,151 @@ export function SellerProfile() {
     }
   }, [id])
 
+  // Contacter le vendeur : ouvre (ou crée) la conversation via l'une de ses annonces.
+  async function contactSeller() {
+    if (!user) {
+      navigate('/connexion')
+      return
+    }
+    const listing = sellerListings[0]
+    if (!listing) {
+      toast.error('Ce vendeur n’a pas encore d’annonce à contacter.')
+      return
+    }
+    setBusy(true)
+    try {
+      const convId = await getOrCreateConversation(listing, user.id)
+      navigate(`/messages/${convId}`)
+    } catch {
+      toast.error('Impossible d’ouvrir la conversation.')
+      setBusy(false)
+    }
+  }
+
+  function toggleFollow() {
+    if (!user) {
+      navigate('/connexion')
+      return
+    }
+    const next = !following
+    setFollowing(next)
+    toast.success(next ? `Vous suivez ${displayName}.` : `Vous ne suivez plus ${displayName}.`)
+  }
+
   return (
     <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-4xl">
-      {/* En-tête */}
-      <header className="safe-top bg-gradient-to-b from-primary-500 to-primary-600 px-4 pb-6 pt-3 text-white">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="mb-3 p-1">
-          <ArrowLeft size={22} />
+      {/* Couverture + en-tête vendeur */}
+      <header className="safe-top relative overflow-hidden bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 pt-3">
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="Retour"
+          className="grid h-10 w-10 place-items-center rounded-full bg-white/80 text-ink shadow-card backdrop-blur transition active:scale-95"
+        >
+          <ArrowLeft size={20} />
         </button>
-        <div className="flex items-center gap-3">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-white/20 text-2xl font-black">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xl font-black">{displayName}</p>
-            {count > 0 ? (
-              <span className="flex items-center gap-1.5 text-sm text-white/90">
-                <Stars value={avg} size={15} /> {avg.toFixed(1)} · {count} avis
-              </span>
+
+        <div className="mt-1 flex flex-col items-center text-center">
+          {/* Avatar */}
+          <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-ivoire-green font-display text-4xl font-black text-white shadow-card ring-4 ring-white md:h-28 md:w-28">
+            {profile?.avatarUrl ? (
+              <img src={profile.avatarUrl} alt={displayName} className="h-full w-full object-cover" />
             ) : (
-              <p className="text-sm text-white/80">Nouveau vendeur</p>
+              displayName.charAt(0).toUpperCase()
             )}
           </div>
-        </div>
-        {profile?.bio && <p className="mt-3 text-sm text-white/90">{profile.bio}</p>}
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={() => setTab('annonces')}
-            className={`rounded-xl px-4 py-2 text-center transition active:scale-95 ${tab === 'annonces' ? 'bg-white/30' : 'bg-white/15 hover:bg-white/25'}`}
-          >
-            <p className="text-lg font-black">{sellerListings.length}</p>
-            <p className="text-[11px] text-white/85">Annonces</p>
-          </button>
-          <button
-            onClick={() => setTab('avis')}
-            className={`rounded-xl px-4 py-2 text-center transition active:scale-95 ${tab === 'avis' ? 'bg-white/30' : 'bg-white/15 hover:bg-white/25'}`}
-          >
-            <p className="text-lg font-black">{count}</p>
-            <p className="text-[11px] text-white/85">Avis</p>
-          </button>
+
+          {/* Nom + badge vérifié */}
+          <h1 className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 font-display text-2xl font-black text-ink">
+            <span className="break-words">{displayName}</span>
+            {profile && (
+              <span className="inline-flex items-center gap-1 text-sm font-bold text-ivoire-green">
+                <BadgeCheck size={18} /> Vérifié
+              </span>
+            )}
+          </h1>
+
+          {/* Métadonnées */}
+          {(location || count === 0) && (
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-sm text-gray-500">
+              {location && (
+                <span className="flex items-center gap-1">
+                  <MapPin size={14} className="text-primary-500" /> {location}
+                </span>
+              )}
+              {count === 0 && <span>Nouveau vendeur</span>}
+            </div>
+          )}
+
+          {/* Statistiques */}
+          <div className="mt-5 flex items-start justify-center gap-8 md:gap-12">
+            <div className="text-center">
+              <p className="tnum font-display text-xl font-black text-ink">{sellerListings.length}</p>
+              <p className="text-xs text-gray-500">annonces</p>
+            </div>
+            <div className="text-center">
+              <p className="tnum font-display text-xl font-black text-ink">{count > 0 ? avg.toFixed(1) : '—'}</p>
+              {count > 0 && (
+                <div className="mt-0.5 flex justify-center">
+                  <Stars value={avg} size={11} />
+                </div>
+              )}
+              <p className="text-xs text-gray-500">note</p>
+            </div>
+            <div className="text-center">
+              <p className="tnum font-display text-xl font-black text-ink">{count}</p>
+              <p className="text-xs text-gray-500">avis</p>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-6 flex w-full max-w-xs items-center justify-center gap-3">
+            <button
+              onClick={contactSeller}
+              disabled={busy}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+            >
+              <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
+            </button>
+            <button
+              onClick={toggleFollow}
+              aria-pressed={following}
+              className={`btn-outline flex-1 ${following ? 'border-ivoire-green text-ivoire-green' : ''}`}
+            >
+              {following ? (
+                <>
+                  <Check size={18} /> Suivi
+                </>
+              ) : (
+                <>
+                  <Plus size={18} /> Suivre
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Onglets */}
-      <div className="sticky top-0 z-20 flex border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md">
-        {(['annonces', 'avis'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-3 text-sm font-semibold capitalize ${
-              tab === t ? 'border-b-2 border-primary-500 text-primary-600' : 'text-gray-500'
-            }`}
-          >
-            {t === 'annonces' ? `Annonces (${sellerListings.length})` : `Avis (${count})`}
-          </button>
-        ))}
-      </div>
+      {/* Onglets / filtres */}
+      <nav className="no-scrollbar flex gap-2 overflow-x-auto border-t border-[#EFE6D7] bg-white/70 px-4 py-3 backdrop-blur">
+        <button
+          onClick={() => setTab('annonces')}
+          className={`chip ${tab === 'annonces' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+        >
+          Annonces · {sellerListings.length}
+        </button>
+        <button
+          onClick={() => setTab('avis')}
+          className={`chip ${tab === 'avis' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+        >
+          Avis · {count}
+        </button>
+        <button
+          onClick={() => setTab('apropos')}
+          className={`chip ${tab === 'apropos' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+        >
+          À propos
+        </button>
+      </nav>
 
       {loading ? (
         <p className="py-16 text-center text-sm text-gray-400">Chargement…</p>
@@ -110,39 +208,58 @@ export function SellerProfile() {
             ))}
           </div>
         )
-      ) : reviews.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-400">
-          <Store size={36} />
-          <p className="text-sm">Aucun avis pour le moment.</p>
-        </div>
+      ) : tab === 'avis' ? (
+        reviews.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-400">
+            <Store size={36} />
+            <p className="text-sm">Aucun avis pour le moment.</p>
+          </div>
+        ) : (
+          <div className="space-y-3 px-4 py-4">
+            {reviews.map((r) => {
+              const clickable = !!r.listingId
+              const Comp = clickable ? 'button' : 'div'
+              return (
+                <Comp
+                  key={r.id}
+                  {...(clickable ? { onClick: () => navigate(`/annonce/${r.listingId}`), type: 'button' as const } : {})}
+                  className={`card w-full p-3 text-left ${clickable ? 'transition hover:shadow-md active:scale-[0.99]' : ''}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
+                      {r.reviewerName}
+                      {r.kind === 'buyer' && (
+                        <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-600">acheteur</span>
+                      )}
+                    </span>
+                    <Stars value={r.rating} size={14} />
+                  </div>
+                  {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
+                    <MapPin size={11} /> {timeAgo(r.createdAt)}
+                    {clickable && <span className="ml-auto font-semibold text-primary-500">Voir l’annonce ›</span>}
+                  </p>
+                </Comp>
+              )
+            })}
+          </div>
+        )
       ) : (
-        <div className="space-y-3 px-4 py-4">
-          {reviews.map((r) => {
-            const clickable = !!r.listingId
-            const Comp = clickable ? 'button' : 'div'
-            return (
-              <Comp
-                key={r.id}
-                {...(clickable ? { onClick: () => navigate(`/annonce/${r.listingId}`), type: 'button' as const } : {})}
-                className={`card w-full p-3 text-left ${clickable ? 'transition hover:shadow-md active:scale-[0.99]' : ''}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                    {r.reviewerName}
-                    {r.kind === 'buyer' && (
-                      <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-600">acheteur</span>
-                    )}
-                  </span>
-                  <Stars value={r.rating} size={14} />
-                </div>
-                {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
-                <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
-                  <MapPin size={11} /> {timeAgo(r.createdAt)}
-                  {clickable && <span className="ml-auto font-semibold text-primary-500">Voir l’annonce ›</span>}
-                </p>
-              </Comp>
-            )
-          })}
+        // À propos
+        <div className="px-4 py-4">
+          <div className="card p-4">
+            <h2 className="mb-2 font-display text-base font-bold text-ink">À propos</h2>
+            {profile?.bio ? (
+              <p className="text-sm leading-relaxed text-gray-600">{profile.bio}</p>
+            ) : (
+              <p className="text-sm text-gray-400">Ce vendeur n’a pas encore ajouté de description.</p>
+            )}
+            {location && (
+              <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-500">
+                <MapPin size={14} className="text-primary-500" /> {location}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>
