@@ -29,6 +29,12 @@ journal de bord commun. Les bureaux **proposent** ; **le Patron ordonne** ; le
 consolider le journal de bord, présenter les propositions des chefs au Patron
 pour validation, puis transmettre les ordres au Bureau Développement.
 
+En plus, une **routine hebdomadaire « Secrétariat — synthèse »**
+(`routine-secretariat.md`) rassemble le travail de tous les bureaux et **l'envoie
+par e-mail** au Patron **et** à contact@chap.ci (via `POST /api/cron/report-email`,
+qui vise par défaut le propriétaire + contact@chap.ci). C'est le rapport « état de la
+maison » chaque lundi soir.
+
 ---
 
 ## Les bureaux et leurs chefs
@@ -201,6 +207,7 @@ bureau n'applique/commite/déploie de lui-même — même pour un « problème p
 | ⚡ Performance & Fiabilité | `routine-performance.md` | `0 7 * * 1` |
 | 🤝 Support & Expérience | `routine-support.md` | `0 10 * * 1` |
 | ⚖️ Juridique | `routine-juridique.md` | `0 9 1 * *` |
+| 🗂️ Secrétariat — synthèse (e-mail au Patron + contact@chap.ci) | `routine-secretariat.md` | `0 20 * * 1` |
 
 > Chaque routine est **lecture seule / proposition** (sauf la modération, action
 > admin réversible). La clé cron réelle ne figure **jamais** dans ces fichiers ni

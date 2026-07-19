@@ -3834,7 +3834,10 @@ try {
   // cron légitime (bonne clé) n'est jamais compté ni pénalisé.
   if (str_starts_with($path, 'cron/')) {
     rate_limit($pdo, 'cron_fail', null, 20, 600); // max 20 échecs / 10 min / IP
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    // La clé peut arriver dans l'URL (?key=) OU dans le corps JSON (POST report-email).
+    $cronKey = (string) ($_GET['key'] ?? '');
+    if ($cronKey === '' && $method === 'POST') $cronKey = (string) (body()['key'] ?? '');
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey)) {
       log_security_event($pdo, 'cron_fail', null, $path);
       jerr('Clé invalide.', 403);
     }
@@ -4105,7 +4108,8 @@ try {
     $html = email_layout($config, $inner, 'Rapport Chap.ci');
     $subject = 'Rapport Chap.ci — ' . gmdate('d/m/Y');
 
-    $to = report_recipients($config); $sent = 0;
+    // Destinataires : le PROPRIÉTAIRE (bracknetswilliam@…) ET contact@chap.ci.
+    $to = security_notify_recipients($config); $sent = 0;
     foreach ($to as $addr) { if (send_mail($config, $addr, $subject, $html)) $sent++; }
     jout(['ok' => true, 'destinataires' => count($to), 'envoyes' => $sent, 'periodeJours' => $days]);
   }
@@ -4117,9 +4121,11 @@ try {
     $b = body();
     $key = (string) ($b['key'] ?? ($_GET['key'] ?? ''));
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $key)) jerr('Clé invalide.', 403);
-    $admins = array_values($config['admin_emails'] ?? []);
+    // Destinataires par défaut = le PROPRIÉTAIRE ET contact@chap.ci (les deux).
+    $admins = security_notify_recipients($config);
     // Destinataires AUTORISÉS = admins + destinataires de rapport configurés.
-    $allowed = array_values(array_unique(array_merge($admins, report_recipients($config))));
+    $allowed = array_values(array_unique(array_merge(
+      array_values($config['admin_emails'] ?? []), report_recipients($config), $admins)));
     // Sécurité : un `to` explicite doit faire partie des destinataires autorisés.
     // On n'envoie JAMAIS vers une adresse arbitraire — sinon la clé cron (connue
     // des admins/modérateurs) permettrait d'expédier du HTML « from chap.ci » à
@@ -4128,7 +4134,7 @@ try {
         && in_array(strtolower((string) $b['to']), array_map('strtolower', $allowed), true)) {
       $admins = [(string) $b['to']];
     } elseif (!$admins) {
-      $admins = $allowed; // repli : les destinataires de rapport configurés
+      $admins = $allowed; // repli ultime
     }
     if (!$admins) jerr('Aucun destinataire administrateur configuré.', 400);
     $subject  = trim((string) ($b['subject'] ?? '')) ?: 'Rapport de sourcing — Chap.ci';
