@@ -50,6 +50,11 @@ function EmptyDetail() {
   )
 }
 
+/** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
+function avatarInitial(name?: string): string {
+  return (name?.trim().charAt(0) || '?').toUpperCase()
+}
+
 /** Liste des conversations (réutilisée dans les deux volets). */
 export function ConversationList({ activeId }: { activeId?: string }) {
   const navigate = useNavigate()
@@ -62,11 +67,11 @@ export function ConversationList({ activeId }: { activeId?: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3 md:rounded-t-3xl">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1 md:hidden">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-[#EFE6D7] bg-white/90 px-3 py-3 backdrop-blur-md md:rounded-t-3xl">
+        <button onClick={() => navigate(-1)} aria-label="Retour" className="-ml-1 p-1 md:hidden">
           <ArrowLeft size={22} />
         </button>
-        <h1 className="text-lg font-bold">Messages</h1>
+        <h1 className="font-display text-lg font-extrabold text-ink">Messages</h1>
       </header>
 
       <div className="flex-1 md:min-h-0 md:overflow-y-auto">
@@ -97,7 +102,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 bg-white md:rounded-b-3xl">
+          <div className="divide-y divide-[#EFE6D7] bg-white md:rounded-b-3xl">
             {convs.map((c) => {
               const unread = unreadConvIds.has(c.id)
               const active = c.id === activeId
@@ -105,25 +110,29 @@ export function ConversationList({ activeId }: { activeId?: string }) {
                 <Link
                   key={c.id}
                   to={`/messages/${c.id}`}
-                  className={`flex items-center gap-3 px-4 py-3 transition hover:bg-gray-50 ${
-                    active ? 'bg-primary-50' : unread ? 'bg-primary-50/40' : ''
+                  className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-cream-100 ${
+                    active ? 'bg-primary-50' : unread ? 'bg-primary-50/50' : ''
                   }`}
                 >
                   <div className="relative shrink-0">
                     {c.listingImage ? (
-                      <img src={c.listingImage} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                      <img
+                        src={c.listingImage}
+                        alt=""
+                        className="h-14 w-14 rounded-full object-cover ring-1 ring-[#EFE6D7]"
+                      />
                     ) : (
-                      <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary-100 text-primary-600">
-                        <MessageCircle size={22} />
+                      <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-lg font-bold text-white">
+                        {avatarInitial(c.otherName)}
                       </div>
                     )}
                     {unread && (
-                      <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-red-500 ring-2 ring-white" />
+                      <span className="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full bg-primary-500 ring-2 ring-white" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={`truncate ${unread ? 'font-extrabold text-gray-900' : 'font-semibold text-gray-900'}`}>
+                      <p className={`truncate font-display text-gray-900 ${unread ? 'font-extrabold' : 'font-bold'}`}>
                         {c.otherName}
                       </p>
                       <span className={`shrink-0 text-[11px] ${unread ? 'font-bold text-primary-600' : 'text-gray-400'}`}>
@@ -131,7 +140,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
                       </span>
                     </div>
                     {c.listingTitle && (
-                      <p className="truncate text-xs text-primary-600">{c.listingTitle}</p>
+                      <p className="truncate text-xs font-medium text-primary-600">{c.listingTitle}</p>
                     )}
                     <p className={`truncate text-sm ${unread ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
                       {c.lastMessage ?? 'Nouvelle conversation'}

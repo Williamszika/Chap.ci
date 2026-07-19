@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Send } from 'lucide-react'
+import { ArrowLeft, Send, Tag } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
 import {
@@ -12,6 +12,16 @@ import {
 import { DealCard } from '../components/DealCard'
 import { MessagesLayout } from './Messages'
 import type { Conversation as Conv, Message } from '../types'
+
+/** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
+function initial(name?: string): string {
+  return (name?.trim().charAt(0) || '?').toUpperCase()
+}
+
+/** Heure courte « 10:02 » pour l'horodatage d'un message. */
+function hhmm(ts: number): string {
+  return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
 
 export function Conversation() {
   const { id } = useParams()
@@ -94,7 +104,7 @@ export function Conversation() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#FFF6EA] p-6 text-center">
         <p className="font-semibold text-gray-700">Connectez-vous pour accéder à la messagerie.</p>
         <Link to="/connexion" className="btn-primary">
           Se connecter
@@ -107,27 +117,44 @@ export function Conversation() {
     <MessagesLayout
       activeId={id}
       detail={
-        <div className="flex min-h-screen flex-col bg-[#FFF6EA] md:h-full md:min-h-0 md:bg-white">
+        <div className="flex min-h-screen flex-col bg-[#FFF6EA] md:h-full md:min-h-0">
           {/* En-tête — le bouton « retour » n'est utile que sur mobile (la liste est visible sur ordinateur) */}
-          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-2.5 md:rounded-t-3xl">
-            <button onClick={() => navigate('/messages')} aria-label="Retour" className="p-1 md:hidden">
+          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 px-3 py-2.5 backdrop-blur-md md:rounded-t-3xl">
+            <button onClick={() => navigate('/messages')} aria-label="Retour" className="-ml-1 p-1 md:hidden">
               <ArrowLeft size={22} />
             </button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-bold text-gray-900">{conv?.otherName ?? 'Conversation'}</p>
-              {conv?.listingId && conv?.listingTitle && (
-                <Link to={`/annonce/${conv.listingId}`} className="truncate text-xs text-primary-600">
-                  {conv.listingTitle}
-                </Link>
-              )}
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-base font-bold text-white">
+              {initial(conv?.otherName)}
             </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-display font-bold text-gray-900">
+                {conv?.otherName ?? 'Conversation'}
+              </p>
+            </div>
+            {conv?.listingId && (
+              <Link
+                to={`/annonce/${conv.listingId}`}
+                className="flex max-w-[46%] shrink-0 items-center gap-2 rounded-xl border border-[#EFE6D7] bg-cream-200 px-2 py-1.5 transition hover:bg-cream-100"
+              >
+                {conv.listingImage ? (
+                  <img src={conv.listingImage} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-600">
+                    <Tag size={16} />
+                  </div>
+                )}
+                {conv.listingTitle && (
+                  <span className="truncate text-xs font-semibold text-primary-700">{conv.listingTitle}</span>
+                )}
+              </Link>
+            )}
           </header>
 
           {/* Suivi de transaction (achat / réception / avis) */}
           {id && conv?.listingId && <DealCard convId={id} userId={user.id} />}
 
           {/* Messages */}
-          <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto px-3 py-4 md:min-h-0">
+          <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-4 md:min-h-0">
             {loading ? (
               <p className="py-10 text-center text-sm text-gray-400">Chargement…</p>
             ) : messages.length === 0 ? (
@@ -140,13 +167,16 @@ export function Conversation() {
                 return (
                   <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                     <div
-                      className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-[15px] md:max-w-[70%] ${
+                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] md:max-w-[66%] ${
                         mine
-                          ? 'rounded-br-md bg-primary-500 text-white'
-                          : 'rounded-bl-md bg-white text-gray-800 shadow-sm md:bg-gray-100'
+                          ? 'rounded-br-md bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(247,127,0,0.45)]'
+                          : 'rounded-bl-md border border-[#EFE6D7] bg-white text-gray-800 shadow-card'
                       }`}
                     >
-                      {m.body}
+                      <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      <div className={`mt-1 text-[11px] ${mine ? 'text-white/75' : 'text-gray-400'}`}>
+                        {hhmm(m.createdAt)}
+                      </div>
                     </div>
                   </div>
                 )
@@ -158,21 +188,21 @@ export function Conversation() {
           {/* Saisie */}
           <form
             onSubmit={send}
-            className="sticky bottom-0 flex items-center gap-2 border-t border-[#EFE6D7] bg-white px-3 py-2.5 safe-bottom md:rounded-b-3xl"
+            className="safe-bottom sticky bottom-0 flex items-center gap-2 border-t border-[#EFE6D7] bg-white px-3 py-3 md:rounded-b-3xl"
           >
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Votre message…"
-              className="flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-[15px] outline-none focus:bg-white focus:ring-2 focus:ring-primary-400"
+              className="flex-1 rounded-full border border-[#EFE6D7] bg-[#FFF6EA] px-4 py-3 text-[15px] outline-none transition focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-100"
             />
             <button
               type="submit"
               disabled={sending || !text.trim()}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary-500 text-white disabled:opacity-40"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(247,127,0,0.5)] transition active:scale-95 disabled:opacity-40 disabled:shadow-none"
               aria-label="Envoyer"
             >
-              <Send size={19} />
+              <Send size={18} />
             </button>
           </form>
         </div>
