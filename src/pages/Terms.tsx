@@ -141,7 +141,7 @@ export function Terms() {
             <Section id="sec-4" title="4. Règles de publication des annonces">
               <p>Vous êtes seul responsable du contenu que vous publiez. Il est <b>interdit</b> de publier :</p>
               <ul className="ml-4 list-disc space-y-1.5">
-                <li>des produits <b>illégaux</b> ou réglementés : armes, munitions, drogues, espèces protégées, documents officiels, ainsi que tout <b>médicament</b>, produit pharmaceutique, dispositif médical, complément alimentaire ou produit présenté comme ayant des vertus thérapeutiques non homologué, et tout cosmétique dangereux ou éclaircissant interdit — la vente de médicaments en ligne hors du circuit pharmaceutique agréé est interdite en Côte d’Ivoire (réglementation de l’Autorité Ivoirienne de Régulation Pharmaceutique — AIRP) ;</li>
+                <li>des produits <b>illégaux</b> ou réglementés : armes, munitions, drogues, espèces protégées, documents officiels, ainsi que tout <b>médicament</b>, produit pharmaceutique, dispositif médical, complément alimentaire ou produit présenté comme ayant des vertus thérapeutiques non homologué, et tout cosmétique dangereux, <b>dépigmentant ou éclaircissant pour la peau</b> (contenant notamment de l’<b>hydroquinone</b>, du <b>mercure</b> ou des <b>corticoïdes</b>) — la vente de médicaments en ligne hors du circuit pharmaceutique agréé est interdite en Côte d’Ivoire (réglementation de l’Autorité Ivoirienne de Régulation Pharmaceutique — AIRP) ;</li>
                 <li>des <b>contrefaçons</b> ou produits volés ;</li>
                 <li>du contenu à caractère <b>violent, haineux, pornographique</b> ou portant atteinte à la dignité ;</li>
                 <li>des annonces <b>trompeuses</b>, frauduleuses (arnaques, fausses promotions) ou des doublons ;</li>
@@ -176,6 +176,15 @@ export function Terms() {
                 annonce de réduction doit afficher clairement le prix initial et le prix réduit. Le vendeur
                 est seul responsable du respect de ces règles ; Chap.ci peut retirer sans préavis toute
                 annonce promotionnelle non conforme.
+              </p>
+              <p className="mt-2">
+                <b>Droit de rétractation.</b> Pour une vente à distance conclue avec un vendeur
+                <b> professionnel</b>, l’acheteur consommateur peut bénéficier d’un <b>droit de
+                rétractation</b> dans les conditions et délais prévus par la <b>loi n° 2013-546 du
+                30 juillet 2013 relative aux transactions électroniques</b>. Ce droit, ainsi que le
+                remboursement éventuel, relèvent de la responsabilité du <b>vendeur professionnel</b>
+                concerné. Chap.ci, simple <b>intermédiaire technique</b> non partie à la vente, n’en
+                assure pas l’exécution.
               </p>
             </Section>
 
