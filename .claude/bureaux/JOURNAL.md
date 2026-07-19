@@ -189,3 +189,25 @@ Format d'une entrée :
   déclenchés, email throttlé à 1 même sur 2 scans). Nouvel événement audit `security_alert`.
 - **Pour les autres bureaux** : 🛡️ Le Gardien — le champ `alerts[]` du scan liste ce qui a
   déclenché l'email ; s'il est non vide, priorise l'investigation.
+
+---
+
+### 2026-07-19 — [Développement] Refonte des codes d'accès (OTP proprio + blocage modérateur)
+- **Fait** (demande du Patron) :
+  - 🔐 **Propriétaire** : le code fixe (`.secret_admincode`) est remplacé par un **code à
+    usage unique EXPIRANT (60 s)** — `admin_otp_*`, stocké `api/data/.admin_otp` au format
+    `CODE|EXP`. Généré à la demande (bouton « Recevoir le code »), envoyé par email
+    (Gmail + contact@chap.ci). Consommé après usage. Fini le « même code ». UI : astuce
+    `cat …` **retirée**, mention « expire dans 1 minute ».
+  - 👥 **Modérateur** : déverrouille **une fois** puis accès **permanent** (jeton 30 j en
+    localStorage) **jusqu'au blocage**. Nouvelle colonne `admins.blocked` + endpoint
+    `/admin/moderators/block`. Bloqué = `admin_unlocked()` renvoie false → accès **révoqué
+    immédiatement** (même jeton valide) et **impossible de re-déverrouiller** tant que non
+    débloqué. UI : bouton bloquer/débloquer + badge « Bloqué ».
+  - `admin_unlocked()` prend désormais `$config,$pdo,$secret,$u` (vérifie le blocage) ;
+    cookie de déverrouillage à durée variable (proprio 12 h / modérateur 30 j).
+  - **Testé** de bout en bout : OTP usage-unique + expiration + accès permanent + blocage
+    (révocation immédiate) + déblocage. Tout vert. Événements audit `moderator_blocked/
+    unblocked`, `admin_unlock_blocked`.
+- **Pour les autres bureaux** : 🛡️ Le Gardien — surveille `admin_unlock_blocked` (un
+  modérateur bloqué qui insiste) et `moderator_blocked`.

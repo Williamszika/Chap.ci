@@ -11,7 +11,7 @@ import { emojiFor } from '../lib/placeholder'
 import { locationLabel } from '../data/locations'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
-  fetchModerators, saveModerator, removeModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
+  fetchModerators, saveModerator, removeModerator, blockModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
@@ -163,7 +163,7 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
         <h1 className="mt-4 font-display text-lg font-bold text-gray-900">Tableau de bord verrouillé</h1>
         <p className="mt-1 text-sm text-gray-500">
           {owner
-            ? 'Entrez votre code d’accès administrateur.'
+            ? 'Recevez un code par email, puis saisissez-le ici. Il expire dans 1 minute.'
             : 'Entrez le code d’accès fourni par l’administrateur principal.'}
         </p>
       </div>
@@ -183,15 +183,9 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
         </button>
       </form>
       {owner ? (
-        <>
-          <button onClick={sendEmail} disabled={busy} className="mt-3 text-center text-sm font-semibold text-primary-600">
-            Recevoir le code par email
-          </button>
-          <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
-            Tu peux aussi le retrouver sur le serveur :<br />
-            <code className="rounded bg-gray-100 px-1">cat api/data/.secret_admincode</code>
-          </p>
-        </>
+        <button onClick={sendEmail} disabled={busy} className="btn-outline mt-3 w-full py-2.5 text-sm">
+          <Mail size={16} /> Recevoir un code par email
+        </button>
       ) : (
         <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
           Vous n’avez pas le code ? Demandez-le à l’administrateur principal du site.
@@ -939,6 +933,11 @@ function ModeratorsTab() {
     try { await removeModerator(m); load() }
     catch (e) { alert((e as Error).message) }
   }
+  const toggleBlock = async (m: { email: string; blocked: boolean }) => {
+    if (!m.blocked && !confirm(`Bloquer l’accès de ${m.email} ? Il perdra l’accès immédiatement.`)) return
+    try { await blockModerator(m.email, !m.blocked); load() }
+    catch (e) { alert((e as Error).message) }
+  }
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!data) return <Center><Loader2 className="animate-spin" size={20} /></Center>
@@ -948,8 +947,9 @@ function ModeratorsTab() {
         <p className="flex items-center gap-1.5 font-semibold"><ShieldCheck size={16} /> Rôles &amp; permissions</p>
         <p className="mt-1 text-primary-700">
           Tu crées chaque modérateur avec son <b>email</b>, les <b>fonctionnalités</b> que tu lui
-          autorises, et un <b>code d’accès</b> personnel. Il n’aura accès qu’à ce que tu coches.
-          Le <b>propriétaire</b> ne peut pas être retiré et garde tout.
+          autorises, et un <b>code d’accès</b> personnel. Il déverrouille <b>une fois</b> et garde
+          l’accès <b>jusqu’à ce que tu le bloques</b> (bouton <Ban size={12} className="inline" />).
+          Un modérateur bloqué perd l’accès immédiatement. Le <b>propriétaire</b> garde tout.
         </p>
       </div>
 
@@ -1037,14 +1037,20 @@ function ModeratorsTab() {
           <div className="space-y-2">
             {data.moderators.map((m) => (
               <div key={m.email} className="rounded-2xl bg-white p-3 shadow-card">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600"><ShieldCheck size={18} /></span>
+                <div className="flex items-center gap-2">
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${m.blocked ? 'bg-red-100 text-red-500' : 'bg-primary-100 text-primary-600'}`}><ShieldCheck size={18} /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-gray-800">{m.email}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-gray-800">{m.email}</span>
+                      {m.blocked && <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-600">Bloqué</span>}
+                    </span>
                     <span className="text-xs text-gray-400">
                       ajouté {timeAgo(m.createdAt)}{m.hasCode ? '' : ' · sans code'}
                     </span>
                   </span>
+                  <button onClick={() => toggleBlock(m)} aria-label={m.blocked ? 'Débloquer' : 'Bloquer'} title={m.blocked ? 'Débloquer l’accès' : 'Bloquer l’accès'} className={`shrink-0 rounded-xl p-2 transition ${m.blocked ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}>
+                    {m.blocked ? <ShieldOk size={17} /> : <Ban size={17} />}
+                  </button>
                   <button onClick={() => edit(m)} aria-label="Modifier" title="Modifier" className="shrink-0 rounded-xl p-2 text-primary-500 transition hover:bg-primary-50">
                     <Pencil size={17} />
                   </button>

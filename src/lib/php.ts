@@ -56,6 +56,7 @@ export function phpClearSession() {
   localStorage.removeItem(UID_KEY)
   localStorage.removeItem(USER_KEY)
   sessionStorage.removeItem(ADMIN_UNLOCK_KEY) // referme la serrure du tableau de bord
+  localStorage.removeItem(ADMIN_UNLOCK_KEY)
 }
 
 /**
@@ -90,7 +91,9 @@ async function req<T>(
   // déverrouillage (obtenu après saisie du code d'accès). Limité à /admin pour ne
   // pas déclencher de préflight CORS inutile ailleurs.
   if (path.startsWith('/admin')) {
-    const unlock = sessionStorage.getItem(ADMIN_UNLOCK_KEY)
+    // Modérateur = jeton persistant (localStorage) ; propriétaire = jeton de
+    // session (sessionStorage). On envoie celui qui est présent.
+    const unlock = localStorage.getItem(ADMIN_UNLOCK_KEY) || sessionStorage.getItem(ADMIN_UNLOCK_KEY)
     if (unlock) headers['X-Admin-Unlock'] = unlock
   }
 
@@ -610,14 +613,23 @@ export async function phpAdminUnlockStatus(): Promise<boolean> {
   try { const d = await req<{ unlocked: boolean }>('/admin/unlock/status'); return !!d.unlocked } catch { return false }
 }
 export async function phpAdminUnlock(code: string): Promise<void> {
-  const d = await req<{ token?: string }>('/admin/unlock', { method: 'POST', body: { code } })
-  if (d.token) sessionStorage.setItem(ADMIN_UNLOCK_KEY, d.token)
+  const d = await req<{ token?: string; persistent?: boolean }>('/admin/unlock', { method: 'POST', body: { code } })
+  if (d.token) {
+    sessionStorage.removeItem(ADMIN_UNLOCK_KEY)
+    localStorage.removeItem(ADMIN_UNLOCK_KEY)
+    // Modérateur (persistant) → localStorage ; propriétaire → sessionStorage.
+    ;(d.persistent ? localStorage : sessionStorage).setItem(ADMIN_UNLOCK_KEY, d.token)
+  }
 }
 export async function phpAdminUnlockEmail(): Promise<{ sent: number }> {
   return req('/admin/unlock/email', { method: 'POST', body: {} })
 }
 export function phpAdminLock(): void {
   sessionStorage.removeItem(ADMIN_UNLOCK_KEY)
+  localStorage.removeItem(ADMIN_UNLOCK_KEY)
+}
+export async function phpBlockModerator(email: string, blocked: boolean): Promise<void> {
+  await req('/admin/moderators/block', { method: 'POST', body: { email, blocked } })
 }
 export async function phpDigestSend(type: 'daily' | 'weekly'): Promise<{ sent: number; listings: number; subscribers?: number; reason?: string }> {
   return req('/admin/digest-send', { method: 'POST', body: { type } })

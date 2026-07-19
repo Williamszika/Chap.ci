@@ -142,6 +142,31 @@ function chapci_admin_code(array $config): string {
   }
   return $val;
 }
+// Code d'accès du PROPRIÉTAIRE : à USAGE UNIQUE et EXPIRANT (60 s par défaut).
+// Généré à la demande (bouton « Recevoir le code »), envoyé par email. Stocké hors
+// web (dossier data protégé) au format « CODE|EXPIRATION ». Remplace le code fixe :
+// un code volé devient inutile en 1 minute.
+function admin_otp_file(array $config): string { return chapci_secret_dir($config) . '/.admin_otp'; }
+function admin_otp_ttl(array $config): int { return max(30, (int) ($config['admin_otp_ttl'] ?? 60)); }
+function admin_otp_generate(array $config): string {
+  try { $n = random_int(0, 999999); } catch (Throwable $e) { $n = mt_rand(0, 999999); }
+  $code = str_pad((string) $n, 6, '0', STR_PAD_LEFT);
+  $f = admin_otp_file($config);
+  if (@file_put_contents($f, $code . '|' . (time() + admin_otp_ttl($config))) !== false) @chmod($f, 0600);
+  return $code;
+}
+/** Vérifie un code : correct ET non expiré. Consommé (supprimé) si correct (usage unique). */
+function admin_otp_valid(array $config, string $input): bool {
+  $input = preg_replace('/\D/', '', (string) $input) ?? '';
+  $f = admin_otp_file($config);
+  if ($input === '' || !@is_readable($f)) return false;
+  $parts = explode('|', trim((string) @file_get_contents($f)));
+  if (count($parts) !== 2) return false;
+  if (time() > (int) $parts[1]) { @unlink($f); return false; }  // expiré
+  if (!hash_equals((string) $parts[0], $input)) return false;   // mauvais code
+  @unlink($f);                                                  // usage unique
+  return true;
+}
 $config['jwt_secret'] = chapci_hardened_secret($config, 'jwt',
   (string) (getenv('CHAPCI_JWT_SECRET') ?: ($config['jwt_secret'] ?? '')));
 $config['cron_key'] = chapci_hardened_secret($config, 'cron',
@@ -561,15 +586,25 @@ function admin_unlock_token(): string {
   if ($hdr) return trim($hdr);
   return (string) ($_COOKIE['chapci_admin'] ?? '');
 }
-function admin_unlocked(string $secret, string $userId): bool {
+function admin_unlocked(array $config, PDO $pdo, string $secret, array $u): bool {
   $tok = admin_unlock_token();
   if ($tok === '') return false;
   $p = jwt_verify($tok, $secret);
-  return $p && !empty($p['au']) && (string) ($p['sub'] ?? '') === $userId;
+  if (!$p || empty($p['au']) || (string) ($p['sub'] ?? '') !== (string) ($u['id'] ?? '')) return false;
+  // Un MODÉRATEUR bloqué par l'admin perd l'accès immédiatement, même si son jeton
+  // de déverrouillage est encore valide (accès « permanent jusqu'au blocage »).
+  $email = strtolower((string) ($u['email'] ?? ''));
+  if (!in_array($email, owner_emails($config), true)) {
+    try {
+      $st = $pdo->prepare('SELECT blocked FROM admins WHERE email = ?'); $st->execute([$email]);
+      if ((int) ($st->fetchColumn() ?: 0) === 1) return false;
+    } catch (Throwable $e) { /* colonne absente : pas de blocage */ }
+  }
+  return true;
 }
-function set_admin_unlock_cookie(array $config, string $token): void {
+function set_admin_unlock_cookie(array $config, string $token, int $maxAge = 43200): void {
   setcookie('chapci_admin', $token, [
-    'expires'  => time() + 60 * 60 * 12,
+    'expires'  => time() + $maxAge,
     'path'     => '/',
     'secure'   => !empty($config['cookie_secure']),
     'httponly' => true,
@@ -980,6 +1015,8 @@ function migrate(PDO $pdo): void {
   // code d'accès personnel au tableau de bord (haché). Vide = ancien modérateur.
   try { $pdo->exec("ALTER TABLE admins ADD COLUMN permissions $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE admins ADD COLUMN access_code_hash $txt"); } catch (Throwable $e) {}
+  // Blocage d'un modérateur par l'admin (1 = accès révoqué jusqu'au déblocage).
+  try { $pdo->exec("ALTER TABLE admins ADD COLUMN blocked $intT DEFAULT 0"); } catch (Throwable $e) {}
   // Compteur de vues par annonce (statistiques vendeur).
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
   // Préférences de notifications (JSON : {favorite:bool, message:bool, ...}).
@@ -3170,7 +3207,7 @@ try {
     // (stocké côté serveur, remis par l'admin principal). Les routes ci-dessous
     // sont exemptées (sinon on ne pourrait jamais déverrouiller).
     if ($path === 'admin/unlock/status' && $method === 'GET') {
-      jout(['unlocked' => admin_unlocked($secret, (string) $u['id'])]);
+      jout(['unlocked' => admin_unlocked($config, $pdo, $secret, $u)]);
     }
     if ($path === 'admin/unlock' && $method === 'POST') {
       $b = body();
@@ -3178,47 +3215,54 @@ try {
       rate_limit($pdo, 'admin_unlock_fail', (string) ($u['email'] ?? ''), 8, 900);
       $code  = strtoupper(trim((string) ($b['code'] ?? '')));
       $email = strtolower((string) ($u['email'] ?? ''));
-      // Le PROPRIÉTAIRE utilise le code serveur (.secret_admincode) ; un MODÉRATEUR
-      // utilise SON code personnel (défini par l'admin, stocké haché).
-      $ok = false;
+      $ok = false; $persistent = false; $maxAge = 60 * 60 * 12; // propriétaire : 12 h
       if (in_array($email, owner_emails($config), true)) {
-        $ok = $code !== '' && hash_equals(chapci_admin_code($config), $code);
+        // PROPRIÉTAIRE : code à usage unique expirant (reçu par email). Fini le code fixe.
+        $ok = admin_otp_valid($config, $code);
       } else {
-        $st = $pdo->prepare('SELECT access_code_hash FROM admins WHERE email = ?'); $st->execute([$email]);
-        $h = (string) ($st->fetchColumn() ?: '');
+        // MODÉRATEUR : son code personnel + doit ne pas être bloqué. Accès PERMANENT
+        // (jeton long, 30 j) jusqu'à ce que l'admin le bloque.
+        $st = $pdo->prepare('SELECT access_code_hash, blocked FROM admins WHERE email = ?'); $st->execute([$email]);
+        $row = $st->fetch();
+        if ($row && (int) ($row['blocked'] ?? 0) === 1) {
+          log_security_event($pdo, 'admin_unlock_blocked', $u['email'] ?? null);
+          jerr('Votre accès a été bloqué par l’administrateur.', 403);
+        }
+        $h = (string) ($row['access_code_hash'] ?? '');
         $ok = $code !== '' && $h !== '' && password_verify($code, $h);
+        $persistent = true; $maxAge = 60 * 60 * 24 * 30; // 30 jours
       }
       if (!$ok) {
         log_security_event($pdo, 'admin_unlock_fail', $u['email'] ?? null);
-        jerr('Code d’accès incorrect.', 401);
+        jerr('Code d’accès incorrect ou expiré.', 401);
       }
       log_security_event($pdo, 'admin_unlock_ok', $u['email'] ?? null);
-      $tok = jwt_sign(['sub' => $u['id'], 'au' => 1, 'exp' => time() + 60 * 60 * 12], $secret);
-      set_admin_unlock_cookie($config, $tok);
-      jout(['ok' => true, 'token' => $tok]);
+      $tok = jwt_sign(['sub' => $u['id'], 'au' => 1, 'exp' => time() + $maxAge], $secret);
+      set_admin_unlock_cookie($config, $tok, $maxAge);
+      jout(['ok' => true, 'token' => $tok, 'persistent' => $persistent]);
     }
     if ($path === 'admin/unlock/email' && $method === 'POST') {
-      // Seul le PROPRIÉTAIRE peut se faire envoyer le code serveur par email. Un
-      // modérateur reçoit SON code personnel directement de l'admin principal.
+      // Réservé au PROPRIÉTAIRE (un modérateur reçoit son code de l'admin principal).
       if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
         jout(['ok' => false, 'message' => 'Votre code d’accès vous est remis par l’administrateur principal.']);
       }
-      rate_limit($pdo, 'admin_code_email', (string) ($u['email'] ?? ''), 4, 3600);
-      $owners = owner_emails($config);
-      if (!$owners) jerr('Aucun admin principal (email) configuré.', 400);
-      $code = chapci_admin_code($config);
-      $html = '<p>Bonjour,</p><p>Le <b>code d’accès au tableau de bord administrateur</b> de Chap.ci est :</p>'
-            . '<p style="font-size:22px;font-weight:bold;letter-spacing:4px;font-family:monospace">' . htmlspecialchars($code) . '</p>'
-            . '<p>Saisissez-le sur l’écran « Tableau de bord verrouillé ». Ne le partagez qu’avec des '
-            . 'administrateurs de confiance. Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.</p>';
+      rate_limit($pdo, 'admin_code_email', (string) ($u['email'] ?? ''), 6, 3600);
+      // Génère un code À USAGE UNIQUE qui EXPIRE (60 s) et l'envoie par email.
+      $code = admin_otp_generate($config);
+      $ttl  = admin_otp_ttl($config);
+      $html = '<p>Bonjour,</p><p>Votre <b>code d’accès au tableau de bord</b> Chap.ci :</p>'
+            . '<p style="font-size:28px;font-weight:bold;letter-spacing:8px;font-family:monospace">' . htmlspecialchars($code) . '</p>'
+            . '<p>⏱️ Ce code <b>expire dans ' . $ttl . ' secondes</b> et ne sert <b>qu’une seule fois</b>. '
+            . 'Saisissez-le tout de suite. S’il a expiré, cliquez à nouveau sur « Recevoir le code ». '
+            . 'Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.</p>';
       $sent = 0;
       // Envoi au propriétaire ET à l'adresse de rapport (contact@chap.ci).
-      foreach (security_notify_recipients($config) as $to) { if (send_mail($config, $to, 'Chap.ci — code d’accès administrateur', $html)) $sent++; }
+      foreach (security_notify_recipients($config) as $to) { if (send_mail($config, $to, 'Chap.ci — code d’accès (expire dans 1 min)', $html)) $sent++; }
       log_security_event($pdo, 'admin_code_emailed', $u['email'] ?? null);
       jout(['ok' => true, 'sent' => $sent]);
     }
     // Toute autre route admin exige une session DÉVERROUILLÉE.
-    if (!admin_unlocked($secret, (string) $u['id'])) {
+    if (!admin_unlocked($config, $pdo, $secret, $u)) {
       jout(['error' => 'Tableau de bord verrouillé. Entrez le code d’accès administrateur.', 'locked' => true], 423);
     }
 
@@ -3562,7 +3606,8 @@ try {
         'createdAt'   => iso_to_ms($r['created_at']),
         'permissions' => json_decode((string) ($r['permissions'] ?? '[]'), true) ?: [],
         'hasCode'     => !empty($r['access_code_hash']),
-      ], $pdo->query('SELECT email, created_at, permissions, access_code_hash FROM admins ORDER BY created_at DESC')->fetchAll());
+        'blocked'     => (int) ($r['blocked'] ?? 0) === 1,
+      ], $pdo->query('SELECT email, created_at, permissions, access_code_hash, blocked FROM admins ORDER BY created_at DESC')->fetchAll());
       $feats = array_map(fn($k) => ['key' => $k, 'label' => admin_feature_labels()[$k] ?? $k], admin_grantable_features());
       jout(['owners' => owner_emails($config), 'moderators' => $mods, 'features' => $feats]);
     }
@@ -3609,6 +3654,18 @@ try {
       admins_fp_save($config, $pdo); // changement légitime : met à jour la référence d'intégrité
       log_security_event($pdo, 'moderator_removed', $email);
       jout(['ok' => true]);
+    }
+    // Bloquer / débloquer un modérateur : coupe (ou rétablit) son accès au tableau
+    // de bord. Bloqué = son jeton de déverrouillage ne vaut plus rien (accès révoqué
+    // immédiatement) et il ne peut plus déverrouiller tant qu'il n'est pas débloqué.
+    if ($path === 'admin/moderators/block' && $method === 'POST') {
+      $b = body();
+      $email = strtolower(trim($b['email'] ?? ''));
+      if (in_array($email, owner_emails($config), true)) jerr('Le propriétaire ne peut pas être bloqué.', 403);
+      $blocked = !empty($b['blocked']) ? 1 : 0;
+      $pdo->prepare('UPDATE admins SET blocked = ? WHERE email = ?')->execute([$blocked, $email]);
+      log_security_event($pdo, $blocked ? 'moderator_blocked' : 'moderator_unblocked', $email);
+      jout(['ok' => true, 'blocked' => (bool) $blocked]);
     }
 
     // Réglages SMTP : lecture (sans le mot de passe).

@@ -182,7 +182,7 @@ export async function fetchResponseTime(): Promise<ResponseTime> {
 
 export interface Moderators {
   owners: string[]
-  moderators: { email: string; createdAt: number; permissions: string[]; hasCode: boolean }[]
+  moderators: { email: string; createdAt: number; permissions: string[]; hasCode: boolean; blocked: boolean }[]
   features: { key: string; label: string }[]
 }
 export type ModeratorSaveResult = php.ModeratorSaveResult
@@ -199,6 +199,11 @@ export async function saveModerator(email: string, permissions: string[], code?:
 export async function removeModerator(email: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpRemoveModerator(email)
+}
+/** Bloque (ou débloque) l'accès d'un modérateur au tableau de bord. */
+export async function blockModerator(email: string, blocked: boolean): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpBlockModerator(email, blocked)
 }
 /** Rôle de l'utilisateur connecté : propriétaire ou modérateur, avec ses permissions. */
 export async function adminRole(): Promise<php.AdminRole> {
