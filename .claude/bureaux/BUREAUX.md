@@ -194,9 +194,10 @@ bureau n'applique/commite/déploie de lui-même — même pour un « problème p
 
 | Routine | Fichier | Cadence conseillée |
 |---|---|---|
-| 🛡️ Sécurité (+ santé + modération) | `routine-securite.md` | `0 */5 * * *` |
+| 🛡️ Confiance & Sécurité (+ santé + modération) | `routine-securite.md` | `0 */5 * * *` |
 | 🎨 Design — scan | `routine-design.md` | `0 9 */3 * *` |
 | 📣 Croissance — SEO | `routine-croissance.md` | `0 8 */2 * *` |
+| 📊 Données & Rapports (rapport + sourcing) | `routine-donnees.md` | `0 8 * * 1` |
 | ⚡ Performance & Fiabilité | `routine-performance.md` | `0 7 * * 1` |
 | 🤝 Support & Expérience | `routine-support.md` | `0 10 * * 1` |
 
