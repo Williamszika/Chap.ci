@@ -6,6 +6,11 @@ RewriteRule ^annonce/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
 RewriteRule ^vendeur/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
 RewriteRule ^sitemap\.xml$ seo.php [L]
 
+# IndexNow : fichier de vérification {clé}.txt à la racine -> seo.php
+# (uniquement si aucun vrai fichier de ce nom n'existe déjà)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^([A-Za-z0-9]{8,64})\.txt$ seo.php [L]
+
 # L'application (SPA) et sa page d'accueil
 DirectoryIndex index.html index.php
 Options -Indexes

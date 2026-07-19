@@ -40,11 +40,35 @@ function abs_img(string $img, string $site, string $upub): string {
   if ($img[0] === '/') return $site . $img;
   return $site . $upub . '/' . $img;
 }
+// Clé IndexNow : lue au même endroit que le serveur (api/index.php la génère une
+// seule fois dans le dossier data protégé ; on la ressert ici pour la vérification).
+function seo_indexnow_key(array $cfg): string {
+  $configured = trim((string) (getenv('CHAPCI_INDEXNOW_KEY') ?: ($cfg['indexnow_key'] ?? '')));
+  if (strlen($configured) >= 8 && ctype_alnum($configured)) return $configured;
+  $sqlite = (string) ($cfg['db']['sqlite_path'] ?? $cfg['sqlite_path'] ?? '');
+  $dir  = $sqlite !== '' ? dirname($sqlite) : (__DIR__ . '/api/data');
+  $file = $dir . '/.indexnow_key';
+  return @is_readable($file) ? trim((string) @file_get_contents($file)) : '';
+}
 
 $uri  = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $pdo  = seo_pdo($cfg);
 $ua   = $_SERVER['HTTP_USER_AGENT'] ?? '';
 $isBot = (bool) preg_match('/bot|crawl|spider|facebookexternalhit|whatsapp|twitter|slurp|bingpreview|embedly|telegram|discord|linkedin|pinterest/i', $ua);
+
+// ---------------------------------------------- vérification IndexNow /{clé}.txt --
+// IndexNow demande un fichier https://chap.ci/{clé}.txt contenant la clé, pour
+// prouver qu'on est bien propriétaire du site avant d'accepter nos pings.
+if (preg_match('#^/([A-Za-z0-9]{8,64})\.txt$#', $uri, $mk)) {
+  $key = seo_indexnow_key($cfg);
+  if ($key !== '' && hash_equals($key, $mk[1])) {
+    header('Content-Type: text/plain; charset=utf-8');
+    echo $key;
+    exit;
+  }
+  http_response_code(404);
+  exit;
+}
 
 // --------------------------------------------------------------- sitemap.xml --
 if (preg_match('#/sitemap\.xml$#', $uri)) {

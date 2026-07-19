@@ -654,6 +654,49 @@ function http_fetch(string $url, array $opts = []): array {
   return ['status' => $status, 'body' => $resp === false ? '' : $resp];
 }
 
+// ---- IndexNow : indexation instantanée (Bing, Yandex, Seznam…) --------------
+// Quand une annonce est publiée ou modifiée, on prévient tout de suite les moteurs
+// via IndexNow : l'annonce est indexée en minutes au lieu d'attendre le crawl.
+// (Google ne consomme pas IndexNow mais suit le sitemap + les liens.)
+
+/** Clé IndexNow stable (auto-générée une fois, rangée à côté des autres secrets). */
+function chapci_indexnow_key(array $config): string {
+  $configured = trim((string) (getenv('CHAPCI_INDEXNOW_KEY') ?: ($config['indexnow_key'] ?? '')));
+  if (strlen($configured) >= 8 && ctype_alnum($configured)) return $configured;
+  $file = chapci_secret_dir($config) . '/.indexnow_key';
+  $val  = @is_readable($file) ? trim((string) @file_get_contents($file)) : '';
+  if (strlen($val) < 16 || !ctype_alnum($val)) {
+    try { $val = bin2hex(random_bytes(16)); }
+    catch (Throwable $e) { $val = substr(hash('sha256', uniqid((string) mt_rand(), true) . __DIR__), 0, 32); }
+    if (@file_put_contents($file, $val) !== false) @chmod($file, 0600);
+  }
+  return $val;
+}
+
+/** Signale une ou plusieurs URLs neuves/modifiées à IndexNow. Silencieux, non bloquant. */
+function chapci_indexnow_ping(array $config, array $urls): void {
+  try {
+    $urls = array_values(array_filter(array_unique($urls)));
+    if (!$urls) return;
+    $site = rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/');
+    $host = parse_url($site, PHP_URL_HOST);
+    if (!$host) return;
+    $key = chapci_indexnow_key($config);
+    $payload = json_encode([
+      'host'        => $host,
+      'key'         => $key,
+      'keyLocation' => $site . '/' . $key . '.txt',
+      'urlList'     => $urls,
+    ], JSON_UNESCAPED_SLASHES);
+    // Timeout court : la publication ne doit jamais attendre le moteur.
+    http_fetch('https://api.indexnow.org/indexnow', [
+      'method'  => 'POST',
+      'headers' => ['Content-Type: application/json; charset=utf-8'],
+      'body'    => $payload,
+    ]);
+  } catch (Throwable $e) { /* jamais bloquer la publication d'une annonce */ }
+}
+
 // ---- Téléphone & SMS (connexion par code) -----------------------------------
 /** Normalise un numéro au format international (+225… pour la Côte d'Ivoire). */
 function normalize_phone(string $p): string {
@@ -2529,6 +2572,8 @@ try {
     notify($pdo, $u['id'], 'listing', 'Annonce publiée ✅',
       'Votre annonce « ' . mb_substr(trim($b['title']), 0, 60) . ' » est maintenant en ligne.',
       '#/annonce/' . $id);
+    // Indexation instantanée : on signale la nouvelle annonce à tout le net (IndexNow).
+    chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $id]);
     $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$id]);
     jout(listing_out($st->fetch()));
   }
@@ -2601,6 +2646,8 @@ try {
         $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0,
         isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, $seg[1],
       ]);
+    // Contenu modifié : on redemande une réindexation instantanée (IndexNow).
+    chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $seg[1]]);
     $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
     jout(listing_out($st->fetch()));
   }
