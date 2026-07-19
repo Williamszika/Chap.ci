@@ -211,3 +211,22 @@ Format d'une entrée :
     unblocked`, `admin_unlock_blocked`.
 - **Pour les autres bureaux** : 🛡️ Le Gardien — surveille `admin_unlock_blocked` (un
   modérateur bloqué qui insiste) et `moderator_blocked`.
+
+---
+
+### 2026-07-19 — [Développement] Réponse au scan du Gardien (2 points 🟠)
+- **Fait** : les **2 correctifs prêts** du scan du Gardien sont appliqués et testés :
+  1. `admin_feature_for_path()` renvoie désormais **`'unknown'`** (au lieu de `''`) pour
+     une route `/admin/*` non répertoriée → **fail-closed** : un modérateur est refusé sur
+     une éventuelle route oubliée (seul le propriétaire y accède). Plus de fail-open.
+  2. **Défense en profondeur cron** : gate commun `str_starts_with($path,'cron/')` qui
+     **rate-limite les essais ratés** (`cron_fail`, 20/10 min/IP) et centralise la
+     vérification de clé avant tout traitement. Un cron légitime (bonne clé) n'est jamais
+     compté ni pénalisé ; nouvel événement audit `cron_fail` (visible au scan).
+  - **Testé** : smoke OTP + blocage + permissions **6/6**, aucune régression (les routes
+    mappées gardent leur comportement).
+- **Problèmes ouverts** : 🔑 la clé cron de la routine Sécurité est **toujours périmée**
+  (3ᵉ jour) → 403 sur `/api/cron/security`. **Action Patron** : récupérer la clé dans
+  *Tableau de bord → Tâches auto* et la coller dans le prompt de la routine.
+- **Pour les autres bureaux** : 🛡️ Le Gardien — excellent scan (0 🔴, hardening confirmé).
+  Nouvelle donnée pour toi : les pics de `cron_fail` = tentatives de balayage de clé.

@@ -1149,7 +1149,9 @@ function admin_feature_for_path(string $path): string {
   if ($path === 'admin/smtp' || $path === 'admin/test-email') return 'emails';
   if (str_starts_with($path, 'admin/backup') || $path === 'admin/backups' || $path === 'admin/reset') return 'backup';
   if (str_starts_with($path, 'admin/digest') || $path === 'admin/suggestions-test') return 'automation';
-  return '';
+  // Fail-closed : une route /admin/* non répertoriée renvoie 'unknown' → refusée
+  // pour un modérateur (seul le propriétaire y accède). Évite un oubli = trou.
+  return 'unknown';
 }
 /** Permissions (tableau) d'un modérateur, depuis la table admins. */
 function admin_permissions_for(PDO $pdo, string $email): array {
@@ -3777,6 +3779,18 @@ try {
       }
     }
     jout(['ok' => true]);
+  }
+
+  // ---- Défense en profondeur commune aux endpoints cron/* -------------------
+  // Avant tout traitement : on ralentit un balayage de clé. La clé reste forte
+  // (32 octets, non devinable) ; ceci limite juste les ESSAIS ratés par IP. Un
+  // cron légitime (bonne clé) n'est jamais compté ni pénalisé.
+  if (str_starts_with($path, 'cron/')) {
+    rate_limit($pdo, 'cron_fail', null, 20, 600); // max 20 échecs / 10 min / IP
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      log_security_event($pdo, 'cron_fail', null, $path);
+      jerr('Clé invalide.', 403);
+    }
   }
 
   // ---------- TÂCHE PLANIFIÉE : offres du jour / de la semaine ----------
