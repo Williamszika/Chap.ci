@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
+  ArrowLeft,
   PlusCircle,
   Heart,
   Trash2,
@@ -49,7 +50,6 @@ import { updateMyProfile, fetchProfile } from '../lib/profiles'
 import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, type SavedSearch } from '../lib/api'
 import { isPhp } from '../lib/backend'
 import { phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs } from '../lib/php'
-import { NotificationBell } from '../components/NotificationBell'
 import { downscaleImage } from '../lib/image'
 import type { Listing, Order, Review } from '../types'
 
@@ -104,8 +104,6 @@ export function Profile() {
   const rating = averageRating(myReviews)
 
   // Statistiques vendeur
-  const activePromoCount = myListings.filter((l) => activePromo(l)).length
-  const salesOngoing = sales.filter((o) => o.status === 'en_cours').length
   const salesDone = sales.filter((o) => o.status === 'finalise').length
   const shownSales = salesFilter === 'all' ? sales : sales.filter((o) => o.status === salesFilter)
   const shownMine = annoncesFilter === 'promo' ? myListings.filter((l) => activePromo(l)) : myListings
@@ -237,151 +235,44 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:min-h-0 md:max-w-3xl md:bg-transparent md:py-6 lg:max-w-5xl xl:max-w-6xl">
-      {/* Ordinateur / tablette : 2 volets (barre latérale + contenu). Mobile : empilé. */}
-      <div className="md:grid md:grid-cols-[300px_minmax(0,1fr)] md:items-start md:gap-6">
-      <aside className="md:sticky md:top-6 md:space-y-4">
-      {/* En-tête — carte de profil « Mon compte » (fond crème, avatar orange). */}
-      <header className="px-4 pt-4 md:px-0 md:pt-0">
-        <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:rounded-3xl md:p-5">
-          <div className="flex items-center gap-3">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full w-full place-items-center text-2xl font-black">
-                  {(displayName || 'C').charAt(0).toUpperCase()}
-                </div>
-              )}
+    <div className="min-h-screen bg-[#FFF6EA] md:min-h-0 md:bg-transparent">
+      <div className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-4xl md:px-6 md:py-6 lg:max-w-5xl">
+        {/* Déconnecté : accueil de connexion */}
+        {!user && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-[#EFE6D7] bg-white p-6 text-center shadow-card md:rounded-3xl">
+              <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-2xl font-black text-white">C</div>
+              <p className="mt-3 font-display text-lg font-black text-ink">Bienvenue&nbsp;👋</p>
+              <p className="mt-1 text-sm text-gray-500">Connectez-vous pour vendre et acheter chap-chap.</p>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 truncate font-display text-lg font-black text-ink">
-                <span className="truncate">{displayName || 'Bienvenue 👋'}</span>
-                {user && (
-                  <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-bold text-ivoire-green">
-                    <BadgeCheck size={14} /> Vérifié
-                  </span>
-                )}
-              </p>
-              {user ? (
-                <>
-                  <p className="truncate text-sm text-gray-500">
-                    {user.email}
-                    {seller.phone ? ` · ${seller.phone}` : ''}
-                  </p>
-                  {rating.count > 0 && (
-                    <span className="mt-0.5 flex items-center gap-1 text-sm font-semibold text-gray-700">
-                      <Star size={13} className="fill-amber-400 text-amber-400" /> {rating.avg.toFixed(1)} ·{' '}
-                      {rating.count} avis
-                    </span>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">Connectez-vous pour vendre et acheter</p>
-              )}
-            </div>
-            {user && (
-              <div className="flex shrink-0 items-center gap-2">
-                <NotificationBell />
-                <button onClick={() => setTab('params')} className="btn-outline px-3 py-2 text-sm">
-                  <Pencil size={15} /> Modifier
-                </button>
-              </div>
+            {enabled && (
+              <button onClick={() => navigate('/connexion')} className="btn-primary w-full py-3.5">
+                <LogIn size={20} /> Se connecter / Créer un compte
+              </button>
             )}
           </div>
-
-          {/* Actions rapides */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <QuickAction icon={<PlusCircle size={20} />} label="Publier" onClick={() => navigate('/publier')} />
-            <QuickAction icon={<MessageSquare size={20} />} label="Messages" onClick={() => navigate('/messages')} />
-            <QuickAction
-              icon={<Heart size={20} />}
-              label="Favoris"
-              badge={favorites.length}
-              onClick={() => navigate('/favoris')}
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* Récapitulatif du compte : annonces · favoris · note */}
-      {user && (
-        <div className="grid grid-cols-3 gap-2 px-4 pt-3 md:px-0 md:pt-0">
-          <MiniStat value={myListings.length} label="annonces" />
-          <MiniStat value={favorites.length} label="favoris" />
-          <MiniStat value={rating.count ? rating.avg.toFixed(1) : '—'} label="note" />
-        </div>
-      )}
-
-      {/* Accès administrateur (propriétaire ou modérateur) */}
-      {isAdmin && (
-        <div className="px-4 pt-4 md:px-0 md:pt-0">
-          <Link
-            to="/admin"
-            className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card transition active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20">
-              <ShieldCheck size={22} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-bold">Tableau de bord administrateur</span>
-              <span className="block text-sm text-white/85">Statistiques, modération, modérateurs…</span>
-            </span>
-            <ChevronRight size={20} className="shrink-0" />
-          </Link>
-        </div>
-      )}
-
-      {/* Connexion requise */}
-      {enabled && !user && (
-        <div className="px-4 pt-4 md:px-0 md:pt-0">
-          <button onClick={() => navigate('/connexion')} className="btn-primary w-full py-3.5">
-            <LogIn size={20} /> Se connecter / Créer un compte
-          </button>
-        </div>
-      )}
-
-      {/* Onglets — masqués sur l'accueil du compte (menu façon artifact). */}
-      {tab !== 'accueil' && (
-      <nav className="no-scrollbar sticky top-0 z-20 flex gap-1 overflow-x-auto border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-2 md:static md:flex-col md:gap-1.5 md:overflow-visible md:rounded-3xl md:border-0 md:p-3 md:shadow-card">
-        {([
-          ['achats', 'Mes achats'],
-          ['ventes', 'Mes ventes'],
-          ['annonces', 'Mes annonces'],
-          ['params', 'Paramètres'],
-        ] as [Tab, string][]).map(([t, label]) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`shrink-0 whitespace-nowrap px-3 py-3 text-sm font-semibold transition md:w-full md:rounded-xl md:px-4 md:py-2.5 md:text-left ${
-              tab === t
-                ? 'border-b-2 border-primary-500 text-primary-600 md:border-b-0 md:bg-primary-500 md:text-white md:shadow-sm'
-                : 'text-gray-500 md:text-gray-600 md:hover:bg-gray-100'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-      )}
-      </aside>
-
-      {/* Contenu principal */}
-      <main className="md:min-w-0">
-      <div className="px-4 py-4 md:px-0 md:pt-1">
-        {/* ACCUEIL DU COMPTE (déconnecté) — la vue connectée est gérée en pleine largeur plus haut. */}
-        {tab === 'accueil' && !user && (
-          <Empty text="Connectez-vous pour accéder à votre compte." />
         )}
 
-        {/* Bouton retour au menu du compte (depuis un onglet) */}
-        {tab !== 'accueil' && (
-          <button
-            onClick={() => setTab('accueil')}
-            className="mb-3 -ml-1 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
-          >
-            <ChevronRight size={16} className="rotate-180" /> Mon compte
-          </button>
+        {/* Connecté : en-tête de section (retour au menu du compte + titre) */}
+        {user && (
+          <div className="mb-4 flex items-center gap-2">
+            <button
+              onClick={() => setTab('accueil')}
+              aria-label="Retour au compte"
+              className="-ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-gray-600 transition hover:bg-cream-100"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="font-display text-xl font-black text-ink">
+              {tab === 'ventes'
+                ? 'Tableau de bord'
+                : tab === 'annonces'
+                  ? 'Mes annonces'
+                  : tab === 'achats'
+                    ? 'Mes commandes'
+                    : 'Compte & sécurité'}
+            </h1>
+          </div>
         )}
 
         {/* ACHATS */}
@@ -428,60 +319,26 @@ export function Profile() {
             <Empty text="Connectez-vous pour voir vos ventes et statistiques." />
           ) : (
             <div className="space-y-4">
-              {/* Statistiques vendeur */}
-              <div className="card p-4">
-                <p className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
-                  <BarChart3 size={16} className="text-primary-500" /> Vos statistiques
-                </p>
-                <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
-                  <StatTile
-                    label="Annonces" value={myListings.length}
-                    onClick={() => { setAnnoncesFilter('all'); setTab('annonces') }}
-                  />
-                  <StatTile
-                    label="Demandes" value={sales.length}
-                    active={!showReviews && salesFilter === 'all'}
-                    onClick={() => { setShowReviews(false); setSalesFilter('all') }}
-                  />
-                  <StatTile
-                    label="En cours" value={salesOngoing}
-                    active={!showReviews && salesFilter === 'en_cours'}
-                    onClick={() => { setShowReviews(false); setSalesFilter('en_cours') }}
-                  />
-                  <StatTile
-                    label="Finalisées" value={salesDone}
-                    active={!showReviews && salesFilter === 'finalise'}
-                    onClick={() => { setShowReviews(false); setSalesFilter('finalise') }}
-                  />
-                  <StatTile
-                    label="Note"
-                    value={rating.count ? `${rating.avg.toFixed(1)}★` : '—'}
-                    sub={rating.count ? `${rating.count} avis` : 'aucun avis'}
-                    active={showReviews}
-                    onClick={() => setShowReviews(true)}
-                  />
-                  <StatTile
-                    label="Promos" value={activePromoCount}
-                    onClick={() => { setAnnoncesFilter('promo'); setTab('annonces') }}
-                  />
-                </div>
-                {revenue > 0 && (
-                  <button
-                    onClick={() => { setShowReviews(false); setSalesFilter('finalise') }}
-                    className="mt-3 flex w-full items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-left transition hover:bg-emerald-100 active:scale-[0.99]"
-                  >
-                    <div>
-                      <p className="text-xs font-semibold text-emerald-700">
-                        Chiffre d’affaires (ventes finalisées)
-                      </p>
-                      <p className="tnum text-lg font-black text-emerald-700">{formatFCFA(revenue)}</p>
-                    </div>
-                    <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                      Détail <ChevronRight size={14} />
-                    </span>
-                  </button>
-                )}
+              {/* 4 cartes clés — vos vrais chiffres (pas de tendances tant que l'historique n'est pas suivi) */}
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <DashStat tint="primary" icon={<Eye size={18} />} value={myListings.reduce((s, l) => s + (l.views ?? 0), 0)} label="Vues" />
+                <DashStat tint="green" icon={<Package size={18} />} value={myListings.length} label="Annonces actives" />
+                <DashStat tint="sky" icon={<MessageSquare size={18} />} value={sales.length} label="Demandes reçues" />
+                <DashStat tint="gold" icon={<ShoppingBag size={18} />} value={salesDone} label="Ventes" />
               </div>
+
+              {revenue > 0 && (
+                <button
+                  onClick={() => { setShowReviews(false); setSalesFilter('finalise') }}
+                  className="flex w-full items-center justify-between rounded-2xl border border-[#EFE6D7] bg-emerald-50 px-4 py-3.5 text-left shadow-card transition hover:bg-emerald-100 active:scale-[0.99]"
+                >
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-700">Chiffre d’affaires (ventes finalisées)</p>
+                    <p className="tnum text-lg font-black text-emerald-700">{formatFCFA(revenue)}</p>
+                  </div>
+                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">Détail <ChevronRight size={14} /></span>
+                </button>
+              )}
 
               {/* Panneaux du tableau de bord (vues par annonce + répartition par catégorie). */}
               {myListings.length > 0 && (
@@ -536,6 +393,28 @@ export function Profile() {
                   </div>
                 </div>
               )}
+
+              {/* Demandes reçues + filtres */}
+              <div>
+                <p className="mb-2 font-display text-base font-black text-ink">Demandes reçues</p>
+                <div className="no-scrollbar mb-3 flex gap-2 overflow-x-auto">
+                  {([['all', 'Toutes'], ['en_cours', 'En cours'], ['finalise', 'Finalisées']] as const).map(([f, lab]) => (
+                    <button
+                      key={f}
+                      onClick={() => { setShowReviews(false); setSalesFilter(f) }}
+                      className={`chip shrink-0 ${!showReviews && salesFilter === f ? 'border-primary-500 bg-primary-50 text-primary-700' : ''}`}
+                    >
+                      {lab}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setShowReviews(true)}
+                    className={`chip shrink-0 ${showReviews ? 'border-primary-500 bg-primary-50 text-primary-700' : ''}`}
+                  >
+                    Avis{rating.count ? ` · ${rating.avg.toFixed(1)}★` : ''}
+                  </button>
+                </div>
+              </div>
 
               {showReviews ? (
                 <SellerReviews reviews={myReviews} rating={rating} onClear={() => setShowReviews(false)} />
@@ -758,8 +637,6 @@ export function Profile() {
           </div>
         )}
       </div>
-      </main>
-      </div>
     </div>
   )
 }
@@ -890,51 +767,6 @@ function MyAlerts() {
   )
 }
 
-function QuickAction({
-  icon,
-  label,
-  onClick,
-  badge,
-}: {
-  icon: React.ReactNode
-  label: string
-  onClick: () => void
-  badge?: number
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="relative flex flex-col items-center gap-1 rounded-2xl border border-[#EFE6D7] bg-cream-200 py-2.5 text-primary-600 transition hover:bg-primary-50 active:scale-[0.98]"
-    >
-      <span className="relative">
-        {icon}
-        {badge ? (
-          <span className="absolute -right-2.5 -top-1.5 min-w-[16px] rounded-full bg-red-500 px-1 text-center text-[9px] font-bold text-white">
-            {badge}
-          </span>
-        ) : null}
-      </span>
-      <span className="text-[11px] font-semibold text-gray-700">{label}</span>
-    </button>
-  )
-}
-
-function StatTile({
-  label, value, sub, onClick, active,
-}: { label: string; value: number | string; sub?: string; onClick?: () => void; active?: boolean }) {
-  const box = `rounded-xl border px-2 py-3 text-center transition ${
-    active ? 'border-primary-500 bg-primary-500 shadow-sm' : 'border-[#EFE6D7] bg-cream-200'
-  } ${onClick ? 'cursor-pointer hover:brightness-95 active:scale-[0.97]' : ''}`
-  const inner = (
-    <>
-      <p className={`text-xl font-black ${active ? 'text-white' : 'text-primary-600'}`}>{value}</p>
-      <p className={`text-[11px] font-medium ${active ? 'text-white/90' : 'text-gray-500'}`}>{label}</p>
-      {sub && <p className={`text-[10px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{sub}</p>}
-    </>
-  )
-  if (onClick) return <button type="button" onClick={onClick} className={`${box} w-full`}>{inner}</button>
-  return <div className={box}>{inner}</div>
-}
 
 const rowTints: Record<string, string> = {
   primary: 'bg-primary-100 text-primary-600',
@@ -969,6 +801,24 @@ function AccountRow({
       ) : null}
       <ChevronRight size={18} className="shrink-0 text-gray-300" />
     </button>
+  )
+}
+
+/** Grande carte clé du tableau de bord (icône colorée + valeur + libellé). */
+function DashStat({
+  icon, tint = 'primary', value, label,
+}: {
+  icon: React.ReactNode
+  tint?: keyof typeof rowTints
+  value: number | string
+  label: string
+}) {
+  return (
+    <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+      <span className={`inline-grid h-10 w-10 place-items-center rounded-xl ${rowTints[tint]}`}>{icon}</span>
+      <p className="tnum mt-3 font-display text-3xl font-black text-ink">{value}</p>
+      <p className="mt-0.5 text-sm text-gray-500">{label}</p>
+    </div>
   )
 }
 
