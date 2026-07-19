@@ -976,6 +976,10 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_pending $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_enabled $intT DEFAULT 0"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_recovery $txt"); } catch (Throwable $e) {}
+  // Rôles fins des modérateurs : liste des fonctionnalités autorisées (JSON) +
+  // code d'accès personnel au tableau de bord (haché). Vide = ancien modérateur.
+  try { $pdo->exec("ALTER TABLE admins ADD COLUMN permissions $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE admins ADD COLUMN access_code_hash $txt"); } catch (Throwable $e) {}
   // Compteur de vues par annonce (statistiques vendeur).
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
   // Préférences de notifications (JSON : {favorite:bool, message:bool, ...}).
@@ -1059,6 +1063,61 @@ function is_admin(array $config, PDO $pdo, array $u): bool {
   $st = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?');
   $st->execute([$email]);
   return (bool) $st->fetch();
+}
+
+// ---- Rôles fins des modérateurs (permissions par fonctionnalité) ------------
+// Le PROPRIÉTAIRE (email de config) a TOUT. Un modérateur n'a que les
+// fonctionnalités que l'admin lui a cochées ; certaines restent réservées au
+// propriétaire (jamais délégables).
+/** Fonctionnalités qu'un modérateur PEUT recevoir (cochables par l'admin). */
+function admin_grantable_features(): array {
+  return ['visitors','listings','users','reports','orders','conversations','reviews','newsletter','campaigns'];
+}
+/** Fonctionnalités RÉSERVÉES au propriétaire (jamais délégables à un modérateur). */
+function admin_owner_only_features(): array {
+  return ['moderators','emails','backup','automation'];
+}
+/** Libellés FR (pour les cases à cocher de l'UI). */
+function admin_feature_labels(): array {
+  return [
+    'visitors' => 'Visiteurs', 'listings' => 'Annonces', 'users' => 'Utilisateurs',
+    'reports' => 'Signalements', 'orders' => 'Commandes', 'conversations' => 'Conversations',
+    'reviews' => 'Avis', 'newsletter' => 'Abonnés', 'campaigns' => 'Campagnes',
+  ];
+}
+/** Fonctionnalité requise par une route /admin/* (« » = pas de restriction fine). */
+function admin_feature_for_path(string $path): string {
+  if ($path === 'admin/check' || $path === 'admin/me' || str_starts_with($path, 'admin/unlock')) return '';
+  if ($path === 'admin/stats') return 'overview';
+  if ($path === 'admin/visits' || $path === 'admin/response-time') return 'visitors';
+  if (str_starts_with($path, 'admin/listings')) return 'listings';
+  if (str_starts_with($path, 'admin/users')) return 'users';
+  if (str_starts_with($path, 'admin/reports')) return 'reports';
+  if ($path === 'admin/orders') return 'orders';
+  if ($path === 'admin/conversations') return 'conversations';
+  if (str_starts_with($path, 'admin/reviews')) return 'reviews';
+  if (str_starts_with($path, 'admin/campaign')) return 'campaigns';
+  if ($path === 'admin/newsletter') return 'newsletter';
+  if (str_starts_with($path, 'admin/moderators')) return 'moderators';
+  if ($path === 'admin/smtp' || $path === 'admin/test-email') return 'emails';
+  if (str_starts_with($path, 'admin/backup') || $path === 'admin/backups' || $path === 'admin/reset') return 'backup';
+  if (str_starts_with($path, 'admin/digest') || $path === 'admin/suggestions-test') return 'automation';
+  return '';
+}
+/** Permissions (tableau) d'un modérateur, depuis la table admins. */
+function admin_permissions_for(PDO $pdo, string $email): array {
+  $st = $pdo->prepare('SELECT permissions FROM admins WHERE email = ?');
+  $st->execute([strtolower($email)]);
+  $p = json_decode((string) ($st->fetchColumn() ?: '[]'), true);
+  return is_array($p) ? array_values(array_filter($p, 'is_string')) : [];
+}
+/** L'utilisateur a-t-il le droit sur cette fonctionnalité ? Propriétaire = tout. */
+function admin_can(array $config, PDO $pdo, array $u, string $feature): bool {
+  $email = strtolower((string) ($u['email'] ?? ''));
+  if (in_array($email, owner_emails($config), true)) return true;      // propriétaire : tout
+  if ($feature === '' || $feature === 'overview') return true;         // aperçu : toujours permis
+  if (in_array($feature, admin_owner_only_features(), true)) return false; // réservé proprio
+  return in_array($feature, admin_permissions_for($pdo, $email), true);
 }
 
 // ---- Emails -----------------------------------------------------------------
@@ -1948,6 +2007,18 @@ try {
   error_log('[chapci] DB: ' . $e->getMessage());
   jerr('Connexion à la base de données impossible. Vérifiez les identifiants dans api/config.php (driver mysql/pgsql, host, name, user, pass).'
     . (!empty($config['debug']) ? ' Détail : ' . $e->getMessage() : ''), 500);
+}
+
+// Réinitialisation UNIQUE (post-déploiement) des rôles : on vide la table admins
+// une seule fois. Le PROPRIÉTAIRE (email de config) reste admin (il ne dépend pas
+// de cette table) ; tous les autres comptes perdent leurs droits admin/modérateur
+// et devront être recréés via le nouveau système (permissions + code). Un marqueur
+// garantit que ça ne s'exécute qu'une fois (sinon on effacerait les modérateurs
+// recréés à chaque requête).
+$resetMarker = chapci_secret_dir($config) . '/.reset_admins_v2';
+if (!file_exists($resetMarker)) {
+  try { $pdo->exec('DELETE FROM admins'); } catch (Throwable $e) { /* table absente : rien à faire */ }
+  @file_put_contents($resetMarker, now_iso());
 }
 $secret = $config['jwt_secret'];
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -3040,7 +3111,7 @@ try {
   // Liste des abonnés : réservée aux administrateurs (export CSV côté app).
   if ($path === 'newsletter' && $method === 'GET') {
     $u = require_user($pdo, $secret);
-    if (!is_admin($config, $pdo, $u)) jerr('Accès réservé à l’administrateur.', 403);
+    if (!admin_can($config, $pdo, $u, 'newsletter')) jerr('Accès réservé à l’administrateur.', 403);
     $rows = $pdo->query('SELECT email, created_at FROM newsletter ORDER BY created_at DESC')->fetchAll();
     $out = array_map(fn($r) => ['email' => $r['email'], 'createdAt' => iso_to_ms($r['created_at'])], $rows);
     jout(['count' => count($out), 'subscribers' => $out]);
@@ -3053,7 +3124,16 @@ try {
     $userIsAdmin = is_admin($config, $pdo, $u);
     // Vérification légère : indique si l'utilisateur connecté est admin
     // (sans erreur 403) — sert à afficher/masquer le lien dans l'app.
-    if ($path === 'admin/check') jout(['admin' => $userIsAdmin]);
+    if ($path === 'admin/check') {
+      $email = strtolower((string) ($u['email'] ?? ''));
+      $owner = in_array($email, owner_emails($config), true);
+      jout([
+        'admin'       => $userIsAdmin,
+        'owner'       => $owner,
+        // Propriétaire = tout ('*'). Modérateur = ses fonctionnalités cochées.
+        'permissions' => $owner ? ['*'] : ($userIsAdmin ? admin_permissions_for($pdo, $email) : []),
+      ]);
+    }
     if (!$userIsAdmin) jerr('Accès réservé à l’administrateur.', 403);
 
     // ---- 2ᵉ serrure : code d'accès du tableau de bord ----------------------
@@ -3067,8 +3147,19 @@ try {
       $b = body();
       // Anti-force brute sur le code : 8 essais / 15 min par IP+email.
       rate_limit($pdo, 'admin_unlock_fail', (string) ($u['email'] ?? ''), 8, 900);
-      $code = strtoupper(trim((string) ($b['code'] ?? '')));
-      if ($code === '' || !hash_equals(chapci_admin_code($config), $code)) {
+      $code  = strtoupper(trim((string) ($b['code'] ?? '')));
+      $email = strtolower((string) ($u['email'] ?? ''));
+      // Le PROPRIÉTAIRE utilise le code serveur (.secret_admincode) ; un MODÉRATEUR
+      // utilise SON code personnel (défini par l'admin, stocké haché).
+      $ok = false;
+      if (in_array($email, owner_emails($config), true)) {
+        $ok = $code !== '' && hash_equals(chapci_admin_code($config), $code);
+      } else {
+        $st = $pdo->prepare('SELECT access_code_hash FROM admins WHERE email = ?'); $st->execute([$email]);
+        $h = (string) ($st->fetchColumn() ?: '');
+        $ok = $code !== '' && $h !== '' && password_verify($code, $h);
+      }
+      if (!$ok) {
         log_security_event($pdo, 'admin_unlock_fail', $u['email'] ?? null);
         jerr('Code d’accès incorrect.', 401);
       }
@@ -3078,9 +3169,11 @@ try {
       jout(['ok' => true, 'token' => $tok]);
     }
     if ($path === 'admin/unlock/email' && $method === 'POST') {
-      // Envoie le code UNIQUEMENT à l'adresse de l'admin PRINCIPAL (propriétaire),
-      // jamais à celle du demandeur : un modérateur doit le recevoir DE l'admin
-      // principal. Rate-limité (4/heure).
+      // Seul le PROPRIÉTAIRE peut se faire envoyer le code serveur par email. Un
+      // modérateur reçoit SON code personnel directement de l'admin principal.
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jout(['ok' => false, 'message' => 'Votre code d’accès vous est remis par l’administrateur principal.']);
+      }
       rate_limit($pdo, 'admin_code_email', (string) ($u['email'] ?? ''), 4, 3600);
       $owners = owner_emails($config);
       if (!$owners) jerr('Aucun admin principal (email) configuré.', 400);
@@ -3097,6 +3190,12 @@ try {
     // Toute autre route admin exige une session DÉVERROUILLÉE.
     if (!admin_unlocked($secret, (string) $u['id'])) {
       jout(['error' => 'Tableau de bord verrouillé. Entrez le code d’accès administrateur.', 'locked' => true], 423);
+    }
+
+    // 3ᵉ contrôle : permissions fines. Le propriétaire a tout ; un modérateur n'a
+    // accès qu'aux fonctionnalités que l'admin lui a cochées (le reste = 403).
+    if (!admin_can($config, $pdo, $u, admin_feature_for_path($path))) {
+      jerr('Cette section n’est pas autorisée pour votre compte.', 403);
     }
 
     // Sauvegarde immédiate : télécharge un export JSON complet de la base.
@@ -3425,26 +3524,51 @@ try {
       jout($out);
     }
 
-    // Modérateurs : lister / ajouter / retirer (mêmes droits que l'admin).
+    // Modérateurs : créés PAR l'admin avec un email, des fonctionnalités cochées
+    // et un code d'accès personnel. (Section réservée au propriétaire via le gate.)
     if ($path === 'admin/moderators' && $method === 'GET') {
-      $mods = array_map(
-        fn($r) => ['email' => $r['email'], 'createdAt' => iso_to_ms($r['created_at'])],
-        $pdo->query('SELECT email, created_at FROM admins ORDER BY created_at DESC')->fetchAll());
-      jout(['owners' => owner_emails($config), 'moderators' => $mods]);
+      $mods = array_map(fn($r) => [
+        'email'       => $r['email'],
+        'createdAt'   => iso_to_ms($r['created_at']),
+        'permissions' => json_decode((string) ($r['permissions'] ?? '[]'), true) ?: [],
+        'hasCode'     => !empty($r['access_code_hash']),
+      ], $pdo->query('SELECT email, created_at, permissions, access_code_hash FROM admins ORDER BY created_at DESC')->fetchAll());
+      $feats = array_map(fn($k) => ['key' => $k, 'label' => admin_feature_labels()[$k] ?? $k], admin_grantable_features());
+      jout(['owners' => owner_emails($config), 'moderators' => $mods, 'features' => $feats]);
     }
     if ($path === 'admin/moderators' && $method === 'POST') {
       $b = body();
       $email = strtolower(trim($b['email'] ?? ''));
       if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
       if (in_array($email, owner_emails($config), true)) jerr('Cet email est déjà propriétaire du site.');
-      $ex = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?'); $ex->execute([$email]);
-      $already = (bool) $ex->fetch();
-      if (!$already) {
-        $pdo->prepare('INSERT INTO admins (email, created_at) VALUES (?,?)')->execute([$email, now_iso()]);
+      // Permissions : on ne retient que les fonctionnalités réellement délégables.
+      $grant = admin_grantable_features();
+      $perms = array_values(array_intersect($grant, array_map('strval', (array) ($b['permissions'] ?? []))));
+      $ex = $pdo->prepare('SELECT access_code_hash FROM admins WHERE email = ?'); $ex->execute([$email]);
+      $exRow = $ex->fetch(); $already = (bool) $exRow;
+      $codeHash = $already ? (string) ($exRow['access_code_hash'] ?? '') : '';
+      // Code d'accès : fourni par l'admin, ou généré (à la création / si absent).
+      $rawCode = strtoupper(trim((string) ($b['code'] ?? ''))); $shownCode = null;
+      if ($rawCode !== '') {
+        if (strlen($rawCode) < 6) jerr('Le code d’accès doit faire au moins 6 caractères.');
+        $shownCode = $rawCode;
+      } elseif (!$already || $codeHash === '') {
+        $A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; $shownCode = '';
+        for ($i = 0; $i < 8; $i++) { try { $r = random_int(0, 31); } catch (Throwable $e) { $r = mt_rand(0, 31); } $shownCode .= $A[$r]; }
       }
-      // Envoie (ou renvoie) la notification à chaque ajout. Best-effort.
-      $emailed = send_moderator_email($config, $email);
-      jout(['ok' => true, 'emailed' => $emailed, 'already' => $already]);
+      if ($shownCode !== null) $codeHash = password_hash($shownCode, PASSWORD_BCRYPT);
+      if ($already) {
+        $pdo->prepare('UPDATE admins SET permissions = ?, access_code_hash = ? WHERE email = ?')
+            ->execute([json_encode($perms), $codeHash, $email]);
+      } else {
+        $pdo->prepare('INSERT INTO admins (email, created_at, permissions, access_code_hash) VALUES (?,?,?,?)')
+            ->execute([$email, now_iso(), json_encode($perms), $codeHash]);
+      }
+      $emailed = send_moderator_email($config, $email); // notification (sans le code)
+      log_security_event($pdo, $already ? 'moderator_updated' : 'moderator_added', $email);
+      // Le code EN CLAIR n'est renvoyé qu'une fois (si (re)défini) pour que l'admin
+      // le transmette au modérateur. Sinon `code` = null (permissions mises à jour).
+      jout(['ok' => true, 'already' => $already, 'emailed' => $emailed, 'permissions' => $perms, 'code' => $shownCode]);
     }
     if ($path === 'admin/moderators' && $method === 'DELETE') {
       $b = body();

@@ -569,12 +569,24 @@ export async function phpAdminCheck(): Promise<boolean> {
     return false
   }
 }
+export interface AdminRole { admin: boolean; owner: boolean; permissions: string[] }
+export async function phpAdminRole(): Promise<AdminRole> {
+  try {
+    const d = await req<{ admin?: boolean; owner?: boolean; permissions?: string[] }>('/admin/check')
+    return { admin: !!d?.admin, owner: !!d?.owner, permissions: d?.permissions ?? [] }
+  } catch {
+    return { admin: false, owner: false, permissions: [] }
+  }
+}
 export async function phpAdminModerators<T>(): Promise<T> {
   return req<T>('/admin/moderators')
 }
-export async function phpAddModerator(email: string): Promise<{ emailed: boolean; already: boolean }> {
-  const d = await req<{ emailed?: boolean; already?: boolean }>('/admin/moderators', { method: 'POST', body: { email } })
-  return { emailed: !!d?.emailed, already: !!d?.already }
+export interface ModeratorSaveResult { emailed: boolean; already: boolean; code: string | null; permissions: string[] }
+export async function phpSaveModerator(email: string, permissions: string[], code?: string): Promise<ModeratorSaveResult> {
+  const d = await req<{ emailed?: boolean; already?: boolean; code?: string | null; permissions?: string[] }>('/admin/moderators', {
+    method: 'POST', body: { email, permissions, code: code ?? '' },
+  })
+  return { emailed: !!d?.emailed, already: !!d?.already, code: d?.code ?? null, permissions: d?.permissions ?? [] }
 }
 export async function phpRemoveModerator(email: string): Promise<void> {
   await req('/admin/moderators', { method: 'DELETE', body: { email } })

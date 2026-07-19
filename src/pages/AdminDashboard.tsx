@@ -11,7 +11,7 @@ import { emojiFor } from '../lib/placeholder'
 import { locationLabel } from '../data/locations'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
-  fetchModerators, addModerator, removeModerator, sendTestEmail, getSmtp, saveSmtp,
+  fetchModerators, saveModerator, removeModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
@@ -22,7 +22,7 @@ import {
   type VisitStats, type VisitRange, type ResponseTime, type BackupFile,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil } from 'lucide-react'
 
 type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
@@ -38,12 +38,15 @@ export function AdminDashboard() {
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('overview')
   const [stats, setStats] = useState<AdminStats | null>(null)
+  const [role, setRole] = useState<{ owner: boolean; permissions: string[] }>({ owner: false, permissions: [] })
   const [reload, setReload] = useState(0)
 
   useEffect(() => {
     if (!user) { setGate('denied'); return }
     let alive = true
     setGate('loading')
+    // Le rôle (propriétaire / permissions) est lisible même verrouillé (/admin/check).
+    adminRole().then((r) => { if (alive) setRole({ owner: r.owner, permissions: r.permissions }) }).catch(() => {})
     fetchAdminStats()
       .then((s) => { if (alive) { setStats(s); setGate('ok') } })
       .catch((e) => {
@@ -55,6 +58,10 @@ export function AdminDashboard() {
       })
     return () => { alive = false }
   }, [user, reload])
+
+  // Onglets visibles selon le rôle : le propriétaire voit tout ; un modérateur voit
+  // « Aperçu » + uniquement les fonctionnalités que l'admin lui a cochées.
+  const canSee = (id: Tab) => role.owner || id === 'overview' || role.permissions.includes(id)
 
   if (gate === 'loading')
     return <Shell><Center><Loader2 className="animate-spin" size={22} /> Chargement…</Center></Shell>
@@ -76,7 +83,7 @@ export function AdminDashboard() {
     return <Shell><Center><p className="text-sm text-red-600">⚠️ {error}</p></Center></Shell>
 
   if (gate === 'locked')
-    return <Shell><AdminUnlockGate onUnlocked={() => setReload((n) => n + 1)} /></Shell>
+    return <Shell><AdminUnlockGate owner={role.owner} onUnlocked={() => setReload((n) => n + 1)} /></Shell>
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
@@ -93,7 +100,7 @@ export function AdminDashboard() {
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => canSee(id)).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -126,7 +133,7 @@ export function AdminDashboard() {
 }
 
 // ---------- Serrure du tableau de bord (code d'accès administrateur) ----------
-function AdminUnlockGate({ onUnlocked }: { onUnlocked: () => void }) {
+function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: () => void }) {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -155,7 +162,9 @@ function AdminUnlockGate({ onUnlocked }: { onUnlocked: () => void }) {
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-primary-600"><Lock size={26} /></span>
         <h1 className="mt-4 font-display text-lg font-bold text-gray-900">Tableau de bord verrouillé</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Entrez le <b>code d’accès administrateur</b>. Il est fourni par l’admin principal du site.
+          {owner
+            ? 'Entrez votre code d’accès administrateur.'
+            : 'Entrez le code d’accès fourni par l’administrateur principal.'}
         </p>
       </div>
       <form onSubmit={submit} className="mt-5 space-y-3">
@@ -173,13 +182,21 @@ function AdminUnlockGate({ onUnlocked }: { onUnlocked: () => void }) {
           {busy ? <Loader2 size={20} className="animate-spin" /> : 'Déverrouiller'}
         </button>
       </form>
-      <button onClick={sendEmail} disabled={busy} className="mt-3 text-center text-sm font-semibold text-primary-600">
-        Recevoir le code par email (admin principal)
-      </button>
-      <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
-        L’admin principal peut aussi le retrouver sur le serveur :<br />
-        <code className="rounded bg-gray-100 px-1">cat api/data/.secret_admincode</code>
-      </p>
+      {owner ? (
+        <>
+          <button onClick={sendEmail} disabled={busy} className="mt-3 text-center text-sm font-semibold text-primary-600">
+            Recevoir le code par email
+          </button>
+          <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
+            Tu peux aussi le retrouver sur le serveur :<br />
+            <code className="rounded bg-gray-100 px-1">cat api/data/.secret_admincode</code>
+          </p>
+        </>
+      ) : (
+        <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
+          Vous n’avez pas le code ? Demandez-le à l’administrateur principal du site.
+        </p>
+      )}
     </div>
   )
 }
@@ -887,44 +904,40 @@ function ModeratorsTab() {
   const [data, setData] = useState<Moderators | null>(null)
   const [err, setErr] = useState('')
   const [email, setEmail] = useState('')
+  const [perms, setPerms] = useState<string[]>([])
+  const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [issued, setIssued] = useState<{ email: string; code: string } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const load = () => { setData(null); setErr(''); fetchModerators().then(setData).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
-  const add = async (e: React.FormEvent) => {
+  const labelOf = (key: string) => data?.features.find((f) => f.key === key)?.label ?? key
+  const toggle = (key: string) => setPerms((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]))
+  const resetForm = () => { setEmail(''); setPerms([]); setCode('') }
+  const edit = (m: { email: string; permissions: string[] }) => { setEmail(m.email); setPerms(m.permissions); setCode(''); setMsg(''); setIssued(null) }
+
+  const save = async (e: React.FormEvent) => {
     e.preventDefault()
     const value = email.trim().toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) { setMsg('Adresse email invalide.'); return }
-    setBusy(true); setMsg('')
+    setBusy(true); setMsg(''); setIssued(null)
     try {
-      const { emailed, already } = await addModerator(value)
-      setEmail('')
-      const fresh = await fetchModerators()
-      setData(fresh)
-      const base = already ? 'Cet email était déjà modérateur' : '✓ Modérateur ajouté'
-      setMsg(emailed
-        ? `${base} — email de notification envoyé.`
-        : `${base}. Envoi de l’email impossible : activez le SMTP dans api/config.php (mot de passe de no-reply@chap.ci).`)
+      const r = await saveModerator(value, perms, code.trim() || undefined)
+      setData(await fetchModerators())
+      if (r.code) setIssued({ email: value, code: r.code })
+      setMsg(r.already ? '✓ Modérateur mis à jour.' : '✓ Modérateur créé.')
+      resetForm()
     } catch (e) { setMsg((e as Error).message) }
     finally { setBusy(false) }
   }
 
   const remove = async (m: string) => {
     if (!confirm(`Retirer les droits de modérateur à ${m} ?`)) return
-    try { await removeModerator(m); setData((p) => p ? { ...p, moderators: p.moderators.filter((x) => x.email !== m) } : p) }
+    try { await removeModerator(m); load() }
     catch (e) { alert((e as Error).message) }
-  }
-
-  const resend = async (m: string) => {
-    setMsg('')
-    try {
-      const { emailed } = await addModerator(m)
-      setMsg(emailed
-        ? `✓ Email renvoyé à ${m}.`
-        : `Envoi impossible à ${m} : activez le SMTP dans api/config.php.`)
-    } catch (e) { setMsg((e as Error).message) }
   }
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
@@ -932,14 +945,35 @@ function ModeratorsTab() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
-        <p className="flex items-center gap-1.5 font-semibold"><ShieldCheck size={16} /> Rôles</p>
+        <p className="flex items-center gap-1.5 font-semibold"><ShieldCheck size={16} /> Rôles &amp; permissions</p>
         <p className="mt-1 text-primary-700">
-          Un modérateur a <b>exactement les mêmes accès</b> que toi au tableau de bord.
-          Le <b>propriétaire</b> ne peut pas être retiré.
+          Tu crées chaque modérateur avec son <b>email</b>, les <b>fonctionnalités</b> que tu lui
+          autorises, et un <b>code d’accès</b> personnel. Il n’aura accès qu’à ce que tu coches.
+          Le <b>propriétaire</b> ne peut pas être retiré et garde tout.
         </p>
       </div>
 
-      <form onSubmit={add} className="flex flex-col gap-2 sm:flex-row">
+      {/* Code d'accès généré, affiché une seule fois */}
+      {issued && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-bold text-amber-800">Code d’accès de {issued.email}</p>
+          <p className="mt-0.5 text-xs text-amber-700">Transmets-le au modérateur. <b>Il ne sera plus affiché.</b></p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="flex-1 rounded-lg bg-white px-3 py-2 text-center font-mono text-lg tracking-[0.3em] text-gray-800">{issued.code}</code>
+            <button
+              onClick={() => { navigator.clipboard?.writeText(issued.code); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+              className="shrink-0 rounded-lg border border-amber-200 bg-white p-2 text-gray-600"
+              aria-label="Copier le code"
+            >
+              {copied ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Copy size={18} />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Créer / mettre à jour un modérateur */}
+      <form onSubmit={save} className="space-y-3 rounded-2xl bg-white p-4 shadow-card">
+        <p className="font-display text-sm font-bold text-gray-800">Créer / modifier un modérateur</p>
         <input
           type="email"
           value={email}
@@ -949,11 +983,36 @@ function ModeratorsTab() {
           className="input"
           aria-label="Email du modérateur"
         />
-        <button type="submit" disabled={busy} className="btn-primary py-3 disabled:opacity-50">
-          {busy ? <Loader2 size={18} className="animate-spin" /> : <><UserPlus size={18} /> Ajouter</>}
-        </button>
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Fonctionnalités autorisées</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {data.features.map((f) => (
+              <label key={f.key} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${perms.includes(f.key) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'}`}>
+                <input type="checkbox" checked={perms.includes(f.key)} onChange={() => toggle(f.key)} className="accent-primary-500" />
+                {f.label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+            placeholder="Code d’accès (laisser vide = généré)"
+            maxLength={16}
+            className="input font-mono tracking-widest"
+            aria-label="Code d’accès du modérateur"
+          />
+          <p className="mt-1 text-[11px] text-gray-400">Laisse vide pour un code généré automatiquement, ou choisis-en un (min. 6 caractères).</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="submit" disabled={busy} className="btn-primary flex-1 py-3 disabled:opacity-50">
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <><UserPlus size={18} /> Enregistrer</>}
+          </button>
+          {email && <button type="button" onClick={resetForm} className="btn-outline px-4 py-3 text-sm">Annuler</button>}
+        </div>
+        {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
       </form>
-      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
 
       <div>
         <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Propriétaire</p>
@@ -962,7 +1021,7 @@ function ModeratorsTab() {
             <div key={o} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600"><Crown size={18} /></span>
               <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{o}</span>
-              <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800">Propriétaire</span>
+              <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800">Tous droits</span>
             </div>
           ))}
         </div>
@@ -973,22 +1032,35 @@ function ModeratorsTab() {
           Modérateurs ({data.moderators.length})
         </p>
         {data.moderators.length === 0 ? (
-          <Empty>Aucun modérateur. Ajoutez-en un ci-dessus.</Empty>
+          <Empty>Aucun modérateur. Créez-en un ci-dessus.</Empty>
         ) : (
           <div className="space-y-2">
             {data.moderators.map((m) => (
-              <div key={m.email} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600"><ShieldCheck size={18} /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-gray-800">{m.email}</span>
-                  <span className="text-xs text-gray-400">ajouté {timeAgo(m.createdAt)}</span>
-                </span>
-                <button onClick={() => resend(m.email)} aria-label="Renvoyer l’email" title="Renvoyer l’email" className="shrink-0 rounded-xl p-2 text-primary-500 transition hover:bg-primary-50">
-                  <Send size={17} />
-                </button>
-                <button onClick={() => remove(m.email)} aria-label="Retirer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
-                  <Trash2 size={18} />
-                </button>
+              <div key={m.email} className="rounded-2xl bg-white p-3 shadow-card">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600"><ShieldCheck size={18} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-gray-800">{m.email}</span>
+                    <span className="text-xs text-gray-400">
+                      ajouté {timeAgo(m.createdAt)}{m.hasCode ? '' : ' · sans code'}
+                    </span>
+                  </span>
+                  <button onClick={() => edit(m)} aria-label="Modifier" title="Modifier" className="shrink-0 rounded-xl p-2 text-primary-500 transition hover:bg-primary-50">
+                    <Pencil size={17} />
+                  </button>
+                  <button onClick={() => remove(m.email)} aria-label="Retirer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+                {m.permissions.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1 pl-[52px]">
+                    {m.permissions.map((p) => (
+                      <span key={p} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{labelOf(p)}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 pl-[52px] text-[11px] text-gray-400">Aucune fonctionnalité cochée (accès « Aperçu » seulement).</p>
+                )}
               </div>
             ))}
           </div>

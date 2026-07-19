@@ -182,20 +182,28 @@ export async function fetchResponseTime(): Promise<ResponseTime> {
 
 export interface Moderators {
   owners: string[]
-  moderators: { email: string; createdAt: number }[]
+  moderators: { email: string; createdAt: number; permissions: string[]; hasCode: boolean }[]
+  features: { key: string; label: string }[]
 }
+export type ModeratorSaveResult = php.ModeratorSaveResult
 export async function fetchModerators(): Promise<Moderators> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminModerators<Moderators>()
 }
-/** Ajoute (ou re-notifie) un modérateur. `emailed` = email envoyé, `already` = était déjà modérateur. */
-export async function addModerator(email: string): Promise<{ emailed: boolean; already: boolean }> {
+/** Crée ou met à jour un modérateur : email + fonctionnalités cochées + code d'accès
+ *  (généré si vide). `code` (en clair) n'est renvoyé qu'une fois, à transmettre au modérateur. */
+export async function saveModerator(email: string, permissions: string[], code?: string): Promise<ModeratorSaveResult> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
-  return php.phpAddModerator(email)
+  return php.phpSaveModerator(email, permissions, code)
 }
 export async function removeModerator(email: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpRemoveModerator(email)
+}
+/** Rôle de l'utilisateur connecté : propriétaire ou modérateur, avec ses permissions. */
+export async function adminRole(): Promise<php.AdminRole> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminRole()
 }
 /** Envoie un email de test à l'administrateur connecté (diagnostic). */
 export async function sendTestEmail(): Promise<{ sent: boolean; to: string; via: string }> {

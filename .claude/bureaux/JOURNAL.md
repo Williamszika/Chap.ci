@@ -137,3 +137,26 @@ Format d'une entrée :
   `.secret_admincode` (se régénère) ou définir `CHAPCI_ADMIN_CODE`.
 - **Pour les autres bureaux** : 🛡️ Le Gardien — surveille `admin_unlock_fail` (tentatives de
   déverrouillage ratées = signal fort d'un compte admin compromis).
+
+---
+
+### 2026-07-19 — [Développement] Rôles & permissions des modérateurs
+- **Fait** : refonte du modèle de rôles à la demande du Patron.
+  1. **Réinitialisation unique au déploiement** : la table `admins` est vidée une seule fois
+     (marqueur `.reset_admins_v2`) → **seul le propriétaire** (`bracknetswilliam@gmail.com`,
+     via config) reste admin ; tous les autres perdent admin/modérateur.
+  2. **Modérateur créé PAR l'admin** : email + **fonctionnalités cochées** (permissions fines)
+     + **code d'accès personnel** (fourni ou généré, renvoyé une fois, haché bcrypt).
+  3. **Permissions applicables en 3 couches** sur `/admin/*` : compte admin → **déverrouillage**
+     (code perso du modérateur, distinct du code serveur du proprio) → **contrôle par
+     fonctionnalité**. Fonctions **réservées au propriétaire** (jamais délégables) :
+     `moderators`, `emails` (SMTP), `backup`/`reset`, `automation` (clé cron). `/newsletter`
+     (hors `/admin/*`) couvert aussi.
+  - Front : onglets filtrés selon les permissions (un modérateur ne voit que ce qui est coché) ;
+    UI de gestion (cases à cocher + code affiché une fois) ; écran de déverrouillage adapté
+    (le modérateur n'a ni bouton email ni astuce serveur). **Testé** de bout en bout
+    (smoke test : purge, filtrage des permissions, code par modérateur, matrice d'accès — tout vert).
+- **Problèmes ouverts** : aucun. À déployer avec le zip (contient déjà 2FA + serrure + rôles).
+- **Pour les autres bureaux** : 🛡️ Le Gardien — nouveaux événements audit `moderator_added/updated`,
+  et rappel : un modérateur compromis ne peut PAS s'auto-promouvoir (section `moderators`
+  réservée au propriétaire) ni toucher aux sauvegardes / à la clé cron.
