@@ -1,6 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck, MapPin, MessageSquare, Tag, Sparkles, HeartHandshake } from 'lucide-react'
-import { Mark, Wordmark } from '../components/Logo'
+import { Wordmark } from '../components/Logo'
+
+// Bloc « valeurs » du mockup : 4 cartes emoji, punchy, juste sous le héro.
+const values = [
+  { e: '⚡', t: 'Chap-chap', d: 'Publier et vendre en quelques minutes, sans friction.' },
+  { e: '🛡️', t: 'En confiance', d: 'Contacts masqués, avis vérifiés, comptes sécurisés.' },
+  { e: '🇨🇮', t: '100 % ivoirien', d: 'Pensé pour la Côte d’Ivoire, ses villes et ses paiements.' },
+  { e: '📱', t: 'Mobile Money', d: 'Orange, MTN, Wave, Moov — comme dans la vraie vie.' },
+]
 
 const points = [
   { icon: <MapPin size={20} />, title: '100 % ivoirien 🇨🇮', text: 'Pensé pour la Côte d’Ivoire : recherche par district, région, ville et commune, d’Abidjan à San-Pédro.' },
@@ -20,59 +28,72 @@ const steps = [
 export function About() {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:overflow-hidden md:rounded-3xl md:shadow-card lg:max-w-5xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
-          <ArrowLeft size={22} />
+    <div className="pb-6">
+      {/* Héro — dégradé crème chaud, titre display centré (mockup) */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary-100 to-cream-200 px-6 pb-12 pt-14 text-center md:-mx-6 md:pb-16 md:pt-20">
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="Retour"
+          className="absolute left-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-[#EFE6D7] bg-white/80 text-ink shadow-card backdrop-blur transition active:scale-95 md:hidden"
+        >
+          <ArrowLeft size={20} />
         </button>
-        <h1 className="font-display text-lg font-bold">À propos de Chap.ci</h1>
-      </header>
-
-      {/* Héro */}
-      <div className="bg-gradient-to-b from-primary-500 to-primary-600 px-6 py-10 text-center text-white">
-        <Mark size={56} variant="white" />
-        <Wordmark className="mt-3 block text-3xl" ci="text-white/80" />
-        <p className="mt-3 text-lg font-semibold">Le site de petites annonces 100 % ivoirien</p>
-        <p className="mx-auto mt-1 max-w-md text-white/85">
-          Achetez et vendez <b>chap-chap</b> partout en Côte d’Ivoire, en toute simplicité et en toute confiance.
+        <h1 className="mx-auto max-w-2xl font-display text-[34px] font-extrabold leading-[1.08] tracking-tight text-ink sm:text-5xl md:text-6xl">
+          <Wordmark />, c’est nous 🧡
+        </h1>
+        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-gray-600 sm:text-lg">
+          La marketplace 100 % ivoirienne qui connecte acheteurs et vendeurs, de Cocody à Korhogo. Vendre chap-chap, en confiance.
         </p>
-      </div>
+      </section>
 
-      <div className="px-5 py-7 md:px-8 lg:px-10">
-        {/* Notre mission */}
-        <section>
-          <h2 className="text-base font-bold text-gray-900">Notre mission</h2>
-          <p className="mt-2 max-w-3xl text-[15px] leading-relaxed text-gray-600">
-            Chap.ci connecte les Ivoiriens pour acheter et vendre plus facilement, où qu’ils soient.
-            Notre objectif : une plateforme <b>simple</b>, <b>sûre</b> et <b>rapide</b> — pensée pour nos réalités,
-            nos villes, nos communes et nos moyens de paiement (Orange, MTN, Wave).
-          </p>
-        </section>
-
-        {/* Points forts */}
-        <section className="mt-7">
-          <h2 className="text-base font-bold text-gray-900">Pourquoi Chap.ci ?</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {points.map((p) => (
-              <div key={p.title} className="rounded-2xl border border-[#EFE6D7] p-4 shadow-card">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary-100 text-primary-600">{p.icon}</span>
-                <p className="mt-2 font-bold text-gray-800">{p.title}</p>
-                <p className="mt-0.5 text-sm text-gray-500">{p.text}</p>
+      <div className="px-4 sm:px-6">
+        {/* Valeurs (mockup) — 2 colonnes sur mobile, 4 sur grand écran */}
+        <section className="mt-1">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            {values.map((v) => (
+              <div key={v.t} className="card flex flex-col p-5">
+                <div className="text-[26px] leading-none" aria-hidden>{v.e}</div>
+                <p className="mt-4 font-display text-lg font-bold text-ink">{v.t}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-gray-500">{v.d}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Comment ça marche */}
-        <section className="mt-7">
-          <h2 className="text-base font-bold text-gray-900">Comment ça marche ?</h2>
-          <div className="mt-3 grid gap-3 md:grid-cols-3 md:gap-5">
+        {/* Notre mission */}
+        <section className="mx-auto mt-12 max-w-3xl text-center">
+          <h2 className="font-display text-xl font-bold text-ink">Notre mission</h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-gray-600">
+            Chap.ci connecte les Ivoiriens pour acheter et vendre plus facilement, où qu’ils soient.
+            Notre objectif : une plateforme <b className="font-semibold text-ink">simple</b>, <b className="font-semibold text-ink">sûre</b> et <b className="font-semibold text-ink">rapide</b> — pensée pour nos réalités,
+            nos villes, nos communes et nos moyens de paiement (Orange, MTN, Wave).
+          </p>
+        </section>
+
+        {/* Pourquoi Chap.ci ? */}
+        <section className="mx-auto mt-12 max-w-5xl">
+          <h2 className="text-center font-display text-xl font-bold text-ink">Pourquoi Chap.ci ?</h2>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {points.map((p) => (
+              <div key={p.title} className="card p-5">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary-100 text-primary-600">{p.icon}</span>
+                <p className="mt-3 font-display font-bold text-ink">{p.title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-gray-500">{p.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Comment ça marche ? */}
+        <section className="mx-auto mt-12 max-w-4xl">
+          <h2 className="text-center font-display text-xl font-bold text-ink">Comment ça marche ?</h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-3 md:gap-5">
             {steps.map((s) => (
-              <div key={s.n} className="flex items-start gap-3 md:rounded-2xl md:border md:border-[#EFE6D7] md:p-4 md:shadow-card">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-500 text-sm font-bold text-white">{s.n}</span>
+              <div key={s.n} className="card flex items-start gap-3 p-4">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-b from-primary-500 to-primary-700 text-sm font-bold text-white shadow-[0_4px_10px_-4px_rgba(247,127,0,0.6)]">{s.n}</span>
                 <div>
-                  <p className="font-semibold text-gray-800">{s.t}</p>
-                  <p className="text-sm text-gray-500">{s.d}</p>
+                  <p className="font-display font-semibold text-ink">{s.t}</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-gray-500">{s.d}</p>
                 </div>
               </div>
             ))}
@@ -80,11 +101,11 @@ export function About() {
         </section>
 
         {/* CTA */}
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row md:mx-auto md:max-w-xl">
-          <Link to="/publier" className="btn-primary flex-1 py-3">Publier une annonce</Link>
-          <Link to="/explorer" className="btn-outline flex-1 py-3">Explorer les annonces</Link>
+        <div className="mx-auto mt-12 flex max-w-xl flex-col gap-3 sm:flex-row">
+          <Link to="/publier" className="btn-primary flex-1">Publier une annonce</Link>
+          <Link to="/explorer" className="btn-outline flex-1">Explorer les annonces</Link>
         </div>
-        <p className="mt-6 text-center text-sm text-gray-400">
+        <p className="mt-6 text-center text-sm text-gray-500">
           Une question ? <Link to="/contact" className="font-semibold text-primary-600">Contactez-nous</Link>
         </p>
       </div>
