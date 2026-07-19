@@ -16,6 +16,7 @@ import {
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
   listBackups, downloadBackup, resetData,
+  adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
   type VisitStats, type VisitRange, type ResponseTime, type BackupFile,
@@ -33,23 +34,27 @@ const statusLabel = (s: string) => STATUS_LABEL[s] || s
 export function AdminDashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [gate, setGate] = useState<'loading' | 'ok' | 'denied' | 'error'>('loading')
+  const [gate, setGate] = useState<'loading' | 'ok' | 'denied' | 'error' | 'locked'>('loading')
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('overview')
   const [stats, setStats] = useState<AdminStats | null>(null)
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     if (!user) { setGate('denied'); return }
     let alive = true
+    setGate('loading')
     fetchAdminStats()
       .then((s) => { if (alive) { setStats(s); setGate('ok') } })
       .catch((e) => {
         if (!alive) return
+        // 423 = compte admin OK mais tableau de bord verrouillé (code d'accès requis).
+        if ((e as { status?: number }).status === 423) { setGate('locked'); return }
         if (/réservé|403|forbidden/i.test((e as Error).message)) setGate('denied')
         else { setError((e as Error).message); setGate('error') }
       })
     return () => { alive = false }
-  }, [user])
+  }, [user, reload])
 
   if (gate === 'loading')
     return <Shell><Center><Loader2 className="animate-spin" size={22} /> Chargement…</Center></Shell>
@@ -70,12 +75,22 @@ export function AdminDashboard() {
   if (gate === 'error')
     return <Shell><Center><p className="text-sm text-red-600">⚠️ {error}</p></Center></Shell>
 
+  if (gate === 'locked')
+    return <Shell><AdminUnlockGate onUnlocked={() => setReload((n) => n + 1)} /></Shell>
+
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
       <header className="safe-top sticky top-0 z-30 border-b border-gray-100 bg-white">
         <div className="flex items-center gap-3 px-3 py-3">
           <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
           <h1 className="font-display text-lg font-bold">Administration</h1>
+          <button
+            onClick={() => { adminLock(); setReload((n) => n + 1) }}
+            className="ml-auto flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600 active:scale-95"
+            title="Verrouiller le tableau de bord"
+          >
+            <Lock size={14} /> Verrouiller
+          </button>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2">
           {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports', stats?.reportsOpen ? `Signalements (${stats.reportsOpen})` : 'Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).map(([id,label]) => (
@@ -106,6 +121,65 @@ export function AdminDashboard() {
         {tab === 'backup' && <BackupTab />}
         {tab === 'automation' && <AutomationTab />}
       </div>
+    </div>
+  )
+}
+
+// ---------- Serrure du tableau de bord (code d'accès administrateur) ----------
+function AdminUnlockGate({ onUnlocked }: { onUnlocked: () => void }) {
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [info, setInfo] = useState('')
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setErr(''); setInfo('')
+    if (!code.trim()) return setErr('Entrez le code d’accès.')
+    setBusy(true)
+    try { await adminUnlock(code.trim().toUpperCase()); onUnlocked() }
+    catch (e) { setErr((e as Error).message) }
+    finally { setBusy(false) }
+  }
+  async function sendEmail() {
+    setErr(''); setInfo(''); setBusy(true)
+    try {
+      const r = await adminUnlockEmail()
+      setInfo(r.sent > 0 ? 'Code envoyé à l’email de l’admin principal.' : 'Envoi impossible (email non configuré ?).')
+    } catch (e) { setErr((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-6">
+      <div className="flex flex-col items-center text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-primary-600"><Lock size={26} /></span>
+        <h1 className="mt-4 font-display text-lg font-bold text-gray-900">Tableau de bord verrouillé</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Entrez le <b>code d’accès administrateur</b>. Il est fourni par l’admin principal du site.
+        </p>
+      </div>
+      <form onSubmit={submit} className="mt-5 space-y-3">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+          placeholder="Code d’accès"
+          maxLength={16}
+          autoFocus
+          className="input text-center font-mono text-lg tracking-[0.3em]"
+        />
+        {err && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{err}</p>}
+        {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
+        <button type="submit" disabled={busy} className="btn-primary w-full py-3.5 text-base">
+          {busy ? <Loader2 size={20} className="animate-spin" /> : 'Déverrouiller'}
+        </button>
+      </form>
+      <button onClick={sendEmail} disabled={busy} className="mt-3 text-center text-sm font-semibold text-primary-600">
+        Recevoir le code par email (admin principal)
+      </button>
+      <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
+        L’admin principal peut aussi le retrouver sur le serveur :<br />
+        <code className="rounded bg-gray-100 px-1">cat api/data/.secret_admincode</code>
+      </p>
     </div>
   )
 }

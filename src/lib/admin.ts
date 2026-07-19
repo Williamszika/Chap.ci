@@ -223,6 +223,18 @@ export async function suggestionsTest() {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpSuggestionsTest()
 }
+// Serrure du tableau de bord (code d'accès administrateur).
+export async function adminUnlock(code: string) {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminUnlock(code)
+}
+export async function adminUnlockEmail() {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminUnlockEmail()
+}
+export function adminLock() {
+  php.phpAdminLock()
+}
 
 export type SmtpSettings = php.SmtpSettings
 export async function getSmtp(): Promise<SmtpSettings> {

@@ -121,6 +121,27 @@ function chapci_hardened_secret(array $config, string $label, string $configured
   // valeur publique du code.
   return $val !== '' ? $val : hash('sha256', __DIR__ . '|' . $label);
 }
+// Code d'accès au TABLEAU DE BORD administrateur (serrure en plus du compte admin).
+// Vit côté serveur uniquement : l'admin principal le récupère par `cat` du fichier
+// api/data/.secret_admincode (Terminal / Gestionnaire de fichiers cPanel) OU en se
+// l'envoyant par email (/admin/unlock/email). Personne ne peut ouvrir le tableau de
+// bord sans ce code — même un compte administrateur compromis. Auto-généré, stable,
+// 8 caractères non ambigus (ni O/0 ni I/1). Surchargeable via CHAPCI_ADMIN_CODE.
+function chapci_admin_code(array $config): string {
+  $configured = strtoupper(trim((string) (getenv('CHAPCI_ADMIN_CODE') ?: ($config['admin_code'] ?? ''))));
+  if ($configured !== '' && strlen($configured) >= 6) return $configured;
+  $file = chapci_secret_dir($config) . '/.secret_admincode';
+  $val = @is_readable($file) ? strtoupper(trim((string) @file_get_contents($file))) : '';
+  if (strlen($val) < 6) {
+    $A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; $val = ''; // 32 caractères non ambigus
+    for ($i = 0; $i < 8; $i++) {
+      try { $r = random_int(0, 31); } catch (Throwable $e) { $r = mt_rand(0, 31); }
+      $val .= $A[$r];
+    }
+    if (@file_put_contents($file, $val) !== false) @chmod($file, 0600);
+  }
+  return $val;
+}
 $config['jwt_secret'] = chapci_hardened_secret($config, 'jwt',
   (string) (getenv('CHAPCI_JWT_SECRET') ?: ($config['jwt_secret'] ?? '')));
 $config['cron_key'] = chapci_hardened_secret($config, 'cron',
@@ -172,7 +193,7 @@ header('Vary: Origin');
 // P3 · L'origine est fixe (pas « * ») : on peut autoriser l'envoi du cookie de
 // session sur les appels croisés légitimes (ex. future app native).
 header('Access-Control-Allow-Credentials: true');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Admin-Unlock');
 header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
@@ -524,6 +545,44 @@ function clear_session_cookie(array $config): void {
     'samesite' => 'Lax',
   ]);
   unset($_COOKIE[session_cookie_name()]);
+}
+
+// ---- Déverrouillage du tableau de bord admin (2ᵉ serrure : code d'accès) -----
+// Après un déverrouillage réussi, la session porte un jeton « au » (admin unlock)
+// de courte durée (12 h), transmis soit par l'en-tête X-Admin-Unlock (app/web),
+// soit par un cookie HttpOnly. Il est lié à l'utilisateur (sub) : le jeton d'un
+// admin ne déverrouille pas la session d'un autre.
+function admin_unlock_token(): string {
+  $hdr = $_SERVER['HTTP_X_ADMIN_UNLOCK'] ?? '';
+  if (!$hdr && function_exists('apache_request_headers')) {
+    $h = apache_request_headers();
+    $hdr = $h['X-Admin-Unlock'] ?? $h['x-admin-unlock'] ?? '';
+  }
+  if ($hdr) return trim($hdr);
+  return (string) ($_COOKIE['chapci_admin'] ?? '');
+}
+function admin_unlocked(string $secret, string $userId): bool {
+  $tok = admin_unlock_token();
+  if ($tok === '') return false;
+  $p = jwt_verify($tok, $secret);
+  return $p && !empty($p['au']) && (string) ($p['sub'] ?? '') === $userId;
+}
+function set_admin_unlock_cookie(array $config, string $token): void {
+  setcookie('chapci_admin', $token, [
+    'expires'  => time() + 60 * 60 * 12,
+    'path'     => '/',
+    'secure'   => !empty($config['cookie_secure']),
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  $_COOKIE['chapci_admin'] = $token;
+}
+function clear_admin_unlock_cookie(array $config): void {
+  setcookie('chapci_admin', '', [
+    'expires' => time() - 3600, 'path' => '/',
+    'secure' => !empty($config['cookie_secure']), 'httponly' => true, 'samesite' => 'Lax',
+  ]);
+  unset($_COOKIE['chapci_admin']);
 }
 
 // ---- Requêtes HTTP sortantes (SMS, JWKS Google) -----------------------------
@@ -2051,6 +2110,7 @@ try {
   // peut pas le faire lui-même). Toujours « ok », même sans session.
   if ($path === 'auth/logout' && $method === 'POST') {
     clear_session_cookie($config);
+    clear_admin_unlock_cookie($config); // referme aussi la serrure du tableau de bord
     jout(['ok' => true]);
   }
 
@@ -2995,6 +3055,49 @@ try {
     // (sans erreur 403) — sert à afficher/masquer le lien dans l'app.
     if ($path === 'admin/check') jout(['admin' => $userIsAdmin]);
     if (!$userIsAdmin) jerr('Accès réservé à l’administrateur.', 403);
+
+    // ---- 2ᵉ serrure : code d'accès du tableau de bord ----------------------
+    // Être admin ne suffit pas : il faut aussi DÉVERROUILLER avec le code d'accès
+    // (stocké côté serveur, remis par l'admin principal). Les routes ci-dessous
+    // sont exemptées (sinon on ne pourrait jamais déverrouiller).
+    if ($path === 'admin/unlock/status' && $method === 'GET') {
+      jout(['unlocked' => admin_unlocked($secret, (string) $u['id'])]);
+    }
+    if ($path === 'admin/unlock' && $method === 'POST') {
+      $b = body();
+      // Anti-force brute sur le code : 8 essais / 15 min par IP+email.
+      rate_limit($pdo, 'admin_unlock_fail', (string) ($u['email'] ?? ''), 8, 900);
+      $code = strtoupper(trim((string) ($b['code'] ?? '')));
+      if ($code === '' || !hash_equals(chapci_admin_code($config), $code)) {
+        log_security_event($pdo, 'admin_unlock_fail', $u['email'] ?? null);
+        jerr('Code d’accès incorrect.', 401);
+      }
+      log_security_event($pdo, 'admin_unlock_ok', $u['email'] ?? null);
+      $tok = jwt_sign(['sub' => $u['id'], 'au' => 1, 'exp' => time() + 60 * 60 * 12], $secret);
+      set_admin_unlock_cookie($config, $tok);
+      jout(['ok' => true, 'token' => $tok]);
+    }
+    if ($path === 'admin/unlock/email' && $method === 'POST') {
+      // Envoie le code UNIQUEMENT à l'adresse de l'admin PRINCIPAL (propriétaire),
+      // jamais à celle du demandeur : un modérateur doit le recevoir DE l'admin
+      // principal. Rate-limité (4/heure).
+      rate_limit($pdo, 'admin_code_email', (string) ($u['email'] ?? ''), 4, 3600);
+      $owners = owner_emails($config);
+      if (!$owners) jerr('Aucun admin principal (email) configuré.', 400);
+      $code = chapci_admin_code($config);
+      $html = '<p>Bonjour,</p><p>Le <b>code d’accès au tableau de bord administrateur</b> de Chap.ci est :</p>'
+            . '<p style="font-size:22px;font-weight:bold;letter-spacing:4px;font-family:monospace">' . htmlspecialchars($code) . '</p>'
+            . '<p>Saisissez-le sur l’écran « Tableau de bord verrouillé ». Ne le partagez qu’avec des '
+            . 'administrateurs de confiance. Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.</p>';
+      $sent = 0;
+      foreach ($owners as $to) { if (send_mail($config, $to, 'Chap.ci — code d’accès administrateur', $html)) $sent++; }
+      log_security_event($pdo, 'admin_code_emailed', $u['email'] ?? null);
+      jout(['ok' => true, 'sent' => $sent]);
+    }
+    // Toute autre route admin exige une session DÉVERROUILLÉE.
+    if (!admin_unlocked($secret, (string) $u['id'])) {
+      jout(['error' => 'Tableau de bord verrouillé. Entrez le code d’accès administrateur.', 'locked' => true], 423);
+    }
 
     // Sauvegarde immédiate : télécharge un export JSON complet de la base.
     if ($path === 'admin/backup' && $method === 'GET') {

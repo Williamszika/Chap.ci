@@ -12,6 +12,9 @@ const API = apiBase() // absolue dans l'app native, relative sur le web
 const TOKEN_KEY = 'chapci.php.token'
 const UID_KEY = 'chapci.php.uid'
 const USER_KEY = 'chapci.php.user'
+// Jeton de déverrouillage du tableau de bord admin — en sessionStorage (effacé à
+// la fermeture de l'onglet) : la serrure se referme à chaque nouvelle session.
+const ADMIN_UNLOCK_KEY = 'chapci.admin.unlock'
 
 export interface PhpUser {
   id: string
@@ -52,6 +55,7 @@ export function phpClearSession() {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(UID_KEY)
   localStorage.removeItem(USER_KEY)
+  sessionStorage.removeItem(ADMIN_UNLOCK_KEY) // referme la serrure du tableau de bord
 }
 
 /**
@@ -82,6 +86,13 @@ async function req<T>(
   // transmet en Bearer jusqu'à la migration vers le cookie (voir phpMe).
   const token = phpGetToken()
   if (token) headers.Authorization = `Bearer ${token}`
+  // 2ᵉ serrure admin : sur les routes /admin, on transmet le jeton de
+  // déverrouillage (obtenu après saisie du code d'accès). Limité à /admin pour ne
+  // pas déclencher de préflight CORS inutile ailleurs.
+  if (path.startsWith('/admin')) {
+    const unlock = sessionStorage.getItem(ADMIN_UNLOCK_KEY)
+    if (unlock) headers['X-Admin-Unlock'] = unlock
+  }
 
   // Délai de garde : au-delà de 15 s on abandonne, pour ne jamais laisser un
   // spinner bloqué indéfiniment sur un réseau instable (P·robustesse mobile).
@@ -580,6 +591,21 @@ export async function phpCampaignSend(subject: string, message: string, offset: 
 }
 export async function phpDigestInfo(): Promise<{ cronKey: string; site: string }> {
   return req('/admin/digest-info')
+}
+
+// ---- Serrure du tableau de bord admin (code d'accès serveur) ----------------
+export async function phpAdminUnlockStatus(): Promise<boolean> {
+  try { const d = await req<{ unlocked: boolean }>('/admin/unlock/status'); return !!d.unlocked } catch { return false }
+}
+export async function phpAdminUnlock(code: string): Promise<void> {
+  const d = await req<{ token?: string }>('/admin/unlock', { method: 'POST', body: { code } })
+  if (d.token) sessionStorage.setItem(ADMIN_UNLOCK_KEY, d.token)
+}
+export async function phpAdminUnlockEmail(): Promise<{ sent: number }> {
+  return req('/admin/unlock/email', { method: 'POST', body: {} })
+}
+export function phpAdminLock(): void {
+  sessionStorage.removeItem(ADMIN_UNLOCK_KEY)
 }
 export async function phpDigestSend(type: 'daily' | 'weekly'): Promise<{ sent: number; listings: number; subscribers?: number; reason?: string }> {
   return req('/admin/digest-send', { method: 'POST', body: { type } })

@@ -112,3 +112,28 @@ Format d'une entrée :
 - **Propositions au Patron** : activer la 2FA sur ton compte admin dès le déploiement.
 - **Pour les autres bureaux** : 🛡️ Le Gardien — nouvelle surface à surveiller : événements
   `2fa_enabled/2fa_disabled/mfa_ok/mfa_fail` dans le journal d'audit.
+
+---
+
+### 2026-07-19 — [Développement] Serrure du tableau de bord admin (code d'accès serveur)
+- **Fait** : 2ᵉ serrure spécifique au **tableau de bord**, à la demande du Patron. Être admin
+  ne suffit plus : il faut **déverrouiller** avec un **code d'accès qui vit sur le serveur**
+  (`api/data/.secret_admincode`, auto-généré, 8 car. non ambigus, surchargeable via
+  `CHAPCI_ADMIN_CODE`). L'admin principal le récupère par `cat` (Terminal / Gestionnaire de
+  fichiers cPanel) **ou** se l'envoie par email (bouton → email envoyé **à l'adresse
+  propriétaire uniquement**). Un « pirate administrateur » (compte compromis) reste **bloqué**
+  tant qu'il n'a pas le code — qu'il faut l'accès serveur ou l'admin principal pour obtenir.
+  - Backend : gate unique sur `/admin/*` (hors `check` et `unlock*`) → **423 Locked** si non
+    déverrouillé ; endpoints `/admin/unlock`, `/admin/unlock/email`, `/admin/unlock/status` ;
+    jeton de déverrouillage 12 h (en-tête `X-Admin-Unlock` + cookie), **lié à l'utilisateur** ;
+    anti-force-brute (8/15 min) ; déconnexion referme la serrure. Événements audit
+    `admin_unlock_ok/fail`, `admin_code_emailed`.
+  - Front : écran « Tableau de bord verrouillé » (code + « recevoir par email » + rappel de la
+    commande serveur), bouton **Verrouiller** dans l'en-tête, jeton en **sessionStorage**
+    (serrure re-fermée à chaque nouvel onglet). **Testé** de bout en bout (smoke test, 9/9).
+  - **Bonus** : la clé cron affichée dans « Tâches auto » est désormais **doublement protégée**
+    (login admin **+** code d'accès) — répond à l'inquiétude du Patron sur son exposition.
+- **Problèmes ouverts** : aucun. À déployer avec le prochain zip. Rotation du code = supprimer
+  `.secret_admincode` (se régénère) ou définir `CHAPCI_ADMIN_CODE`.
+- **Pour les autres bureaux** : 🛡️ Le Gardien — surveille `admin_unlock_fail` (tentatives de
+  déverrouillage ratées = signal fort d'un compte admin compromis).
