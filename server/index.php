@@ -1050,6 +1050,16 @@ function report_recipients(array $config): array {
   $r = array_filter((array) ($config['report_email'] ?? []));
   return $r ? array_values($r) : ($config['admin_emails'] ?? []);
 }
+/**
+ * Destinataires des notifications de SÉCURITÉ (code d'accès admin, alertes du
+ * scan) : le PROPRIÉTAIRE (admin_emails) ET l'adresse de rapport (report_email,
+ * ex. contact@chap.ci), dédupliqués. N.B. : cela n'accorde AUCUN droit — c'est
+ * uniquement la liste des adresses qui reçoivent les emails.
+ */
+function security_notify_recipients(array $config): array {
+  $all = array_merge(owner_emails($config), array_filter((array) ($config['report_email'] ?? [])));
+  return array_values(array_unique(array_map('strtolower', array_map('trim', $all))));
+}
 /** L'utilisateur est-il administrateur ? Propriétaire (config) OU modérateur (table admins). */
 function is_admin(array $config, PDO $pdo, array $u): bool {
   $email = strtolower($u['email'] ?? '');
@@ -3202,7 +3212,8 @@ try {
             . '<p>Saisissez-le sur l’écran « Tableau de bord verrouillé ». Ne le partagez qu’avec des '
             . 'administrateurs de confiance. Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.</p>';
       $sent = 0;
-      foreach ($owners as $to) { if (send_mail($config, $to, 'Chap.ci — code d’accès administrateur', $html)) $sent++; }
+      // Envoi au propriétaire ET à l'adresse de rapport (contact@chap.ci).
+      foreach (security_notify_recipients($config) as $to) { if (send_mail($config, $to, 'Chap.ci — code d’accès administrateur', $html)) $sent++; }
       log_security_event($pdo, 'admin_code_emailed', $u['email'] ?? null);
       jout(['ok' => true, 'sent' => $sent]);
     }
@@ -3862,7 +3873,7 @@ try {
               . '<p>Connectez-vous au tableau de bord pour investiguer (onglet Aperçu / Visiteurs). En cas de '
               . 'doute sur un compte admin, ouvrez <b>Modérateurs</b>. Si un intrus y figure, supprimez-le ; '
               . 'en cas de doute sérieux, changez le mot de passe de la base.</p>';
-        foreach (owner_emails($config) as $to) { send_mail($config, $to, 'Chap.ci — ⚠️ alerte sécurité', $html); }
+        foreach (security_notify_recipients($config) as $to) { send_mail($config, $to, 'Chap.ci — ⚠️ alerte sécurité', $html); }
         log_security_event($pdo, 'security_alert', null, implode(' | ', $alerts));
       }
     }
