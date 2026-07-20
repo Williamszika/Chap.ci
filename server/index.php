@@ -3671,7 +3671,10 @@ try {
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
         'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
         'series' => $series,
-        'recentListings' => $recentListings, 'recentUsers' => $recentUsers,
+        'recentListings' => $recentListings,
+        // Liste nominative (emails) : réservée aux comptes ayant la permission
+        // « Utilisateurs » — pas de fuite vers un modérateur non habilité.
+        'recentUsers' => admin_can($config, $pdo, $u, 'users') ? $recentUsers : [],
         // Carte « Sécurité » de l'aperçu : réservée au PROPRIÉTAIRE (un modérateur
         // n'a pas à voir l'état 2FA du compte principal ni le journal global).
         'security' => in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)

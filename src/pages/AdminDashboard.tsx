@@ -104,7 +104,7 @@ export function AdminDashboard() {
             className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
             title="Cliquer pour verrouiller le tableau de bord"
           >
-            🔓 Déverrouillé
+            🔓 {role.owner ? 'Déverrouillé' : 'Accès permanent'}
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
@@ -127,7 +127,9 @@ export function AdminDashboard() {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-5 md:max-w-[1280px] md:px-6">
-        {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} canSee={canSee} />}
+        {tab === 'overview' && stats && (
+          <Overview stats={stats} onGo={setTab} canSee={canSee} owner={role.owner} email={user?.email ?? ''} />
+        )}
         {tab === 'visitors' && <VisitorsTab />}
         {tab === 'listings' && <ListingsTab />}
         {tab === 'users' && <UsersTab />}
@@ -288,7 +290,24 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
 }
 
 // ---------- Aperçu ----------
-function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) => void; canSee: (t: Tab) => boolean }) {
+// Libellés FR des permissions (note de bienvenue du modérateur).
+const PERM_LABELS: Record<string, string> = {
+  visitors: 'Visiteurs', listings: 'Annonces', users: 'Utilisateurs', reports: 'Signalements',
+  contact: 'Messages de contact', orders: 'Commandes', conversations: 'Conversations',
+  reviews: 'Avis', newsletter: 'Abonnés', campaigns: 'Campagnes',
+}
+
+function Overview({ stats, onGo, canSee, owner, email }: {
+  stats: AdminStats
+  onGo: (t: Tab) => void
+  canSee: (t: Tab) => boolean
+  owner: boolean
+  email: string
+}) {
+  // « Bonjour Fatou » : prénom déduit de l'email (fatou.moderation@… → Fatou).
+  const firstName = (email.split('@')[0] || '').split(/[._-]/)[0]
+  const greet = firstName ? firstName[0].toUpperCase() + firstName.slice(1) : ''
+  const allowed = Object.keys(PERM_LABELS).filter((k) => canSee(k as Tab)).map((k) => PERM_LABELS[k])
   // 4 grandes cartes de l'artifact : emoji sur tuile teintée, gros chiffre,
   // libellé + tendance 7 jours (▲ vert) — Signalements en alerte rouge.
   const cards: { e: string; tint: string; label: string; value: number; tab: Tab; trend?: string | null; alert?: boolean }[] = [
@@ -317,10 +336,22 @@ function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) =
         ? ['RESTREINT', 'bg-amber-50 text-amber-700']
         : ['ACTIF', 'bg-emerald-50 text-emerald-700']
 
+  // Largeur des cartes adaptée au nombre visible (modérateur : pleine largeur).
+  const colsCls = visible.length >= 4 ? 'lg:grid-cols-4' : visible.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
+
   return (
     <div className="space-y-3">
+      {/* Vue modérateur : note de bienvenue personnalisée (artifact) */}
+      {!owner && (
+        <div className="rounded-r-xl border-l-[3px] border-primary-500 bg-[#FFF6EC] px-3.5 py-3 text-[13px] leading-relaxed text-gray-700">
+          👋 Bonjour{greet ? ` ${greet}` : ''}. Vous voyez <b>uniquement</b> les fonctions autorisées
+          par l’administrateur{allowed.length > 0 ? <> : {allowed.map((l, i) => <span key={l}>{i > 0 && ', '}<b>{l}</b></span>)}</> : null}.
+          Le reste (utilisateurs, sauvegarde, clé cron…) reste réservé au propriétaire.
+        </div>
+      )}
+
       {/* Cartes principales */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={`grid grid-cols-2 gap-3 ${colsCls}`}>
         {visible.map((c) => (
           <button
             key={c.label}
@@ -342,7 +373,8 @@ function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) =
         ))}
       </div>
 
-      {/* Graphique en barres + carte Sécurité (côte à côte sur grand écran) */}
+      {/* Graphique en barres + carte Sécurité — propriétaire uniquement (artifact) */}
+      {owner && (
       <div className={`grid gap-3 ${sec ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
         <div className="rounded-2xl bg-white p-4 shadow-card">
           <p className="font-display text-base font-bold text-ink">Nouvelles inscriptions</p>
@@ -399,11 +431,16 @@ function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) =
           </div>
         )}
       </div>
+      )}
 
       {/* Vues de pages — graphique intelligent (permission « Visiteurs ») */}
       {canSee('visitors') && <PageViewsCard />}
 
-      {/* Derniers utilisateurs — tableau de l'artifact */}
+      {/* Vue modérateur : signalements ouverts à traiter (artifact) */}
+      {!owner && canSee('reports') && <ModoReportsPanel onGo={onGo} />}
+
+      {/* Derniers utilisateurs — tableau de l'artifact (permission « Utilisateurs ») */}
+      {canSee('users') && (
       <div className="overflow-hidden rounded-2xl bg-white shadow-card">
         <p className="px-4 pb-2 pt-4 font-display text-base font-bold text-ink">Derniers utilisateurs</p>
         <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 bg-[#FBF4E9] px-4 py-2 text-[10.5px] font-bold uppercase tracking-wider text-gray-400 sm:grid-cols-[1fr_88px_150px]">
@@ -445,10 +482,47 @@ function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) =
           </ul>
         )}
       </div>
+      )}
     </div>
   )
 }
 
+// Vue modérateur : panneau « Signalements à traiter » (les ouverts, 5 max).
+function ModoReportsPanel({ onGo }: { onGo: (t: Tab) => void }) {
+  const [items, setItems] = useState<Report[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetchReports()
+      .then((r: Report[]) => { if (alive) setItems(r.filter((x) => x.status === 'open').slice(0, 5)) })
+      .catch(() => { if (alive) setItems([]) })
+    return () => { alive = false }
+  }, [])
+  if (!items || items.length === 0) return null
+  return (
+    <div className="rounded-2xl bg-white px-4 py-3 shadow-card">
+      <p className="font-display text-base font-bold text-ink">Signalements à traiter</p>
+      <div className="divide-y divide-[#F3EADB]">
+        {items.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => onGo('reports')}
+            className="flex w-full items-center gap-3 py-3 text-left transition hover:bg-cream-100/60"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50 text-[18px]" aria-hidden>🚩</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-bold text-gray-800">{r.listingTitle}</span>
+              <span className="block truncate text-xs text-gray-400">{r.reason}{r.details ? ` · ${r.details}` : ''}</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-amber-700">
+              À voir
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 // Carte « Vues de pages » de l'aperçu — graphique intelligent :
 // fenêtre 7 / 14 / 30 jours, barres lisibles (pic en vert) sur 7-14 j,
