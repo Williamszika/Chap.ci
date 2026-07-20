@@ -3543,10 +3543,10 @@ try {
     $u = current_user($pdo, $secret);
     // Anti-spam : 5 demandes max par IP (ou compte) et par heure.
     rate_limit($pdo, 'ad_submit', $u['email'] ?? null, 5, 3600);
+    // Titre FACULTATIF : on peut publier une pub « image seule » (sans message).
     $title = mb_substr(trim((string) ($b['title'] ?? '')), 0, 80);
     $desc  = mb_substr(trim((string) ($b['description'] ?? '')), 0, 600);
     $link  = trim((string) ($b['link'] ?? ''));
-    if (mb_strlen($title) < 3) jerr('Donnez un titre à votre publicité (3 caractères minimum).');
     // Lien facultatif : http(s) uniquement (pas de javascript: ni autre schéma).
     if ($link !== '' && (!preg_match('#^https?://#i', $link) || strlen($link) > 300)) {
       jerr('Le lien doit commencer par https:// (300 caractères maximum).');
@@ -4099,7 +4099,6 @@ try {
       $title = mb_substr(trim((string) ($b['title'] ?? '')), 0, 90);
       $desc  = mb_substr(trim((string) ($b['description'] ?? '')), 0, 600);
       $link  = trim((string) ($b['link'] ?? ''));
-      if (mb_strlen($title) < 2) jerr('Écrivez le message à diffuser.');
       if ($link !== '' && (!preg_match('#^https?://#i', $link) || strlen($link) > 300)) {
         jerr('Le lien doit commencer par https://.');
       }
@@ -4111,6 +4110,8 @@ try {
         $url = save_data_uri($config, (string) $img, false);
         if ($url) $images[] = $url;
       }
+      // Il faut au moins un message OU une image (diffusion « image seule » permise).
+      if (mb_strlen($title) < 2 && !$images) jerr('Écrivez un message ou ajoutez une image à diffuser.');
       $id = uuid();
       $now = now_iso();
       $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $days * 86400);

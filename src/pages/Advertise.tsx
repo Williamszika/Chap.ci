@@ -92,7 +92,7 @@ export function Advertise() {
   async function submit() {
     setError('')
     if (images.length === 0) return setError('Ajoutez au moins un visuel pour votre bannière.')
-    if (title.trim().length < 3) return setError('Donnez un titre à votre publicité.')
+    // Le titre est FACULTATIF : on peut publier une bannière « image seule ».
     if (link.trim() !== '' && !/^https?:\/\//i.test(link.trim()))
       return setError('Le lien doit commencer par https:// (ou laissez-le vide).')
     if (payNumber.replace(/\D/g, '').length < 8)
@@ -123,6 +123,7 @@ export function Advertise() {
     img: images[0] ?? null,
     title: title.trim() || 'Votre titre ici',
     desc: description.trim() || 'Votre description apparaîtra ici…',
+    textEmpty: !title.trim() && !description.trim(),
   }), [images, title, description])
 
   // ---- Écran de confirmation (après envoi) ---------------------------------
@@ -209,7 +210,9 @@ export function Advertise() {
             <p className="mt-1.5 text-[11px] text-gray-400">1 à 3 images · format paysage (16:5) recommandé</p>
             {photoError && <p className="mt-1 text-xs font-medium text-red-500">{photoError}</p>}
 
-            <label htmlFor="ad-title" className="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">Titre de la pub</label>
+            <label htmlFor="ad-title" className="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
+              Titre de la pub <span className="font-normal text-gray-400">(facultatif)</span>
+            </label>
             <input
               id="ad-title"
               value={title}
@@ -218,6 +221,7 @@ export function Advertise() {
               placeholder="Ex : Auto Ivoire — voitures garanties"
               className="input"
             />
+            <p className="mt-1 text-[11px] text-gray-400">Laissez vide pour afficher <b>uniquement votre image</b>, sans texte par-dessus.</p>
 
             <label htmlFor="ad-desc" className="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">Description</label>
             <textarea
@@ -368,19 +372,28 @@ export function Advertise() {
             </p>
             <div className="relative mt-3 flex min-h-[150px] flex-col justify-end overflow-hidden rounded-2xl bg-black text-white">
               {preview.img && <AdImageFill src={preview.img} />}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-              <div className="relative p-3.5">
-                <span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider backdrop-blur">
+              {preview.textEmpty && preview.img ? (
+                /* Image seule : rendu réel (juste l'image + repère discret) */
+                <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-white/85 backdrop-blur">
                   <Megaphone size={10} /> Publicité
                 </span>
-                <p className="font-display text-[15px] font-extrabold leading-tight">{preview.title}</p>
-                <p className="mt-0.5 text-[12px] leading-snug text-white/80 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-                  {preview.desc}
-                </p>
-                <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-ink">
-                  En savoir plus <ArrowRight size={13} />
-                </span>
-              </div>
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                  <div className="relative p-3.5">
+                    <span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider backdrop-blur">
+                      <Megaphone size={10} /> Publicité
+                    </span>
+                    <p className="font-display text-[15px] font-extrabold leading-tight">{preview.title}</p>
+                    <p className="mt-0.5 text-[12px] leading-snug text-white/80 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                      {preview.desc}
+                    </p>
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-ink">
+                      En savoir plus <ArrowRight size={13} />
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </section>
 

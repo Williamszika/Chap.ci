@@ -45,10 +45,12 @@ export function AdDetail() {
         {ad.images[0] && <AdImageFill src={ad.images[0]} />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
         <div className="relative p-5 md:p-7">
-          <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur">
             <Megaphone size={12} /> Publicité
           </span>
-          <h1 className="font-display text-2xl font-extrabold leading-tight md:text-3xl">{ad.title}</h1>
+          {ad.title && (
+            <h1 className="mt-2 font-display text-2xl font-extrabold leading-tight md:text-3xl">{ad.title}</h1>
+          )}
         </div>
       </div>
 

@@ -1393,7 +1393,8 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   }
   async function broadcast() {
     setBMsg('')
-    if (bTitle.trim().length < 2) { setBMsg('Écrivez le message à diffuser.'); return }
+    // Message OU image : on peut diffuser une image seule (sans texte).
+    if (bTitle.trim().length < 2 && !bImg) { setBMsg('Écrivez un message ou ajoutez une image.'); return }
     setBBusy(true)
     try {
       await adminAdBroadcast({
@@ -1484,21 +1485,34 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
 
         {/* Aperçu en direct de la diffusion (l'animation rejoue à chaque réglage) */}
         <div className="relative mt-3 flex min-h-[130px] flex-col items-center justify-center overflow-hidden rounded-2xl bg-black p-4 text-center text-white">
-          {bImg && <img src={bImg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
-          <div
-            key={`${bStyle}-${bAnim}-${bTitle}`}
-            className={`relative flex w-full flex-col items-center gap-1.5 ${['fondu', 'glissement', 'pulse'].includes(bAnim) ? `ad-anim-${bAnim}` : ''}`}
-          >
-            {bAnim === 'defilement' ? (
-              <p className={`ad-anim-defilement w-full text-xl ad-style-${bStyle}`}><span>{bTitle || 'Votre message ici'}</span></p>
-            ) : bAnim === 'machine' ? (
-              <p className={`ad-anim-machine mx-auto text-lg ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
-            ) : (
-              <p className={`text-xl ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
-            )}
-            {bDesc && <p className="text-xs text-white/75">{bDesc}</p>}
-          </div>
+          {bImg && (
+            <img
+              src={bImg}
+              alt=""
+              className={`absolute inset-0 h-full w-full object-cover ${bTitle.trim() || bDesc.trim() ? 'opacity-45' : 'opacity-100'}`}
+            />
+          )}
+          {bImg && !bTitle.trim() && !bDesc.trim() ? (
+            /* Image seule : aucun texte, juste le visuel plein cadre + badge */
+            <span className="relative self-start rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur">Publicité</span>
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
+              <div
+                key={`${bStyle}-${bAnim}-${bTitle}`}
+                className={`relative flex w-full flex-col items-center gap-1.5 ${['fondu', 'glissement', 'pulse'].includes(bAnim) ? `ad-anim-${bAnim}` : ''}`}
+              >
+                {bAnim === 'defilement' ? (
+                  <p className={`ad-anim-defilement w-full text-xl ad-style-${bStyle}`}><span>{bTitle || 'Votre message ici'}</span></p>
+                ) : bAnim === 'machine' ? (
+                  <p className={`ad-anim-machine mx-auto text-lg ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
+                ) : (
+                  <p className={`text-xl ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
+                )}
+                {bDesc && <p className="text-xs text-white/75">{bDesc}</p>}
+              </div>
+            </>
+          )}
         </div>
 
         {bMsg && <p className={`mt-2 text-sm ${bMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{bMsg}</p>}
@@ -1526,7 +1540,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-1.5">
-                        <span className="truncate font-display text-sm font-bold text-gray-800">{a.title}</span>
+                        <span className="truncate font-display text-sm font-bold text-gray-800">{a.title || <span className="italic text-gray-400">(image seule)</span>}</span>
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${pillCls}`}>{pillLabel}</span>
                         {a.kind === 'admin' && (
                           <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">Diffusion Chap.ci</span>

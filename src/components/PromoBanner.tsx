@@ -47,10 +47,11 @@ export function PromoBanner() {
   return (
     <section className="px-4 pt-2">
       <div className="relative flex min-h-[268px] flex-col justify-end overflow-hidden rounded-3xl bg-black text-white shadow-card-lg md:min-h-[290px]">
-        {ad && ad.kind !== 'paid' ? (
-          /* Diffusion Chap.ci (admin) ou Bureau de Croissance SEO : message ANIMÉ,
-             style d'écriture choisi. key={ad.id} force le remontage → l'animation
-             rejoue à chaque rotation. */
+        {ad && ad.kind !== 'paid' && (ad.title || ad.description) ? (
+          /* Diffusion Chap.ci (admin) ou Bureau de Croissance SEO AVEC texte :
+             message ANIMÉ, style d'écriture choisi. Une diffusion « image seule »
+             (sans texte) passe, elle, dans le rendu image plein cadre ci-dessous.
+             key={ad.id} force le remontage → l'animation rejoue à chaque rotation. */
           <div key={ad.id} className="relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
             {img && (
               <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
@@ -106,45 +107,64 @@ export function PromoBanner() {
           </div>
         ) : ad ? (
           <>
-            {/* Visuel de la pub — affiché ENTIER (adapté à tout format), fond flou */}
+            {/* Visuel de la pub — NET et plein cadre (recadré au centre si besoin) */}
             {img && <AdImageFill src={img} />}
-            {/* Dégradé bas : lisibilité du titre, sans masquer l'image */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
 
-            <div key={ad.id} className="ad-anim-fondu relative flex flex-col gap-3 p-5 md:flex-row md:items-end md:justify-between md:gap-8 md:p-7">
-              <div className="min-w-0">
-                <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur">
-                  <Megaphone size={12} /> Publicité
+            {(ad.title || ad.description) ? (
+              <>
+                {/* Dégradé bas : lisibilité du texte, sans masquer l'image */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                <div key={ad.id} className="ad-anim-fondu relative flex flex-col gap-3 p-5 md:flex-row md:items-end md:justify-between md:gap-8 md:p-7">
+                  <div className="min-w-0">
+                    <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur">
+                      <Megaphone size={12} /> Publicité
+                    </span>
+                    {ad.title && (
+                      <h2 className="font-display text-xl font-extrabold leading-tight drop-shadow-sm md:text-3xl">
+                        {ad.title}
+                      </h2>
+                    )}
+                    {ad.description && (
+                      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/85 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden md:text-[15px]">
+                        {ad.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="shrink-0">
+                    {ad.link ? (
+                      <a
+                        href={ad.link}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-display font-bold text-ink shadow-sm transition hover:bg-cream-100 active:scale-95"
+                      >
+                        En savoir plus <ArrowRight size={17} />
+                      </a>
+                    ) : (
+                      <Link
+                        to={`/pub/${ad.id}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-display font-bold text-ink shadow-sm transition hover:bg-cream-100 active:scale-95"
+                      >
+                        En savoir plus <ArrowRight size={17} />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* IMAGE SEULE (aucun texte) : visuel plein écran, cliquable, avec
+                 un petit repère « Publicité » discret en coin. */
+              <>
+                <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/85 backdrop-blur">
+                  <Megaphone size={11} /> Publicité
                 </span>
-                <h2 className="font-display text-xl font-extrabold leading-tight drop-shadow-sm md:text-3xl">
-                  {ad.title}
-                </h2>
-                {ad.description && (
-                  <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/85 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden md:text-[15px]">
-                    {ad.description}
-                  </p>
-                )}
-              </div>
-              <div className="shrink-0">
                 {ad.link ? (
-                  <a
-                    href={ad.link}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-display font-bold text-ink shadow-sm transition hover:bg-cream-100 active:scale-95"
-                  >
-                    En savoir plus <ArrowRight size={17} />
-                  </a>
+                  <a href={ad.link} target="_blank" rel="noopener noreferrer nofollow" className="absolute inset-0" aria-label="Voir la publicité" />
                 ) : (
-                  <Link
-                    to={`/pub/${ad.id}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-display font-bold text-ink shadow-sm transition hover:bg-cream-100 active:scale-95"
-                  >
-                    En savoir plus <ArrowRight size={17} />
-                  </Link>
+                  <Link to={`/pub/${ad.id}`} className="absolute inset-0" aria-label="Voir la publicité" />
                 )}
-              </div>
-            </div>
+              </>
+            )}
 
             {/* Points de progression (une pastille par pub en rotation) */}
             {ads.length > 1 && (
