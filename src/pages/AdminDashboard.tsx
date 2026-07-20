@@ -25,7 +25,8 @@ import {
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 import {
   fetchAdminAds, adminAdAction, adminAdDelete, adminAdBroadcast,
-  AD_STYLES, AD_ANIMS, type AdminAd, type AdStyle, type AdAnim,
+  fetchSeoState, setSeoEnabled, runSeoNow,
+  AD_STYLES, AD_ANIMS, type AdminAd, type AdStyle, type AdAnim, type SeoState,
 } from '../lib/ads'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
@@ -1288,6 +1289,76 @@ const AD_STATUS_PILL: Record<string, [string, string]> = {
 }
 const AD_FORMULE_LABEL: Record<string, string> = { day: 'jour(s)', week: 'semaine(s)', month: 'mois' }
 
+// Bureau de Croissance SEO : un « employé virtuel » qui diffuse 1 message/jour.
+function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
+  const [st, setSt] = useState<SeoState | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const load = () => { fetchSeoState().then(setSt).catch(() => setSt(null)) }
+  useEffect(load, [])
+  if (!st) return null
+
+  const cronUrl = `${st.site}/api/cron/seo?key=${st.cronKey}`
+  const toggle = async () => {
+    setBusy(true)
+    try { await setSeoEnabled(!st.enabled); load() } catch (e) { alert((e as Error).message) } finally { setBusy(false) }
+  }
+  const runNow = async () => {
+    setBusy(true)
+    try { const r = await runSeoNow(); load(); onChanged?.(); alert(`Diffusion générée : « ${r.title} »`) }
+    catch (e) { alert((e as Error).message) } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-display text-[15px] font-extrabold text-ink">🌱 Bureau de Croissance SEO</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
+            Publie <b>automatiquement une diffusion par jour</b> sur l’écran (annonce, publication ou
+            message) selon les objectifs du site — texte animé, style tournant.
+          </p>
+        </div>
+        <button
+          onClick={toggle}
+          disabled={busy}
+          aria-pressed={st.enabled}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition ${st.enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
+          title={st.enabled ? 'Activé' : 'Désactivé'}
+        >
+          <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${st.enabled ? 'left-[22px]' : 'left-0.5'}`} />
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <span className={`font-semibold ${st.enabled ? 'text-emerald-700' : 'text-gray-500'}`}>
+          {st.enabled ? '● Actif' : '○ En pause'}
+        </span>
+        <span className="text-gray-500">
+          Aujourd’hui : {st.todayDone ? '✓ diffusion publiée' : '— pas encore'}
+        </span>
+        {st.current && <span className="min-w-0 truncate text-gray-500">À l’écran : « {st.current.title} »</span>}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button onClick={runNow} disabled={busy} className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Générer la diffusion du jour
+        </button>
+        <button
+          onClick={() => { navigator.clipboard?.writeText(cronUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+          className="flex items-center gap-1.5 rounded-lg border border-[#E6DAC6] bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        >
+          {copied ? <CheckCircle2 size={13} className="text-emerald-600" /> : <Copy size={13} />} Copier l’URL cron quotidienne
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
+        Pour l’automatisation : programmez l’URL cron <b>une fois par jour</b> (cron cPanel « 0 9 * * * »
+        ou une routine claude.ai). Voir aussi l’onglet <b>Tâches auto</b>.
+      </p>
+    </div>
+  )
+}
+
 function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [items, setItems] = useState<AdminAd[] | null>(null)
   const [err, setErr] = useState('')
@@ -1339,6 +1410,9 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
   return (
     <div className="space-y-3.5">
+      {/* Bureau de Croissance SEO — diffusions quotidiennes automatiques */}
+      <SeoOfficePanel onChanged={load} />
+
       {/* Diffusion Chap.ci : message animé, style d'écriture, durée */}
       <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
         <p className="font-display text-[15px] font-extrabold text-ink">📺 Diffuser un message Chap.ci</p>
@@ -1456,6 +1530,9 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${pillCls}`}>{pillLabel}</span>
                         {a.kind === 'admin' && (
                           <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">Diffusion Chap.ci</span>
+                        )}
+                        {a.kind === 'seo' && (
+                          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">🌱 Croissance SEO</span>
                         )}
                       </p>
                       <p className="mt-0.5 text-[11.5px] text-gray-400">
@@ -2131,6 +2208,7 @@ const CRON_JOBS: { id: string; label: string; desc: string; query?: string; sche
   { id: 'backup',         label: 'Sauvegarde de la base',       desc: 'Sauvegarde complète (7 dernières conservées) + email récapitulatif.',                          schedule: 'Chaque jour à 3h',    cronExpr: '0 3 * * *' },
   { id: 'digest',         label: 'Résumé du jour',              desc: 'Envoie aux abonnés les nouvelles annonces du jour.',                          query: '?type=daily', schedule: 'Chaque jour à 18h',   cronExpr: '0 18 * * *' },
   { id: 'suggestions',    label: 'Suggestions personnalisées',  desc: 'Recommande à chaque utilisateur des annonces selon ses centres d’intérêt.',                     schedule: 'Lundi & jeudi à 9h',  cronExpr: '0 9 * * 1,4' },
+  { id: 'seo',            label: 'Bureau de Croissance SEO',    desc: 'Publie chaque jour une diffusion animée sur l’écran (annonce, publication ou message) selon les objectifs du site.', schedule: 'Chaque jour à 9h', cronExpr: '0 9 * * *' },
   { id: 'alerts',         label: 'Alertes recherches',          desc: 'Prévient quand une annonce correspond à une recherche sauvegardée.',                            schedule: 'Toutes les 2 heures', cronExpr: '0 */2 * * *' },
   { id: 'review-invites', label: 'Invitations à noter',         desc: 'Invite l’acheteur à laisser un avis après une vente confirmée par le vendeur.',                 schedule: 'Chaque jour à 10h',   cronExpr: '0 10 * * *' },
   { id: 'stats',          label: 'Statistiques hebdo',          desc: 'Agrégats anonymes d’activité (pour le rapport hebdomadaire).', query: '?days=7',                schedule: 'Lundi à 7h',          cronExpr: '0 7 * * 1' },

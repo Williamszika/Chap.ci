@@ -46,9 +46,10 @@ export function PromoBanner() {
   return (
     <section className="px-4 pt-2">
       <div className="relative flex min-h-[268px] flex-col justify-end overflow-hidden rounded-3xl bg-black text-white shadow-card-lg md:min-h-[290px]">
-        {ad && ad.kind === 'admin' ? (
-          /* Diffusion Chap.ci : message ANIMÉ, style d'écriture choisi par l'admin.
-             key={ad.id} force le remontage → l'animation rejoue à chaque rotation. */
+        {ad && ad.kind !== 'paid' ? (
+          /* Diffusion Chap.ci (admin) ou Bureau de Croissance SEO : message ANIMÉ,
+             style d'écriture choisi. key={ad.id} force le remontage → l'animation
+             rejoue à chaque rotation. */
           <div key={ad.id} className="relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
             {img && (
               <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />

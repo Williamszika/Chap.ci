@@ -1224,6 +1224,7 @@ function admin_feature_for_path(string $path): string {
   if ($path === 'admin/smtp' || $path === 'admin/test-email') return 'emails';
   if (str_starts_with($path, 'admin/backup') || $path === 'admin/backups' || $path === 'admin/reset') return 'backup';
   if (str_starts_with($path, 'admin/digest') || $path === 'admin/suggestions-test') return 'automation';
+  if (str_starts_with($path, 'admin/seo')) return 'automation';
   // Fail-closed : une route /admin/* non répertoriée renvoie 'unknown' → refusée
   // pour un modérateur (seul le propriétaire y accède). Évite un oubli = trou.
   return 'unknown';
@@ -1419,6 +1420,112 @@ function contact_ai_draft(array $config, string $name, string $subject, string $
   $courte   = $bonjour . "\n\n" . $short . "\n\n" . $fin;
   $drafts   = $courte === $complete ? [$complete] : [$complete, $courte];
   return ['draft' => $drafts[0], 'drafts' => $drafts, 'ai' => true];
+}
+
+// ---- Bureau de Croissance SEO : diffusions quotidiennes automatiques --------
+// Un « employé virtuel » qui publie CHAQUE JOUR une diffusion sur l'écran
+// publicitaire (une annonce mise en avant, une publication éditoriale ou un
+// message d'action), au service des objectifs du site : SEO (mots-clés,
+// communes, catégories), croissance (publier, parrainer) et confiance.
+
+function seo_state_file(array $config): string { return chapci_secret_dir($config) . '/.seo_auto'; }
+/** Le Bureau SEO est-il activé ? Oui par défaut (dès qu'un cron l'appelle). */
+function seo_auto_enabled(array $config): bool {
+  $f = seo_state_file($config);
+  return !is_file($f) || trim((string) @file_get_contents($f)) !== '0';
+}
+function seo_auto_set(array $config, bool $on): void {
+  $f = seo_state_file($config);
+  if (@file_put_contents($f, $on ? '1' : '0') !== false) @chmod($f, 0600);
+}
+
+/** Libellés FR des catégories (pour les diffusions SEO). */
+function seo_category_labels(): array {
+  return [
+    'telephones' => 'téléphones', 'vehicules' => 'voitures', 'immobilier' => 'biens immobiliers',
+    'mode' => 'articles mode & beauté', 'electronique' => 'appareils électroniques',
+    'maison' => 'meubles & articles maison', 'emploi' => 'offres d’emploi', 'services' => 'services',
+    'materiel-pro' => 'matériels pro', 'alimentation' => 'produits alimentaires',
+    'agriculture' => 'produits agricoles', 'animaux' => 'animaux', 'loisirs' => 'articles loisirs & sport',
+    'bebe' => 'articles bébé & enfant',
+  ];
+}
+
+/**
+ * Compose la diffusion SEO du jour à partir de l'état RÉEL du site. Le « but »
+ * tourne d'un jour à l'autre (déterministe via le jour de l'année) pour couvrir
+ * tous les objectifs sans se répéter. Renvoie titre + texte + style + animation.
+ */
+function seo_daily_broadcast(array $config, PDO $pdo): array {
+  $fmt = fn(int $n) => number_format($n, 0, ',', "\u{00A0}"); // « 1 234 »
+  $count = function (string $sql, array $p = []) use ($pdo): int {
+    try { $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn(); }
+    catch (Throwable $e) { return 0; }
+  };
+  $listings = $count("SELECT COUNT(*) FROM listings WHERE hidden IS NULL OR hidden = 0");
+  $users    = $count("SELECT COUNT(*) FROM users");
+  // Catégorie la plus fournie (mise en avant SEO).
+  $topCat = null; $topCatN = 0;
+  try {
+    $r = $pdo->query("SELECT category_id, COUNT(*) AS n FROM listings
+      WHERE (hidden IS NULL OR hidden = 0) AND category_id <> '' GROUP BY category_id ORDER BY n DESC LIMIT 1")->fetch();
+    if ($r) { $topCat = (string) $r['category_id']; $topCatN = (int) $r['n']; }
+  } catch (Throwable $e) { /* base vide */ }
+  $labels = seo_category_labels();
+  $catLabel = $topCat && isset($labels[$topCat]) ? $labels[$topCat] : 'bonnes affaires';
+
+  $styles = ['ivoire', 'impact', 'neon', 'classique', 'script'];
+  $anims  = ['fondu', 'glissement', 'pulse', 'defilement', 'machine'];
+  $day = (int) gmdate('z');           // jour de l'année (0-365)
+  $style = $styles[$day % count($styles)];
+  $anim  = $anims[($day + 2) % count($anims)];
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+
+  // Événements datés (prioritaires) : fête de l'indépendance ivoirienne (7 août).
+  $md = gmdate('m-d');
+  if ($md === '08-07') {
+    return ['goal' => 'message', 'title' => 'Bonne fête de l’indépendance 🇨🇮',
+      'description' => 'Chap.ci célèbre la Côte d’Ivoire — achetez et vendez chap-chap, partout au pays.',
+      'link' => null, 'style' => 'ivoire', 'anim' => 'pulse'];
+  }
+
+  // 6 buts en rotation (annonce · publication · message).
+  $goals = [
+    // 0 · Annonce : met en avant la catégorie la plus fournie (SEO catégorie).
+    ['goal' => 'annonce',
+     'title' => $topCatN > 0 ? $fmt($topCatN) . ' ' . $catLabel . ' à saisir 🔥' : 'Des milliers d’annonces à saisir 🔥',
+     'description' => 'Trouvez les meilleures offres près de chez vous, à Abidjan et partout en Côte d’Ivoire.',
+     'link' => $site . '/#/explorer' . ($topCat ? '?cat=' . rawurlencode($topCat) : '')],
+    // 1 · Message : croissance — inciter à publier (gratuit).
+    ['goal' => 'message',
+     'title' => 'Vendez chap-chap — c’est gratuit ! 🧡',
+     'description' => 'Publiez votre annonce en 2 minutes et touchez des milliers d’acheteurs ivoiriens.',
+     'link' => $site . '/#/publier'],
+    // 2 · Publication : preuve sociale (confiance + croissance).
+    ['goal' => 'publication',
+     'title' => $users > 0 ? 'Déjà ' . $fmt($users) . ' Ivoiriens sur Chap.ci' : 'Rejoignez la communauté Chap.ci',
+     'description' => 'La marketplace 100 % ivoirienne où l’on achète et vend en toute confiance.',
+     'link' => $site . '/#/inscription'],
+    // 3 · Message : SEO local (près de moi / communes).
+    ['goal' => 'message',
+     'title' => 'Les bonnes affaires près de chez vous 📍',
+     'description' => 'De Cocody à Yopougon, d’Abidjan à Bouaké — trouvez et vendez dans votre commune.',
+     'link' => $site . '/#/explorer?tri=distance'],
+    // 4 · Publication : Mobile Money / sécurité (confiance).
+    ['goal' => 'publication',
+     'title' => 'Payez en toute sécurité, chap-chap 🔒',
+     'description' => 'Orange Money, MTN, Wave, Moov ou en main propre : échangez sereinement sur Chap.ci.',
+     'link' => $site . '/#/aide?rubrique=securite'],
+    // 5 · Annonce : catalogue global (SEO généraliste).
+    ['goal' => 'annonce',
+     'title' => $listings > 0 ? $fmt($listings) . ' annonces en ligne aujourd’hui' : 'De nouvelles annonces chaque jour',
+     'description' => 'Voitures, téléphones, immobilier, mode… tout se trouve sur Chap.ci.',
+     'link' => $site . '/#/explorer'],
+  ];
+  $g = $goals[$day % count($goals)];
+  $g['style'] = $style;
+  $g['anim']  = $anim;
+  return $g;
 }
 
 /**
@@ -3952,6 +4059,39 @@ try {
       ], $rows));
     }
 
+    // Bureau de Croissance SEO : état (activé, diffusion du jour) + bascule +
+    // déclenchement manuel immédiat (pour tester sans attendre le cron).
+    if ($path === 'admin/seo' && $method === 'GET') {
+      $today = gmdate('Y-m-d');
+      $st = $pdo->prepare("SELECT title, created_at FROM ads WHERE kind = 'seo' AND status = 'active' ORDER BY created_at DESC LIMIT 1");
+      $st->execute();
+      $cur = $st->fetch();
+      jout([
+        'enabled'   => seo_auto_enabled($config),
+        'todayDone' => (int) (function () use ($pdo, $today) { $s = $pdo->prepare("SELECT COUNT(*) FROM ads WHERE kind='seo' AND substr(created_at,1,10)=?"); $s->execute([$today]); return $s->fetchColumn(); })() > 0,
+        'current'   => $cur ? ['title' => $cur['title'], 'createdAt' => iso_to_ms($cur['created_at'])] : null,
+        'cronKey'   => $config['cron_key'] ?? '',
+        'site'      => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+      ]);
+    }
+    if ($path === 'admin/seo' && $method === 'POST') {
+      $b = body();
+      seo_auto_set($config, !empty($b['enabled']));
+      jout(['ok' => true, 'enabled' => seo_auto_enabled($config)]);
+    }
+    // Générer MAINTENANT la diffusion du jour (remplace celle du jour si besoin).
+    if ($path === 'admin/seo/run' && $method === 'POST') {
+      $pdo->prepare("UPDATE ads SET status = 'expired' WHERE kind = 'seo' AND status = 'active'")->execute([]);
+      $bc = seo_daily_broadcast($config, $pdo);
+      $id = uuid(); $now = now_iso();
+      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 26 * 3600);
+      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+          ->execute([$id, $u['id'] ?? null, $bc['title'], $bc['description'], $bc['link'] ?? '', json_encode([]), 'day', 1,
+                     0, '', '', 'active', $now, $expires, 'admin', $now, 'seo', $bc['style'], $bc['anim']]);
+      jout(['ok' => true, 'goal' => $bc['goal'], 'title' => $bc['title']]);
+    }
+
     // Diffusion ADMIN sur l'écran : message/annonce avec animation et style
     // d'écriture, actif immédiatement (pas de paiement — c'est la maison).
     if ($path === 'admin/ads/broadcast' && $method === 'POST') {
@@ -4361,6 +4501,32 @@ try {
     }
     $type = (($_GET['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
     jout(send_digest($config, $pdo, $type));
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : Bureau de Croissance SEO (1 diffusion / jour) ----------
+  // Publie automatiquement UNE diffusion animée par jour sur l'écran publicitaire,
+  // selon les objectifs du site. Idempotent : une seule création par jour civil.
+  if ($path === 'cron/seo' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    if (!seo_auto_enabled($config)) jout(['skipped' => 'disabled']);
+    $today = gmdate('Y-m-d');
+    // Déjà une diffusion SEO aujourd'hui ? On ne double pas.
+    $ex = $pdo->prepare("SELECT COUNT(*) FROM ads WHERE kind = 'seo' AND substr(created_at,1,10) = ?");
+    $ex->execute([$today]);
+    if ((int) $ex->fetchColumn() > 0) jout(['skipped' => 'already_today']);
+    // Expire les diffusions SEO de la veille (une seule à l'écran à la fois).
+    $pdo->prepare("UPDATE ads SET status = 'expired' WHERE kind = 'seo' AND status = 'active'")->execute([]);
+    $b = seo_daily_broadcast($config, $pdo);
+    $id = uuid(); $now = now_iso();
+    // Active ~26 h : léger chevauchement pour qu'il y ait toujours une diffusion.
+    $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 26 * 3600);
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$id, null, $b['title'], $b['description'], $b['link'] ?? '', json_encode([]), 'day', 1,
+                   0, '', '', 'active', $now, $expires, 'cron', $now, 'seo', $b['style'], $b['anim']]);
+    jout(['ok' => true, 'id' => $id, 'goal' => $b['goal'], 'title' => $b['title'], 'style' => $b['style'], 'anim' => $b['anim']]);
   }
 
   // ---------- TÂCHE PLANIFIÉE : suggestions personnalisées (2×/semaine) ----------

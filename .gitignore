@@ -47,3 +47,6 @@ server/backups/
 *.jks
 *.keystore
 android/key.properties
+
+# Remotion — sorties de rendu vidéo (projet autonome, hors build du site)
+remotion/out/

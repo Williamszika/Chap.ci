@@ -19,10 +19,18 @@ export interface Ad {
   description: string
   link?: string | null
   images: string[]
-  /** 'paid' = pub payante · 'admin' = diffusion Chap.ci (message animé). */
-  kind?: 'paid' | 'admin'
+  /** 'paid' = pub payante · 'admin' = diffusion Chap.ci · 'seo' = Bureau Croissance SEO. */
+  kind?: 'paid' | 'admin' | 'seo'
   style?: AdStyle | null
   anim?: AdAnim | null
+}
+
+export interface SeoState {
+  enabled: boolean
+  todayDone: boolean
+  current: { title: string; createdAt: number } | null
+  cronKey: string
+  site: string
 }
 
 export interface AdminAd extends Ad {
@@ -114,6 +122,20 @@ export const AD_STYLES: { key: AdStyle; label: string }[] = [
   { key: 'script', label: 'Élégant (italique)' },
   { key: 'ivoire', label: 'Drapeau ivoirien' },
 ]
+
+/** Bureau de Croissance SEO — état, activation, génération immédiate. */
+export async function fetchSeoState(): Promise<SeoState> {
+  if (!isPhp) throw new Error('Le tableau de bord admin nécessite le backend PHP.')
+  return php.phpAdminSeo<SeoState>()
+}
+export async function setSeoEnabled(enabled: boolean): Promise<void> {
+  if (!isPhp) throw new Error('Le tableau de bord admin nécessite le backend PHP.')
+  await php.phpAdminSeoToggle(enabled)
+}
+export async function runSeoNow(): Promise<{ ok: boolean; goal: string; title: string }> {
+  if (!isPhp) throw new Error('Le tableau de bord admin nécessite le backend PHP.')
+  return php.phpAdminSeoRun()
+}
 
 export const AD_ANIMS: { key: AdAnim; label: string }[] = [
   { key: 'fondu', label: 'Fondu' },
