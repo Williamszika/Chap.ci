@@ -1,113 +1,66 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Mail, Lock, Phone, User, MapPin, Loader2, ChevronDown, LocateFixed, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, User, Loader2, Eye, EyeOff, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { FacebookSignInButton } from '../components/FacebookSignInButton'
 import { usePublicConfig } from '../lib/publicConfig'
 import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
-import { LocationSheet } from '../components/LocationSheet'
 import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
-import { PHONE_LOGIN_ENABLED } from '../lib/features'
 import { subscribeNewsletter } from '../lib/newsletter'
-import { getBestPosition, reverseGeocode } from '../lib/geo'
-import { locationLabel, resolveLocationByName } from '../data/locations'
-import type { Coords } from '../data/coords'
-import type { LocationFilter } from '../types'
 
 export function Register() {
   const navigate = useNavigate()
-  const { signUp, sendPhoneCode, verifyPhoneCode, signInWithGoogleCredential, signInWithFacebookToken, enabled } = useAuth()
+  const { signUp, signInWithGoogleCredential, signInWithFacebookToken, enabled } = useAuth()
   const cfg = usePublicConfig()
   const googleEnabled = !!cfg?.googleClientId
   const facebookEnabled = !!cfg?.facebookAppId
+  // La localisation est déjà captée à l'ouverture du site (GeoContext) : on
+  // l'enregistre silencieusement dans le profil, sans alourdir le formulaire.
   const { place } = useGeo()
 
-  const [method, setMethod] = useState<'email' | 'phone'>('email')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [gender, setGender] = useState('')
-  const [birthDate, setBirthDate] = useState('')
-
-  const [loc, setLoc] = useState<LocationFilter>({})
-  const [locOpen, setLocOpen] = useState(false)
-  const [address, setAddress] = useState('')
-  const [coords, setCoords] = useState<Coords | null>(null)
-  const [locating, setLocating] = useState(false)
-
-  // Pré-remplissage depuis la position captée à l'ouverture du site.
-  useEffect(() => {
-    if (place) {
-      setLoc((prev) =>
-        prev.regionId ? prev : { regionId: place.regionId, cityId: place.cityId, commune: place.commune },
-      )
-      setAddress((prev) => prev || place.address || '')
-      if (place.lat != null && place.lng != null) {
-        setCoords((prev) => prev ?? { lat: place.lat!, lng: place.lng! })
-      }
-    }
-  }, [place])
-
-  // Géolocalise l'utilisateur (GPS) et verrouille sa localisation.
-  async function detectLocation() {
-    setLocating(true)
-    try {
-      const fix = await getBestPosition()
-      setCoords({ lat: fix.lat, lng: fix.lng })
-      const geo = await reverseGeocode(fix.lat, fix.lng)
-      const resolved = resolveLocationByName(geo?.suburb, geo?.city, geo?.region) ?? {}
-      if (resolved.regionId) {
-        setLoc({ regionId: resolved.regionId, cityId: resolved.cityId, commune: resolved.commune })
-      }
-      if (geo?.suburb) setAddress(geo.suburb)
-    } catch {
-      alert(
-        'Impossible d’obtenir votre position. Autorisez la localisation dans votre navigateur, puis réessayez.',
-      )
-    } finally {
-      setLocating(false)
-    }
-  }
-
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [phone, setPhone] = useState('+225 ')
-  const [otpSent, setOtpSent] = useState(false)
-  const [otp, setOtp] = useState('')
 
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
   const [accepted, setAccepted] = useState(false)
-  const [newsletterOptIn, setNewsletterOptIn] = useState(true)
 
-  function validateProfile(): string | null {
-    if (!firstName.trim()) return 'Indiquez votre prénom.'
-    if (!lastName.trim()) return 'Indiquez votre nom.'
-    if (!gender) return 'Indiquez votre sexe.'
-    if (!birthDate) return 'Indiquez votre date de naissance.'
-    if (!loc.regionId) return 'Indiquez votre ville / commune.'
-    return null
+  // Captcha anti-robot : un petit calcul généré côté client (sans service
+  // externe ni clé secrète). L'utilisateur doit donner la bonne réponse.
+  const [captcha, setCaptcha] = useState(() => ({
+    a: 1 + Math.floor(Math.random() * 8),
+    b: 1 + Math.floor(Math.random() * 8),
+  }))
+  const [captchaInput, setCaptchaInput] = useState('')
+  const captchaOk = parseInt(captchaInput, 10) === captcha.a + captcha.b
+  function newCaptcha() {
+    setCaptcha({ a: 1 + Math.floor(Math.random() * 8), b: 1 + Math.floor(Math.random() * 8) })
+    setCaptchaInput('')
   }
 
+  // Profil minimal : on scinde « Nom complet » en prénom + nom, et on reprend
+  // la localisation détectée (region/commune/GPS) sans champ dédié.
   function profileFields(): ProfileFields {
+    const name = fullName.trim()
+    const [first, ...rest] = name.split(/\s+/)
     return {
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-      gender,
-      birth_date: birthDate || null,
-      region_id: loc.regionId,
-      city_id: loc.cityId,
-      commune: loc.commune,
-      address: address.trim() || undefined,
-      lat: coords?.lat ?? place?.lat ?? null,
-      lng: coords?.lng ?? place?.lng ?? null,
+      first_name: first || name,
+      last_name: rest.join(' '),
+      full_name: name,
+      region_id: place?.regionId,
+      city_id: place?.cityId,
+      commune: place?.commune,
+      address: place?.address || undefined,
+      lat: place?.lat ?? null,
+      lng: place?.lng ?? null,
     }
   }
 
@@ -146,267 +99,170 @@ export function Register() {
     e.preventDefault()
     setError('')
     setInfo('')
-    const v = validateProfile()
-    if (v) return setError(v)
+    if (!fullName.trim()) return setError('Indiquez votre nom complet.')
+    if (!email.trim()) return setError('Renseignez votre adresse email.')
+    const pw = checkPassword(password)
+    if (!pw.ok) return setError(`Mot de passe trop faible — ajoutez : ${pw.missing.join(', ')}.`)
+    if (password !== confirmPassword) return setError('Les deux mots de passe ne correspondent pas.')
+    if (!captchaOk) {
+      newCaptcha()
+      return setError('Vérification anti-robot incorrecte. Refaites le petit calcul.')
+    }
     if (!accepted)
       return setError('Vous devez lire et accepter les Conditions d’utilisation et la Politique de confidentialité.')
 
-    if (method === 'email') {
-      if (!email.trim()) return setError('Renseignez votre adresse email.')
-      const pw = checkPassword(password)
-      if (!pw.ok) return setError(`Mot de passe trop faible — ajoutez : ${pw.missing.join(', ')}.`)
-      if (password !== confirmPassword) return setError('Les deux mots de passe ne correspondent pas.')
-      setBusy(true)
-      const res = await signUp(email.trim(), password, `${firstName.trim()} ${lastName.trim()}`)
-      setBusy(false)
-      if (res.error) return setError(res.error)
-      // Inscription facultative à la newsletter (best-effort).
-      if (newsletterOptIn) subscribeNewsletter(email.trim()).catch(() => {})
-      if (res.needsConfirmation) {
-        setInfo('Compte créé ! Vérifiez votre email pour confirmer, puis connectez-vous.')
-        return
-      }
-      await saveProfileAndGo(res.userId)
-    } else {
-      const p = phone.replace(/\s/g, '')
-      if (!otpSent) {
-        if (p.length < 8) return setError('Entrez un numéro de téléphone valide (+225…).')
-        setBusy(true)
-        const res = await sendPhoneCode(p)
-        setBusy(false)
-        if (res.error) return setError(res.error)
-        setOtpSent(true)
-        setInfo(res.debugCode && import.meta.env.DEV ? `Mode test : votre code est ${res.debugCode}.` : 'Un code vous a été envoyé par SMS.')
-      } else {
-        if (!otp.trim()) return setError('Entrez le code reçu par SMS.')
-        setBusy(true)
-        const res = await verifyPhoneCode(p, otp.trim(), `${firstName.trim()} ${lastName.trim()}`)
-        setBusy(false)
-        if (res.error) return setError(res.error)
-        await saveProfileAndGo(res.userId)
-      }
+    setBusy(true)
+    const res = await signUp(email.trim(), password, fullName.trim())
+    setBusy(false)
+    if (res.error) return setError(res.error)
+    // Inscription facultative à la newsletter (best-effort, silencieux).
+    subscribeNewsletter(email.trim()).catch(() => {})
+    if (res.needsConfirmation) {
+      setInfo('Compte créé ! Vérifiez votre email pour confirmer, puis connectez-vous.')
+      return
     }
+    await saveProfileAndGo(res.userId)
   }
 
   return (
-    <div className="min-h-screen bg-white pb-10 md:mx-auto md:my-6 md:min-h-0 md:max-w-xl md:rounded-3xl md:shadow-card">
-      <header className="safe-top flex items-center gap-3 px-3 py-3">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
-          <ArrowLeft size={22} />
-        </button>
-      </header>
-
-      <div className="mb-1 flex flex-col items-center px-6 text-center">
-        <div className="flex items-center gap-2">
-          <Mark size={32} />
-          <Wordmark className="text-xl text-ink" />
-        </div>
-        <h1 className="mt-4 font-display text-[26px] font-extrabold leading-tight text-ink">Créer un compte</h1>
-        <p className="mt-1 text-[15px] text-gray-500">C’est gratuit, en 30 secondes.</p>
-      </div>
-
-      {!enabled && (
-        <p className="mx-4 mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
-          Les comptes ne sont pas encore activés (backend non configuré).
-        </p>
-      )}
-
-      {/* Inscription rapide via Google / Facebook (si configurées) */}
-      {(googleEnabled || facebookEnabled) && (
-        <div className="px-4 pt-5">
-          <div className="flex flex-col items-center gap-2">
-            {googleEnabled && (
-              <GoogleSignInButton onCredential={handleGoogleSignup} text="signup_with" />
-            )}
-            {facebookEnabled && (
-              <FacebookSignInButton onToken={handleFacebookSignup} label="S’inscrire avec Facebook" />
-            )}
+    <div className="flex min-h-[72vh] items-center justify-center px-5 py-8 md:min-h-[78vh]">
+      <div className="w-full max-w-sm rounded-[22px] border border-[#EFE6D7] bg-white p-6 shadow-[0_12px_34px_-10px_rgba(120,70,10,0.28),0_6px_14px_-8px_rgba(120,70,10,0.20)] md:max-w-[420px] md:p-7">
+        <div className="mb-5 flex flex-col items-center text-center">
+          <div className="flex items-center gap-2">
+            <Mark size={30} />
+            <Wordmark className="text-lg text-ink" />
           </div>
-          <p className="mt-2 text-center text-[11px] text-gray-400">
-            En continuant, vous acceptez nos{' '}
-            <a href="#/conditions" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">Conditions</a>{' '}
-            et la{' '}
-            <a href="#/confidentialite" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">Politique de confidentialité</a>.
+          <h1 className="mt-3 font-display text-[22px] font-extrabold leading-tight text-ink">Créer un compte</h1>
+          <p className="mt-1 text-sm text-gray-500">C’est gratuit, en 30 secondes.</p>
+        </div>
+
+        {!enabled && (
+          <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Les comptes ne sont pas encore activés (backend non configuré).
           </p>
-          <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
-            <span className="h-px flex-1 bg-gray-200" /> ou avec le formulaire <span className="h-px flex-1 bg-gray-200" />
-          </div>
-        </div>
-      )}
+        )}
 
-      <form onSubmit={submit} className="space-y-5 px-4 py-5">
-        {/* Identité */}
-        <section className="space-y-3">
-          <p className="text-sm font-bold text-gray-800">Vos informations</p>
-          <div className="grid grid-cols-2 gap-3">
+        {/* Inscription rapide via Google / Facebook (si configurées) */}
+        {(googleEnabled || facebookEnabled) && (
+          <>
+            <div className="flex flex-col items-center gap-2">
+              {googleEnabled && (
+                <GoogleSignInButton onCredential={handleGoogleSignup} text="signup_with" />
+              )}
+              {facebookEnabled && (
+                <FacebookSignInButton onToken={handleFacebookSignup} label="S’inscrire avec Facebook" />
+              )}
+            </div>
+            <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
+              <span className="h-px flex-1 bg-[#EFE6D7]" /> ou <span className="h-px flex-1 bg-[#EFE6D7]" />
+            </div>
+          </>
+        )}
+
+        <form onSubmit={submit} className="space-y-3.5">
+          <div>
+            <label htmlFor="reg-name" className="mb-1.5 block text-sm font-semibold text-gray-700">Nom complet</label>
             <div className="relative">
               <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Prénom" className="input pl-10" />
+              <input id="reg-name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Aya Koffi" className="input pl-10" autoComplete="name" />
             </div>
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nom" className="input" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          <div>
+            <label htmlFor="reg-email" className="mb-1.5 block text-sm font-semibold text-gray-700">Adresse email</label>
             <div className="relative">
-              <select value={gender} onChange={(e) => setGender(e.target.value)} className="input appearance-none pr-9">
-                <option value="">Sexe…</option>
-                <option value="homme">Homme</option>
-                <option value="femme">Femme</option>
-                <option value="autre">Autre</option>
-              </select>
-              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-4 text-gray-400" />
+              <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
+              <input id="reg-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.ci" className="input pl-10" autoComplete="email" />
             </div>
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className="input text-gray-700"
-              aria-label="Date de naissance"
-            />
           </div>
-          <p className="text-[11px] text-gray-400">Date de naissance</p>
-        </section>
 
-        {/* Localisation — géolocalisée (GPS) et verrouillée */}
-        <section className="space-y-2">
-          <p className="text-sm font-bold text-gray-800">Votre localisation</p>
-          <div className="flex items-center justify-between rounded-xl border border-[#E6DAC6] bg-gray-50 px-4 py-3">
-            <span className="flex min-w-0 items-center gap-2">
-              <MapPin size={18} className="shrink-0 text-primary-500" />
-              <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
-                {loc.regionId
-                  ? locationLabel(loc.regionId, loc.cityId, loc.commune)
-                  : locating
-                    ? 'Détection de votre position…'
-                    : 'Position non détectée'}
+          <div>
+            <label htmlFor="reg-password" className="mb-1.5 block text-sm font-semibold text-gray-700">Mot de passe</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+              <input id="reg-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="input pl-10 pr-11" autoComplete="new-password" />
+              <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Voir le mot de passe'} className="absolute right-2 top-1.5 grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:text-gray-600">
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <PasswordStrength value={password} />
+          </div>
+
+          <div>
+            <label htmlFor="reg-confirm" className="mb-1.5 block text-sm font-semibold text-gray-700">Confirmer le mot de passe</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
+              <input id="reg-confirm" type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" className="input pl-10" autoComplete="new-password" />
+            </div>
+            {confirmPassword.length > 0 && confirmPassword !== password && (
+              <p className="mt-1 pl-1 text-xs font-medium text-red-500">Les deux mots de passe ne correspondent pas.</p>
+            )}
+          </div>
+
+          {/* Captcha anti-robot (calcul simple, sans service externe) */}
+          <div>
+            <label htmlFor="reg-captcha" className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+              <ShieldCheck size={15} className="text-ivoire-green" /> Vérification anti-robot
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="select-none rounded-xl border border-[#EFE6D7] bg-[#FFF6EA] px-3.5 py-2.5 font-display text-base font-bold tracking-wide text-ink">
+                {captcha.a} + {captcha.b} = ?
               </span>
+              <input
+                id="reg-captcha"
+                inputMode="numeric"
+                value={captchaInput}
+                onChange={(e) => setCaptchaInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="Réponse"
+                aria-label={`Combien font ${captcha.a} plus ${captcha.b} ?`}
+                className={`input flex-1 ${captchaInput.length > 0 ? (captchaOk ? 'border-ivoire-green' : 'border-red-300') : ''}`}
+              />
+              <button
+                type="button"
+                onClick={newCaptcha}
+                aria-label="Nouveau calcul"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#EFE6D7] bg-white text-gray-500 transition hover:text-gray-700 active:scale-95"
+              >
+                <RefreshCw size={17} />
+              </button>
+            </div>
+          </div>
+
+          {/* Acceptation obligatoire des mentions légales */}
+          <label className="flex items-start gap-2.5 pt-1 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => { setAccepted(e.target.checked); setError('') }}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-primary-500"
+            />
+            <span>
+              J’accepte les{' '}
+              <a href="#/conditions" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600">
+                conditions
+              </a>{' '}
+              et la{' '}
+              <a href="#/confidentialite" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600">
+                politique de confidentialité
+              </a>.
             </span>
-            <Lock size={15} className="shrink-0 text-gray-400" />
-          </div>
-          <button
-            type="button"
-            onClick={detectLocation}
-            disabled={locating}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition active:scale-[0.99] disabled:opacity-60"
-          >
-            <LocateFixed size={16} />
-            {locating ? 'Localisation…' : loc.regionId ? 'Actualiser ma position (GPS)' : 'Activer ma position (GPS)'}
+          </label>
+
+          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+          {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
+
+          <button type="submit" disabled={busy || !enabled || !accepted} className="btn-primary w-full py-3.5 text-base">
+            {busy ? <Loader2 size={20} className="animate-spin" /> : 'Créer mon compte'}
           </button>
-          {!loc.regionId && !locating && (
-            <button
-              type="button"
-              onClick={() => setLocOpen(true)}
-              className="w-full text-center text-xs text-gray-400 underline"
-            >
-              La détection a échoué ? Choisir manuellement
-            </button>
-          )}
-        </section>
+        </form>
 
-        {/* Méthode de compte */}
-        <section className="space-y-3">
-          <p className="text-sm font-bold text-gray-800">Créer le compte avec</p>
-          {/* Onglet Téléphone masqué tant que le SMS n'est pas activé (PHONE_LOGIN_ENABLED). */}
-          {PHONE_LOGIN_ENABLED && (
-          <div className="flex rounded-xl bg-gray-100 p-1">
-            <button type="button" onClick={() => { setMethod('email'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'email' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
-              <Mail size={15} className="mr-1 inline" /> Email
-            </button>
-            <button type="button" onClick={() => { setMethod('phone'); setError('') }} className={`flex-1 rounded-lg py-2 text-sm font-semibold ${method === 'phone' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>
-              <Phone size={15} className="mr-1 inline" /> Téléphone
-            </button>
-          </div>
-          )}
-
-          {method === 'email' ? (
-            <>
-              <div className="relative">
-                <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Adresse email" className="input pl-10" autoComplete="email" />
-              </div>
-              <div className="relative">
-                <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="input pl-10 pr-11" autoComplete="new-password" />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Voir le mot de passe'} className="absolute right-2 top-1.5 grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:text-gray-600">
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              <PasswordStrength value={password} />
-              <div className="relative">
-                <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirmer le mot de passe" className="input pl-10" autoComplete="new-password" />
-                {confirmPassword.length > 0 && confirmPassword !== password && (
-                  <p className="mt-1 pl-1 text-xs font-medium text-red-500">Les deux mots de passe ne correspondent pas.</p>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="relative">
-                <Phone size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                <input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+225 07 00 00 00 00" disabled={otpSent} className="input pl-10" />
-              </div>
-              {otpSent && (
-                <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="Code reçu par SMS" maxLength={6} className="input text-center text-lg tracking-widest" />
-              )}
-            </>
-          )}
-        </section>
-
-        {/* Acceptation obligatoire des mentions légales */}
-        <label className="flex items-start gap-2.5 rounded-xl bg-gray-50 px-4 py-3">
-          <input
-            type="checkbox"
-            checked={accepted}
-            onChange={(e) => { setAccepted(e.target.checked); setError('') }}
-            className="mt-0.5 h-5 w-5 shrink-0 accent-primary-500"
-          />
-          <span className="text-sm text-gray-600">
-            J’ai lu et j’accepte les{' '}
-            <a href="#/conditions" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600 underline">
-              Conditions d’utilisation
-            </a>{' '}
-            et la{' '}
-            <a href="#/confidentialite" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600 underline">
-              Politique de confidentialité
-            </a>.
-          </span>
-        </label>
-
-        {/* Inscription facultative à la newsletter */}
-        <label className="flex items-start gap-2.5 rounded-xl bg-primary-50/60 px-4 py-3">
-          <input
-            type="checkbox"
-            checked={newsletterOptIn}
-            onChange={(e) => setNewsletterOptIn(e.target.checked)}
-            className="mt-0.5 h-5 w-5 shrink-0 accent-primary-500"
-          />
-          <span className="text-sm text-gray-600">
-            📩 Je souhaite recevoir la <b>newsletter</b> : bons plans, promos et nouveautés. <span className="text-gray-400">(facultatif)</span>
-          </span>
-        </label>
-
-        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
-        {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
-
-        <button type="submit" disabled={busy || !enabled || !accepted} className="btn-primary w-full py-3.5 text-base">
-          {busy ? (
-            <Loader2 size={20} className="animate-spin" />
-          ) : method === 'phone' && !otpSent ? (
-            'Recevoir un code SMS'
-          ) : (
-            'Créer mon compte'
-          )}
-        </button>
-
-        <p className="text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-gray-500">
           Déjà un compte ?{' '}
           <button type="button" onClick={() => navigate('/connexion')} className="font-semibold text-primary-600">
             Se connecter
           </button>
         </p>
-      </form>
-
-      <LocationSheet open={locOpen} onClose={() => setLocOpen(false)} value={loc} onApply={setLoc} />
+      </div>
     </div>
   )
 }
