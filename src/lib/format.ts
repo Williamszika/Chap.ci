@@ -5,7 +5,11 @@ const NBSP = ' '
 
 /** Nombre groupé à la française : « 1 500 » (séparateur = espace fine insécable). */
 export function formatPrice(value: number): string {
-  return new Intl.NumberFormat('fr-FR').format(value)
+  // fr-FR sépare les milliers par une espace fine (U+202F) que certaines polices
+  // (dont la police display) n'ont pas : le séparateur devient invisible
+  // (« 2500 »). On la remplace par l'espace insécable classique (U+00A0),
+  // disponible partout → « 2 500 » s'affiche correctement dans tout le site.
+  return new Intl.NumberFormat('fr-FR').format(value).replace(/\u202F/g, '\u00A0')
 }
 
 /** Prix complet à la française : « 1 500 FCFA » (espace insécable avant l'unité). */

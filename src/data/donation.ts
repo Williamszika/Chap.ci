@@ -49,17 +49,6 @@ export const donationOperators: DonationOperator[] = [
       "Composez *133#, choisissez « Transfert d'argent », saisissez le numéro Chap.ci et le montant, puis validez avec votre code PIN MoMo.",
   },
   {
-    id: 'moov',
-    name: 'Moov Money',
-    emoji: '🔵',
-    color: '#004B9B',
-    number: '+225 01 00 00 00 00', // 👉 À REMPLACER
-    accountName: 'Chap.ci', // 👉 À REMPLACER
-    ussd: '*155#',
-    howTo:
-      'Composez *155*1*1#, saisissez le numéro Chap.ci et le montant, puis validez avec votre code secret Moov Money.',
-  },
-  {
     id: 'wave',
     name: 'Wave',
     emoji: '🌊',
@@ -70,14 +59,25 @@ export const donationOperators: DonationOperator[] = [
     howTo:
       "Ouvrez l'appli Wave (ou composez *555#), envoyez au numéro Chap.ci, saisissez le montant et confirmez avec votre code PIN.",
   },
+  {
+    id: 'moov',
+    name: 'Moov Money',
+    emoji: '🔵',
+    color: '#004B9B',
+    number: '+225 01 00 00 00 00', // 👉 À REMPLACER
+    accountName: 'Chap.ci', // 👉 À REMPLACER
+    ussd: '*155#',
+    howTo:
+      'Composez *155*1*1#, saisissez le numéro Chap.ci et le montant, puis validez avec votre code secret Moov Money.',
+  },
 ]
 
-/** Montants suggérés en FCFA */
-export const suggestedAmounts = [500, 1000, 2000, 5000, 10000, 25000]
+/** Montants suggérés en FCFA (grille de l'artifact : 5 montants + « Autre ») */
+export const suggestedAmounts = [1000, 2500, 5000, 10000, 25000]
 
 export const donationCopy = {
-  title: 'Soutenir Chap.ci',
-  subtitle: 'Chap.ci est gratuit. Votre don nous aide à faire vivre et grandir la plateforme 🇨🇮',
+  title: 'Soutiens Chap.ci',
+  subtitle: 'Aidez-nous à garder la plateforme gratuite pour tous.',
   why: [
     'Garder Chap.ci 100 % gratuit pour les Ivoiriens',
     'Payer les serveurs et améliorer l’application',
