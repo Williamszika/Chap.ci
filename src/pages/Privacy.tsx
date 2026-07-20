@@ -1,7 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ShieldCheck } from 'lucide-react'
-import { Mark, Wordmark } from '../components/Logo'
 
 // Adresse de contact affichée dans la politique — à personnaliser si besoin.
 const CONTACT_EMAIL = 'contact@chap.ci'
@@ -23,7 +20,6 @@ const TOC: [string, string][] = [
 ]
 
 export function Privacy() {
-  const navigate = useNavigate()
   const [active, setActive] = useState('sec-1')
 
   // Surligne dans le sommaire la section actuellement à l'écran.
@@ -45,49 +41,43 @@ export function Privacy() {
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
-    <div className="min-h-screen bg-white pb-16 md:mx-auto md:max-w-3xl lg:max-w-5xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
-          <ArrowLeft size={22} />
-        </button>
-        <h1 className="font-display text-lg font-bold">Confidentialité</h1>
+    <div className="min-h-screen pb-16">
+      {/* En-tête « legal-head » de l'artifact : titre à gauche + filet */}
+      <header className="border-b border-[#EFE6D7] bg-white px-4 pb-4 pt-6 md:-mx-6 md:px-6">
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink md:text-[26px]">
+          Confidentialité &amp; RGPD
+        </h1>
+        <p className="mt-1.5 text-[13px] text-gray-500">
+          Comment Chap.ci protège vos données. Mise à jour : {LAST_UPDATE}.
+        </p>
       </header>
 
-      {/* Ordinateur / tablette : sommaire latéral + texte. Mobile : colonne unique. */}
-      <div className="md:grid md:grid-cols-[200px_minmax(0,1fr)] md:gap-8 md:px-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
-        {/* Sommaire (masqué sur mobile) */}
-        <aside className="hidden md:block">
-          <nav className="sticky top-20 py-6" aria-label="Sommaire">
-            <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Sommaire</p>
-            <div className="flex flex-col gap-0.5">
-              {TOC.map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => go(id)}
-                  className={`rounded-lg px-3 py-1.5 text-left text-[13px] leading-snug transition ${
-                    active === id
-                      ? 'bg-primary-50 font-semibold text-primary-700'
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </nav>
-        </aside>
+      {/* Corps « legal-body » : 960px centré — sommaire-carte + texte (2 colonnes
+          dès md) ; sur téléphone, la carte sommaire s'affiche au-dessus du texte. */}
+      <div className="mx-auto max-w-[960px] px-4 py-5 md:grid md:grid-cols-[230px_minmax(0,1fr)] md:items-start md:gap-6 md:px-6 md:py-7">
+        {/* Sommaire — carte blanche collante (artifact « toc ») */}
+        <nav
+          aria-label="Sommaire"
+          className="mb-5 rounded-[14px] border border-[#EFE6D7] bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)] md:sticky md:top-20 md:mb-0"
+        >
+          <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">Sommaire</p>
+          <div className="flex flex-col">
+            {TOC.map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => go(id)}
+                className={`py-1 text-left text-[13px] font-semibold leading-snug transition ${
+                  active === id ? 'text-primary-700' : 'text-primary-600/80 hover:text-primary-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
         {/* Contenu */}
-        <div className="mx-auto max-w-2xl px-5 py-6 md:mx-0 md:px-0">
-          <div className="mb-6 flex flex-col items-center text-center md:items-start md:text-left">
-            <Mark size={48} />
-            <Wordmark className="mt-2 text-xl text-ink" />
-            <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
-              <ShieldCheck size={16} /> Politique de confidentialité
-            </p>
-            <p className="text-xs text-gray-400">Dernière mise à jour : {LAST_UPDATE}</p>
-          </div>
-
+        <div className="min-w-0">
           <div className="space-y-5 text-[15px] leading-relaxed text-gray-700">
             <p>
               Chap.ci (« l’application ») est une plateforme de petites annonces en Côte d’Ivoire. La
