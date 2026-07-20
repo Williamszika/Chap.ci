@@ -40,9 +40,9 @@ export function AdDetail() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 pb-16 pt-4 md:px-6">
-      {/* Écran noir : visuel principal */}
+      {/* Écran noir : visuel principal — ici on montre le visuel EN ENTIER. */}
       <div className="relative flex min-h-[240px] flex-col justify-end overflow-hidden rounded-3xl bg-black text-white shadow-card-lg md:min-h-[340px]">
-        {ad.images[0] && <AdImageFill src={ad.images[0]} />}
+        {ad.images[0] && <AdImageFill src={ad.images[0]} className="!object-contain" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
         <div className="relative p-5 md:p-7">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur">
