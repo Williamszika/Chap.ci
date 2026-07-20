@@ -1279,6 +1279,14 @@ function NewsletterTab() {
 }
 
 // ---------- Modérateurs ----------
+// Dégradés d'avatars des modérateurs (rotation, comme l'artifact).
+const AV_GRADS = [
+  'linear-gradient(145deg,#F77F00,#D95F00)',
+  'linear-gradient(145deg,#9a4100,#7c3600)',
+  'linear-gradient(145deg,#009E60,#007447)',
+  'linear-gradient(145deg,#8E86C8,#6b62a8)',
+]
+
 function ModeratorsTab() {
   const [data, setData] = useState<Moderators | null>(null)
   const [err, setErr] = useState('')
@@ -1327,135 +1335,170 @@ function ModeratorsTab() {
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!data) return <Center><Loader2 className="animate-spin" size={20} /></Center>
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
-        <p className="flex items-center gap-1.5 font-semibold"><ShieldCheck size={16} /> Rôles &amp; permissions</p>
-        <p className="mt-1 text-primary-700">
-          Tu crées chaque modérateur avec son <b>email</b>, les <b>fonctionnalités</b> que tu lui
-          autorises, et un <b>code d’accès</b> personnel. Il déverrouille <b>une fois</b> et garde
-          l’accès <b>jusqu’à ce que tu le bloques</b> (bouton <Ban size={12} className="inline" />).
-          Un modérateur bloqué perd l’accès immédiatement. Le <b>propriétaire</b> garde tout.
-        </p>
+    <div className="space-y-3.5">
+      {/* Note de l'artifact : filet orange à gauche, fond crème */}
+      <div className="rounded-r-xl border-l-[3px] border-primary-500 bg-[#FFF6EC] px-3.5 py-3 text-[13px] leading-relaxed text-gray-700">
+        Vous créez chaque modérateur avec son email, les fonctionnalités autorisées et un code
+        d’accès. Il déverrouille une fois et garde l’accès <b>jusqu’à ce que vous le bloquiez</b>.
       </div>
 
-      {/* Code d'accès généré, affiché une seule fois */}
-      {issued && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-bold text-amber-800">Code d’accès de {issued.email}</p>
-          <p className="mt-0.5 text-xs text-amber-700">Transmets-le au modérateur. <b>Il ne sera plus affiché.</b></p>
-          <div className="mt-2 flex items-center gap-2">
-            <code className="flex-1 rounded-lg bg-white px-3 py-2 text-center font-mono text-lg tracking-[0.3em] text-gray-800">{issued.code}</code>
-            <button
-              onClick={() => { navigator.clipboard?.writeText(issued.code); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-              className="shrink-0 rounded-lg border border-amber-200 bg-white p-2 text-gray-600"
-              aria-label="Copier le code"
-            >
-              {copied ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Copy size={18} />}
-            </button>
-          </div>
+      {/* Panneau « Créer un modérateur » (panel-lite de l'artifact) */}
+      <form onSubmit={save} className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+        <p className="font-display text-[15px] font-extrabold text-ink">Créer un modérateur</p>
+        <div className="relative mt-3">
+          <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); if (msg) setMsg('') }}
+            placeholder="email@du-moderateur.ci"
+            autoComplete="off"
+            className="input pl-10"
+            aria-label="Email du modérateur"
+          />
         </div>
-      )}
 
-      {/* Créer / mettre à jour un modérateur */}
-      <form onSubmit={save} className="space-y-3 rounded-2xl bg-white p-4 shadow-card">
-        <p className="font-display text-sm font-bold text-gray-800">Créer / modifier un modérateur</p>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => { setEmail(e.target.value); if (msg) setMsg('') }}
-          placeholder="email@du-moderateur.com"
-          autoComplete="off"
-          className="input"
-          aria-label="Email du modérateur"
-        />
-        <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Fonctionnalités autorisées</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {data.features.map((f) => (
-              <label key={f.key} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${perms.includes(f.key) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-[#E6DAC6] text-gray-600'}`}>
-                <input type="checkbox" checked={perms.includes(f.key)} onChange={() => toggle(f.key)} className="accent-primary-500" />
+        <p className="mb-1.5 mt-4 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">
+          Fonctionnalités autorisées
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {data.features.map((f) => {
+            const on = perms.includes(f.key)
+            return (
+              <label
+                key={f.key}
+                className={`flex cursor-pointer select-none items-center gap-2 rounded-[11px] border px-3 py-2.5 text-[13px] transition ${
+                  on ? 'border-primary-500 bg-[#FFF6EC] font-semibold text-primary-700' : 'border-[#E6DAC6] text-gray-600'
+                }`}
+              >
+                <input type="checkbox" checked={on} onChange={() => toggle(f.key)} className="sr-only" />
+                <span
+                  aria-hidden
+                  className={`grid h-[17px] w-[17px] shrink-0 place-items-center rounded-[5px] border-[1.5px] text-[11px] text-white ${
+                    on ? 'border-primary-500 bg-primary-500' : 'border-[#E6DAC6] bg-white'
+                  }`}
+                >
+                  {on ? '✓' : ''}
+                </span>
                 {f.label}
               </label>
-            ))}
-          </div>
+            )
+          })}
         </div>
-        <div>
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-            placeholder="Code d’accès (laisser vide = généré)"
-            maxLength={16}
-            className="input font-mono tracking-widest"
-            aria-label="Code d’accès du modérateur"
-          />
-          <p className="mt-1 text-[11px] text-gray-400">Laisse vide pour un code généré automatiquement, ou choisis-en un (min. 6 caractères).</p>
-        </div>
-        <div className="flex gap-2">
+
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+          placeholder="Code d’accès personnalisé (vide = généré)"
+          maxLength={16}
+          className="input mt-3 font-mono tracking-widest"
+          aria-label="Code d’accès du modérateur"
+        />
+
+        {/* Code d'accès délivré — encadré pointillé de l'artifact, affiché une seule fois */}
+        {issued && (
+          <>
+            <div className="mt-3 flex items-center gap-2">
+              <div className="min-w-0 flex-1 rounded-[11px] border border-dashed border-primary-500 bg-[#FFFBF4] px-3 py-3 text-center font-display text-[19px] font-extrabold tracking-[5px] text-ink">
+                {issued.code}
+              </div>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText(issued.code); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+                className="shrink-0 rounded-[11px] border border-[#E6DAC6] bg-white p-3 text-gray-600 transition active:scale-95"
+                aria-label="Copier le code"
+              >
+                {copied ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Copy size={18} />}
+              </button>
+            </div>
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              Code d’accès de {issued.email} — transmettez-le-lui (affiché une seule fois).
+            </p>
+          </>
+        )}
+
+        {msg && <p className={`mt-3 text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
+
+        <div className="mt-3.5 flex gap-2">
           <button type="submit" disabled={busy} className="btn-primary flex-1 py-3 disabled:opacity-50">
-            {busy ? <Loader2 size={18} className="animate-spin" /> : <><UserPlus size={18} /> Enregistrer</>}
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <><UserPlus size={18} /> Enregistrer le modérateur</>}
           </button>
           {email && <button type="button" onClick={resetForm} className="btn-outline px-4 py-3 text-sm">Annuler</button>}
         </div>
-        {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
       </form>
 
-      <div>
-        <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Propriétaire</p>
-        <div className="space-y-2">
-          {data.owners.map((o) => (
-            <div key={o} className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600"><Crown size={18} /></span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{o}</span>
-              <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-800">Tous droits</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Modérateurs ({data.moderators.length})
-        </p>
+      {/* Panneau « Modérateurs · N » — lignes de l'artifact */}
+      <div className="rounded-2xl border border-[#EFE6D7] bg-white px-4 py-3 shadow-card">
+        <p className="font-display text-[15px] font-extrabold text-ink">Modérateurs · {data.moderators.length}</p>
         {data.moderators.length === 0 ? (
           <Empty>Aucun modérateur. Créez-en un ci-dessus.</Empty>
         ) : (
-          <div className="space-y-2">
-            {data.moderators.map((m) => (
-              <div key={m.email} className="rounded-2xl bg-white p-3 shadow-card">
-                <div className="flex items-center gap-2">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${m.blocked ? 'bg-red-100 text-red-500' : 'bg-primary-100 text-primary-600'}`}><ShieldCheck size={18} /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-semibold text-gray-800">{m.email}</span>
-                      {m.blocked && <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-600">Bloqué</span>}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      ajouté {timeAgo(m.createdAt)}{m.hasCode ? '' : ' · sans code'}
-                    </span>
-                  </span>
-                  <button onClick={() => toggleBlock(m)} aria-label={m.blocked ? 'Débloquer' : 'Bloquer'} title={m.blocked ? 'Débloquer l’accès' : 'Bloquer l’accès'} className={`shrink-0 rounded-xl p-2 transition ${m.blocked ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-600 hover:bg-amber-50'}`}>
-                    {m.blocked ? <ShieldOk size={17} /> : <Ban size={17} />}
-                  </button>
-                  <button onClick={() => edit(m)} aria-label="Modifier" title="Modifier" className="shrink-0 rounded-xl p-2 text-primary-500 transition hover:bg-primary-50">
-                    <Pencil size={17} />
-                  </button>
-                  <button onClick={() => remove(m.email)} aria-label="Retirer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
-                    <Trash2 size={18} />
-                  </button>
+          <div className="divide-y divide-[#EFE6D7]">
+            {data.moderators.map((m, i) => (
+              <div key={m.email} className="flex items-center gap-3 py-3">
+                <span
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full font-display font-extrabold text-white"
+                  style={{ background: AV_GRADS[i % AV_GRADS.length], opacity: m.blocked ? 0.45 : 1 }}
+                  aria-hidden
+                >
+                  {(m.email[0] || '?').toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-1.5">
+                    <span className="truncate font-display text-[13.5px] font-bold text-gray-800">{m.email}</span>
+                    {m.blocked && (
+                      <span className="shrink-0 rounded-full bg-red-500/15 px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wide text-red-600">
+                        Bloqué
+                      </span>
+                    )}
+                  </p>
+                  {m.permissions.length > 0 ? (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {m.permissions.map((p) => (
+                        <span key={p} className="rounded-full border border-[#EFE6D7] bg-[#FFF6EA] px-2 py-0.5 text-[10.5px] font-semibold text-gray-600">
+                          {labelOf(p)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-0.5 text-[11px] text-gray-400">Aucune fonctionnalité cochée (« Aperçu » seulement).</p>
+                  )}
                 </div>
-                {m.permissions.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1 pl-[52px]">
-                    {m.permissions.map((p) => (
-                      <span key={p} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{labelOf(p)}</span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-1 pl-[52px] text-[11px] text-gray-400">Aucune fonctionnalité cochée (accès « Aperçu » seulement).</p>
-                )}
+                <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-center">
+                  <button
+                    onClick={() => toggleBlock(m)}
+                    className={`rounded-[9px] border px-2.5 py-1.5 text-[11.5px] font-bold transition ${
+                      m.blocked
+                        ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                        : 'border-red-200 text-red-600 hover:bg-red-50'
+                    }`}
+                  >
+                    {m.blocked ? '✓ Débloquer' : '⊘ Bloquer'}
+                  </button>
+                  <span className="flex">
+                    <button onClick={() => edit(m)} aria-label="Modifier" title="Modifier (email + fonctionnalités repris dans le formulaire)" className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-50 hover:text-primary-600">
+                      <Pencil size={15} />
+                    </button>
+                    <button onClick={() => remove(m.email)} aria-label="Retirer" title="Retirer ce modérateur" className="rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-500">
+                      <Trash2 size={15} />
+                    </button>
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         )}
+      </div>
+
+      {/* Propriétaire(s) — conservé (tous droits, non délégable) */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+        {data.owners.map((o) => (
+          <div key={o} className="flex items-center gap-3 py-1">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600"><Crown size={16} /></span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{o}</span>
+            <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">Propriétaire</span>
+          </div>
+        ))}
       </div>
     </div>
   )
