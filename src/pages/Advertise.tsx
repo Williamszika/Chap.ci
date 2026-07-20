@@ -8,6 +8,7 @@ import { donationOperators } from '../data/donation'
 import { downscaleListingImage } from '../lib/image'
 import { classifyImage } from '../lib/nsfw'
 import { formatFCFA } from '../lib/format'
+import { AdImageFill } from '../components/AdImageFill'
 
 const MAX_IMAGES = 3
 
@@ -366,10 +367,8 @@ export function Advertise() {
               </span>
             </p>
             <div className="relative mt-3 flex min-h-[150px] flex-col justify-end overflow-hidden rounded-2xl bg-black text-white">
-              {preview.img && (
-                <img src={preview.img} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/20" />
+              {preview.img && <AdImageFill src={preview.img} />}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
               <div className="relative p-3.5">
                 <span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider backdrop-blur">
                   <Megaphone size={10} /> Publicité

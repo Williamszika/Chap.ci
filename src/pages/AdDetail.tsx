@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Megaphone, ArrowRight, Loader2 } from 'lucide-react'
 import { fetchAd, type Ad } from '../lib/ads'
+import { AdImageFill } from '../components/AdImageFill'
 
 /** Page d'une publicité (clic sur une pub sans lien externe). */
 export function AdDetail() {
@@ -41,10 +42,8 @@ export function AdDetail() {
     <div className="mx-auto w-full max-w-4xl px-4 pb-16 pt-4 md:px-6">
       {/* Écran noir : visuel principal */}
       <div className="relative flex min-h-[240px] flex-col justify-end overflow-hidden rounded-3xl bg-black text-white shadow-card-lg md:min-h-[340px]">
-        {ad.images[0] && (
-          <img src={ad.images[0]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/15" />
+        {ad.images[0] && <AdImageFill src={ad.images[0]} />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
         <div className="relative p-5 md:p-7">
           <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider backdrop-blur">
             <Megaphone size={12} /> Publicité

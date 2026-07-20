@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Megaphone, ArrowRight } from 'lucide-react'
 import { fetchActiveAds, type Ad } from '../lib/ads'
+import { AdImageFill } from './AdImageFill'
 
 /** Durée d'affichage de chaque publicité (60 s, comme demandé). */
 const ROTATE_MS = 60_000
@@ -105,15 +106,10 @@ export function PromoBanner() {
           </div>
         ) : ad ? (
           <>
-            {/* Visuel de la pub en fond, assombri pour la lisibilité du texte */}
-            {img && (
-              <img
-                src={img}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover opacity-80"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/20" />
+            {/* Visuel de la pub — affiché ENTIER (adapté à tout format), fond flou */}
+            {img && <AdImageFill src={img} />}
+            {/* Dégradé bas : lisibilité du titre, sans masquer l'image */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
 
             <div key={ad.id} className="ad-anim-fondu relative flex flex-col gap-3 p-5 md:flex-row md:items-end md:justify-between md:gap-8 md:p-7">
               <div className="min-w-0">
