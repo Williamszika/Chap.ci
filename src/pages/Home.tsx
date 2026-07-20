@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import {
   Search,
   MapPin,
@@ -37,7 +37,18 @@ function norm(s: string): string {
 
 export function Home() {
   const navigate = useNavigate()
+  const { search } = useLocation()
   const { listings, loading } = useApp()
+
+  // Lien profond /?voir=categories (pied de page) : défile jusqu'à la grille
+  // des catégories.
+  useEffect(() => {
+    if (new URLSearchParams(search).get('voir') !== 'categories') return
+    const t = setTimeout(() => {
+      document.getElementById('categories')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 150)
+    return () => clearTimeout(t)
+  }, [search])
   const [loc, setLoc] = useLocalStorage<LocationFilter>('chapci.loc.v1', {})
   const [locOpen, setLocOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -228,7 +239,7 @@ export function Home() {
       <PromoBanner />
 
       {/* Catégories */}
-      <section className="px-4 py-5">
+      <section id="categories" className="scroll-mt-20 px-4 py-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">Catégories</h2>
           <button

@@ -6,7 +6,7 @@ const cols: { title: string; links: { to: string; label: string; state?: unknown
     title: 'Explorer',
     links: [
       { to: '/explorer', label: 'Toutes les annonces' },
-      { to: '/explorer', label: 'Catégories' },
+      { to: '/?voir=categories', label: 'Catégories' },
       { to: '/explorer?tri=distance', label: 'Près de moi' },
       { to: '/explorer?promo=1', label: 'Bons plans' },
     ],
