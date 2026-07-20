@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Search, Plus, Minus, MessageSquare } from 'lucide-react'
 
 type QA = { q: string; a: React.ReactNode }
-type Section = { title: string; icon: string; items: QA[] }
+type Section = { title: string; icon: string; slug: string; items: QA[] }
 
 const sections: Section[] = [
   {
     title: 'Général',
+    slug: 'general',
     icon: '👋',
     items: [
       {
@@ -37,6 +38,7 @@ const sections: Section[] = [
   },
   {
     title: 'Mon compte',
+    slug: 'compte',
     icon: '🔐',
     items: [
       {
@@ -79,6 +81,7 @@ const sections: Section[] = [
   },
   {
     title: 'Acheter',
+    slug: 'acheter',
     icon: '🛍️',
     items: [
       {
@@ -142,6 +145,7 @@ const sections: Section[] = [
   },
   {
     title: 'Vendre',
+    slug: 'vendre',
     icon: '🏷️',
     items: [
       {
@@ -175,6 +179,7 @@ const sections: Section[] = [
   },
   {
     title: 'Sécurité & confiance',
+    slug: 'securite',
     icon: '🛡️',
     items: [
       {
@@ -219,6 +224,7 @@ const sections: Section[] = [
   },
   {
     title: 'Paiement & don',
+    slug: 'paiement',
     icon: '💚',
     items: [
       {
@@ -263,9 +269,25 @@ function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => v
 }
 
 export function Faq() {
+  const { search } = useLocation()
   const [query, setQuery] = useState('')
   // Clé d'ouverture = "sectionIndex:itemIndex". La 1re question est ouverte par défaut.
   const [openKey, setOpenKey] = useState<string | null>('0:0')
+
+
+  // Lien profond ?rubrique=vendre|securite|… : ouvre la première question de la
+  // rubrique et fait défiler jusqu'à elle (liens du pied de page).
+  useEffect(() => {
+    const r = new URLSearchParams(search).get('rubrique')
+    if (!r) return
+    const si = sections.findIndex((s) => s.slug === r)
+    if (si < 0) return
+    setOpenKey(`${si}:0`)
+    const t = setTimeout(() => {
+      document.getElementById(`rub-${r}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 150)
+    return () => clearTimeout(t)
+  }, [search])
 
   const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
@@ -316,7 +338,7 @@ export function Faq() {
           // Colonne large centrée, rubriques empilées (cartes plates de l'artifact).
           <div className="mx-auto w-full max-w-5xl space-y-8">
             {filtered.map((section, si) => (
-              <section key={section.title}>
+              <section key={section.title} id={`rub-${section.slug}`} className="scroll-mt-24">
                 <h3 className="mb-3 flex items-center gap-2 px-1 font-display text-sm font-bold uppercase tracking-wide text-gray-500">
                   <span className="text-base">{section.icon}</span> {section.title}
                 </h3>

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useLocation } from 'react-router-dom'
 import { User, Mail, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react'
 import { phpContact } from '../lib/php'
 
@@ -12,10 +13,21 @@ const SUBJECTS = [
   'Suggestion',
 ]
 
+/** Sujet présélectionné via ?sujet= (liens du pied de page : signaler, partenariat…). */
+function subjectFromQuery(search: string): string {
+  const s = (new URLSearchParams(search).get('sujet') || '').toLowerCase()
+  if (s.includes('signal')) return 'Signaler un problème'
+  if (s.includes('parten') || s.includes('presse')) return 'Partenariat / presse'
+  if (s.includes('aide') || s.includes('support')) return 'Aide & support (compte, paiement)'
+  if (s.includes('suggest')) return 'Suggestion'
+  return 'Question générale'
+}
+
 export function Contact() {
+  const { search } = useLocation()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [subject, setSubject] = useState('Signaler un problème')
+  const [subject, setSubject] = useState(() => subjectFromQuery(search))
   const [message, setMessage] = useState('')
   const [company, setCompany] = useState('') // pot de miel anti-robot (doit rester vide)
   const [busy, setBusy] = useState(false)

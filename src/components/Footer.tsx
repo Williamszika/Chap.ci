@@ -14,19 +14,20 @@ const cols: { title: string; links: { to: string; label: string; state?: unknown
   {
     title: 'Vendre',
     links: [
-      { to: '/publier', label: 'Publier' },
-      { to: '/aide', label: 'Conseils vendeur' },
-      { to: '/compte', label: 'Boutique pro', state: { tab: 'ventes' } },
-      { to: '/compte', label: 'Tableau de bord', state: { tab: 'annonces' } },
+      // Libellés alignés sur le CONTENU réel des destinations.
+      { to: '/publier', label: 'Publier une annonce' },
+      { to: '/aide?rubrique=vendre', label: 'Conseils vendeur' },
+      { to: '/compte', label: 'Tableau de bord pro', state: { tab: 'ventes' } },
+      { to: '/compte', label: 'Mes annonces', state: { tab: 'annonces' } },
     ],
   },
   {
     title: 'Aide',
     links: [
-      { to: '/aide', label: 'Centre d’aide' },
-      { to: '/aide', label: 'Sécurité' },
-      { to: '/contact', label: 'Signaler' },
-      { to: '/contact', label: 'Contact' },
+      { to: '/aide', label: 'Questions fréquentes' },
+      { to: '/aide?rubrique=securite', label: 'Conseils de sécurité' },
+      { to: '/contact?sujet=signaler', label: 'Signaler un problème' },
+      { to: '/contact', label: 'Nous contacter' },
     ],
   },
   {
@@ -35,7 +36,7 @@ const cols: { title: string; links: { to: string; label: string; state?: unknown
       { to: '/a-propos', label: 'À propos' },
       { to: '/confidentialite', label: 'RGPD' },
       { to: '/conditions', label: 'CGU' },
-      { to: '/contact', label: 'Nous rejoindre' },
+      { to: '/contact?sujet=partenariat', label: 'Partenariat & presse' },
     ],
   },
 ]
