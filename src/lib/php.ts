@@ -510,6 +510,18 @@ export async function phpUpdateProfile(fields: ProfileFields): Promise<void> {
   await req('/profile', { method: 'PUT', body: fields })
 }
 
+// ---- Contact ----------------------------------------------------------------
+export interface ContactPayload {
+  name: string
+  email: string
+  subject: string
+  message: string
+  company?: string // pot de miel anti-robot : doit rester vide
+}
+export async function phpContact(payload: ContactPayload): Promise<void> {
+  await req('/contact', { method: 'POST', body: payload })
+}
+
 // ---- Newsletter -------------------------------------------------------------
 export async function phpSubscribeNewsletter(email: string): Promise<void> {
   await req('/newsletter', { method: 'POST', body: { email } })

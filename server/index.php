@@ -976,6 +976,10 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS newsletter (
       id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, created_at $ts
     )$eng",
+    "CREATE TABLE IF NOT EXISTS contact_messages (
+      id $id PRIMARY KEY, name $txt, email $txt, subject $txt, message $txt,
+      ip $txt, handled $intT, created_at $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS admins (
       email VARCHAR(190) PRIMARY KEY, created_at $ts
     )$eng",
@@ -3297,6 +3301,50 @@ try {
       send_newsletter_email($config, $email); // confirmation (best-effort)
     }
     jout(['ok' => true]); // idempotent : déjà inscrit = succès aussi
+  }
+
+  // Formulaire de contact : enregistre le message ET l'envoie à contact@chap.ci.
+  if ($path === 'contact' && $method === 'POST') {
+    $b = body();
+    $name    = trim((string) ($b['name'] ?? ''));
+    $email   = strtolower(trim((string) ($b['email'] ?? '')));
+    $subject = trim((string) ($b['subject'] ?? '')) ?: 'Message';
+    $message = trim((string) ($b['message'] ?? ''));
+    // Pot de miel anti-robot : ce champ caché doit rester vide. Rempli = bot :
+    // on répond « ok » sans rien faire (ni stockage, ni email).
+    if (trim((string) ($b['company'] ?? '')) !== '') jout(['ok' => true]);
+    if ($message === '') jerr('Votre message est vide.');
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    // Anti-spam : max 5 messages par IP/email et par heure (empêche l'abus du
+    // formulaire pour envoyer des emails en masse).
+    rate_limit($pdo, 'contact', $email ?: null, 5, 3600);
+    // Bornage des longueurs.
+    $name = mb_substr($name, 0, 120);
+    $subject = mb_substr($subject, 0, 160);
+    $message = mb_substr($message, 0, 5000);
+    // 1) Copie en base : rien n'est perdu, même si l'email échoue.
+    try {
+      $pdo->prepare('INSERT INTO contact_messages (id,name,email,subject,message,ip,handled,created_at) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([uuid(), $name, $email, $subject, $message, client_ip(), 0, now_iso()]);
+    } catch (Throwable $e) { /* ne bloque pas l'envoi email */ }
+    log_security_event($pdo, 'contact', $email ?: null); // compteur anti-spam
+    // 2) Notification email vers contact@chap.ci (+ admins), réponse dirigée vers
+    //    l'expéditeur. Best-effort : l'échec d'envoi ne perd pas le message (stocké).
+    $to = array_values(array_unique(array_filter(array_merge(
+      report_recipients($config),
+      [$config['mail_reply_to'] ?? 'contact@chap.ci'],
+    ))));
+    $safe = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    $html = '<p><b>Nouveau message de contact — Chap.ci</b></p>'
+          . '<p><b>Nom :</b> ' . $safe($name ?: '—') . '<br>'
+          . '<b>Email :</b> ' . $safe($email ?: '—') . '<br>'
+          . '<b>Sujet :</b> ' . $safe($subject) . '</p>'
+          . '<hr><p style="white-space:pre-wrap">' . nl2br($safe($message)) . '</p>';
+    $delivered = false;
+    foreach ($to as $addr) {
+      if (send_mail($config, $addr, '[Contact] ' . $subject, $html, null, $email ?: null)) $delivered = true;
+    }
+    jout(['ok' => true, 'delivered' => $delivered]);
   }
 
   // L'utilisateur connecté est-il abonné à la newsletter ? (pour le popup)
