@@ -17,6 +17,8 @@ export interface AdminStats {
   reviews: number
   newsletter: number
   reportsOpen?: number
+  // null = compte sans la permission 'contact' (le serveur masque le compteur)
+  contactOpen?: number | null
   periods?: {
     users: { day: number; week: number; month: number; year: number }
     listings: { day: number; week: number; month: number; year: number }
@@ -120,6 +122,29 @@ export async function fetchReports(): Promise<Report[]> {
 export async function resolveReport(id: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminResolveReport(id)
+}
+
+// ---- Messages du formulaire de contact --------------------------------------
+export interface ContactMessage {
+  id: string
+  name?: string | null
+  email?: string | null
+  subject: string
+  message: string
+  handled: boolean
+  createdAt: number
+}
+export async function fetchContactMessages(): Promise<ContactMessage[]> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminContactMessages<ContactMessage[]>()
+}
+export async function setContactHandled(id: string, handled: boolean): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminContactHandled(id, handled)
+}
+export async function deleteContactMessage(id: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminContactDelete(id)
 }
 export async function fetchAdminOrders(): Promise<AdminOrder[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)

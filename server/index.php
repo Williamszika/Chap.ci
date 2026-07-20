@@ -1175,7 +1175,7 @@ function is_admin(array $config, PDO $pdo, array $u): bool {
 // propriétaire (jamais délégables).
 /** Fonctionnalités qu'un modérateur PEUT recevoir (cochables par l'admin). */
 function admin_grantable_features(): array {
-  return ['visitors','listings','users','reports','orders','conversations','reviews','newsletter','campaigns'];
+  return ['visitors','listings','users','reports','contact','orders','conversations','reviews','newsletter','campaigns'];
 }
 /** Fonctionnalités RÉSERVÉES au propriétaire (jamais délégables à un modérateur). */
 function admin_owner_only_features(): array {
@@ -1185,8 +1185,9 @@ function admin_owner_only_features(): array {
 function admin_feature_labels(): array {
   return [
     'visitors' => 'Visiteurs', 'listings' => 'Annonces', 'users' => 'Utilisateurs',
-    'reports' => 'Signalements', 'orders' => 'Commandes', 'conversations' => 'Conversations',
-    'reviews' => 'Avis', 'newsletter' => 'Abonnés', 'campaigns' => 'Campagnes',
+    'reports' => 'Signalements', 'contact' => 'Messages de contact', 'orders' => 'Commandes',
+    'conversations' => 'Conversations', 'reviews' => 'Avis', 'newsletter' => 'Abonnés',
+    'campaigns' => 'Campagnes',
   ];
 }
 /** Fonctionnalité requise par une route /admin/* (« » = pas de restriction fine). */
@@ -1197,6 +1198,7 @@ function admin_feature_for_path(string $path): string {
   if (str_starts_with($path, 'admin/listings')) return 'listings';
   if (str_starts_with($path, 'admin/users')) return 'users';
   if (str_starts_with($path, 'admin/reports')) return 'reports';
+  if (str_starts_with($path, 'admin/contact-messages')) return 'contact';
   if ($path === 'admin/orders') return 'orders';
   if ($path === 'admin/conversations') return 'conversations';
   if (str_starts_with($path, 'admin/reviews')) return 'reviews';
@@ -1863,7 +1865,7 @@ function send_search_alert(array $config, array $user, string $label, array $row
 function export_all(PDO $pdo): array {
   $tables = ['users', 'profiles', 'listings', 'conversations', 'messages', 'orders',
              'order_items', 'reviews', 'newsletter', 'admins', 'user_interests',
-             'reports', 'visits', 'saved_searches'];
+             'reports', 'visits', 'saved_searches', 'contact_messages'];
   $data = [];
   foreach ($tables as $t) {
     try { $data[$t] = $pdo->query("SELECT * FROM $t")->fetchAll(PDO::FETCH_ASSOC); }
@@ -3314,7 +3316,10 @@ try {
     // on répond « ok » sans rien faire (ni stockage, ni email).
     if (trim((string) ($b['company'] ?? '')) !== '') jout(['ok' => true]);
     if ($message === '') jerr('Votre message est vide.');
-    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    // Validation stricte : FILTER_VALIDATE_EMAIL accepte '?', '&', '=' et '%' dans
+    // la partie locale — on les refuse pour bloquer l'injection de paramètres
+    // mailto (cc/bcc/body) dans le bouton « Répondre » de l'admin (CWE-88).
+    if ($email !== '' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || preg_match('/[?&=%\s"()<>,;:\\\\]/', $email))) jerr('Adresse email invalide.');
     // Anti-spam : max 5 messages par IP/email et par heure (empêche l'abus du
     // formulaire pour envoyer des emails en masse).
     rate_limit($pdo, 'contact', $email ?: null, 5, 3600);
@@ -3582,6 +3587,11 @@ try {
         'orders' => $count('orders'), 'reviews' => $count('reviews'),
         'newsletter' => $count('newsletter'),
         'reportsOpen' => (int) ($pdo->query("SELECT COUNT(*) AS c FROM reports WHERE status = 'open'")->fetch()['c']),
+        // Compteur réservé aux comptes ayant la permission 'contact' (pas de fuite
+        // du volume de messages vers un modérateur non habilité).
+        'contactOpen' => admin_can($config, $pdo, $u, 'contact')
+          ? (int) ($pdo->query('SELECT COUNT(*) AS c FROM contact_messages WHERE handled = 0 OR handled IS NULL')->fetch()['c'])
+          : null,
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
         'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
         'series' => $series,
@@ -3702,6 +3712,31 @@ try {
     // Marquer un signalement comme traité.
     if (count($seg) === 3 && $seg[1] === 'reports' && $method === 'POST') {
       $pdo->prepare('UPDATE reports SET status = ? WHERE id = ?')->execute(['resolved', $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Messages du formulaire de contact : non traités d'abord, puis récents.
+    if ($path === 'admin/contact-messages' && $method === 'GET') {
+      $rows = $pdo->query('SELECT * FROM contact_messages
+        ORDER BY (CASE WHEN handled = 1 THEN 1 ELSE 0 END), created_at DESC LIMIT 200')->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'name' => $r['name'] ?: null, 'email' => $r['email'] ?: null,
+        'subject' => $r['subject'] ?: 'Message', 'message' => (string) $r['message'],
+        'handled' => !empty($r['handled']), 'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Marquer un message de contact traité (ou le rouvrir avec {handled:false}).
+    if (count($seg) === 3 && $seg[1] === 'contact-messages' && $method === 'POST') {
+      $b = body();
+      $handled = array_key_exists('handled', $b) ? (int) !empty($b['handled']) : 1;
+      $pdo->prepare('UPDATE contact_messages SET handled = ? WHERE id = ?')->execute([$handled, $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Supprimer un message de contact.
+    if (count($seg) === 3 && $seg[1] === 'contact-messages' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM contact_messages WHERE id = ?')->execute([$seg[2]]);
       jout(['ok' => true]);
     }
 

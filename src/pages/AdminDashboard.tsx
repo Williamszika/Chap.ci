@@ -14,17 +14,18 @@ import {
   fetchModerators, saveModerator, removeModerator, blockModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
+  fetchContactMessages, setContactHandled, deleteContactMessage,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
   listBackups, downloadBackup, resetData,
   adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
-  type VisitStats, type VisitRange, type ResponseTime, type BackupFile,
+  type VisitStats, type VisitRange, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2 } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -62,6 +63,10 @@ export function AdminDashboard() {
   // Onglets visibles selon le rôle : le propriétaire voit tout ; un modérateur voit
   // « Aperçu » + uniquement les fonctionnalités que l'admin lui a cochées.
   const canSee = (id: Tab) => role.owner || id === 'overview' || role.permissions.includes(id)
+
+  // Rafraîchit les compteurs (badges signalements / contact) après une action,
+  // sans re-passer par l'écran de chargement.
+  const refreshStats = () => { fetchAdminStats().then(setStats).catch(() => {}) }
 
   if (gate === 'loading')
     return <Shell><Center><Loader2 className="animate-spin" size={22} /> Chargement…</Center></Shell>
@@ -103,7 +108,7 @@ export function AdminDashboard() {
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => canSee(id)).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['contact','Contact'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => canSee(id)).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -113,17 +118,21 @@ export function AdminDashboard() {
               {id === 'reports' && !!stats?.reportsOpen && (
                 <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{stats.reportsOpen}</span>
               )}
+              {id === 'contact' && !!stats?.contactOpen && (
+                <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary-500 px-1 text-[10px] font-bold text-white">{stats.contactOpen}</span>
+              )}
             </button>
           ))}
         </nav>
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-5 md:max-w-[1280px] md:px-6">
-        {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} />}
+        {tab === 'overview' && stats && <Overview stats={stats} onGo={setTab} canSee={canSee} />}
         {tab === 'visitors' && <VisitorsTab />}
         {tab === 'listings' && <ListingsTab />}
         {tab === 'users' && <UsersTab />}
-        {tab === 'reports' && <ReportsTab />}
+        {tab === 'reports' && <ReportsTab onChanged={refreshStats} />}
+        {tab === 'contact' && <ContactTab onChanged={refreshStats} />}
         {tab === 'orders' && <OrdersTab />}
         {tab === 'conversations' && <ConversationsTab />}
         {tab === 'reviews' && <ReviewsTab />}
@@ -204,7 +213,7 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
 }
 
 // ---------- Aperçu ----------
-function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }) {
+function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) => void; canSee: (t: Tab) => boolean }) {
   const cards: { icon: ReactNode; label: string; value: number; tab?: Tab; alert?: boolean }[] = [
     { icon: <Users size={18} />, label: 'Utilisateurs', value: stats.users, tab: 'users' },
     { icon: <Package size={18} />, label: 'Annonces', value: stats.listings, tab: 'listings' },
@@ -213,11 +222,15 @@ function Overview({ stats, onGo }: { stats: AdminStats; onGo: (t: Tab) => void }
     { icon: <Star size={18} />, label: 'Avis', value: stats.reviews, tab: 'reviews' },
     { icon: <Mail size={18} />, label: 'Abonnés', value: stats.newsletter, tab: 'newsletter' },
     { icon: <Flag size={18} />, label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
+    { icon: <Inbox size={18} />, label: 'Contact à traiter', value: stats.contactOpen ?? 0, tab: 'contact', alert: (stats.contactOpen ?? 0) > 0 },
   ]
+  // Un modérateur ne voit que les cartes des sections qu'il peut réellement
+  // ouvrir (cohérent avec la barre d'onglets — pas de cul-de-sac 403).
+  const visible = cards.filter((c) => !c.tab || canSee(c.tab))
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {cards.map((c) => {
+        {visible.map((c) => {
           const clickable = !!c.tab
           const Comp = clickable ? 'button' : 'div'
           return (
@@ -767,7 +780,7 @@ function ModBtn({ active, onClick, disabled, icon, label, tone }: { active: bool
 }
 
 // ---------- Signalements ----------
-function ReportsTab() {
+function ReportsTab({ onChanged }: { onChanged?: () => void }) {
   const [items, setItems] = useState<Report[] | null>(null)
   const [err, setErr] = useState('')
   const load = () => { setItems(null); setErr(''); fetchReports().then(setItems).catch((e) => setErr((e as Error).message)) }
@@ -777,7 +790,7 @@ function ReportsTab() {
     try { await setAdminListingHidden(r.listingId, !r.listingHidden); load() } catch (e) { alert((e as Error).message) }
   }
   const resolve = async (r: Report) => {
-    try { await resolveReport(r.id); load() } catch (e) { alert((e as Error).message) }
+    try { await resolveReport(r.id); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
   }
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
@@ -815,6 +828,75 @@ function ReportsTab() {
         </div>
       ))}
       {items.length === 0 && <Empty>Aucun signalement. 🎉</Empty>}
+    </div>
+  )
+}
+
+// ---------- Messages du formulaire de contact ----------
+function ContactTab({ onChanged }: { onChanged?: () => void }) {
+  const [items, setItems] = useState<ContactMessage[] | null>(null)
+  const [err, setErr] = useState('')
+  const load = () => { setItems(null); setErr(''); fetchContactMessages().then(setItems).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+
+  const mark = async (m: ContactMessage, handled: boolean) => {
+    try { await setContactHandled(m.id, handled); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
+  }
+  const remove = async (m: ContactMessage) => {
+    if (!confirm('Supprimer définitivement ce message ?')) return
+    try { await deleteContactMessage(m.id); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  return (
+    <div className="space-y-2">
+      <RowHead count={items.length} label="message" />
+      {items.map((m) => (
+        <div key={m.id} className={`rounded-2xl bg-white p-3 shadow-card ${m.handled ? 'opacity-70' : 'ring-1 ring-primary-100'}`}>
+          <div className="flex items-start gap-2">
+            <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${m.handled ? 'bg-gray-100 text-gray-400' : 'bg-primary-100 text-primary-600'}`}>
+              <Inbox size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-800">
+                {m.subject}
+                {m.handled && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Traité</span>}
+              </p>
+              {/* Contenu affiché comme TEXTE (React échappe) : aucun risque d'injection HTML. */}
+              <p className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-2 text-sm text-gray-700">{m.message}</p>
+              <p className="mt-1 text-[11px] text-gray-400">
+                De {m.name || '—'}{m.email ? ` · ${m.email}` : ''} · {timeAgo(m.createdAt)}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {m.email && (
+                  <a
+                    // Email encodé : bloque l'injection de paramètres mailto (cc/bcc/body)
+                    // via une adresse piégée soumise par le formulaire public (CWE-88).
+                    href={`mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent('Re: ' + m.subject)}`}
+                    className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <Send size={13} /> Répondre
+                  </a>
+                )}
+                {m.handled ? (
+                  <button onClick={() => mark(m, false)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    <Undo2 size={13} /> Rouvrir
+                  </button>
+                ) : (
+                  <button onClick={() => mark(m, true)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
+                    <CheckCircle2 size={13} /> Marquer traité
+                  </button>
+                )}
+                <button onClick={() => remove(m)} className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                  <Trash2 size={13} /> Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      {items.length === 0 && <Empty>Aucun message de contact.</Empty>}
     </div>
   )
 }

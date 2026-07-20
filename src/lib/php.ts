@@ -573,6 +573,15 @@ export async function phpAdminResolveReport(id: string): Promise<void> {
 export async function phpAdminOrders<T>(): Promise<T> {
   return req<T>('/admin/orders')
 }
+export async function phpAdminContactMessages<T>(): Promise<T> {
+  return req<T>('/admin/contact-messages')
+}
+export async function phpAdminContactHandled(id: string, handled: boolean): Promise<void> {
+  await req(`/admin/contact-messages/${id}`, { method: 'POST', body: { handled } })
+}
+export async function phpAdminContactDelete(id: string): Promise<void> {
+  await req(`/admin/contact-messages/${id}`, { method: 'DELETE' })
+}
 export async function phpAdminConversations<T>(): Promise<T> {
   return req<T>('/admin/conversations')
 }
