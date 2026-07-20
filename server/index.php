@@ -1094,6 +1094,9 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN kind $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN style $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim $txt"); } catch (Throwable $e) {}
+  // Animation en boucle continue pendant toute la durée d'affichage ('1') ou une
+  // seule fois ('0'). NULL (anciennes lignes) = boucle activée par défaut.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim_loop $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
@@ -3576,13 +3579,14 @@ try {
 
   // Pubs actives (écran publicitaire de l'accueil). Le mélange se fait côté client.
   if ($path === 'ads/active' && $method === 'GET') {
-    $st = $pdo->prepare("SELECT id,title,description,link,images,kind,style,anim FROM ads
+    $st = $pdo->prepare("SELECT id,title,description,link,images,kind,style,anim,anim_loop FROM ads
       WHERE status = 'active' AND expires_at > ? ORDER BY created_at DESC LIMIT 50");
     $st->execute([now_iso()]);
     jout(array_map(fn($r) => [
       'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
       'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
       'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+      'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
     ], $st->fetchAll()));
   }
 
@@ -4052,6 +4056,7 @@ try {
         'formule' => $r['formule'], 'qty' => (int) $r['qty'], 'price' => (int) $r['price'],
         'payMethod' => $r['pay_method'], 'payNumber' => $r['pay_number'],
         'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+        'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
         // Une pub « active » dont la date est passée est présentée comme expirée.
         'status' => ($r['status'] === 'active' && ($r['expires_at'] ?? '') !== '' && $r['expires_at'] <= $now) ? 'expired' : $r['status'],
         'expiresAt' => !empty($r['expires_at']) ? iso_to_ms($r['expires_at']) : null,
@@ -4085,10 +4090,10 @@ try {
       $bc = seo_daily_broadcast($config, $pdo);
       $id = uuid(); $now = now_iso();
       $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 26 * 3600);
-      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
           ->execute([$id, $u['id'] ?? null, $bc['title'], $bc['description'], $bc['link'] ?? '', json_encode([]), 'day', 1,
-                     0, '', '', 'active', $now, $expires, 'admin', $now, 'seo', $bc['style'], $bc['anim']]);
+                     0, '', '', 'active', $now, $expires, 'admin', $now, 'seo', $bc['style'], $bc['anim'], '1']);
       jout(['ok' => true, 'goal' => $bc['goal'], 'title' => $bc['title']]);
     }
 
@@ -4104,6 +4109,8 @@ try {
       }
       $style = in_array($b['style'] ?? '', ['classique', 'neon', 'script', 'impact', 'ivoire'], true) ? $b['style'] : 'classique';
       $anim  = in_array($b['anim'] ?? '', ['fondu', 'glissement', 'pulse', 'defilement', 'machine'], true) ? $b['anim'] : 'fondu';
+      // Boucle continue pendant toute la durée ('1') ou une seule fois ('0').
+      $loop  = array_key_exists('loop', $b) ? (!empty($b['loop']) ? '1' : '0') : '1';
       $days  = max(1, min(90, (int) ($b['days'] ?? 7)));
       $images = [];
       foreach (array_slice((array) ($b['images'] ?? []), 0, 3) as $img) {
@@ -4115,10 +4122,10 @@ try {
       $id = uuid();
       $now = now_iso();
       $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $days * 86400);
-      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
           ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), 'day', $days,
-                     0, '', '', 'active', $now, $expires, client_ip(), $now, 'admin', $style, $anim]);
+                     0, '', '', 'active', $now, $expires, client_ip(), $now, 'admin', $style, $anim, $loop]);
       jout(['ok' => true, 'id' => $id, 'expiresAt' => iso_to_ms($expires)]);
     }
 
@@ -4523,10 +4530,10 @@ try {
     $id = uuid(); $now = now_iso();
     // Active ~26 h : léger chevauchement pour qu'il y ait toujours une diffusion.
     $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 26 * 3600);
-    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
         ->execute([$id, null, $b['title'], $b['description'], $b['link'] ?? '', json_encode([]), 'day', 1,
-                   0, '', '', 'active', $now, $expires, 'cron', $now, 'seo', $b['style'], $b['anim']]);
+                   0, '', '', 'active', $now, $expires, 'cron', $now, 'seo', $b['style'], $b['anim'], '1']);
     jout(['ok' => true, 'id' => $id, 'goal' => $b['goal'], 'title' => $b['title'], 'style' => $b['style'], 'anim' => $b['anim']]);
   }
 

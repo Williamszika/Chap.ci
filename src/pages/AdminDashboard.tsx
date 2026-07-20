@@ -1371,6 +1371,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [bLink, setBLink] = useState('')
   const [bStyle, setBStyle] = useState<AdStyle>('classique')
   const [bAnim, setBAnim] = useState<AdAnim>('fondu')
+  const [bLoop, setBLoop] = useState(true) // animer en boucle continue par défaut
   const [bDays, setBDays] = useState(7)
   const [bImg, setBImg] = useState<string | null>(null)
   const [bBusy, setBBusy] = useState(false)
@@ -1399,7 +1400,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
     try {
       await adminAdBroadcast({
         title: bTitle.trim(), description: bDesc.trim(), link: bLink.trim(),
-        images: bImg ? [bImg] : [], style: bStyle, anim: bAnim, days: bDays,
+        images: bImg ? [bImg] : [], style: bStyle, anim: bAnim, loop: bLoop, days: bDays,
       })
       setBMsg('✓ Diffusion lancée : le message est à l’écran.')
       setBTitle(''); setBDesc(''); setBLink(''); setBImg(null)
@@ -1450,6 +1451,19 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             </select>
           </label>
         </div>
+        {/* Boucle : rejouer l'animation en continu, ou une seule fois. */}
+        <label className="mt-2 flex cursor-pointer items-center gap-2.5 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={bLoop}
+            onChange={(e) => setBLoop(e.target.checked)}
+            className="h-4 w-4 accent-[#F77F00]"
+          />
+          <span className="text-[13px] font-semibold text-ink">
+            Animer en boucle continue
+            <span className="ml-1 font-normal text-gray-400">— répète l’animation pendant toute la durée (sinon, une seule fois)</span>
+          </span>
+        </label>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <input
             value={bLink}
@@ -1499,13 +1513,13 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             <>
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
               <div
-                key={`${bStyle}-${bAnim}-${bTitle}`}
-                className={`relative flex w-full flex-col items-center gap-1.5 ${['fondu', 'glissement', 'pulse'].includes(bAnim) ? `ad-anim-${bAnim}` : ''}`}
+                key={`${bStyle}-${bAnim}-${bLoop}-${bTitle}`}
+                className={`relative flex w-full flex-col items-center gap-1.5 ${['fondu', 'glissement', 'pulse'].includes(bAnim) ? `ad-anim-${bAnim}${bLoop ? ' ad-loop' : ''}` : ''}`}
               >
                 {bAnim === 'defilement' ? (
-                  <p className={`ad-anim-defilement w-full text-xl ad-style-${bStyle}`}><span>{bTitle || 'Votre message ici'}</span></p>
+                  <p className={`ad-anim-defilement${bLoop ? ' ad-loop' : ''} w-full text-xl ad-style-${bStyle}`}><span>{bTitle || 'Votre message ici'}</span></p>
                 ) : bAnim === 'machine' ? (
-                  <p className={`ad-anim-machine mx-auto text-lg ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
+                  <p className={`ad-anim-machine${bLoop ? ' ad-loop' : ''} mx-auto text-lg ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
                 ) : (
                   <p className={`text-xl ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
                 )}

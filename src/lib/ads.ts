@@ -23,6 +23,8 @@ export interface Ad {
   kind?: 'paid' | 'admin' | 'seo'
   style?: AdStyle | null
   anim?: AdAnim | null
+  /** Animer en boucle continue pendant toute la durée d'affichage (défaut : oui). */
+  animLoop?: boolean
 }
 
 export interface SeoState {
@@ -109,6 +111,7 @@ export async function adminAdBroadcast(input: {
   images: string[]
   style: AdStyle
   anim: AdAnim
+  loop: boolean
   days: number
 }): Promise<{ ok: boolean; id: string }> {
   if (!isPhp) throw new Error('Le tableau de bord admin nécessite le backend PHP.')

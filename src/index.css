@@ -128,15 +128,26 @@ select:focus-visible,
 @keyframes ad-typing { from { width: 0 } to { width: 100% } }
 @keyframes ad-caret { 0%, 100% { border-color: transparent } 50% { border-color: currentColor } }
 
+/* Par défaut : l'animation se joue UNE fois puis reste stable (pas de boucle). */
 .ad-anim-fondu { animation: ad-fade 1.3s ease both; }
 .ad-anim-glissement { animation: ad-slide-up 0.9s ease both; }
-.ad-anim-pulse { animation: ad-pulse 2.6s ease-in-out infinite; }
+.ad-anim-pulse { animation: ad-pulse 2.6s ease-in-out both; }
 .ad-anim-defilement { overflow: hidden; white-space: nowrap; max-width: 100%; }
-.ad-anim-defilement > span { display: inline-block; padding-left: 100%; animation: ad-marquee 14s linear infinite; }
+.ad-anim-defilement > span { display: inline-block; padding-left: 100%; animation: ad-marquee 14s linear both; }
 .ad-anim-machine {
   overflow: hidden; white-space: nowrap; max-width: fit-content;
+  animation: ad-typing 2.8s steps(36, end) both;
+}
+
+/* Option « boucle continue » : l'animation se répète pendant toute la durée
+   d'affichage de la pub (à l'écran). Sans cette classe, elle se joue une fois. */
+.ad-loop.ad-anim-fondu,
+.ad-loop.ad-anim-glissement,
+.ad-loop.ad-anim-pulse { animation-iteration-count: infinite; }
+.ad-loop.ad-anim-defilement > span { animation-iteration-count: infinite; }
+.ad-loop.ad-anim-machine {
   border-right: 3px solid currentColor;
-  animation: ad-typing 2.8s steps(36, end) both, ad-caret 0.8s step-end 2.8s infinite;
+  animation: ad-typing 2.8s steps(36, end) infinite, ad-caret 0.8s step-end infinite;
 }
 
 /* Styles d'écriture */
@@ -157,6 +168,6 @@ select:focus-visible,
 /* Accessibilité : réduire les mouvements si l'utilisateur le demande. */
 @media (prefers-reduced-motion: reduce) {
   .ad-anim-fondu, .ad-anim-glissement, .ad-anim-pulse, .ad-anim-machine,
-  .ad-anim-defilement > span { animation: none; }
-  .ad-anim-machine { border-right: 0; width: auto; }
+  .ad-loop.ad-anim-machine, .ad-anim-defilement > span { animation: none; }
+  .ad-anim-machine, .ad-loop.ad-anim-machine { border-right: 0; width: auto; }
 }

@@ -57,16 +57,13 @@ export function PromoBanner() {
               <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
-            <div className={`relative flex flex-col items-center gap-3 ${ad.anim === 'fondu' || ad.anim === 'glissement' || ad.anim === 'pulse' ? `ad-anim-${ad.anim}` : ''}`}>
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-[10.5px] font-bold uppercase tracking-widest text-white/70">
-                <Megaphone size={12} /> Chap.ci annonce
-              </span>
+            <div className={`relative flex flex-col items-center gap-3 ${(ad.anim === 'fondu' || ad.anim === 'glissement' || ad.anim === 'pulse') ? `ad-anim-${ad.anim}${ad.animLoop !== false ? ' ad-loop' : ''}` : ''}`}>
               {ad.anim === 'defilement' ? (
-                <h2 className={`ad-anim-defilement w-full text-2xl leading-tight md:text-4xl ad-style-${ad.style ?? 'classique'}`}>
+                <h2 className={`ad-anim-defilement${ad.animLoop !== false ? ' ad-loop' : ''} w-full text-2xl leading-tight md:text-4xl ad-style-${ad.style ?? 'classique'}`}>
                   <span>{ad.title}</span>
                 </h2>
               ) : ad.anim === 'machine' ? (
-                <h2 className={`ad-anim-machine mx-auto text-xl leading-tight md:text-3xl ad-style-${ad.style ?? 'classique'}`}>
+                <h2 className={`ad-anim-machine${ad.animLoop !== false ? ' ad-loop' : ''} mx-auto text-xl leading-tight md:text-3xl ad-style-${ad.style ?? 'classique'}`}>
                   {ad.title}
                 </h2>
               ) : (
