@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, Plus, Minus, MessageSquare } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Search, Plus, Minus, MessageSquare } from 'lucide-react'
 
 type QA = { q: string; a: React.ReactNode }
 type Section = { title: string; icon: string; items: QA[] }
@@ -242,27 +242,27 @@ const sections: Section[] = [
 ]
 
 function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => void }) {
+  // Carte « faq-item » de l'artifact : plate, pleine largeur, question + « +/− ».
   return (
-    <div className={`card overflow-hidden transition-shadow ${open ? 'shadow-card-lg' : ''}`}>
+    <div className="overflow-hidden rounded-[14px] border border-[#EFE6D7] bg-white shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left md:px-6"
+        className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left md:px-5"
         aria-expanded={open}
       >
-        <span className="font-display text-[15px] font-bold text-ink md:text-base">{qa.q}</span>
+        <span className="font-display text-[15px] font-bold text-ink">{qa.q}</span>
         <span className={`shrink-0 transition-colors ${open ? 'text-primary-500' : 'text-gray-400'}`}>
           {open ? <Minus size={18} /> : <Plus size={18} />}
         </span>
       </button>
       {open && (
-        <p className="px-5 pb-5 text-[14px] leading-relaxed text-gray-600 md:px-6">{qa.a}</p>
+        <p className="px-4 pb-4 text-[13.5px] leading-relaxed text-[#57534E] md:px-5">{qa.a}</p>
       )}
     </div>
   )
 }
 
 export function Faq() {
-  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   // Clé d'ouverture = "sectionIndex:itemIndex". La 1re question est ouverte par défaut.
   const [openKey, setOpenKey] = useState<string | null>('0:0')
@@ -282,22 +282,19 @@ export function Faq() {
 
   return (
     <div className="min-h-screen pb-16">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 px-3 py-3 backdrop-blur-md">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
-          <ArrowLeft size={22} />
-        </button>
-        <h1 className="font-display text-lg font-bold">Aide & FAQ</h1>
-      </header>
-
-      {/* Héro — fond crème chaleureux, grand titre d'affichage */}
-      <div className="bg-gradient-to-b from-primary-50 via-cream-100 to-transparent px-6 pb-10 pt-10 text-center md:pb-14 md:pt-14">
-        <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl md:text-5xl">
+      {/* Héro « info-hero » de l'artifact — dégradé orange doux, titre centré */}
+      <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
+        <h1 className="font-display text-[26px] font-extrabold tracking-tight text-ink md:text-[34px]">
           Questions fréquentes
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-gray-600 md:text-lg">
+        </h1>
+        <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-[#57534E] md:mt-3">
           Tout ce qu’il faut savoir pour acheter et vendre sereinement.
         </p>
-        <div className="mx-auto mt-6 flex max-w-lg items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-4 py-3 shadow-card">
+      </section>
+
+      <div className="px-4 py-8 md:px-6 md:py-10">
+        {/* Recherche (utile pour notre FAQ complète : plus de questions que l'artifact) */}
+        <div className="mx-auto mb-8 flex max-w-2xl items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-4 py-3 shadow-card">
           <Search size={18} className="shrink-0 text-gray-400" />
           <input
             value={query}
@@ -306,9 +303,7 @@ export function Faq() {
             className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-gray-400"
           />
         </div>
-      </div>
 
-      <div className="px-4 py-8 md:px-6 md:py-10">
         {filtered.length === 0 ? (
           <div className="mx-auto max-w-md py-14 text-center">
             <p className="text-4xl">🔎</p>
@@ -318,14 +313,14 @@ export function Faq() {
             </p>
           </div>
         ) : (
-          // Une seule colonne large (mobile → ordinateur), rubriques empilées.
-          <div className="mx-auto w-full max-w-3xl space-y-10 md:max-w-5xl lg:max-w-6xl">
+          // Colonne large centrée, rubriques empilées (cartes plates de l'artifact).
+          <div className="mx-auto w-full max-w-5xl space-y-8">
             {filtered.map((section, si) => (
               <section key={section.title}>
                 <h3 className="mb-3 flex items-center gap-2 px-1 font-display text-sm font-bold uppercase tracking-wide text-gray-500">
                   <span className="text-base">{section.icon}</span> {section.title}
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {section.items.map((qa, ii) => {
                     const key = `${si}:${ii}`
                     return (
@@ -344,7 +339,7 @@ export function Faq() {
         )}
 
         {/* Bloc contact */}
-        <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-primary-100 bg-primary-50 p-6 text-center md:max-w-5xl lg:max-w-6xl">
+        <div className="mx-auto mt-10 max-w-5xl rounded-2xl border border-primary-100 bg-primary-50 p-6 text-center">
           <p className="font-display text-lg font-bold text-primary-900">Vous n’avez pas trouvé votre réponse ?</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-primary-800/80">
             Notre équipe est là pour vous aider. Écrivez-nous, on revient vers vous rapidement.
