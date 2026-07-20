@@ -45,7 +45,7 @@ export function Privacy() {
       {/* En-tête « legal-head » de l'artifact : titre à gauche + filet */}
       <header className="border-b border-[#EFE6D7] bg-white px-4 pb-4 pt-6 md:-mx-6 md:px-6">
         <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink md:text-[26px]">
-          Confidentialité &amp; RGPD
+          RGPD
         </h1>
         <p className="mt-1.5 text-[13px] text-gray-500">
           Comment Chap.ci protège vos données. Mise à jour : {LAST_UPDATE}.

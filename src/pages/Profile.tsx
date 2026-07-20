@@ -667,7 +667,7 @@ export function Profile() {
                 Nous contacter
               </Link>
               <Link to="/confidentialite" className="text-xs text-gray-500 underline">
-                Confidentialité
+                RGPD
               </Link>
               <Link to="/conditions" className="text-xs text-gray-500 underline">
                 Conditions

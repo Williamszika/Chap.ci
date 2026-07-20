@@ -33,7 +33,7 @@ const cols: { title: string; links: { to: string; label: string; state?: unknown
     title: 'Chap.ci',
     links: [
       { to: '/a-propos', label: 'À propos' },
-      { to: '/confidentialite', label: 'Confidentialité' },
+      { to: '/confidentialite', label: 'RGPD' },
       { to: '/conditions', label: 'CGU' },
       { to: '/contact', label: 'Nous rejoindre' },
     ],
