@@ -1,10 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Mail, MessageCircle, ChevronDown } from 'lucide-react'
-import { Newsletter } from '../components/Newsletter'
+import { User, Mail, ChevronDown } from 'lucide-react'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
-const SUPPORT_EMAIL = 'support@chap.ci'
 
 const SUBJECTS = [
   'Question générale',
@@ -15,14 +12,12 @@ const SUBJECTS = [
 ]
 
 export function Contact() {
-  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [subject, setSubject] = useState('Signaler un problème')
   const [message, setMessage] = useState('')
 
-  // Le formulaire compose un email vers contact@chap.ci (même mécanisme mailto
-  // que les moyens de contact directs ci-dessous).
+  // Le formulaire compose un email vers contact@chap.ci (mécanisme mailto).
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     const body = `Nom : ${name || '—'}\nEmail : ${email || '—'}\n\n${message}`
@@ -32,27 +27,20 @@ export function Contact() {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-16 md:mx-auto md:my-6 md:min-h-0 md:max-w-3xl md:rounded-3xl md:shadow-card lg:max-w-5xl">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1">
-          <ArrowLeft size={22} />
-        </button>
-        <h1 className="font-display text-lg font-bold">Nous contacter</h1>
-      </header>
-
-      {/* Héro — dégradé chaud discret, titre + accroche centrés */}
-      <div className="bg-gradient-to-b from-primary-50 to-white px-6 py-9 text-center md:py-12">
-        <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
+    <div className="min-h-screen pb-16">
+      {/* Héro « info-hero » de l'artifact — dégradé orange doux, titre centré */}
+      <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
+        <h1 className="font-display text-[26px] font-extrabold tracking-tight text-ink md:text-[34px]">
           Nous contacter
-        </h2>
-        <p className="mx-auto mt-2 max-w-md text-[15px] text-gray-500">
+        </h1>
+        <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-[#57534E] md:mt-3">
           Une question, un souci ? On gère ça pour vous.
         </p>
-      </div>
+      </section>
 
-      <div className="px-5 py-6 md:px-8 md:py-8">
-        {/* Formulaire de contact */}
-        <form onSubmit={onSubmit} className="mx-auto max-w-2xl space-y-5 lg:max-w-3xl">
+      <div className="px-4 py-8 md:px-6 md:py-10">
+        {/* Formulaire de contact — pleine largeur (comme l'artifact) */}
+        <form onSubmit={onSubmit} className="mx-auto max-w-5xl space-y-4">
           <div>
             <label htmlFor="c-name" className="mb-1.5 block text-sm font-semibold text-gray-700">
               Votre nom
@@ -138,44 +126,23 @@ export function Contact() {
           </button>
         </form>
 
-        {/* Moyens de contact directs */}
-        <div className="mx-auto mt-6 grid max-w-2xl grid-cols-2 gap-3 lg:max-w-3xl">
+        {/* Moyens de contact directs — cartes « val » de l'artifact */}
+        <div className="mx-auto mt-5 grid max-w-5xl grid-cols-2 gap-3">
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card transition active:scale-[0.99] hover:border-primary-300 hover:bg-primary-50/40"
+            className="rounded-[14px] border border-[#EFE6D7] bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)] transition active:scale-[0.99] hover:border-primary-300 hover:bg-primary-50/40"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
-              <Mail size={22} />
-            </span>
-            <span className="mt-3 block font-bold text-gray-900">Email</span>
-            <span className="block truncate text-sm text-gray-500">{CONTACT_EMAIL}</span>
+            <div className="text-[26px] leading-none" aria-hidden>✉️</div>
+            <p className="mt-2 font-display text-sm font-bold text-ink">Email</p>
+            <p className="mt-1 truncate text-[13px] text-gray-500">{CONTACT_EMAIL}</p>
           </a>
 
-          <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ivoire-green/10 text-ivoire-green">
-              <MessageCircle size={22} />
-            </span>
-            <span className="mt-3 block font-bold text-gray-900">WhatsApp</span>
-            <span className="block truncate text-sm text-gray-500">+225 07 •• •• ••</span>
+          <div className="rounded-[14px] border border-[#EFE6D7] bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]">
+            <div className="text-[26px] leading-none" aria-hidden>🟢</div>
+            <p className="mt-2 font-display text-sm font-bold text-ink">WhatsApp</p>
+            <p className="mt-1 truncate text-[13px] text-gray-500">+225 07 •• •• ••</p>
           </div>
         </div>
-
-        <p className="mx-auto mt-4 max-w-2xl text-center text-sm text-gray-500 lg:max-w-3xl">
-          Un souci de compte, de paiement ou technique ? Écrivez à{' '}
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-primary-600">
-            {SUPPORT_EMAIL}
-          </a>
-          .
-        </p>
-
-        {/* Newsletter « Bons plans » (conservée) */}
-        <div className="mx-auto mt-8 max-w-2xl lg:max-w-3xl">
-          <Newsletter />
-        </div>
-
-        <p className="mt-8 text-center text-xs text-gray-400">
-          Chap.ci — 100 % ivoirien 🇨🇮 · Réponse sous 24–48 h ouvrées.
-        </p>
       </div>
     </div>
   )
