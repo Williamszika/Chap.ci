@@ -400,6 +400,9 @@ function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) =
         )}
       </div>
 
+      {/* Vues de pages — graphique intelligent (permission « Visiteurs ») */}
+      {canSee('visitors') && <PageViewsCard />}
+
       {/* Derniers utilisateurs — tableau de l'artifact */}
       <div className="overflow-hidden rounded-2xl bg-white shadow-card">
         <p className="px-4 pb-2 pt-4 font-display text-base font-bold text-ink">Derniers utilisateurs</p>
@@ -446,6 +449,119 @@ function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) =
   )
 }
 
+
+// Carte « Vues de pages » de l'aperçu — graphique intelligent :
+// fenêtre 7 / 14 / 30 jours, barres lisibles (pic en vert) sur 7-14 j,
+// courbe sur 30 j, tendance vs période précédente et pic calculés des données.
+function PageViewsCard() {
+  const [visits, setVisits] = useState<VisitStats | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [win, setWin] = useState<7 | 14 | 30>(7)
+
+  useEffect(() => {
+    let alive = true
+    fetchVisits('day')
+      .then((v) => { if (alive) setVisits(v) })
+      .catch(() => { if (alive) setFailed(true) })
+    return () => { alive = false }
+  }, [])
+
+  if (failed) return null
+  if (!visits) {
+    return (
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <p className="font-display text-base font-bold text-ink">Vues de pages</p>
+        <div className="mt-4 flex h-24 items-center justify-center text-gray-300"><Loader2 size={18} className="animate-spin" /></div>
+      </div>
+    )
+  }
+
+  // La série « day » couvre les 30 derniers jours consécutifs (aujourd'hui inclus) :
+  // la date du point i se déduit de sa position, ce qui donne l'initiale du jour.
+  const pts = visits.series.slice(-win).map((p, i, arr) => {
+    const d = new Date(Date.now() - (arr.length - 1 - i) * 86400000)
+    return { ...p, letter: 'DLMMJVS'[d.getDay()] }
+  })
+  const totalViews = pts.reduce((s, p) => s + p.views, 0)
+  const maxViews = Math.max(1, ...pts.map((p) => p.views))
+  const avgVisitors = Math.round(pts.reduce((s, p) => s + p.visitors, 0) / Math.max(1, pts.length))
+  // Tendance : seconde moitié de la fenêtre comparée à la première.
+  const half = Math.floor(win / 2)
+  const prev = pts.slice(0, half).reduce((s, p) => s + p.views, 0)
+  const cur = pts.slice(-half).reduce((s, p) => s + p.views, 0)
+  const pct = prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null
+  // Pic : meilleur jour de la fenêtre.
+  const peak = pts.reduce((best, p) => (p.views > best.views ? p : best), pts[0])
+
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="font-display text-base font-bold text-ink">Vues de pages</p>
+          <p className="text-xs text-gray-400">
+            {win} derniers jours · <b className="tnum font-bold text-gray-600">{formatPrice(totalViews)}</b> vues
+            {avgVisitors > 0 ? <> · ≈ {formatPrice(avgVisitors)} visiteurs/jour</> : null}
+          </p>
+        </div>
+        <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
+          {([7, 14, 30] as const).map((w) => (
+            <button
+              key={w}
+              onClick={() => setWin(w)}
+              className={`rounded-md px-2.5 py-1 ${win === w ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}
+            >
+              {w} j
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Enseignements automatiques : tendance + pic */}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {pct !== null && (
+          <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${pct >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+            {pct >= 0 ? '▲' : '▼'} {pct >= 0 ? '+' : ''}{pct} % vs période précédente
+          </span>
+        )}
+        {totalViews > 0 && (
+          <span className="rounded-full bg-[#FFF6EC] px-2.5 py-1 text-[11px] font-bold text-primary-700">
+            Pic : {peak.label} · {formatPrice(peak.views)} vues
+          </span>
+        )}
+      </div>
+
+      {win === 30 ? (
+        /* 30 jours : la courbe reste lisible là où 30 barres ne le seraient plus. */
+        <div className="mt-3">
+          <AreaChart values={pts.map((p) => p.views)} />
+          <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+            <span>{pts[0].label}</span>
+            <span>{pts[pts.length - 1].label}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 flex h-32 items-end justify-around gap-1.5 md:h-40">
+          {pts.map((p, i) => {
+            const top = p.views === maxViews && p.views > 0
+            return (
+              <div key={i} className="flex h-full w-full max-w-[52px] flex-col items-center justify-end gap-1.5">
+                <div
+                  title={`${p.label} : ${p.views} vue${p.views > 1 ? 's' : ''} · ${p.visitors} visiteur${p.visitors > 1 ? 's' : ''}`}
+                  className={`w-full rounded-t-md ${top ? 'bg-gradient-to-b from-ivoire-green to-ivoire-green-dark' : 'bg-gradient-to-b from-primary-500 to-primary-700'}`}
+                  style={{ height: `${Math.max(4, (p.views / maxViews) * 100)}%` }}
+                />
+                <span className="text-[10px] font-semibold text-gray-400">{win === 7 ? p.letter : p.label.slice(0, 2)}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {totalViews === 0 && (
+        <p className="mt-2 text-center text-xs text-gray-400">Aucune vue enregistrée sur cette période.</p>
+      )}
+    </div>
+  )
+}
 
 // ---------- Visiteurs (analytics) ----------
 function formatDuration(sec: number | null): string {
