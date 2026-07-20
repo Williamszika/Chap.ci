@@ -283,12 +283,6 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
           </p>
         )}
       </form>
-
-      {owner && (
-        <p className="mt-3.5 text-[11px] text-gray-400">
-          Envoyé à votre email + contact@chap.ci · usage unique
-        </p>
-      )}
     </div>
   )
 }
