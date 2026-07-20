@@ -27,7 +27,14 @@ export interface AdminStats {
   ordersByStatus: Record<string, number>
   ordersValue: number
   recentListings: Listing[]
-  recentUsers: { id: string; email: string; fullName: string; createdAt: number }[]
+  recentUsers: { id: string; email: string; fullName: string; status?: UserStatus; createdAt: number }[]
+  /** Carte « Sécurité » de l'aperçu — fournie par le serveur au propriétaire uniquement. */
+  security?: {
+    failedLogins: number
+    adminsIntegrity: boolean | null
+    owner2fa: boolean
+    alerts: number
+  } | null
 }
 
 export type UserStatus = 'active' | 'restricted' | 'blocked'

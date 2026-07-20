@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Users, Package, MessageSquare, ShoppingBag, Star, Mail,
-  Loader2, Lock, Download, Trash2, TrendingUp, Wallet, RefreshCw,
+  ArrowLeft, MessageSquare, Star, Mail,
+  Loader2, Lock, Download, Trash2, TrendingUp, RefreshCw,
   Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX, AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
@@ -101,10 +101,10 @@ export function AdminDashboard() {
           </span>
           <button
             onClick={() => { adminLock(); setReload((n) => n + 1) }}
-            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-[#E6DAC6] bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-cream-100 active:scale-95"
-            title="Verrouiller le tableau de bord"
+            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
+            title="Cliquer pour verrouiller le tableau de bord"
           >
-            <Lock size={14} /> Verrouiller
+            🔓 Déverrouillé
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
@@ -289,163 +289,163 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
 
 // ---------- Aperçu ----------
 function Overview({ stats, onGo, canSee }: { stats: AdminStats; onGo: (t: Tab) => void; canSee: (t: Tab) => boolean }) {
-  const cards: { icon: ReactNode; label: string; value: number; tab?: Tab; alert?: boolean }[] = [
-    { icon: <Users size={18} />, label: 'Utilisateurs', value: stats.users, tab: 'users' },
-    { icon: <Package size={18} />, label: 'Annonces', value: stats.listings, tab: 'listings' },
-    { icon: <ShoppingBag size={18} />, label: 'Commandes', value: stats.orders, tab: 'orders' },
-    { icon: <MessageSquare size={18} />, label: 'Conversations', value: stats.conversations, tab: 'conversations' },
-    { icon: <Star size={18} />, label: 'Avis', value: stats.reviews, tab: 'reviews' },
-    { icon: <Mail size={18} />, label: 'Abonnés', value: stats.newsletter, tab: 'newsletter' },
-    { icon: <Flag size={18} />, label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
-    { icon: <Inbox size={18} />, label: 'Contact à traiter', value: stats.contactOpen ?? 0, tab: 'contact', alert: (stats.contactOpen ?? 0) > 0 },
+  // 4 grandes cartes de l'artifact : emoji sur tuile teintée, gros chiffre,
+  // libellé + tendance 7 jours (▲ vert) — Signalements en alerte rouge.
+  const cards: { e: string; tint: string; label: string; value: number; tab: Tab; trend?: string | null; alert?: boolean }[] = [
+    { e: '👥', tint: 'bg-sky-100', label: 'Utilisateurs', value: stats.users, tab: 'users', trend: stats.periods && stats.periods.users.week > 0 ? `${formatPrice(stats.periods.users.week)} (7 j)` : null },
+    { e: '📦', tint: 'bg-emerald-100', label: 'Annonces', value: stats.listings, tab: 'listings', trend: stats.periods && stats.periods.listings.week > 0 ? `${formatPrice(stats.periods.listings.week)} (7 j)` : null },
+    { e: '🤝', tint: 'bg-amber-100', label: 'Commandes', value: stats.orders, tab: 'orders' },
+    { e: '🚩', tint: 'bg-red-100', label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
   ]
-  // Un modérateur ne voit que les cartes des sections qu'il peut réellement
-  // ouvrir (cohérent avec la barre d'onglets — pas de cul-de-sac 403).
-  const visible = cards.filter((c) => !c.tab || canSee(c.tab))
+  // Un modérateur ne voit que les cartes des sections qu'il peut ouvrir.
+  const visible = cards.filter((c) => canSee(c.tab))
+
+  // Nouvelles inscriptions : 7 derniers jours de la série — le jour le plus
+  // fort est en vert, comme la maquette.
+  const week = (stats.series ?? []).slice(-7).map((d) => ({
+    ...d,
+    letter: 'DLMMJVS'[new Date(d.date + 'T00:00:00Z').getUTCDay()],
+  }))
+  const maxUsers = Math.max(1, ...week.map((d) => d.users))
+  const weekTotal = week.reduce((s, d) => s + d.users, 0)
+
+  const sec = stats.security
+  const statusPill = (s?: string): [string, string] =>
+    s === 'blocked'
+      ? ['BLOQUÉ', 'bg-red-50 text-red-600']
+      : s === 'restricted'
+        ? ['RESTREINT', 'bg-amber-50 text-amber-700']
+        : ['ACTIF', 'bg-emerald-50 text-emerald-700']
+
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {visible.map((c) => {
-          const clickable = !!c.tab
-          const Comp = clickable ? 'button' : 'div'
-          return (
-            <Comp
-              key={c.label}
-              {...(clickable ? { onClick: () => onGo(c.tab!), type: 'button' as const } : {})}
-              className={`rounded-2xl bg-white p-4 text-left shadow-card transition ${clickable ? 'active:scale-[0.98] hover:shadow-md' : ''} ${c.alert ? 'ring-2 ring-red-400' : ''}`}
-            >
-              <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${c.alert ? 'bg-red-100 text-red-600' : 'bg-primary-100 text-primary-600'}`}>{c.icon}</span>
-              <p className="mt-2 font-display text-2xl font-bold text-gray-900">{formatPrice(c.value)}</p>
-              <p className="flex items-center gap-1 text-xs text-gray-500">
-                {c.label}{clickable && <ChevronRight size={12} className="text-gray-300" />}
-              </p>
-            </Comp>
-          )
-        })}
+    <div className="space-y-3">
+      {/* Cartes principales */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {visible.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            onClick={() => onGo(c.tab)}
+            className={`rounded-2xl bg-white p-4 text-left shadow-card transition hover:shadow-md active:scale-[0.98] ${c.alert ? 'ring-1 ring-red-300' : ''}`}
+          >
+            <span className={`grid h-11 w-11 place-items-center rounded-xl text-[20px] ${c.tint}`} aria-hidden>{c.e}</span>
+            <p className="mt-3 font-display text-[26px] font-extrabold leading-none text-ink md:text-[28px]">{formatPrice(c.value)}</p>
+            <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[13px] text-gray-500">
+              {c.label}
+              {c.alert ? (
+                <span className="font-bold text-red-500">à traiter</span>
+              ) : c.trend ? (
+                <span className="font-bold text-ivoire-green">▲ {c.trend}</span>
+              ) : null}
+            </p>
+          </button>
+        ))}
       </div>
 
-      {/* Statistiques temporelles : nouveaux inscrits / annonces par période */}
-      {stats.periods && (
-        <>
-          <PeriodStats title="Nouveaux inscrits" icon={<Users size={16} />} data={stats.periods.users} onGo={() => onGo('users')} />
-          <PeriodStats title="Nouvelles annonces" icon={<Package size={16} />} data={stats.periods.listings} onGo={() => onGo('listings')} />
-        </>
-      )}
+      {/* Graphique en barres + carte Sécurité (côte à côte sur grand écran) */}
+      <div className={`grid gap-3 ${sec ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
+        <div className="rounded-2xl bg-white p-4 shadow-card">
+          <p className="font-display text-base font-bold text-ink">Nouvelles inscriptions</p>
+          <p className="text-xs text-gray-400">7 derniers jours{weekTotal > 0 ? ` · ${weekTotal} au total` : ''}</p>
+          <div className="mt-4 flex h-36 items-end justify-around gap-2 md:h-44">
+            {week.map((d) => {
+              const top = d.users === maxUsers && d.users > 0
+              return (
+                <div key={d.date} className="flex h-full w-full max-w-[52px] flex-col items-center justify-end gap-1.5">
+                  <div
+                    title={`${d.users} inscription${d.users > 1 ? 's' : ''}`}
+                    className={`w-full rounded-t-md ${top ? 'bg-gradient-to-b from-ivoire-green to-ivoire-green-dark' : 'bg-gradient-to-b from-primary-500 to-primary-700'}`}
+                    style={{ height: `${Math.max(4, (d.users / maxUsers) * 100)}%` }}
+                  />
+                  <span className="text-[11px] font-semibold text-gray-400">{d.letter}</span>
+                </div>
+              )
+            })}
+          </div>
+          {weekTotal === 0 && (
+            <p className="mt-2 text-center text-xs text-gray-400">Aucune inscription sur les 7 derniers jours.</p>
+          )}
+        </div>
 
-      {/* Graphique évolutif sur 14 jours */}
-      {stats.series && stats.series.length > 0 && <TrendChart series={stats.series} />}
-
-      <div className="rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card">
-        <span className="flex items-center gap-2 text-sm font-medium text-white/90"><Wallet size={16} /> Valeur totale des commandes</span>
-        <p className="mt-1 font-display text-3xl font-bold">{formatPrice(stats.ordersValue)} <span className="text-lg">FCFA</span></p>
-        {Object.keys(stats.ordersByStatus).length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {Object.entries(stats.ordersByStatus).map(([s, n]) => (
-              <span key={s} className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium">{statusLabel(s)} : {n}</span>
-            ))}
+        {/* Sécurité — fournie par le serveur au propriétaire uniquement */}
+        {sec && (
+          <div className="rounded-2xl bg-white p-4 shadow-card">
+            <p className="font-display text-base font-bold text-ink">Sécurité</p>
+            <p className="text-xs text-gray-400">7 derniers jours</p>
+            <dl className="mt-2 divide-y divide-[#F3EADB] text-sm">
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-gray-700">Intégrité admins</dt>
+                <dd className={sec.adminsIntegrity === false ? 'font-bold text-red-600' : sec.adminsIntegrity ? 'font-bold text-ivoire-green' : 'text-gray-400'}>
+                  {sec.adminsIntegrity === false ? '⚠ altérée' : sec.adminsIntegrity ? '✓ ok' : '—'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-gray-700">Connexions échouées</dt>
+                <dd className="tnum font-semibold text-gray-800">{sec.failedLogins}</dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-gray-700">2FA propriétaire</dt>
+                <dd className={sec.owner2fa ? 'font-bold text-ivoire-green' : 'font-bold text-amber-600'}>
+                  {sec.owner2fa ? '✓ active' : 'inactive'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between py-2.5">
+                <dt className="text-gray-700">Alertes email</dt>
+                <dd className={sec.alerts > 0 ? 'tnum font-bold text-red-600' : 'text-gray-400'}>
+                  {sec.alerts > 0 ? sec.alerts : 'aucune'}
+                </dd>
+              </div>
+            </dl>
           </div>
         )}
       </div>
 
-      <Block title="Dernières annonces" icon={<TrendingUp size={16} />}>
-        {stats.recentListings.length === 0 ? <Empty>Aucune annonce.</Empty> : (
-          <ul className="divide-y divide-gray-100">
-            {stats.recentListings.map((l) => (
-              <li key={l.id} className="flex items-center gap-3 py-2.5">
-                <Thumb listing={l} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-gray-800">{l.title}</span>
-                  <span className="text-xs text-gray-400">{timeAgo(l.createdAt)}</span>
-                </span>
-                <span className="shrink-0 text-sm font-bold text-primary-600">{formatPrice(l.price)} F</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Block>
-
-      <Block title="Derniers inscrits" icon={<Users size={16} />}>
-        {stats.recentUsers.length === 0 ? <Empty>Aucun utilisateur.</Empty> : (
-          <ul className="divide-y divide-gray-100">
-            {stats.recentUsers.map((u) => (
-              <li key={u.id} className="flex items-center gap-3 py-2.5">
-                <Avatar name={u.fullName} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-gray-800">{u.fullName}</span>
-                  <span className="block truncate text-xs text-gray-400">{u.email}</span>
-                </span>
-                <span className="shrink-0 text-xs text-gray-400">{timeAgo(u.createdAt)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Block>
-    </div>
-  )
-}
-
-// Bloc de statistiques temporelles (jour / semaine / mois / année).
-function PeriodStats({
-  title, icon, data, onGo,
-}: {
-  title: string
-  icon: ReactNode
-  data: { day: number; week: number; month: number; year: number }
-  onGo: () => void
-}) {
-  const cells: { label: string; value: number }[] = [
-    { label: "Aujourd’hui", value: data.day },
-    { label: '7 jours', value: data.week },
-    { label: '30 jours', value: data.month },
-    { label: '1 an', value: data.year },
-  ]
-  return (
-    <div className="rounded-2xl bg-white p-4 shadow-card">
-      <p className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-100 text-primary-600">{icon}</span>
-        {title}
-      </p>
-      <div className="grid grid-cols-4 gap-2">
-        {cells.map((c) => (
-          <button
-            key={c.label}
-            onClick={onGo}
-            className="rounded-xl bg-gray-50 px-1 py-3 text-center transition hover:bg-primary-50 active:scale-[0.97]"
-          >
-            <p className="font-display text-xl font-bold text-gray-900">+{c.value}</p>
-            <p className="text-[10px] font-medium leading-tight text-gray-500">{c.label}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// Graphique évolutif (courbe) sur 14 jours, avec bascule Inscrits / Annonces.
-function TrendChart({ series }: { series: { date: string; users: number; listings: number }[] }) {
-  const [metric, setMetric] = useState<'users' | 'listings'>('users')
-  const total = series.reduce((s, d) => s + d[metric], 0)
-  const dayNum = (iso: string) => iso.slice(8, 10)
-  return (
-    <div className="rounded-2xl bg-white p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm font-bold text-gray-800">
-          <TrendingUp size={16} className="text-primary-500" /> Évolution (14 jours)
-        </p>
-        <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
-          <button onClick={() => setMetric('users')} className={`rounded-md px-2.5 py-1 ${metric === 'users' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Inscrits</button>
-          <button onClick={() => setMetric('listings')} className={`rounded-md px-2.5 py-1 ${metric === 'listings' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Annonces</button>
+      {/* Derniers utilisateurs — tableau de l'artifact */}
+      <div className="overflow-hidden rounded-2xl bg-white shadow-card">
+        <p className="px-4 pb-2 pt-4 font-display text-base font-bold text-ink">Derniers utilisateurs</p>
+        <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 bg-[#FBF4E9] px-4 py-2 text-[10.5px] font-bold uppercase tracking-wider text-gray-400 sm:grid-cols-[1fr_88px_150px]">
+          <span>Utilisateur</span>
+          <span className="hidden sm:block">Inscrit</span>
+          <span className="text-right sm:text-left">Statut</span>
         </div>
-      </div>
-      <AreaChart values={series.map((d) => d[metric])} />
-      <div className="mt-1.5 flex justify-between text-[10px] text-gray-400">
-        <span>{dayNum(series[0].date)}</span>
-        <span className="font-semibold text-gray-500">{total} au total · 14 j</span>
-        <span>{dayNum(series[series.length - 1].date)}</span>
+        {stats.recentUsers.length === 0 ? (
+          <Empty>Aucun utilisateur.</Empty>
+        ) : (
+          <ul className="divide-y divide-[#F3EADB]">
+            {stats.recentUsers.map((ru) => {
+              const [pillLabel, pillCls] = statusPill(ru.status)
+              return (
+                <li key={ru.id} className="grid grid-cols-[1fr_auto] items-center gap-x-3 px-4 py-2.5 sm:grid-cols-[1fr_88px_150px]">
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <Avatar name={ru.fullName} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-gray-800">{ru.fullName}</span>
+                      <span className="block truncate text-xs text-gray-400">{ru.email}</span>
+                    </span>
+                  </span>
+                  <span className="tnum hidden text-xs text-gray-500 sm:block">
+                    {new Date(ru.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                  </span>
+                  <span className="flex items-center justify-end gap-1.5 sm:justify-between">
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide ${pillCls}`}>{pillLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => onGo('users')}
+                      className="hidden rounded-lg border border-[#E6DAC6] px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:block"
+                    >
+                      Voir
+                    </button>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
     </div>
   )
 }
+
 
 // ---------- Visiteurs (analytics) ----------
 function formatDuration(sec: number | null): string {
@@ -1935,14 +1935,6 @@ function Shell({ children }: { children: ReactNode }) {
 }
 function Center({ children }: { children: ReactNode }) {
   return <div className="flex min-h-[50vh] items-center justify-center gap-2 px-6 text-gray-500">{children}</div>
-}
-function Block({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
-  return (
-    <section className="rounded-2xl bg-white p-4 shadow-card">
-      <h2 className="mb-1 flex items-center gap-1.5 font-display text-sm font-bold text-gray-800">{icon} {title}</h2>
-      {children}
-    </section>
-  )
 }
 function Empty({ children }: { children: ReactNode }) {
   return <p className="py-8 text-center text-sm text-gray-400">{children}</p>

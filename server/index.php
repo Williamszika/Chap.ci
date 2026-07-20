@@ -3626,8 +3626,9 @@ try {
       $recentListings = array_map('listing_out',
         $pdo->query('SELECT * FROM listings ORDER BY created_at DESC LIMIT 5')->fetchAll());
       $recentUsers = array_map(
-        fn($r) => ['id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—', 'createdAt' => iso_to_ms($r['created_at'])],
-        $pdo->query('SELECT u.id, u.email, u.created_at, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC LIMIT 5')->fetchAll());
+        fn($r) => ['id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
+                   'status' => $r['status'] ?: 'active', 'createdAt' => iso_to_ms($r['created_at'])],
+        $pdo->query('SELECT u.id, u.email, u.created_at, u.status, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC LIMIT 5')->fetchAll());
       // Statistiques temporelles : nouveaux inscrits / annonces par période
       // (fenêtres glissantes). created_at est en ISO UTC, donc comparable en texte.
       $cut = fn(int $days) => gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
@@ -3671,6 +3672,32 @@ try {
         'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
         'series' => $series,
         'recentListings' => $recentListings, 'recentUsers' => $recentUsers,
+        // Carte « Sécurité » de l'aperçu : réservée au PROPRIÉTAIRE (un modérateur
+        // n'a pas à voir l'état 2FA du compte principal ni le journal global).
+        'security' => in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)
+          ? (function () use ($pdo, $config, $u, $cut) {
+              try {
+                $q = function (string $kinds) use ($pdo, $cut): int {
+                  $st = $pdo->prepare("SELECT COUNT(*) AS c FROM security_events WHERE kind IN ($kinds) AND created_at >= ?");
+                  $st->execute([$cut(7)]);
+                  return (int) $st->fetchColumn();
+                };
+                // Intégrité de la table admins : empreinte actuelle vs référence.
+                $ref = @file_get_contents(admins_fp_file($config));
+                $integrity = $ref === false ? null : (trim((string) $ref) === admins_fingerprint($pdo));
+                // 2FA du propriétaire actuellement connecté.
+                $tf = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?');
+                $tf->execute([$u['id']]);
+                $twofa = (int) ($tf->fetchColumn() ?: 0) === 1;
+                return [
+                  'failedLogins'    => $q("'login_fail','admin_unlock_fail','mfa_fail'"),
+                  'adminsIntegrity' => $integrity,
+                  'owner2fa'        => $twofa,
+                  'alerts'          => $q("'admins_tampered','cron_fail'"),
+                ];
+              } catch (Throwable $e) { return null; /* la carte s'efface, stats OK */ }
+            })()
+          : null,
       ]);
     }
 
