@@ -1,54 +1,9 @@
 import { useEffect } from 'react'
-import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, LogIn } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { timeAgo } from '../lib/format'
-
-/**
- * Coquille de messagerie à 2 volets.
- *  - Ordinateur / tablette (md+) : liste des conversations à GAUCHE + conversation
- *    ouverte à DROITE (comme WhatsApp Web). Les deux volets sont toujours visibles.
- *  - Mobile : un seul volet à la fois — la liste (route /messages), puis la
- *    conversation en plein écran (route /messages/:id).
- * `activeId` = conversation ouverte (undefined sur la page liste).
- */
-export function MessagesLayout({ activeId, detail }: { activeId?: string; detail: ReactNode }) {
-  const hasDetail = !!activeId
-  return (
-    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-[1120px] md:px-4 md:py-4">
-      <div className="md:grid md:h-[calc(100vh-7rem)] md:grid-cols-[360px_minmax(0,1fr)] md:gap-4">
-        {/* Volet LISTE — masqué sur mobile quand une conversation est ouverte */}
-        <aside
-          className={`${hasDetail ? 'hidden md:block' : 'block'} md:h-full md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card`}
-        >
-          <ConversationList activeId={activeId} />
-        </aside>
-
-        {/* Volet CONVERSATION — masqué sur mobile sur la page liste */}
-        <main
-          className={`${hasDetail ? 'block' : 'hidden md:block'} md:h-full md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card`}
-        >
-          {detail}
-        </main>
-      </div>
-    </div>
-  )
-}
-
-/** Message affiché dans le volet de droite tant qu'aucune conversation n'est ouverte (ordinateur). */
-function EmptyDetail() {
-  return (
-    <div className="hidden h-full flex-col items-center justify-center gap-3 px-6 text-center md:flex">
-      <div className="text-5xl">💬</div>
-      <p className="text-lg font-bold text-gray-700">Sélectionnez une conversation</p>
-      <p className="max-w-xs text-sm text-gray-500">
-        Choisissez une discussion dans la liste de gauche pour l’ouvrir ici.
-      </p>
-    </div>
-  )
-}
 
 /** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
 function avatarInitial(name?: string): string {
@@ -157,5 +112,11 @@ export function ConversationList({ activeId }: { activeId?: string }) {
 }
 
 export function Messages() {
-  return <MessagesLayout detail={<EmptyDetail />} />
+  return (
+    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-3xl md:px-4 md:py-4">
+      <div className="md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card">
+        <ConversationList />
+      </div>
+    </div>
+  )
 }

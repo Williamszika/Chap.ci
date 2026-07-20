@@ -10,7 +10,6 @@ import {
   subscribeMessages,
 } from '../lib/messages'
 import { DealCard } from '../components/DealCard'
-import { MessagesLayout } from './Messages'
 import type { Conversation as Conv, Message } from '../types'
 
 /** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
@@ -114,13 +113,11 @@ export function Conversation() {
   }
 
   return (
-    <MessagesLayout
-      activeId={id}
-      detail={
-        <div className="flex min-h-screen flex-col bg-[#FFF6EA] md:h-full md:min-h-0">
-          {/* En-tête — le bouton « retour » n'est utile que sur mobile (la liste est visible sur ordinateur) */}
+    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-5xl md:px-4 md:py-4">
+      <div className="flex min-h-screen flex-col bg-[#FFF6EA] md:h-[calc(100vh-7rem)] md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card">
+          {/* En-tête — bouton « retour » vers la liste des conversations */}
           <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 px-3 py-2.5 backdrop-blur-md md:rounded-t-3xl">
-            <button onClick={() => navigate('/messages')} aria-label="Retour" className="-ml-1 p-1 md:hidden">
+            <button onClick={() => navigate('/messages')} aria-label="Retour" className="-ml-1 p-1">
               <ArrowLeft size={22} />
             </button>
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-base font-bold text-white">
@@ -205,8 +202,7 @@ export function Conversation() {
               <Send size={18} />
             </button>
           </form>
-        </div>
-      }
-    />
+      </div>
+    </div>
   )
 }
