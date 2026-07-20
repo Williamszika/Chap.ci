@@ -29,9 +29,6 @@ $config += [
   'mail_from_name'       => getenv('CHAPCI_MAIL_FROM_NAME')  ?: 'Chap.ci',
   'mail_reply_to'        => getenv('CHAPCI_MAIL_REPLYTO')    ?: 'contact@chap.ci',
   'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
-  // Clé API Anthropic (facultative) : active les réponses suggérées par IA dans
-  // Admin → Contact. Vide = repli sur des gabarits locaux (sans appel externe).
-  'anthropic_key'        => getenv('CHAPCI_ANTHROPIC_KEY')   ?: '',
   'site_url'             => getenv('CHAPCI_SITE_URL')        ?: 'https://chap.ci',
   // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
   // explicitement. En production (défaut), les erreurs restent génériques côté
@@ -1342,54 +1339,74 @@ function send_mail(array $config, string $to, string $subject, string $html, ?st
 }
 
 /**
- * Brouillon de réponse pour Admin → Contact. Si une clé API Anthropic est
- * configurée ('anthropic_key' dans config.php, jamais dans le code), l'IA rédige
- * une proposition adaptée au message ; sinon (ou si l'appel échoue), repli sur
- * des gabarits locaux selon le sujet. Le brouillon reste MODIFIABLE par l'admin
- * avant envoi, et la signature est ajoutée automatiquement à l'envoi.
+ * IA du site pour Admin → Contact : propose des messages de réponse en toute
+ * AUTONOMIE — aucun service externe, aucune clé API. Le moteur détecte les
+ * intentions du message (mots-clés FR sur sujet + corps, insensible aux
+ * accents, plusieurs intentions possibles), assemble des paragraphes adaptés
+ * et renvoie PLUSIEURS propositions (complète, puis courte) que l'admin peut
+ * modifier avant envoi. La signature est ajoutée automatiquement à l'envoi.
  */
 function contact_ai_draft(array $config, string $name, string $subject, string $message): array {
-  $key = trim((string) ($config['anthropic_key'] ?? ''));
-  if ($key !== '' && function_exists('curl_init')) {
-    $payload = json_encode([
-      'model' => 'claude-haiku-4-5-20251001',
-      'max_tokens' => 700,
-      'system' => "Tu es l'assistant du support client de Chap.ci, la marketplace de petites annonces 100 % ivoirienne (achat/vente entre particuliers, paiement en main propre ou Mobile Money, messagerie interne, signalement des abus). Rédige UNIQUEMENT le corps d'une réponse d'email au message reçu : en français, vouvoiement (« vous »), ton chaleureux et professionnel, 4 à 8 phrases. Commence par « Bonjour » (avec le prénom si fourni). NE mets NI objet, NI signature, NI « Cordialement » final : la signature de l'équipe est ajoutée automatiquement. Si le message signale une annonce ou un utilisateur suspect, remercie la personne et explique que l'équipe vérifie et masquera/bloquera si nécessaire. N'invente aucune information précise (délais, montants, fonctionnalités inexistantes).",
-      'messages' => [[
-        'role' => 'user',
-        'content' => "Nom : " . ($name ?: '(non fourni)') . "\nSujet : " . $subject . "\nMessage :\n" . $message,
-      ]],
-    ], JSON_UNESCAPED_UNICODE);
-    $ch = curl_init('https://api.anthropic.com/v1/messages');
-    curl_setopt_array($ch, [
-      CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_RETURNTRANSFER => true,
-      CURLOPT_TIMEOUT => 25, CURLOPT_CONNECTTIMEOUT => 10,
-      CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01'],
-    ]);
-    $res  = curl_exec($ch);
-    $http = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    curl_close($ch);
-    if (is_string($res) && $http === 200) {
-      $j = json_decode($res, true);
-      $draft = trim((string) ($j['content'][0]['text'] ?? ''));
-      if ($draft !== '') return ['draft' => $draft, 'ai' => true];
-    }
-  }
-  // Repli local (aucun appel externe) : gabarit selon le sujet, prénom inclus.
   $prenom = trim($name) !== '' ? ' ' . preg_split('/\s+/u', trim($name))[0] : '';
-  $s = mb_strtolower($subject . ' ' . $message);
-  if (str_contains($s, 'signal') || str_contains($s, 'arnaque') || str_contains($s, 'suspect')) {
-    $draft = "Bonjour{$prenom},\n\nMerci d'avoir pris le temps de nous alerter. Votre signalement a bien été transmis à notre équipe de modération : nous vérifions l'annonce et le compte concernés, et nous les masquerons ou bloquerons si nécessaire.\n\nPetit rappel de prudence : ne payez jamais d'avance une personne que vous ne connaissez pas, privilégiez la remise en main propre dans un lieu public, et gardez vos échanges dans la messagerie Chap.ci.";
-  } elseif (str_contains($s, 'compte') || str_contains($s, 'connexion') || str_contains($s, 'mot de passe') || str_contains($s, 'paiement') || str_contains($s, 'aide')) {
-    $draft = "Bonjour{$prenom},\n\nMerci pour votre message, nous allons vous aider. Pouvez-vous nous préciser l'adresse email de votre compte Chap.ci et, si possible, une capture d'écran du problème ? Cela nous permettra de vérifier rapidement et de revenir vers vous avec une solution.";
-  } elseif (str_contains($s, 'partenariat') || str_contains($s, 'presse')) {
-    $draft = "Bonjour{$prenom},\n\nMerci de votre intérêt pour Chap.ci. Votre demande a été transmise à la personne en charge des partenariats, qui reviendra vers vous rapidement. N'hésitez pas à nous en dire plus sur votre structure et ce que vous imaginez ensemble.";
-  } elseif (str_contains($s, 'suggestion') || str_contains($s, 'idée')) {
-    $draft = "Bonjour{$prenom},\n\nUn grand merci pour votre suggestion ! Nous lisons attentivement chaque idée : c'est grâce à ces retours que Chap.ci s'améliore. Nous l'avons notée et l'étudierons pour une prochaine évolution du site.";
-  } else {
-    $draft = "Bonjour{$prenom},\n\nMerci pour votre message, nous l'avons bien reçu. Notre équipe l'examine et revient vers vous rapidement avec une réponse précise. Si vous avez des détails à ajouter entre-temps, répondez simplement à cet email.";
+  // Normalisation : minuscules + accents retirés → « arnaqué », « Média »… détectés.
+  $norm = strtr(mb_strtolower($subject . ' ' . $message), [
+    'à' => 'a', 'â' => 'a', 'ä' => 'a', 'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+    'î' => 'i', 'ï' => 'i', 'ô' => 'o', 'ö' => 'o', 'ù' => 'u', 'û' => 'u', 'ü' => 'u', 'ç' => 'c',
+  ]);
+  $has = function (string ...$kws) use ($norm): bool {
+    foreach ($kws as $k) { if (str_contains($norm, $k)) return true; }
+    return false;
+  };
+
+  // Intentions détectées (cumulables) → paragraphes de la réponse complète,
+  // et phrase principale de la variante courte (première intention trouvée).
+  $paras = [];
+  $short = null;
+  if ($has('arnaqu', 'escro', 'fraude', 'suspect', 'signal', 'faux profil', 'voleur')) {
+    $paras[] = "Merci d’avoir pris le temps de nous alerter : votre signalement a bien été transmis à notre équipe de modération. Nous vérifions l’annonce et le compte concernés, et nous les masquerons ou bloquerons si nécessaire.";
+    $paras[] = "Petit rappel de prudence : ne payez jamais d’avance une personne que vous ne connaissez pas, privilégiez la remise en main propre dans un lieu public, et gardez vos échanges dans la messagerie Chap.ci.";
+    $short = "Votre signalement est bien transmis à notre équipe de modération : nous vérifions et agirons si nécessaire. Merci de nous aider à garder Chap.ci sûr.";
   }
-  return ['draft' => $draft, 'ai' => false];
+  if ($has('mot de passe', 'connexion', 'connecter', 'mon compte', 'compte bloque', '2fa', 'double authentification', 'inscription', 'supprimer mon compte')) {
+    $paras[] = "Concernant votre compte : pouvez-vous nous préciser l’adresse email utilisée sur Chap.ci et, si possible, une capture d’écran du problème ? Nous vérifierons rapidement de notre côté et reviendrons vers vous avec une solution.";
+    $short = $short ?? "Pour vous aider sur votre compte, indiquez-nous l’adresse email utilisée sur Chap.ci et, si possible, une capture d’écran du problème.";
+  }
+  if ($has('paiement', 'payer', 'mobile money', 'orange money', 'wave', 'mtn', 'moov', 'rembours')) {
+    $paras[] = "Au sujet du paiement : Chap.ci ne gère pas les paiements entre acheteurs et vendeurs — ils se font directement entre vous, en main propre ou par Mobile Money. Vérifiez toujours l’article avant de payer, et ne versez jamais d’acompte à une personne inconnue.";
+    $short = $short ?? "Les paiements se font directement entre acheteur et vendeur (main propre ou Mobile Money) : vérifiez toujours l’article avant de payer.";
+  }
+  if ($has('publier', 'publication', 'mon annonce', 'mes annonces', 'photo', 'modifier', 'masquer', 'vendre')) {
+    $paras[] = "Pour vos annonces : vous pouvez les publier, modifier, masquer ou supprimer depuis Compte → Mes annonces. Si quelque chose bloque, dites-nous à quelle étape et nous regarderons ensemble.";
+    $short = $short ?? "Vos annonces se gèrent depuis Compte → Mes annonces ; dites-nous à quelle étape ça bloque et nous vous aiderons.";
+  }
+  if ($has('livraison', 'livrer', 'colis', 'expedi')) {
+    $paras[] = "Pour la livraison : elle se convient directement avec le vendeur dans la messagerie (lieu, heure, frais éventuels). Nous recommandons la remise en main propre dans un lieu public, avec paiement au moment de la remise.";
+    $short = $short ?? "La livraison se convient directement avec le vendeur via la messagerie ; privilégiez la remise en main propre dans un lieu public.";
+  }
+  if ($has('partenariat', 'presse', 'media', 'publicite', 'sponsor', 'collaborat', 'boutique pro', 'entreprise')) {
+    $paras[] = "Merci de votre intérêt pour Chap.ci ! Votre demande a été transmise à la personne en charge des partenariats, qui reviendra vers vous rapidement. N’hésitez pas à nous en dire plus sur votre structure et ce que vous imaginez ensemble.";
+    $short = $short ?? "Merci pour votre proposition : elle est transmise au responsable des partenariats, qui revient vers vous rapidement.";
+  }
+  if ($has('suggestion', 'suggere', 'idee', 'ameliorer', 'ajouter', 'fonctionnalite')) {
+    $paras[] = "Un grand merci pour votre idée : nous lisons chaque suggestion, et c’est grâce à ces retours que Chap.ci s’améliore. Nous l’avons notée pour une prochaine évolution du site.";
+    $short = $short ?? "Merci pour votre suggestion, elle est bien notée : c’est grâce à ces idées que Chap.ci avance.";
+  }
+  if (!$paras && $has('merci', 'felicitation', 'bravo', 'super site', 'genial')) {
+    $paras[] = "Merci beaucoup pour votre message, il fait très plaisir à toute l’équipe ! C’est pour des utilisateurs comme vous que nous faisons grandir Chap.ci chaque jour.";
+    $short = "Merci beaucoup, votre message fait très plaisir à toute l’équipe !";
+  }
+  if (!$paras) {
+    $paras[] = "Merci pour votre message, nous l’avons bien reçu. Notre équipe l’examine et revient vers vous rapidement avec une réponse précise.";
+    $short = "Merci pour votre message : notre équipe l’examine et revient vers vous rapidement.";
+  }
+  $paras = array_slice($paras, 0, 3); // réponse lisible : 3 paragraphes max
+
+  $bonjour  = "Bonjour{$prenom},";
+  $fin      = "Si besoin, répondez simplement à cet email : nous restons à votre écoute.";
+  $complete = $bonjour . "\n\n" . implode("\n\n", $paras) . "\n\n" . $fin;
+  $courte   = $bonjour . "\n\n" . $short . "\n\n" . $fin;
+  $drafts   = $courte === $complete ? [$complete] : [$complete, $courte];
+  return ['draft' => $drafts[0], 'drafts' => $drafts, 'ai' => true];
 }
 
 /**

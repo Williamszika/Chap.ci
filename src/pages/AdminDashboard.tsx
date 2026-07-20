@@ -853,16 +853,32 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
   const [suggesting, setSuggesting] = useState(false)
   const [sending, setSending] = useState(false)
 
+  // Propositions de l'IA du site (générées côté serveur, sans service externe) :
+  // le premier clic charge les propositions, les suivants passent à la suivante.
+  const [proposals, setProposals] = useState<string[]>([])
+  const [propIdx, setPropIdx] = useState(0)
+
   const toggleOpen = (m: ContactMessage) => {
     if (openId === m.id) { setOpenId(null); return }
     setOpenId(m.id)
     setDraft('')
+    setProposals([])
+    setPropIdx(0)
   }
   const suggest = async (m: ContactMessage) => {
+    if (proposals.length > 0) {
+      const next = (propIdx + 1) % proposals.length
+      setPropIdx(next)
+      setDraft(proposals[next])
+      return
+    }
     setSuggesting(true)
     try {
       const r = await suggestContactReply(m.id)
-      setDraft(r.draft)
+      const list = r.drafts && r.drafts.length > 0 ? r.drafts : [r.draft]
+      setProposals(list)
+      setPropIdx(0)
+      setDraft(list[0])
     } catch (e) { alert((e as Error).message) } finally { setSuggesting(false) }
   }
   const sendReply = async (m: ContactMessage) => {
@@ -898,7 +914,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
                   {m.handled && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Traité</span>}
                 </span>
                 {!open && <span className="mt-0.5 block truncate text-sm text-gray-500">{m.message}</span>}
-                <span className="mt-0.5 block text-[11px] text-gray-400">
+                <span className="mt-0.5 block break-words text-[11px] text-gray-400">
                   De {m.name || '—'}{m.email ? ` · ${m.email}` : ''} · {timeAgo(m.createdAt)}
                 </span>
               </span>
@@ -907,12 +923,15 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
 
             {open && (
               <div className="border-t border-[#EFE6D7] px-3 pb-3">
+                {/* Ordinateur/iPad large : message à gauche, réponse à droite.
+                    Téléphone/tablette : empilés. */}
+                <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
                 {/* Message complet (texte échappé par React : pas d'injection HTML) */}
                 <p className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">{m.message}</p>
 
                 {m.replyBody != null ? (
                   /* Réponse déjà envoyée */
-                  <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                  <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 lg:mt-3">
                     <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-emerald-700">
                       <CheckCircle2 size={13} /> Réponse envoyée depuis contact@chap.ci
                       {m.repliedAt ? ` · ${timeAgo(m.repliedAt)}` : ''}{m.repliedBy ? ` · par ${m.repliedBy}` : ''}
@@ -921,28 +940,28 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
                   </div>
                 ) : m.email ? (
                   /* Composer : réponse envoyée par email depuis contact@chap.ci */
-                  <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-[#FFF6EA]/70 p-3">
+                  <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-[#FFF6EA]/70 p-3 lg:mt-3">
                     <p className="text-xs font-bold text-gray-700">Répondre à {m.name || m.email}</p>
                     <textarea
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       rows={5}
-                      placeholder="Votre réponse… (ou cliquez sur « Proposer une réponse » pour un brouillon IA)"
-                      className="input mt-2 min-h-[110px] w-full resize-y bg-white text-sm leading-relaxed"
+                      placeholder="Votre réponse… (ou laissez l’IA du site vous proposer un message)"
+                      className="input mt-2 min-h-[110px] w-full resize-y bg-white text-[16px] leading-relaxed md:text-sm"
                     />
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <button
                         onClick={() => suggest(m)}
                         disabled={suggesting}
-                        className="flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-100 disabled:opacity-60"
+                        className="flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-[13px] font-semibold text-primary-700 transition hover:bg-primary-100 disabled:opacity-60 md:py-1.5 md:text-xs"
                       >
                         {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                        {suggesting ? 'Rédaction…' : 'Proposer une réponse (IA)'}
+                        {suggesting ? 'Rédaction…' : proposals.length > 0 ? 'Autre proposition' : 'Proposer un message (IA)'}
                       </button>
                       <button
                         onClick={() => sendReply(m)}
                         disabled={sending || !draft.trim()}
-                        className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50 md:py-1.5 md:text-xs"
                       >
                         {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
                         {sending ? 'Envoi…' : 'Envoyer via contact@chap.ci'}
@@ -955,23 +974,24 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
                     </p>
                   </div>
                 ) : (
-                  <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
+                  <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-700 lg:mt-3">
                     Cette personne n’a pas laissé d’adresse email : réponse par email impossible.
                     Vous pouvez seulement marquer le message comme traité.
                   </p>
                 )}
+                </div>
 
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {m.handled ? (
-                    <button onClick={() => mark(m, false)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    <button onClick={() => mark(m, false)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 md:px-2.5 md:py-1.5 md:text-xs">
                       <Undo2 size={13} /> Rouvrir
                     </button>
                   ) : (
-                    <button onClick={() => mark(m, true)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
+                    <button onClick={() => mark(m, true)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-600 md:px-2.5 md:py-1.5 md:text-xs">
                       <CheckCircle2 size={13} /> Marquer traité
                     </button>
                   )}
-                  <button onClick={() => remove(m)} className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                  <button onClick={() => remove(m)} className="flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-[13px] font-medium text-red-600 hover:bg-red-50 md:px-2.5 md:py-1.5 md:text-xs">
                     <Trash2 size={13} /> Supprimer
                   </button>
                 </div>

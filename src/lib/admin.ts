@@ -149,8 +149,8 @@ export async function deleteContactMessage(id: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminContactDelete(id)
 }
-/** Brouillon de réponse proposé (IA si configurée côté serveur, sinon gabarit). */
-export async function suggestContactReply(id: string): Promise<{ draft: string; ai: boolean }> {
+/** Propositions de réponse de l'IA du site (générées localement, sans clé API). */
+export async function suggestContactReply(id: string): Promise<{ draft: string; drafts?: string[]; ai: boolean }> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminContactSuggest(id)
 }
