@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Megaphone, ArrowRight } from 'lucide-react'
 import { fetchActiveAds, type Ad } from '../lib/ads'
 import { AdImageFill } from './AdImageFill'
+import { AnimatedAdText } from './AnimatedAdText'
 
-/** Durée d'affichage de chaque publicité (60 s, comme demandé). */
-const ROTATE_MS = 60_000
+/** Durée d'affichage de chaque publicité avant de passer à la suivante (45 s). */
+const ROTATE_MS = 45_000
+/** Rafraîchissement de la liste : les pubs expirées sortent, les nouvelles entrent. */
+const REFRESH_MS = 120_000
 
 /** Mélange aléatoire (Fisher-Yates) : l'ordre change à chaque visite. */
 function shuffle<T>(arr: T[]): T[] {
@@ -19,22 +22,37 @@ function shuffle<T>(arr: T[]): T[] {
 
 /**
  * Écran publicitaire — bannière NOIRE de l'accueil. Affiche les publicités
- * actives dans un ordre aléatoire, chacune pendant 60 secondes. Sans pub en
- * cours, l'écran fait sa propre réclame et invite à réserver l'espace.
+ * actives dans un ordre aléatoire, chacune 45 secondes, EN BOUCLE. La liste est
+ * rafraîchie régulièrement : une pub expirée sort de la rotation, une nouvelle y
+ * entre — le même défilement continue. Sans pub, l'écran fait sa propre réclame.
  */
 export function PromoBanner() {
   const [ads, setAds] = useState<Ad[]>([])
   const [idx, setIdx] = useState(0)
+  const idsRef = useRef('') // signature de la liste courante (pour ne pas re-mélanger inutilement)
 
   useEffect(() => {
     let alive = true
-    fetchActiveAds()
-      .then((list) => { if (alive) setAds(shuffle(list)) })
-      .catch(() => {})
-    return () => { alive = false }
+    const sig = (list: Ad[]) => list.map((a) => a.id).sort().join(',')
+    const pull = () => {
+      fetchActiveAds()
+        .then((list) => {
+          if (!alive) return
+          // Ne remélange (et ne réinitialise) que si l'ensemble des pubs a changé
+          // — une pub a expiré, ou une nouvelle est arrivée.
+          if (sig(list) === idsRef.current) return
+          idsRef.current = sig(list)
+          setAds(shuffle(list))
+          setIdx(0)
+        })
+        .catch(() => {})
+    }
+    pull()
+    const r = setInterval(pull, REFRESH_MS)
+    return () => { alive = false; clearInterval(r) }
   }, [])
 
-  // Rotation : passe à la pub suivante toutes les 60 s.
+  // Rotation : passe à la pub suivante toutes les 45 s, en boucle.
   useEffect(() => {
     if (ads.length < 2) return
     const t = setInterval(() => setIdx((i) => (i + 1) % ads.length), ROTATE_MS)
@@ -57,19 +75,16 @@ export function PromoBanner() {
               <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
-            <div className={`relative flex flex-col items-center gap-3 ${(ad.anim === 'fondu' || ad.anim === 'glissement' || ad.anim === 'pulse') ? `ad-anim-${ad.anim}${ad.animLoop !== false ? ' ad-loop' : ''}` : ''}`}>
-              {ad.anim === 'defilement' ? (
-                <h2 className={`ad-anim-defilement${ad.animLoop !== false ? ' ad-loop' : ''} w-full text-2xl leading-tight md:text-4xl ad-style-${ad.style ?? 'classique'}`}>
-                  <span>{ad.title}</span>
-                </h2>
-              ) : ad.anim === 'machine' ? (
-                <h2 className={`ad-anim-machine${ad.animLoop !== false ? ' ad-loop' : ''} mx-auto text-xl leading-tight md:text-3xl ad-style-${ad.style ?? 'classique'}`}>
-                  {ad.title}
-                </h2>
-              ) : (
-                <h2 className={`text-2xl leading-tight md:text-4xl ad-style-${ad.style ?? 'classique'}`}>
-                  {ad.title}
-                </h2>
+            <div className="relative flex flex-col items-center gap-3">
+              {ad.title && (
+                <AnimatedAdText
+                  text={ad.title}
+                  style={ad.style ?? 'classique'}
+                  anims={ad.anims?.length ? ad.anims : (ad.anim ? [ad.anim] : ['fondu'])}
+                  gapMs={Math.max(5, Math.min(60, ad.animGap ?? 8)) * 1000}
+                  loop={ad.animLoop !== false}
+                  className="text-2xl font-extrabold leading-tight md:text-4xl"
+                />
               )}
               {ad.description && (
                 <p className="max-w-2xl text-sm leading-relaxed text-white/80 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden md:text-base">

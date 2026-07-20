@@ -1097,6 +1097,9 @@ function migrate(PDO $pdo): void {
   // Animation en boucle continue pendant toute la durée d'affichage ('1') ou une
   // seule fois ('0'). NULL (anciennes lignes) = boucle activée par défaut.
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim_loop $txt"); } catch (Throwable $e) {}
+  // Liste JSON des animations enchaînées du texte + pause (secondes) entre elles.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anims $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim_gap $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
@@ -3579,7 +3582,7 @@ try {
 
   // Pubs actives (écran publicitaire de l'accueil). Le mélange se fait côté client.
   if ($path === 'ads/active' && $method === 'GET') {
-    $st = $pdo->prepare("SELECT id,title,description,link,images,kind,style,anim,anim_loop FROM ads
+    $st = $pdo->prepare("SELECT id,title,description,link,images,kind,style,anim,anim_loop,anims,anim_gap FROM ads
       WHERE status = 'active' AND expires_at > ? ORDER BY created_at DESC LIMIT 50");
     $st->execute([now_iso()]);
     jout(array_map(fn($r) => [
@@ -3587,6 +3590,8 @@ try {
       'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
       'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
       'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
+      'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
+      'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
     ], $st->fetchAll()));
   }
 
@@ -4057,6 +4062,8 @@ try {
         'payMethod' => $r['pay_method'], 'payNumber' => $r['pay_number'],
         'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
         'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
+        'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
+        'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
         // Une pub « active » dont la date est passée est présentée comme expirée.
         'status' => ($r['status'] === 'active' && ($r['expires_at'] ?? '') !== '' && $r['expires_at'] <= $now) ? 'expired' : $r['status'],
         'expiresAt' => !empty($r['expires_at']) ? iso_to_ms($r['expires_at']) : null,
@@ -4108,7 +4115,21 @@ try {
         jerr('Le lien doit commencer par https://.');
       }
       $style = in_array($b['style'] ?? '', ['classique', 'neon', 'script', 'impact', 'ivoire'], true) ? $b['style'] : 'classique';
-      $anim  = in_array($b['anim'] ?? '', ['fondu', 'glissement', 'pulse', 'defilement', 'machine'], true) ? $b['anim'] : 'fondu';
+      // Animations enchaînées du texte : liste de clés (une ou plusieurs).
+      $anims = [];
+      foreach ((array) ($b['anims'] ?? []) as $a) {
+        $a = (string) $a;
+        if (preg_match('/^[a-z0-9-]{2,24}$/', $a)) $anims[] = $a;
+      }
+      $anims = array_slice(array_values(array_unique($anims)), 0, 20);
+      // Repli sur l'ancien champ unique, sinon « fondu ».
+      if (!$anims) {
+        $single = is_string($b['anim'] ?? null) && preg_match('/^[a-z0-9-]{2,24}$/', $b['anim']) ? $b['anim'] : 'fondu';
+        $anims = [$single];
+      }
+      $anim  = $anims[0]; // colonne « anim » (compatibilité)
+      // Pause entre deux animations : de 5 s à 60 s.
+      $gap   = (string) max(5, min(60, (int) ($b['gap'] ?? 8)));
       // Boucle continue pendant toute la durée ('1') ou une seule fois ('0').
       $loop  = array_key_exists('loop', $b) ? (!empty($b['loop']) ? '1' : '0') : '1';
       $days  = max(1, min(90, (int) ($b['days'] ?? 7)));
@@ -4122,10 +4143,10 @@ try {
       $id = uuid();
       $now = now_iso();
       $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $days * 86400);
-      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop,anims,anim_gap)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
           ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), 'day', $days,
-                     0, '', '', 'active', $now, $expires, client_ip(), $now, 'admin', $style, $anim, $loop]);
+                     0, '', '', 'active', $now, $expires, client_ip(), $now, 'admin', $style, $anim, $loop, json_encode($anims), $gap]);
       jout(['ok' => true, 'id' => $id, 'expiresAt' => iso_to_ms($expires)]);
     }
 

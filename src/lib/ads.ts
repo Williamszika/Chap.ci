@@ -11,7 +11,8 @@ export interface AdTariff {
 }
 
 export type AdStyle = 'classique' | 'neon' | 'script' | 'impact' | 'ivoire'
-export type AdAnim = 'fondu' | 'glissement' | 'pulse' | 'defilement' | 'machine'
+/** Clé d'animation (voir AD_ANIMS — 50 animations disponibles). */
+export type AdAnim = string
 
 export interface Ad {
   id: string
@@ -23,6 +24,10 @@ export interface Ad {
   kind?: 'paid' | 'admin' | 'seo'
   style?: AdStyle | null
   anim?: AdAnim | null
+  /** Animations enchaînées du texte (une ou plusieurs parmi AD_ANIMS). */
+  anims?: string[]
+  /** Pause (en secondes) entre deux animations, de 5 s à 60 s. */
+  animGap?: number
   /** Animer en boucle continue pendant toute la durée d'affichage (défaut : oui). */
   animLoop?: boolean
 }
@@ -110,7 +115,8 @@ export async function adminAdBroadcast(input: {
   link: string
   images: string[]
   style: AdStyle
-  anim: AdAnim
+  anims: string[]
+  gap: number
   loop: boolean
   days: number
 }): Promise<{ ok: boolean; id: string }> {
@@ -140,10 +146,61 @@ export async function runSeoNow(): Promise<{ ok: boolean; goal: string; title: s
   return php.phpAdminSeoRun()
 }
 
-export const AD_ANIMS: { key: AdAnim; label: string }[] = [
+/** Pause par défaut entre deux animations (secondes). */
+export const AD_GAP_DEFAULT = 8
+export const AD_GAP_MIN = 5
+export const AD_GAP_MAX = 60
+
+/** 50 animations de texte disponibles (l'admin en sélectionne une ou plusieurs). */
+export const AD_ANIMS: { key: string; label: string }[] = [
   { key: 'fondu', label: 'Fondu' },
-  { key: 'glissement', label: 'Glissement' },
+  { key: 'fondu-haut', label: 'Fondu ↓ (du haut)' },
+  { key: 'fondu-bas', label: 'Fondu ↑ (du bas)' },
+  { key: 'fondu-gauche', label: 'Fondu → (gauche)' },
+  { key: 'fondu-droite', label: 'Fondu ← (droite)' },
+  { key: 'glissement', label: 'Glissement (bas→haut)' },
+  { key: 'glissement-bas', label: 'Glissement (haut→bas)' },
+  { key: 'glissement-gauche', label: 'Glissement (gauche)' },
+  { key: 'glissement-droite', label: 'Glissement (droite)' },
+  { key: 'zoom', label: 'Zoom avant' },
+  { key: 'zoom-arriere', label: 'Zoom arrière' },
+  { key: 'zoom-haut', label: 'Zoom du haut' },
+  { key: 'zoom-bas', label: 'Zoom du bas' },
+  { key: 'pop', label: 'Pop' },
+  { key: 'rebond', label: 'Rebond (du haut)' },
+  { key: 'rebond-haut', label: 'Rebond (du bas)' },
+  { key: 'ressort', label: 'Ressort élastique' },
+  { key: 'jello', label: 'Jello' },
+  { key: 'tada', label: 'Tada' },
+  { key: 'flipx', label: 'Retournement horizontal' },
+  { key: 'flipy', label: 'Retournement vertical' },
+  { key: 'bascule', label: 'Bascule' },
+  { key: 'balancier', label: 'Balancier' },
+  { key: 'roulement', label: 'Roulement' },
+  { key: 'rotation', label: 'Rotation' },
+  { key: 'pivot', label: 'Pivot' },
   { key: 'pulse', label: 'Pulsation' },
-  { key: 'defilement', label: 'Défilement (bandeau)' },
+  { key: 'battement', label: 'Battement de cœur' },
+  { key: 'clignote', label: 'Clignotement' },
+  { key: 'secousse', label: 'Secousse' },
+  { key: 'tremble', label: 'Tremblement' },
+  { key: 'oscille', label: 'Oscillation' },
+  { key: 'balance', label: 'Balancement' },
+  { key: 'vacille', label: 'Vacillement' },
+  { key: 'surligne', label: 'Surlignage' },
   { key: 'machine', label: 'Machine à écrire' },
+  { key: 'defilement', label: 'Défilement (entrée)' },
+  { key: 'flou', label: 'Flou → net' },
+  { key: 'flouzoom', label: 'Flou + zoom' },
+  { key: 'neon', label: 'Néon clignotant' },
+  { key: 'etirement', label: 'Étirement des lettres' },
+  { key: 'compression', label: 'Compression' },
+  { key: 'glitch', label: 'Glitch' },
+  { key: 'fonduechelle', label: 'Fondu + échelle' },
+  { key: 'tournoie', label: 'Tournoiement' },
+  { key: 'plonge', label: 'Plongée' },
+  { key: 'leve', label: 'Lever' },
+  { key: 'apparition', label: 'Apparition (voile)' },
+  { key: 'balayage', label: 'Balayage (révélation)' },
+  { key: 'estampe', label: 'Estampe (impact)' },
 ]

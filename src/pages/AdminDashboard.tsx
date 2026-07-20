@@ -26,8 +26,9 @@ import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 import {
   fetchAdminAds, adminAdAction, adminAdDelete, adminAdBroadcast,
   fetchSeoState, setSeoEnabled, runSeoNow,
-  AD_STYLES, AD_ANIMS, type AdminAd, type AdStyle, type AdAnim, type SeoState,
+  AD_STYLES, AD_ANIMS, AD_GAP_MIN, AD_GAP_MAX, AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
 } from '../lib/ads'
+import { AnimatedAdText } from '../components/AnimatedAdText'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
 
@@ -1370,8 +1371,9 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [bDesc, setBDesc] = useState('')
   const [bLink, setBLink] = useState('')
   const [bStyle, setBStyle] = useState<AdStyle>('classique')
-  const [bAnim, setBAnim] = useState<AdAnim>('fondu')
-  const [bLoop, setBLoop] = useState(true) // animer en boucle continue par défaut
+  const [bAnims, setBAnims] = useState<string[]>(['fondu']) // animations enchaînées du texte
+  const [bGap, setBGap] = useState(AD_GAP_DEFAULT)          // pause (s) entre animations
+  const [bLoop, setBLoop] = useState(true)                  // enchaîner en boucle par défaut
   const [bDays, setBDays] = useState(7)
   const [bImg, setBImg] = useState<string | null>(null)
   const [bBusy, setBBusy] = useState(false)
@@ -1400,7 +1402,8 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
     try {
       await adminAdBroadcast({
         title: bTitle.trim(), description: bDesc.trim(), link: bLink.trim(),
-        images: bImg ? [bImg] : [], style: bStyle, anim: bAnim, loop: bLoop, days: bDays,
+        images: bImg ? [bImg] : [], style: bStyle,
+        anims: bAnims.length ? bAnims : ['fondu'], gap: bGap, loop: bLoop, days: bDays,
       })
       setBMsg('✓ Diffusion lancée : le message est à l’écran.')
       setBTitle(''); setBDesc(''); setBLink(''); setBImg(null)
@@ -1437,21 +1440,62 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           placeholder="Texte secondaire (facultatif)…"
           className="input mt-2 min-h-[64px] resize-y"
         />
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Style d’écriture</span>
-            <select value={bStyle} onChange={(e) => setBStyle(e.target.value as AdStyle)} className="input">
-              {AD_STYLES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Animation</span>
-            <select value={bAnim} onChange={(e) => setBAnim(e.target.value as AdAnim)} className="input">
-              {AD_ANIMS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
-            </select>
-          </label>
+        <label className="mt-2 block">
+          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Style d’écriture</span>
+          <select value={bStyle} onChange={(e) => setBStyle(e.target.value as AdStyle)} className="input">
+            {AD_STYLES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        </label>
+
+        {/* Animations du texte : l'admin en choisit une OU PLUSIEURS (50 dispo).
+            Le texte les enchaîne l'une après l'autre, avec la pause réglée. */}
+        <div className="mt-2">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+              Animations du texte · {bAnims.length} choisie{bAnims.length > 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-2 text-[11px] font-semibold">
+              <button type="button" onClick={() => setBAnims(AD_ANIMS.map((a) => a.key))} className="text-primary-600">Tout</button>
+              <button type="button" onClick={() => setBAnims(['fondu'])} className="text-gray-400">Réinitialiser</button>
+            </div>
+          </div>
+          <div className="flex max-h-40 flex-wrap content-start gap-1.5 overflow-y-auto rounded-xl border border-[#E6DAC6] bg-white p-2">
+            {AD_ANIMS.map((a) => {
+              const on = bAnims.includes(a.key)
+              return (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => setBAnims(on ? bAnims.filter((k) => k !== a.key) : [...bAnims, a.key])}
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${on ? 'bg-[#F77F00] text-white shadow-sm' : 'bg-cream-100 text-ink hover:bg-cream-200'}`}
+                >
+                  {a.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-1 text-[11px] text-gray-400">
+            Plusieurs animations = le texte change d’animation à chaque fois.
+          </p>
         </div>
-        {/* Boucle : rejouer l'animation en continu, ou une seule fois. */}
+
+        {/* Pause entre deux animations : de 5 s à 1 min, au choix. */}
+        <label className="mt-2 flex items-center gap-3 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
+          <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-gray-400">Pause entre animations</span>
+          <input
+            type="range"
+            min={AD_GAP_MIN}
+            max={AD_GAP_MAX}
+            step={1}
+            value={bGap}
+            onChange={(e) => setBGap(Number(e.target.value))}
+            className="flex-1 accent-[#F77F00]"
+            aria-label="Pause entre animations (secondes)"
+          />
+          <span className="tnum w-12 text-right text-sm font-bold text-ink">{bGap} s</span>
+        </label>
+
+        {/* Enchaîner en boucle, ou jouer une seule fois. */}
         <label className="mt-2 flex cursor-pointer items-center gap-2.5 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
           <input
             type="checkbox"
@@ -1460,8 +1504,8 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             className="h-4 w-4 accent-[#F77F00]"
           />
           <span className="text-[13px] font-semibold text-ink">
-            Animer en boucle continue
-            <span className="ml-1 font-normal text-gray-400">— répète l’animation pendant toute la durée (sinon, une seule fois)</span>
+            Enchaîner en boucle
+            <span className="ml-1 font-normal text-gray-400">— rejoue les animations avec la pause ci-dessus (sinon, une seule fois)</span>
           </span>
         </label>
         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1512,17 +1556,15 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           ) : (
             <>
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
-              <div
-                key={`${bStyle}-${bAnim}-${bLoop}-${bTitle}`}
-                className={`relative flex w-full flex-col items-center gap-1.5 ${['fondu', 'glissement', 'pulse'].includes(bAnim) ? `ad-anim-${bAnim}${bLoop ? ' ad-loop' : ''}` : ''}`}
-              >
-                {bAnim === 'defilement' ? (
-                  <p className={`ad-anim-defilement${bLoop ? ' ad-loop' : ''} w-full text-xl ad-style-${bStyle}`}><span>{bTitle || 'Votre message ici'}</span></p>
-                ) : bAnim === 'machine' ? (
-                  <p className={`ad-anim-machine${bLoop ? ' ad-loop' : ''} mx-auto text-lg ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
-                ) : (
-                  <p className={`text-xl ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
-                )}
+              <div className="relative flex w-full flex-col items-center gap-1.5">
+                <AnimatedAdText
+                  text={bTitle || 'Votre message ici'}
+                  style={bStyle}
+                  anims={bAnims.length ? bAnims : ['fondu']}
+                  gapMs={bGap * 1000}
+                  loop={bLoop}
+                  className="text-xl font-extrabold"
+                />
                 {bDesc && <p className="text-xs text-white/75">{bDesc}</p>}
               </div>
             </>
