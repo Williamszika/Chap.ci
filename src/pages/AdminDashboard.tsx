@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Users, Package, MessageSquare, ShoppingBag, Star, Mail,
@@ -153,61 +153,142 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [info, setInfo] = useState('')
+  // Minuteur « Expire dans 0:47 » : lancé à l'envoi du code (durée de vie 60 s).
+  const [left, setLeft] = useState<number | null>(null)
+  const hiddenRef = useRef<HTMLInputElement>(null)
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault(); setErr(''); setInfo('')
-    if (!code.trim()) return setErr('Entrez le code d’accès.')
+  useEffect(() => {
+    if (left === null || left <= 0) return
+    const t = setInterval(() => setLeft((v) => (v === null ? null : v - 1)), 1000)
+    return () => clearInterval(t)
+  }, [left !== null && left > 0])
+
+  async function doUnlock(value: string) {
+    setErr(''); setInfo('')
+    if (!value.trim()) return setErr('Entrez le code d’accès.')
     setBusy(true)
-    try { await adminUnlock(code.trim().toUpperCase()); onUnlocked() }
-    catch (e) { setErr((e as Error).message) }
-    finally { setBusy(false) }
+    try { await adminUnlock(value.trim().toUpperCase()); onUnlocked() }
+    catch (e) {
+      setErr((e as Error).message)
+      if (owner) { setCode(''); hiddenRef.current?.focus() }
+    } finally { setBusy(false) }
   }
+  function submit(e: React.FormEvent) { e.preventDefault(); doUnlock(code) }
+
+  function onDigits(v: string) {
+    const digits = v.replace(/\D/g, '').slice(0, 6)
+    setCode(digits)
+    setErr('')
+    // 6ᵉ chiffre saisi → tentative automatique (le bouton reste disponible).
+    if (digits.length === 6 && !busy) doUnlock(digits)
+  }
+
   async function sendEmail() {
     setErr(''); setInfo(''); setBusy(true)
     try {
       const r = await adminUnlockEmail()
-      setInfo(r.sent > 0 ? 'Code envoyé à l’email de l’admin principal.' : 'Envoi impossible (email non configuré ?).')
+      if (r.sent > 0) {
+        setInfo('Code envoyé par email.')
+        setCode(''); setLeft(60); hiddenRef.current?.focus()
+      } else {
+        setInfo('Envoi impossible (email non configuré ?).')
+      }
     } catch (e) { setErr((e as Error).message) }
     finally { setBusy(false) }
   }
 
+  const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  const focusIdx = Math.min(code.length, 5)
+
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-6">
-      <div className="rounded-2xl border border-[#EFE6D7] bg-white p-6 shadow-card">
-        <div className="flex flex-col items-center text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 text-primary-600"><Lock size={30} /></span>
-          <h1 className="mt-4 font-display text-xl font-bold text-gray-900">Tableau de bord verrouillé</h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-gray-500">
-            {owner
-              ? 'Recevez un code par email, puis saisissez-le ici. Il expire dans 1 minute.'
-              : 'Entrez le code d’accès fourni par l’administrateur principal.'}
-          </p>
-        </div>
-        <form onSubmit={submit} className="mt-5 space-y-3">
+    // Écran « serrure » de l'artifact : halo orange en haut, contenu centré.
+    <div className="flex min-h-[74vh] flex-col items-center justify-center bg-[radial-gradient(520px_250px_at_50%_4%,#FFF6EC,transparent_72%)] px-6 py-9 text-center">
+      <div className="grid h-[62px] w-[62px] place-items-center rounded-full border border-primary-100 bg-[#FFF6EC] text-[27px]" aria-hidden>
+        🔒
+      </div>
+      <h1 className="mt-3 font-display text-[21px] font-extrabold text-ink">Tableau de bord verrouillé</h1>
+      <p className="mt-1 max-w-[36ch] text-[13.5px] leading-relaxed text-gray-600">
+        {owner
+          ? 'Recevez un code d’accès par email, puis saisissez-le ici. Il expire dans 1 minute.'
+          : 'Entrez le code d’accès fourni par l’administrateur principal.'}
+      </p>
+
+      <form onSubmit={submit} className="mt-4 flex w-full max-w-xs flex-col items-center">
+        {owner ? (
+          /* Code à 6 chiffres — cases séparées de l'artifact. La saisie passe par
+             un champ invisible (clavier numérique mobile, collage possible). */
+          <div
+            className="relative cursor-text"
+            onClick={() => hiddenRef.current?.focus()}
+          >
+            <input
+              ref={hiddenRef}
+              value={code}
+              onChange={(e) => onDigits(e.target.value)}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              aria-label="Code d’accès à 6 chiffres"
+              className="absolute inset-0 h-full w-full opacity-0"
+            />
+            <div className="flex justify-center gap-2" aria-hidden>
+              {Array.from({ length: 6 }, (_, i) => (
+                <i
+                  key={i}
+                  className={`grid h-[50px] w-10 place-items-center rounded-xl border-[1.5px] bg-white font-display text-[23px] font-extrabold not-italic text-ink ${
+                    i === focusIdx && code.length < 6
+                      ? 'border-primary-500 shadow-[0_0_0_3px_#FFF6EC]'
+                      : 'border-[#E6DAC6]'
+                  }`}
+                >
+                  {code[i] ?? ''}
+                </i>
+              ))}
+            </div>
+          </div>
+        ) : (
           <input
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-            placeholder="Code d’accès"
+            placeholder="Code d’accès personnel"
             maxLength={16}
             autoFocus
             className="input text-center font-mono text-lg tracking-[0.3em]"
           />
-          {err && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{err}</p>}
-          {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
-          <button type="submit" disabled={busy} className="btn-primary w-full py-3.5 text-base">
-            {busy ? <Loader2 size={20} className="animate-spin" /> : 'Déverrouiller'}
-          </button>
-        </form>
+        )}
+
+        {owner && left !== null && (
+          <p className="mt-2.5 text-xs text-gray-400">
+            {left > 0 ? (
+              <>Expire dans <b className="tnum font-bold text-primary-700">{mmss(left)}</b></>
+            ) : (
+              <span className="font-semibold text-red-500">Code expiré — recevez-en un nouveau.</span>
+            )}
+          </p>
+        )}
+
+        {err && <p className="mt-3 w-full rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{err}</p>}
+        {info && <p className="mt-3 w-full rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
+
+        <button type="submit" disabled={busy} className="btn-primary mt-4 w-full py-3.5 text-base">
+          {busy ? <Loader2 size={20} className="animate-spin" /> : 'Déverrouiller'}
+        </button>
         {owner ? (
-          <button onClick={sendEmail} disabled={busy} className="btn-outline mt-3 w-full py-2.5 text-sm">
+          <button type="button" onClick={sendEmail} disabled={busy} className="btn-outline mt-2.5 w-full py-2.5 text-sm">
             <Mail size={16} /> Recevoir un code par email
           </button>
         ) : (
-          <p className="mt-4 text-center text-[11px] leading-relaxed text-gray-400">
+          <p className="mt-3.5 text-[11px] leading-relaxed text-gray-400">
             Vous n’avez pas le code ? Demandez-le à l’administrateur principal du site.
           </p>
         )}
-      </div>
+      </form>
+
+      {owner && (
+        <p className="mt-3.5 text-[11px] text-gray-400">
+          Envoyé à votre email + contact@chap.ci · usage unique
+        </p>
+      )}
     </div>
   )
 }
