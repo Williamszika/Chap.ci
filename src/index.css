@@ -117,3 +117,46 @@ select:focus-visible,
     @apply rounded-2xl border border-[#EFE6D7] bg-white shadow-card;
   }
 }
+
+/* ============================================================================
+   Écran publicitaire — animations et styles d'écriture des diffusions admin.
+   ========================================================================= */
+@keyframes ad-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes ad-slide-up { from { opacity: 0; transform: translateY(26px) } to { opacity: 1; transform: none } }
+@keyframes ad-pulse { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.045) } }
+@keyframes ad-marquee { 0% { transform: translateX(100%) } 100% { transform: translateX(-100%) } }
+@keyframes ad-typing { from { width: 0 } to { width: 100% } }
+@keyframes ad-caret { 0%, 100% { border-color: transparent } 50% { border-color: currentColor } }
+
+.ad-anim-fondu { animation: ad-fade 1.3s ease both; }
+.ad-anim-glissement { animation: ad-slide-up 0.9s ease both; }
+.ad-anim-pulse { animation: ad-pulse 2.6s ease-in-out infinite; }
+.ad-anim-defilement { overflow: hidden; white-space: nowrap; max-width: 100%; }
+.ad-anim-defilement > span { display: inline-block; padding-left: 100%; animation: ad-marquee 14s linear infinite; }
+.ad-anim-machine {
+  overflow: hidden; white-space: nowrap; max-width: fit-content;
+  border-right: 3px solid currentColor;
+  animation: ad-typing 2.8s steps(36, end) both, ad-caret 0.8s step-end 2.8s infinite;
+}
+
+/* Styles d'écriture */
+.ad-style-classique { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 800; }
+.ad-style-impact { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; }
+.ad-style-script { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; }
+.ad-style-neon {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 6px #f77f00, 0 0 18px #f77f00, 0 0 38px rgba(247, 127, 0, 0.65);
+}
+.ad-style-ivoire {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 800;
+  background: linear-gradient(90deg, #f77f00 15%, #ffffff 50%, #009e60 85%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* Accessibilité : réduire les mouvements si l'utilisateur le demande. */
+@media (prefers-reduced-motion: reduce) {
+  .ad-anim-fondu, .ad-anim-glissement, .ad-anim-pulse, .ad-anim-machine,
+  .ad-anim-defilement > span { animation: none; }
+  .ad-anim-machine { border-right: 0; width: auto; }
+}

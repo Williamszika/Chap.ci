@@ -16,6 +16,7 @@ const cols: { title: string; links: { to: string; label: string; state?: unknown
     links: [
       // Libellés alignés sur le CONTENU réel des destinations.
       { to: '/publier', label: 'Publier une annonce' },
+      { to: '/publicite', label: 'Faire de la publicité' },
       { to: '/aide?rubrique=vendre', label: 'Conseils vendeur' },
       { to: '/compte', label: 'Tableau de bord pro', state: { tab: 'ventes' } },
       { to: '/compte', label: 'Mes annonces', state: { tab: 'annonces' } },

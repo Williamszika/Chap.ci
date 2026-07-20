@@ -588,6 +588,32 @@ export async function phpAdminContactSuggest(id: string): Promise<{ draft: strin
 export async function phpAdminContactReply(id: string, body: string): Promise<void> {
   await req(`/admin/contact-messages/${id}/reply`, { method: 'POST', body: { body } })
 }
+// ---- Écran publicitaire ----
+export async function phpAdTariff<T>(): Promise<T> {
+  return req<T>('/ads/tarif')
+}
+export async function phpAdSubmit<T>(body: Record<string, unknown>): Promise<T> {
+  return req<T>('/ads', { method: 'POST', body })
+}
+export async function phpAdsActive<T>(): Promise<T> {
+  return req<T>('/ads/active')
+}
+export async function phpAdGet<T>(id: string): Promise<T> {
+  return req<T>(`/ads/${id}`)
+}
+export async function phpAdminAds<T>(): Promise<T> {
+  return req<T>('/admin/ads')
+}
+export async function phpAdminAdAction(id: string, action: 'approve' | 'reject'): Promise<void> {
+  await req(`/admin/ads/${id}/${action}`, { method: 'POST', body: {} })
+}
+export async function phpAdminAdDelete(id: string): Promise<void> {
+  await req(`/admin/ads/${id}`, { method: 'DELETE' })
+}
+export async function phpAdminAdBroadcast<T>(body: Record<string, unknown>): Promise<T> {
+  return req<T>('/admin/ads/broadcast', { method: 'POST', body })
+}
+
 export async function phpAdminConversations<T>(): Promise<T> {
   return req<T>('/admin/conversations')
 }

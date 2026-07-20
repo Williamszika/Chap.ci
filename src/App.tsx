@@ -14,6 +14,8 @@ import { ListingDetail } from './pages/ListingDetail'
 import { Favorites } from './pages/Favorites'
 import { Profile } from './pages/Profile'
 import { Donate } from './pages/Donate'
+import { Advertise } from './pages/Advertise'
+import { AdDetail } from './pages/AdDetail'
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
 import { ForgotPassword } from './pages/ForgotPassword'
@@ -74,6 +76,8 @@ export default function App() {
           <Route path="/favoris" element={<Favorites />} />
           <Route path="/compte" element={<Profile />} />
           <Route path="/don" element={<Donate />} />
+          <Route path="/publicite" element={<Advertise />} />
+          <Route path="/pub/:id" element={<AdDetail />} />
           <Route path="/connexion" element={<Login />} />
           <Route path="/inscription" element={<Register />} />
           <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />

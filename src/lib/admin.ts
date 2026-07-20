@@ -19,6 +19,7 @@ export interface AdminStats {
   reportsOpen?: number
   // null = compte sans la permission 'contact' (le serveur masque le compteur)
   contactOpen?: number | null
+  adsPending?: number | null
   periods?: {
     users: { day: number; week: number; month: number; year: number }
     listings: { day: number; week: number; month: number; year: number }

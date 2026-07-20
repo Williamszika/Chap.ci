@@ -23,9 +23,14 @@ import {
   type VisitStats, type VisitRange, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
+import {
+  fetchAdminAds, adminAdAction, adminAdDelete, adminAdBroadcast,
+  AD_STYLES, AD_ANIMS, type AdminAd, type AdStyle, type AdAnim,
+} from '../lib/ads'
+import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -108,7 +113,7 @@ export function AdminDashboard() {
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['contact','Contact'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => canSee(id)).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => canSee(id)).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -120,6 +125,9 @@ export function AdminDashboard() {
               )}
               {id === 'contact' && !!stats?.contactOpen && (
                 <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary-500 px-1 text-[10px] font-bold text-white">{stats.contactOpen}</span>
+              )}
+              {id === 'ads' && !!stats?.adsPending && (
+                <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary-500 px-1 text-[10px] font-bold text-white">{stats.adsPending}</span>
               )}
             </button>
           ))}
@@ -135,6 +143,7 @@ export function AdminDashboard() {
         {tab === 'users' && <UsersTab />}
         {tab === 'reports' && <ReportsTab onChanged={refreshStats} />}
         {tab === 'contact' && <ContactTab onChanged={refreshStats} />}
+        {tab === 'ads' && <AdsTab onChanged={refreshStats} />}
         {tab === 'orders' && <OrdersTab />}
         {tab === 'conversations' && <ConversationsTab />}
         {tab === 'reviews' && <ReviewsTab />}
@@ -1266,6 +1275,222 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
         )
       })}
       {items.length === 0 && <Empty>Aucun message de contact.</Empty>}
+    </div>
+  )
+}
+
+// ---------- Publicités (écran publicitaire) ----------
+const AD_STATUS_PILL: Record<string, [string, string]> = {
+  pending: ['En attente', 'bg-amber-50 text-amber-700'],
+  active: ['À l’écran', 'bg-emerald-50 text-emerald-700'],
+  rejected: ['Rejetée', 'bg-gray-100 text-gray-500'],
+  expired: ['Expirée', 'bg-gray-100 text-gray-500'],
+}
+const AD_FORMULE_LABEL: Record<string, string> = { day: 'jour(s)', week: 'semaine(s)', month: 'mois' }
+
+function AdsTab({ onChanged }: { onChanged?: () => void }) {
+  const [items, setItems] = useState<AdminAd[] | null>(null)
+  const [err, setErr] = useState('')
+  const load = () => { setItems(null); setErr(''); fetchAdminAds().then(setItems).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+
+  // Compositeur de diffusion Chap.ci (message animé).
+  const [bTitle, setBTitle] = useState('')
+  const [bDesc, setBDesc] = useState('')
+  const [bLink, setBLink] = useState('')
+  const [bStyle, setBStyle] = useState<AdStyle>('classique')
+  const [bAnim, setBAnim] = useState<AdAnim>('fondu')
+  const [bDays, setBDays] = useState(7)
+  const [bImg, setBImg] = useState<string | null>(null)
+  const [bBusy, setBBusy] = useState(false)
+  const [bMsg, setBMsg] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const act = async (a: AdminAd, action: 'approve' | 'reject') => {
+    if (action === 'approve' && !confirm(`Activer « ${a.title} » ? La pub passera à l’écran (paiement de ${formatPrice(a.price)} F vérifié ?).`)) return
+    try { await adminAdAction(a.id, action); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
+  }
+  const remove = async (a: AdminAd) => {
+    if (!confirm('Supprimer définitivement cette publicité ?')) return
+    try { await adminAdDelete(a.id); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
+  }
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    try { setBImg(await downscaleListingImage(f, 1600, 0.82)) } catch { /* image illisible */ }
+  }
+  async function broadcast() {
+    setBMsg('')
+    if (bTitle.trim().length < 2) { setBMsg('Écrivez le message à diffuser.'); return }
+    setBBusy(true)
+    try {
+      await adminAdBroadcast({
+        title: bTitle.trim(), description: bDesc.trim(), link: bLink.trim(),
+        images: bImg ? [bImg] : [], style: bStyle, anim: bAnim, days: bDays,
+      })
+      setBMsg('✓ Diffusion lancée : le message est à l’écran.')
+      setBTitle(''); setBDesc(''); setBLink(''); setBImg(null)
+      load(); onChanged?.()
+    } catch (e) { setBMsg((e as Error).message) } finally { setBBusy(false) }
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  return (
+    <div className="space-y-3.5">
+      {/* Diffusion Chap.ci : message animé, style d'écriture, durée */}
+      <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+        <p className="font-display text-[15px] font-extrabold text-ink">📺 Diffuser un message Chap.ci</p>
+        <p className="mt-0.5 text-xs text-gray-400">
+          Affiché immédiatement sur l’écran publicitaire (sans paiement) : annonces de la maison,
+          messages d’information, promotions…
+        </p>
+        <input
+          value={bTitle}
+          onChange={(e) => setBTitle(e.target.value)}
+          maxLength={90}
+          placeholder="Le message à afficher en grand…"
+          className="input mt-3"
+        />
+        <textarea
+          value={bDesc}
+          onChange={(e) => setBDesc(e.target.value)}
+          rows={2}
+          maxLength={600}
+          placeholder="Texte secondaire (facultatif)…"
+          className="input mt-2 min-h-[64px] resize-y"
+        />
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Style d’écriture</span>
+            <select value={bStyle} onChange={(e) => setBStyle(e.target.value as AdStyle)} className="input">
+              {AD_STYLES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Animation</span>
+            <select value={bAnim} onChange={(e) => setBAnim(e.target.value as AdAnim)} className="input">
+              {AD_ANIMS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <input
+            value={bLink}
+            onChange={(e) => setBLink(e.target.value)}
+            maxLength={300}
+            placeholder="Lien (facultatif) https://…"
+            inputMode="url"
+            className="input"
+          />
+          <label className="flex items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-3">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Durée</span>
+            <input
+              type="number"
+              min={1}
+              max={90}
+              value={bDays}
+              onChange={(e) => setBDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
+              className="tnum w-full bg-transparent py-3 text-[15px] outline-none"
+              aria-label="Durée en jours"
+            />
+            <span className="text-xs text-gray-400">j</span>
+          </label>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
+          <button onClick={() => fileRef.current?.click()} className="btn-outline px-3 py-2 text-xs">
+            {bImg ? 'Changer l’image de fond' : '🖼️ Image de fond (facultatif)'}
+          </button>
+          {bImg && (
+            <button onClick={() => setBImg(null)} className="text-xs font-semibold text-red-500">Retirer</button>
+          )}
+        </div>
+
+        {/* Aperçu en direct de la diffusion (l'animation rejoue à chaque réglage) */}
+        <div className="relative mt-3 flex min-h-[130px] flex-col items-center justify-center overflow-hidden rounded-2xl bg-black p-4 text-center text-white">
+          {bImg && <img src={bImg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
+          <div
+            key={`${bStyle}-${bAnim}-${bTitle}`}
+            className={`relative flex w-full flex-col items-center gap-1.5 ${['fondu', 'glissement', 'pulse'].includes(bAnim) ? `ad-anim-${bAnim}` : ''}`}
+          >
+            {bAnim === 'defilement' ? (
+              <p className={`ad-anim-defilement w-full text-xl ad-style-${bStyle}`}><span>{bTitle || 'Votre message ici'}</span></p>
+            ) : bAnim === 'machine' ? (
+              <p className={`ad-anim-machine mx-auto text-lg ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
+            ) : (
+              <p className={`text-xl ad-style-${bStyle}`}>{bTitle || 'Votre message ici'}</p>
+            )}
+            {bDesc && <p className="text-xs text-white/75">{bDesc}</p>}
+          </div>
+        </div>
+
+        {bMsg && <p className={`mt-2 text-sm ${bMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{bMsg}</p>}
+        <button onClick={broadcast} disabled={bBusy} className="btn-primary mt-3 w-full py-3">
+          {bBusy ? <Loader2 size={18} className="animate-spin" /> : '📺 Diffuser à l’écran'}
+        </button>
+      </div>
+
+      {/* Demandes & diffusions */}
+      <div className="rounded-2xl border border-[#EFE6D7] bg-white px-4 py-3 shadow-card">
+        <p className="font-display text-[15px] font-extrabold text-ink">Publicités · {items.length}</p>
+        {items.length === 0 ? (
+          <Empty>Aucune publicité pour l’instant.</Empty>
+        ) : (
+          <div className="divide-y divide-[#EFE6D7]">
+            {items.map((a) => {
+              const [pillLabel, pillCls] = AD_STATUS_PILL[a.status] ?? AD_STATUS_PILL.pending
+              return (
+                <div key={a.id} className="py-3">
+                  <div className="flex items-start gap-3">
+                    {a.images[0] ? (
+                      <img src={a.images[0]} alt="" className="h-12 w-20 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <span className="grid h-12 w-20 shrink-0 place-items-center rounded-lg bg-gray-900 text-lg">📺</span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate font-display text-sm font-bold text-gray-800">{a.title}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${pillCls}`}>{pillLabel}</span>
+                        {a.kind === 'admin' && (
+                          <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">Diffusion Chap.ci</span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-[11.5px] text-gray-400">
+                        {a.kind === 'admin'
+                          ? <>Durée {a.qty} j{a.expiresAt ? <> · fin {timeAgo(a.expiresAt)}</> : null}</>
+                          : <>
+                              <b className="tnum text-gray-600">{formatPrice(a.price)} F</b> · {a.qty} {AD_FORMULE_LABEL[a.formule] ?? a.formule} ·{' '}
+                              {a.payMethod} {a.payNumber}
+                            </>}
+                        {' · '}reçue {timeAgo(a.createdAt)}
+                        {a.link && <> · <a href={a.link} target="_blank" rel="noopener noreferrer nofollow" className="text-primary-600 underline">lien</a></>}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {a.status === 'pending' && (
+                          <button onClick={() => act(a, 'approve')} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
+                            <CheckCircle2 size={13} /> Approuver
+                          </button>
+                        )}
+                        {(a.status === 'pending' || a.status === 'active') && (
+                          <button onClick={() => act(a, 'reject')} className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                            <Ban size={13} /> {a.status === 'active' ? 'Retirer de l’écran' : 'Rejeter'}
+                          </button>
+                        )}
+                        <button onClick={() => remove(a)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                          <Trash2 size={13} /> Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

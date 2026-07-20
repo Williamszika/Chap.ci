@@ -976,6 +976,11 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS newsletter (
       id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, created_at $ts
     )$eng",
+    "CREATE TABLE IF NOT EXISTS ads (
+      id $id PRIMARY KEY, user_id $id, title $txt, description $txt, link $txt,
+      images $txt, formule $txt, qty $intT, price $intT, pay_method $txt,
+      pay_number $txt, status $txt, starts_at $ts, expires_at $ts, ip $txt, created_at $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS contact_messages (
       id $id PRIMARY KEY, name $txt, email $txt, subject $txt, message $txt,
       ip $txt, handled $intT, created_at $ts
@@ -1083,6 +1088,12 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("CREATE INDEX idx_notif_user ON notifications (user_id, read_flag)"); } catch (Throwable $e) {}
   // Index léger sur le journal de sécurité (accélère rate-limit et rapports).
   try { $pdo->exec("CREATE INDEX idx_sec_events ON security_events (kind, created_at)"); } catch (Throwable $e) {}
+  // Écran publicitaire : recherche des pubs actives non expirées.
+  try { $pdo->exec("CREATE INDEX idx_ads_active ON ads (status, expires_at)"); } catch (Throwable $e) {}
+  // Diffusions de l'admin sur l'écran : type (paid/admin), style d'écriture, animation.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN kind $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN style $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
@@ -1179,7 +1190,7 @@ function is_admin(array $config, PDO $pdo, array $u): bool {
 // propriétaire (jamais délégables).
 /** Fonctionnalités qu'un modérateur PEUT recevoir (cochables par l'admin). */
 function admin_grantable_features(): array {
-  return ['visitors','listings','users','reports','contact','orders','conversations','reviews','newsletter','campaigns'];
+  return ['visitors','listings','users','reports','contact','ads','orders','conversations','reviews','newsletter','campaigns'];
 }
 /** Fonctionnalités RÉSERVÉES au propriétaire (jamais délégables à un modérateur). */
 function admin_owner_only_features(): array {
@@ -1189,7 +1200,7 @@ function admin_owner_only_features(): array {
 function admin_feature_labels(): array {
   return [
     'visitors' => 'Visiteurs', 'listings' => 'Annonces', 'users' => 'Utilisateurs',
-    'reports' => 'Signalements', 'contact' => 'Messages de contact', 'orders' => 'Commandes',
+    'reports' => 'Signalements', 'contact' => 'Messages de contact', 'ads' => 'Publicités', 'orders' => 'Commandes',
     'conversations' => 'Conversations', 'reviews' => 'Avis', 'newsletter' => 'Abonnés',
     'campaigns' => 'Campagnes',
   ];
@@ -1203,6 +1214,7 @@ function admin_feature_for_path(string $path): string {
   if (str_starts_with($path, 'admin/users')) return 'users';
   if (str_starts_with($path, 'admin/reports')) return 'reports';
   if (str_starts_with($path, 'admin/contact-messages')) return 'contact';
+  if (str_starts_with($path, 'admin/ads')) return 'ads';
   if ($path === 'admin/orders') return 'orders';
   if ($path === 'admin/conversations') return 'conversations';
   if (str_starts_with($path, 'admin/reviews')) return 'reviews';
@@ -1407,6 +1419,31 @@ function contact_ai_draft(array $config, string $name, string $subject, string $
   $courte   = $bonjour . "\n\n" . $short . "\n\n" . $fin;
   $drafts   = $courte === $complete ? [$complete] : [$complete, $courte];
   return ['draft' => $drafts[0], 'drafts' => $drafts, 'ai' => true];
+}
+
+/**
+ * Tarifs de l'écran publicitaire (FCFA). Plein tarif : 2 000 F la semaine
+ * (400 F le jour, 6 000 F le mois). MOITIÉ PRIX pour un membre « actif » :
+ * compte créé depuis au moins 30 jours ET au moins une annonce active
+ * (ni masquée, ni vendue). Le prix est TOUJOURS recalculé côté serveur.
+ */
+function ad_tariff(PDO $pdo, ?array $u): array {
+  $member = false;
+  if ($u) {
+    $created = strtotime((string) ($u['created_at'] ?? '')) ?: time();
+    if (time() - $created >= 30 * 86400) {
+      try {
+        $st = $pdo->prepare('SELECT COUNT(*) AS c FROM listings WHERE user_id = ?
+          AND (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)');
+        $st->execute([$u['id']]);
+        $member = ((int) $st->fetchColumn()) > 0;
+      } catch (Throwable $e) { /* prudence : plein tarif */ }
+    }
+  }
+  $prices = $member
+    ? ['day' => 200, 'week' => 1000, 'month' => 3000]
+    : ['day' => 400, 'week' => 2000, 'month' => 6000];
+  return ['member' => $member, 'prices' => $prices];
 }
 
 /**
@@ -1940,7 +1977,7 @@ function send_search_alert(array $config, array $user, string $label, array $row
 function export_all(PDO $pdo): array {
   $tables = ['users', 'profiles', 'listings', 'conversations', 'messages', 'orders',
              'order_items', 'reviews', 'newsletter', 'admins', 'user_interests',
-             'reports', 'visits', 'saved_searches', 'contact_messages'];
+             'reports', 'visits', 'saved_searches', 'contact_messages', 'ads'];
   $data = [];
   foreach ($tables as $t) {
     try { $data[$t] = $pdo->query("SELECT * FROM $t")->fetchAll(PDO::FETCH_ASSOC); }
@@ -3381,6 +3418,80 @@ try {
   }
 
   // Formulaire de contact : enregistre le message ET l'envoie à contact@chap.ci.
+  // ---- Écran publicitaire (pubs payantes, ouvertes aux non-inscrits) --------
+
+  // Tarif applicable au visiteur : plein tarif par défaut ; MOITIÉ PRIX pour un
+  // membre « actif » (compte d'au moins 30 jours ET au moins une annonce active).
+  if ($path === 'ads/tarif' && $method === 'GET') {
+    jout(ad_tariff($pdo, current_user($pdo, $secret)));
+  }
+
+  // Dépôt d'une demande de pub — SANS compte requis. Le prix est recalculé côté
+  // serveur (le client ne fixe jamais le montant). Statut « pending » jusqu'à
+  // validation par l'admin (après réception du paiement Mobile Money).
+  if ($path === 'ads' && $method === 'POST') {
+    $b = body();
+    // Pot de miel anti-robot.
+    if (trim((string) ($b['website'] ?? '')) !== '') jout(['ok' => true]);
+    $u = current_user($pdo, $secret);
+    // Anti-spam : 5 demandes max par IP (ou compte) et par heure.
+    rate_limit($pdo, 'ad_submit', $u['email'] ?? null, 5, 3600);
+    $title = mb_substr(trim((string) ($b['title'] ?? '')), 0, 80);
+    $desc  = mb_substr(trim((string) ($b['description'] ?? '')), 0, 600);
+    $link  = trim((string) ($b['link'] ?? ''));
+    if (mb_strlen($title) < 3) jerr('Donnez un titre à votre publicité (3 caractères minimum).');
+    // Lien facultatif : http(s) uniquement (pas de javascript: ni autre schéma).
+    if ($link !== '' && (!preg_match('#^https?://#i', $link) || strlen($link) > 300)) {
+      jerr('Le lien doit commencer par https:// (300 caractères maximum).');
+    }
+    // 1 à 3 visuels (data URI compressés côté client, sauvés en fichiers).
+    $images = [];
+    foreach (array_slice((array) ($b['images'] ?? []), 0, 3) as $img) {
+      $url = save_data_uri($config, (string) $img, false);
+      if ($url) $images[] = $url;
+    }
+    if (!$images) jerr('Ajoutez au moins un visuel pour votre bannière.');
+    $formule = in_array($b['formule'] ?? '', ['day', 'week', 'month'], true) ? $b['formule'] : 'week';
+    $qty = max(1, min(31, (int) ($b['qty'] ?? 1)));
+    $method_ = in_array($b['payMethod'] ?? '', ['orange', 'mtn', 'moov', 'wave'], true) ? $b['payMethod'] : 'orange';
+    $payNum = preg_replace('/[^0-9+ ]/', '', (string) ($b['payNumber'] ?? ''));
+    if (strlen(preg_replace('/\D/', '', $payNum)) < 8) jerr('Indiquez le numéro Mobile Money qui effectuera le paiement.');
+    $tariff = ad_tariff($pdo, $u);
+    $price  = $tariff['prices'][$formule] * $qty;
+    $id = uuid();
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), $formule, $qty,
+                   $price, $method_, mb_substr($payNum, 0, 20), 'pending', null, null, client_ip(), now_iso()]);
+    log_security_event($pdo, 'ad_submit', $u['email'] ?? null); // compteur anti-spam
+    jout(['ok' => true, 'id' => $id, 'price' => $price, 'member' => $tariff['member']]);
+  }
+
+  // Pubs actives (écran publicitaire de l'accueil). Le mélange se fait côté client.
+  if ($path === 'ads/active' && $method === 'GET') {
+    $st = $pdo->prepare("SELECT id,title,description,link,images,kind,style,anim FROM ads
+      WHERE status = 'active' AND expires_at > ? ORDER BY created_at DESC LIMIT 50");
+    $st->execute([now_iso()]);
+    jout(array_map(fn($r) => [
+      'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
+      'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
+      'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+    ], $st->fetchAll()));
+  }
+
+  // Page de détail d'une pub (clic sans lien externe) : uniquement les actives.
+  if (count($seg) === 2 && $seg[0] === 'ads' && $method === 'GET' && !in_array($seg[1], ['tarif', 'active'], true)) {
+    $st = $pdo->prepare("SELECT * FROM ads WHERE id = ? AND status = 'active' AND expires_at > ?");
+    $st->execute([$seg[1], now_iso()]);
+    $r = $st->fetch();
+    if (!$r) jerr('Publicité introuvable ou expirée.', 404);
+    jout([
+      'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
+      'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
+      'expiresAt' => iso_to_ms($r['expires_at']),
+    ]);
+  }
+
   if ($path === 'contact' && $method === 'POST') {
     $b = body();
     $name    = trim((string) ($b['name'] ?? ''));
@@ -3668,6 +3779,9 @@ try {
         'contactOpen' => admin_can($config, $pdo, $u, 'contact')
           ? (int) ($pdo->query('SELECT COUNT(*) AS c FROM contact_messages WHERE handled = 0 OR handled IS NULL')->fetch()['c'])
           : null,
+        'adsPending' => admin_can($config, $pdo, $u, 'ads')
+          ? (int) ($pdo->query("SELECT COUNT(*) AS c FROM ads WHERE status = 'pending'")->fetch()['c'])
+          : null,
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
         'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
         'series' => $series,
@@ -3817,6 +3931,78 @@ try {
     // Marquer un signalement comme traité.
     if (count($seg) === 3 && $seg[1] === 'reports' && $method === 'POST') {
       $pdo->prepare('UPDATE reports SET status = ? WHERE id = ?')->execute(['resolved', $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Publicités : demandes en attente d'abord, puis récentes.
+    if ($path === 'admin/ads' && $method === 'GET') {
+      $rows = $pdo->query("SELECT * FROM ads
+        ORDER BY (CASE WHEN status = 'pending' THEN 0 ELSE 1 END), created_at DESC LIMIT 200")->fetchAll();
+      $now = now_iso();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
+        'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
+        'formule' => $r['formule'], 'qty' => (int) $r['qty'], 'price' => (int) $r['price'],
+        'payMethod' => $r['pay_method'], 'payNumber' => $r['pay_number'],
+        'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+        // Une pub « active » dont la date est passée est présentée comme expirée.
+        'status' => ($r['status'] === 'active' && ($r['expires_at'] ?? '') !== '' && $r['expires_at'] <= $now) ? 'expired' : $r['status'],
+        'expiresAt' => !empty($r['expires_at']) ? iso_to_ms($r['expires_at']) : null,
+        'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Diffusion ADMIN sur l'écran : message/annonce avec animation et style
+    // d'écriture, actif immédiatement (pas de paiement — c'est la maison).
+    if ($path === 'admin/ads/broadcast' && $method === 'POST') {
+      $b = body();
+      $title = mb_substr(trim((string) ($b['title'] ?? '')), 0, 90);
+      $desc  = mb_substr(trim((string) ($b['description'] ?? '')), 0, 600);
+      $link  = trim((string) ($b['link'] ?? ''));
+      if (mb_strlen($title) < 2) jerr('Écrivez le message à diffuser.');
+      if ($link !== '' && (!preg_match('#^https?://#i', $link) || strlen($link) > 300)) {
+        jerr('Le lien doit commencer par https://.');
+      }
+      $style = in_array($b['style'] ?? '', ['classique', 'neon', 'script', 'impact', 'ivoire'], true) ? $b['style'] : 'classique';
+      $anim  = in_array($b['anim'] ?? '', ['fondu', 'glissement', 'pulse', 'defilement', 'machine'], true) ? $b['anim'] : 'fondu';
+      $days  = max(1, min(90, (int) ($b['days'] ?? 7)));
+      $images = [];
+      foreach (array_slice((array) ($b['images'] ?? []), 0, 3) as $img) {
+        $url = save_data_uri($config, (string) $img, false);
+        if ($url) $images[] = $url;
+      }
+      $id = uuid();
+      $now = now_iso();
+      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $days * 86400);
+      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+          ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), 'day', $days,
+                     0, '', '', 'active', $now, $expires, client_ip(), $now, 'admin', $style, $anim]);
+      jout(['ok' => true, 'id' => $id, 'expiresAt' => iso_to_ms($expires)]);
+    }
+
+    // Approuver une pub (paiement reçu) : activation + calcul de l'expiration.
+    if (count($seg) === 4 && $seg[1] === 'ads' && $seg[3] === 'approve' && $method === 'POST') {
+      $st = $pdo->prepare('SELECT * FROM ads WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $ad = $st->fetch();
+      if (!$ad) jerr('Publicité introuvable.', 404);
+      $unit = ['day' => 86400, 'week' => 7 * 86400, 'month' => 30 * 86400][$ad['formule']] ?? 7 * 86400;
+      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $unit * max(1, (int) $ad['qty']));
+      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ? WHERE id = ?")
+          ->execute([now_iso(), $expires, $seg[2]]);
+      jout(['ok' => true, 'expiresAt' => iso_to_ms($expires)]);
+    }
+
+    // Rejeter une pub (visuel non conforme, paiement absent…).
+    if (count($seg) === 4 && $seg[1] === 'ads' && $seg[3] === 'reject' && $method === 'POST') {
+      $pdo->prepare("UPDATE ads SET status = 'rejected' WHERE id = ?")->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Supprimer une pub.
+    if (count($seg) === 3 && $seg[1] === 'ads' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM ads WHERE id = ?')->execute([$seg[2]]);
       jout(['ok' => true]);
     }
 
