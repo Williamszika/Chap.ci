@@ -133,6 +133,9 @@ export interface ContactMessage {
   message: string
   handled: boolean
   createdAt: number
+  replyBody?: string | null
+  repliedAt?: number | null
+  repliedBy?: string | null
 }
 export async function fetchContactMessages(): Promise<ContactMessage[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
@@ -145,6 +148,16 @@ export async function setContactHandled(id: string, handled: boolean): Promise<v
 export async function deleteContactMessage(id: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminContactDelete(id)
+}
+/** Brouillon de réponse proposé (IA si configurée côté serveur, sinon gabarit). */
+export async function suggestContactReply(id: string): Promise<{ draft: string; ai: boolean }> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminContactSuggest(id)
+}
+/** Envoie la réponse par email depuis contact@chap.ci (signature ajoutée). */
+export async function replyContactMessage(id: string, body: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminContactReply(id, body)
 }
 export async function fetchAdminOrders(): Promise<AdminOrder[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)

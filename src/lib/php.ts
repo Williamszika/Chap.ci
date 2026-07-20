@@ -582,6 +582,12 @@ export async function phpAdminContactHandled(id: string, handled: boolean): Prom
 export async function phpAdminContactDelete(id: string): Promise<void> {
   await req(`/admin/contact-messages/${id}`, { method: 'DELETE' })
 }
+export async function phpAdminContactSuggest(id: string): Promise<{ draft: string; ai: boolean }> {
+  return req(`/admin/contact-messages/${id}/suggest`, { method: 'POST', body: {} })
+}
+export async function phpAdminContactReply(id: string, body: string): Promise<void> {
+  await req(`/admin/contact-messages/${id}/reply`, { method: 'POST', body: { body } })
+}
 export async function phpAdminConversations<T>(): Promise<T> {
   return req<T>('/admin/conversations')
 }

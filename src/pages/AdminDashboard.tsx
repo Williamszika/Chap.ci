@@ -14,7 +14,7 @@ import {
   fetchModerators, saveModerator, removeModerator, blockModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
-  fetchContactMessages, setContactHandled, deleteContactMessage,
+  fetchContactMessages, setContactHandled, deleteContactMessage, suggestContactReply, replyContactMessage,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
   listBackups, downloadBackup, resetData,
   adminUnlock, adminUnlockEmail, adminLock,
@@ -23,7 +23,7 @@ import {
   type VisitStats, type VisitRange, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2 } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
 
 type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
@@ -847,55 +847,139 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
     try { await deleteContactMessage(m.id); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
   }
 
+  // Ouverture d'un message (une carte à la fois) + brouillon de réponse.
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [suggesting, setSuggesting] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  const toggleOpen = (m: ContactMessage) => {
+    if (openId === m.id) { setOpenId(null); return }
+    setOpenId(m.id)
+    setDraft('')
+  }
+  const suggest = async (m: ContactMessage) => {
+    setSuggesting(true)
+    try {
+      const r = await suggestContactReply(m.id)
+      setDraft(r.draft)
+    } catch (e) { alert((e as Error).message) } finally { setSuggesting(false) }
+  }
+  const sendReply = async (m: ContactMessage) => {
+    const body = draft.trim()
+    if (!body) return
+    setSending(true)
+    try {
+      await replyContactMessage(m.id, body)
+      setDraft('')
+      load()
+      onChanged?.()
+    } catch (e) { alert((e as Error).message) } finally { setSending(false) }
+  }
+
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
   return (
     <div className="space-y-2">
       <RowHead count={items.length} label="message" />
-      {items.map((m) => (
-        <div key={m.id} className={`rounded-2xl bg-white p-3 shadow-card ${m.handled ? 'opacity-70' : 'ring-1 ring-primary-100'}`}>
-          <div className="flex items-start gap-2">
-            <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${m.handled ? 'bg-gray-100 text-gray-400' : 'bg-primary-100 text-primary-600'}`}>
-              <Inbox size={15} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-800">
-                {m.subject}
-                {m.handled && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Traité</span>}
-              </p>
-              {/* Contenu affiché comme TEXTE (React échappe) : aucun risque d'injection HTML. */}
-              <p className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-2 text-sm text-gray-700">{m.message}</p>
-              <p className="mt-1 text-[11px] text-gray-400">
-                De {m.name || '—'}{m.email ? ` · ${m.email}` : ''} · {timeAgo(m.createdAt)}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {m.email && (
-                  <a
-                    // Email encodé : bloque l'injection de paramètres mailto (cc/bcc/body)
-                    // via une adresse piégée soumise par le formulaire public (CWE-88).
-                    href={`mailto:${encodeURIComponent(m.email)}?subject=${encodeURIComponent('Re: ' + m.subject)}`}
-                    className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Send size={13} /> Répondre
-                  </a>
-                )}
-                {m.handled ? (
-                  <button onClick={() => mark(m, false)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
-                    <Undo2 size={13} /> Rouvrir
-                  </button>
+      {items.map((m) => {
+        const open = openId === m.id
+        return (
+          <div key={m.id} className={`overflow-hidden rounded-2xl bg-white shadow-card ${m.handled ? '' : 'ring-1 ring-primary-100'}`}>
+            {/* En-tête cliquable : ouvre / referme le message */}
+            <button onClick={() => toggleOpen(m)} aria-expanded={open} className="flex w-full items-center gap-2.5 p-3 text-left transition hover:bg-cream-100/60">
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${m.handled ? 'bg-gray-100 text-gray-400' : 'bg-primary-100 text-primary-600'}`}>
+                <Inbox size={16} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-800">
+                  {m.subject}
+                  {m.replyBody != null && <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Répondu</span>}
+                  {m.handled && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Traité</span>}
+                </span>
+                {!open && <span className="mt-0.5 block truncate text-sm text-gray-500">{m.message}</span>}
+                <span className="mt-0.5 block text-[11px] text-gray-400">
+                  De {m.name || '—'}{m.email ? ` · ${m.email}` : ''} · {timeAgo(m.createdAt)}
+                </span>
+              </span>
+              <ChevronDown size={17} className={`shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {open && (
+              <div className="border-t border-[#EFE6D7] px-3 pb-3">
+                {/* Message complet (texte échappé par React : pas d'injection HTML) */}
+                <p className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">{m.message}</p>
+
+                {m.replyBody != null ? (
+                  /* Réponse déjà envoyée */
+                  <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                    <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-emerald-700">
+                      <CheckCircle2 size={13} /> Réponse envoyée depuis contact@chap.ci
+                      {m.repliedAt ? ` · ${timeAgo(m.repliedAt)}` : ''}{m.repliedBy ? ` · par ${m.repliedBy}` : ''}
+                    </p>
+                    <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-emerald-900">{m.replyBody}</p>
+                  </div>
+                ) : m.email ? (
+                  /* Composer : réponse envoyée par email depuis contact@chap.ci */
+                  <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-[#FFF6EA]/70 p-3">
+                    <p className="text-xs font-bold text-gray-700">Répondre à {m.name || m.email}</p>
+                    <textarea
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      rows={5}
+                      placeholder="Votre réponse… (ou cliquez sur « Proposer une réponse » pour un brouillon IA)"
+                      className="input mt-2 min-h-[110px] w-full resize-y bg-white text-sm leading-relaxed"
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => suggest(m)}
+                        disabled={suggesting}
+                        className="flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-100 disabled:opacity-60"
+                      >
+                        {suggesting ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                        {suggesting ? 'Rédaction…' : 'Proposer une réponse (IA)'}
+                      </button>
+                      <button
+                        onClick={() => sendReply(m)}
+                        disabled={sending || !draft.trim()}
+                        className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600 disabled:opacity-50"
+                      >
+                        {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                        {sending ? 'Envoi…' : 'Envoyer via contact@chap.ci'}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
+                      L’email part de <b>contact@chap.ci</b> avec la signature « — L’équipe Chap.ci » ajoutée
+                      automatiquement, et votre message d’origine cité en dessous. {m.email} pourra répondre
+                      directement à contact@chap.ci : la suite se passe dans votre boîte mail.
+                    </p>
+                  </div>
                 ) : (
-                  <button onClick={() => mark(m, true)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
-                    <CheckCircle2 size={13} /> Marquer traité
-                  </button>
+                  <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-700">
+                    Cette personne n’a pas laissé d’adresse email : réponse par email impossible.
+                    Vous pouvez seulement marquer le message comme traité.
+                  </p>
                 )}
-                <button onClick={() => remove(m)} className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
-                  <Trash2 size={13} /> Supprimer
-                </button>
+
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {m.handled ? (
+                    <button onClick={() => mark(m, false)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                      <Undo2 size={13} /> Rouvrir
+                    </button>
+                  ) : (
+                    <button onClick={() => mark(m, true)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
+                      <CheckCircle2 size={13} /> Marquer traité
+                    </button>
+                  )}
+                  <button onClick={() => remove(m)} className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                    <Trash2 size={13} /> Supprimer
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-      ))}
+        )
+      })}
       {items.length === 0 && <Empty>Aucun message de contact.</Empty>}
     </div>
   )

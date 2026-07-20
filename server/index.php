@@ -29,6 +29,9 @@ $config += [
   'mail_from_name'       => getenv('CHAPCI_MAIL_FROM_NAME')  ?: 'Chap.ci',
   'mail_reply_to'        => getenv('CHAPCI_MAIL_REPLYTO')    ?: 'contact@chap.ci',
   'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
+  // Clé API Anthropic (facultative) : active les réponses suggérées par IA dans
+  // Admin → Contact. Vide = repli sur des gabarits locaux (sans appel externe).
+  'anthropic_key'        => getenv('CHAPCI_ANTHROPIC_KEY')   ?: '',
   'site_url'             => getenv('CHAPCI_SITE_URL')        ?: 'https://chap.ci',
   // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
   // explicitement. En production (défaut), les erreurs restent génériques côté
@@ -1074,6 +1077,10 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE admins ADD COLUMN blocked $intT DEFAULT 0"); } catch (Throwable $e) {}
   // Compteur de vues par annonce (statistiques vendeur).
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
+  // Réponse envoyée depuis Admin → Contact (texte, date, admin qui a répondu).
+  try { $pdo->exec("ALTER TABLE contact_messages ADD COLUMN reply_body $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE contact_messages ADD COLUMN replied_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE contact_messages ADD COLUMN replied_by $txt"); } catch (Throwable $e) {}
   // Préférences de notifications (JSON : {favorite:bool, message:bool, ...}).
   try { $pdo->exec("ALTER TABLE profiles ADD COLUMN notif_prefs $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_notif_user ON notifications (user_id, read_flag)"); } catch (Throwable $e) {}
@@ -1332,6 +1339,57 @@ function send_mail(array $config, string $to, string $subject, string $html, ?st
   ]);
   // Corps en base64 (lignes de 76 car.) : évite « lines too long for transport ».
   return @mail($to, mime_h($subject), chunk_split(base64_encode($html)), $headers, '-f' . $from);
+}
+
+/**
+ * Brouillon de réponse pour Admin → Contact. Si une clé API Anthropic est
+ * configurée ('anthropic_key' dans config.php, jamais dans le code), l'IA rédige
+ * une proposition adaptée au message ; sinon (ou si l'appel échoue), repli sur
+ * des gabarits locaux selon le sujet. Le brouillon reste MODIFIABLE par l'admin
+ * avant envoi, et la signature est ajoutée automatiquement à l'envoi.
+ */
+function contact_ai_draft(array $config, string $name, string $subject, string $message): array {
+  $key = trim((string) ($config['anthropic_key'] ?? ''));
+  if ($key !== '' && function_exists('curl_init')) {
+    $payload = json_encode([
+      'model' => 'claude-haiku-4-5-20251001',
+      'max_tokens' => 700,
+      'system' => "Tu es l'assistant du support client de Chap.ci, la marketplace de petites annonces 100 % ivoirienne (achat/vente entre particuliers, paiement en main propre ou Mobile Money, messagerie interne, signalement des abus). Rédige UNIQUEMENT le corps d'une réponse d'email au message reçu : en français, vouvoiement (« vous »), ton chaleureux et professionnel, 4 à 8 phrases. Commence par « Bonjour » (avec le prénom si fourni). NE mets NI objet, NI signature, NI « Cordialement » final : la signature de l'équipe est ajoutée automatiquement. Si le message signale une annonce ou un utilisateur suspect, remercie la personne et explique que l'équipe vérifie et masquera/bloquera si nécessaire. N'invente aucune information précise (délais, montants, fonctionnalités inexistantes).",
+      'messages' => [[
+        'role' => 'user',
+        'content' => "Nom : " . ($name ?: '(non fourni)') . "\nSujet : " . $subject . "\nMessage :\n" . $message,
+      ]],
+    ], JSON_UNESCAPED_UNICODE);
+    $ch = curl_init('https://api.anthropic.com/v1/messages');
+    curl_setopt_array($ch, [
+      CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_TIMEOUT => 25, CURLOPT_CONNECTTIMEOUT => 10,
+      CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'x-api-key: ' . $key, 'anthropic-version: 2023-06-01'],
+    ]);
+    $res  = curl_exec($ch);
+    $http = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+    if (is_string($res) && $http === 200) {
+      $j = json_decode($res, true);
+      $draft = trim((string) ($j['content'][0]['text'] ?? ''));
+      if ($draft !== '') return ['draft' => $draft, 'ai' => true];
+    }
+  }
+  // Repli local (aucun appel externe) : gabarit selon le sujet, prénom inclus.
+  $prenom = trim($name) !== '' ? ' ' . preg_split('/\s+/u', trim($name))[0] : '';
+  $s = mb_strtolower($subject . ' ' . $message);
+  if (str_contains($s, 'signal') || str_contains($s, 'arnaque') || str_contains($s, 'suspect')) {
+    $draft = "Bonjour{$prenom},\n\nMerci d'avoir pris le temps de nous alerter. Votre signalement a bien été transmis à notre équipe de modération : nous vérifions l'annonce et le compte concernés, et nous les masquerons ou bloquerons si nécessaire.\n\nPetit rappel de prudence : ne payez jamais d'avance une personne que vous ne connaissez pas, privilégiez la remise en main propre dans un lieu public, et gardez vos échanges dans la messagerie Chap.ci.";
+  } elseif (str_contains($s, 'compte') || str_contains($s, 'connexion') || str_contains($s, 'mot de passe') || str_contains($s, 'paiement') || str_contains($s, 'aide')) {
+    $draft = "Bonjour{$prenom},\n\nMerci pour votre message, nous allons vous aider. Pouvez-vous nous préciser l'adresse email de votre compte Chap.ci et, si possible, une capture d'écran du problème ? Cela nous permettra de vérifier rapidement et de revenir vers vous avec une solution.";
+  } elseif (str_contains($s, 'partenariat') || str_contains($s, 'presse')) {
+    $draft = "Bonjour{$prenom},\n\nMerci de votre intérêt pour Chap.ci. Votre demande a été transmise à la personne en charge des partenariats, qui reviendra vers vous rapidement. N'hésitez pas à nous en dire plus sur votre structure et ce que vous imaginez ensemble.";
+  } elseif (str_contains($s, 'suggestion') || str_contains($s, 'idée')) {
+    $draft = "Bonjour{$prenom},\n\nUn grand merci pour votre suggestion ! Nous lisons attentivement chaque idée : c'est grâce à ces retours que Chap.ci s'améliore. Nous l'avons notée et l'étudierons pour une prochaine évolution du site.";
+  } else {
+    $draft = "Bonjour{$prenom},\n\nMerci pour votre message, nous l'avons bien reçu. Notre équipe l'examine et revient vers vous rapidement avec une réponse précise. Si vous avez des détails à ajouter entre-temps, répondez simplement à cet email.";
+  }
+  return ['draft' => $draft, 'ai' => false];
 }
 
 /**
@@ -3723,7 +3781,59 @@ try {
         'id' => $r['id'], 'name' => $r['name'] ?: null, 'email' => $r['email'] ?: null,
         'subject' => $r['subject'] ?: 'Message', 'message' => (string) $r['message'],
         'handled' => !empty($r['handled']), 'createdAt' => iso_to_ms($r['created_at']),
+        'replyBody' => ($r['reply_body'] ?? '') !== '' ? $r['reply_body'] : null,
+        'repliedAt' => !empty($r['replied_at']) ? iso_to_ms($r['replied_at']) : null,
+        'repliedBy' => ($r['replied_by'] ?? '') !== '' ? $r['replied_by'] : null,
       ], $rows));
+    }
+
+    // Brouillon de réponse proposé (IA si clé configurée, sinon gabarit local).
+    if (count($seg) === 4 && $seg[1] === 'contact-messages' && $seg[3] === 'suggest' && $method === 'POST') {
+      $st = $pdo->prepare('SELECT * FROM contact_messages WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $msg = $st->fetch();
+      if (!$msg) jerr('Message introuvable.', 404);
+      jout(contact_ai_draft($config, (string) ($msg['name'] ?? ''), (string) ($msg['subject'] ?? 'Message'), (string) ($msg['message'] ?? '')));
+    }
+
+    // Répondre DEPUIS le tableau de bord : l'email part de contact@chap.ci
+    // (signature ajoutée), la personne le reçoit dans sa boîte et peut répondre
+    // directement à contact@chap.ci — la suite se passe par email.
+    if (count($seg) === 4 && $seg[1] === 'contact-messages' && $seg[3] === 'reply' && $method === 'POST') {
+      $b = body();
+      $reply = trim((string) ($b['body'] ?? ''));
+      if ($reply === '') jerr('Écrivez votre réponse avant d’envoyer.');
+      $reply = mb_substr($reply, 0, 8000);
+      $st = $pdo->prepare('SELECT * FROM contact_messages WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $msg = $st->fetch();
+      if (!$msg) jerr('Message introuvable.', 404);
+      $toAddr = strtolower(trim((string) ($msg['email'] ?? '')));
+      // Même validation stricte qu'à la réception (défense en profondeur).
+      if ($toAddr === '' || !filter_var($toAddr, FILTER_VALIDATE_EMAIL) || preg_match('/[?&=%\s"()<>,;:\\\\]/', $toAddr)) {
+        jerr('Ce message n’a pas d’adresse email valide : réponse impossible.', 400);
+      }
+      $contactAddr = $config['mail_reply_to'] ?? 'contact@chap.ci';
+      $safe = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+      // Corps : texte de l'admin tel quel + signature + message d'origine cité.
+      $inner = '<p style="white-space:pre-wrap;line-height:1.65">' . nl2br($safe($reply)) . '</p>'
+             . '<p style="margin-top:22px;line-height:1.5">— L’équipe Chap.ci 🇨🇮<br>'
+             . '<a href="mailto:' . $safe($contactAddr) . '" style="color:#F77F00;text-decoration:none">' . $safe($contactAddr) . '</a>'
+             . ' · <a href="' . $safe(rtrim($config['site_url'] ?? 'https://chap.ci', '/')) . '" style="color:#F77F00;text-decoration:none">chap.ci</a></p>'
+             . '<hr style="border:none;border-top:1px solid #EFE6D7;margin:22px 0 12px">'
+             . '<p style="color:#8B857C;font-size:12px;margin:0 0 6px">Votre message :</p>'
+             . '<blockquote style="margin:0;padding:10px 14px;border-left:3px solid #EFE6D7;color:#57534E;font-size:13px;white-space:pre-wrap">'
+             . nl2br($safe((string) $msg['message'])) . '</blockquote>';
+      $subject = 'Re: ' . ((string) ($msg['subject'] ?? '') ?: 'Votre message à Chap.ci');
+      $html = email_layout($config, $inner, 'Réponse de l’équipe Chap.ci à votre message');
+      // Expéditeur ET adresse de réponse = contact@chap.ci.
+      if (!send_mail($config, $toAddr, $subject, $html, $contactAddr, $contactAddr)) {
+        jerr('Envoi impossible pour le moment (email). Réessayez dans un instant.', 502);
+      }
+      // Envoi réussi → on archive la réponse et on marque le message traité.
+      $pdo->prepare('UPDATE contact_messages SET reply_body = ?, replied_at = ?, replied_by = ?, handled = 1 WHERE id = ?')
+          ->execute([$reply, now_iso(), strtolower((string) ($u['email'] ?? '')), $seg[2]]);
+      jout(['ok' => true]);
     }
 
     // Marquer un message de contact traité (ou le rouvrir avec {handled:false}).
