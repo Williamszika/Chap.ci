@@ -63,8 +63,8 @@ export function PromoBanner() {
   const img = useMemo(() => ad?.images?.[0] ?? null, [ad])
 
   return (
-    <section className="px-4 pt-2">
-      <div className="relative flex min-h-[268px] flex-col justify-end overflow-hidden rounded-3xl bg-black text-white shadow-card-lg md:min-h-[290px]">
+    <section className="pt-2">
+      <div className="relative flex min-h-[200px] flex-col justify-end overflow-hidden bg-black text-white shadow-card-lg md:min-h-[290px] md:rounded-3xl">
         {ad && ad.kind !== 'paid' && (ad.title || ad.description) ? (
           /* Diffusion Chap.ci (admin) ou Bureau de Croissance SEO AVEC texte :
              message ANIMÉ, style d'écriture choisi. Une diffusion « image seule »

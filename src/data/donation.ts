@@ -25,50 +25,28 @@ export interface DonationOperator {
   paymentLink?: string
 }
 
+// Deux moyens de paiement : Orange Money et Wave, même numéro : 07 59 90 11 20.
 export const donationOperators: DonationOperator[] = [
   {
     id: 'orange',
     name: 'Orange Money',
     emoji: '🟠',
     color: '#FF7900',
-    number: '+225 07 00 00 00 00', // 👉 À REMPLACER
-    accountName: 'Chap.ci', // 👉 À REMPLACER
+    number: '+225 07 59 90 11 20',
+    accountName: 'Chap.ci',
     ussd: '#144#',
     howTo:
-      "Composez #144*1#, choisissez « Transfert d'argent », saisissez le numéro Chap.ci et le montant, puis validez avec votre code secret Orange Money.",
-  },
-  {
-    id: 'mtn',
-    name: 'MTN MoMo',
-    emoji: '🟡',
-    color: '#FFCC08',
-    number: '+225 05 00 00 00 00', // 👉 À REMPLACER
-    accountName: 'Chap.ci', // 👉 À REMPLACER
-    ussd: '*133#',
-    howTo:
-      "Composez *133#, choisissez « Transfert d'argent », saisissez le numéro Chap.ci et le montant, puis validez avec votre code PIN MoMo.",
+      "Composez #144*1#, choisissez « Transfert d'argent », saisissez le numéro Chap.ci (07 59 90 11 20) et le montant, puis validez avec votre code secret Orange Money.",
   },
   {
     id: 'wave',
     name: 'Wave',
     emoji: '🌊',
     color: '#1DC3EC',
-    number: '+225 07 00 00 00 00', // 👉 À REMPLACER
-    accountName: 'Chap.ci', // 👉 À REMPLACER
-    // paymentLink: 'https://pay.wave.com/m/XXXXXXXX/c/ci/',  // 👉 (optionnel) Votre lien Wave
+    number: '+225 07 59 90 11 20',
+    accountName: 'Chap.ci',
     howTo:
-      "Ouvrez l'appli Wave (ou composez *555#), envoyez au numéro Chap.ci, saisissez le montant et confirmez avec votre code PIN.",
-  },
-  {
-    id: 'moov',
-    name: 'Moov Money',
-    emoji: '🔵',
-    color: '#004B9B',
-    number: '+225 01 00 00 00 00', // 👉 À REMPLACER
-    accountName: 'Chap.ci', // 👉 À REMPLACER
-    ussd: '*155#',
-    howTo:
-      'Composez *155*1*1#, saisissez le numéro Chap.ci et le montant, puis validez avec votre code secret Moov Money.',
+      "Ouvrez l'appli Wave (ou composez #144#), envoyez au numéro Chap.ci (07 59 90 11 20), saisissez le montant et confirmez avec votre code PIN.",
   },
 ]
 

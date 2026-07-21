@@ -80,7 +80,7 @@ export function Footer() {
               La marketplace 100 % ivoirienne. Achetez et vendez chap-chap, partout en Côte d’Ivoire — en toute
               sécurité.
             </p>
-            <p className="mt-4 text-xs text-white/40">Paiement : Orange · MTN · Wave · Moov</p>
+            <p className="mt-4 text-xs text-white/40">Paiement : Orange Money · Wave</p>
           </div>
 
           {cols.map((c) => (
