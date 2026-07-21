@@ -746,6 +746,28 @@ export interface BackupFile { file: string; bytes: number; at: number }
 export async function phpAdminBackups(): Promise<{ cronKey: string; site: string; backups: BackupFile[] }> {
   return req('/admin/backups')
 }
+// ---- Jetons de service « modération auto » (propriétaire uniquement) --------
+export interface ServiceToken {
+  id: string; label: string; scope: string; prefix: string
+  createdAt: number; lastUsedAt: number | null; uses: number; revoked: boolean
+}
+export async function phpModTokens(): Promise<{ site: string; tokens: ServiceToken[] }> {
+  return req('/admin/service-tokens')
+}
+export async function phpModTokenCreate(label: string, rotate: boolean): Promise<{ token: string; scope: string; label: string }> {
+  return req('/admin/service-tokens', { method: 'POST', body: { label, rotate } })
+}
+export async function phpModTokenRevoke(id: string): Promise<void> {
+  await req(`/admin/service-tokens/${id}/revoke`, { method: 'POST', body: {} })
+}
+export interface ModAuditEntry {
+  id: string; action: string; listingId: string | null; listingTitle: string | null
+  reason: string; confidence: string; at: number
+}
+export async function phpModAudit(): Promise<{ entries: ModAuditEntry[] }> {
+  return req('/admin/mod-audit')
+}
+
 export interface ResetResult { ok: boolean; deleted: Record<string, number>; backup: string | null; accounts: boolean }
 export async function phpResetData(accounts: boolean): Promise<ResetResult> {
   return req<ResetResult>('/admin/reset', { method: 'POST', body: { confirm: 'EFFACER', accounts } })

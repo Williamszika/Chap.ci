@@ -316,6 +316,26 @@ export async function downloadBackup(file?: string): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpDownloadBackup(file)
 }
+// ---- Jetons de service « modération auto » (propriétaire) -------------------
+export type ServiceToken = php.ServiceToken
+export type ModAuditEntry = php.ModAuditEntry
+export async function modTokens() {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpModTokens()
+}
+export async function createModToken(label: string, rotate: boolean) {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpModTokenCreate(label, rotate)
+}
+export async function revokeModToken(id: string) {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpModTokenRevoke(id)
+}
+export async function modAudit() {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpModAudit()
+}
+
 export type ResetResult = php.ResetResult
 /** Efface les données de test (une sauvegarde de sécurité est créée avant). */
 export async function resetData(accounts: boolean): Promise<ResetResult> {

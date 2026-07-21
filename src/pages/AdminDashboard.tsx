@@ -17,6 +17,7 @@ import {
   fetchContactMessages, setContactHandled, deleteContactMessage, suggestContactReply, replyContactMessage,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
   listBackups, downloadBackup, resetData,
+  modTokens, createModToken, revokeModToken, modAudit, type ServiceToken, type ModAuditEntry,
   adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
@@ -2385,6 +2386,9 @@ function AutomationTab() {
 
   return (
     <div className="space-y-4">
+      {/* Modération automatique : jeton de service cloisonné (Le Gardien) */}
+      <ModerationAutoCard />
+
       {/* Intro */}
       <div className="rounded-2xl bg-primary-50 p-3 text-sm text-primary-800">
         <p className="flex items-center gap-1.5 font-semibold"><KeyRound size={16} /> Clé des tâches automatiques</p>
@@ -2440,6 +2444,151 @@ function AutomationTab() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ---------- Modération automatique : jeton de service cloisonné (Le Gardien) ----------
+function ModerationAutoCard() {
+  const [data, setData] = useState<{ site: string; tokens: ServiceToken[] } | null>(null)
+  const [audit, setAudit] = useState<ModAuditEntry[]>([])
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [fresh, setFresh] = useState('') // jeton en clair, montré une seule fois
+  const [copied, setCopied] = useState('')
+  const [confirmRotate, setConfirmRotate] = useState(false)
+
+  const load = () => {
+    setErr('')
+    modTokens().then(setData).catch((e) => setErr((e as Error).message))
+    modAudit().then((d) => setAudit(d.entries)).catch(() => {})
+  }
+  useEffect(() => { load() }, [])
+
+  const copy = (id: string, text: string) => { navigator.clipboard?.writeText(text); setCopied(id); setTimeout(() => setCopied(''), 1500) }
+  const active = data?.tokens.filter((t) => !t.revoked && t.scope === 'moderation') ?? []
+  const hasActive = active.length > 0
+
+  const generate = async (rotate: boolean) => {
+    setBusy(true); setErr(''); setConfirmRotate(false)
+    try { const r = await createModToken('Le Gardien — modération', rotate); setFresh(r.token); load() }
+    catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
+  }
+  const revoke = async (id: string) => {
+    if (!confirm('Révoquer ce jeton ? La routine qui l’utilise perdra immédiatement l’accès.')) return
+    setBusy(true)
+    try { await revokeModToken(id); load() } catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!data) return <div className="rounded-2xl bg-white p-4 shadow-card"><Center><Loader2 className="animate-spin" size={20} /></Center></div>
+
+  const base = `${data.site}/api/mod/queue`
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-primary-200 bg-white p-4 shadow-card">
+      <div>
+        <p className="flex items-center gap-1.5 font-display text-sm font-black text-gray-800">
+          <ShieldOk size={16} className="text-ivoire-green" /> Modération automatique — « Le Gardien »
+        </p>
+        <p className="mt-1 text-sm text-gray-600">
+          Un <b>jeton de service cloisonné</b> permet à la routine de <b>lire la file</b>, <b>masquer</b> et
+          <b> signaler</b> des annonces — <b>sans jamais</b> toucher aux comptes, réglages ou sauvegardes.
+          Révocable à tout moment.
+        </p>
+      </div>
+
+      {/* Jeton fraîchement créé : affiché une seule fois */}
+      {fresh && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm font-bold text-amber-800">✓ Jeton créé — copiez-le maintenant</p>
+          <p className="mt-0.5 text-xs text-amber-700">Il <b>ne sera plus jamais affiché</b>. Donnez-le au Gardien, puis gardez-le secret.</p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-3 py-2 text-[12px] text-gray-100">{fresh}</code>
+            <button onClick={() => copy('fresh', fresh)} className="shrink-0 rounded-lg border border-amber-300 bg-white p-2 text-gray-600 hover:bg-amber-100" aria-label="Copier le jeton">
+              {copied === 'fresh' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Copy size={16} />}
+            </button>
+          </div>
+          <button onClick={() => setFresh('')} className="mt-2 text-xs font-semibold text-amber-800 underline">J’ai copié le jeton</button>
+        </div>
+      )}
+
+      {/* Générer / renouveler */}
+      <div className="flex flex-wrap items-center gap-2">
+        {!hasActive ? (
+          <button onClick={() => generate(false)} disabled={busy} className="btn-primary py-2 text-sm disabled:opacity-50">
+            {busy ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />} Générer le jeton
+          </button>
+        ) : !confirmRotate ? (
+          <button onClick={() => setConfirmRotate(true)} disabled={busy} className="btn-outline py-2 text-sm disabled:opacity-50">
+            <RefreshCw size={15} /> Renouveler (rotation)
+          </button>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-2 py-1.5">
+            <span className="text-xs text-amber-800">Révoquer l’ancien et en créer un nouveau ?</span>
+            <button onClick={() => generate(true)} disabled={busy} className="rounded-md bg-amber-600 px-2 py-1 text-xs font-semibold text-white">Oui, renouveler</button>
+            <button onClick={() => setConfirmRotate(false)} className="text-xs text-amber-800 underline">Annuler</button>
+          </div>
+        )}
+      </div>
+
+      {/* Liste des jetons */}
+      {data.tokens.length > 0 && (
+        <div className="space-y-1.5">
+          {data.tokens.map((t) => (
+            <div key={t.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${t.revoked ? 'border-[#EFE6D7] bg-gray-50 opacity-70' : 'border-[#E6DAC6] bg-white'}`}>
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.revoked ? 'bg-gray-200 text-gray-400' : 'bg-ivoire-green/10 text-ivoire-green'}`}>
+                <ShieldOk size={16} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-gray-800">{t.label} <code className="ml-1 rounded bg-gray-100 px-1 text-[11px] text-gray-500">{t.prefix}…</code></p>
+                <p className="text-[11px] text-gray-500">
+                  {t.revoked ? 'Révoqué' : 'Actif'} · {t.uses} appel{t.uses > 1 ? 's' : ''}
+                  {t.lastUsedAt ? ` · vu ${timeAgo(t.lastUsedAt)}` : ' · jamais utilisé'}
+                </p>
+              </div>
+              {!t.revoked && (
+                <button onClick={() => revoke(t.id)} disabled={busy} className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40" aria-label="Révoquer">
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Comment le donner au Gardien */}
+      <div className="rounded-xl bg-primary-50/60 p-3 text-xs text-primary-800">
+        <p className="font-semibold">Donner le jeton à la routine « Le Gardien »</p>
+        <p className="mt-1 text-primary-700">
+          En-tête HTTP <code className="rounded bg-white px-1">X-Service-Token: LE_JETON</code> (ou paramètre
+          <code className="rounded bg-white px-1"> ?stoken=LE_JETON</code>). Points d’entrée :
+        </p>
+        <ul className="mt-1 list-inside list-disc text-primary-700">
+          <li><code>GET {base}</code> — lire la file (annonces + signalements + score de risque)</li>
+          <li><code>POST /api/mod/hide</code> — masquer (haute confiance)</li>
+          <li><code>POST /api/mod/flag</code> — signaler pour revue humaine</li>
+          <li><code>POST /api/mod/digest</code> — envoyer le récap par email</li>
+        </ul>
+      </div>
+
+      {/* Journal d'audit */}
+      {audit.length > 0 && (
+        <div>
+          <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Journal (dernières actions)</p>
+          <div className="space-y-1">
+            {audit.slice(0, 6).map((e) => (
+              <div key={e.id} className="flex items-center gap-2 text-xs">
+                <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-semibold ${e.action === 'hide' ? 'bg-red-50 text-red-600' : e.action === 'flag' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {e.action === 'hide' ? 'masqué' : e.action === 'flag' ? 'signalé' : e.action}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-gray-600">{e.listingTitle || e.listingId || '—'}{e.reason ? ` · ${e.reason}` : ''}</span>
+                <span className="shrink-0 text-gray-400">{timeAgo(e.at)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

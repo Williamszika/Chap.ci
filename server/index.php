@@ -1024,6 +1024,18 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS listing_view_days (
       listing_id $id, day VARCHAR(10), n $intT, PRIMARY KEY (listing_id, day)
     )$eng",
+    // Jetons de service CLOISONNÉS (ex. modération automatique par « Le Gardien »).
+    // N'ouvrent QUE les routes /mod/* de leur périmètre (scope) : jamais de session,
+    // ni de compte, réglage ou sauvegarde. Révocables et rotatifs depuis l'admin.
+    "CREATE TABLE IF NOT EXISTS service_tokens (
+      id $id PRIMARY KEY, label $txt, scope $txt, token_hash $txt, prefix $txt,
+      created_at $ts, last_used_at $ts, uses $intT, revoked_at $ts
+    )$eng",
+    // Journal d'audit des actions de modération automatique (masquer / signaler).
+    "CREATE TABLE IF NOT EXISTS mod_actions (
+      id $id PRIMARY KEY, token_id $id, action $txt, listing_id $id, reason $txt,
+      confidence $txt, meta $txt, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -1264,6 +1276,8 @@ function admin_feature_for_path(string $path): string {
   if (str_starts_with($path, 'admin/backup') || $path === 'admin/backups' || $path === 'admin/reset') return 'backup';
   if (str_starts_with($path, 'admin/digest') || $path === 'admin/suggestions-test') return 'automation';
   if (str_starts_with($path, 'admin/seo')) return 'automation';
+  // Gestion des jetons de service (modération auto) : réservée au propriétaire.
+  if (str_starts_with($path, 'admin/service-tokens') || $path === 'admin/mod-audit') return 'automation';
   // Fail-closed : une route /admin/* non répertoriée renvoie 'unknown' → refusée
   // pour un modérateur (seul le propriétaire y accède). Évite un oubli = trou.
   return 'unknown';
@@ -1300,6 +1314,84 @@ function admins_fp_file(array $config): string { return chapci_secret_dir($confi
 function admins_fp_save(array $config, PDO $pdo): void {
   $f = admins_fp_file($config);
   if (@file_put_contents($f, admins_fingerprint($pdo)) !== false) @chmod($f, 0600);
+}
+
+// ---- Jetons de service cloisonnés (modération automatique « Le Gardien ») ----
+// Un jeton de service n'accorde AUCUNE session utilisateur. Il n'ouvre QUE les
+// routes /mod/* dont le périmètre (scope) correspond : lire la file, masquer,
+// signaler. Il ne peut jamais toucher aux comptes, réglages ni sauvegardes.
+function service_token_hash(string $raw): string { return hash('sha256', $raw); }
+
+/**
+ * Authentifie un jeton de service pour un périmètre (scope) donné, ex. 'moderation'.
+ * Le jeton est lu dans l'en-tête X-Service-Token ou le paramètre ?stoken=.
+ * Renvoie la ligne du jeton (dont son id) ou coupe la requête (401/403/429).
+ */
+function require_service_token(PDO $pdo, string $scope): array {
+  // Anti-force-brute : borne les échecs par IP (comme le reste du site).
+  rate_limit($pdo, 'mtoken_fail', null, 20, 600);
+  $raw = trim((string) ($_SERVER['HTTP_X_SERVICE_TOKEN'] ?? ''));
+  if ($raw === '') $raw = trim((string) ($_GET['stoken'] ?? ''));
+  if (strlen($raw) < 24) { log_security_event($pdo, 'mtoken_fail', null, 'missing'); jerr('Jeton de service requis.', 401); }
+  $st = $pdo->prepare('SELECT * FROM service_tokens WHERE token_hash = ? LIMIT 1');
+  $st->execute([service_token_hash($raw)]);
+  $tok = $st->fetch();
+  if (!$tok)                        { log_security_event($pdo, 'mtoken_fail', null, 'unknown'); jerr('Jeton invalide.', 403); }
+  if (!empty($tok['revoked_at']))   { log_security_event($pdo, 'mtoken_fail', null, 'revoked'); jerr('Jeton révoqué.', 403); }
+  if ((string) $tok['scope'] !== $scope) { log_security_event($pdo, 'mtoken_fail', null, 'scope'); jerr('Jeton hors périmètre.', 403); }
+  try { $pdo->prepare('UPDATE service_tokens SET last_used_at = ?, uses = COALESCE(uses,0) + 1 WHERE id = ?')->execute([now_iso(), $tok['id']]); }
+  catch (Throwable $e) { /* traçabilité best-effort */ }
+  return $tok;
+}
+
+/** Écrit une action de modération automatique au journal d'audit (inviolable côté app). */
+function mod_audit(PDO $pdo, string $tokenId, string $action, ?string $listingId, string $reason, string $confidence = '', array $meta = []): void {
+  try {
+    $pdo->prepare('INSERT INTO mod_actions (id,token_id,action,listing_id,reason,confidence,meta,created_at) VALUES (?,?,?,?,?,?,?,?)')
+        ->execute([uuid(), $tokenId, $action, $listingId, mb_substr($reason, 0, 300), mb_substr($confidence, 0, 20), json_encode($meta, JSON_UNESCAPED_UNICODE), now_iso()]);
+  } catch (Throwable $e) { /* audit best-effort */ }
+}
+
+/** Destinataires du digest de modération : propriétaire(s) + modérateurs (table admins). */
+function moderation_notify_recipients(array $config, PDO $pdo): array {
+  $emails = owner_emails($config);
+  try { foreach ($pdo->query('SELECT email FROM admins')->fetchAll(PDO::FETCH_COLUMN) as $e) $emails[] = strtolower(trim((string) $e)); }
+  catch (Throwable $e) { /* table admins vide/absente : on garde les propriétaires */ }
+  return array_values(array_unique(array_filter($emails)));
+}
+
+/**
+ * Analyse de risque déterministe d'une annonce (mots-clés FR / Nouchi). Sert de
+ * PRÉ-TRI : « Le Gardien » garde le dernier mot (il masque via /mod/hide selon SON
+ * jugement). Renvoie { score, level: high|medium|ok, reasons[], categories[] }.
+ * Volontairement conservateur : on évite les collisions (ex. « ivoire » ≠ « Côte
+ * d'Ivoire » → on n'utilise QUE des expressions précises comme « ivoire d'éléphant »).
+ */
+function moderation_risk(array $listing): array {
+  $hay = ' ' . mb_strtolower(trim(((string) ($listing['title'] ?? '')) . ' ' . ((string) ($listing['description'] ?? '')))) . ' ';
+  $reasons = []; $cats = []; $score = 0;
+  $firstHit = function (array $words) use ($hay): ?string {
+    foreach ($words as $w) { if ($w !== '' && mb_strpos($hay, $w) !== false) return $w; }
+    return null;
+  };
+  // [niveau, catégorie, points, expressions] — HIGH = illégal manifeste.
+  $rules = [
+    ['high', 'armes',        60, ['arme à feu', 'kalachnikov', 'ak-47', 'ak47', 'munition', 'grenade', 'explosif', 'lance-roquette', "fusil d'assaut"]],
+    ['high', 'drogues',      60, ['cocaïne', 'cocaine', 'héroïne', 'heroine', 'ecstasy', 'méthamphétamine', 'chanvre indien', 'tramadol', 'tramol']],
+    ['high', 'faune',        55, ["ivoire d'éléphant", "défense d'éléphant", 'corne de rhinocéros', 'corne de rhino', 'écaille de pangolin', 'pangolin', 'peau de léopard', 'perroquet gris du gabon']],
+    ['high', 'faux',         55, ['faux billet', 'faux billets', 'vrai-faux', 'faux passeport', 'faux diplôme', 'faux permis', "fausse carte d'identité"]],
+    ['high', 'humain',       70, ['bébé à vendre', 'vente de bébé', 'rein à vendre', 'organe à vendre']],
+    ['high', 'sexuel',       50, ['service sexuel', 'plan cul', ' nudes ']],
+    ['medium', 'arnaque',    30, ['western union', 'frais de douane', 'frais de transitaire', 'transitaire', 'payer avant livraison', "multiplication d'argent", 'marabout', 'richesse rapide', 'prêt entre particuliers', 'vous avez gagné', 'félicitations vous avez']],
+    ['medium', 'contrefaçon',25, ['réplique', ' replica', 'premium copy', 'copie 1:1', 'contrefaçon', 'première copie']],
+    ['medium', 'paiement',   20, ['code de recharge', 'carte de recharge', 'transcash', 'coupon pcs']],
+  ];
+  foreach ($rules as [$lvl, $cat, $pts, $words]) {
+    $hit = $firstHit($words);
+    if ($hit !== null) { $score += $pts; $reasons[] = ($lvl === 'high' ? '⛔ ' : '⚠️ ') . $cat . ' : « ' . trim($hit) . ' »'; $cats[] = $cat; }
+  }
+  $level = $score >= 55 ? 'high' : ($score >= 20 ? 'medium' : 'ok');
+  return ['score' => $score, 'level' => $level, 'reasons' => $reasons, 'categories' => array_values(array_unique($cats))];
 }
 
 // ---- Emails -----------------------------------------------------------------
@@ -3899,6 +3991,56 @@ try {
       ], $files);
       jout(['cronKey' => $config['cron_key'] ?? '', 'site' => rtrim($config['site_url'] ?? 'https://chap.ci', '/'), 'backups' => $out]);
     }
+
+    // ----- Jetons de service « modération auto » (propriétaire uniquement) -----
+    // Liste des jetons (métadonnées seulement — jamais le secret, qui n'est
+    // montré qu'une fois à la création).
+    if ($path === 'admin/service-tokens' && $method === 'GET') {
+      $rows = $pdo->query('SELECT id,label,scope,prefix,created_at,last_used_at,uses,revoked_at FROM service_tokens ORDER BY created_at DESC')->fetchAll();
+      jout([
+        'site' => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+        'tokens' => array_map(fn($t) => [
+          'id' => $t['id'], 'label' => $t['label'] ?: 'Modération', 'scope' => $t['scope'],
+          'prefix' => $t['prefix'], 'createdAt' => iso_to_ms($t['created_at']),
+          'lastUsedAt' => $t['last_used_at'] ? iso_to_ms($t['last_used_at']) : null,
+          'uses' => (int) ($t['uses'] ?? 0), 'revoked' => !empty($t['revoked_at']),
+        ], $rows),
+      ]);
+    }
+    // Émettre un NOUVEAU jeton (scope 'moderation'). Le secret n'est renvoyé
+    // qu'ICI, une seule fois. Option {rotate:true} → révoque d'abord les jetons
+    // 'moderation' encore actifs (rotation propre).
+    if ($path === 'admin/service-tokens' && $method === 'POST') {
+      $b = body();
+      $label = mb_substr(trim((string) ($b['label'] ?? 'Le Gardien — modération')), 0, 60) ?: 'Le Gardien — modération';
+      $scope = 'moderation'; // seul périmètre exposé pour l'instant
+      if (!empty($b['rotate'])) {
+        $pdo->prepare('UPDATE service_tokens SET revoked_at = ? WHERE scope = ? AND revoked_at IS NULL')->execute([now_iso(), $scope]);
+      }
+      $raw  = 'cmst_' . bin2hex(random_bytes(30)); // 65 caractères, imprédictible
+      $pdo->prepare('INSERT INTO service_tokens (id,label,scope,token_hash,prefix,created_at,last_used_at,uses,revoked_at) VALUES (?,?,?,?,?,?,?,?,?)')
+          ->execute([uuid(), $label, $scope, service_token_hash($raw), mb_substr($raw, 0, 12), now_iso(), null, 0, null]);
+      log_security_event($pdo, 'service_token_created', $u['email'] ?? null, $scope);
+      jout(['token' => $raw, 'scope' => $scope, 'label' => $label]); // secret montré une seule fois
+    }
+    // Révoquer un jeton (irréversible : il faut en émettre un nouveau ensuite).
+    if (count($seg) === 4 && $seg[1] === 'service-tokens' && $seg[3] === 'revoke' && $method === 'POST') {
+      $pdo->prepare('UPDATE service_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL')->execute([now_iso(), $seg[2]]);
+      log_security_event($pdo, 'service_token_revoked', $u['email'] ?? null, $seg[2]);
+      jout(['ok' => true]);
+    }
+    // Journal d'audit des actions de modération automatique (100 dernières).
+    if ($path === 'admin/mod-audit' && $method === 'GET') {
+      $rows = $pdo->query("SELECT m.id, m.action, m.listing_id, m.reason, m.confidence, m.created_at, l.title AS listing_title
+        FROM mod_actions m LEFT JOIN listings l ON l.id = m.listing_id
+        ORDER BY m.created_at DESC LIMIT 100")->fetchAll();
+      jout(['entries' => array_map(fn($r) => [
+        'id' => $r['id'], 'action' => $r['action'], 'listingId' => $r['listing_id'],
+        'listingTitle' => $r['listing_title'] ?? null, 'reason' => $r['reason'],
+        'confidence' => $r['confidence'], 'at' => iso_to_ms($r['created_at']),
+      ], $rows)]);
+    }
+
     // Télécharge une sauvegarde automatique précise (nom de fichier sécurisé).
     if ($path === 'admin/backup/download' && $method === 'GET') {
       $file = basename((string) ($_GET['file'] ?? ''));
@@ -4708,6 +4850,141 @@ try {
       $pdo->prepare("UPDATE ads SET expiry_notified = '1' WHERE id = ?")->execute([$ad['id']]);
     }
     jout(['checked' => count($rows), 'emailed' => $sent]);
+  }
+
+  // ---------- MODÉRATION AUTOMATIQUE — jeton de service cloisonné ----------
+  // « Le Gardien » (routine) s'authentifie avec un JETON DE SERVICE de périmètre
+  // 'moderation' (en-tête X-Service-Token ou ?stoken=). Ce jeton n'ouvre QUE ces
+  // routes : lire la file, masquer, signaler. JAMAIS de compte, réglage ni sauvegarde.
+  if ($path === 'mod/queue' && $method === 'GET') {
+    $tok = require_service_token($pdo, 'moderation');
+    $limit = min(200, max(1, (int) ($_GET['limit'] ?? 80)));
+    $shape = function (array $l): array {
+      $imgs = json_decode((string) ($l['images'] ?? '[]'), true); if (!is_array($imgs)) $imgs = [];
+      return [
+        'id'          => $l['id'],
+        'title'       => (string) ($l['title'] ?? ''),
+        'description' => mb_substr((string) ($l['description'] ?? ''), 0, 1200),
+        'price'       => (int) ($l['price'] ?? 0),
+        'category'    => (string) ($l['category_id'] ?? ''),
+        'images'      => array_slice(array_values(array_filter($imgs, 'is_string')), 0, 4),
+        'imageCount'  => count($imgs),
+        'sellerId'    => $l['user_id'] ?? null,
+        'hidden'      => !empty($l['hidden']),
+        'createdAt'   => iso_to_ms($l['created_at'] ?? null),
+        'risk'        => moderation_risk($l),
+      ];
+    };
+    // 1) Signalements ouverts (priorité) + l'annonce liée.
+    $rp = $pdo->query("SELECT r.id AS report_id, r.listing_id, r.reason, r.details, r.created_at AS reported_at,
+        l.id, l.title, l.description, l.price, l.category_id, l.images, l.hidden, l.user_id, l.created_at
+      FROM reports r LEFT JOIN listings l ON l.id = r.listing_id
+      WHERE r.status = 'open' ORDER BY r.created_at DESC LIMIT 200")->fetchAll();
+    $reports = array_map(function ($r) use ($shape) {
+      return [
+        'reportId'   => $r['report_id'],
+        'listingId'  => $r['listing_id'],
+        'reason'     => $r['reason'],
+        'details'    => $r['details'],
+        'reportedAt' => iso_to_ms($r['reported_at']),
+        'listing'    => $r['id'] ? $shape($r) : null,
+      ];
+    }, $rp);
+    // 2) Annonces récentes visibles jamais encore examinées par la modération auto.
+    $st = $pdo->prepare("SELECT l.id, l.title, l.description, l.price, l.category_id, l.images, l.hidden, l.user_id, l.created_at
+      FROM listings l
+      WHERE (l.hidden IS NULL OR l.hidden = 0)
+        AND l.id NOT IN (SELECT listing_id FROM mod_actions WHERE listing_id IS NOT NULL)
+      ORDER BY l.created_at DESC LIMIT " . (int) $limit);
+    $st->execute();
+    $recent = array_map($shape, $st->fetchAll());
+    jout([
+      'reports' => $reports,
+      'recent'  => $recent,
+      'counts'  => ['reports' => count($reports), 'recent' => count($recent)],
+      'guide'   => 'Masquer: POST /api/mod/hide {listingId,reason,confidence}. Signaler: POST /api/mod/flag {listingId,reason,details}. Digest: POST /api/mod/digest {examined,hidden:[],flagged:[],notes}.',
+    ]);
+  }
+  // Masquer une annonce (cas à haute confiance : illégal / NSFW). Idempotent + audité.
+  if ($path === 'mod/hide' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $lid = trim((string) ($b['listingId'] ?? ''));
+    if ($lid === '') jerr('listingId requis.');
+    $reason = mb_substr(trim((string) ($b['reason'] ?? '')), 0, 300) ?: 'Modération automatique';
+    $conf   = mb_substr(trim((string) ($b['confidence'] ?? 'high')), 0, 20);
+    $st = $pdo->prepare('SELECT id, hidden FROM listings WHERE id = ?'); $st->execute([$lid]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    $already = !empty($row['hidden']);
+    if (!$already) $pdo->prepare('UPDATE listings SET hidden = 1 WHERE id = ?')->execute([$lid]);
+    mod_audit($pdo, $tok['id'], 'hide', $lid, $reason, $conf, ['already' => $already]);
+    jout(['ok' => true, 'listingId' => $lid, 'alreadyHidden' => $already]);
+  }
+  // Signaler une annonce (cas douteux) → signalement ouvert pour revue humaine. Anti-doublon.
+  if ($path === 'mod/flag' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $lid = trim((string) ($b['listingId'] ?? ''));
+    $reason = mb_substr(trim((string) ($b['reason'] ?? '')), 0, 80);
+    $details = mb_substr(trim((string) ($b['details'] ?? '')), 0, 500);
+    if ($lid === '' || $reason === '') jerr('listingId et reason requis.');
+    $st = $pdo->prepare('SELECT id FROM listings WHERE id = ?'); $st->execute([$lid]);
+    if (!$st->fetch()) jerr('Annonce introuvable.', 404);
+    $ex = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE listing_id = ? AND status = 'open' AND reporter_id = 'moderation-bot'");
+    $ex->execute([$lid]);
+    $created = false;
+    if ((int) $ex->fetchColumn() === 0) {
+      $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at) VALUES (?,?,?,?,?,?,?)')
+          ->execute([uuid(), $lid, 'moderation-bot', $reason, $details ?: null, 'open', now_iso()]);
+      $created = true;
+    }
+    mod_audit($pdo, $tok['id'], 'flag', $lid, $reason . ($details ? ' — ' . $details : ''), 'medium', ['created' => $created]);
+    jout(['ok' => true, 'listingId' => $lid, 'created' => $created]);
+  }
+  // Envoyer le digest de modération aux propriétaires + modérateurs.
+  if ($path === 'mod/digest' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $examined = max(0, (int) ($b['examined'] ?? 0));
+    $hidden  = array_values(array_filter((array) ($b['hidden'] ?? []), 'is_array'));
+    $flagged = array_values(array_filter((array) ($b['flagged'] ?? []), 'is_array'));
+    $notes   = mb_substr(trim((string) ($b['notes'] ?? '')), 0, 2000);
+    if (!$hidden && !$flagged && $notes === '') {
+      mod_audit($pdo, $tok['id'], 'digest', null, 'RAS', '', ['examined' => $examined]);
+      jout(['ok' => true, 'emailed' => 0, 'skipped' => true]);
+    }
+    $esc  = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    $listHtml = function (array $items, string $emptyMsg) use ($esc, $site): string {
+      if (!$items) return '<p style="color:#8a94a6;margin:4px 0 0">' . $esc($emptyMsg) . '</p>';
+      $out = '';
+      foreach (array_slice($items, 0, 50) as $it) {
+        $id = (string) ($it['listingId'] ?? ($it['id'] ?? ''));
+        $link = $id ? $site . '/#/annonce/' . rawurlencode($id) : '';
+        $out .= '<div style="border:1px solid #eef0f2;border-radius:10px;padding:10px 12px;margin:6px 0">'
+              . '<div style="font-weight:600;color:#1a1f2b">' . $esc($it['title'] ?? '(sans titre)') . '</div>'
+              . (isset($it['reason']) && $it['reason'] !== '' ? '<div style="font-size:13px;color:#6b7280;margin-top:2px">' . $esc($it['reason']) . '</div>' : '')
+              . ($link ? '<a href="' . $esc($link) . '" style="font-size:12px;color:#e8590c">Voir l’annonce →</a>' : '')
+              . '</div>';
+      }
+      return $out;
+    };
+    $inner = '<h2 style="margin:0 0 4px">🛡️ Modération automatique — récapitulatif</h2>'
+      . '<p style="color:#6b7280;margin:0 0 14px">' . (int) $examined . ' annonce(s) examinée(s) · '
+      . count($hidden) . ' masquée(s) · ' . count($flagged) . ' signalée(s) pour revue humaine.</p>'
+      . '<h3 style="margin:14px 0 2px;color:#b42318">Masquées automatiquement (haute confiance)</h3>'
+      . $listHtml($hidden, 'Aucune annonce masquée automatiquement.')
+      . '<h3 style="margin:16px 0 2px;color:#b54708">À vérifier (signalées)</h3>'
+      . $listHtml($flagged, 'Rien à vérifier manuellement.')
+      . ($notes !== '' ? '<h3 style="margin:16px 0 2px">Notes du Gardien</h3><p style="color:#374151;white-space:pre-wrap">' . $esc($notes) . '</p>' : '')
+      . '<p style="margin-top:16px">' . email_button($site . '/#/admin', 'Ouvrir le tableau de bord') . '</p>';
+    $html = email_layout($config, $inner, 'Récapitulatif de modération Chap.ci');
+    $recips = moderation_notify_recipients($config, $pdo);
+    $sent = 0;
+    foreach ($recips as $to) { if (send_mail($config, $to, 'Chap.ci — modération auto (' . count($hidden) . ' masquée(s), ' . count($flagged) . ' à vérifier)', $html)) $sent++; }
+    mod_audit($pdo, $tok['id'], 'digest', null, 'Digest envoyé', '', ['examined' => $examined, 'hidden' => count($hidden), 'flagged' => count($flagged), 'emailed' => $sent]);
+    jout(['ok' => true, 'emailed' => $sent, 'recipients' => count($recips)]);
   }
 
   // ---------- TÂCHE PLANIFIÉE : suggestions personnalisées (2×/semaine) ----------
