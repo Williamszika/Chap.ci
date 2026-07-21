@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation, Truck, Tag, Bell, Check } from 'lucide-react'
+import { ArrowLeft, Search, SlidersHorizontal, MapPin, X, ChevronDown, Navigation, Truck, Tag, Bell, Check, Store, PlusCircle } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
@@ -327,20 +327,36 @@ export function Browse() {
         </p>
 
         {results.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <div className="text-5xl">🔍</div>
-            <p className="font-semibold text-gray-700">Aucune annonce trouvée</p>
-            <p className="max-w-xs text-sm text-gray-500">
-              Essayez d’élargir votre recherche ou de changer de localisation.
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary-100 text-primary-600">
+              <Store size={26} />
+            </div>
+            <p className="font-semibold text-gray-700">
+              {activeCat ? `Personne ne vend encore en « ${activeCat.name} »` : 'Aucune annonce trouvée ici'}
             </p>
+            {/* Activation : le cul-de-sac devient une invitation à vendre. */}
+            <div className="mt-1 w-full max-w-sm rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-left text-white shadow-card txt-legible">
+              <p className="font-display text-base font-black leading-tight">
+                Soyez le premier à vendre {activeCat ? `en « ${activeCat.name} »` : 'ici'} 🇨🇮
+              </p>
+              <p className="mt-0.5 text-sm text-white/90">
+                Publiez votre annonce <b>gratuitement</b> — en ligne en 2 minutes.
+              </p>
+              <Link
+                to="/publier"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-bold text-primary-700 shadow-sm active:scale-95"
+              >
+                <PlusCircle size={16} /> Publier une annonce
+              </Link>
+            </div>
             <button
               onClick={() => {
                 setQInput('')
                 setParams(new URLSearchParams(), { replace: true })
               }}
-              className="btn-outline mt-1 py-2"
+              className="mt-1 text-sm font-medium text-gray-400 underline"
             >
-              Réinitialiser les filtres
+              Élargir la recherche / réinitialiser les filtres
             </button>
           </div>
         ) : (
