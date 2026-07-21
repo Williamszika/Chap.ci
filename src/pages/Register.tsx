@@ -15,9 +15,10 @@ import { subscribeNewsletter } from '../lib/newsletter'
 export function Register() {
   const navigate = useNavigate()
   const location = useLocation()
-  // Page d'origine (ex. « /publier ») : on y revient après inscription.
+  // Page d'origine (ex. « /publier ») : on y revient après inscription. Sinon, on
+  // atterrit sur l'écran de bienvenue qui invite à publier sa 1ʳᵉ annonce.
   const from = (location.state as { from?: string } | null)?.from
-  const goAfterAuth = () => navigate(from || '/compte')
+  const goAfterAuth = () => navigate(from || '/bienvenue')
   const { signUp, signInWithGoogleCredential, signInWithFacebookToken, enabled } = useAuth()
   const cfg = usePublicConfig()
   const googleEnabled = !!cfg?.googleClientId

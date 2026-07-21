@@ -18,6 +18,7 @@ import { Advertise } from './pages/Advertise'
 import { AdDetail } from './pages/AdDetail'
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
+import { Welcome } from './pages/Welcome'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { Privacy } from './pages/Privacy'
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="/pub/:id" element={<AdDetail />} />
           <Route path="/connexion" element={<Login />} />
           <Route path="/inscription" element={<Register />} />
+          <Route path="/bienvenue" element={<Welcome />} />
           <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
           <Route path="/nouveau-mot-de-passe" element={<ResetPassword />} />
           <Route path="/confidentialite" element={<Privacy />} />
