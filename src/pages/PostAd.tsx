@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import type { Listing } from '../types'
 import { useGeo } from '../store/GeoContext'
 import { useToast } from '../store/ToastContext'
@@ -36,6 +37,7 @@ type ModReason = { code: string; label: string; advice: string }
 
 export function PostAd() {
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
   const { addListing, updateListing, getListing } = useApp()
   const { place } = useGeo()
   const toast = useToast()
@@ -281,6 +283,53 @@ export function PostAd() {
       }
       setSubmitting(false)
     }
+  }
+
+  // Tant que la session se confirme (cookie → /auth/me), on n'affiche ni le gabarit
+  // de connexion ni le formulaire : évite un « flash » du mur de connexion pour un
+  // utilisateur déjà connecté qui recharge la page.
+  if (!user && authLoading) {
+    return (
+      <div className="flex min-h-[72vh] items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-primary-500" />
+      </div>
+    )
+  }
+
+  // Publier / modifier une annonce EXIGE un compte connecté : on n'affiche pas le
+  // formulaire aux visiteurs, on les invite à créer un compte ou se connecter
+  // (retour automatique ici après authentification).
+  if (!user) {
+    return (
+      <div className="flex min-h-[72vh] flex-col items-center justify-center gap-5 px-6 text-center">
+        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-100 text-primary-600">
+          <Lock size={30} />
+        </div>
+        <div>
+          <h1 className="font-display text-2xl font-black text-ink">Connectez-vous pour publier</h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
+            Créez un compte gratuit ou connectez-vous pour mettre votre annonce en ligne — ça prend moins d’une minute.
+          </p>
+        </div>
+        <div className="flex w-full max-w-xs flex-col gap-2.5">
+          <button
+            onClick={() => navigate('/inscription', { state: { from: location.pathname } })}
+            className="btn-primary w-full py-3"
+          >
+            Créer un compte gratuit
+          </button>
+          <button
+            onClick={() => navigate('/connexion', { state: { from: location.pathname } })}
+            className="btn-outline w-full py-3"
+          >
+            J’ai déjà un compte — Se connecter
+          </button>
+        </div>
+        <button onClick={() => navigate(-1)} className="text-sm font-medium text-gray-400">
+          Retour
+        </button>
+      </div>
+    )
   }
 
   return (

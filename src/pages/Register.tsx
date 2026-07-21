@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, User, Loader2, Eye, EyeOff, RefreshCw, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
@@ -14,6 +14,10 @@ import { subscribeNewsletter } from '../lib/newsletter'
 
 export function Register() {
   const navigate = useNavigate()
+  const location = useLocation()
+  // Page d'origine (ex. « /publier ») : on y revient après inscription.
+  const from = (location.state as { from?: string } | null)?.from
+  const goAfterAuth = () => navigate(from || '/compte')
   const { signUp, signInWithGoogleCredential, signInWithFacebookToken, enabled } = useAuth()
   const cfg = usePublicConfig()
   const googleEnabled = !!cfg?.googleClientId
@@ -72,7 +76,7 @@ export function Register() {
         /* le profil pourra être complété dans les paramètres */
       }
     }
-    navigate('/compte')
+    goAfterAuth()
   }
 
   // Inscription rapide via Google : le compte (nom + email) est créé côté
@@ -83,7 +87,7 @@ export function Register() {
     const res = await signInWithGoogleCredential(credential)
     setBusy(false)
     if (res.error) return setError(res.error)
-    navigate('/compte')
+    goAfterAuth()
   }
 
   async function handleFacebookSignup(accessToken: string) {
@@ -92,7 +96,7 @@ export function Register() {
     const res = await signInWithFacebookToken(accessToken)
     setBusy(false)
     if (res.error) return setError(res.error)
-    navigate('/compte')
+    goAfterAuth()
   }
 
   async function submit(e: React.FormEvent) {
@@ -258,7 +262,7 @@ export function Register() {
 
         <p className="mt-5 text-center text-sm text-gray-500">
           Déjà un compte ?{' '}
-          <button type="button" onClick={() => navigate('/connexion')} className="font-semibold text-primary-600">
+          <button type="button" onClick={() => navigate('/connexion', { state: { from } })} className="font-semibold text-primary-600">
             Se connecter
           </button>
         </p>

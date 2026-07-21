@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, Phone, Loader2, ShieldCheck } from 'lucide-react'
 import { useAuth, type OAuthProvider } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
@@ -18,6 +18,10 @@ function AppleIcon() {
 
 export function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  // Page d'origine (ex. « /publier ») : on y revient après connexion.
+  const from = (location.state as { from?: string } | null)?.from
+  const goAfterAuth = () => navigate(from || '/compte')
   const { signIn, signInWithProvider, signInWithGoogleCredential, signInWithFacebookToken, sendPhoneCode, verifyPhoneCode, verifyLoginMfa, enabled } = useAuth()
   // Connexion Google / Facebook : activées si configurées (runtime, /api/config).
   const cfg = usePublicConfig()
@@ -41,7 +45,7 @@ export function Login() {
   function handle(res: { error?: string; mfaRequired?: boolean }) {
     if (res.error) return setError(res.error)
     if (res.mfaRequired) return setMfaStep(true)
-    navigate('/compte')
+    goAfterAuth()
   }
 
   async function submitEmail(e: React.FormEvent) {
@@ -84,7 +88,7 @@ export function Login() {
     const res = await verifyLoginMfa(mfaCode.trim())
     setBusy(false)
     if (res.error) return setError(res.error)
-    navigate('/compte')
+    goAfterAuth()
   }
 
   async function oauth(provider: OAuthProvider) {
@@ -225,7 +229,7 @@ export function Login() {
 
             <p className="mt-5 text-center text-sm text-gray-500">
               Pas encore de compte ?{' '}
-              <button onClick={() => navigate('/inscription')} className="font-semibold text-primary-600">
+              <button onClick={() => navigate('/inscription', { state: { from } })} className="font-semibold text-primary-600">
                 Créer un compte
               </button>
             </p>
