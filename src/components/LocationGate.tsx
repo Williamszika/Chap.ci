@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom'
 import { Navigation, Loader2 } from 'lucide-react'
 import { useGeo } from '../store/GeoContext'
 import { locationLabel } from '../data/locations'
@@ -11,7 +12,12 @@ import { Mark, Wordmark } from './Logo'
  */
 export function LocationGate() {
   const { decided, status, place, allowGps, denyGps } = useGeo()
+  const { pathname } = useLocation()
   if (decided) return null
+  // Sur la publication / modification d'annonce, on n'affiche pas ce gabarit :
+  // il recouvrirait le bouton « Publier ». Le formulaire a son propre sélecteur
+  // de position (GPS + choix manuel). Le gate réapparaîtra ailleurs si besoin.
+  if (/^\/(publier|modifier)/.test(pathname)) return null
 
   const busy = status === 'loading'
 

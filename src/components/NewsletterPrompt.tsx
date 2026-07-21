@@ -1,9 +1,13 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Mail, X, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { isSubscribed, subscribeNewsletter } from '../lib/newsletter'
 
 const SEEN_KEY = 'chapci.nlPrompt.v1'
+// Pages « action » où aucune pop-up ne doit s'ouvrir (elle recouvrirait le bouton
+// d'envoi) : publication et modification d'annonce.
+const isActionRoute = (path: string) => /^\/(publier|modifier)/.test(path)
 
 /**
  * Popup proposant la newsletter — affiché UNE seule fois (par appareil) aux
@@ -11,6 +15,8 @@ const SEEN_KEY = 'chapci.nlPrompt.v1'
  */
 export function NewsletterPrompt() {
   const { user } = useAuth()
+  const location = useLocation()
+  const suppressed = isActionRoute(location.pathname)
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle')
   const cardRef = useRef<HTMLDivElement>(null)
@@ -19,6 +25,9 @@ export function NewsletterPrompt() {
   useEffect(() => {
     if (!user?.email) return
     if (localStorage.getItem(SEEN_KEY)) return
+    // Ne pas s'ouvrir (ni s'armer) sur une page d'action : on attendra que
+    // l'utilisateur quitte /publier ou /modifier.
+    if (suppressed) { setOpen(false); return }
     let alive = true
     let timer: ReturnType<typeof setTimeout> | undefined
     // On vérifie l'abonnement, puis on propose après un court délai (non intrusif).
@@ -27,7 +36,7 @@ export function NewsletterPrompt() {
       timer = setTimeout(() => setOpen(true), 2500)
     })
     return () => { alive = false; if (timer) clearTimeout(timer) }
-  }, [user])
+  }, [user, suppressed])
 
   const dismiss = () => {
     localStorage.setItem(SEEN_KEY, '1')
