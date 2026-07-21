@@ -227,7 +227,16 @@ export function Advertise() {
                 </button>
               )}
             </div>
-            <p className="mt-1.5 text-[11px] text-gray-400">1 à 3 images · format paysage (16:5) recommandé</p>
+            <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-[#FFFBF4] p-3 text-[11.5px] leading-relaxed text-gray-600">
+              <p className="mb-1 font-bold text-gray-700">📐 Tailles d’image supportées</p>
+              <ul className="space-y-1">
+                <li>• <b>Format idéal :</b> paysage 16:9 — ex. <b className="tnum">1280 × 720 px</b> (remplit tout l’écran, bien net).</li>
+                <li>• <b>Acceptés :</b> JPG, PNG, WebP · jusqu’à 1600 px (redimensionnées automatiquement).</li>
+                <li>• <b>Toute taille marche :</b> l’image est <b>adaptée automatiquement</b> à l’écran — une affiche verticale (9:16) s’affiche <b>en entier</b>, les côtés comblés par ses propres couleurs.</li>
+                <li>• Vous pouvez mettre une <b>image seule</b>, ou une <b>image + un texte</b> par-dessus (les deux restent visibles).</li>
+              </ul>
+              <p className="mt-1.5 text-gray-400">1 à 3 visuels.</p>
+            </div>
             {photoError && <p className="mt-1 text-xs font-medium text-red-500">{photoError}</p>}
 
             <label htmlFor="ad-title" className="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
