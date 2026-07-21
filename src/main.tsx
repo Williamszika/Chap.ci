@@ -7,6 +7,9 @@ import { AuthProvider } from './store/AuthContext'
 import { GeoProvider } from './store/GeoContext'
 import { NotificationsProvider } from './store/NotificationsContext'
 import { ToastProvider } from './store/ToastContext'
+// Capte au plus tôt l'événement d'installation PWA (beforeinstallprompt),
+// souvent émis avant le montage de React (voir components/InstallAppBanner).
+import './lib/pwaInstall'
 // Polices de la marque (auto-hébergées → fonctionnent hors-ligne dans la PWA)
 import '@fontsource-variable/inter'
 import '@fontsource-variable/plus-jakarta-sans'

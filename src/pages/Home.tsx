@@ -20,6 +20,7 @@ import { Mark, Wordmark } from '../components/Logo'
 import { ListingCard } from '../components/ListingCard'
 import { ListingCardSkeleton } from '../components/ListingCardSkeleton'
 import { SellNearYou } from '../components/SellNearYou'
+import { InstallAppBanner } from '../components/InstallAppBanner'
 import { LocationSheet } from '../components/LocationSheet'
 import { Newsletter } from '../components/Newsletter'
 import { IndependenceBanner } from '../components/IndependenceBanner'
@@ -246,6 +247,10 @@ export function Home() {
 
       {/* Bannière publicitaire / mise en avant */}
       <PromoBanner />
+
+      {/* Invitation à installer l'app (PWA) — n'apparaît que si installable et
+          hors app native. Permet de « télécharger » l'app sans le Play Store. */}
+      <InstallAppBanner />
 
       {/* Activation vendeur : « Publiez votre 1ʳᵉ annonce gratuitement » */}
       {showSellCta && (
