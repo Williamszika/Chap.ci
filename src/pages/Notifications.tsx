@@ -100,7 +100,7 @@ export function Notifications() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF6EA] pb-16 md:min-h-0 md:pb-8">
+    <div className="min-h-screen bg-cream-200 pb-16 md:min-h-0 md:pb-8">
       {/* En-tête : titre + action « Tout marquer lu » */}
       <div className="flex items-center justify-between gap-3 border-b border-[#EFE6D7] px-4 py-4 md:px-6 md:py-5">
         <h1 className="font-display text-[22px] font-extrabold text-ink md:text-2xl">Notifications</h1>

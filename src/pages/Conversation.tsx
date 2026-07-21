@@ -103,7 +103,7 @@ export function Conversation() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#FFF6EA] p-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-cream-200 p-6 text-center">
         <p className="font-semibold text-gray-700">Connectez-vous pour accéder à la messagerie.</p>
         <Link to="/connexion" className="btn-primary">
           Se connecter
@@ -113,8 +113,8 @@ export function Conversation() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-5xl md:px-4 md:py-4">
-      <div className="flex min-h-screen flex-col bg-[#FFF6EA] md:h-[calc(100vh-7rem)] md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card">
+    <div className="min-h-screen bg-cream-200 md:mx-auto md:max-w-5xl md:px-4 md:py-4">
+      <div className="flex min-h-screen flex-col bg-cream-200 md:h-[calc(100vh-7rem)] md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card">
           {/* En-tête — bouton « retour » vers la liste des conversations */}
           <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 px-3 py-2.5 backdrop-blur-md md:rounded-t-3xl">
             <button onClick={() => navigate('/messages')} aria-label="Retour" className="-ml-1 p-1">
@@ -191,7 +191,7 @@ export function Conversation() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Votre message…"
-              className="flex-1 rounded-full border border-[#EFE6D7] bg-[#FFF6EA] px-4 py-3 text-[15px] outline-none transition focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-100"
+              className="flex-1 rounded-full border border-[#EFE6D7] bg-cream-200 px-4 py-3 text-[15px] outline-none transition focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-100"
             />
             <button
               type="submit"

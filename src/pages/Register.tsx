@@ -205,7 +205,7 @@ export function Register() {
               <ShieldCheck size={15} className="text-ivoire-green" /> Vérification anti-robot
             </label>
             <div className="flex items-center gap-2">
-              <span className="select-none rounded-xl border border-[#EFE6D7] bg-[#FFF6EA] px-3.5 py-2.5 font-display text-base font-bold tracking-wide text-ink">
+              <span className="select-none rounded-xl border border-[#EFE6D7] bg-cream-200 px-3.5 py-2.5 font-display text-base font-bold tracking-wide text-ink">
                 {captcha.a} + {captcha.b} = ?
               </span>
               <input

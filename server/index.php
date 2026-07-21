@@ -2519,6 +2519,8 @@ function listing_out(array $r): array {
     'lng' => $r['lng'] !== null ? (float) $r['lng'] : null,
     'sellerName' => $r['seller_name'], 'sellerPhone' => $r['seller_phone'],
     'sellerId' => $r['user_id'] ?: null,
+    // Vendeur vérifié (badge bleu) : présent quand la requête joint users.verified.
+    'sellerVerified' => !empty($r['seller_verified']),
     'createdAt' => iso_to_ms($r['created_at']),
     'delivery' => (bool) $r['delivery'], 'featured' => (bool) $r['featured'],
     'promoPrice' => $r['promo_price'] !== null ? (int) $r['promo_price'] : null,
@@ -2940,7 +2942,11 @@ try {
   // ---------- LISTINGS ----------
   if ($path === 'listings' && $method === 'GET') {
     // Le public ne voit pas les annonces masquées (par le vendeur ou la modération).
-    $rows = $pdo->query('SELECT * FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) ORDER BY created_at DESC LIMIT 500')->fetchAll();
+    // Jointure users.verified → badge « vendeur vérifié » affiché sur la carte.
+    $rows = $pdo->query('SELECT l.*, u.verified AS seller_verified FROM listings l
+      LEFT JOIN users u ON u.id = l.user_id
+      WHERE (l.hidden IS NULL OR l.hidden = 0) AND (l.sold IS NULL OR l.sold = 0)
+      ORDER BY l.created_at DESC LIMIT 500')->fetchAll();
     jout(array_map('listing_out', $rows));
   }
 
@@ -2998,7 +3004,8 @@ try {
       '#/annonce/' . $id);
     // Indexation instantanée : on signale la nouvelle annonce à tout le net (IndexNow).
     chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $id]);
-    $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$id]);
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified FROM listings l
+      LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?'); $st->execute([$id]);
     jout(listing_out($st->fetch()));
   }
 

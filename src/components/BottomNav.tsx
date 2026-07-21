@@ -18,9 +18,12 @@ export function BottomNav() {
   const hidden =
     location.pathname.startsWith('/annonce/') ||
     location.pathname === '/publier' ||
+    location.pathname.startsWith('/modifier/') ||
     location.pathname === '/don' ||
     location.pathname === '/connexion' ||
     location.pathname === '/inscription' ||
+    location.pathname === '/admin' ||
+    location.pathname.startsWith('/admin/') ||
     location.pathname.startsWith('/messages/') ||
     location.pathname.startsWith('/vendeur/')
   if (hidden) return null

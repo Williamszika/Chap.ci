@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
+import { VerifiedBadge } from './VerifiedBadge'
 import type { Listing } from '../types'
 import { formatFCFA } from '../lib/format'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
@@ -77,8 +78,13 @@ export function ListingCard({ listing }: { listing: Listing }) {
             />
           </span>
         </button>
-        {/* Badges état / livraison, en surimpression bas de l'image */}
+        {/* Badges confiance / état / livraison, en surimpression bas de l'image */}
         <div className="absolute bottom-1.5 left-1.5 flex flex-wrap gap-1">
+          {listing.sellerVerified && (
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-[#1877C9] shadow-sm">
+              <VerifiedBadge size={11} /> Vérifié
+            </span>
+          )}
           {listing.condition === 'neuf' && (
             <span className="inline-flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm">
               <BadgeCheck size={11} /> Neuf

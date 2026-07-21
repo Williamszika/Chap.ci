@@ -320,7 +320,7 @@ export function Home() {
       {/* Bannière don */}
       <Link
         to="/don"
-        className="mx-4 mb-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-ivoire-green to-emerald-500 px-4 py-3 text-white shadow-card active:scale-[0.99]"
+        className="txt-legible mx-4 mb-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-ivoire-green to-emerald-500 px-4 py-3 text-white shadow-card active:scale-[0.99]"
       >
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/20">
           <Gift size={22} />

@@ -138,7 +138,7 @@ export function ListingDetail() {
 
   // Bouton « Contacter » vert ivoire (comme le mockup), dans le même esprit que btn-primary.
   const greenBtn =
-    'inline-flex items-center justify-center gap-2 rounded-xl bg-ivoire-green px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.55)] transition active:scale-[0.98] hover:brightness-105 disabled:opacity-50'
+    'txt-legible inline-flex items-center justify-center gap-2 rounded-xl bg-ivoire-green px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.55)] transition active:scale-[0.98] hover:brightness-105 disabled:opacity-50'
 
   // Lien « propre » (crawlable, avec aperçu WhatsApp/Facebook via le serveur).
   const shareUrl = `${window.location.origin}/annonce/${listing.id}`
@@ -232,7 +232,7 @@ export function ListingDetail() {
   const alreadyReviewed = user ? reviews.some((r) => r.reviewerId === user.id) : false
 
   return (
-    <div className="min-h-screen bg-[#FFF6EA] pb-28 md:min-h-0 md:bg-transparent md:pb-10">
+    <div className="min-h-screen bg-cream-200 pb-28 md:min-h-0 md:bg-transparent md:pb-10">
       <div className="md:grid md:grid-cols-2 md:items-start md:gap-8 md:pt-2">
         {/* Galerie — colonne gauche (collante sur ordinateur) */}
         <div className="md:sticky md:top-20 md:self-start">

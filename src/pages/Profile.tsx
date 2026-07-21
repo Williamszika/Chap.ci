@@ -169,7 +169,7 @@ export function Profile() {
   // aussi bien sur mobile que sur ordinateur.
   if (user && tab === 'accueil') {
     return (
-      <div className="min-h-screen bg-[#FFF6EA] md:min-h-0 md:bg-transparent">
+      <div className="min-h-screen bg-cream-200 md:min-h-0 md:bg-transparent">
         <div className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-4xl md:px-6 md:py-6 lg:max-w-5xl">
           {/* Carte profil */}
           <div className="flex items-center gap-4 rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:rounded-3xl md:p-5">
@@ -251,7 +251,7 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF6EA] md:min-h-0 md:bg-transparent">
+    <div className="min-h-screen bg-cream-200 md:min-h-0 md:bg-transparent">
       <div className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-4xl md:px-6 md:py-6 lg:max-w-5xl">
         {/* Déconnecté : accueil de connexion */}
         {!user && (

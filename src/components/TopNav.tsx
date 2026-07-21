@@ -50,7 +50,7 @@ export function TopNav() {
   }
 
   return (
-    <header className="sticky top-0 z-40 hidden border-b border-[#EFE6D7] bg-[#FFF6EA]/85 backdrop-blur-md md:block">
+    <header className="sticky top-0 z-40 hidden border-b border-[#EFE6D7] bg-cream-200/85 backdrop-blur-md md:block">
       <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-3 lg:gap-5 lg:px-6">
         <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="Accueil Chap.ci">
           <Logo size={30} />

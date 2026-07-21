@@ -113,7 +113,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
 
 export function Messages() {
   return (
-    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-3xl md:px-4 md:py-4">
+    <div className="min-h-screen bg-cream-200 md:mx-auto md:max-w-3xl md:px-4 md:py-4">
       <div className="md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card">
         <ConversationList />
       </div>

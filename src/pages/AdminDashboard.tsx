@@ -101,7 +101,7 @@ export function AdminDashboard() {
     return <Shell><AdminUnlockGate owner={role.owner} onUnlocked={() => setReload((n) => n + 1)} /></Shell>
 
   return (
-    <div className="min-h-screen bg-[#FFF6EA] pb-16">
+    <div className="min-h-screen bg-cream-200 pb-16">
       <header className="safe-top sticky top-0 z-30 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md">
         <div className="flex items-center gap-2.5 px-3 py-3">
           <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
@@ -1219,7 +1219,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
                   </div>
                 ) : m.email ? (
                   /* Composer : réponse envoyée par email depuis contact@chap.ci */
-                  <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-[#FFF6EA]/70 p-3 lg:mt-3">
+                  <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-cream-200/70 p-3 lg:mt-3">
                     <p className="text-xs font-bold text-gray-700">Répondre à {m.name || m.email}</p>
                     <textarea
                       value={draft}
@@ -1978,7 +1978,7 @@ function ModeratorsTab() {
                   {m.permissions.length > 0 ? (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {m.permissions.map((p) => (
-                        <span key={p} className="rounded-full border border-[#EFE6D7] bg-[#FFF6EA] px-2 py-0.5 text-[10.5px] font-semibold text-gray-600">
+                        <span key={p} className="rounded-full border border-[#EFE6D7] bg-cream-200 px-2 py-0.5 text-[10.5px] font-semibold text-gray-600">
                           {labelOf(p)}
                         </span>
                       ))}
@@ -2760,7 +2760,7 @@ function ResetDataBox({ onDone }: { onDone: () => void }) {
 function Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   return (
-    <div className="min-h-screen bg-[#FFF6EA] pb-16">
+    <div className="min-h-screen bg-cream-200 pb-16">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
         <h1 className="font-display text-lg font-bold">Administration</h1>

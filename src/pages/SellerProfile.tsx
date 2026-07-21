@@ -80,7 +80,7 @@ export function SellerProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF6EA] md:mx-auto md:max-w-4xl">
+    <div className="min-h-screen bg-cream-200 md:mx-auto md:max-w-4xl">
       {/* Couverture + en-tête vendeur */}
       <header className="safe-top relative overflow-hidden bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 pt-3">
         <button
@@ -145,7 +145,7 @@ export function SellerProfile() {
             <button
               onClick={contactSeller}
               disabled={busy}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+              className="txt-legible inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
             >
               <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
             </button>

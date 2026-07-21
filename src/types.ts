@@ -45,6 +45,8 @@ export interface Listing {
   sellerPhone: string
   /** id du compte vendeur (si l'annonce a été publiée par un utilisateur connecté) */
   sellerId?: string
+  /** Vendeur au badge bleu (compte vérifié) — affiché sur la carte. */
+  sellerVerified?: boolean
   createdAt: number // timestamp ms
   delivery: boolean
   /** annonce mise en avant */
