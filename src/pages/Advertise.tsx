@@ -9,6 +9,7 @@ import { downscaleListingImage } from '../lib/image'
 import { classifyImage } from '../lib/nsfw'
 import { formatFCFA } from '../lib/format'
 import { AdImageFill } from '../components/AdImageFill'
+import { PayLogo } from '../components/PayLogo'
 
 const MAX_IMAGES = 3
 
@@ -361,7 +362,7 @@ export function Advertise() {
                       on ? 'border-primary-500 bg-[#FFF6EC]' : 'border-[#E6DAC6] bg-white hover:bg-[#FFFBF4]'
                     }`}
                   >
-                    <span className="h-5 w-5 rounded-full" style={{ backgroundColor: o.color }} />
+                    <PayLogo id={o.id} className="h-6 w-6" />
                     <span className="text-[13px] font-extrabold text-gray-700">{o.name}</span>
                   </button>
                 )

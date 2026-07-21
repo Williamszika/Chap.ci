@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Copy, Check, Phone, ShieldCheck } from 'lucide-react'
 import { donationOperators, suggestedAmounts, donationCopy } from '../data/donation'
 import { formatFCFA, formatPrice } from '../lib/format'
+import { PayLogo } from '../components/PayLogo'
 
 /** Encode un code USSD pour un lien tel: (# -> %23, * -> %2A) */
 function ussdLink(code: string): string {
@@ -102,7 +103,7 @@ export function Donate() {
           {/* Moyen de paiement — 4 tuiles compactes de l'artifact */}
           <section>
             <p className="mb-2 text-sm font-semibold text-gray-700">Moyen de paiement</p>
-            <div className="grid grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               {donationOperators.map((o) => {
                 const active = o.id === method
                 return (
@@ -110,21 +111,14 @@ export function Donate() {
                     key={o.id}
                     onClick={() => setMethod(o.id)}
                     aria-pressed={active}
-                    className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-3 transition ${
+                    className={`flex items-center justify-center gap-2 rounded-xl border px-2 py-3 transition ${
                       active
                         ? 'border-primary-500 bg-[#FFF6EC]'
                         : 'border-[#E6DAC6] bg-white hover:bg-[#FFFBF4]'
                     }`}
                   >
-                    <span
-                      className={
-                        o.id === 'moov' ? 'h-5 w-5 rotate-45 rounded-[4px]' : 'h-6 w-6 rounded-full'
-                      }
-                      style={{ backgroundColor: o.color }}
-                    />
-                    <span className="text-[11px] font-extrabold text-gray-700">
-                      {o.name.split(' ')[0]}
-                    </span>
+                    <PayLogo id={o.id} className="h-6 w-6" />
+                    <span className="text-[13px] font-extrabold text-gray-700">{o.name}</span>
                   </button>
                 )
               })}
