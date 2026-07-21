@@ -45,14 +45,14 @@ export function ForgotPassword() {
         )}
 
         {sent ? (
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-center">
-            <CheckCircle2 size={40} className="mx-auto text-emerald-500" />
-            <p className="mt-2 font-bold text-emerald-800">Email envoyé !</p>
-            <p className="mt-1 text-sm text-emerald-700">
+          <div className="rounded-2xl border border-ivoire-green/20 bg-ivoire-green/10 p-5 text-center">
+            <CheckCircle2 size={40} className="mx-auto text-ivoire-green" />
+            <p className="mt-2 font-bold text-ivoire-green-dark">Email envoyé !</p>
+            <p className="mt-1 text-sm text-ivoire-green-dark">
               Un lien de réinitialisation a été envoyé à <strong>{email}</strong>. Ouvrez-le pour
               choisir un nouveau mot de passe.
             </p>
-            <p className="mt-2 text-xs text-emerald-600">
+            <p className="mt-2 text-xs text-ivoire-green-dark">
               Pensez à vérifier vos courriers indésirables (spam).
             </p>
             <button onClick={() => navigate('/connexion')} className="btn-outline mt-4 w-full py-2.5 text-sm">

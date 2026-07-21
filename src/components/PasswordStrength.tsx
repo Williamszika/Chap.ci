@@ -17,7 +17,7 @@ export function PasswordStrength({ value }: { value: string }) {
           />
         ))}
       </div>
-      <p className={`text-[11px] font-medium ${ok ? 'text-emerald-600' : 'text-gray-500'}`}>
+      <p className={`text-[11px] font-medium ${ok ? 'text-ivoire-green-dark' : 'text-gray-500'}`}>
         {ok ? `Mot de passe ${label.toLowerCase()} ✓` : `Ajoutez : ${missing.join(', ')}`}
       </p>
     </div>

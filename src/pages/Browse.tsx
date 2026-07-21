@@ -468,8 +468,8 @@ function AlertSheet({
         </div>
       ) : done ? (
         <div className="px-1 py-4 text-center">
-          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-emerald-50">
-            <Check size={28} className="text-emerald-600" />
+          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-ivoire-green/10">
+            <Check size={28} className="text-ivoire-green-dark" />
           </div>
           <p className="font-semibold text-gray-800">Alerte créée ✅</p>
           <p className="mx-auto mt-1 max-w-xs text-sm text-gray-500">

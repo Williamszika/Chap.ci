@@ -144,13 +144,13 @@ function Row({
     ask: 'bg-primary-50 text-primary-900',
     progress: 'bg-sky-50 text-sky-900',
     review: 'bg-amber-50 text-amber-900',
-    done: 'bg-emerald-50 text-emerald-800',
+    done: 'bg-ivoire-green/10 text-ivoire-green-dark',
   }[tone]
   const iconCls = {
     ask: 'bg-primary-500',
     progress: 'bg-sky-500',
     review: 'bg-amber-500',
-    done: 'bg-emerald-500',
+    done: 'bg-ivoire-green',
   }[tone]
   return (
     <div className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 ${toneCls}`}>

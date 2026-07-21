@@ -53,10 +53,10 @@ export function ResetPassword() {
             </button>
           </div>
         ) : done ? (
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-center">
-            <ShieldCheck size={40} className="mx-auto text-emerald-500" />
-            <p className="mt-2 font-bold text-emerald-800">Mot de passe modifié ✓</p>
-            <p className="mt-1 text-sm text-emerald-700">Vous êtes connecté. Redirection…</p>
+          <div className="rounded-2xl border border-ivoire-green/20 bg-ivoire-green/10 p-5 text-center">
+            <ShieldCheck size={40} className="mx-auto text-ivoire-green" />
+            <p className="mt-2 font-bold text-ivoire-green-dark">Mot de passe modifié ✓</p>
+            <p className="mt-1 text-sm text-ivoire-green-dark">Vous êtes connecté. Redirection…</p>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">

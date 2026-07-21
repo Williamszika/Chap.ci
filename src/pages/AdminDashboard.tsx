@@ -111,7 +111,7 @@ export function AdminDashboard() {
           </span>
           <button
             onClick={() => { adminLock(); setReload((n) => n + 1) }}
-            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"
+            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-ivoire-green/10 px-3.5 py-1.5 text-xs font-bold text-ivoire-green-dark transition hover:bg-ivoire-green/15 active:scale-95"
             title="Cliquer pour verrouiller le tableau de bord"
           >
             🔓 {role.owner ? 'Déverrouillé' : 'Accès permanent'}
@@ -284,7 +284,7 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
         )}
 
         {err && <p className="mt-3 w-full rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{err}</p>}
-        {info && <p className="mt-3 w-full rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
+        {info && <p className="mt-3 w-full rounded-xl bg-ivoire-green/10 px-4 py-3 text-sm font-medium text-ivoire-green-dark">{info}</p>}
 
         <button type="submit" disabled={busy} className="btn-primary mt-4 w-full py-3.5 text-base">
           {busy ? <Loader2 size={20} className="animate-spin" /> : 'Déverrouiller'}
@@ -326,7 +326,7 @@ function Overview({ stats, onGo, canSee, owner, email }: {
   // libellé + tendance 7 jours (▲ vert) — Signalements en alerte rouge.
   const cards: { e: string; tint: string; label: string; value: number; tab: Tab; trend?: string | null; alert?: boolean }[] = [
     { e: '👥', tint: 'bg-sky-100', label: 'Utilisateurs', value: stats.users, tab: 'users', trend: stats.periods && stats.periods.users.week > 0 ? `${formatPrice(stats.periods.users.week)} (7 j)` : null },
-    { e: '📦', tint: 'bg-emerald-100', label: 'Annonces', value: stats.listings, tab: 'listings', trend: stats.periods && stats.periods.listings.week > 0 ? `${formatPrice(stats.periods.listings.week)} (7 j)` : null },
+    { e: '📦', tint: 'bg-ivoire-green/15', label: 'Annonces', value: stats.listings, tab: 'listings', trend: stats.periods && stats.periods.listings.week > 0 ? `${formatPrice(stats.periods.listings.week)} (7 j)` : null },
     { e: '🤝', tint: 'bg-amber-100', label: 'Commandes', value: stats.orders, tab: 'orders' },
     { e: '🚩', tint: 'bg-red-100', label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
   ]
@@ -348,7 +348,7 @@ function Overview({ stats, onGo, canSee, owner, email }: {
       ? ['BLOQUÉ', 'bg-red-50 text-red-600']
       : s === 'restricted'
         ? ['RESTREINT', 'bg-amber-50 text-amber-700']
-        : ['ACTIF', 'bg-emerald-50 text-emerald-700']
+        : ['ACTIF', 'bg-ivoire-green/10 text-ivoire-green-dark']
 
   // Largeur des cartes adaptée au nombre visible (modérateur : pleine largeur).
   const colsCls = visible.length >= 4 ? 'lg:grid-cols-4' : visible.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
@@ -607,7 +607,7 @@ function PageViewsCard() {
       {/* Enseignements automatiques : tendance + pic */}
       <div className="mt-2 flex flex-wrap gap-1.5">
         {pct !== null && (
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${pct >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+          <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${pct >= 0 ? 'bg-ivoire-green/10 text-ivoire-green-dark' : 'bg-red-50 text-red-600'}`}>
             {pct >= 0 ? '▲' : '▼'} {pct >= 0 ? '+' : ''}{pct} % vs période précédente
           </span>
         )}
@@ -765,7 +765,7 @@ function VisitorsTab() {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-gray-50 p-3 text-center">
-              <p className="font-display text-xl font-bold text-emerald-600">{formatDuration(rt.medianSeconds)}</p>
+              <p className="font-display text-xl font-bold text-ivoire-green-dark">{formatDuration(rt.medianSeconds)}</p>
               <p className="text-[11px] text-gray-500">Réponse habituelle (médiane)</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3 text-center">
@@ -889,7 +889,7 @@ function ListingsTab() {
 
 // ---------- Utilisateurs ----------
 const STATUS_BADGE: Record<UserStatus, { label: string; cls: string }> = {
-  active: { label: 'Actif', cls: 'bg-emerald-50 text-emerald-700' },
+  active: { label: 'Actif', cls: 'bg-ivoire-green/10 text-ivoire-green-dark' },
   restricted: { label: 'Restreint', cls: 'bg-amber-50 text-amber-700' },
   blocked: { label: 'Bloqué', cls: 'bg-red-50 text-red-700' },
 }
@@ -1043,7 +1043,7 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function ModBtn({ active, onClick, disabled, icon, label, tone }: { active: boolean; onClick: () => void; disabled: boolean; icon: ReactNode; label: string; tone: 'emerald' | 'amber' | 'red' }) {
   const tones: Record<string, string> = {
-    emerald: 'border-emerald-500 bg-emerald-500 text-white',
+    emerald: 'border-ivoire-green bg-ivoire-green text-white',
     amber: 'border-amber-500 bg-amber-500 text-white',
     red: 'border-red-500 bg-red-500 text-white',
   }
@@ -1086,7 +1086,7 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-800">
                 {r.reason}
-                {r.status === 'resolved' && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Traité</span>}
+                {r.status === 'resolved' && <span className="rounded-full bg-ivoire-green/10 px-1.5 py-0.5 text-[10px] font-bold text-ivoire-green-dark">Traité</span>}
                 {r.listingHidden && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">Annonce masquée</span>}
               </p>
               <a href={`#/annonce/${r.listingId}`} className="block truncate text-sm text-primary-600 hover:underline">{r.listingTitle}</a>
@@ -1097,7 +1097,7 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
                   {r.listingHidden ? <><Eye size={13} /> Réafficher</> : <><EyeOff size={13} /> Masquer l’annonce</>}
                 </button>
                 {r.status === 'open' && (
-                  <button onClick={() => resolve(r)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
+                  <button onClick={() => resolve(r)} className="flex items-center gap-1 rounded-lg bg-ivoire-green px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-ivoire-green">
                     <CheckCircle2 size={13} /> Marquer traité
                   </button>
                 )}
@@ -1190,7 +1190,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
                 <span className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-800">
                   {m.subject}
                   {m.replyBody != null && <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Répondu</span>}
-                  {m.handled && <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">Traité</span>}
+                  {m.handled && <span className="rounded-full bg-ivoire-green/10 px-1.5 py-0.5 text-[10px] font-bold text-ivoire-green-dark">Traité</span>}
                 </span>
                 {!open && <span className="mt-0.5 block truncate text-sm text-gray-500">{m.message}</span>}
                 <span className="mt-0.5 block break-words text-[11px] text-gray-400">
@@ -1210,12 +1210,12 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
 
                 {m.replyBody != null ? (
                   /* Réponse déjà envoyée */
-                  <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 lg:mt-3">
-                    <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-emerald-700">
+                  <div className="mt-2 rounded-xl border border-ivoire-green/20 bg-ivoire-green/10 p-3 lg:mt-3">
+                    <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-ivoire-green-dark">
                       <CheckCircle2 size={13} /> Réponse envoyée depuis contact@chap.ci
                       {m.repliedAt ? ` · ${timeAgo(m.repliedAt)}` : ''}{m.repliedBy ? ` · par ${m.repliedBy}` : ''}
                     </p>
-                    <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-emerald-900">{m.replyBody}</p>
+                    <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-ivoire-green-dark">{m.replyBody}</p>
                   </div>
                 ) : m.email ? (
                   /* Composer : réponse envoyée par email depuis contact@chap.ci */
@@ -1266,7 +1266,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
                       <Undo2 size={13} /> Rouvrir
                     </button>
                   ) : (
-                    <button onClick={() => mark(m, true)} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-600 md:px-2.5 md:py-1.5 md:text-xs">
+                    <button onClick={() => mark(m, true)} className="flex items-center gap-1 rounded-lg bg-ivoire-green px-3 py-2 text-[13px] font-semibold text-white hover:bg-ivoire-green md:px-2.5 md:py-1.5 md:text-xs">
                       <CheckCircle2 size={13} /> Marquer traité
                     </button>
                   )}
@@ -1287,7 +1287,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
 // ---------- Publicités (écran publicitaire) ----------
 const AD_STATUS_PILL: Record<string, [string, string]> = {
   pending: ['En attente', 'bg-amber-50 text-amber-700'],
-  active: ['À l’écran', 'bg-emerald-50 text-emerald-700'],
+  active: ['À l’écran', 'bg-ivoire-green/10 text-ivoire-green-dark'],
   rejected: ['Rejetée', 'bg-gray-100 text-gray-500'],
   expired: ['Expirée', 'bg-gray-100 text-gray-500'],
 }
@@ -1314,7 +1314,7 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
   }
 
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+    <div className="rounded-2xl border border-ivoire-green/30 bg-ivoire-green/10 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-display text-[15px] font-extrabold text-ink">🌱 Bureau de Croissance SEO</p>
@@ -1327,7 +1327,7 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
           onClick={toggle}
           disabled={busy}
           aria-pressed={st.enabled}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition ${st.enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition ${st.enabled ? 'bg-ivoire-green' : 'bg-gray-300'}`}
           title={st.enabled ? 'Activé' : 'Désactivé'}
         >
           <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${st.enabled ? 'left-[22px]' : 'left-0.5'}`} />
@@ -1335,7 +1335,7 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <span className={`font-semibold ${st.enabled ? 'text-emerald-700' : 'text-gray-500'}`}>
+        <span className={`font-semibold ${st.enabled ? 'text-ivoire-green-dark' : 'text-gray-500'}`}>
           {st.enabled ? '● Actif' : '○ En pause'}
         </span>
         <span className="text-gray-500">
@@ -1345,14 +1345,14 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <button onClick={runNow} disabled={busy} className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50">
+        <button onClick={runNow} disabled={busy} className="flex items-center gap-1.5 rounded-lg bg-ivoire-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-ivoire-green disabled:opacity-50">
           {busy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Générer la diffusion du jour
         </button>
         <button
           onClick={() => { navigator.clipboard?.writeText(cronUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
           className="flex items-center gap-1.5 rounded-lg border border-[#E6DAC6] bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >
-          {copied ? <CheckCircle2 size={13} className="text-emerald-600" /> : <Copy size={13} />} Copier l’URL cron quotidienne
+          {copied ? <CheckCircle2 size={13} className="text-ivoire-green-dark" /> : <Copy size={13} />} Copier l’URL cron quotidienne
         </button>
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
@@ -1511,7 +1511,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           )}
         </div>
 
-        {bMsg && <p className={`mt-2 text-sm ${bMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{bMsg}</p>}
+        {bMsg && <p className={`mt-2 text-sm ${bMsg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{bMsg}</p>}
         <button onClick={broadcast} disabled={bBusy} className="btn-primary mt-3 w-full py-3">
           {bBusy ? <Loader2 size={18} className="animate-spin" /> : '📺 Diffuser à l’écran'}
         </button>
@@ -1551,7 +1551,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                           <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">Diffusion Chap.ci</span>
                         )}
                         {a.kind === 'seo' && (
-                          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">🌱 Croissance SEO</span>
+                          <span className="shrink-0 rounded-full bg-ivoire-green/10 px-2 py-0.5 text-[10px] font-bold text-ivoire-green-dark">🌱 Croissance SEO</span>
                         )}
                       </p>
                       <p className="mt-0.5 text-[11.5px] text-gray-400">
@@ -1594,7 +1594,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                           <Eye size={13} /> Voir en grand
                         </button>
                         {a.status === 'pending' && (
-                          <button onClick={() => act(a, 'approve')} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
+                          <button onClick={() => act(a, 'approve')} className="flex items-center gap-1 rounded-lg bg-ivoire-green px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-ivoire-green">
                             <CheckCircle2 size={13} /> Approuver
                           </button>
                         )}
@@ -1689,7 +1689,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             {/* Accepter / Refuser / Supprimer */}
             <div className="mt-4 flex flex-wrap gap-2">
               {preview.status === 'pending' && (
-                <button onClick={() => { const a = preview; setPreview(null); act(a, 'approve') }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-600">
+                <button onClick={() => { const a = preview; setPreview(null); act(a, 'approve') }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-ivoire-green px-3 py-2.5 text-sm font-bold text-white hover:bg-ivoire-green">
                   <CheckCircle2 size={16} /> Approuver
                 </button>
               )}
@@ -1931,7 +1931,7 @@ function ModeratorsTab() {
                 className="shrink-0 rounded-[11px] border border-[#E6DAC6] bg-white p-3 text-gray-600 transition active:scale-95"
                 aria-label="Copier le code"
               >
-                {copied ? <CheckCircle2 size={18} className="text-emerald-600" /> : <Copy size={18} />}
+                {copied ? <CheckCircle2 size={18} className="text-ivoire-green-dark" /> : <Copy size={18} />}
               </button>
             </div>
             <p className="mt-1.5 text-[11px] text-gray-400">
@@ -1940,7 +1940,7 @@ function ModeratorsTab() {
           </>
         )}
 
-        {msg && <p className={`mt-3 text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
+        {msg && <p className={`mt-3 text-sm ${msg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{msg}</p>}
 
         <div className="mt-3.5 flex gap-2">
           <button type="submit" disabled={busy} className="btn-primary flex-1 py-3 disabled:opacity-50">
@@ -1992,7 +1992,7 @@ function ModeratorsTab() {
                     onClick={() => toggleBlock(m)}
                     className={`rounded-[9px] border px-2.5 py-1.5 text-[11.5px] font-bold transition ${
                       m.blocked
-                        ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                        ? 'border-ivoire-green/30 text-ivoire-green-dark hover:bg-ivoire-green/10'
                         : 'border-red-200 text-red-600 hover:bg-red-50'
                     }`}
                   >
@@ -2090,7 +2090,7 @@ function CampaignsTab() {
             <div className="h-full rounded-full bg-primary-500 transition-[width] duration-300 ease-smooth" style={{ width: `${progress}%` }} />
           </div>
         )}
-        {result && <p className={`text-sm ${result.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{result}</p>}
+        {result && <p className={`text-sm ${result.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{result}</p>}
       </div>
 
       <p className="px-1 text-xs text-gray-400">
@@ -2133,9 +2133,9 @@ function SmartAgents() {
   const copy = () => { navigator.clipboard?.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 1500) }
 
   return (
-    <div className="mt-2 space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+    <div className="mt-2 space-y-3 rounded-2xl border border-ivoire-green/30 bg-ivoire-green/10 p-4">
       <p className="flex items-center gap-1.5 font-display text-sm font-bold text-gray-800">
-        <ShieldCheck size={16} className="text-emerald-600" /> Agents intelligents (suggestions personnalisées)
+        <ShieldCheck size={16} className="text-ivoire-green-dark" /> Agents intelligents (suggestions personnalisées)
       </p>
       <p className="text-sm text-gray-600">
         Un « agent » observe automatiquement chaque utilisateur (<b>favoris</b>, <b>recherches</b>,
@@ -2146,7 +2146,7 @@ function SmartAgents() {
       <button onClick={test} disabled={busy} className="btn-outline py-2 text-sm disabled:opacity-50">
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Tester sur mon compte
       </button>
-      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-gray-500'}`}>{msg}</p>}
+      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-gray-500'}`}>{msg}</p>}
 
       <div className="rounded-xl bg-white p-3">
         <p className="mb-1.5 text-xs font-semibold text-gray-500">
@@ -2156,7 +2156,7 @@ function SmartAgents() {
         <div className="mt-1 flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
           <button onClick={copy} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
-            {copied ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+            {copied ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
           </button>
         </div>
       </div>
@@ -2211,7 +2211,7 @@ function AutoOffers() {
           {busy === 'weekly' ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Tester « de la semaine »
         </button>
       </div>
-      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
+      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{msg}</p>}
 
       <div className="rounded-xl bg-white p-3">
         <p className="mb-1.5 text-xs font-semibold text-gray-500">Pour l’AUTOMATISER (cPanel → Tâches planifiées / Cron Jobs) :</p>
@@ -2221,7 +2221,7 @@ function AutoOffers() {
             <div className="mt-1 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd(type)}</code>
               <button onClick={() => copy(type)} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
-                {copied === type ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                {copied === type ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
               </button>
             </div>
           </div>
@@ -2290,7 +2290,7 @@ function EmailsTab() {
       </div>
 
       {cfg && (
-        <p className={`text-sm font-medium ${cfg.configured ? 'text-emerald-600' : 'text-gray-500'}`}>
+        <p className={`text-sm font-medium ${cfg.configured ? 'text-ivoire-green-dark' : 'text-gray-500'}`}>
           {cfg.configured
             ? <><CheckCircle2 size={15} className="mr-1 inline" /> SMTP configuré et actif.</>
             : 'SMTP non configuré — les emails utilisent mail() (moins fiable).'}
@@ -2327,7 +2327,7 @@ function EmailsTab() {
         <button type="submit" disabled={saving} className="btn-primary w-full py-3 disabled:opacity-50">
           {saving ? <Loader2 size={18} className="animate-spin" /> : <><Save size={18} /> Enregistrer</>}
         </button>
-        {saveMsg && <p className={`text-sm ${saveMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{saveMsg}</p>}
+        {saveMsg && <p className={`text-sm ${saveMsg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{saveMsg}</p>}
       </form>
 
       <div className="rounded-2xl border border-[#E6DAC6] p-4">
@@ -2337,7 +2337,7 @@ function EmailsTab() {
             {testing ? <Loader2 size={16} className="animate-spin" /> : <><Send size={16} /> Envoyer un email de test</>}
           </button>
         </div>
-        {testMsg && <p className={`mt-2 text-sm ${testMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{testMsg}</p>}
+        {testMsg && <p className={`mt-2 text-sm ${testMsg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{testMsg}</p>}
         <p className="mt-2 text-xs text-gray-400">
           Astuce : si <b>localhost</b> ne marche pas, essayez <b>mail.chap.ci</b>. Port 465 = SSL, port 587 = TLS.
         </p>
@@ -2413,7 +2413,7 @@ function AutomationTab() {
             {reveal ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
           <button onClick={() => copy('key', key)} disabled={!key} className="shrink-0 rounded-lg border border-[#E6DAC6] p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Copier la clé">
-            {copied === 'key' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Copy size={16} />}
+            {copied === 'key' ? <CheckCircle2 size={16} className="text-ivoire-green-dark" /> : <Copy size={16} />}
           </button>
         </div>
         <p className="mt-2 text-xs text-gray-500">
@@ -2437,7 +2437,7 @@ function AutomationTab() {
             <div className="mt-2 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{urlFor(j)}</code>
               <button onClick={() => copy(j.id, urlFor(j))} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50" aria-label="Copier l’URL">
-                {copied === j.id ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+                {copied === j.id ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
               </button>
             </div>
             <p className="mt-1 text-[11px] text-gray-400">
@@ -2508,7 +2508,7 @@ function ModerationAutoCard() {
           <div className="mt-2 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-3 py-2 text-[12px] text-gray-100">{fresh}</code>
             <button onClick={() => copy('fresh', fresh)} className="shrink-0 rounded-lg border border-amber-300 bg-white p-2 text-gray-600 hover:bg-amber-100" aria-label="Copier le jeton">
-              {copied === 'fresh' ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Copy size={16} />}
+              {copied === 'fresh' ? <CheckCircle2 size={16} className="text-ivoire-green-dark" /> : <Copy size={16} />}
             </button>
           </div>
           <button onClick={() => setFresh('')} className="mt-2 text-xs font-semibold text-amber-800 underline">J’ai copié le jeton</button>
@@ -2661,7 +2661,7 @@ function BackupTab() {
           <div className="mt-1 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
             <button onClick={copy} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
-              {copied ? <CheckCircle2 size={15} className="text-emerald-600" /> : <Copy size={15} />}
+              {copied ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
             </button>
           </div>
         </div>
@@ -2751,7 +2751,7 @@ function ResetDataBox({ onDone }: { onDone: () => void }) {
         className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-40">
         {busy ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} Réinitialiser les données
       </button>
-      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{msg}</p>}
+      {msg && <p className={`text-sm ${msg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{msg}</p>}
     </div>
   )
 }

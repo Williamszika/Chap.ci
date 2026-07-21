@@ -60,7 +60,7 @@ type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'params'
 
 const statusLabel: Record<string, { label: string; cls: string }> = {
   en_cours: { label: 'En cours', cls: 'bg-amber-50 text-amber-700' },
-  finalise: { label: 'Finalisé', cls: 'bg-emerald-50 text-emerald-700' },
+  finalise: { label: 'Finalisé', cls: 'bg-ivoire-green/10 text-ivoire-green-dark' },
   annule: { label: 'Annulé', cls: 'bg-gray-100 text-gray-500' },
 }
 
@@ -361,13 +361,13 @@ export function Profile() {
               {revenue > 0 && (
                 <button
                   onClick={() => { setShowReviews(false); setSalesFilter('finalise') }}
-                  className="flex w-full items-center justify-between rounded-2xl border border-[#EFE6D7] bg-emerald-50 px-4 py-3.5 text-left shadow-card transition hover:bg-emerald-100 active:scale-[0.99]"
+                  className="flex w-full items-center justify-between rounded-2xl border border-[#EFE6D7] bg-ivoire-green/10 px-4 py-3.5 text-left shadow-card transition hover:bg-ivoire-green/15 active:scale-[0.99]"
                 >
                   <div>
-                    <p className="text-xs font-semibold text-emerald-700">Chiffre d’affaires (ventes finalisées)</p>
-                    <p className="tnum text-lg font-black text-emerald-700">{formatFCFA(revenue)}</p>
+                    <p className="text-xs font-semibold text-ivoire-green-dark">Chiffre d’affaires (ventes finalisées)</p>
+                    <p className="tnum text-lg font-black text-ivoire-green-dark">{formatFCFA(revenue)}</p>
                   </div>
-                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">Détail <ChevronRight size={14} /></span>
+                  <span className="flex items-center gap-1 text-xs font-semibold text-ivoire-green-dark">Détail <ChevronRight size={14} /></span>
                 </button>
               )}
 
@@ -544,7 +544,7 @@ export function Profile() {
                           <p className="text-sm font-bold text-primary-600">{priceLabel(l.price, l.negotiable)}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
                             {l.sold ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-ivoire-green/15 px-2 py-0.5 font-semibold text-ivoire-green-dark">
                                 <BadgeCheck size={11} /> Vendue
                               </span>
                             ) : l.hidden ? (
@@ -552,8 +552,8 @@ export function Profile() {
                                 <EyeOff size={10} /> Masquée
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-600">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> En ligne
+                              <span className="inline-flex items-center gap-1 rounded-full bg-ivoire-green/10 px-2 py-0.5 font-semibold text-ivoire-green-dark">
+                                <span className="h-1.5 w-1.5 rounded-full bg-ivoire-green" /> En ligne
                               </span>
                             )}
                             <span className="inline-flex items-center gap-1 text-gray-500">
@@ -1351,7 +1351,7 @@ function TwoFactor() {
 
       {active && !recovery ? (
         <div>
-          <p className="mb-2 text-sm text-emerald-600">✓ Activée — votre compte est protégé.</p>
+          <p className="mb-2 text-sm text-ivoire-green-dark">✓ Activée — votre compte est protégé.</p>
           <p className="mb-1.5 text-xs text-gray-500">
             Pour la désactiver, entrez un code de votre application (ou un code de secours).
           </p>

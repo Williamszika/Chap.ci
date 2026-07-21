@@ -24,7 +24,7 @@ export const categories: Category[] = [
     id: 'immobilier',
     name: 'Immobilier',
     icon: 'Home',
-    color: 'bg-emerald-100 text-emerald-700',
+    color: 'bg-ivoire-green/15 text-ivoire-green-dark',
     subcategories: ['Location', 'Vente', 'Terrains', 'Bureaux & Commerces', 'Colocation', 'Location vacances'],
   },
   {

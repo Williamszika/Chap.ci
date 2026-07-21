@@ -216,7 +216,7 @@ export function Login() {
                   <input inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="Code reçu par SMS" maxLength={6} className="input text-center text-lg tracking-widest" />
                 )}
                 {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
-                {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{info}</p>}
+                {info && <p className="rounded-xl bg-ivoire-green/10 px-4 py-3 text-sm font-medium text-ivoire-green-dark">{info}</p>}
                 <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
                   {busy ? <Loader2 size={20} className="animate-spin" /> : otpSent ? 'Vérifier le code' : 'Recevoir un code SMS'}
                 </button>

@@ -50,5 +50,5 @@ export function checkPassword(pw: string): PasswordCheck {
 
 /** Couleur Tailwind associée au score (pour la jauge). */
 export function passwordColor(score: number): string {
-  return ['bg-red-500', 'bg-red-400', 'bg-amber-400', 'bg-lime-500', 'bg-emerald-500'][score]
+  return ['bg-red-500', 'bg-red-400', 'bg-amber-400', 'bg-lime-500', 'bg-ivoire-green'][score]
 }

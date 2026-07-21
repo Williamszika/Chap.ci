@@ -271,7 +271,7 @@ export function ListingDetail() {
                 )}
                 {promo && <PromoTag percent={promo.percent} height={24} />}
                 {form.condition && listing.condition === 'neuf' && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 shadow">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-ivoire-green-dark shadow">
                     <BadgeCheck size={12} /> Neuf
                   </span>
                 )}
@@ -676,7 +676,7 @@ function ReportButton({ listingId }: { listingId: string }) {
 
   if (done) {
     return (
-      <p className="mt-4 text-center text-xs text-emerald-600">
+      <p className="mt-4 text-center text-xs text-ivoire-green-dark">
         ✓ Merci, votre signalement a été transmis à la modération.
       </p>
     )

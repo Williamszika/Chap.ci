@@ -86,7 +86,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             </span>
           )}
           {listing.condition === 'neuf' && (
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm">
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-ivoire-green-dark shadow-sm">
               <BadgeCheck size={11} /> Neuf
             </span>
           )}

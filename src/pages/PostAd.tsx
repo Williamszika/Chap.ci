@@ -397,7 +397,7 @@ export function PostAd() {
             </p>
           )}
           {!photoError && !checkingPhotos && images.length > 0 && (
-            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-emerald-600">
+            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-ivoire-green-dark">
               <ShieldCheck size={12} /> Photos analysées automatiquement (anti-nudité).
             </p>
           )}

@@ -297,7 +297,7 @@ export function Advertise() {
             <StepTitle n={2}>Durée d’affichage</StepTitle>
 
             {tariff.member ? (
-              <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[12.5px] font-semibold text-emerald-700">
+              <p className="mt-3 rounded-lg bg-ivoire-green/10 px-3 py-2 text-[12.5px] font-semibold text-ivoire-green-dark">
                 ✓ Tarif membre actif appliqué : −50 % (merci de faire vivre Chap.ci !)
               </p>
             ) : (

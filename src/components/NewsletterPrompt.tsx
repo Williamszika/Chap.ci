@@ -85,7 +85,7 @@ export function NewsletterPrompt() {
 
         {state === 'done' ? (
           <div className="flex flex-col items-center py-4 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-ivoire-green/15 text-ivoire-green-dark">
               <Check size={28} />
             </span>
             <p className="mt-3 font-display text-lg font-bold">Merci, c’est fait ! 🎉</p>
