@@ -6,6 +6,7 @@ import { Footer } from './components/Footer'
 import { LocationGate } from './components/LocationGate'
 import { NewsletterPrompt } from './components/NewsletterPrompt'
 import { FestiveOverlay } from './components/FestiveOverlay'
+import { NativeShell } from './components/NativeShell'
 import { useAuth } from './store/AuthContext'
 import { trackPageView } from './lib/track'
 import { Home } from './pages/Home'
@@ -103,6 +104,7 @@ export default function App() {
         <Footer />
       </div>
       <BottomNav />
+      <NativeShell />
       <LocationGate />
       <NewsletterPrompt />
       {/* Ambiance festive sur tout le site (fête de l'indépendance 🇨🇮) */}
