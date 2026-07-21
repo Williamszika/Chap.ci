@@ -5,6 +5,8 @@ export interface PublicProfile {
   fullName: string
   bio?: string
   avatarUrl?: string
+  /** Badge bleu de vérification (membre fidèle et actif). */
+  verified?: boolean
 }
 
 export async function fetchProfile(id: string): Promise<PublicProfile | null> {

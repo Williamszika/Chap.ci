@@ -14,6 +14,7 @@ import {
   Settings,
   MapPin,
   Star,
+  Check,
   CheckCircle2,
   MessageCircle,
   Camera,
@@ -32,6 +33,8 @@ import {
   HelpCircle,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
+import { VerifiedBadge } from '../components/VerifiedBadge'
+import { fetchVerifyStatus, requestVerify, type VerifyStatus } from '../lib/verify'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { activePromo } from '../lib/promo'
@@ -64,7 +67,7 @@ const statusLabel: Record<string, { label: string; cls: string }> = {
 export function Profile() {
   const navigate = useNavigate()
   const { listings, deleteListing, resetDemo, isMine, favorites } = useApp()
-  const { user, enabled, signOut } = useAuth()
+  const { user, enabled, signOut, refreshUser } = useAuth()
   const isAdmin = useIsAdmin()
   const { place } = useGeo()
   const toast = useToast()
@@ -182,9 +185,7 @@ export function Profile() {
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 font-display text-lg font-black text-ink md:text-xl">
                 <span className="truncate">{displayName || 'Mon compte'}</span>
-                <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-bold text-ivoire-green">
-                  <BadgeCheck size={14} /> Vérifié
-                </span>
+                {user.verified && <VerifiedBadge size={18} title="Compte vérifié" />}
               </p>
               <p className="truncate text-sm text-gray-500">
                 {user.email}{seller.phone ? ` · ${seller.phone}` : ''}
@@ -201,6 +202,9 @@ export function Profile() {
             <MiniStat value={favorites.length} label="favoris" />
             <MiniStat value={rating.count ? rating.avg.toFixed(1) : '—'} label="note" />
           </div>
+
+          {/* Badge de vérification (membre fidèle et actif) */}
+          {isPhp && <VerificationCard verified={!!user.verified} onVerified={refreshUser} />}
 
           {/* Accès administrateur */}
           {isAdmin && (
@@ -819,6 +823,97 @@ function MyAlerts() {
   )
 }
 
+
+/**
+ * Carte « Badge de vérification » : affiche l'état vérifié, ou les conditions à
+ * remplir (≥ 1 an d'ancienneté + vendre et/ou payer une pub) avec un bouton pour
+ * obtenir le badge bleu dès que l'utilisateur est éligible.
+ */
+function VerificationCard({ verified, onVerified }: { verified: boolean; onVerified: () => Promise<void> }) {
+  const toast = useToast()
+  const [status, setStatus] = useState<VerifyStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    fetchVerifyStatus().then((s) => { if (alive) setStatus(s) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+
+  const isVerified = verified || !!status?.verified
+
+  async function obtain() {
+    setBusy(true)
+    try {
+      await requestVerify()
+      toast.success('Félicitations ! Votre compte est vérifié. 🎉')
+      await onVerified()
+      fetchVerifyStatus().then(setStatus).catch(() => {})
+    } catch (e) {
+      toast.error((e as Error).message || 'Vérification impossible pour le moment.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (isVerified) {
+    return (
+      <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[#BEE3FF] bg-[#EAF6FF] p-4 shadow-card">
+        <VerifiedBadge size={32} />
+        <div className="min-w-0 flex-1">
+          <p className="font-display font-black text-[#0B6BCB]">Compte vérifié</p>
+          <p className="text-xs text-[#2E6FA8]">Le badge bleu apparaît à côté de votre nom, ici et sur votre profil public.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+      <div className="flex items-center gap-2">
+        <VerifiedBadge size={22} />
+        <p className="font-display font-black text-ink">Badge de vérification</p>
+      </div>
+      <p className="mt-1 text-sm text-gray-500">
+        Le badge bleu de confiance est offert aux membres fidèles et actifs du site.
+      </p>
+      <div className="mt-3 space-y-2.5">
+        <Criterion
+          ok={!!status?.ageOk}
+          label="Au moins 1 an d’ancienneté"
+          hint={status && !status.ageOk ? `Membre depuis ${status.months} mois sur 12` : undefined}
+        />
+        <Criterion
+          ok={!!status?.activityOk}
+          label="Vendre et/ou payer une publicité"
+          hint={status && !status.activityOk ? 'Publiez une annonce, réalisez une vente ou payez une pub' : undefined}
+        />
+      </div>
+      <button
+        onClick={obtain}
+        disabled={busy || !status || !status.eligible}
+        className="btn-primary mt-4 w-full py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {busy ? 'Vérification…' : status?.eligible ? 'Obtenir le badge vérifié' : 'Conditions non remplies'}
+      </button>
+    </div>
+  )
+}
+
+/** Une condition d'éligibilité (coche verte si remplie, sinon puce grise + indice). */
+function Criterion({ ok, label, hint }: { ok: boolean; label: string; hint?: string }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full ${ok ? 'bg-ivoire-green text-white' : 'bg-gray-200 text-gray-400'}`}>
+        {ok ? <Check size={13} strokeWidth={3} /> : <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+      </span>
+      <span className="min-w-0">
+        <span className={`block text-sm font-semibold ${ok ? 'text-gray-800' : 'text-gray-600'}`}>{label}</span>
+        {hint && <span className="block text-xs text-gray-400">{hint}</span>}
+      </span>
+    </div>
+  )
+}
 
 const rowTints: Record<string, string> = {
   primary: 'bg-primary-100 text-primary-600',

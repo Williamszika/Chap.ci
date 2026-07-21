@@ -19,6 +19,7 @@ const ADMIN_UNLOCK_KEY = 'chapci.admin.unlock'
 export interface PhpUser {
   id: string
   email: string
+  verified?: boolean
   user_metadata?: { full_name?: string | null }
 }
 
@@ -597,6 +598,12 @@ export async function phpAdSubmit<T>(body: Record<string, unknown>): Promise<T> 
 }
 export async function phpAdsActive<T>(): Promise<T> {
   return req<T>('/ads/active')
+}
+export async function phpVerifyStatus<T>(): Promise<T> {
+  return req<T>('/verify/status')
+}
+export async function phpVerifyRequest<T>(): Promise<T> {
+  return req<T>('/verify/request', { method: 'POST' })
 }
 export async function phpAdGet<T>(id: string): Promise<T> {
   return req<T>(`/ads/${id}`)

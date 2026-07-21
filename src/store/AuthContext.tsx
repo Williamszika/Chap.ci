@@ -16,6 +16,7 @@ import * as php from '../lib/php'
 export interface User {
   id: string
   email: string
+  verified?: boolean
   user_metadata?: { full_name?: string | null; avatar_url?: string | null }
 }
 
@@ -58,6 +59,8 @@ interface AuthState {
   verifyLoginMfa: (code: string) => Promise<AuthResult>
   hasPendingMfa: () => boolean
   signOut: () => Promise<void>
+  /** Recharge l'utilisateur depuis le serveur (ex. après obtention du badge vérifié). */
+  refreshUser: () => Promise<void>
   sendPasswordReset: (email: string) => Promise<AuthResult>
   updatePassword: (newPassword: string, currentPassword?: string) => Promise<AuthResult>
   /** true après un clic sur le lien de récupération de mot de passe reçu par email */
@@ -198,6 +201,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const u = await php.phpMe()
+      if (u) setUser(u)
+    } catch { /* ignore */ }
+  }, [])
+
   const sendPasswordReset = useCallback(async (_email: string): Promise<AuthResult> => ({
     error: 'La réinitialisation par email n’est pas disponible sur ce site. Contactez le support à contact@chap.ci.',
   }), [])
@@ -267,6 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     verifyLoginMfa,
     hasPendingMfa,
     signOut,
+    refreshUser,
     sendPasswordReset,
     updatePassword,
     recovery,

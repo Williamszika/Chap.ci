@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check, BadgeCheck } from 'lucide-react'
+import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check } from 'lucide-react'
+import { VerifiedBadge } from '../components/VerifiedBadge'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useToast } from '../store/ToastContext'
@@ -100,14 +101,10 @@ export function SellerProfile() {
             )}
           </div>
 
-          {/* Nom + badge vérifié */}
+          {/* Nom + badge vérifié (bleu, uniquement si le vendeur est vérifié) */}
           <h1 className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 font-display text-2xl font-black text-ink">
             <span className="break-words">{displayName}</span>
-            {profile && (
-              <span className="inline-flex items-center gap-1 text-sm font-bold text-ivoire-green">
-                <BadgeCheck size={18} /> Vérifié
-              </span>
-            )}
+            {profile?.verified && <VerifiedBadge size={22} title="Vendeur vérifié" />}
           </h1>
 
           {/* Métadonnées */}

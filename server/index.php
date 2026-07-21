@@ -1071,6 +1071,9 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_pending $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_enabled $intT DEFAULT 0"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_recovery $txt"); } catch (Throwable $e) {}
+  // Badge de vérification bleu : compte fidèle (≥ 1 an) et actif (vend et/ou paie).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN verified $intT DEFAULT 0"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN verified_at $ts"); } catch (Throwable $e) {}
   // Rôles fins des modérateurs : liste des fonctionnalités autorisées (JSON) +
   // code d'accès personnel au tableau de bord (haché). Vide = ancien modérateur.
   try { $pdo->exec("ALTER TABLE admins ADD COLUMN permissions $txt"); } catch (Throwable $e) {}
@@ -1159,8 +1162,32 @@ function user_public(PDO $pdo, array $u): array {
     $s = $pdo->prepare('SELECT status FROM users WHERE id = ?'); $s->execute([$u['id']]);
     $status = $s->fetch()['status'] ?? null;
   }
+  $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
   return ['id' => $u['id'], 'email' => $u['email'], 'status' => $status ?: 'active',
+          'verified' => ((int) ($vf->fetchColumn() ?: 0)) === 1,
           'user_metadata' => ['full_name' => $name]];
+}
+/** Éligibilité au badge « vérifié » : ≥ 1 an d'ancienneté ET actif (vend et/ou paie). */
+function verify_eligibility(PDO $pdo, array $u): array {
+  $uid = $u['id'];
+  $st = $pdo->prepare('SELECT created_at FROM users WHERE id = ?'); $st->execute([$uid]);
+  $created = (string) ($st->fetchColumn() ?: now_iso());
+  $ageDays = (time() - (int) strtotime($created)) / 86400;
+  $months  = max(0, (int) floor($ageDays / 30.4));
+  $count = function (string $sql, array $args) use ($pdo): int {
+    try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+    catch (Throwable $e) { return 0; }
+  };
+  $listings = $count('SELECT COUNT(*) FROM listings WHERE user_id = ?', [$uid]);               // vend
+  $sold     = $count('SELECT COUNT(*) FROM orders WHERE seller_id = ?', [$uid]);               // a vendu
+  $paidAds  = $count("SELECT COUNT(*) FROM ads WHERE user_id = ? AND status IN ('active','expired')", [$uid]); // paie
+  $ageOk = $ageDays >= 365;
+  $activityOk = ($listings > 0) || ($sold > 0) || ($paidAds > 0);
+  return [
+    'ageOk' => $ageOk, 'activityOk' => $activityOk, 'eligible' => $ageOk && $activityOk,
+    'memberSince' => $created, 'months' => $months,
+    'listings' => $listings, 'sold' => $sold, 'paidAds' => $paidAds,
+  ];
 }
 /** Emails « propriétaires » (config.php) : admins permanents, non supprimables. */
 function owner_emails(array $config): array {
@@ -3515,7 +3542,33 @@ try {
     $st = $pdo->prepare('SELECT id,full_name,bio,avatar_url FROM profiles WHERE id = ?');
     $st->execute([$seg[1]]); $p = $st->fetch();
     if (!$p) jout(null);
-    jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null, 'avatarUrl' => $p['avatar_url'] ?: null]);
+    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$p['id']]);
+    jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
+          'avatarUrl' => $p['avatar_url'] ?: null, 'verified' => ((int) ($vf->fetchColumn() ?: 0)) === 1]);
+  }
+
+  // ---------- BADGE DE VÉRIFICATION (bleu) ----------
+  // Éligible : ≥ 1 an d'ancienneté ET actif (a publié/vendu ou payé une pub).
+  if ($path === 'verify/status' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+    $e = verify_eligibility($pdo, $u);
+    jout([
+      'verified' => ((int) ($vf->fetchColumn() ?: 0)) === 1,
+      'eligible' => $e['eligible'], 'ageOk' => $e['ageOk'], 'activityOk' => $e['activityOk'],
+      'months' => $e['months'],
+    ]);
+  }
+  // L'utilisateur demande la vérification : accordée automatiquement si éligible.
+  if ($path === 'verify/request' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+    if (((int) ($vf->fetchColumn() ?: 0)) === 1) jout(['verified' => true, 'already' => true]);
+    $e = verify_eligibility($pdo, $u);
+    if (!$e['ageOk']) jerr('Il faut au moins 1 an d’ancienneté sur Chap.ci (vous êtes membre depuis ' . $e['months'] . ' mois).');
+    if (!$e['activityOk']) jerr('Publiez une annonce, réalisez une vente ou payez une publicité pour être vérifié.');
+    $pdo->prepare('UPDATE users SET verified = 1, verified_at = ? WHERE id = ?')->execute([now_iso(), $u['id']]);
+    jout(['verified' => true]);
   }
 
   if ($path === 'profile' && $method === 'PUT') {
