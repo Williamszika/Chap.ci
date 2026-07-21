@@ -1302,7 +1302,7 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
   useEffect(load, [])
   if (!st) return null
 
-  const cronUrl = `${st.site}/api/cron/seo?key=${st.cronKey}`
+  const cronUrl = `${st.site}/api/cron/seo?key=${encodeURIComponent(st.cronKey)}`
   const toggle = async () => {
     setBusy(true)
     try { await setSeoEnabled(!st.enabled); load() } catch (e) { alert((e as Error).message) } finally { setBusy(false) }
@@ -2129,7 +2129,7 @@ function SmartAgents() {
     finally { setBusy(false) }
   }
 
-  const cmd = info ? `curl -s "${info.site}/api/cron/suggestions?key=${info.cronKey}" >/dev/null 2>&1` : ''
+  const cmd = info ? `curl -s "${info.site}/api/cron/suggestions?key=${encodeURIComponent(info.cronKey)}" >/dev/null 2>&1` : ''
   const copy = () => { navigator.clipboard?.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 1500) }
 
   return (
@@ -2185,7 +2185,7 @@ function AutoOffers() {
   }
 
   const cmd = (type: string) =>
-    info ? `curl -s "${info.site}/api/cron/digest?key=${info.cronKey}&type=${type}" >/dev/null 2>&1` : ''
+    info ? `curl -s "${info.site}/api/cron/digest?key=${encodeURIComponent(info.cronKey)}&type=${type}" >/dev/null 2>&1` : ''
 
   const copy = (type: string) => {
     navigator.clipboard?.writeText(cmd(type))
@@ -2382,7 +2382,9 @@ function AutomationTab() {
 
   const key = info.cronKey
   const masked = key ? `${key.slice(0, 4)}${'•'.repeat(Math.max(8, key.length - 8))}${key.slice(-4)}` : '(aucune)'
-  const urlFor = (j: typeof CRON_JOBS[number]) => `${info.site}/api/cron/${j.id}${j.query ? `${j.query}&` : '?'}key=${key}`
+  // La clé peut contenir des caractères spéciaux (%, ?, &, =, ;…) : on l'encode
+  // pour l'URL, sinon l'URL copiée serait corrompue → 403 « Clé invalide ».
+  const urlFor = (j: typeof CRON_JOBS[number]) => `${info.site}/api/cron/${j.id}${j.query ? `${j.query}&` : '?'}key=${encodeURIComponent(key)}`
 
   return (
     <div className="space-y-4">
@@ -2611,7 +2613,7 @@ function BackupTab() {
     finally { setDownloading(false) }
   }
 
-  const cmd = info ? `curl -s "${info.site}/api/cron/backup?key=${info.cronKey}" >/dev/null 2>&1` : ''
+  const cmd = info ? `curl -s "${info.site}/api/cron/backup?key=${encodeURIComponent(info.cronKey)}" >/dev/null 2>&1` : ''
   const copy = () => {
     navigator.clipboard?.writeText(cmd)
     setCopied(true)
