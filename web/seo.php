@@ -261,6 +261,8 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
   $publish = $site . '/#/publier';
   $explore = $site . '/#/explorer?cat=' . $catSlug;
   $t = h($title); $d = h($desc); $c = h($canon);
+  // Image d'aperçu (partage WhatsApp/Facebook) : une bannière 1200×630 par catégorie.
+  $oi = h($site . '/og/' . $catSlug . '.png');
 
   // Annonces récentes de la catégorie : preuve d'activité + maillage interne.
   $items = [];
@@ -280,7 +282,9 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
   echo "<meta name=\"robots\" content=\"index, follow\">\n";
   echo "<meta property=\"og:type\" content=\"website\">\n<meta property=\"og:title\" content=\"$t\">\n";
   echo "<meta property=\"og:description\" content=\"$d\">\n<meta property=\"og:url\" content=\"$c\">\n";
-  echo "<meta property=\"og:site_name\" content=\"Chap.ci\">\n<meta name=\"twitter:card\" content=\"summary\">\n";
+  echo "<meta property=\"og:site_name\" content=\"Chap.ci\">\n";
+  echo "<meta property=\"og:image\" content=\"$oi\">\n<meta property=\"og:image:width\" content=\"1200\">\n<meta property=\"og:image:height\" content=\"630\">\n<meta property=\"og:image:alt\" content=\"$t\">\n";
+  echo "<meta name=\"twitter:card\" content=\"summary_large_image\">\n<meta name=\"twitter:image\" content=\"$oi\">\n";
   // JSON-LD : fil d'Ariane (rich results).
   $crumbs = [['name' => 'Accueil', 'item' => $site . '/'], ['name' => $catLabel, 'item' => $site . '/vendre/' . $catSlug]];
   if ($cityName !== '') $crumbs[] = ['name' => $cityName, 'item' => $canon];

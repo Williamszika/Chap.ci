@@ -100,6 +100,9 @@ export default defineConfig({
           '**/ort*.js', '**/ort*.mjs', '**/ort*.wasm',
           // Brique IA d'analyse des photos (TensorFlow + modèle) — chargée à la demande.
           '**/nsfw*.js', '**/*tensorflow*', '**/*tfjs*', '**/*mobilenet*',
+          // Bannières d'aperçu social (og/*.png, ~3,8 Mo) : servies aux robots
+          // WhatsApp/Facebook uniquement, jamais affichées dans l'app → hors précache.
+          'og/**',
         ],
         // Le gros bundle IA dépasse la limite par défaut : on garde une marge
         // sans forcer sa mise en cache (il est ignoré ci-dessus de toute façon).
