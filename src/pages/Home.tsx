@@ -10,6 +10,8 @@ import {
   Navigation,
   LocateFixed,
   X,
+  Store,
+  PlusCircle,
 } from 'lucide-react'
 import { categories } from '../data/categories'
 import { PromoBanner } from '../components/PromoBanner'
@@ -22,6 +24,7 @@ import { Newsletter } from '../components/Newsletter'
 import { IndependenceBanner } from '../components/IndependenceBanner'
 import { NotificationBell } from '../components/NotificationBell'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { haversineKm } from '../lib/geo'
@@ -39,6 +42,11 @@ export function Home() {
   const navigate = useNavigate()
   const { search } = useLocation()
   const { listings, loading } = useApp()
+  const { user } = useAuth()
+  // Activation : on invite à publier tant que la personne n'a pas d'annonce
+  // (visiteur non connecté, ou compte sans aucune annonce en ligne).
+  const myListingsCount = user ? listings.filter((l) => l.sellerId === user.id).length : 0
+  const showSellCta = !user || myListingsCount === 0
 
   // Lien profond /?voir=categories (pied de page) : défile jusqu'à la grille
   // des catégories.
@@ -237,6 +245,29 @@ export function Home() {
 
       {/* Bannière publicitaire / mise en avant */}
       <PromoBanner />
+
+      {/* Activation vendeur : « Publiez votre 1ʳᵉ annonce gratuitement » */}
+      {showSellCta && (
+        <section className="px-4 pt-4">
+          <Link
+            to="/publier"
+            className="txt-legible flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 p-4 text-white shadow-card transition active:scale-[0.99] md:hover:brightness-[1.03]"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/20">
+              <Store size={24} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-base font-black leading-tight">Vous avez un truc à vendre&nbsp;? 🇨🇮</p>
+              <p className="mt-0.5 text-sm text-white/90">
+                Publiez votre 1ʳᵉ annonce <b>gratuitement</b> — en ligne en 2 minutes.
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-white px-3 py-2 text-sm font-bold text-primary-700 shadow-sm">
+              <PlusCircle size={16} /> Publier
+            </span>
+          </Link>
+        </section>
+      )}
 
       {/* Catégories */}
       <section id="categories" className="scroll-mt-20 px-4 py-5">
