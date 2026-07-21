@@ -1098,6 +1098,9 @@ function migrate(PDO $pdo): void {
   // Badge de vérification bleu : compte fidèle (≥ 1 an) et actif (vend et/ou paie).
   try { $pdo->exec("ALTER TABLE users ADD COLUMN verified $intT DEFAULT 0"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN verified_at $ts"); } catch (Throwable $e) {}
+  // Relance d'activation : date d'envoi de l'e-mail « publiez votre 1ʳᵉ annonce »
+  // (envoyé UNE seule fois par compte — jamais de spam).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN activation_emailed $ts"); } catch (Throwable $e) {}
   // Rôles fins des modérateurs : liste des fonctionnalités autorisées (JSON) +
   // code d'accès personnel au tableau de bord (haché). Vide = ancien modérateur.
   try { $pdo->exec("ALTER TABLE admins ADD COLUMN permissions $txt"); } catch (Throwable $e) {}
@@ -4871,6 +4874,43 @@ try {
       @set_time_limit(30);
       if (send_ad_status_email($config, $ad, 'expiring')) $sent++;
       $pdo->prepare("UPDATE ads SET expiry_notified = '1' WHERE id = ?")->execute([$ad['id']]);
+    }
+    jout(['checked' => count($rows), 'emailed' => $sent]);
+  }
+
+  // ---------- RELANCE D'ACTIVATION : inscrits sans annonce ----------
+  // Invite (UNE seule fois) les comptes créés depuis ≥ 3 jours, sans aucune
+  // annonce, à publier leur première. Authentifié par la clé cron. Chaque envoi
+  // est marqué (activation_emailed) → jamais deux fois, jamais de spam.
+  if ($path === 'cron/activation-relance' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $before = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400); // inscrit il y a ≥ 3 jours
+    $st = $pdo->prepare("SELECT u.id, u.email FROM users u
+      WHERE u.email IS NOT NULL AND u.email <> ''
+        AND (u.status IS NULL OR u.status NOT IN ('blocked','restricted'))
+        AND u.activation_emailed IS NULL
+        AND u.created_at <= ?
+        AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.user_id = u.id)
+      ORDER BY u.created_at ASC LIMIT 200");
+    $st->execute([$before]);
+    $rows = $st->fetchAll();
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    @set_time_limit(0);
+    $sent = 0;
+    foreach ($rows as $u) {
+      @set_time_limit(30);
+      $inner = '<h2 style="margin:0 0 6px">Vendez votre premier article sur Chap.ci 🇨🇮</h2>'
+        . '<p style="color:#374151;margin:0 0 14px">Bonjour,<br>Vous avez un téléphone, un vêtement, un meuble ou un service à proposer ? '
+        . 'Sur Chap.ci, publier une annonce est <b>100&nbsp;% gratuit</b> et prend <b>moins de 2&nbsp;minutes</b> — '
+        . 'des milliers d\'Ivoiriens cherchent des bonnes affaires près de chez eux.</p>'
+        . '<p style="margin:0 0 16px">' . email_button($site . '/#/publier', 'Publier une annonce gratuitement') . '</p>'
+        . '<p style="color:#6b7280;font-size:13px;margin:0">C\'est rapide, sûr, et vous gérez tout depuis votre compte. À très vite sur Chap.ci&nbsp;! 🧡💚</p>';
+      $html = email_layout($config, $inner, 'Publiez votre première annonce, c\'est gratuit');
+      if (send_mail($config, (string) $u['email'], 'Vendez votre premier article sur Chap.ci 🇨🇮', $html)) $sent++;
+      // Marqué dans tous les cas → une seule tentative par compte (comme les autres relances).
+      $pdo->prepare('UPDATE users SET activation_emailed = ? WHERE id = ?')->execute([now_iso(), $u['id']]);
     }
     jout(['checked' => count($rows), 'emailed' => $sent]);
   }
