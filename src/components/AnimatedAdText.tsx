@@ -24,6 +24,7 @@ export function AnimatedAdText({
   anims,
   gapMs,
   loop = true,
+  color,
   className = '',
 }: {
   text: string
@@ -31,6 +32,8 @@ export function AnimatedAdText({
   anims: string[]
   gapMs: number
   loop?: boolean
+  /** Couleur du texte choisie par l'admin (prioritaire sur le style). */
+  color?: string | null
   className?: string
 }) {
   const list = anims && anims.length ? anims : ['fondu']
@@ -43,7 +46,11 @@ export function AnimatedAdText({
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current) }, [])
 
   const styleClass = `ad-style-${style ?? 'classique'}`
-  if (reduced) return <div className={`${styleClass} ${className}`}>{text}</div>
+  // La couleur choisie prime (et neutralise le remplissage dégradé du style « ivoire »).
+  const colorStyle = color
+    ? { color, WebkitTextFillColor: color, backgroundImage: 'none' as const }
+    : undefined
+  if (reduced) return <div className={`${styleClass} ${className}`} style={colorStyle}>{text}</div>
 
   const current = list[step % list.length]
 
@@ -59,6 +66,7 @@ export function AnimatedAdText({
       key={step}
       onAnimationEnd={onEnd}
       className={`ad-anim-${current} ${styleClass} ${className}`}
+      style={colorStyle}
     >
       {text}
     </div>

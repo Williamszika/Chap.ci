@@ -249,3 +249,36 @@ select:focus-visible,
   [class*="ad-anim-"] { animation: none !important; filter: none !important; clip-path: none !important; letter-spacing: normal !important; background-size: 100% 100% !important; }
   .ad-anim-machine { max-width: none; }
 }
+
+/* ============================================================================
+   Écran publicitaire façon PANNEAU LED GÉANT.
+   Superpositions non cliquables (pointer-events:none) posées PAR-DESSUS le
+   contenu : les clics passent au travers, seuls les boutons dessous réagissent.
+   ========================================================================= */
+/* Matrice de « pixels » LED (points ronds séparés par des interstices sombres). */
+.led-grid {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.34) 62%);
+  background-size: 4px 4px;
+}
+@media (min-width: 768px) { .led-grid { background-size: 6px 6px; } }
+/* Cadre/bezel du panneau + halo lumineux + vignette (ombre intérieure). */
+.led-frame {
+  position: absolute; inset: 0; pointer-events: none; z-index: 6;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.07),
+    inset 0 0 0 7px #0b0b0b,
+    inset 0 0 46px rgba(0, 0, 0, 0.55),
+    inset 0 0 120px rgba(255, 255, 255, 0.05);
+}
+/* Halo lumineux autour du panneau : « l'écran émet de la lumière ». */
+.led-screen { box-shadow: 0 10px 34px -6px rgba(0, 0, 0, 0.5), 0 0 60px -14px rgba(247, 127, 0, 0.35); }
+/* Balayage lumineux lent (« l'écran est allumé »). */
+.led-scan {
+  position: absolute; left: 0; right: 0; top: 0; height: 45%; pointer-events: none; z-index: 5;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.05) 50%, transparent);
+  animation: led-sweep 7s linear infinite;
+}
+@keyframes led-sweep { 0% { transform: translateY(-110%); } 100% { transform: translateY(330%); } }
+@media (prefers-reduced-motion: reduce) { .led-scan { display: none; } }

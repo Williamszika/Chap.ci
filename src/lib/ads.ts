@@ -30,6 +30,8 @@ export interface Ad {
   animGap?: number
   /** Animer en boucle continue pendant toute la durée d'affichage (défaut : oui). */
   animLoop?: boolean
+  /** Couleur du texte (ex. « #FFFFFF ») pour rester lisible sur l'image. */
+  textColor?: string | null
 }
 
 export interface SeoState {
@@ -118,6 +120,7 @@ export async function adminAdBroadcast(input: {
   anims: string[]
   gap: number
   loop: boolean
+  textColor: string
   days: number
 }): Promise<{ ok: boolean; id: string }> {
   if (!isPhp) throw new Error('Le tableau de bord admin nécessite le backend PHP.')

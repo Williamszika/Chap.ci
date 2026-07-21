@@ -29,6 +29,7 @@ import {
   AD_STYLES, AD_ANIMS, AD_GAP_MIN, AD_GAP_MAX, AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
 } from '../lib/ads'
 import { AnimatedAdText } from '../components/AnimatedAdText'
+import { AdImageFill } from '../components/AdImageFill'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
 
@@ -1374,6 +1375,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [bAnims, setBAnims] = useState<string[]>(['fondu']) // animations enchaînées du texte
   const [bGap, setBGap] = useState(AD_GAP_DEFAULT)          // pause (s) entre animations
   const [bLoop, setBLoop] = useState(true)                  // enchaîner en boucle par défaut
+  const [bTextColor, setBTextColor] = useState('#FFFFFF')   // couleur du texte (lisibilité)
   const [bDays, setBDays] = useState(7)
   const [bImg, setBImg] = useState<string | null>(null)
   const [bBusy, setBBusy] = useState(false)
@@ -1403,7 +1405,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
       await adminAdBroadcast({
         title: bTitle.trim(), description: bDesc.trim(), link: bLink.trim(),
         images: bImg ? [bImg] : [], style: bStyle,
-        anims: bAnims.length ? bAnims : ['fondu'], gap: bGap, loop: bLoop, days: bDays,
+        anims: bAnims.length ? bAnims : ['fondu'], gap: bGap, loop: bLoop, textColor: bTextColor, days: bDays,
       })
       setBMsg('✓ Diffusion lancée : le message est à l’écran.')
       setBTitle(''); setBDesc(''); setBLink(''); setBImg(null)
@@ -1508,6 +1510,33 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             <span className="ml-1 font-normal text-gray-400">— rejoue les animations avec la pause ci-dessus (sinon, une seule fois)</span>
           </span>
         </label>
+
+        {/* Couleur du texte : pour rester lisible par-dessus l'image. */}
+        <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
+          <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-gray-400">Couleur du texte</span>
+          <div className="flex flex-1 flex-wrap items-center gap-1.5">
+            {['#FFFFFF', '#000000', '#F77F00', '#009E60', '#FFD400', '#E4002B'].map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setBTextColor(c)}
+                aria-label={`Couleur ${c}`}
+                className={`h-6 w-6 rounded-full border transition ${bTextColor.toUpperCase() === c ? 'ring-2 ring-[#F77F00] ring-offset-1' : 'border-black/10'}`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+            <label className="relative h-6 w-6 cursor-pointer overflow-hidden rounded-full border border-black/10" title="Couleur personnalisée">
+              <span className="absolute inset-0" style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }} />
+              <input
+                type="color"
+                value={/^#[0-9a-fA-F]{6}$/.test(bTextColor) ? bTextColor : '#FFFFFF'}
+                onChange={(e) => setBTextColor(e.target.value.toUpperCase())}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </label>
+          </div>
+          <span className="tnum text-[11px] font-semibold text-gray-500">{bTextColor}</span>
+        </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <input
             value={bLink}
@@ -1541,34 +1570,34 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           )}
         </div>
 
-        {/* Aperçu en direct de la diffusion (l'animation rejoue à chaque réglage) */}
-        <div className="relative mt-3 flex min-h-[130px] flex-col items-center justify-center overflow-hidden rounded-2xl bg-black p-4 text-center text-white">
-          {bImg && (
-            <img
-              src={bImg}
-              alt=""
-              className={`absolute inset-0 h-full w-full object-cover ${bTitle.trim() || bDesc.trim() ? 'opacity-45' : 'opacity-100'}`}
-            />
-          )}
+        {/* Aperçu en direct — rendu identique à l'écran LED (image nette + texte). */}
+        <div className="led-screen relative mt-3 flex min-h-[150px] flex-col items-center justify-center overflow-hidden rounded-2xl bg-black p-4 text-center text-white">
+          {/* Image NETTE (conversion auto), jamais un simple fond assombri. */}
+          {bImg && <AdImageFill src={bImg} />}
           {bImg && !bTitle.trim() && !bDesc.trim() ? (
             /* Image seule : aucun texte, juste le visuel plein cadre + badge */
             <span className="relative self-start rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur">Publicité</span>
           ) : (
             <>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
-              <div className="relative flex w-full flex-col items-center gap-1.5">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-black/20" />
+              <div className="relative flex w-full flex-col items-center gap-1.5 [text-shadow:0_2px_10px_rgba(0,0,0,.55)]">
                 <AnimatedAdText
                   text={bTitle || 'Votre message ici'}
                   style={bStyle}
+                  color={bTextColor}
                   anims={bAnims.length ? bAnims : ['fondu']}
                   gapMs={bGap * 1000}
                   loop={bLoop}
                   className="text-xl font-extrabold"
                 />
-                {bDesc && <p className="text-xs text-white/75">{bDesc}</p>}
+                {bDesc && <p className="text-xs font-semibold" style={{ color: bTextColor }}>{bDesc}</p>}
               </div>
             </>
           )}
+          {/* Superpositions écran LED */}
+          <div className="led-scan" aria-hidden />
+          <div className="led-grid" aria-hidden />
+          <div className="led-frame" aria-hidden />
         </div>
 
         {bMsg && <p className={`mt-2 text-sm ${bMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{bMsg}</p>}

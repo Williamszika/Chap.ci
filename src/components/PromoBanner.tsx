@@ -64,22 +64,24 @@ export function PromoBanner() {
 
   return (
     <section className="pt-2">
-      <div className="relative flex min-h-[200px] flex-col justify-end overflow-hidden bg-black text-white shadow-card-lg md:min-h-[290px] md:rounded-3xl">
+      <div className="led-screen relative flex min-h-[200px] flex-col justify-end overflow-hidden bg-black text-white md:min-h-[290px] md:rounded-3xl">
         {ad && ad.kind !== 'paid' && (ad.title || ad.description) ? (
           /* Diffusion Chap.ci (admin) ou Bureau de Croissance SEO AVEC texte :
              message ANIMÉ, style d'écriture choisi. Une diffusion « image seule »
              (sans texte) passe, elle, dans le rendu image plein cadre ci-dessous.
              key={ad.id} force le remontage → l'animation rejoue à chaque rotation. */
           <div key={ad.id} className="relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-            {img && (
-              <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/25" />
-            <div className="relative flex flex-col items-center gap-3">
+            {/* Image NETTE (conversion auto, comme « image seule ») + texte PAR-DESSUS :
+                les deux restent bien visibles. La couleur du texte est réglable. */}
+            {img && <AdImageFill src={img} />}
+            {/* Voile léger : lisibilité du texte sans assombrir l'image. */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-black/20" />
+            <div className="relative flex flex-col items-center gap-3 [text-shadow:0_2px_10px_rgba(0,0,0,.55)]">
               {ad.title && (
                 <AnimatedAdText
                   text={ad.title}
                   style={ad.style ?? 'classique'}
+                  color={ad.textColor}
                   anims={ad.anims?.length ? ad.anims : (ad.anim ? [ad.anim] : ['fondu'])}
                   gapMs={Math.max(5, Math.min(60, ad.animGap ?? 8)) * 1000}
                   loop={ad.animLoop !== false}
@@ -87,7 +89,10 @@ export function PromoBanner() {
                 />
               )}
               {ad.description && (
-                <p className="max-w-2xl text-sm leading-relaxed text-white/80 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden md:text-base">
+                <p
+                  className="max-w-2xl text-sm font-semibold leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden md:text-base"
+                  style={{ color: ad.textColor || 'rgba(255,255,255,0.9)' }}
+                >
                   {ad.description}
                 </p>
               )}
@@ -228,6 +233,10 @@ export function PromoBanner() {
             </div>
           </div>
         )}
+        {/* Superposition « écran LED géant » : grille de pixels + cadre/halo + balayage. */}
+        <div className="led-scan" aria-hidden />
+        <div className="led-grid" aria-hidden />
+        <div className="led-frame" aria-hidden />
       </div>
     </section>
   )
