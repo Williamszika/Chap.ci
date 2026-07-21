@@ -38,6 +38,8 @@ export function Advertise() {
   const [qty, setQty] = useState(1)
   const [payMethod, setPayMethod] = useState(donationOperators[0].id)
   const [payNumber, setPayNumber] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [website, setWebsite] = useState('') // pot de miel anti-robot
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -96,7 +98,9 @@ export function Advertise() {
     if (link.trim() !== '' && !/^https?:\/\//i.test(link.trim()))
       return setError('Le lien doit commencer par https:// (ou laissez-le vide).')
     if (payNumber.replace(/\D/g, '').length < 8)
-      return setError('Indiquez le numéro Mobile Money qui effectuera le paiement.')
+      return setError('Indiquez le numéro Mobile Money qui a effectué le paiement.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      return setError('Indiquez un e-mail valide pour recevoir le statut de votre publicité.')
     setBusy(true)
     try {
       const r = await submitAd({
@@ -108,6 +112,8 @@ export function Advertise() {
         qty,
         payMethod,
         payNumber: payNumber.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
         website,
       })
       setDone({ id: r.id, price: r.price })
@@ -321,7 +327,29 @@ export function Advertise() {
           {/* 3 · Paiement */}
           <section className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:p-5">
             <StepTitle n={3}>Paiement</StepTitle>
-            <div className="mt-4 grid grid-cols-4 gap-2.5">
+
+            {/* Consigne : combien payer et où l'envoyer (Orange Money ou Wave). */}
+            <div className="mt-3 rounded-xl border border-[#F4D9B0] bg-[#FFF6EC] p-3">
+              <p className="text-sm text-gray-700">
+                Envoyez <b className="tnum text-ink">{formatFCFA(total)}</b> par <b>Orange Money</b> ou <b>Wave</b> au numéro Chap.ci :
+              </p>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText('0759901120'); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+                className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-[#E6DAC6] bg-white px-3 py-2.5 text-left transition active:scale-[0.99]"
+              >
+                <span className="tnum font-display text-lg font-extrabold text-ink">07 59 90 11 20</span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600">
+                  {copied ? <><Check size={14} /> Copié</> : <><Copy size={14} /> Copier</>}
+                </span>
+              </button>
+              <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                Après votre versement, indiquez ci-dessous <b>votre numéro</b> (celui qui a payé) : il nous sert à
+                retrouver votre paiement et valider la pub.
+              </p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
               {donationOperators.map((o) => {
                 const on = payMethod === o.id
                 return (
@@ -329,21 +357,18 @@ export function Advertise() {
                     key={o.id}
                     onClick={() => setPayMethod(o.id)}
                     aria-pressed={on}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl border px-1 py-3 transition ${
+                    className={`flex items-center justify-center gap-2 rounded-xl border px-2 py-3 transition ${
                       on ? 'border-primary-500 bg-[#FFF6EC]' : 'border-[#E6DAC6] bg-white hover:bg-[#FFFBF4]'
                     }`}
                   >
-                    <span
-                      className={o.id === 'moov' ? 'h-5 w-5 rotate-45 rounded-[4px]' : 'h-6 w-6 rounded-full'}
-                      style={{ backgroundColor: o.color }}
-                    />
-                    <span className="text-[11px] font-extrabold text-gray-700">{o.name.split(' ')[0]}</span>
+                    <span className="h-5 w-5 rounded-full" style={{ backgroundColor: o.color }} />
+                    <span className="text-[13px] font-extrabold text-gray-700">{o.name}</span>
                   </button>
                 )
               })}
             </div>
             <label htmlFor="ad-paynum" className="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
-              Numéro Mobile Money
+              Votre numéro (celui qui a payé)
             </label>
             <input
               id="ad-paynum"
@@ -354,9 +379,35 @@ export function Advertise() {
               placeholder="Ex : 07 00 00 00 00"
               className="input"
             />
+
+            <label htmlFor="ad-email" className="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
+              Votre e-mail <span className="font-normal text-gray-400">(pour le statut de la pub)</span>
+            </label>
+            <input
+              id="ad-email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              inputMode="email"
+              maxLength={190}
+              placeholder="vous@exemple.com"
+              className="input"
+            />
             <p className="mt-1.5 text-[11px] leading-relaxed text-gray-400">
-              Le numéro qui enverra le paiement — il nous sert à retrouver votre versement pour valider la pub.
+              Vous recevrez par e-mail : la réception, la validation, et un rappel avant l'expiration (pour renouveler).
             </p>
+
+            <label htmlFor="ad-phone" className="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
+              Téléphone <span className="font-normal text-gray-400">(facultatif)</span>
+            </label>
+            <input
+              id="ad-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
+              inputMode="tel"
+              maxLength={20}
+              placeholder="Ex : 07 00 00 00 00"
+              className="input"
+            />
           </section>
         </div>
 

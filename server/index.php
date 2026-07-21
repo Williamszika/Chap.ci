@@ -1102,6 +1102,10 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim_gap $txt"); } catch (Throwable $e) {}
   // Couleur du texte de la diffusion (ex. « #FFFFFF »), pour la lisibilité sur l'image.
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN text_color $txt"); } catch (Throwable $e) {}
+  // Contact de l'annonceur (pour les notifications de statut) + rappel d'expiration envoyé.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN email $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN phone $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN expiry_notified $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
@@ -1723,6 +1727,48 @@ function send_welcome_email(array $config, string $to, string $fullName = ''): b
   return send_mail($config, $to, "Bienvenue sur $name 🎉",
     email_layout($config, $inner, "Votre compte $name est prêt — achetez et vendez chap-chap partout en Côte d’Ivoire."));
 }
+/** Notification e-mail à l'annonceur selon le statut de sa publicité. Best-effort. */
+function send_ad_status_email(array $config, array $ad, string $kind): bool {
+  $to = trim((string) ($ad['email'] ?? ''));
+  if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name  = $config['mail_from_name'] ?? 'Chap.ci';
+  $price = number_format((int) ($ad['price'] ?? 0), 0, ',', "\u{00A0}");
+  $titleTxt = trim((string) ($ad['title'] ?? '')) !== '' ? '« ' . htmlspecialchars((string) $ad['title']) . ' »' : 'votre bannière';
+  $expTxt = !empty($ad['expires_at']) ? gmdate('d/m/Y', (int) strtotime((string) $ad['expires_at'])) : '';
+  $pub = $site . '/#/publicite';
+  if ($kind === 'pending') {
+    $subject = "Votre publicité est bien reçue — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Publicité reçue ✅</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>Nous avons bien reçu ' . $titleTxt . '. Elle est <b>en attente de validation</b> : notre équipe '
+      . 'vérifie votre paiement de <b>' . $price . ' FCFA</b>, puis votre bannière passe à l’écran.</p>'
+      . '<p>Vous recevrez un e-mail dès qu’elle est en ligne. Merci de votre confiance !</p>';
+  } elseif ($kind === 'active') {
+    $subject = "Votre publicité est en ligne 🎉 — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">C’est en ligne 🎉</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' est <b>validée et diffusée</b> sur l’écran publicitaire de ' . htmlspecialchars($name) . '.</p>'
+      . ($expTxt ? '<p>Elle restera affichée jusqu’au <b>' . $expTxt . '</b>.</p>' : '')
+      . email_button($pub, 'Gérer mes publicités');
+  } elseif ($kind === 'rejected') {
+    $subject = "Votre publicité n’a pas été validée — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Publicité non validée</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>Malheureusement ' . $titleTxt . ' n’a pas pu être validée (paiement introuvable ou visuel non conforme).</p>'
+      . '<p>Si vous pensez qu’il s’agit d’une erreur, répondez simplement à cet e-mail.</p>'
+      . email_button($pub, 'Refaire une publicité');
+  } else { // expiring
+    $subject = "Votre publicité expire bientôt — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Bientôt terminée ⏳</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' se termine ' . ($expTxt ? 'le <b>' . $expTxt . '</b>' : 'très bientôt') . '. '
+      . 'Pour rester à l’écran sans interruption, pensez à la <b>renouveler</b>.</p>'
+      . email_button($pub, 'Renouveler ma publicité');
+  }
+  return send_mail($config, $to, $subject, email_layout($config, $inner, $subject));
+}
+
 /** Résumé lisible des articles d'une commande (ex : « Vélo » (+2 autres)). */
 function items_summary(array $items): string {
   $titles = array_values(array_filter(array_map(fn($it) => trim((string) ($it['title'] ?? '')), $items)));
@@ -3568,17 +3614,23 @@ try {
     if (!$images) jerr('Ajoutez au moins un visuel pour votre bannière.');
     $formule = in_array($b['formule'] ?? '', ['day', 'week', 'month'], true) ? $b['formule'] : 'week';
     $qty = max(1, min(31, (int) ($b['qty'] ?? 1)));
-    $method_ = in_array($b['payMethod'] ?? '', ['orange', 'mtn', 'moov', 'wave'], true) ? $b['payMethod'] : 'orange';
+    $method_ = in_array($b['payMethod'] ?? '', ['orange', 'wave'], true) ? $b['payMethod'] : 'orange';
     $payNum = preg_replace('/[^0-9+ ]/', '', (string) ($b['payNumber'] ?? ''));
-    if (strlen(preg_replace('/\D/', '', $payNum)) < 8) jerr('Indiquez le numéro Mobile Money qui effectuera le paiement.');
+    if (strlen(preg_replace('/\D/', '', $payNum)) < 8) jerr('Indiquez le numéro Mobile Money qui a effectué le paiement.');
+    // Contact de l'annonceur : e-mail OBLIGATOIRE (sert aux notifications de statut).
+    $email = strtolower(trim((string) ($b['email'] ?? ($u['email'] ?? ''))));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Indiquez un e-mail valide pour recevoir le statut de votre publicité.');
+    $phone = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['phone'] ?? '')), 0, 20);
     $tariff = ad_tariff($pdo, $u);
     $price  = $tariff['prices'][$formule] * $qty;
     $id = uuid();
-    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,email,phone)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
         ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), $formule, $qty,
-                   $price, $method_, mb_substr($payNum, 0, 20), 'pending', null, null, client_ip(), now_iso()]);
+                   $price, $method_, mb_substr($payNum, 0, 20), 'pending', null, null, client_ip(), now_iso(), $email, $phone]);
     log_security_event($pdo, 'ad_submit', $u['email'] ?? null); // compteur anti-spam
+    // Notification « reçue, en attente de validation » à l'annonceur.
+    send_ad_status_email($config, ['email' => $email, 'title' => $title, 'price' => $price], 'pending');
     jout(['ok' => true, 'id' => $id, 'price' => $price, 'member' => $tariff['member']]);
   }
 
@@ -4063,6 +4115,8 @@ try {
         'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
         'formule' => $r['formule'], 'qty' => (int) $r['qty'], 'price' => (int) $r['price'],
         'payMethod' => $r['pay_method'], 'payNumber' => $r['pay_number'],
+        'email' => ($r['email'] ?? '') !== '' ? $r['email'] : null,
+        'phone' => ($r['phone'] ?? '') !== '' ? $r['phone'] : null,
         'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
         'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
         'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
@@ -4164,14 +4218,18 @@ try {
       if (!$ad) jerr('Publicité introuvable.', 404);
       $unit = ['day' => 86400, 'week' => 7 * 86400, 'month' => 30 * 86400][$ad['formule']] ?? 7 * 86400;
       $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $unit * max(1, (int) $ad['qty']));
-      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ? WHERE id = ?")
+      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ?, expiry_notified = '' WHERE id = ?")
           ->execute([now_iso(), $expires, $seg[2]]);
+      // Notification « en ligne » à l'annonceur (avec la date de fin).
+      send_ad_status_email($config, array_merge($ad, ['expires_at' => $expires]), 'active');
       jout(['ok' => true, 'expiresAt' => iso_to_ms($expires)]);
     }
 
     // Rejeter une pub (visuel non conforme, paiement absent…).
     if (count($seg) === 4 && $seg[1] === 'ads' && $seg[3] === 'reject' && $method === 'POST') {
+      $st = $pdo->prepare('SELECT * FROM ads WHERE id = ?'); $st->execute([$seg[2]]); $ad = $st->fetch();
       $pdo->prepare("UPDATE ads SET status = 'rejected' WHERE id = ?")->execute([$seg[2]]);
+      if ($ad) send_ad_status_email($config, $ad, 'rejected'); // notification à l'annonceur
       jout(['ok' => true]);
     }
 
@@ -4562,6 +4620,30 @@ try {
         ->execute([$id, null, $b['title'], $b['description'], $b['link'] ?? '', json_encode([]), 'day', 1,
                    0, '', '', 'active', $now, $expires, 'cron', $now, 'seo', $b['style'], $b['anim'], '1']);
     jout(['ok' => true, 'id' => $id, 'goal' => $b['goal'], 'title' => $b['title'], 'style' => $b['style'], 'anim' => $b['anim']]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : rappel d'expiration des publicités ----------
+  // Prévient l'annonceur ~3 jours avant la fin pour qu'il renouvelle (1 seul rappel).
+  if ($path === 'cron/ads-expiring' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+      jerr('Clé invalide.', 403);
+    }
+    $now  = now_iso();
+    $soon = gmdate('Y-m-d\TH:i:s\Z', time() + 3 * 86400); // fin dans 3 jours
+    $st = $pdo->prepare("SELECT * FROM ads
+      WHERE status = 'active' AND email IS NOT NULL AND email <> ''
+        AND (expiry_notified IS NULL OR expiry_notified <> '1')
+        AND expires_at > ? AND expires_at <= ?");
+    $st->execute([$now, $soon]);
+    $rows = $st->fetchAll();
+    @set_time_limit(0);
+    $sent = 0;
+    foreach ($rows as $ad) {
+      @set_time_limit(30);
+      if (send_ad_status_email($config, $ad, 'expiring')) $sent++;
+      $pdo->prepare("UPDATE ads SET expiry_notified = '1' WHERE id = ?")->execute([$ad['id']]);
+    }
+    jout(['checked' => count($rows), 'emailed' => $sent]);
   }
 
   // ---------- TÂCHE PLANIFIÉE : suggestions personnalisées (2×/semaine) ----------

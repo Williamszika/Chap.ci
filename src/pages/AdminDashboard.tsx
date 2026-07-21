@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, MessageSquare, Star, Mail,
   Loader2, Lock, Download, Trash2, TrendingUp, RefreshCw,
-  Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX, AlertTriangle,
+  Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX, AlertTriangle, X,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { formatPrice, formatFCFA, timeAgo } from '../lib/format'
@@ -1364,6 +1364,7 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
 function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [items, setItems] = useState<AdminAd[] | null>(null)
   const [err, setErr] = useState('')
+  const [preview, setPreview] = useState<AdminAd | null>(null) // pub ouverte en grand
   const load = () => { setItems(null); setErr(''); fetchAdminAds().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
@@ -1614,11 +1615,20 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
               return (
                 <div key={a.id} className="py-3">
                   <div className="flex items-start gap-3">
-                    {a.images[0] ? (
-                      <img src={a.images[0]} alt="" className="h-12 w-20 shrink-0 rounded-lg object-cover" />
-                    ) : (
-                      <span className="grid h-12 w-20 shrink-0 place-items-center rounded-lg bg-gray-900 text-lg">📺</span>
-                    )}
+                    <button
+                      onClick={() => setPreview(a)}
+                      aria-label="Voir la publicité en grand"
+                      className="group relative h-12 w-20 shrink-0 overflow-hidden rounded-lg"
+                    >
+                      {a.images[0] ? (
+                        <img src={a.images[0]} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="grid h-full w-full place-items-center bg-gray-900 text-lg">📺</span>
+                      )}
+                      <span className="absolute inset-0 grid place-items-center text-white opacity-0 transition group-hover:bg-black/45 group-hover:opacity-100">
+                        <Eye size={16} />
+                      </span>
+                    </button>
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-1.5">
                         <span className="truncate font-display text-sm font-bold text-gray-800">{a.title || <span className="italic text-gray-400">(image seule)</span>}</span>
@@ -1640,7 +1650,35 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                         {' · '}reçue {timeAgo(a.createdAt)}
                         {a.link && <> · <a href={a.link} target="_blank" rel="noopener noreferrer nofollow" className="text-primary-600 underline">lien</a></>}
                       </p>
+
+                      {/* Vérification du paiement (pubs payantes en attente) : montant,
+                          moyen, numéro du payeur, contact — pour valider avant activation. */}
+                      {a.kind !== 'admin' && a.kind !== 'seo' && a.status === 'pending' && (
+                        <div className="mt-2 rounded-lg border border-[#F4D9B0] bg-[#FFF6EC] p-2.5 text-[12px] leading-relaxed text-gray-700">
+                          <p className="font-bold text-ink">💳 Vérifier le paiement avant d’approuver</p>
+                          <div className="mt-1 grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
+                            <span>Montant&nbsp;: <b className="tnum text-ink">{formatPrice(a.price)} F</b></span>
+                            <span>Moyen&nbsp;: <b>{a.payMethod === 'wave' ? 'Wave' : 'Orange Money'}</b></span>
+                            <span className="sm:col-span-2">
+                              Payé depuis&nbsp;: <b className="tnum">{a.payNumber || '—'}</b> → vers <b className="tnum">07 59 90 11 20</b>
+                            </span>
+                            {a.email && (
+                              <span className="truncate sm:col-span-2">
+                                Contact&nbsp;: <a href={`mailto:${a.email}`} className="text-primary-600 underline">{a.email}</a>
+                                {a.phone ? <> · <a href={`tel:${a.phone.replace(/\s/g, '')}`} className="text-primary-600">{a.phone}</a></> : null}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            Confirmez la réception de <b className="tnum">{formatPrice(a.price)} F</b> depuis ce numéro, puis approuvez.
+                          </p>
+                        </div>
+                      )}
+
                       <div className="mt-2 flex flex-wrap gap-1.5">
+                        <button onClick={() => setPreview(a)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                          <Eye size={13} /> Voir en grand
+                        </button>
                         {a.status === 'pending' && (
                           <button onClick={() => act(a, 'approve')} className="flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
                             <CheckCircle2 size={13} /> Approuver
@@ -1663,6 +1701,106 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           </div>
         )}
       </div>
+
+      {/* Aperçu « en grand » : voir la pub complète, puis accepter / refuser. */}
+      {preview && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => setPreview(null)}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-lg font-extrabold text-ink">Aperçu de la publicité</h3>
+              <button onClick={() => setPreview(null)} aria-label="Fermer" className="grid h-8 w-8 place-items-center rounded-full text-gray-500 hover:bg-gray-100">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Rendu fidèle de la bannière, comme à l'écran */}
+            <div className="relative flex min-h-[220px] flex-col justify-end overflow-hidden rounded-2xl bg-black text-white">
+              {preview.images[0] && <AdImageFill src={preview.images[0]} />}
+              {(preview.title || preview.description) ? (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-black/20" />
+                  <div className="relative flex flex-col items-center gap-2 p-5 text-center [text-shadow:0_2px_10px_rgba(0,0,0,.55)]">
+                    {preview.title && (
+                      <AnimatedAdText
+                        text={preview.title}
+                        style={preview.style ?? 'classique'}
+                        color={preview.textColor}
+                        anims={preview.anims?.length ? preview.anims : (preview.anim ? [preview.anim] : ['fondu'])}
+                        gapMs={Math.max(5, Math.min(60, preview.animGap ?? 8)) * 1000}
+                        loop={preview.animLoop !== false}
+                        className="text-2xl font-extrabold leading-tight"
+                      />
+                    )}
+                    {preview.description && (
+                      <p className="text-sm font-semibold" style={{ color: preview.textColor || 'rgba(255,255,255,0.9)' }}>{preview.description}</p>
+                    )}
+                  </div>
+                </>
+              ) : preview.images[0] ? (
+                <span className="absolute left-3 top-3 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/85 backdrop-blur">Publicité</span>
+              ) : null}
+            </div>
+
+            {/* Visuels supplémentaires */}
+            {preview.images.length > 1 && (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {preview.images.map((im, i) => <img key={i} src={im} alt="" className="h-20 w-full rounded-lg object-cover" />)}
+              </div>
+            )}
+
+            {/* Détails complets */}
+            <div className="mt-3 space-y-1 text-[13px]">
+              {preview.kind !== 'admin' && preview.kind !== 'seo' ? (
+                <>
+                  <KV k="Montant à vérifier" v={<b className="tnum text-ink">{formatPrice(preview.price)} F</b>} />
+                  <KV k="Formule" v={`${preview.qty} ${AD_FORMULE_LABEL[preview.formule] ?? preview.formule}`} />
+                  <KV k="Payé via" v={preview.payMethod === 'wave' ? 'Wave' : 'Orange Money'} />
+                  <KV k="Numéro du payeur" v={<span className="tnum">{preview.payNumber || '—'} → 07 59 90 11 20</span>} />
+                  {preview.email && <KV k="Contact" v={<a href={`mailto:${preview.email}`} className="text-primary-600 underline">{preview.email}</a>} />}
+                  {preview.phone && <KV k="Téléphone" v={<a href={`tel:${preview.phone.replace(/\s/g, '')}`} className="text-primary-600">{preview.phone}</a>} />}
+                </>
+              ) : (
+                <KV k="Type" v={preview.kind === 'seo' ? '🌱 Croissance SEO' : 'Diffusion Chap.ci'} />
+              )}
+              {preview.link && <KV k="Lien" v={<a href={preview.link} target="_blank" rel="noopener noreferrer nofollow" className="text-primary-600 underline">{preview.link}</a>} />}
+              {preview.expiresAt ? <KV k="Fin" v={new Date(preview.expiresAt).toLocaleDateString('fr-FR')} /> : null}
+            </div>
+
+            {/* Accepter / Refuser / Supprimer */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {preview.status === 'pending' && (
+                <button onClick={() => { const a = preview; setPreview(null); act(a, 'approve') }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-600">
+                  <CheckCircle2 size={16} /> Approuver
+                </button>
+              )}
+              {(preview.status === 'pending' || preview.status === 'active') && (
+                <button onClick={() => { const a = preview; setPreview(null); act(a, 'reject') }} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50">
+                  <Ban size={16} /> {preview.status === 'active' ? 'Retirer de l’écran' : 'Refuser'}
+                </button>
+              )}
+              <button onClick={() => { const a = preview; setPreview(null); remove(a) }} aria-label="Supprimer" className="flex items-center justify-center gap-1.5 rounded-xl border border-[#E6DAC6] px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Ligne clé/valeur des détails d'une publicité (aperçu admin). */
+function KV({ k, v }: { k: string; v: ReactNode }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="shrink-0 text-gray-400">{k}</span>
+      <span className="break-all text-right font-semibold text-ink">{v}</span>
     </div>
   )
 }
@@ -2304,6 +2442,7 @@ const CRON_JOBS: { id: string; label: string; desc: string; query?: string; sche
   { id: 'digest',         label: 'Résumé du jour',              desc: 'Envoie aux abonnés les nouvelles annonces du jour.',                          query: '?type=daily', schedule: 'Chaque jour à 18h',   cronExpr: '0 18 * * *' },
   { id: 'suggestions',    label: 'Suggestions personnalisées',  desc: 'Recommande à chaque utilisateur des annonces selon ses centres d’intérêt.',                     schedule: 'Lundi & jeudi à 9h',  cronExpr: '0 9 * * 1,4' },
   { id: 'seo',            label: 'Bureau de Croissance SEO',    desc: 'Publie chaque jour une diffusion animée sur l’écran (annonce, publication ou message) selon les objectifs du site.', schedule: 'Chaque jour à 9h', cronExpr: '0 9 * * *' },
+  { id: 'ads-expiring',   label: 'Rappel d’expiration des pubs', desc: 'Prévient l’annonceur par e-mail ~3 jours avant la fin de sa publicité pour qu’il la renouvelle.', schedule: 'Chaque jour à 11h', cronExpr: '0 11 * * *' },
   { id: 'alerts',         label: 'Alertes recherches',          desc: 'Prévient quand une annonce correspond à une recherche sauvegardée.',                            schedule: 'Toutes les 2 heures', cronExpr: '0 */2 * * *' },
   { id: 'review-invites', label: 'Invitations à noter',         desc: 'Invite l’acheteur à laisser un avis après une vente confirmée par le vendeur.',                 schedule: 'Chaque jour à 10h',   cronExpr: '0 10 * * *' },
   { id: 'stats',          label: 'Statistiques hebdo',          desc: 'Agrégats anonymes d’activité (pour le rapport hebdomadaire).', query: '?days=7',                schedule: 'Lundi à 7h',          cronExpr: '0 7 * * 1' },

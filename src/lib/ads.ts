@@ -48,6 +48,9 @@ export interface AdminAd extends Ad {
   price: number
   payMethod: string
   payNumber: string
+  /** Contact de l'annonceur (notifications de statut + vérification). */
+  email?: string | null
+  phone?: string | null
   status: 'pending' | 'active' | 'rejected' | 'expired'
   expiresAt?: number | null
   createdAt: number
@@ -73,6 +76,8 @@ export async function submitAd(input: {
   qty: number
   payMethod: string
   payNumber: string
+  email: string
+  phone?: string
   website?: string // pot de miel
 }): Promise<{ ok: boolean; id: string; price: number; member: boolean }> {
   if (!isPhp) throw new Error('La publicité nécessite le backend Chap.ci.')
