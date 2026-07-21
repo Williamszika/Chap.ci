@@ -2561,13 +2561,15 @@ function ModerationAutoCard() {
       <div className="rounded-xl bg-primary-50/60 p-3 text-xs text-primary-800">
         <p className="font-semibold">Donner le jeton à la routine « Le Gardien »</p>
         <p className="mt-1 text-primary-700">
-          En-tête HTTP <code className="rounded bg-white px-1">X-Service-Token: LE_JETON</code> (ou paramètre
-          <code className="rounded bg-white px-1"> ?stoken=LE_JETON</code>). Points d’entrée :
+          Transmettez-le <b>uniquement</b> dans l’en-tête HTTP
+          <code className="rounded bg-white px-1"> X-Service-Token: LE_JETON</code> (jamais dans l’URL —
+          un secret en query-string finit dans les journaux). Points d’entrée :
         </p>
         <ul className="mt-1 list-inside list-disc text-primary-700">
           <li><code>GET {base}</code> — lire la file (annonces + signalements + score de risque)</li>
           <li><code>POST /api/mod/hide</code> — masquer (haute confiance)</li>
           <li><code>POST /api/mod/flag</code> — signaler pour revue humaine</li>
+          <li><code>POST /api/mod/seen</code> — marquer « examinées, OK » (ne plus les revoir)</li>
           <li><code>POST /api/mod/digest</code> — envoyer le récap par email</li>
         </ul>
       </div>

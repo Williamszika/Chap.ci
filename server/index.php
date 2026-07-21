@@ -1036,8 +1036,20 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, token_id $id, action $txt, listing_id $id, reason $txt,
       confidence $txt, meta $txt, created_at $ts
     )$eng",
+    // Annonces déjà examinées ET jugées OK par la modération auto : évite de les
+    // re-servir dans la file à chaque passage (les actions réelles restent, elles,
+    // dans mod_actions et le journal d'audit).
+    "CREATE TABLE IF NOT EXISTS mod_seen (
+      listing_id $id PRIMARY KEY, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
+
+  // Index d'exclusion de la file de modération : la file écarte les annonces déjà
+  // traitées via mod_actions.listing_id. Idempotent (try/catch : MySQL ne connaît
+  // pas « CREATE INDEX IF NOT EXISTS »).
+  try { $pdo->exec("CREATE INDEX idx_mod_actions_listing ON mod_actions (listing_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
 
   // Colonnes ajoutées après coup : on les crée sur les bases déjà existantes.
   // (CREATE TABLE IF NOT EXISTS ne touche pas une table déjà présente.)
@@ -1324,15 +1336,19 @@ function service_token_hash(string $raw): string { return hash('sha256', $raw); 
 
 /**
  * Authentifie un jeton de service pour un périmètre (scope) donné, ex. 'moderation'.
- * Le jeton est lu dans l'en-tête X-Service-Token ou le paramètre ?stoken=.
- * Renvoie la ligne du jeton (dont son id) ou coupe la requête (401/403/429).
+ * Le jeton est lu UNIQUEMENT dans l'en-tête HTTP X-Service-Token — jamais dans
+ * l'URL : un secret en query-string finirait en clair dans les journaux d'accès
+ * du serveur/CDN (CWE-598). Renvoie la ligne du jeton ou coupe (401/403/429).
  */
 function require_service_token(PDO $pdo, string $scope): array {
   // Anti-force-brute : borne les échecs par IP (comme le reste du site).
   rate_limit($pdo, 'mtoken_fail', null, 20, 600);
   $raw = trim((string) ($_SERVER['HTTP_X_SERVICE_TOKEN'] ?? ''));
-  if ($raw === '') $raw = trim((string) ($_GET['stoken'] ?? ''));
-  if (strlen($raw) < 24) { log_security_event($pdo, 'mtoken_fail', null, 'missing'); jerr('Jeton de service requis.', 401); }
+  if ($raw === '' && function_exists('apache_request_headers')) {
+    $h = apache_request_headers();
+    $raw = trim((string) ($h['X-Service-Token'] ?? $h['x-service-token'] ?? ''));
+  }
+  if (strlen($raw) < 24) { log_security_event($pdo, 'mtoken_fail', null, 'missing'); jerr('Jeton de service requis (en-tête X-Service-Token).', 401); }
   $st = $pdo->prepare('SELECT * FROM service_tokens WHERE token_hash = ? LIMIT 1');
   $st->execute([service_token_hash($raw)]);
   $tok = $st->fetch();
@@ -4890,11 +4906,13 @@ try {
         'listing'    => $r['id'] ? $shape($r) : null,
       ];
     }, $rp);
-    // 2) Annonces récentes visibles jamais encore examinées par la modération auto.
+    // 2) Annonces récentes visibles jamais encore examinées par la modération auto
+    //    (ni action dans mod_actions, ni marquage « vue/RAS » dans mod_seen).
     $st = $pdo->prepare("SELECT l.id, l.title, l.description, l.price, l.category_id, l.images, l.hidden, l.user_id, l.created_at
       FROM listings l
       WHERE (l.hidden IS NULL OR l.hidden = 0)
         AND l.id NOT IN (SELECT listing_id FROM mod_actions WHERE listing_id IS NOT NULL)
+        AND l.id NOT IN (SELECT listing_id FROM mod_seen)
       ORDER BY l.created_at DESC LIMIT " . (int) $limit);
     $st->execute();
     $recent = array_map($shape, $st->fetchAll());
@@ -4902,7 +4920,7 @@ try {
       'reports' => $reports,
       'recent'  => $recent,
       'counts'  => ['reports' => count($reports), 'recent' => count($recent)],
-      'guide'   => 'Masquer: POST /api/mod/hide {listingId,reason,confidence}. Signaler: POST /api/mod/flag {listingId,reason,details}. Digest: POST /api/mod/digest {examined,hidden:[],flagged:[],notes}.',
+      'guide'   => 'Authentification: en-tête HTTP X-Service-Token. Masquer: POST /api/mod/hide {listingId,reason,confidence}. Signaler: POST /api/mod/flag {listingId,reason,details}. Marquer examinées-OK (pour ne plus les revoir): POST /api/mod/seen {listingIds:[]}. Digest: POST /api/mod/digest {examined,hidden:[],flagged:[],notes}.',
     ]);
   }
   // Masquer une annonce (cas à haute confiance : illégal / NSFW). Idempotent + audité.
@@ -4941,6 +4959,21 @@ try {
     }
     mod_audit($pdo, $tok['id'], 'flag', $lid, $reason . ($details ? ' — ' . $details : ''), 'medium', ['created' => $created]);
     jout(['ok' => true, 'listingId' => $lid, 'created' => $created]);
+  }
+  // Marquer des annonces « examinées et OK » → elles ne reviennent plus dans la file.
+  // (N'entre PAS dans le journal d'audit : réservé aux vraies actions hide/flag.)
+  if ($path === 'mod/seen' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $ids = array_values(array_unique(array_filter(array_map(fn($x) => trim((string) $x), (array) ($b['listingIds'] ?? [])))));
+    $ids = array_slice($ids, 0, 500);
+    $ins = $pdo->prepare('INSERT INTO mod_seen (listing_id, created_at) VALUES (?, ?)');
+    $marked = 0;
+    foreach ($ids as $lid) {
+      try { $ins->execute([$lid, now_iso()]); $marked++; }
+      catch (Throwable $e) { /* déjà marquée (clé primaire) : on ignore */ }
+    }
+    jout(['ok' => true, 'marked' => $marked]);
   }
   // Envoyer le digest de modération aux propriétaires + modérateurs.
   if ($path === 'mod/digest' && $method === 'POST') {
