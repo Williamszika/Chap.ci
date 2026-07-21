@@ -87,7 +87,7 @@ export function TopNav() {
         <Link
           to="/favoris"
           aria-label="Favoris"
-          className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
+          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
         >
           <Heart size={19} />
           {favorites.length > 0 && (
@@ -99,7 +99,7 @@ export function TopNav() {
 
         <NotificationBell
           align="right"
-          buttonClass="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
+          buttonClass="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
         />
 
         {user ? (

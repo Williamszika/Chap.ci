@@ -170,7 +170,7 @@ export function Home() {
         {/* Sélecteur de lieu */}
         <button
           onClick={() => setLocOpen(true)}
-          className="-ml-1.5 mt-2 flex min-h-[40px] items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-white/95 md:mt-2.5"
+          className="-ml-1.5 mt-2 flex min-h-[44px] items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-white/95 md:mt-2.5"
         >
           <MapPin size={16} />
           <span className="max-w-[70vw] truncate">
@@ -190,7 +190,7 @@ export function Home() {
               onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
               placeholder="Rechercher une voiture, un téléphone…"
               aria-label="Rechercher"
-              className="w-full bg-transparent text-[15px] text-gray-800 outline-none placeholder:text-gray-400 md:text-lg"
+              className="w-full bg-transparent text-[16px] text-gray-800 outline-none placeholder:text-gray-400 md:text-lg"
             />
             {q && (
               <button type="button" onClick={() => setQ('')} aria-label="Effacer" className="shrink-0 text-gray-400">
