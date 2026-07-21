@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Mail, Lock, User, Loader2, Eye, EyeOff, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Mail, Lock, User, Loader2, Eye, EyeOff, RefreshCw, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { FacebookSignInButton } from '../components/FacebookSignInButton'
@@ -132,11 +132,17 @@ export function Register() {
   return (
     <div className="flex min-h-[72vh] items-center justify-center px-5 py-8 md:min-h-[78vh]">
       <div className="w-full max-w-sm rounded-[22px] border border-[#EFE6D7] bg-white p-6 shadow-[0_12px_34px_-10px_rgba(120,70,10,0.28),0_6px_14px_-8px_rgba(120,70,10,0.20)] md:max-w-[420px] md:p-7">
+        <button
+          onClick={() => navigate('/')}
+          className="mb-3 -ml-1 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
+        >
+          <ArrowLeft size={16} /> Accueil
+        </button>
         <div className="mb-5 flex flex-col items-center text-center">
-          <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/')} className="flex items-center gap-2" aria-label="Accueil Chap.ci">
             <Mark size={30} />
             <Wordmark className="text-lg text-ink" />
-          </div>
+          </button>
           <h1 className="mt-3 font-display text-[22px] font-extrabold leading-tight text-ink">Créer un compte</h1>
           <p className="mt-1 text-sm text-gray-500">C’est gratuit, en 30 secondes.</p>
         </div>
