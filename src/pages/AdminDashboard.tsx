@@ -1570,8 +1570,8 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           )}
         </div>
 
-        {/* Aperçu en direct — rendu identique à l'écran LED (image nette + texte). */}
-        <div className="led-screen relative mt-3 flex min-h-[150px] flex-col items-center justify-center overflow-hidden rounded-2xl bg-black p-4 text-center text-white">
+        {/* Aperçu en direct de la diffusion (image nette + texte animé par-dessus). */}
+        <div className="relative mt-3 flex min-h-[150px] flex-col items-center justify-center overflow-hidden rounded-2xl bg-black p-4 text-center text-white">
           {/* Image NETTE (conversion auto), jamais un simple fond assombri. */}
           {bImg && <AdImageFill src={bImg} />}
           {bImg && !bTitle.trim() && !bDesc.trim() ? (
@@ -1594,10 +1594,6 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
               </div>
             </>
           )}
-          {/* Superpositions écran LED */}
-          <div className="led-scan" aria-hidden />
-          <div className="led-grid" aria-hidden />
-          <div className="led-frame" aria-hidden />
         </div>
 
         {bMsg && <p className={`mt-2 text-sm ${bMsg.startsWith('✓') ? 'text-emerald-600' : 'text-red-600'}`}>{bMsg}</p>}

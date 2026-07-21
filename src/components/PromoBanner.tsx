@@ -64,7 +64,7 @@ export function PromoBanner() {
 
   return (
     <section className="pt-2">
-      <div className="led-screen relative flex min-h-[200px] flex-col justify-end overflow-hidden bg-black text-white md:min-h-[290px] md:rounded-3xl">
+      <div className="relative flex min-h-[200px] flex-col justify-end overflow-hidden bg-black text-white shadow-card-lg md:min-h-[290px] md:rounded-3xl">
         {ad && ad.kind !== 'paid' && (ad.title || ad.description) ? (
           /* Diffusion Chap.ci (admin) ou Bureau de Croissance SEO AVEC texte :
              message ANIMÉ, style d'écriture choisi. Une diffusion « image seule »
@@ -233,10 +233,6 @@ export function PromoBanner() {
             </div>
           </div>
         )}
-        {/* Superposition « écran LED géant » : grille de pixels + cadre/halo + balayage. */}
-        <div className="led-scan" aria-hidden />
-        <div className="led-grid" aria-hidden />
-        <div className="led-frame" aria-hidden />
       </div>
     </section>
   )
