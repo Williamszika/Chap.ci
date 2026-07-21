@@ -26,10 +26,11 @@ import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 import {
   fetchAdminAds, adminAdAction, adminAdDelete, adminAdBroadcast,
   fetchSeoState, setSeoEnabled, runSeoNow,
-  AD_STYLES, AD_ANIMS, AD_GAP_MIN, AD_GAP_MAX, AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
+  AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
 } from '../lib/ads'
 import { AnimatedAdText } from '../components/AnimatedAdText'
 import { AdImageFill } from '../components/AdImageFill'
+import { AdTextControls } from '../components/AdTextControls'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
 
@@ -1443,101 +1444,13 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           placeholder="Texte secondaire (facultatif)…"
           className="input mt-2 min-h-[64px] resize-y"
         />
-        <label className="mt-2 block">
-          <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-gray-400">Style d’écriture</span>
-          <select value={bStyle} onChange={(e) => setBStyle(e.target.value as AdStyle)} className="input">
-            {AD_STYLES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
-        </label>
-
-        {/* Animations du texte : l'admin en choisit une OU PLUSIEURS (50 dispo).
-            Le texte les enchaîne l'une après l'autre, avec la pause réglée. */}
-        <div className="mt-2">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
-              Animations du texte · {bAnims.length} choisie{bAnims.length > 1 ? 's' : ''}
-            </span>
-            <div className="flex gap-2 text-[11px] font-semibold">
-              <button type="button" onClick={() => setBAnims(AD_ANIMS.map((a) => a.key))} className="text-primary-600">Tout</button>
-              <button type="button" onClick={() => setBAnims(['fondu'])} className="text-gray-400">Réinitialiser</button>
-            </div>
-          </div>
-          <div className="flex max-h-40 flex-wrap content-start gap-1.5 overflow-y-auto rounded-xl border border-[#E6DAC6] bg-white p-2">
-            {AD_ANIMS.map((a) => {
-              const on = bAnims.includes(a.key)
-              return (
-                <button
-                  key={a.key}
-                  type="button"
-                  onClick={() => setBAnims(on ? bAnims.filter((k) => k !== a.key) : [...bAnims, a.key])}
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${on ? 'bg-[#F77F00] text-white shadow-sm' : 'bg-cream-100 text-ink hover:bg-cream-200'}`}
-                >
-                  {a.label}
-                </button>
-              )
-            })}
-          </div>
-          <p className="mt-1 text-[11px] text-gray-400">
-            Plusieurs animations = le texte change d’animation à chaque fois.
-          </p>
-        </div>
-
-        {/* Pause entre deux animations : de 5 s à 1 min, au choix. */}
-        <label className="mt-2 flex items-center gap-3 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
-          <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-gray-400">Pause entre animations</span>
-          <input
-            type="range"
-            min={AD_GAP_MIN}
-            max={AD_GAP_MAX}
-            step={1}
-            value={bGap}
-            onChange={(e) => setBGap(Number(e.target.value))}
-            className="flex-1 accent-[#F77F00]"
-            aria-label="Pause entre animations (secondes)"
-          />
-          <span className="tnum w-12 text-right text-sm font-bold text-ink">{bGap} s</span>
-        </label>
-
-        {/* Enchaîner en boucle, ou jouer une seule fois. */}
-        <label className="mt-2 flex cursor-pointer items-center gap-2.5 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
-          <input
-            type="checkbox"
-            checked={bLoop}
-            onChange={(e) => setBLoop(e.target.checked)}
-            className="h-4 w-4 accent-[#F77F00]"
-          />
-          <span className="text-[13px] font-semibold text-ink">
-            Enchaîner en boucle
-            <span className="ml-1 font-normal text-gray-400">— rejoue les animations avec la pause ci-dessus (sinon, une seule fois)</span>
-          </span>
-        </label>
-
-        {/* Couleur du texte : pour rester lisible par-dessus l'image. */}
-        <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
-          <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-gray-400">Couleur du texte</span>
-          <div className="flex flex-1 flex-wrap items-center gap-1.5">
-            {['#FFFFFF', '#000000', '#F77F00', '#009E60', '#FFD400', '#E4002B'].map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setBTextColor(c)}
-                aria-label={`Couleur ${c}`}
-                className={`h-6 w-6 rounded-full border transition ${bTextColor.toUpperCase() === c ? 'ring-2 ring-[#F77F00] ring-offset-1' : 'border-black/10'}`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-            <label className="relative h-6 w-6 cursor-pointer overflow-hidden rounded-full border border-black/10" title="Couleur personnalisée">
-              <span className="absolute inset-0" style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }} />
-              <input
-                type="color"
-                value={/^#[0-9a-fA-F]{6}$/.test(bTextColor) ? bTextColor : '#FFFFFF'}
-                onChange={(e) => setBTextColor(e.target.value.toUpperCase())}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              />
-            </label>
-          </div>
-          <span className="tnum text-[11px] font-semibold text-gray-500">{bTextColor}</span>
-        </div>
+        <AdTextControls
+          style={bStyle} setStyle={setBStyle}
+          anims={bAnims} setAnims={setBAnims}
+          gap={bGap} setGap={setBGap}
+          loop={bLoop} setLoop={setBLoop}
+          textColor={bTextColor} setTextColor={setBTextColor}
+        />
         <div className="mt-2 grid grid-cols-2 gap-2">
           <input
             value={bLink}

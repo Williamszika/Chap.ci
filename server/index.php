@@ -3621,13 +3621,24 @@ try {
     $email = strtolower(trim((string) ($b['email'] ?? ($u['email'] ?? ''))));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Indiquez un e-mail valide pour recevoir le statut de votre publicité.');
     $phone = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['phone'] ?? '')), 0, 20);
+    // Options d'animation du texte (mêmes réglages que le compositeur admin).
+    $style = in_array($b['style'] ?? '', ['classique', 'neon', 'script', 'impact', 'ivoire'], true) ? $b['style'] : 'classique';
+    $anims = [];
+    foreach ((array) ($b['anims'] ?? []) as $a) { $a = (string) $a; if (preg_match('/^[a-z0-9-]{2,24}$/', $a)) $anims[] = $a; }
+    $anims = array_slice(array_values(array_unique($anims)), 0, 20);
+    if (!$anims) $anims = ['fondu'];
+    $anim  = $anims[0];
+    $gap   = (string) max(5, min(60, (int) ($b['gap'] ?? 8)));
+    $loop  = array_key_exists('loop', $b) ? (!empty($b['loop']) ? '1' : '0') : '1';
+    $tcol  = is_string($b['textColor'] ?? null) && preg_match('/^#[0-9a-fA-F]{3,8}$/', $b['textColor']) ? strtoupper($b['textColor']) : '';
     $tariff = ad_tariff($pdo, $u);
     $price  = $tariff['prices'][$formule] * $qty;
     $id = uuid();
-    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,email,phone)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,email,phone,style,anim,anim_loop,anims,anim_gap,text_color)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
         ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), $formule, $qty,
-                   $price, $method_, mb_substr($payNum, 0, 20), 'pending', null, null, client_ip(), now_iso(), $email, $phone]);
+                   $price, $method_, mb_substr($payNum, 0, 20), 'pending', null, null, client_ip(), now_iso(), $email, $phone,
+                   $style, $anim, $loop, json_encode($anims), $gap, $tcol]);
     log_security_event($pdo, 'ad_submit', $u['email'] ?? null); // compteur anti-spam
     // Notification « reçue, en attente de validation » à l'annonceur.
     send_ad_status_email($config, ['email' => $email, 'title' => $title, 'price' => $price], 'pending');

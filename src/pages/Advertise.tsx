@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import {
   Camera, X, Minus, Plus, Loader2, Megaphone, ArrowRight, CheckCircle2, Copy, Check,
 } from 'lucide-react'
-import { fetchAdTariff, submitAd, AD_FALLBACK_TARIFF, AD_FORMULES, type AdTariff } from '../lib/ads'
+import { fetchAdTariff, submitAd, AD_FALLBACK_TARIFF, AD_FORMULES, AD_GAP_DEFAULT, type AdTariff, type AdStyle } from '../lib/ads'
 import { donationOperators } from '../data/donation'
 import { downscaleListingImage } from '../lib/image'
 import { classifyImage } from '../lib/nsfw'
 import { formatFCFA } from '../lib/format'
 import { AdImageFill } from '../components/AdImageFill'
+import { AnimatedAdText } from '../components/AnimatedAdText'
+import { AdTextControls } from '../components/AdTextControls'
 import { PayLogo } from '../components/PayLogo'
 
 const MAX_IMAGES = 3
@@ -41,6 +43,12 @@ export function Advertise() {
   const [payNumber, setPayNumber] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  // Réglages du texte animé (mêmes options que le compositeur admin).
+  const [style, setStyle] = useState<AdStyle>('classique')
+  const [anims, setAnims] = useState<string[]>(['fondu'])
+  const [gap, setGap] = useState(AD_GAP_DEFAULT)
+  const [loop, setLoop] = useState(true)
+  const [textColor, setTextColor] = useState('#FFFFFF')
   const [website, setWebsite] = useState('') // pot de miel anti-robot
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -115,6 +123,11 @@ export function Advertise() {
         payNumber: payNumber.trim(),
         email: email.trim(),
         phone: phone.trim(),
+        style,
+        anims: anims.length ? anims : ['fondu'],
+        gap,
+        loop,
+        textColor,
         website,
       })
       setDone({ id: r.id, price: r.price })
@@ -255,6 +268,19 @@ export function Advertise() {
             <p className="mt-1.5 rounded-lg bg-[#FFF6EC] px-3 py-2 text-[11.5px] leading-relaxed text-gray-500">
               💡 Avec un lien, le clic ouvre votre site. Sans lien, le clic ouvre votre page sur Chap.ci.
             </p>
+
+            {/* Style & animation du texte — mêmes options que le compositeur Chap.ci. */}
+            <div className="mt-4 border-t border-[#EFE6D7] pt-3">
+              <p className="text-sm font-semibold text-gray-700">Style &amp; animation du titre</p>
+              <p className="mb-1 text-[11.5px] text-gray-400">S’applique au titre affiché sur l’écran (si vous en mettez un).</p>
+              <AdTextControls
+                style={style} setStyle={setStyle}
+                anims={anims} setAnims={setAnims}
+                gap={gap} setGap={setGap}
+                loop={loop} setLoop={setLoop}
+                textColor={textColor} setTextColor={setTextColor}
+              />
+            </div>
           </section>
 
           {/* 2 · Durée d'affichage */}
@@ -431,16 +457,21 @@ export function Advertise() {
                 </span>
               ) : (
                 <>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-                  <div className="relative p-3.5">
-                    <span className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider backdrop-blur">
-                      <Megaphone size={10} /> Publicité
-                    </span>
-                    <p className="font-display text-[15px] font-extrabold leading-tight">{preview.title}</p>
-                    <p className="mt-0.5 text-[12px] leading-snug text-white/80 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-black/20" />
+                  <div className="relative flex flex-col items-center gap-1.5 p-3.5 text-center [text-shadow:0_2px_10px_rgba(0,0,0,.55)]">
+                    <AnimatedAdText
+                      text={preview.title}
+                      style={style}
+                      color={textColor}
+                      anims={anims.length ? anims : ['fondu']}
+                      gapMs={gap * 1000}
+                      loop={loop}
+                      className="text-[17px] font-extrabold leading-tight"
+                    />
+                    <p className="text-[12px] font-semibold leading-snug [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden" style={{ color: textColor || 'rgba(255,255,255,0.85)' }}>
                       {preview.desc}
                     </p>
-                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-ink">
+                    <span className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-ink">
                       En savoir plus <ArrowRight size={13} />
                     </span>
                   </div>

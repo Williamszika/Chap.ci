@@ -78,6 +78,11 @@ export async function submitAd(input: {
   payNumber: string
   email: string
   phone?: string
+  style?: AdStyle
+  anims?: string[]
+  gap?: number
+  loop?: boolean
+  textColor?: string
   website?: string // pot de miel
 }): Promise<{ ok: boolean; id: string; price: number; member: boolean }> {
   if (!isPhp) throw new Error('La publicité nécessite le backend Chap.ci.')

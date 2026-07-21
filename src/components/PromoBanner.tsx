@@ -65,10 +65,10 @@ export function PromoBanner() {
   return (
     <section className="pt-2">
       <div className="relative flex min-h-[200px] flex-col justify-end overflow-hidden bg-black text-white shadow-card-lg md:min-h-[290px] md:rounded-3xl">
-        {ad && ad.kind !== 'paid' && (ad.title || ad.description) ? (
-          /* Diffusion Chap.ci (admin) ou Bureau de Croissance SEO AVEC texte :
-             message ANIMÉ, style d'écriture choisi. Une diffusion « image seule »
-             (sans texte) passe, elle, dans le rendu image plein cadre ci-dessous.
+        {ad && (ad.title || ad.description) ? (
+          /* TOUTE pub AVEC texte (payante, diffusion Chap.ci ou SEO) : image nette
+             + message ANIMÉ par-dessus (style, animations, couleur choisis). Une pub
+             « image seule » (sans texte) passe dans le rendu image plein cadre.
              key={ad.id} force le remontage → l'animation rejoue à chaque rotation. */
           <div key={ad.id} className="relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
             {/* Image NETTE (conversion auto, comme « image seule ») + texte PAR-DESSUS :
