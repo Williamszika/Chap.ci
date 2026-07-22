@@ -19,7 +19,6 @@ import { CategoryIcon } from '../components/CategoryIcon'
 import { Mark, Wordmark } from '../components/Logo'
 import { ListingCard } from '../components/ListingCard'
 import { ListingCardSkeleton } from '../components/ListingCardSkeleton'
-import { SellNearYou } from '../components/SellNearYou'
 import { InstallAppBanner } from '../components/InstallAppBanner'
 import { LocationSheet } from '../components/LocationSheet'
 import { Newsletter } from '../components/Newsletter'
@@ -306,10 +305,6 @@ export function Home() {
           ))}
         </div>
       </section>
-
-      {/* Vendez près de chez vous — cartes vers les pages SEO /vendre (maillage
-          interne + funnel publication). Rendu par un composant dédié. */}
-      <SellNearYou />
 
       {/* Près de vous */}
       {position ? (
