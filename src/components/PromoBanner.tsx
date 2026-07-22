@@ -70,7 +70,7 @@ export function PromoBanner() {
              + message ANIMÉ par-dessus (style, animations, couleur choisis). Une pub
              « image seule » (sans texte) passe dans le rendu image plein cadre.
              key={ad.id} force le remontage → l'animation rejoue à chaque rotation. */
-          <div key={ad.id} className="relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+          <div key={ad.id} className="ad-anim-fondu relative flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
             {/* Image NETTE (conversion auto, comme « image seule ») + texte PAR-DESSUS :
                 les deux restent bien visibles. La couleur du texte est réglable. */}
             {img && <AdImageFill src={img} />}
@@ -114,10 +114,14 @@ export function PromoBanner() {
                     key={a.id}
                     onClick={() => setIdx(i)}
                     aria-label={`Publicité ${i + 1}`}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === idx % ads.length ? 'w-5 bg-white' : 'w-1.5 bg-white/40'
-                    }`}
-                  />
+                    className="grid h-11 place-items-center px-1"
+                  >
+                    <span
+                      className={`block h-1.5 rounded-full transition-all ${
+                        i === idx % ads.length ? 'w-5 bg-white' : 'w-1.5 bg-white/40'
+                      }`}
+                    />
+                  </button>
                 ))}
               </div>
             )}
@@ -191,10 +195,14 @@ export function PromoBanner() {
                     key={a.id}
                     onClick={() => setIdx(i)}
                     aria-label={`Publicité ${i + 1}`}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === idx % ads.length ? 'w-5 bg-white' : 'w-1.5 bg-white/40'
-                    }`}
-                  />
+                    className="grid h-11 place-items-center px-1"
+                  >
+                    <span
+                      className={`block h-1.5 rounded-full transition-all ${
+                        i === idx % ads.length ? 'w-5 bg-white' : 'w-1.5 bg-white/40'
+                      }`}
+                    />
+                  </button>
                 ))}
               </div>
             )}

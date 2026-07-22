@@ -19,7 +19,7 @@ export function Stars({
             type="button"
             key={n}
             onClick={() => onChange?.(n)}
-            className="active:scale-90"
+            className="p-2 active:scale-90"
             aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
           >
             <Star

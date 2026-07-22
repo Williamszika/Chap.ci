@@ -131,7 +131,7 @@ export function IndependenceBanner() {
       <button
         onClick={close}
         aria-label="Masquer"
-        className={`absolute right-2.5 top-2.5 z-10 grid h-7 w-7 place-items-center rounded-full ${
+        className={`absolute right-2.5 top-2.5 z-10 grid h-11 w-11 place-items-center rounded-full ${
           isDay ? 'bg-black/15 text-black/70 hover:bg-black/25' : 'bg-white/15 text-white/80 hover:bg-white/25'
         }`}
       >

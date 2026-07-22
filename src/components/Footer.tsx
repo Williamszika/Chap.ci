@@ -80,7 +80,7 @@ export function Footer() {
               La marketplace 100 % ivoirienne. Achetez et vendez chap-chap, partout en Côte d’Ivoire — en toute
               sécurité.
             </p>
-            <p className="mt-4 text-xs text-white/40">Paiement : Orange Money · Wave</p>
+            <p className="mt-4 text-xs text-white/55">Paiement : Orange Money · Wave</p>
           </div>
 
           {cols.map((c) => (
@@ -99,7 +99,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-6 text-xs text-white/40 sm:flex-row">
+        <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-6 text-xs text-white/55 sm:flex-row">
           <p>© {year} Chap.ci — Fait avec ❤️ à Abidjan 🇨🇮</p>
           <p>Tous droits réservés</p>
         </div>

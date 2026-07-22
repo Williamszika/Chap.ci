@@ -12,15 +12,15 @@ const sections: Section[] = [
     icon: '👋',
     items: [
       {
-        q: 'C’est quoi Chap.ci ?',
+        q: 'C’est quoi Chap.ci ?',
         a: 'Chap.ci est le site de petites annonces 100 % ivoirien. Vous y achetez et vendez chap-chap (rapidement) partout en Côte d’Ivoire : voitures, téléphones, immobilier, mode, alimentation, services et bien plus.',
       },
       {
-        q: 'Est-ce que c’est gratuit ?',
+        q: 'Est-ce que c’est gratuit ?',
         a: 'Oui, l’inscription, la publication d’annonces et la messagerie sont entièrement gratuites. Vous pouvez soutenir la plateforme par un don Mobile Money si vous le souhaitez, mais rien n’est obligatoire.',
       },
       {
-        q: 'Dois-je installer une application ?',
+        q: 'Dois-je installer une application ?',
         a: (
           <>
             Non. Chap.ci fonctionne dans votre navigateur, sur téléphone, tablette et ordinateur. Vous pouvez
@@ -31,7 +31,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Dans quelles villes fonctionne Chap.ci ?',
+        q: 'Dans quelles villes fonctionne Chap.ci ?',
         a: 'Partout en Côte d’Ivoire. Vous pouvez filtrer les annonces par district, région, ville et commune — d’Abidjan à Bouaké, San-Pédro, Yamoussoukro, Korhogo…',
       },
     ],
@@ -42,7 +42,7 @@ const sections: Section[] = [
     icon: '🔐',
     items: [
       {
-        q: 'Comment créer un compte ?',
+        q: 'Comment créer un compte ?',
         a: (
           <>
             Cliquez sur <b>Connexion / Créer un compte</b>, puis inscrivez-vous par email, par téléphone, ou avec
@@ -51,7 +51,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'J’ai oublié mon mot de passe, que faire ?',
+        q: 'J’ai oublié mon mot de passe, que faire ?',
         a: (
           <>
             Sur la page de connexion, cliquez sur <b>« Mot de passe oublié ? »</b> et suivez les instructions
@@ -60,7 +60,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Comment supprimer mon compte ?',
+        q: 'Comment supprimer mon compte ?',
         a: (
           <>
             Allez dans <b>Compte → Paramètres → Supprimer mon compte</b>. Une confirmation par mot de passe est
@@ -69,7 +69,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Comment protéger mon compte ?',
+        q: 'Comment protéger mon compte ?',
         a: (
           <>
             Activez la <b>double authentification (2FA)</b> depuis <b>Compte → Paramètres</b>, et ne partagez
@@ -85,7 +85,7 @@ const sections: Section[] = [
     icon: '🛍️',
     items: [
       {
-        q: 'Comment contacter un vendeur ?',
+        q: 'Comment contacter un vendeur ?',
         a: (
           <>
             Ouvrez l’annonce et cliquez sur <b>« Contacter le vendeur »</b>. Vous discutez via la messagerie
@@ -94,11 +94,11 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Puis-je négocier le prix ?',
+        q: 'Puis-je négocier le prix ?',
         a: 'Oui, si l’annonce indique « négociable ». Proposez votre prix poliment dans la messagerie. Restez courtois : un bon échange conclut souvent une bonne affaire.',
       },
       {
-        q: 'Comment payer en toute sécurité ?',
+        q: 'Comment payer en toute sécurité ?',
         a: (
           <>
             Privilégiez le <b>paiement à la livraison</b> ou la remise en main propre dans un lieu public.
@@ -108,7 +108,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Comment se passe la livraison ?',
+        q: 'Comment se passe la livraison ?',
         a: (
           <>
             La livraison est convenue <b>directement entre vous et le vendeur</b> dans la messagerie :
@@ -120,7 +120,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Comment confirmer un achat et laisser un avis ?',
+        q: 'Comment confirmer un achat et laisser un avis ?',
         a: (
           <>
             Comme la transaction se fait de la main à la main (Mobile Money, espèces…), c’est vous qui la
@@ -132,7 +132,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Comment enregistrer une recherche pour être prévenu ?',
+        q: 'Comment enregistrer une recherche pour être prévenu ?',
         a: (
           <>
             Dans l’explorateur, réglez vos filtres puis cliquez sur <b>« Créer une alerte »</b>. Vous recevrez un
@@ -149,7 +149,7 @@ const sections: Section[] = [
     icon: '🏷️',
     items: [
       {
-        q: 'Comment publier une annonce ?',
+        q: 'Comment publier une annonce ?',
         a: (
           <>
             Cliquez sur <b>Publier</b>, ajoutez des photos, choisissez la catégorie, remplissez le titre, le prix
@@ -159,11 +159,11 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Combien de photos puis-je ajouter et comment les réussir ?',
+        q: 'Combien de photos puis-je ajouter et comment les réussir ?',
         a: 'Ajoutez plusieurs photos nettes, en pleine lumière, sous différents angles. Une bonne première photo attire beaucoup plus d’acheteurs. Les images sont automatiquement optimisées lors de l’envoi.',
       },
       {
-        q: 'Comment modifier, masquer ou supprimer mon annonce ?',
+        q: 'Comment modifier, masquer ou supprimer mon annonce ?',
         a: (
           <>
             Depuis <b>Compte → Mes annonces</b>, chaque annonce peut être <b>modifiée</b>, <b>masquée</b> (mise
@@ -172,7 +172,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Comment vendre plus vite ?',
+        q: 'Comment vendre plus vite ?',
         a: 'Mettez un prix juste, une description honnête et complète, de bonnes photos, et répondez vite aux messages. Un vendeur réactif et bien noté inspire confiance et conclut plus rapidement.',
       },
     ],
@@ -183,7 +183,7 @@ const sections: Section[] = [
     icon: '🛡️',
     items: [
       {
-        q: 'Comment éviter les arnaques ?',
+        q: 'Comment éviter les arnaques ?',
         a: (
           <>
             Ne payez jamais à l’avance une personne inconnue, méfiez-vous des prix anormalement bas, rencontrez
@@ -193,7 +193,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Comment signaler une annonce ou un utilisateur suspect ?',
+        q: 'Comment signaler une annonce ou un utilisateur suspect ?',
         a: (
           <>
             Sur chaque annonce, utilisez le bouton <b>« Signaler »</b> et indiquez le motif. Notre équipe de
@@ -203,7 +203,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'Que faire en cas de litige avec un acheteur ou un vendeur ?',
+        q: 'Que faire en cas de litige avec un acheteur ou un vendeur ?',
         a: (
           <>
             Gardez d’abord votre calme et tout l’échange <b>dans la messagerie</b> Chap.ci (il sert de preuve).
@@ -217,7 +217,7 @@ const sections: Section[] = [
         ),
       },
       {
-        q: 'À quoi servent les avis ?',
+        q: 'À quoi servent les avis ?',
         a: 'Après une transaction, l’acheteur peut laisser un avis au vendeur. Les avis vérifiés aident toute la communauté à acheter en confiance. Un bon historique d’avis valorise votre profil vendeur.',
       },
     ],
@@ -228,11 +228,11 @@ const sections: Section[] = [
     icon: '💚',
     items: [
       {
-        q: 'Quels moyens de paiement sont acceptés ?',
+        q: 'Quels moyens de paiement sont acceptés ?',
         a: 'Les paiements se font directement entre acheteur et vendeur, généralement par Mobile Money (Orange Money, MTN MoMo, Wave), en espèces à la livraison, ou en main propre. Chap.ci ne prélève rien sur vos ventes.',
       },
       {
-        q: 'Comment soutenir Chap.ci ?',
+        q: 'Comment soutenir Chap.ci ?',
         a: (
           <>
             Chap.ci est gratuit et indépendant. Vous pouvez nous soutenir par un don Mobile Money depuis la page{' '}

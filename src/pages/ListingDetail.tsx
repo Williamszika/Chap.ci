@@ -338,7 +338,7 @@ export function ListingDetail() {
               <div className="flex flex-wrap items-center gap-2">
                 <PromoTag percent={promo.percent} height={26} />
                 <span className="tnum font-display text-3xl font-black text-red-600">{formatFCFA(promo.price)}</span>
-                <span className="tnum text-base text-gray-400 line-through">{formatFCFA(promo.original)}</span>
+                <span className="tnum text-base text-gray-500 line-through">{formatFCFA(promo.original)}</span>
               </div>
               <p className="mt-1 text-xs font-semibold text-red-600">
                 Promo jusqu’au {promoEndLabel(promo.until)}
@@ -351,7 +351,7 @@ export function ListingDetail() {
                 {listing.price === 0 ? 'Gratuit' : formatFCFA(listing.price)}
               </span>
               {listing.negotiable && listing.price !== 0 && (
-                <span className="text-sm font-medium text-gray-400">négociable</span>
+                <span className="text-sm font-medium text-gray-500">négociable</span>
               )}
             </div>
           )}
