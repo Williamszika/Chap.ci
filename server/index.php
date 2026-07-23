@@ -4917,7 +4917,8 @@ try {
 
   // ---------- MODÉRATION AUTOMATIQUE — jeton de service cloisonné ----------
   // « Le Gardien » (routine) s'authentifie avec un JETON DE SERVICE de périmètre
-  // 'moderation' (en-tête X-Service-Token ou ?stoken=). Ce jeton n'ouvre QUE ces
+  // 'moderation' (en-tête X-Service-Token UNIQUEMENT — jamais en query-string,
+  // pour éviter toute fuite du jeton dans les journaux/URL). Ce jeton n'ouvre QUE ces
   // routes : lire la file, masquer, signaler. JAMAIS de compte, réglage ni sauvegarde.
   if ($path === 'mod/queue' && $method === 'GET') {
     $tok = require_service_token($pdo, 'moderation');
