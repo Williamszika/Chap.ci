@@ -239,7 +239,7 @@ function chapci_seo_cities(): array {
   return [
     'abidjan' => 'Abidjan', 'cocody' => 'Cocody', 'yopougon' => 'Yopougon', 'abobo' => 'Abobo',
     'marcory' => 'Marcory', 'treichville' => 'Treichville', 'plateau' => 'Plateau', 'adjame' => 'Adjamé',
-    'koumassi' => 'Koumassi', 'port-bouet' => 'Port-Bouët', 'anyama' => 'Anyama', 'grand-bassam' => 'Grand-Bassam',
+    'koumassi' => 'Koumassi', 'port-bouet' => 'Port-Bouët', 'anyama' => 'Anyama', 'bingerville' => 'Bingerville', 'grand-bassam' => 'Grand-Bassam',
     'bouake' => 'Bouaké', 'yamoussoukro' => 'Yamoussoukro', 'daloa' => 'Daloa', 'san-pedro' => 'San-Pédro',
     'korhogo' => 'Korhogo', 'man' => 'Man', 'gagnoa' => 'Gagnoa', 'divo' => 'Divo', 'abengourou' => 'Abengourou',
   ];
