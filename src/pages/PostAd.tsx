@@ -13,6 +13,8 @@ import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
 import { formatFCFA } from '../lib/format'
 import { trackPublish } from '../lib/marketing'
+import { guessFromTitle } from '../lib/autofill'
+import { analyzePhoto } from '../lib/vision'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { downscaleListingImage } from '../lib/image'
@@ -129,6 +131,18 @@ export function PostAd() {
     }
   }, [place])
 
+  // IA « titre → catégorie » : tant qu'aucune catégorie n'est choisie, on la
+  // devine (avec une sous-catégorie) depuis le titre. Dès qu'une catégorie est
+  // fixée (auto ou manuel), on ne touche plus.
+  useEffect(() => {
+    if (editing || categoryId) return
+    const g = guessFromTitle(title)
+    if (g.categoryId) {
+      setCategoryId(g.categoryId)
+      if (g.subcategory) setSubcategory(g.subcategory)
+    }
+  }, [title, categoryId, editing])
+
   const cat = categoryById(categoryId)
   const form = formFor(categoryId) // champs adaptés à la catégorie
 
@@ -195,6 +209,16 @@ export function PostAd() {
     if (!added.length) return
     const startIndex = images.length
     setImages((prev) => [...prev, ...added].slice(0, MAX_PHOTOS))
+    // IA locale (MobileNet) : devine l'objet de la 1ʳᵉ photo → propose une
+    // catégorie et un début de description. Ne remplace JAMAIS ce que
+    // l'utilisateur a déjà saisi. Fail-open : sans effet si le modèle ne charge pas.
+    analyzePhoto(added[0])
+      .then((r) => {
+        if (!mountedRef.current) return
+        if (r.categoryId) setCategoryId((c) => c || r.categoryId!)
+        if (r.description) setDescription((d) => (d.trim() ? d : r.description!))
+      })
+      .catch(() => {})
     // Une seule photo ajoutée : on ouvre directement l'éditeur pour l'embellir.
     if (added.length === 1) setEditIndex(startIndex)
   }
