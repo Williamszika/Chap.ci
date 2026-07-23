@@ -10,6 +10,8 @@ import { ToastProvider } from './store/ToastContext'
 // Capte au plus tôt l'événement d'installation PWA (beforeinstallprompt),
 // souvent émis avant le montage de React (voir components/InstallAppBanner).
 import './lib/pwaInstall'
+// Pixels marketing (Meta, TikTok, Google) — actifs seulement sur le web en prod.
+import { initMarketing } from './lib/marketing'
 // Polices de la marque (auto-hébergées → fonctionnent hors-ligne dans la PWA)
 import '@fontsource-variable/inter'
 import '@fontsource-variable/plus-jakarta-sans'
@@ -34,6 +36,9 @@ createRoot(document.getElementById('root')!).render(
     </HashRouter>
   </StrictMode>,
 )
+
+// Active les pixels marketing (no-op en dev / app native).
+initMarketing()
 
 // Retire l'écran de démarrage une fois l'application montée.
 requestAnimationFrame(() => {

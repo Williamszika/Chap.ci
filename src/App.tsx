@@ -9,6 +9,7 @@ import { FestiveOverlay } from './components/FestiveOverlay'
 import { NativeShell } from './components/NativeShell'
 import { useAuth } from './store/AuthContext'
 import { trackPageView } from './lib/track'
+import { trackPage } from './lib/marketing'
 import { Home } from './pages/Home'
 import { Browse } from './pages/Browse'
 import { ListingDetail } from './pages/ListingDetail'
@@ -42,7 +43,8 @@ function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
-    trackPageView(pathname) // suivi anonyme des visites
+    trackPageView(pathname) // suivi anonyme des visites (analytics maison)
+    trackPage(pathname) // pixels marketing (Meta/TikTok/Google)
   }, [pathname])
   return null
 }

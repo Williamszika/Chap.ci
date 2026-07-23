@@ -11,6 +11,7 @@ import { Mark, Wordmark } from '../components/Logo'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { subscribeNewsletter } from '../lib/newsletter'
+import { trackSignup } from '../lib/marketing'
 
 export function Register() {
   const navigate = useNavigate()
@@ -88,6 +89,7 @@ export function Register() {
     const res = await signInWithGoogleCredential(credential)
     setBusy(false)
     if (res.error) return setError(res.error)
+    trackSignup() // conversion pixels (Meta/TikTok/Google)
     goAfterAuth()
   }
 
@@ -97,6 +99,7 @@ export function Register() {
     const res = await signInWithFacebookToken(accessToken)
     setBusy(false)
     if (res.error) return setError(res.error)
+    trackSignup() // conversion pixels (Meta/TikTok/Google)
     goAfterAuth()
   }
 
@@ -120,6 +123,7 @@ export function Register() {
     const res = await signUp(email.trim(), password, fullName.trim())
     setBusy(false)
     if (res.error) return setError(res.error)
+    trackSignup() // conversion pixels (Meta/TikTok/Google)
     // Inscription facultative à la newsletter (best-effort, silencieux).
     subscribeNewsletter(email.trim()).catch(() => {})
     if (res.needsConfirmation) {

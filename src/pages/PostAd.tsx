@@ -12,6 +12,7 @@ import { formFor, type AttrField } from '../data/categoryForms'
 import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
 import { formatFCFA } from '../lib/format'
+import { trackPublish } from '../lib/marketing'
 import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { downscaleListingImage } from '../lib/image'
@@ -269,6 +270,7 @@ export function PostAd() {
       // analysées à l'ajout) et est en ligne. Toast immédiat + la cloche est
       // rafraîchie (le serveur y a déposé une notification « Annonce publiée »).
       toast.success(editing ? 'Annonce mise à jour ✅' : 'Votre annonce est en ligne ✅')
+      if (!editing) trackPublish() // conversion pixels (Meta/TikTok/Google)
       refreshNotifs()
       navigate(`/annonce/${created.id}`)
     } catch (e) {
