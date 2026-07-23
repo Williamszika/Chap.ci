@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 // Adresse de contact affichée dans la politique — à personnaliser si besoin.
 const CONTACT_EMAIL = 'contact@chap.ci'
-const LAST_UPDATE = '14 juillet 2026'
+const LAST_UPDATE = '23 juillet 2026'
 
 // Sommaire (ordinateur / tablette) : id d'ancre + libellé court.
 const TOC: [string, string][] = [
@@ -16,7 +16,8 @@ const TOC: [string, string][] = [
   ['sec-8', '8. Mineurs'],
   ['sec-9', '9. Vos droits'],
   ['sec-10', '10. Cadre juridique'],
-  ['sec-11', '11. Contact'],
+  ['sec-11', '11. Cookies & pub'],
+  ['sec-12', '12. Contact'],
 ]
 
 export function Privacy() {
@@ -218,7 +219,35 @@ export function Privacy() {
               </ul>
             </Section>
 
-            <Section id="sec-11" title="11. Contact">
+            <Section id="sec-11" title="11. Cookies et mesure publicitaire">
+              <p>
+                Sur le site web <b>chap.ci</b>, en plus des cookies strictement nécessaires au
+                fonctionnement (connexion, préférences), nous utilisons des outils de mesure
+                d’audience et de publicité qui déposent des cookies ou identifiants :
+              </p>
+              <ul className="ml-4 mt-2 list-disc space-y-1.5">
+                <li><b>Google Analytics</b> — mesure de la fréquentation (pages vues, provenance des visites) ;</li>
+                <li>
+                  <b>Meta Pixel</b> (Facebook / Instagram) et <b>TikTok Pixel</b> — mesure de
+                  l’efficacité de nos publicités et affichage d’annonces pertinentes sur ces réseaux.
+                </li>
+              </ul>
+              <p className="mt-2">
+                À cette occasion, certaines données de navigation (pages visitées, actions comme une
+                inscription ou la publication d’une annonce) peuvent être partagées avec <b>Google</b>,
+                <b> Meta</b> et <b>TikTok</b>, qui les traitent selon leurs propres règles de
+                confidentialité. Aucune donnée n’est vendue.
+              </p>
+              <p className="mt-2">
+                <b>Vos choix :</b> vous pouvez refuser ou limiter ces traceurs à tout moment — en
+                bloquant les cookies dans votre navigateur, via les paramètres de publicité de chaque
+                plateforme (Google, Meta, TikTok), ou en activant « Limiter le suivi publicitaire »
+                dans les réglages de votre téléphone. Le refus n’empêche pas d’utiliser Chap.ci. Ces
+                traceurs ne sont pas actifs dans l’application mobile.
+              </p>
+            </Section>
+
+            <Section id="sec-12" title="12. Contact">
               <p>
                 Pour toute question relative à cette politique :{' '}
                 <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary-600">

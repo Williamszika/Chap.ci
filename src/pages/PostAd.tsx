@@ -108,6 +108,16 @@ export function PostAd() {
     }
   }, [editing, editListing, setSeller])
 
+  // Pré-remplit le NOM du vendeur depuis le compte connecté. Un premier vendeur
+  // a déjà donné son nom à l'inscription : le retaper est une friction inutile
+  // (levier de conversion visiteur → vendeur). Ne touche pas si déjà saisi.
+  useEffect(() => {
+    if (editing) return
+    const fullName = user?.user_metadata?.full_name?.trim()
+    if (!fullName) return
+    setSeller((prev) => (prev.name.trim() ? prev : { ...prev, name: fullName }))
+  }, [user, editing, setSeller])
+
   // Pré-remplit la localisation avec la position captée à l'ouverture / la connexion.
   useEffect(() => {
     if (!place) return
