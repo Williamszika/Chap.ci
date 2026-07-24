@@ -3431,24 +3431,37 @@ try {
     // fausse commande (sans article) pour fabriquer un faux avis (harcèlement).
     $items = (array) ($b['items'] ?? []);
     if (!$items) jerr('Commande vide.', 400);
+    // SÉCURITÉ : ne JAMAIS faire confiance au prix / titre / image envoyés par le
+    // client. Pour chaque article, on relit la vérité depuis l'annonce (comme le
+    // flux « deal » via $ensureOrder). Sinon un acheteur pourrait forger un prix
+    // arbitraire (emails de confirmation et statistique ordersValue faussés).
+    $valid = [];
     foreach ($items as $it) {
       $lid = trim((string) ($it['listingId'] ?? ''));
       if ($lid === '') jerr('Article invalide (annonce manquante).', 400);
-      $ls = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $ls->execute([$lid]);
+      $ls = $pdo->prepare('SELECT user_id, title, price, images FROM listings WHERE id = ?'); $ls->execute([$lid]);
       $lr = $ls->fetch();
       if (!$lr || (string) $lr['user_id'] !== $sellerId) jerr('Article invalide pour ce vendeur.', 400);
+      $imgs = $lr['images'] ? (json_decode($lr['images'], true) ?: []) : [];
+      $valid[] = [
+        'listingId' => $lid,
+        'title'     => (string) ($lr['title'] ?? ''),
+        'price'     => (int) ($lr['price'] ?? 0),
+        'image'     => $imgs[0] ?? null,
+      ];
     }
     $oid = uuid();
     $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,status,created_at) VALUES (?,?,?,?,?,?)')
         ->execute([$oid, $u['id'], $sellerId, $b['conversationId'] ?? null, 'en_cours', now_iso()]);
-    foreach ($items as $it) {
+    foreach ($valid as $it) {
       $pdo->prepare('INSERT INTO order_items (id,order_id,listing_id,title,price,image) VALUES (?,?,?,?,?,?)')
-          ->execute([uuid(), $oid, $it['listingId'] ?? null, $it['title'] ?? '', (int) ($it['price'] ?? 0), $it['image'] ?? null]);
+          ->execute([uuid(), $oid, $it['listingId'], $it['title'], $it['price'], $it['image']]);
     }
-    // Notifications email (best-effort) : vendeur + acheteur.
+    // Notifications email (best-effort) : vendeur + acheteur — à partir des
+    // données serveur validées (jamais celles du client).
     $sellerEmail = $seller['email'] ?? null;
-    if ($sellerEmail) send_order_seller_email($config, $sellerEmail, $items);
-    if (!empty($u['email'])) send_order_buyer_email($config, $u['email'], $items);
+    if ($sellerEmail) send_order_seller_email($config, $sellerEmail, $valid);
+    if (!empty($u['email'])) send_order_buyer_email($config, $u['email'], $valid);
     jout(['id' => $oid]);
   }
 
