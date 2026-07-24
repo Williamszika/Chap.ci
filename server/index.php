@@ -3450,9 +3450,19 @@ try {
         'image'     => $imgs[0] ?? null,
       ];
     }
+    // Cohérence défensive : le conversationId fourni doit appartenir à CE couple
+    // acheteur→vendeur, sinon on ne lie pas la commande à une conversation
+    // étrangère (aucune route ne l'exploite pour l'autorisation, mais autant
+    // garder des données saines).
+    $convId = trim((string) ($b['conversationId'] ?? ''));
+    if ($convId !== '') {
+      $cv = $pdo->prepare('SELECT 1 FROM conversations WHERE id = ? AND buyer_id = ? AND seller_id = ? LIMIT 1');
+      $cv->execute([$convId, $u['id'], $sellerId]);
+      if (!$cv->fetch()) $convId = '';
+    }
     $oid = uuid();
     $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,status,created_at) VALUES (?,?,?,?,?,?)')
-        ->execute([$oid, $u['id'], $sellerId, $b['conversationId'] ?? null, 'en_cours', now_iso()]);
+        ->execute([$oid, $u['id'], $sellerId, $convId !== '' ? $convId : null, 'en_cours', now_iso()]);
     foreach ($valid as $it) {
       $pdo->prepare('INSERT INTO order_items (id,order_id,listing_id,title,price,image) VALUES (?,?,?,?,?,?)')
           ->execute([uuid(), $oid, $it['listingId'], $it['title'], $it['price'], $it['image']]);
@@ -4822,8 +4832,16 @@ try {
   // cron légitime (bonne clé) n'est jamais compté ni pénalisé.
   if (str_starts_with($path, 'cron/')) {
     rate_limit($pdo, 'cron_fail', null, 20, 600); // max 20 échecs / 10 min / IP
-    // La clé peut arriver dans l'URL (?key=) OU dans le corps JSON (POST report-email).
-    $cronKey = (string) ($_GET['key'] ?? '');
+    // Clé cron : DE PRÉFÉRENCE dans l'en-tête X-Cron-Key (n'apparaît pas dans
+    // les journaux d'accès serveur/CDN), sinon en repli ?key= (tâches cPanel
+    // qui ne peuvent pas poser d'en-tête), sinon corps JSON (POST report-email).
+    $cronKey = (string) ($_SERVER['HTTP_X_CRON_KEY'] ?? '');
+    if ($cronKey === '' && function_exists('apache_request_headers')) {
+      foreach (apache_request_headers() as $hk => $hv) {
+        if (strcasecmp($hk, 'X-Cron-Key') === 0) { $cronKey = (string) $hv; break; }
+      }
+    }
+    if ($cronKey === '') $cronKey = (string) ($_GET['key'] ?? '');
     if ($cronKey === '' && $method === 'POST') $cronKey = (string) (body()['key'] ?? '');
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey)) {
       log_security_event($pdo, 'cron_fail', null, $path);
@@ -4834,7 +4852,9 @@ try {
   // ---------- TÂCHE PLANIFIÉE : offres du jour / de la semaine ----------
   // Appelée par une tâche cron cPanel. Authentifiée par clé (pas de JWT).
   if ($path === 'cron/digest' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    // Redondance défensive : réutilise la clé résolue par le portail cron/*
+    // ci-dessus (en-tête X-Cron-Key ou ?key=).
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $type = (($_GET['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
@@ -4845,7 +4865,8 @@ try {
   // Publie automatiquement UNE diffusion animée par jour sur l'écran publicitaire,
   // selon les objectifs du site. Idempotent : une seule création par jour civil.
   if ($path === 'cron/seo' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    // Redondance défensive : réutilise la clé résolue par le portail cron/*.
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     if (!seo_auto_enabled($config)) jout(['skipped' => 'disabled']);
