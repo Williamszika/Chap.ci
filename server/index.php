@@ -3652,15 +3652,21 @@ try {
     // vraie annonce, mais pas la confirmer côté vendeur. Sans cette condition, un
     // acheteur pourrait poster un faux avis diffamatoire sur un vendeur qu'il a
     // seulement contacté (cohérent avec le garde-fou du cron review-invites).
-    $chk = $pdo->prepare('SELECT 1 FROM orders WHERE seller_confirmed = 1 AND
-      ((buyer_id = ? AND seller_id = ?) OR (seller_id = ? AND buyer_id = ?)) LIMIT 1');
-    $chk->execute([$u['id'], $targetId, $u['id'], $targetId]);
-    if (!$chk->fetch()) {
-      // Rétro-compat acheteur→vendeur par annonce — commande confirmée par le vendeur.
-      $chk2 = $pdo->prepare('SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
-        WHERE o.buyer_id = ? AND oi.listing_id = ? AND o.seller_id = ? AND o.seller_confirmed = 1 LIMIT 1');
-      $chk2->execute([$u['id'], $listingId, $targetId]);
-      if (!$chk2->fetch()) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur.', 403);
+    if ($listingId) {
+      // Portée stricte (Le Gardien) : quand l'avis vise une ANNONCE précise, la
+      // vente confirmée doit concerner CETTE annonce — pas n'importe quelle
+      // commande entre les deux personnes.
+      $chk = $pdo->prepare('SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
+        WHERE oi.listing_id = ? AND o.seller_confirmed = 1 AND
+          ((o.buyer_id = ? AND o.seller_id = ?) OR (o.seller_id = ? AND o.buyer_id = ?)) LIMIT 1');
+      $chk->execute([$listingId, $u['id'], $targetId, $u['id'], $targetId]);
+      if (!$chk->fetch()) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur pour cette annonce.', 403);
+    } else {
+      // Avis de profil (sans annonce) : une vente confirmée entre les deux suffit.
+      $chk = $pdo->prepare('SELECT 1 FROM orders WHERE seller_confirmed = 1 AND
+        ((buyer_id = ? AND seller_id = ?) OR (seller_id = ? AND buyer_id = ?)) LIMIT 1');
+      $chk->execute([$u['id'], $targetId, $u['id'], $targetId]);
+      if (!$chk->fetch()) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur.', 403);
     }
     // Un seul avis par personne notée (par annonce). Sinon on met à jour.
     $ex = $pdo->prepare('SELECT id FROM reviews WHERE reviewer_id = ? AND target_id = ? AND (listing_id = ? OR ? = \'\') LIMIT 1');
