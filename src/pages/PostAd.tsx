@@ -428,7 +428,7 @@ export function PostAd() {
           </label>
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {images.map((src, i) => (
-              <div key={i} className="group relative aspect-square overflow-hidden rounded-2xl border border-[#EFE6D7] bg-cream-100 shadow-card">
+              <div key={i} className="group relative aspect-square overflow-hidden rounded-2xl border border-line bg-cream-100 shadow-card">
                 <img src={src} alt="" className="h-full w-full object-cover" />
                 <button
                   type="button"
@@ -452,7 +452,7 @@ export function PostAd() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-[#E6DAC6] bg-cream-100 text-gray-400 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-500"
+                className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-line2 bg-cream-100 text-gray-400 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-500"
                 aria-label="Ajouter des photos"
               >
                 <Plus size={26} />
@@ -560,7 +560,7 @@ export function PostAd() {
                   className={`flex-1 rounded-xl border px-4 py-3 text-sm font-bold capitalize transition active:scale-[0.98] ${
                     condition === c
                       ? 'border-primary-500 bg-primary-500 text-white shadow-[0_6px_16px_-8px_rgba(247,127,0,0.6)]'
-                      : 'border-[#E6DAC6] bg-white text-gray-700 hover:bg-cream-100'
+                      : 'border-line2 bg-white text-gray-700 hover:bg-cream-100'
                   }`}
                 >
                   {c}
@@ -601,7 +601,7 @@ export function PostAd() {
 
         {/* Promotion (facultatif) */}
         <div>
-          <label className="flex items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3">
+          <label className="flex items-center justify-between rounded-xl border border-line2 px-4 py-3">
             <span className="flex items-center gap-2 text-sm font-bold text-gray-800">
               <Tag size={18} className="text-red-500" /> Mettre en promotion
             </span>
@@ -685,7 +685,7 @@ export function PostAd() {
 
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
         <Field label="Localisation">
-          <div className="flex items-center justify-between rounded-xl border border-[#E6DAC6] bg-cream-100 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-line2 bg-cream-100 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2">
               <MapPin size={18} className="shrink-0 text-primary-500" />
               <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
@@ -720,7 +720,7 @@ export function PostAd() {
 
         {/* Livraison — masquée pour l'immobilier, l'emploi, les services… */}
         {form.delivery && (
-          <label className="flex items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3">
+          <label className="flex items-center justify-between rounded-xl border border-line2 px-4 py-3">
             <span className="text-sm font-medium text-gray-800">Livraison possible</span>
             <input
               type="checkbox"
@@ -814,7 +814,7 @@ function AttrInput({
 }) {
   if (field.type === 'toggle') {
     return (
-      <label className="flex items-center justify-between rounded-xl border border-[#E6DAC6] px-4 py-3">
+      <label className="flex items-center justify-between rounded-xl border border-line2 px-4 py-3">
         <span className="text-sm font-medium text-gray-800">{field.label}</span>
         <input
           type="checkbox"

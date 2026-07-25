@@ -291,7 +291,8 @@ export function Home() {
             <button
               key={cat.id}
               onClick={() => navigate(`/explorer?${buildParams({ cat: cat.id })}`)}
-              className={`flex flex-col items-center gap-1.5 transition active:scale-95 ${i >= 8 ? 'hidden sm:flex' : ''}`}
+              className={`animate-fadeup flex flex-col items-center gap-1.5 transition active:scale-95 ${i >= 8 ? 'hidden sm:flex' : ''}`}
+              style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
             >
               <span
                 className={`grid h-14 w-14 place-items-center rounded-2xl shadow-sm md:h-16 md:w-16 ${cat.color}`}

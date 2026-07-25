@@ -63,7 +63,7 @@ export function Donate() {
                     className={`rounded-xl border-[1.5px] py-3.5 text-center font-display text-[15px] font-extrabold transition ${
                       active
                         ? 'border-primary-500 bg-[#FFF6EC] text-primary-700'
-                        : 'border-[#E6DAC6] bg-white text-ink hover:bg-[#FFFBF4]'
+                        : 'border-line2 bg-white text-ink hover:bg-[#FFFBF4]'
                     }`}
                   >
                     {formatPrice(a)}
@@ -76,7 +76,7 @@ export function Donate() {
                 className={`rounded-xl border-[1.5px] py-3.5 text-center font-display text-[15px] font-extrabold transition ${
                   isCustom
                     ? 'border-primary-500 bg-[#FFF6EC] text-primary-700'
-                    : 'border-[#E6DAC6] bg-white text-ink hover:bg-[#FFFBF4]'
+                    : 'border-line2 bg-white text-ink hover:bg-[#FFFBF4]'
                 }`}
               >
                 Autre
@@ -114,7 +114,7 @@ export function Donate() {
                     className={`flex items-center justify-center gap-2 rounded-xl border px-2 py-3 transition ${
                       active
                         ? 'border-primary-500 bg-[#FFF6EC]'
-                        : 'border-[#E6DAC6] bg-white hover:bg-[#FFFBF4]'
+                        : 'border-line2 bg-white hover:bg-[#FFFBF4]'
                     }`}
                   >
                     <PayLogo id={o.id} className="h-6 w-6" />
@@ -128,7 +128,7 @@ export function Donate() {
           {/* Numéro Mobile Money (numéro Chap.ci à créditer) */}
           <section>
             <p className="mb-2 text-sm font-semibold text-gray-700">Numéro Mobile Money</p>
-            <div className="flex items-center gap-3 rounded-xl border border-[#E6DAC6] bg-white px-4 py-3.5">
+            <div className="flex items-center gap-3 rounded-xl border border-line2 bg-white px-4 py-3.5">
               <Phone size={18} className="shrink-0 text-gray-400" />
               <span className="flex-1 font-mono text-[15px] font-semibold tracking-tight text-gray-800">
                 {op.number}

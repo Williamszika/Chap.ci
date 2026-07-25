@@ -85,7 +85,7 @@ export function AdminDashboard() {
     return (
       <Shell>
         <Center>
-          <div className="mx-auto flex max-w-sm flex-col items-center rounded-3xl border border-[#EFE6D7] bg-white px-6 py-10 text-center shadow-card">
+          <div className="mx-auto flex max-w-sm flex-col items-center rounded-3xl border border-line bg-white px-6 py-10 text-center shadow-card">
             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 text-primary-600"><Lock size={30} /></span>
             <h1 className="mt-4 font-display text-xl font-bold text-gray-900">Accès réservé à l’administrateur</h1>
             <p className="mt-1.5 max-w-xs text-sm text-gray-500">Connectez-vous avec le compte administrateur du site pour accéder au tableau de bord.</p>
@@ -102,7 +102,7 @@ export function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-cream-200 pb-16">
-      <header className="safe-top sticky top-0 z-30 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md">
+      <header className="safe-top sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur-md">
         <div className="flex items-center gap-2.5 px-3 py-3">
           <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
           <h1 className="font-display text-lg font-bold">Administration</h1>
@@ -122,7 +122,7 @@ export function AdminDashboard() {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex shrink-0 items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${tab === id ? 'border border-primary-500 bg-primary-500 text-white shadow-sm' : 'border border-[#E6DAC6] bg-white text-gray-600 hover:bg-cream-100'}`}
+              className={`flex shrink-0 items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${tab === id ? 'border border-primary-500 bg-primary-500 text-white shadow-sm' : 'border border-line2 bg-white text-gray-600 hover:bg-cream-100'}`}
             >
               {label}
               {id === 'reports' && !!stats?.reportsOpen && (
@@ -254,7 +254,7 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
                   className={`grid h-[50px] w-10 place-items-center rounded-xl border-[1.5px] bg-white font-display text-[23px] font-extrabold not-italic text-ink ${
                     i === focusIdx && code.length < 6
                       ? 'border-primary-500 shadow-[0_0_0_3px_#FFF6EC]'
-                      : 'border-[#E6DAC6]'
+                      : 'border-line2'
                   }`}
                 >
                   {code[i] ?? ''}
@@ -485,7 +485,7 @@ function Overview({ stats, onGo, canSee, owner, email }: {
                     <button
                       type="button"
                       onClick={() => onGo('users')}
-                      className="hidden rounded-lg border border-[#E6DAC6] px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:block"
+                      className="hidden rounded-lg border border-line2 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 sm:block"
                     >
                       Voir
                     </button>
@@ -1051,7 +1051,7 @@ function ModBtn({ active, onClick, disabled, icon, label, tone }: { active: bool
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-xs font-semibold transition disabled:opacity-50 ${active ? tones[tone] : 'border-[#E6DAC6] text-gray-600'}`}
+      className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-xs font-semibold transition disabled:opacity-50 ${active ? tones[tone] : 'border-line2 text-gray-600'}`}
     >
       {icon}{label}
     </button>
@@ -1093,7 +1093,7 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
               {r.details && <p className="mt-1 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">{r.details}</p>}
               <p className="mt-1 text-[11px] text-gray-400">Signalé par {r.reporterEmail || '—'} · {timeAgo(r.createdAt)}</p>
               <div className="mt-2 flex gap-1.5">
-                <button onClick={() => hide(r)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                <button onClick={() => hide(r)} className="flex items-center gap-1 rounded-lg border border-line2 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
                   {r.listingHidden ? <><Eye size={13} /> Réafficher</> : <><EyeOff size={13} /> Masquer l’annonce</>}
                 </button>
                 {r.status === 'open' && (
@@ -1201,7 +1201,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
             </button>
 
             {open && (
-              <div className="border-t border-[#EFE6D7] px-3 pb-3">
+              <div className="border-t border-line px-3 pb-3">
                 {/* Ordinateur/iPad large : message à gauche, réponse à droite.
                     Téléphone/tablette : empilés. */}
                 <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
@@ -1219,7 +1219,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
                   </div>
                 ) : m.email ? (
                   /* Composer : réponse envoyée par email depuis contact@chap.ci */
-                  <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-cream-200/70 p-3 lg:mt-3">
+                  <div className="mt-2 rounded-xl border border-line bg-cream-200/70 p-3 lg:mt-3">
                     <p className="text-xs font-bold text-gray-700">Répondre à {m.name || m.email}</p>
                     <textarea
                       value={draft}
@@ -1262,7 +1262,7 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
 
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {m.handled ? (
-                    <button onClick={() => mark(m, false)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 md:px-2.5 md:py-1.5 md:text-xs">
+                    <button onClick={() => mark(m, false)} className="flex items-center gap-1 rounded-lg border border-line2 px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 md:px-2.5 md:py-1.5 md:text-xs">
                       <Undo2 size={13} /> Rouvrir
                     </button>
                   ) : (
@@ -1350,7 +1350,7 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
         </button>
         <button
           onClick={() => { navigator.clipboard?.writeText(cronUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-          className="flex items-center gap-1.5 rounded-lg border border-[#E6DAC6] bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          className="flex items-center gap-1.5 rounded-lg border border-line2 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
         >
           {copied ? <CheckCircle2 size={13} className="text-ivoire-green-dark" /> : <Copy size={13} />} Copier l’URL cron quotidienne
         </button>
@@ -1424,7 +1424,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
       <SeoOfficePanel onChanged={load} />
 
       {/* Diffusion Chap.ci : message animé, style d'écriture, durée */}
-      <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+      <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
         <p className="font-display text-[15px] font-extrabold text-ink">📺 Diffuser un message Chap.ci</p>
         <p className="mt-0.5 text-xs text-gray-400">
           Affiché immédiatement sur l’écran publicitaire (sans paiement) : annonces de la maison,
@@ -1461,7 +1461,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             inputMode="url"
             className="input"
           />
-          <label className="flex items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-3">
+          <label className="flex items-center gap-2 rounded-xl border border-line2 bg-white px-3">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Durée</span>
             <input
               type="number"
@@ -1518,12 +1518,12 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
       </div>
 
       {/* Demandes & diffusions */}
-      <div className="rounded-2xl border border-[#EFE6D7] bg-white px-4 py-3 shadow-card">
+      <div className="rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
         <p className="font-display text-[15px] font-extrabold text-ink">Publicités · {items.length}</p>
         {items.length === 0 ? (
           <Empty>Aucune publicité pour l’instant.</Empty>
         ) : (
-          <div className="divide-y divide-[#EFE6D7]">
+          <div className="divide-y divide-line">
             {items.map((a) => {
               const [pillLabel, pillCls] = AD_STATUS_PILL[a.status] ?? AD_STATUS_PILL.pending
               return (
@@ -1590,7 +1590,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                       )}
 
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        <button onClick={() => setPreview(a)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                        <button onClick={() => setPreview(a)} className="flex items-center gap-1 rounded-lg border border-line2 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
                           <Eye size={13} /> Voir en grand
                         </button>
                         {a.status === 'pending' && (
@@ -1603,7 +1603,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                             <Ban size={13} /> {a.status === 'active' ? 'Retirer de l’écran' : 'Rejeter'}
                           </button>
                         )}
-                        <button onClick={() => remove(a)} className="flex items-center gap-1 rounded-lg border border-[#E6DAC6] px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                        <button onClick={() => remove(a)} className="flex items-center gap-1 rounded-lg border border-line2 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                           <Trash2 size={13} /> Supprimer
                         </button>
                       </div>
@@ -1698,7 +1698,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                   <Ban size={16} /> {preview.status === 'active' ? 'Retirer de l’écran' : 'Refuser'}
                 </button>
               )}
-              <button onClick={() => { const a = preview; setPreview(null); remove(a) }} aria-label="Supprimer" className="flex items-center justify-center gap-1.5 rounded-xl border border-[#E6DAC6] px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              <button onClick={() => { const a = preview; setPreview(null); remove(a) }} aria-label="Supprimer" className="flex items-center justify-center gap-1.5 rounded-xl border border-line2 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -1744,7 +1744,7 @@ function OrdersTab() {
               </li>
             ))}
           </ul>
-          <p className="mt-2 border-t border-[#EFE6D7] pt-2 text-xs text-gray-400">
+          <p className="mt-2 border-t border-line pt-2 text-xs text-gray-400">
             {o.buyerEmail || '—'} → {o.sellerEmail || '—'} · {timeAgo(o.createdAt)}
           </p>
         </div>
@@ -1787,7 +1787,7 @@ function NewsletterTab() {
       </div>
       <p className="text-xs text-gray-400">Importez le CSV dans Brevo, Mailchimp ou MailerLite pour vos campagnes.</p>
       {subs.length === 0 ? <Empty>Aucun abonné pour l’instant.</Empty> : (
-        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white">
+        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-line bg-white">
           {subs.map((s) => (
             <li key={s.email} className="flex items-center gap-3 px-4 py-3">
               <Mail size={16} className="shrink-0 text-primary-500" />
@@ -1866,7 +1866,7 @@ function ModeratorsTab() {
       </div>
 
       {/* Panneau « Créer un modérateur » (panel-lite de l'artifact) */}
-      <form onSubmit={save} className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+      <form onSubmit={save} className="rounded-2xl border border-line bg-white p-4 shadow-card">
         <p className="font-display text-[15px] font-extrabold text-ink">Créer un modérateur</p>
         <div className="relative mt-3">
           <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1891,14 +1891,14 @@ function ModeratorsTab() {
               <label
                 key={f.key}
                 className={`flex cursor-pointer select-none items-center gap-2 rounded-[11px] border px-3 py-2.5 text-[13px] transition ${
-                  on ? 'border-primary-500 bg-[#FFF6EC] font-semibold text-primary-700' : 'border-[#E6DAC6] text-gray-600'
+                  on ? 'border-primary-500 bg-[#FFF6EC] font-semibold text-primary-700' : 'border-line2 text-gray-600'
                 }`}
               >
                 <input type="checkbox" checked={on} onChange={() => toggle(f.key)} className="sr-only" />
                 <span
                   aria-hidden
                   className={`grid h-[17px] w-[17px] shrink-0 place-items-center rounded-[5px] border-[1.5px] text-[11px] text-white ${
-                    on ? 'border-primary-500 bg-primary-500' : 'border-[#E6DAC6] bg-white'
+                    on ? 'border-primary-500 bg-primary-500' : 'border-line2 bg-white'
                   }`}
                 >
                   {on ? '✓' : ''}
@@ -1928,7 +1928,7 @@ function ModeratorsTab() {
               <button
                 type="button"
                 onClick={() => { navigator.clipboard?.writeText(issued.code); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-                className="shrink-0 rounded-[11px] border border-[#E6DAC6] bg-white p-3 text-gray-600 transition active:scale-95"
+                className="shrink-0 rounded-[11px] border border-line2 bg-white p-3 text-gray-600 transition active:scale-95"
                 aria-label="Copier le code"
               >
                 {copied ? <CheckCircle2 size={18} className="text-ivoire-green-dark" /> : <Copy size={18} />}
@@ -1951,12 +1951,12 @@ function ModeratorsTab() {
       </form>
 
       {/* Panneau « Modérateurs · N » — lignes de l'artifact */}
-      <div className="rounded-2xl border border-[#EFE6D7] bg-white px-4 py-3 shadow-card">
+      <div className="rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
         <p className="font-display text-[15px] font-extrabold text-ink">Modérateurs · {data.moderators.length}</p>
         {data.moderators.length === 0 ? (
           <Empty>Aucun modérateur. Créez-en un ci-dessus.</Empty>
         ) : (
-          <div className="divide-y divide-[#EFE6D7]">
+          <div className="divide-y divide-line">
             {data.moderators.map((m, i) => (
               <div key={m.email} className="flex items-center gap-3 py-3">
                 <span
@@ -1978,7 +1978,7 @@ function ModeratorsTab() {
                   {m.permissions.length > 0 ? (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {m.permissions.map((p) => (
-                        <span key={p} className="rounded-full border border-[#EFE6D7] bg-cream-200 px-2 py-0.5 text-[10.5px] font-semibold text-gray-600">
+                        <span key={p} className="rounded-full border border-line bg-cream-200 px-2 py-0.5 text-[10.5px] font-semibold text-gray-600">
                           {labelOf(p)}
                         </span>
                       ))}
@@ -2155,7 +2155,7 @@ function SmartAgents() {
         </p>
         <div className="mt-1 flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
-          <button onClick={copy} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
+          <button onClick={copy} className="shrink-0 rounded-lg border border-line2 p-1.5 text-gray-600 hover:bg-gray-50">
             {copied ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
           </button>
         </div>
@@ -2220,7 +2220,7 @@ function AutoOffers() {
             <p className="text-xs text-gray-500">{when} — planning <code className="rounded bg-gray-100 px-1">{sched}</code></p>
             <div className="mt-1 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd(type)}</code>
-              <button onClick={() => copy(type)} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
+              <button onClick={() => copy(type)} className="shrink-0 rounded-lg border border-line2 p-1.5 text-gray-600 hover:bg-gray-50">
                 {copied === type ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
               </button>
             </div>
@@ -2330,7 +2330,7 @@ function EmailsTab() {
         {saveMsg && <p className={`text-sm ${saveMsg.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{saveMsg}</p>}
       </form>
 
-      <div className="rounded-2xl border border-[#E6DAC6] p-4">
+      <div className="rounded-2xl border border-line2 p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-gray-600">Vérifier l’envoi&nbsp;:</p>
           <button onClick={test} disabled={testing} className="btn-outline shrink-0 py-2 text-sm disabled:opacity-50">
@@ -2410,10 +2410,10 @@ function AutomationTab() {
           <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-3 py-2 text-[13px] text-gray-100">
             {reveal ? (key || '(aucune)') : masked}
           </code>
-          <button onClick={() => setReveal((v) => !v)} className="shrink-0 rounded-lg border border-[#E6DAC6] p-2 text-gray-600 hover:bg-gray-50" aria-label={reveal ? 'Masquer la clé' : 'Afficher la clé'}>
+          <button onClick={() => setReveal((v) => !v)} className="shrink-0 rounded-lg border border-line2 p-2 text-gray-600 hover:bg-gray-50" aria-label={reveal ? 'Masquer la clé' : 'Afficher la clé'}>
             {reveal ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
-          <button onClick={() => copy('key', key)} disabled={!key} className="shrink-0 rounded-lg border border-[#E6DAC6] p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Copier la clé">
+          <button onClick={() => copy('key', key)} disabled={!key} className="shrink-0 rounded-lg border border-line2 p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-40" aria-label="Copier la clé">
             {copied === 'key' ? <CheckCircle2 size={16} className="text-ivoire-green-dark" /> : <Copy size={16} />}
           </button>
         </div>
@@ -2437,7 +2437,7 @@ function AutomationTab() {
             </div>
             <div className="mt-2 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{urlFor(j)}</code>
-              <button onClick={() => copy(j.id, urlFor(j))} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50" aria-label="Copier l’URL">
+              <button onClick={() => copy(j.id, urlFor(j))} className="shrink-0 rounded-lg border border-line2 p-1.5 text-gray-600 hover:bg-gray-50" aria-label="Copier l’URL">
                 {copied === j.id ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
               </button>
             </div>
@@ -2539,7 +2539,7 @@ function ModerationAutoCard() {
       {data.tokens.length > 0 && (
         <div className="space-y-1.5">
           {data.tokens.map((t) => (
-            <div key={t.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${t.revoked ? 'border-[#EFE6D7] bg-gray-50 opacity-70' : 'border-[#E6DAC6] bg-white'}`}>
+            <div key={t.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${t.revoked ? 'border-line bg-gray-50 opacity-70' : 'border-line2 bg-white'}`}>
               <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${t.revoked ? 'bg-gray-200 text-gray-400' : 'bg-ivoire-green/10 text-ivoire-green'}`}>
                 <ShieldOk size={16} />
               </span>
@@ -2661,7 +2661,7 @@ function BackupTab() {
           <p className="text-xs text-gray-500">Chaque jour à 3h — planning <code className="rounded bg-gray-100 px-1">0 3 * * *</code></p>
           <div className="mt-1 flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{cmd}</code>
-            <button onClick={copy} className="shrink-0 rounded-lg border border-[#E6DAC6] p-1.5 text-gray-600 hover:bg-gray-50">
+            <button onClick={copy} className="shrink-0 rounded-lg border border-line2 p-1.5 text-gray-600 hover:bg-gray-50">
               {copied ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
             </button>
           </div>
@@ -2683,7 +2683,7 @@ function BackupTab() {
         ) : (
           <ul className="space-y-2">
             {info.backups.map((b) => (
-              <li key={b.file} className="flex items-center gap-2 rounded-xl border border-[#EFE6D7] p-2.5">
+              <li key={b.file} className="flex items-center gap-2 rounded-xl border border-line p-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-600"><Database size={16} /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-gray-800">{b.file}</span>
@@ -2691,7 +2691,7 @@ function BackupTab() {
                 </span>
                 <button
                   onClick={() => downloadBackup(b.file).catch((e) => setErr((e as Error).message))}
-                  className="shrink-0 rounded-lg border border-[#E6DAC6] p-2 text-gray-600 hover:bg-gray-50"
+                  className="shrink-0 rounded-lg border border-line2 p-2 text-gray-600 hover:bg-gray-50"
                   aria-label="Télécharger"
                 >
                   <Download size={16} />
@@ -2762,7 +2762,7 @@ function Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-cream-200 pb-16">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 backdrop-blur-md px-3 py-3">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-white/90 backdrop-blur-md px-3 py-3">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="p-1"><ArrowLeft size={22} /></button>
         <h1 className="font-display text-lg font-bold">Administration</h1>
       </header>

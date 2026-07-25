@@ -128,7 +128,7 @@ export function DealCard({ convId, userId }: { convId: string; userId: string })
     )
   }
 
-  return <div className="border-b border-[#EFE6D7] bg-white px-3 py-2.5">{inner}</div>
+  return <div className="border-b border-line bg-white px-3 py-2.5">{inner}</div>
 }
 
 function Row({

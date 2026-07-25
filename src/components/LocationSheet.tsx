@@ -120,7 +120,7 @@ export function LocationSheet({ open, onClose, value, onApply }: Props) {
             </button>
           ))}
           {cityList.length === 0 && (
-            <p className="py-6 text-center text-sm text-gray-400">
+            <p className="py-6 text-center text-sm text-gray-500">
               Aucune ville référencée pour cette région.
             </p>
           )}

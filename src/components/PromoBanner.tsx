@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Megaphone, ArrowRight } from 'lucide-react'
 import { fetchActiveAds, type Ad } from '../lib/ads'
+import { formatFCFA } from '../lib/format'
 import { AdImageFill } from './AdImageFill'
 import { AnimatedAdText } from './AnimatedAdText'
 
@@ -114,7 +115,7 @@ export function PromoBanner() {
                     key={a.id}
                     onClick={() => setIdx(i)}
                     aria-label={`Publicité ${i + 1}`}
-                    className="grid h-11 place-items-center px-1"
+                    className="grid h-11 min-w-11 place-items-center"
                   >
                     <span
                       className={`block h-1.5 rounded-full transition-all ${
@@ -195,7 +196,7 @@ export function PromoBanner() {
                     key={a.id}
                     onClick={() => setIdx(i)}
                     aria-label={`Publicité ${i + 1}`}
-                    className="grid h-11 place-items-center px-1"
+                    className="grid h-11 min-w-11 place-items-center"
                   >
                     <span
                       className={`block h-1.5 rounded-full transition-all ${
@@ -223,7 +224,7 @@ export function PromoBanner() {
             </h2>
             <p className="max-w-md text-sm text-white/70 md:text-base">
               Affichez votre marque, votre boutique ou votre annonce devant des milliers
-              d’acheteurs — dès 2 000 FCFA la semaine, payable par Mobile Money.
+              d’acheteurs — dès {formatFCFA(2000)} la semaine, payable par Mobile Money.
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
               <Link

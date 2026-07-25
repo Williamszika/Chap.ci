@@ -172,7 +172,7 @@ export function Profile() {
       <div className="min-h-screen bg-cream-200 md:min-h-0 md:bg-transparent">
         <div className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-4xl md:px-6 md:py-6 lg:max-w-5xl">
           {/* Carte profil */}
-          <div className="flex items-center gap-4 rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:rounded-3xl md:p-5">
+          <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 shadow-card md:rounded-3xl md:p-5">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white md:h-20 md:w-20">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -223,7 +223,7 @@ export function Profile() {
 
           {/* Mon activité */}
           <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Mon activité</p>
-          <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
+          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white shadow-card">
             <AccountRow tint="ocre" icon={<Package size={20} />} label="Mes annonces" sub={`${myListings.length} en ligne · ${salesDone} vendue${salesDone > 1 ? 's' : ''}`} onClick={() => setTab('annonces')} />
             <AccountRow tint="red" icon={<Heart size={20} className="fill-current" />} label="Mes favoris" badge={favorites.length || undefined} onClick={() => navigate('/favoris')} />
             <AccountRow tint="gray" icon={<MessageSquare size={20} />} label="Messages" sub="Vos conversations" onClick={() => navigate('/messages')} />
@@ -233,7 +233,7 @@ export function Profile() {
 
           {/* Compte & sécurité */}
           <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Compte &amp; sécurité</p>
-          <div className="divide-y divide-[#EFE6D7] overflow-hidden rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
+          <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white shadow-card">
             <AccountRow tint="primary" icon={<Bell size={20} />} label="Notifications" onClick={() => navigate('/notifications')} />
             <AccountRow tint="green" icon={<ShieldCheck size={20} />} label="Sécurité" sub="Mot de passe · double authentification" onClick={() => setTab('params')} />
             <AccountRow tint="sky" icon={<MapPin size={20} />} label="Adresse & localisation" onClick={() => setTab('params')} />
@@ -256,7 +256,7 @@ export function Profile() {
         {/* Déconnecté : accueil de connexion */}
         {!user && (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-[#EFE6D7] bg-white p-6 text-center shadow-card md:rounded-3xl">
+            <div className="rounded-2xl border border-line bg-white p-6 text-center shadow-card md:rounded-3xl">
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-2xl font-black text-white">C</div>
               <p className="mt-3 font-display text-lg font-black text-ink">Bienvenue&nbsp;👋</p>
               <p className="mt-1 text-sm text-gray-500">Connectez-vous pour vendre et acheter chap-chap.</p>
@@ -337,7 +337,7 @@ export function Profile() {
             <div className="space-y-4">
               {/* Sélecteur de période — recharge les vraies statistiques */}
               <div className="flex justify-end">
-                <div className="flex rounded-xl border border-[#E6DAC6] bg-white p-0.5 text-xs font-bold shadow-card">
+                <div className="flex rounded-xl border border-line2 bg-white p-0.5 text-xs font-bold shadow-card">
                   {([['7j', '7 j'], ['30j', '30 j'], ['annee', 'Année']] as const).map(([p, lab]) => (
                     <button
                       key={p}
@@ -361,7 +361,7 @@ export function Profile() {
               {revenue > 0 && (
                 <button
                   onClick={() => { setShowReviews(false); setSalesFilter('finalise') }}
-                  className="flex w-full items-center justify-between rounded-2xl border border-[#EFE6D7] bg-ivoire-green/10 px-4 py-3.5 text-left shadow-card transition hover:bg-ivoire-green/15 active:scale-[0.99]"
+                  className="flex w-full items-center justify-between rounded-2xl border border-line bg-ivoire-green/10 px-4 py-3.5 text-left shadow-card transition hover:bg-ivoire-green/15 active:scale-[0.99]"
                 >
                   <div>
                     <p className="text-xs font-semibold text-ivoire-green-dark">Chiffre d’affaires (ventes finalisées)</p>
@@ -436,7 +436,7 @@ export function Profile() {
                               <span className="min-w-0 truncate">{c.name}</span>
                               <span className="tnum shrink-0">{pct} %</span>
                             </div>
-                            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#EFE6D7]">
+                            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-line">
                               <div
                                 className={`h-full rounded-full ${catBarColors[i % catBarColors.length]}`}
                                 style={{ width: `${pct}%` }}
@@ -563,7 +563,7 @@ export function Profile() {
                         </div>
                       </Link>
                     </div>
-                    <div className="mt-2 flex gap-1.5 border-t border-[#EFE6D7] pt-2">
+                    <div className="mt-2 flex gap-1.5 border-t border-line pt-2">
                       <button
                         onClick={() => navigate(`/modifier/${l.id}`, { state: { listing: l } })}
                         className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
@@ -794,7 +794,7 @@ function MyAlerts() {
       ) : (
         <ul className="space-y-2">
           {alerts.map((a) => (
-            <li key={a.id} className="flex items-center gap-2 rounded-xl border border-[#EFE6D7] p-2.5">
+            <li key={a.id} className="flex items-center gap-2 rounded-xl border border-line p-2.5">
               <button
                 onClick={() => navigate(`/explorer${a.params ? `?${a.params}` : ''}`)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -869,7 +869,7 @@ function VerificationCard({ verified, onVerified }: { verified: boolean; onVerif
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+    <div className="mt-4 rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="flex items-center gap-2">
         <VerifiedBadge size={22} />
         <p className="font-display font-black text-ink">Badge de vérification</p>
@@ -962,7 +962,7 @@ function DashStat({
   trend?: number | null
 }) {
   return (
-    <div className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+    <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
       <span className={`inline-grid h-10 w-10 place-items-center rounded-xl ${rowTints[tint]}`}>{icon}</span>
       <p className="tnum mt-3 font-display text-3xl font-black text-ink">{value}</p>
       <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-gray-500">
@@ -980,7 +980,7 @@ function DashStat({
 /** Petite tuile de récap du compte (annonces / favoris / note). */
 function MiniStat({ value, label }: { value: number | string; label: string }) {
   return (
-    <div className="rounded-2xl border border-[#EFE6D7] bg-white px-2 py-3 text-center shadow-card">
+    <div className="rounded-2xl border border-line bg-white px-2 py-3 text-center shadow-card">
       <p className="tnum text-2xl font-black text-primary-600">{value}</p>
       <p className="text-xs text-gray-500">{label}</p>
     </div>
@@ -1067,7 +1067,7 @@ function OrderCard({
   const st = statusLabel[order.status] ?? statusLabel.en_cours
   return (
     <div className="card overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[#EFE6D7] px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
         <span className="text-sm font-bold text-gray-900">{who}</span>
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
       </div>
@@ -1080,7 +1080,7 @@ function OrderCard({
           </div>
         ))}
       </button>
-      <div className="border-t border-[#EFE6D7] px-4 py-2">
+      <div className="border-t border-line px-4 py-2">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="text-gray-400">{timeAgo(order.createdAt)}</span>
           <span className="tnum font-bold text-gray-800">{formatFCFA(total)}</span>

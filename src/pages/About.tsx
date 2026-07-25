@@ -28,7 +28,7 @@ export function About() {
           {values.map((v) => (
             <div
               key={v.t}
-              className="rounded-[14px] border border-[#EFE6D7] bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]"
+              className="rounded-[14px] border border-line bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]"
             >
               <div className="text-[26px] leading-none" aria-hidden>{v.e}</div>
               <p className="mt-2 font-display text-sm font-bold text-ink">{v.t}</p>

@@ -50,7 +50,7 @@ export function TopNav() {
   }
 
   return (
-    <header className="sticky top-0 z-40 hidden border-b border-[#EFE6D7] bg-cream-200/85 backdrop-blur-md md:block">
+    <header className="sticky top-0 z-40 hidden border-b border-line bg-cream-200/85 backdrop-blur-md md:block">
       <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-3 lg:gap-5 lg:px-6">
         <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="Accueil Chap.ci">
           <Logo size={30} />
@@ -72,7 +72,7 @@ export function TopNav() {
 
         <form
           onSubmit={submitSearch}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-primary-400"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line2 bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-primary-400"
         >
           <Search size={18} className="shrink-0 text-gray-400" />
           <input
@@ -87,7 +87,7 @@ export function TopNav() {
         <Link
           to="/favoris"
           aria-label="Favoris"
-          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
+          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line2 bg-white text-gray-600 transition hover:bg-cream-100"
         >
           <Heart size={19} />
           {favorites.length > 0 && (
@@ -99,7 +99,7 @@ export function TopNav() {
 
         <NotificationBell
           align="right"
-          buttonClass="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#E6DAC6] bg-white text-gray-600 transition hover:bg-cream-100"
+          buttonClass="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line2 bg-white text-gray-600 transition hover:bg-cream-100"
         />
 
         {user ? (
@@ -168,7 +168,7 @@ function AccountMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         className={`flex items-center gap-1.5 rounded-full border py-1.5 pl-1.5 pr-1.5 text-sm font-semibold transition lg:pr-3 ${
-          open ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-[#E6DAC6] text-gray-700 hover:bg-cream-100'
+          open ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-line2 text-gray-700 hover:bg-cream-100'
         }`}
       >
         <span className="grid h-7 w-7 place-items-center rounded-full bg-primary-100 text-sm font-bold text-primary-600">

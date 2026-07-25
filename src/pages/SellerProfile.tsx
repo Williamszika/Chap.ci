@@ -169,7 +169,7 @@ export function SellerProfile() {
       </header>
 
       {/* Onglets / filtres */}
-      <nav className="no-scrollbar flex gap-2 overflow-x-auto border-t border-[#EFE6D7] bg-white/70 px-4 py-3 backdrop-blur">
+      <nav className="no-scrollbar flex gap-2 overflow-x-auto border-t border-line bg-white/70 px-4 py-3 backdrop-blur">
         <button
           onClick={() => setTab('annonces')}
           className={`chip ${tab === 'annonces' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}

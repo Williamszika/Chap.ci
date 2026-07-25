@@ -143,9 +143,9 @@ export function NotificationBell({
 
           <div className="max-h-[min(70vh,26rem)] overflow-y-auto">
             {loading ? (
-              <p className="py-8 text-center text-sm text-gray-400">Chargement…</p>
+              <p className="py-8 text-center text-sm text-gray-500">Chargement…</p>
             ) : items.length === 0 ? (
-              <div className="grid place-items-center gap-2 py-10 text-center text-gray-400">
+              <div className="grid place-items-center gap-2 py-10 text-center text-gray-500">
                 <Bell size={32} className="text-gray-300" />
                 <p className="text-sm">Aucune notification.</p>
               </div>
@@ -177,7 +177,7 @@ export function NotificationBell({
                         >
                           {n.body}
                         </span>
-                        <span className="mt-0.5 block text-[11px] text-gray-400">{timeAgo(n.createdAt)}</span>
+                        <span className="mt-0.5 block text-[11px] text-gray-500">{timeAgo(n.createdAt)}</span>
                       </span>
                       {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary-500" />}
                     </button>

@@ -114,9 +114,9 @@ export function Conversation() {
 
   return (
     <div className="min-h-screen bg-cream-200 md:mx-auto md:max-w-5xl md:px-4 md:py-4">
-      <div className="flex min-h-screen flex-col bg-cream-200 md:h-[calc(100vh-7rem)] md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card">
+      <div className="flex min-h-screen flex-col bg-cream-200 md:h-[calc(100vh-7rem)] md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-line md:bg-white md:shadow-card">
           {/* En-tête — bouton « retour » vers la liste des conversations */}
-          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-[#EFE6D7] bg-white/90 px-3 py-2.5 backdrop-blur-md md:rounded-t-3xl">
+          <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-white/90 px-3 py-2.5 backdrop-blur-md md:rounded-t-3xl">
             <button onClick={() => navigate('/messages')} aria-label="Retour" className="-ml-1 p-1">
               <ArrowLeft size={22} />
             </button>
@@ -131,7 +131,7 @@ export function Conversation() {
             {conv?.listingId && (
               <Link
                 to={`/annonce/${conv.listingId}`}
-                className="flex max-w-[46%] shrink-0 items-center gap-2 rounded-xl border border-[#EFE6D7] bg-cream-200 px-2 py-1.5 transition hover:bg-cream-100"
+                className="flex max-w-[46%] shrink-0 items-center gap-2 rounded-xl border border-line bg-cream-200 px-2 py-1.5 transition hover:bg-cream-100"
               >
                 {conv.listingImage ? (
                   <img src={conv.listingImage} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
@@ -153,9 +153,9 @@ export function Conversation() {
           {/* Messages */}
           <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-4 md:min-h-0">
             {loading ? (
-              <p className="py-10 text-center text-sm text-gray-400">Chargement…</p>
+              <p className="py-10 text-center text-sm text-gray-500">Chargement…</p>
             ) : messages.length === 0 ? (
-              <p className="py-10 text-center text-sm text-gray-400">
+              <p className="py-10 text-center text-sm text-gray-500">
                 Envoyez le premier message 👋
               </p>
             ) : (
@@ -167,11 +167,11 @@ export function Conversation() {
                       className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] md:max-w-[66%] ${
                         mine
                           ? 'rounded-br-md bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(247,127,0,0.45)]'
-                          : 'rounded-bl-md border border-[#EFE6D7] bg-white text-gray-800 shadow-card'
+                          : 'rounded-bl-md border border-line bg-white text-gray-800 shadow-card'
                       }`}
                     >
                       <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                      <div className={`mt-1 text-[11px] ${mine ? 'text-white/75' : 'text-gray-400'}`}>
+                      <div className={`mt-1 text-[11px] ${mine ? 'text-white/75' : 'text-gray-500'}`}>
                         {hhmm(m.createdAt)}
                       </div>
                     </div>
@@ -185,13 +185,13 @@ export function Conversation() {
           {/* Saisie */}
           <form
             onSubmit={send}
-            className="safe-bottom sticky bottom-0 flex items-center gap-2 border-t border-[#EFE6D7] bg-white px-3 py-3 md:rounded-b-3xl"
+            className="safe-bottom sticky bottom-0 flex items-center gap-2 border-t border-line bg-white px-3 py-3 md:rounded-b-3xl"
           >
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Votre message…"
-              className="flex-1 rounded-full border border-[#EFE6D7] bg-cream-200 px-4 py-3 text-[15px] outline-none transition focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-100"
+              className="flex-1 rounded-full border border-line bg-cream-200 px-4 py-3 text-[15px] outline-none transition focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-100"
             />
             <button
               type="submit"

@@ -159,7 +159,7 @@ export function Advertise() {
             <b>{op.name}</b> au numéro Chap.ci ci-dessous. Elle s’affichera sur l’écran publicitaire
             de l’accueil <b>après validation</b> (sous 24 h ouvrées).
           </p>
-          <div className="mx-auto mt-4 flex max-w-sm items-center gap-3 rounded-xl border border-[#E6DAC6] bg-white px-4 py-3.5">
+          <div className="mx-auto mt-4 flex max-w-sm items-center gap-3 rounded-xl border border-line2 bg-white px-4 py-3.5">
             <span className="flex-1 text-left font-mono text-[15px] font-semibold tracking-tight text-gray-800">{op.number}</span>
             <button
               onClick={async () => {
@@ -198,14 +198,14 @@ export function Advertise() {
         {/* Colonne formulaire */}
         <div className="space-y-4">
           {/* 1 · Visuel & message */}
-          <section className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
             <StepTitle n={1}>Visuel &amp; message</StepTitle>
 
             <p className="mb-1.5 mt-4 text-sm font-semibold text-gray-700">Photos de la bannière</p>
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={onFiles} />
             <div className="flex flex-wrap gap-2.5">
               {images.map((img, i) => (
-                <div key={i} className="relative h-20 w-32 overflow-hidden rounded-xl border border-[#EFE6D7]">
+                <div key={i} className="relative h-20 w-32 overflow-hidden rounded-xl border border-line">
                   <img src={img} alt="" className="h-full w-full object-cover" />
                   <button
                     onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
@@ -220,14 +220,14 @@ export function Advertise() {
                 <button
                   onClick={() => fileRef.current?.click()}
                   disabled={photoBusy}
-                  className="flex h-20 w-32 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[#E6DAC6] text-gray-400 transition hover:border-primary-300 hover:text-primary-500 disabled:opacity-60"
+                  className="flex h-20 w-32 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-line2 text-gray-400 transition hover:border-primary-300 hover:text-primary-500 disabled:opacity-60"
                 >
                   {photoBusy ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
                   <span className="text-[11px] font-semibold">Ajouter</span>
                 </button>
               )}
             </div>
-            <div className="mt-2 rounded-xl border border-[#EFE6D7] bg-[#FFFBF4] p-3 text-[11.5px] leading-relaxed text-gray-600">
+            <div className="mt-2 rounded-xl border border-line bg-[#FFFBF4] p-3 text-[11.5px] leading-relaxed text-gray-600">
               <p className="mb-1 font-bold text-gray-700">📐 Tailles d’image supportées</p>
               <ul className="space-y-1">
                 <li>• <b>Format idéal :</b> paysage 16:9 — ex. <b className="tnum">1280 × 720 px</b> (remplit tout l’écran, bien net).</li>
@@ -279,7 +279,7 @@ export function Advertise() {
             </p>
 
             {/* Style & animation du texte — mêmes options que le compositeur Chap.ci. */}
-            <div className="mt-4 border-t border-[#EFE6D7] pt-3">
+            <div className="mt-4 border-t border-line pt-3">
               <p className="text-sm font-semibold text-gray-700">Style &amp; animation du titre</p>
               <p className="mb-1 text-[11.5px] text-gray-400">S’applique au titre affiché sur l’écran (si vous en mettez un).</p>
               <AdTextControls
@@ -293,7 +293,7 @@ export function Advertise() {
           </section>
 
           {/* 2 · Durée d'affichage */}
-          <section className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
             <StepTitle n={2}>Durée d’affichage</StepTitle>
 
             {tariff.member ? (
@@ -317,7 +317,7 @@ export function Advertise() {
                     onClick={() => { setFormule(f.key); setQty(1) }}
                     aria-pressed={on}
                     className={`relative rounded-xl border-[1.5px] px-2 py-3.5 text-center transition ${
-                      on ? 'border-primary-500 bg-[#FFF6EC]' : 'border-[#E6DAC6] bg-white hover:bg-[#FFFBF4]'
+                      on ? 'border-primary-500 bg-[#FFF6EC]' : 'border-line2 bg-white hover:bg-[#FFFBF4]'
                     }`}
                   >
                     {eco != null && eco > 0 && (
@@ -342,7 +342,7 @@ export function Advertise() {
               <button
                 onClick={() => setQty((n) => Math.max(1, n - 1))}
                 aria-label="Diminuer"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[#E6DAC6] bg-white text-gray-600 transition active:scale-95"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-line2 bg-white text-gray-600 transition active:scale-95"
               >
                 <Minus size={16} />
               </button>
@@ -350,7 +350,7 @@ export function Advertise() {
               <button
                 onClick={() => setQty((n) => Math.min(31, n + 1))}
                 aria-label="Augmenter"
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[#E6DAC6] bg-white text-gray-600 transition active:scale-95"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-line2 bg-white text-gray-600 transition active:scale-95"
               >
                 <Plus size={16} />
               </button>
@@ -361,7 +361,7 @@ export function Advertise() {
           </section>
 
           {/* 3 · Paiement */}
-          <section className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card md:p-5">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
             <StepTitle n={3}>Paiement</StepTitle>
 
             {/* Consigne : combien payer et où l'envoyer (Orange Money ou Wave). */}
@@ -372,7 +372,7 @@ export function Advertise() {
               <button
                 type="button"
                 onClick={() => { navigator.clipboard?.writeText('0759901120'); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-                className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-[#E6DAC6] bg-white px-3 py-2.5 text-left transition active:scale-[0.99]"
+                className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-line2 bg-white px-3 py-2.5 text-left transition active:scale-[0.99]"
               >
                 <span className="tnum font-display text-lg font-extrabold text-ink">07 59 90 11 20</span>
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600">
@@ -394,7 +394,7 @@ export function Advertise() {
                     onClick={() => setPayMethod(o.id)}
                     aria-pressed={on}
                     className={`flex items-center justify-center gap-2 rounded-xl border px-2 py-3 transition ${
-                      on ? 'border-primary-500 bg-[#FFF6EC]' : 'border-[#E6DAC6] bg-white hover:bg-[#FFFBF4]'
+                      on ? 'border-primary-500 bg-[#FFF6EC]' : 'border-line2 bg-white hover:bg-[#FFFBF4]'
                     }`}
                   >
                     <PayLogo id={o.id} className="h-6 w-6" />
@@ -450,7 +450,7 @@ export function Advertise() {
         {/* Colonne aperçu + récapitulatif (collante sur grand écran) */}
         <div className="mt-4 space-y-4 lg:sticky lg:top-20 lg:mt-0">
           {/* Aperçu de la bannière — mini écran noir en direct */}
-          <section className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
             <p className="flex items-center justify-between font-display text-[15px] font-extrabold text-ink">
               Aperçu de la bannière
               <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-500">
@@ -490,7 +490,7 @@ export function Advertise() {
           </section>
 
           {/* Récapitulatif */}
-          <section className="rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
             <p className="font-display text-[15px] font-extrabold text-ink">Récapitulatif</p>
             <dl className="mt-2 divide-y divide-[#F3EADB] text-sm">
               <div className="flex justify-between py-2"><dt className="text-gray-500">Formule</dt><dd className="font-semibold text-gray-800">{formuleDef.label}</dd></div>

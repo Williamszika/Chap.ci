@@ -22,7 +22,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-[#EFE6D7] bg-white/90 px-3 py-3 backdrop-blur-md md:rounded-t-3xl">
+      <header className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-white/90 px-3 py-3 backdrop-blur-md md:rounded-t-3xl">
         <button onClick={() => navigate(-1)} aria-label="Retour" className="-ml-1 p-1 md:hidden">
           <ArrowLeft size={22} />
         </button>
@@ -57,7 +57,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-[#EFE6D7] bg-white md:rounded-b-3xl">
+          <div className="divide-y divide-line bg-white md:rounded-b-3xl">
             {convs.map((c) => {
               const unread = unreadConvIds.has(c.id)
               const active = c.id === activeId
@@ -74,7 +74,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
                       <img
                         src={c.listingImage}
                         alt=""
-                        className="h-14 w-14 rounded-full object-cover ring-1 ring-[#EFE6D7]"
+                        className="h-14 w-14 rounded-full object-cover ring-1 ring-line"
                       />
                     ) : (
                       <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-lg font-bold text-white">
@@ -114,7 +114,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
 export function Messages() {
   return (
     <div className="min-h-screen bg-cream-200 md:mx-auto md:max-w-3xl md:px-4 md:py-4">
-      <div className="md:overflow-hidden md:rounded-3xl md:border md:border-[#EFE6D7] md:bg-white md:shadow-card">
+      <div className="md:overflow-hidden md:rounded-3xl md:border md:border-line md:bg-white md:shadow-card">
         <ConversationList />
       </div>
     </div>

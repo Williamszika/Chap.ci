@@ -38,7 +38,7 @@ export function AdTextControls({
             <button type="button" onClick={() => setAnims(['fondu'])} className="text-gray-400">Réinitialiser</button>
           </div>
         </div>
-        <div className="flex max-h-40 flex-wrap content-start gap-1.5 overflow-y-auto rounded-xl border border-[#E6DAC6] bg-white p-2">
+        <div className="flex max-h-40 flex-wrap content-start gap-1.5 overflow-y-auto rounded-xl border border-line2 bg-white p-2">
           {AD_ANIMS.map((a) => {
             const on = anims.includes(a.key)
             return (
@@ -59,7 +59,7 @@ export function AdTextControls({
       </div>
 
       {/* Pause entre deux animations : de 5 s à 1 min. */}
-      <label className="mt-2 flex items-center gap-3 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
+      <label className="mt-2 flex items-center gap-3 rounded-xl border border-line2 bg-white px-3 py-2.5">
         <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-gray-400">Pause entre animations</span>
         <input
           type="range"
@@ -75,7 +75,7 @@ export function AdTextControls({
       </label>
 
       {/* Enchaîner en boucle, ou jouer une seule fois. */}
-      <label className="mt-2 flex cursor-pointer items-center gap-2.5 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
+      <label className="mt-2 flex cursor-pointer items-center gap-2.5 rounded-xl border border-line2 bg-white px-3 py-2.5">
         <input
           type="checkbox"
           checked={loop}
@@ -89,7 +89,7 @@ export function AdTextControls({
       </label>
 
       {/* Couleur du texte : pour rester lisible par-dessus l'image. */}
-      <div className="mt-2 flex items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-3 py-2.5">
+      <div className="mt-2 flex items-center gap-2 rounded-xl border border-line2 bg-white px-3 py-2.5">
         <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-gray-400">Couleur du texte</span>
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {['#FFFFFF', '#000000', '#F77F00', '#009E60', '#FFD400', '#E4002B'].map((c) => (

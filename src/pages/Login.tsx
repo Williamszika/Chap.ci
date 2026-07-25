@@ -115,7 +115,7 @@ export function Login() {
 
   return (
     <div className="flex min-h-[72vh] items-center justify-center px-5 py-8 md:min-h-[78vh]">
-      <div className="w-full max-w-sm rounded-[22px] border border-[#EFE6D7] bg-white p-6 shadow-[0_12px_34px_-10px_rgba(120,70,10,0.28),0_6px_14px_-8px_rgba(120,70,10,0.20)] md:max-w-[420px] md:p-7">
+      <div className="w-full max-w-sm rounded-[22px] border border-line bg-white p-6 shadow-[0_12px_34px_-10px_rgba(120,70,10,0.28),0_6px_14px_-8px_rgba(120,70,10,0.20)] md:max-w-[420px] md:p-7">
         <button
           onClick={() => navigate('/')}
           className="mb-3 -ml-1 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
@@ -169,7 +169,7 @@ export function Login() {
                 </div>
 
                 <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
-                  <span className="h-px flex-1 bg-[#EFE6D7]" /> ou <span className="h-px flex-1 bg-[#EFE6D7]" />
+                  <span className="h-px flex-1 bg-line" /> ou <span className="h-px flex-1 bg-line" />
                 </div>
               </>
             )}

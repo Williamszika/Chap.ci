@@ -236,7 +236,7 @@ export function ListingDetail() {
       <div className="md:grid md:grid-cols-2 md:items-start md:gap-8 md:pt-2">
         {/* Galerie — colonne gauche (collante sur ordinateur) */}
         <div className="md:sticky md:top-20 md:self-start">
-          <div className="relative aspect-square overflow-hidden bg-cream-100 md:aspect-[4/3] md:rounded-3xl md:border md:border-[#EFE6D7]">
+          <div className="relative aspect-square overflow-hidden bg-cream-100 md:aspect-[4/3] md:rounded-3xl md:border md:border-line">
             <div
               ref={galleryRef}
               className="no-scrollbar flex h-full snap-x snap-mandatory overflow-x-auto"
@@ -319,7 +319,7 @@ export function ListingDetail() {
                   key={i}
                   onClick={() => selectImage(i)}
                   className={`h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 bg-cream-100 transition ${
-                    i === imgIndex ? 'border-primary-500' : 'border-[#EFE6D7]'
+                    i === imgIndex ? 'border-primary-500' : 'border-line'
                   }`}
                   aria-label={`Voir la photo ${i + 1}`}
                 >
@@ -402,7 +402,7 @@ export function ListingDetail() {
           {attrItems.length > 0 && (
             <dl className="mt-5 grid grid-cols-2 gap-3">
               {attrItems.map((a) => (
-                <div key={a.label} className="rounded-2xl border border-[#EFE6D7] bg-white px-4 py-3 shadow-card">
+                <div key={a.label} className="rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
                   <dt className="text-xs text-gray-400">{a.label}</dt>
                   <dd className="mt-0.5 font-semibold text-gray-900">{a.value}</dd>
                 </div>
@@ -424,7 +424,7 @@ export function ListingDetail() {
             onClick={(e) => {
               if (!sellerId) e.preventDefault()
             }}
-            className="mt-5 flex items-center gap-3 rounded-2xl border border-[#EFE6D7] bg-white p-4 shadow-card"
+            className="mt-5 flex items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card"
           >
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-ivoire-green font-display text-lg font-bold text-white">
               {sellerInitial}
@@ -440,7 +440,7 @@ export function ListingDetail() {
               )}
             </div>
             {sellerId && (
-              <span className="shrink-0 rounded-xl border border-[#E6DAC6] bg-white px-4 py-2 font-display text-sm font-bold text-ink">
+              <span className="shrink-0 rounded-xl border border-line2 bg-white px-4 py-2 font-display text-sm font-bold text-ink">
                 Voir
               </span>
             )}
@@ -502,7 +502,7 @@ export function ListingDetail() {
             </div>
 
             {showReview && (
-              <div className="mb-3 rounded-2xl border border-[#E6DAC6] p-3">
+              <div className="mb-3 rounded-2xl border border-line2 p-3">
                 <Stars value={rating} size={26} editable onChange={setRating} />
                 <textarea
                   value={comment}
@@ -522,7 +522,7 @@ export function ListingDetail() {
             ) : (
               <div className="space-y-3">
                 {reviews.slice(0, 4).map((r) => (
-                  <div key={r.id} className="rounded-2xl border border-[#EFE6D7] bg-white p-3 shadow-card">
+                  <div key={r.id} className="rounded-2xl border border-line bg-white p-3 shadow-card">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-gray-800">{r.reviewerName}</span>
                       <Stars value={r.rating} size={13} />
@@ -557,7 +557,7 @@ export function ListingDetail() {
       )}
 
       {/* Barre d'action fixe — mobile uniquement */}
-      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-[#EFE6D7] bg-white px-4 py-3 shadow-nav safe-bottom md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-line bg-white px-4 py-3 shadow-nav safe-bottom md:hidden">
         {listing.sold ? (
           <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-display font-semibold text-gray-500">
             <BadgeCheck size={18} /> Article vendu

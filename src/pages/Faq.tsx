@@ -250,7 +250,7 @@ const sections: Section[] = [
 function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => void }) {
   // Carte « faq-item » de l'artifact : plate, pleine largeur, question + « +/− ».
   return (
-    <div className="overflow-hidden rounded-[14px] border border-[#EFE6D7] bg-white shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]">
+    <div className="overflow-hidden rounded-[14px] border border-line bg-white shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]">
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left md:px-5"
@@ -316,7 +316,7 @@ export function Faq() {
 
       <div className="px-4 py-8 md:px-6 md:py-10">
         {/* Recherche (utile pour notre FAQ complète : plus de questions que l'artifact) */}
-        <div className="mx-auto mb-8 flex max-w-2xl items-center gap-2 rounded-xl border border-[#E6DAC6] bg-white px-4 py-3 shadow-card">
+        <div className="mx-auto mb-8 flex max-w-2xl items-center gap-2 rounded-xl border border-line2 bg-white px-4 py-3 shadow-card">
           <Search size={18} className="shrink-0 text-gray-400" />
           <input
             value={query}

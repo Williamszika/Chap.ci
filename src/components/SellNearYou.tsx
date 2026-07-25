@@ -54,7 +54,7 @@ export function SellNearYou() {
           <a
             key={cat.id}
             href={`/vendre/${cat.id}/${citySlug}`}
-            className="group flex items-center gap-2.5 rounded-2xl border border-[#EFE6D7] bg-white p-3 shadow-sm transition active:scale-[0.98] md:hover:border-ivoire-green/40"
+            className="group flex items-center gap-2.5 rounded-2xl border border-line bg-white p-3 shadow-sm transition active:scale-[0.98] md:hover:border-ivoire-green/40"
           >
             <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${cat.color}`}>
               <CategoryIcon name={cat.icon} size={20} />
@@ -76,7 +76,7 @@ export function SellNearYou() {
             <a
               key={c}
               href={`/vendre/telephones/${c}`}
-              className="rounded-full border border-[#E6DAC6] bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 transition active:scale-95 md:hover:border-ivoire-green/40 md:hover:text-ivoire-green-dark"
+              className="rounded-full border border-line2 bg-white px-3 py-1.5 text-[13px] font-medium text-gray-700 transition active:scale-95 md:hover:border-ivoire-green/40 md:hover:text-ivoire-green-dark"
             >
               {SEO_CITIES[c]}
             </a>

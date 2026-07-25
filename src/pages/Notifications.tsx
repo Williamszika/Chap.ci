@@ -102,7 +102,7 @@ export function Notifications() {
   return (
     <div className="min-h-screen bg-cream-200 pb-16 md:min-h-0 md:pb-8">
       {/* En-tête : titre + action « Tout marquer lu » */}
-      <div className="flex items-center justify-between gap-3 border-b border-[#EFE6D7] px-4 py-4 md:px-6 md:py-5">
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-4 md:px-6 md:py-5">
         <h1 className="font-display text-[22px] font-extrabold text-ink md:text-2xl">Notifications</h1>
         {items.length > 0 && (
           selectMode ? (
@@ -132,7 +132,7 @@ export function Notifications() {
 
       {/* Barre de sélection (mode suppression) */}
       {items.length > 0 && selectMode && (
-        <div className="flex items-center justify-between gap-2 border-b border-[#EFE6D7] bg-white px-4 py-2.5 md:px-6">
+        <div className="flex items-center justify-between gap-2 border-b border-line bg-white px-4 py-2.5 md:px-6">
           <button
             onClick={toggleAll}
             className="flex items-center gap-2 text-sm font-medium text-gray-600 active:opacity-70"
@@ -171,7 +171,7 @@ export function Notifications() {
       ) : items.length === 0 ? (
         <Empty text="Aucune notification pour l’instant." />
       ) : (
-        <ul className="divide-y divide-[#EFE6D7]">
+        <ul className="divide-y divide-line">
           {items.map((n) => {
             const checked = selected.has(n.id)
             const unread = !n.read
@@ -196,7 +196,7 @@ export function Notifications() {
                       {checked && <Check size={15} />}
                     </span>
                   )}
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-[#EFE6D7] bg-white shadow-card">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-line bg-white shadow-card">
                     {iconFor(n.type)}
                   </span>
                   <span className="min-w-0 flex-1">

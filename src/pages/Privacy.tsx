@@ -44,7 +44,7 @@ export function Privacy() {
   return (
     <div className="min-h-screen pb-16">
       {/* En-tête « legal-head » de l'artifact : titre à gauche + filet */}
-      <header className="border-b border-[#EFE6D7] bg-white px-4 pb-4 pt-6 md:-mx-6 md:px-6">
+      <header className="border-b border-line bg-white px-4 pb-4 pt-6 md:-mx-6 md:px-6">
         <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink md:text-[26px]">
           RGPD
         </h1>
@@ -59,7 +59,7 @@ export function Privacy() {
         {/* Sommaire — carte blanche collante (artifact « toc ») */}
         <nav
           aria-label="Sommaire"
-          className="mb-5 rounded-[14px] border border-[#EFE6D7] bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)] md:sticky md:top-20 md:mb-0"
+          className="mb-5 rounded-[14px] border border-line bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)] md:sticky md:top-20 md:mb-0"
         >
           <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">Sommaire</p>
           <div className="flex flex-col">

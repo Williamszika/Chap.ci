@@ -21,7 +21,7 @@ export function AdDetail() {
 
   if (state === 'loading') {
     return (
-      <div className="grid min-h-[50vh] place-items-center text-gray-400">
+      <div className="grid min-h-[50vh] place-items-center text-gray-500">
         <Loader2 size={22} className="animate-spin" />
       </div>
     )
@@ -65,7 +65,7 @@ export function AdDetail() {
 
       {/* Description */}
       {ad.description && (
-        <div className="mt-4 rounded-2xl border border-[#EFE6D7] bg-white p-5 shadow-card">
+        <div className="mt-4 rounded-2xl border border-line bg-white p-5 shadow-card">
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-gray-700">{ad.description}</p>
         </div>
       )}
@@ -81,7 +81,7 @@ export function AdDetail() {
         </a>
       )}
 
-      <p className="mt-6 text-center text-xs text-gray-400">
+      <p className="mt-6 text-center text-xs text-gray-500">
         Contenu publicitaire fourni par l’annonceur.{' '}
         <Link to="/publicite" className="font-semibold text-primary-600">Vous aussi, affichez-vous ici</Link>
       </p>

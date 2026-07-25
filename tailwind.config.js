@@ -25,6 +25,10 @@ export default {
           'orange-dark': '#D95F00',
         },
         ink: '#1B1A17',
+        // Bordures chaudes du système (ex-#EFE6D7 / #E6DAC6 codées en dur) :
+        // `border-line` (séparateurs clairs) et `border-line2` (contours appuyés).
+        line: '#EFE6D7',
+        line2: '#E6DAC6',
         cream: {
           DEFAULT: '#FFFDF9',
           100: '#FFF3E4',

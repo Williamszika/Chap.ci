@@ -135,7 +135,7 @@ export function Register() {
 
   return (
     <div className="flex min-h-[72vh] items-center justify-center px-5 py-8 md:min-h-[78vh]">
-      <div className="w-full max-w-sm rounded-[22px] border border-[#EFE6D7] bg-white p-6 shadow-[0_12px_34px_-10px_rgba(120,70,10,0.28),0_6px_14px_-8px_rgba(120,70,10,0.20)] md:max-w-[420px] md:p-7">
+      <div className="w-full max-w-sm rounded-[22px] border border-line bg-white p-6 shadow-[0_12px_34px_-10px_rgba(120,70,10,0.28),0_6px_14px_-8px_rgba(120,70,10,0.20)] md:max-w-[420px] md:p-7">
         <button
           onClick={() => navigate('/')}
           className="mb-3 -ml-1 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
@@ -169,7 +169,7 @@ export function Register() {
               )}
             </div>
             <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
-              <span className="h-px flex-1 bg-[#EFE6D7]" /> ou <span className="h-px flex-1 bg-[#EFE6D7]" />
+              <span className="h-px flex-1 bg-line" /> ou <span className="h-px flex-1 bg-line" />
             </div>
           </>
         )}
@@ -220,7 +220,7 @@ export function Register() {
               <ShieldCheck size={15} className="text-ivoire-green" /> Vérification anti-robot
             </label>
             <div className="flex items-center gap-2">
-              <span className="select-none rounded-xl border border-[#EFE6D7] bg-cream-200 px-3.5 py-2.5 font-display text-base font-bold tracking-wide text-ink">
+              <span className="select-none rounded-xl border border-line bg-cream-200 px-3.5 py-2.5 font-display text-base font-bold tracking-wide text-ink">
                 {captcha.a} + {captcha.b} = ?
               </span>
               <input
@@ -236,7 +236,7 @@ export function Register() {
                 type="button"
                 onClick={newCaptcha}
                 aria-label="Nouveau calcul"
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#EFE6D7] bg-white text-gray-500 transition hover:text-gray-700 active:scale-95"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-white text-gray-500 transition hover:text-gray-700 active:scale-95"
               >
                 <RefreshCw size={17} />
               </button>
