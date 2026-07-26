@@ -520,3 +520,34 @@ Format d'une entrée :
   dépôt (l'Atelier en comptait ~108, écart dû au motif de recherche). Le bureau
   recommande un balayage en une fois plutôt que par lots — non fait ce soir, à
   décider par le Patron.
+
+### 2026-07-26 21:41 — [Support & Expérience] 🤝 Le Concierge
+- **Entonnoir (30 j)** : 2 097 visites · 84 visiteurs · 6 comptes · **1 seul compte
+  ayant publié** · 3 annonces. Visiteur → compte : 7 %. **Compte → vendeur : 17 %** —
+  83 % des inscrits ne publient jamais. C'est la marche la plus haute, confirmée.
+- **🔴 TROUVAILLE MAJEURE, VÉRIFIÉE ET CORRIGÉE LE SOIR MÊME** : le bureau a relevé, en
+  marge de son rapport et « pour les autres bureaux », que `GET /api/listings` — route
+  **publique et non authentifiée** — renvoyait `sellerPhone` **en clair**. Vérification
+  faite : `curl https://chap.ci/api/listings` retournait `0787798439` sur les
+  3 annonces. N'importe qui pouvait récolter le numéro de tous les vendeurs du site :
+  matière première du démarchage et de la fraude par SMS, et **promesse exactement
+  inverse** de celle faite dans la FAQ. Corrigé (`07fb425`) : `listing_out()` prend un
+  paramètre `$withPhone`, faux par défaut ; le numéro ne sort que pour le propriétaire
+  (ses annonces, création, modification). Les routes admin restent sans téléphone —
+  l'interface ne l'affiche nulle part. `web/seo.php` vérifié : ne le rend pas.
+- **Leçon de fonctionnement** : cette faille est arrivée dans la section « Pour les
+  autres bureaux » d'un rapport d'expérience utilisateur, sans notification, classée
+  « pas un blocage de parcours ». Elle était pourtant plus grave que tout le reste du
+  rapport. → **Un écart entre ce que le site PROMET et ce qu'il FAIT sur des données
+  personnelles se signale immédiatement, quel que soit le bureau qui le trouve.**
+- **Effet de bord évité** : `PostAd` pré-remplissait le téléphone depuis l'annonce en
+  édition. La liste publique ne le portant plus, la valeur mémorisée sur l'appareil
+  (`chapci.seller.v1`) aurait été effacée à chaque modification. Le pré-remplissage
+  conserve désormais le numéro existant quand l'annonce n'en porte pas.
+- **Propositions du bureau, retenues et NON encore appliquées** : lier les `<label>`
+  par `htmlFor`/`id` sur `/publier` (~10 champs) ; défiler jusqu'au champ fautif au
+  lieu d'un message d'erreur générique ; ajouter sous le champ téléphone « Ce numéro
+  reste privé — les acheteurs vous contactent par la messagerie Chap.ci » (phrase
+  désormais VRAIE, ce qui n'était pas le cas ce matin).
+- **Bien vu** : le bureau a lu le code plutôt que d'inventer un ressenti faute de
+  compte de test, et a marqué ses points `[CONSTATÉ]` / `[SUPPOSITION]`.
