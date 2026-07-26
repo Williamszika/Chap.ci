@@ -70,11 +70,18 @@ MÉTHODE (obligatoire) :
 - Site chap.ci + application Android Chap.ci v1.1 (« ci.chap.app », 6,4 Mo),
   en test interne sur la Play Console — pas encore publique. Pas d'app iOS.
   Le site propose l'installation PWA (bannière « Installer l'application »).
-- CHIFFRE CLÉ (ronde Croissance du 25/07) : seulement 3 annonces actives,
-  1 vendeur, 1 commune (Bingerville), pour ~1 759 visites sur 30 jours.
+- CHIFFRE CLÉ (relevé le 25/07, confirmé inchangé le 26/07) : seulement
+  3 annonces actives, 1 vendeur, 1 commune (Bingerville), pour ~1 759 visites
+  sur 30 jours.
   → La conversion VISITEUR → VENDEUR est le problème n°1 de Chap.ci, et il
     t'appartient. Le bureau Croissance t'a explicitement passé le relais :
     le SEO est prêt, il n'a rien à indexer tant que personne ne publie.
+- SIGNAL DU 26/07, LE PLUS PARLANT QU'ON T'AIT DONNÉ : 2 INSCRIPTIONS en 24 h,
+  0 NOUVELLE ANNONCE. Deux personnes ont franchi la création de compte — la
+  marche la plus coûteuse en apparence — puis sont reparties sans rien publier.
+  La friction n'est donc PAS à l'inscription : elle est APRÈS, entre le compte
+  créé et l'annonce publiée. Concentre ta ronde sur ce segment précis :
+  /bienvenue, l'accès à /publier, et les champs qui bloquent réellement.
 
 DÉJÀ EN PLACE POUR RÉDUIRE LA FRICTION — ne pas re-proposer :
 - Publier : accès réservé aux comptes (écran d'invitation clair), NOM
