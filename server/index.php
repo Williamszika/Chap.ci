@@ -101,12 +101,19 @@ function chapci_secret_dir(array $config): string {
   if (!file_exists($ht)) @file_put_contents($ht, "Require all denied\nDeny from all\n");
   return $dir;
 }
-function chapci_hardened_secret(array $config, string $label, string $configured): string {
+function chapci_hardened_secret(array $config, string $label, string $configured, bool $urlSafe = false): string {
   // Valeurs faibles/connues à ne jamais accepter en production.
   $weak = ['', 'CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire', 'chapci-cron-2026-a7f3e9',
            'changeme', 'secret', 'chapci', 'password', 'test'];
   $configured = trim($configured);
-  if ($configured !== '' && strlen($configured) >= 24 && !in_array($configured, $weak, true)) {
+  // Un secret qui VOYAGE (clé cron : URL, en-tête, commande shell) ne doit
+  // contenir que des caractères sans signification particulière. Sinon il est
+  // mutilé en chemin — « $VAR » avalé par le shell, « % » mal décodé, « ? & ; »
+  // qui coupent l'URL — et provoque des 403 « Clé invalide » incompréhensibles.
+  // Une clé configurée hors de cet alphabet est REFUSÉE : on retombe alors sur
+  // le secret aléatoire persistant (hexadécimal, sûr par construction).
+  $shapeOk = !$urlSafe || preg_match('/^[A-Za-z0-9._~-]+$/', $configured) === 1;
+  if ($configured !== '' && strlen($configured) >= 24 && !in_array($configured, $weak, true) && $shapeOk) {
     return $configured; // l'opérateur gère déjà un vrai secret : on le respecte
   }
   // Sinon : charge (ou crée une seule fois) un secret aléatoire persistant.
@@ -169,8 +176,9 @@ function admin_otp_valid(array $config, string $input): bool {
 }
 $config['jwt_secret'] = chapci_hardened_secret($config, 'jwt',
   (string) (getenv('CHAPCI_JWT_SECRET') ?: ($config['jwt_secret'] ?? '')));
+// urlSafe = true : la clé cron circule en URL / en-tête / commande shell.
 $config['cron_key'] = chapci_hardened_secret($config, 'cron',
-  (string) (getenv('CHAPCI_CRON_KEY') ?: ($config['cron_key'] ?? '')));
+  (string) (getenv('CHAPCI_CRON_KEY') ?: ($config['cron_key'] ?? '')), true);
 
 // Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
 // prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.

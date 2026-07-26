@@ -2369,6 +2369,7 @@ function AutomationTab() {
   const [err, setErr] = useState('')
   const [reveal, setReveal] = useState(false)
   const [copied, setCopied] = useState('')
+  const [fmt, setFmt] = useState<'cmd' | 'url'>('cmd')
 
   const load = () => { setErr(''); digestInfo().then(setInfo).catch((e) => setErr((e as Error).message)) }
   useEffect(() => { load() }, [])
@@ -2383,9 +2384,18 @@ function AutomationTab() {
 
   const key = info.cronKey
   const masked = key ? `${key.slice(0, 4)}${'•'.repeat(Math.max(8, key.length - 8))}${key.slice(-4)}` : '(aucune)'
-  // La clé peut contenir des caractères spéciaux (%, ?, &, =, ;…) : on l'encode
-  // pour l'URL, sinon l'URL copiée serait corrompue → 403 « Clé invalide ».
-  const urlFor = (j: typeof CRON_JOBS[number]) => `${info.site}/api/cron/${j.id}${j.query ? `${j.query}&` : '?'}key=${encodeURIComponent(key)}`
+  // Filet de sécurité : le serveur n'accepte plus qu'une clé « sûre » (lettres,
+  // chiffres, . _ ~ -). Si une clé exotique apparaissait malgré tout, on prévient
+  // au lieu de laisser l'utilisateur chercher un 403 pendant des jours.
+  const keyIsSafe = !key || /^[A-Za-z0-9._~-]+$/.test(key)
+  // Commande prête pour cPanel : clé dans l'EN-TÊTE (invisible dans les journaux)
+  // et APOSTROPHES SIMPLES (le shell ne touche à rien de ce qu'il y a dedans).
+  const cmdFor = (j: typeof CRON_JOBS[number]) =>
+    `curl -sS -H 'X-Cron-Key: ${key}' '${info.site}/api/cron/${j.id}${j.query ?? ''}' >/dev/null 2>&1`
+  // Variante URL simple (toujours acceptée par le serveur, en repli).
+  const urlFor = (j: typeof CRON_JOBS[number]) =>
+    `${info.site}/api/cron/${j.id}${j.query ? `${j.query}&` : '?'}key=${encodeURIComponent(key)}`
+  const textFor = (j: typeof CRON_JOBS[number]) => (fmt === 'cmd' ? cmdFor(j) : urlFor(j))
 
   return (
     <div className="space-y-4">
@@ -2417,15 +2427,49 @@ function AutomationTab() {
             {copied === 'key' ? <CheckCircle2 size={16} className="text-ivoire-green-dark" /> : <Copy size={16} />}
           </button>
         </div>
+        {!keyIsSafe && (
+          <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            ⚠️ Cette clé contient des caractères spéciaux qui peuvent être <b>déformés</b> dans une URL
+            ou une commande (ex. <code className="rounded bg-amber-100 px-1">$</code>,{' '}
+            <code className="rounded bg-amber-100 px-1">?</code>, <code className="rounded bg-amber-100 px-1">%</code>) —
+            cause classique des 403. Mettez dans <code className="rounded bg-amber-100 px-1">api/config.php</code> une clé
+            faite uniquement de <b>lettres et chiffres</b> (≥ 24 caractères), ou retirez la ligne{' '}
+            <code className="rounded bg-amber-100 px-1">cron_key</code> : le serveur en générera une automatiquement.
+          </p>
+        )}
         <p className="mt-2 text-xs text-gray-500">
-          <b>Pour une routine claude.ai</b> : copie cette clé, puis dans le prompt de la routine remplace
-          ce qu’il y a après <code className="rounded bg-gray-100 px-1">key=</code>. Ne la partage jamais publiquement.
+          <b>Pour une routine claude.ai</b> : copie cette clé et colle-la dans le prompt de la routine.
+          Fais-la toujours passer par l’en-tête, entre <b>apostrophes simples</b> :{' '}
+          <code className="rounded bg-gray-100 px-1">-H 'X-Cron-Key: …'</code>. Ne la partage jamais publiquement.
         </p>
       </div>
 
       {/* Les URLs cron prêtes à copier */}
       <div className="space-y-2.5">
-        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">URLs prêtes à copier</p>
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {fmt === 'cmd' ? 'Commandes prêtes à copier' : 'URLs prêtes à copier'}
+          </p>
+          <div className="flex rounded-lg bg-gray-100 p-0.5">
+            <button
+              onClick={() => setFmt('cmd')}
+              className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${fmt === 'cmd' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}
+            >
+              Commande cPanel
+            </button>
+            <button
+              onClick={() => setFmt('url')}
+              className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${fmt === 'url' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}
+            >
+              URL simple
+            </button>
+          </div>
+        </div>
+        <p className="px-1 text-[11px] text-gray-500">
+          {fmt === 'cmd'
+            ? 'Recommandé : la clé passe dans l’en-tête (absente des journaux) et entre apostrophes simples (le shell n’y touche pas).'
+            : 'À ouvrir dans un navigateur ou avec wget. La clé apparaît dans l’URL — préférez la commande pour les tâches planifiées.'}
+        </p>
         {CRON_JOBS.map((j) => (
           <div key={j.id} className="rounded-2xl bg-white p-3.5 shadow-card">
             <div className="flex items-start justify-between gap-2">
@@ -2436,8 +2480,8 @@ function AutomationTab() {
               <span className="shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">{j.schedule}</span>
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{urlFor(j)}</code>
-              <button onClick={() => copy(j.id, urlFor(j))} className="shrink-0 rounded-lg border border-line2 p-1.5 text-gray-600 hover:bg-gray-50" aria-label="Copier l’URL">
+              <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{textFor(j)}</code>
+              <button onClick={() => copy(j.id, textFor(j))} className="shrink-0 rounded-lg border border-line2 p-1.5 text-gray-600 hover:bg-gray-50" aria-label={fmt === 'cmd' ? 'Copier la commande' : 'Copier l’URL'}>
                 {copied === j.id ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
               </button>
             </div>
