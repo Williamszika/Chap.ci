@@ -4905,7 +4905,7 @@ try {
   // ---------- TÂCHE PLANIFIÉE : rappel d'expiration des publicités ----------
   // Prévient l'annonceur ~3 jours avant la fin pour qu'il renouvelle (1 seul rappel).
   if ($path === 'cron/ads-expiring' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $now  = now_iso();
@@ -4931,7 +4931,7 @@ try {
   // annonce, à publier leur première. Authentifié par la clé cron. Chaque envoi
   // est marqué (activation_emailed) → jamais deux fois, jamais de spam.
   if ($path === 'cron/activation-relance' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $before = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400); // inscrit il y a ≥ 3 jours
@@ -5118,7 +5118,7 @@ try {
 
   // ---------- TÂCHE PLANIFIÉE : suggestions personnalisées (2×/semaine) ----------
   if ($path === 'cron/suggestions' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $users = $pdo->query('SELECT DISTINCT ui.user_id AS id, u.email
@@ -5138,7 +5138,7 @@ try {
   // Pour chaque alerte, on cherche les annonces publiées depuis la dernière
   // notification. S'il y en a, on prévient par email et on avance le curseur.
   if ($path === 'cron/alerts' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $searches = $pdo->query('SELECT s.*, u.email FROM saved_searches s JOIN users u ON u.id = s.user_id')->fetchAll();
@@ -5162,7 +5162,7 @@ try {
   // ---------- STATISTIQUES POUR LE RAPPORT D'ACTIVITÉ (routine hebdo) ----------
   // Agrégats anonymes (aucune donnée personnelle). Authentifié par la clé cron.
   if ($path === 'cron/stats' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $days = max(1, min(90, (int) ($_GET['days'] ?? 7)));
@@ -5207,7 +5207,7 @@ try {
   // ---------- SYNTHÈSE SÉCURITÉ (Le Greffier — journal d'audit) ----------
   // Compteurs d'événements + IP les plus actives sur les échecs. Clé cron.
   if ($path === 'cron/security' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $days = max(1, min(90, (int) ($_GET['days'] ?? 1)));
@@ -5286,7 +5286,7 @@ try {
   // ---------- MÉNAGE / MAINTENANCE (L'Intendant) ----------
   // Purge les données temporaires anciennes + expire les vieilles annonces. Clé cron.
   if ($path === 'cron/cleanup' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $done = [];
@@ -5308,7 +5308,7 @@ try {
   // santé de la base. Appelé par une tâche cron cPanel (ex. mensuel : ?days=30).
   // Lecture seule (aucune modification de données) hormis l'envoi de l'email.
   if ($path === 'cron/report' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $days  = max(1, min(365, (int) ($_GET['days'] ?? 30)));
@@ -5382,7 +5382,7 @@ try {
   // Corps JSON : { key, subject, html, pdf_base64, filename, to? }
   if ($path === 'cron/report-email' && $method === 'POST') {
     $b = body();
-    $key = (string) ($b['key'] ?? ($_GET['key'] ?? ''));
+    $key = ($cronKey ?? '') !== '' ? $cronKey : (string) ($b['key'] ?? ($_GET['key'] ?? ''));
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $key)) jerr('Clé invalide.', 403);
     // Destinataires par défaut = le PROPRIÉTAIRE ET contact@chap.ci (les deux).
     $admins = security_notify_recipients($config);
@@ -5418,7 +5418,7 @@ try {
   // Écrit un export JSON dans api/backups/ (dossier protégé), garde les 7 plus
   // récents et prévient l'administrateur par email.
   if ($path === 'cron/backup' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $dir = __DIR__ . '/backups';
@@ -5446,7 +5446,7 @@ try {
   // on invite par email la partie qui n'a pas encore laissé d'avis. Relance
   // espacée de 3 jours, 2 fois maximum.
   if ($path === 'cron/review-invites' && $method === 'GET') {
-    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), (string) ($_GET['key'] ?? ''))) {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
     $minAge  = gmdate('Y-m-d\TH:i:s\Z', time() - 86400);      // conclu il y a ≥ 1 jour
