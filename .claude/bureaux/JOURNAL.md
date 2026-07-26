@@ -440,3 +440,23 @@ Format d'une entrée :
   200, JSON-LD, canonical, `og:image`, `index, follow`. RAS côté SEO technique.
 - *Note d'honnêteté* : le test de cloisonnement a généré 1 `cron_fail` et 1 `mtoken_fail`
   — à déduire du décompte de demain.
+
+### 2026-07-26 20:46 — [Confiance & Sécurité] 🛡️ Le Gardien (2ᵉ ronde)
+- **Ce qui compte dans cette ronde : elle a eu lieu.** Premier passage avec le prompt
+  corrigé — `cron/security`, `cron/cleanup` et `mod/queue` ont répondu, et le digest est
+  parti. Les mêmes appels échouaient en 403 avant le retrait des chevrons autour de la
+  clé. **La correction des prompts est validée en production.**
+- **Fait** : santé verte (accueil 200 en 1,42 s · `/api/health` 200 · sitemap 200,
+  326 URLs · PHP 8.1.34) · sécurité 24 h (0 IP suspecte, 0 rate-limited, comptes admin
+  intègres, 0 alerte) · ménage (0 purge) · scan de code (aucun commit sur
+  `server/index.php` ni sur les fichiers Capacitor depuis 20:12, vérifié par `git diff`)
+  · modération (file vide, digest envoyé, 1 destinataire) · cloisonnement re-testé
+  (401 / 403).
+- **Problèmes ouverts, inchangés** : `cron_fail` à 11 sur 24 h, et PHP 8.1 en fin de
+  support. Aucun nouveau. Aucune proposition nouvelle.
+- **Précision de méthode** : le passage de 10 à 11 `cron_fail` n'est PAS une hausse de 1.
+  La fenêtre de 24 h glisse — des échecs anciens en sortent pendant que les tests de
+  cloisonnement des deux rondes y entrent. Ce compteur ne redeviendra interprétable
+  qu'après une journée pleine sans intervention de notre part.
+- **Toujours en attente du Patron** : ouvrir Admin → Sauvegarde. C'est la seule
+  vérification qui tranchera si les tâches cron cPanel tournent encore.
