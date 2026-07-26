@@ -47,6 +47,11 @@ RÈGLE D'APPEL — à respecter à la lettre :
   • Écris TOUJOURS la clé ET l'URL entre APOSTROPHES SIMPLES. Avec des
     guillemets doubles, le shell déforme silencieusement la clé (il avale tout
     ce qui ressemble à $VARIABLE) → 403 incompréhensibles.
+  • N'ajoute JAMAIS de chevrons < > ni d'espace autour du secret : ils
+    partiraient avec la clé.
+  • Une seule et même clé dans tout ce prompt. Si tu reçois un 403, VÉRIFIE
+    D'ABORD TON PROPRE PROMPT : un exemple resté sur une ancienne clé est la
+    panne la plus fréquente, et la plus invisible.
 
   Modèle exact :
     curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' 'https://chap.ci/api/cron/stats?days=30'
@@ -120,7 +125,12 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
    - Page vendeur : curl -sS 'https://chap.ci/vendre/telephones/cocody'
    - Sitemap : curl -sS -o /dev/null -w '%{http_code}' 'https://chap.ci/sitemap.xml'
    - robots.txt : curl -sS 'https://chap.ci/robots.txt' (doit pointer le sitemap)
-   - Pages privées (/compte, /admin, /messages) : ne doivent pas être indexables.
+   - Pages privées (/compte, /admin, /messages) : elles NE SONT PAS indexables,
+     et c'est acquis par construction — HashRouter met les vraies adresses
+     derrière un « # » (/#/compte), or le fragment n'est jamais transmis au
+     serveur ; aucune n'est dans le sitemap (vérifié le 26/07). L'absence de
+     balise meta robots sur ces chemins n'est donc PAS un défaut : ne le
+     signale pas.
    - Pixels : les 3 identifiants doivent rester présents dans le bundle JS servi.
 
 5) VISIBILITÉ DE L'APPLICATION

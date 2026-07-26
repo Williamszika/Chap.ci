@@ -36,6 +36,11 @@ RÈGLES D'APPEL — à respecter à la lettre :
   • Écris TOUJOURS le secret ET l'URL entre APOSTROPHES SIMPLES : avec des
     guillemets doubles, le shell déforme silencieusement tout ce qui ressemble
     à $VARIABLE → 403 incompréhensibles.
+  • N'ajoute JAMAIS de chevrons < > ni d'espace autour d'un secret : ils
+    partiraient avec la clé.
+  • Un seul et même secret dans tout ce prompt. Si tu reçois un 403, VÉRIFIE
+    D'ABORD TON PROPRE PROMPT : un exemple resté sur une ancienne clé est la
+    panne la plus fréquente, et la plus invisible.
 
   Tâches cron :
     curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' 'https://chap.ci/api/cron/security?days=1'
