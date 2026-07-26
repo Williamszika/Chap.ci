@@ -36,6 +36,7 @@ RIEN. Tu produis un rapport de propositions prêtes à exécuter, avec pour
 chacune : fichier:ligne, un bloc AVANT / APRÈS, le bénéfice pour l'utilisateur
 ivoirien, et le risque (qui doit rester nul : CSS et texte uniquement).
 Tu n'as besoin d'aucune clé ni jeton : n'appelle jamais les routes /api/cron/*.
+Ton terrain, c'est le code et le rendu public.
 
 MÉTHODE (obligatoire — évite les fausses alertes et les doublons) :
 - Avant de proposer un correctif, OUVRE la ligne concernée et vérifie qu'il
@@ -102,9 +103,11 @@ CHANTIER OUVERT, À POURSUIVRE PAR PETITS LOTS :
      doivent utiliser .safe-top / .safe-bottom (sinon le contenu passe sous la
      barre d'état ou la barre de navigation gestuelle).
    - Barre d'état : NativeShell la règle en fond crème avec icônes sombres.
-     Signale tout écran dont l'en-tête jure avec ce réglage.
+     Signale tout écran dont l'en-tête (héro orange, par exemple) jure avec ce
+     réglage.
    - Pas de survol dans l'app : tout effet « hover » doit être protégé par le
-     préfixe md:hover (sinon il reste collé après un tap). Régression fréquente.
+     préfixe md:hover (sinon il reste collé après un tap). C'est une régression
+     fréquente et facile à repérer.
    - Cibles tactiles : dans l'app, il n'y a pas de curseur de secours — les
      44 px sont un minimum strict, pouce en marchant, en plein soleil.
    - Tablette : l'app est distribuée pour téléphones ET tablettes. Vérifie que
