@@ -68,8 +68,11 @@ RÈGLE D'APPEL — à respecter à la lettre :
   Raison : elles ÉCRIVENT ou ENVOIENT des e-mails. En particulier, cron/backup
   crée une sauvegarde à chaque appel et le serveur n'en garde que 7 : trois
   appels « pour vérifier » effacent trois jours d'historique. Pour contrôler
-  les sauvegardes, DEMANDE au Patron la date du dernier fichier dans
-  data/backups/ — ne déclenche jamais la route toi-même.
+  les sauvegardes, demande au Patron d'ouvrir Admin → Sauvegarde : le panneau
+  liste les fichiers réellement présents sur le serveur, avec leur date et
+  leur taille. C'est la seule vérification légitime — ne déclenche jamais la
+  route toi-même.
+  Tu peux lire sans aucun risque : cron/stats et cron/security.
 
 RÈGLE ABSOLUE : lecture seule / mesure. Tu ne modifies, ne commites, ni ne
 déploies RIEN. Tu remets un rapport CHIFFRÉ de propositions prêtes.
@@ -79,6 +82,9 @@ MÉTHODE DE MESURE (obligatoire — une mesure isolée ne prouve rien) :
   mutualisé cPanel est du bruit, pas une régression.
 - Note toujours la commande exacte et sa sortie dans le rapport. Un chiffre
   sans commande n'est pas vérifiable.
+- TON RÉSEAU N'EST PAS CELUI D'ABIDJAN. Un temps mesuré depuis ta session est
+  un ordre de grandeur, jamais le vécu d'un utilisateur en 3G sur un Tecno.
+  Dis-le explicitement quand tu conclus.
 - Distingue : « lenteur mesurée côté serveur » / « poids du code servi » /
   « limite de mon environnement réseau ». Si le proxy de ta session fausse une
   mesure, DIS-LE plutôt que de conclure.
@@ -91,11 +97,20 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
   rendu serveur séparé (web/seo.php) : ne propose PAS de migrer vers Next.js ou
   un SSR complet, la décision est prise et l'hébergement est un cPanel mutualisé.
 - Back : PHP 8 en un seul fichier (server/index.php) + SQLite. Assumé.
-- Les modèles d'IA embarqués sont VOLONTAIRES et déjà arbitrés :
-  nsfwjs (modération) et mobilenet (analyse photo) sont chargés À LA DEMANDE,
-  jamais au premier écran ; @imgly/background-removal est servi depuis
-  chap.ci/imgly/ et non depuis le bundle. Si tu les vois peser, vérifie
-  D'ABORD qu'ils ne sont pas dans le chargement initial avant d'alerter.
+- Les modèles d'IA embarqués sont VOLONTAIRES et déjà arbitrés. Chargement à
+  la demande STRICT : le module d'analyse de photos (nsfw, ~5,5 Mo) et le
+  moteur de détourage (ort/wasm, ~24 Mo) ne sont JAMAIS chargés au démarrage.
+  Le modèle de détourage est servi depuis chap.ci/imgly/ — et non un CDN
+  étranger souvent injoignable depuis la Côte d'Ivoire — en version quantifiée
+  « quint8 », exécution CPU. Si tu les vois peser, vérifie D'ABORD qu'ils ne
+  sont pas dans le chargement initial avant d'alerter.
+- La page « Publier » est en chargement différé (lazy) : elle n'alourdit pas
+  l'accueil.
+- Précache PWA : polices non latines, moteurs IA et bannières og/ sont EXCLUS
+  (~25-30 entrées, ~1,3 Mo) pour ne pas gaspiller les données mobiles.
+- Photos d'annonces redimensionnées à 1280 px AVANT envoi.
+- Délai de garde réseau de 15 s sur les appels API (src/lib/php.ts:104) : une
+  requête qui traîne est interrompue plutôt que de figer l'écran.
 - scripts/android-slim.mjs retire les bannières /og/ et les binaires ort* de
   l'app après « cap sync » : c'est ce qui la garde à 6,4 Mo au lieu de 34 Mo.
 
@@ -118,6 +133,9 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
      index.html.
    - Si Lighthouse mobile (3G lente) est disponible : LCP < 2,5 s, CLS < 0,1,
      INP < 200 ms. Sinon, dis clairement que tu n'as pas pu le lancer.
+   - Traduis TOUJOURS tes chiffres en COÛT UTILISATEUR : « 320 Ko ≈ X FCFA de
+     données par visite » parle infiniment plus au Patron — et aux vendeurs
+     d'Abidjan — qu'un score sur 100.
 
 4) IMAGES (1er poste de poids)
    Sur 2 ou 3 annonces réelles (curl -sS 'https://chap.ci/api/listings') :
@@ -130,8 +148,11 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
    l'absence de code-split, les imports non élagués. Donne le gain estimé en Ko.
 
 6) FIABILITÉ — SANS TOUCHER AUX ROUTES QUI ÉCRIVENT
-   - Sauvegardes : demande au Patron la date du dernier fichier de data/backups/
-     (7 conservés, une par jour). N'appelle JAMAIS cron/backup (voir ⛔).
+   - Sauvegardes : demande au Patron d'ouvrir Admin → Sauvegarde, qui liste les
+     fichiers présents sur le serveur avec leur date (7 conservés, un par jour).
+     N'appelle JAMAIS cron/backup (voir ⛔). Point de vigilance du 26/07 : si la
+     liste s'arrête à une date ancienne, la tâche cron cPanel ne tourne plus —
+     c'est un incident de FIABILITÉ de ton ressort, à remonter immédiatement.
    - Certificat TLS : ton proxy sortant re-signe le TLS, tu ne vois donc PAS le
      vrai certificat de chap.ci. N'en fais pas un incident : rappelle une fois
      par mois au Patron de contrôler la date d'expiration (cadenas du navigateur
