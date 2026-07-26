@@ -168,12 +168,23 @@ serveur** et **remontent à la cause racine** au lieu de décrire des symptômes
 Chaque bureau ancre son analyse sur les endpoints serveur (clé cron requise) :
 
 ```
-curl -sS "https://chap.ci/api/cron/stats?key=<CLE_CRON>&days=30"     # activité
-curl -sS "https://chap.ci/api/cron/security?key=<CLE_CRON>&days=7"   # sécurité
+curl -sS -H 'X-Cron-Key: <CLE_CRON>' 'https://chap.ci/api/cron/stats?days=30'     # activité
+curl -sS -H 'X-Cron-Key: <CLE_CRON>' 'https://chap.ci/api/cron/security?days=7'   # sécurité
 ```
 
-- `<CLE_CRON>` = la clé cron réelle (définie dans `config.php` du serveur).
-- Ces endpoints sont en **lecture seule** (aucun effet de bord).
+- `<CLE_CRON>` = la clé cron réelle, à récupérer sur **Admin → Tâches auto**
+  (le bouton « Commande cPanel » la copie déjà correctement écrite).
+- **La clé passe par l'en-tête `X-Cron-Key`, jamais en `?key=`** : dans l'URL, elle
+  finirait dans les journaux du serveur. Le paramètre `?key=` reste accepté, mais
+  uniquement comme repli pour les tâches cron cPanel.
+- **Toujours entre apostrophes simples.** Entre guillemets doubles, le shell avale
+  silencieusement tout ce qui ressemble à `$VARIABLE` — c'est la cause des « 403 Clé
+  invalide » incompréhensibles de juillet.
+- Ces endpoints sont en **lecture seule** (aucun effet de bord). Les routes qui
+  **écrivent ou envoient** (`backup`, `cleanup`, `digest`, `report-email`,
+  `activation-relance`, `review-invites`, `alerts`, `suggestions`) sont **interdites**
+  aux bureaux — `cron/backup` en particulier crée une sauvegarde à chaque appel et le
+  serveur n'en garde que 7.
 - Un bureau qui parle de « baisse de trafic » ou « pic d'échecs » **cite les
   chiffres réels** tirés de là — jamais d'affirmation non sourcée.
 
