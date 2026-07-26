@@ -257,3 +257,151 @@ Format d'une entrée :
 - **Propositions au Patron** : créer les 4 nouvelles routines (prompts fournis :
   `routine-croissance/-performance/-support.md`) et les 4 skills dans claude.ai.
 - **Pour les autres bureaux** : nouveaux prompts de référence dans `.claude/bureaux/`.
+
+---
+
+### 2026-07-21 — [Développement] 🔨 Application native, PWA et maillage SEO
+- **Fait** :
+  - **Coquille native Android** (`src/components/NativeShell.tsx`, `c676cdd`) : le
+    bouton retour matériel recule dans l'app (2 appuis pour quitter à la racine),
+    barre de statut crème à icônes sombres, splash masqué au démarrage. Sans ce
+    câblage, le bouton retour FERMAIT l'app à chaque appui.
+  - **Bannière « Installer l'application »** (PWA, `fdb629a`) : installation en 1 tap
+    sur Android/Chrome, instructions manuelles sur iPhone. C'est le SEUL canal
+    d'installation tant que le Play Store n'est pas public.
+  - **Guide et assets Play Store** (`5d22ced`) : `GUIDE-PUBLICATION-PLAY.md`,
+    icône 512, bannière 1024×500, textes de fiche (`store/STORE-LISTING.txt`).
+  - Section « Vendez près de chez vous » sur l'accueil (`c298ea5`), **retirée le
+    lendemain sur ordre du Patron** (`657be87`) — le composant reste dans le code.
+- **Pour les autres bureaux** : 🎨 Design et ⚡ Performance — l'app embarque le
+  code web du dépôt : vos correctifs la servent aussi.
+
+### 2026-07-22 — [Design & Typographie] 🎨 L'Atelier (1er scan)
+- **Fait** : premier scan design (7 catégories notées). Note globale solide,
+  accessibilité 3/5. **9 propositions** remises — le Patron a validé **la totalité**,
+  toutes appliquées le jour même (`867a23e`) :
+  - P1 : cibles tactiles `.chip` 44 px · points du bandeau pub · contraste du prix
+    barré et de « négociable » (`gray-400` → `gray-500`).
+  - P2 : espace insécable avant « ? » (24 questions FAQ) · contraste du pied de page
+    (`white/40` → `white/55`) · étoiles d'avis 44 px.
+  - P3 : palette des catégories retinte (tons chauds + verts de marque) · fondu entre
+    deux publicités · bouton « Masquer » du bandeau Indépendance agrandi.
+- **Pour les autres bureaux** : ces points sont CLOS, ne plus les signaler.
+
+### 2026-07-23 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : santé OK, sécurité RAS (0 échec, 0 IP suspecte), file de modération vide.
+  Scan de code : aucune faiblesse. Un commentaire obsolète mentionnait un repli
+  `?stoken=` inexistant → **corrigé** (`f7b5f23`). Le jeton de modération n'est lu
+  QUE dans l'en-tête `X-Service-Token`.
+- **Problèmes ouverts** : vérification SSL impossible depuis l'environnement de la
+  routine (le proxy re-signe le TLS). **Ce n'est pas un incident** : la chaîne a été
+  vérifiée par ailleurs (Let's Encrypt, renouvellement automatique confirmé).
+
+### 2026-07-23 — [Croissance] 📣 Le Crieur
+- **Fait** : audit SEO technique vert (JSON-LD, sitemap, robots.txt, OG, PWA).
+  **Bug réel trouvé** : Bingerville — seule commune avec de vraies annonces — était
+  absente de la liste des communes SEO → `/vendre/{cat}/bingerville` en 404.
+  **Corrigé** (`2088edb`) : +14 pages, sitemap porté à 326 URLs.
+- **Pour les autres bureaux** : le catalogue, pas la technique, est le frein SEO.
+
+### 2026-07-23 — [Développement] 🔨 Marketing, confidentialité, publication assistée
+- **Fait** :
+  - **Pixels publicitaires** (`ff7818a`) : Meta, TikTok et Google GA4 posés sur le
+    site, avec suivi des conversions (inscription, publication). Chargés sans script
+    « inline » (la CSP sans `unsafe-inline` est préservée) et **inactifs dans l'app
+    native**.
+  - **Politique de confidentialité** (`1df95d4`) : nouvelle section 11 « Cookies et
+    mesure publicitaire » — ce qui est collecté, partagé, et comment refuser.
+  - **Formulaire « Publier » assisté** (`1df95d4`, `cd41b75`) : nom pré-rempli depuis
+    le compte, **titre → catégorie** (dictionnaire de mots-clés, hors-ligne, testé sur
+    5 cas réels), **photo → catégorie + début de description** (MobileNet embarqué,
+    *fail-open* : aucune casse si le modèle ne charge pas).
+
+### 2026-07-24 — [Confiance & Sécurité] 🛡️ Le Gardien (2 rondes)
+- **Fait** :
+  - 🟠 **Faille d'intégrité confirmée et corrigée** (`3fa0027`) : `POST /orders`
+    enregistrait le **prix envoyé par le client** sans le revérifier. Le serveur relit
+    désormais titre/prix/image **depuis l'annonce**, pour l'enregistrement ET les
+    e-mails (même patron que le flux « deal »).
+  - **Clé cron acceptée en en-tête** `X-Cron-Key` (`a889e35`), repli `?key=` conservé
+    pour les tâches cPanel — la clé n'apparaît plus dans les journaux d'accès.
+  - **conversationId vérifié** à la création de commande (cohérence défensive).
+- **Problèmes ouverts** : `cron_fail` en légère hausse = balayage de clé, sans
+  succès. À surveiller, rien à faire.
+
+### 2026-07-25 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : tout vert. Une note de portée relevée et **corrigée** (`975055a`) :
+  `POST /reviews` autorisait un avis dès qu'UNE vente confirmée existait entre deux
+  personnes. Désormais, un avis sur une ANNONCE exige une vente confirmée **portant
+  sur cette annonce** ; les avis de profil restent inchangés.
+
+### 2026-07-25 — [Design & Typographie] 🎨 L'Atelier (2e scan)
+- **Fait** : 9 propositions, **toutes appliquées** (`57aa685`) :
+  - Contrastes des textes d'état et horodatages (cloche, messagerie, choix de commune,
+    page pub) → `gray-500`.
+  - **Points du bandeau pub** : le correctif du 22/07 ne couvrait que la HAUTEUR ;
+    ajout de `min-w-11` → cible **44×44 réelle**. *Leçon : toujours vérifier les deux axes.*
+  - **Tokens de bordure** `border-line` / `border-line2` créés et substitués aux 141
+    occurrences codées en dur dans 24 fichiers (couleur identique au pixel).
+  - « dès 2 000 FCFA » passe par `formatFCFA()` ; grille Catégories en fondu échelonné.
+- **Chantier ouvert** : tri des ~178 `text-gray-400` restants, **par lots de 2-3
+  fichiers** par ronde (beaucoup sont du décor légitime).
+
+### 2026-07-25 — [Croissance] 📣 Le Crieur (2 rondes)
+- **Fausse alerte à ne pas reproduire** : une ronde a signalé « fiches annonces non
+  crawlables (302) » après avoir testé `/annonce/86` — un **identifiant tronqué**.
+  Les identifiants réels sont des **UUID de 36 caractères**. Vérification faite avec
+  un vrai UUID en User-Agent Googlebot : **HTTP 200, JSON-LD Product/Offer, canonical,
+  og:image** — tout fonctionne. Une annonce inexistante redirige vers l'accueil :
+  c'est **voulu**. → Règle inscrite dans le prompt : jamais d'ID tronqué, reproduire
+  deux fois avant de qualifier un blocage.
+- **CONSTAT MAJEUR (ronde de 22:05, après réécriture du prompt)** : le catalogue ne
+  compte que **3 annonces actives, 1 vendeur, 1 commune (Bingerville), 2 catégories**,
+  pour ~1 759 visites / 30 jours. La technique SEO est prête (326 URLs indexables),
+  **il n'y a presque rien à indexer**. Le frein n'est pas technique, il est **côté offre**.
+- **Pour les autres bureaux** : 🤝 Support et 📊 Données — la conversion
+  visiteur → vendeur devient la priorité n°1 de la maison.
+
+### 2026-07-25 — [Développement] 🔨 Application Android v1.1 (allègement)
+- **Fait** (`b7868ec`) : `scripts/android-slim.mjs`, chaîné après `cap sync`, retire du
+  paquet natif les assets jamais lus dans l'app — moteur de détourage `ort/wasm`
+  (~24,5 Mo, téléchargé à la demande depuis `chap.ci/imgly/`) et bannières sociales
+  `og/` (~3,8 Mo, destinées aux robots du web). **L'app passe de 16,7 Mo à 6,4 Mo (−62 %)**.
+  Le modèle anti-nudité reste embarqué (modération du contenu dans l'app).
+  AAB v1.1 (versionCode 2, cible API 35) signé et remis au Patron.
+
+### 2026-07-26 — [Développement] 🔨 Clé cron sûre par construction
+- **Cause racine des 403 à répétition, enfin identifiée** : la clé cron contenait des
+  caractères spéciaux (`$ ? % ;`). Dans une commande shell entre **guillemets doubles**,
+  `$KA` était interprété comme une variable et **avalé** → la clé transmise était
+  mutilée, d'où des « Clé invalide » incompréhensibles pendant une semaine.
+- **Fait** :
+  - `chapci_hardened_secret()` accepte un mode `urlSafe` (activé pour la clé cron) :
+    toute clé hors de `[A-Za-z0-9._~-]` est **refusée** et remplacée par un secret
+    aléatoire hexadécimal — la clé est désormais **sûre par construction** (`00d4c1d`).
+  - Panneau **Admin → Tâches auto** : bascule « **Commande cPanel** » (par défaut) /
+    « URL simple ». La commande met la clé dans l'en-tête, entre **apostrophes simples**.
+  - **11 routes cron** revérifiaient encore la clé via `$_GET['key']` seul : appelées
+    avec l'en-tête, elles répondaient 403 malgré une clé valide. **Corrigé** (`143ab44`)
+    et testé sur les 12 routes : en-tête 200 · `?key=` 200 · sans clé 403.
+- **Pour TOUS les bureaux** : écrivez désormais
+  `curl -sS -H 'X-Cron-Key: VOTRE_CLE' 'https://chap.ci/api/cron/...'` — en-tête, et
+  **apostrophes simples obligatoires**. Le jeton de modération suit la même règle avec
+  `X-Service-Token`.
+- ⛔ **Rappel à tous** : `cron/backup` n'est PAS une lecture — elle crée une sauvegarde
+  et ne conserve que les 7 plus récentes. La déclencher depuis une ronde **détruirait**
+  les sauvegardes quotidiennes. Idem pour `cleanup`, `digest`, `report-email`,
+  `activation-relance`, `review-invites`, `alerts`, `suggestions`.
+
+### 2026-07-26 — [Direction] Refonte des prompts de routines
+- **Fait** : les 8 prompts de bureaux réécrits par le Développement, sur ordre du Patron,
+  avec quatre apports communs : (1) secrets en **en-tête + apostrophes simples** ;
+  (2) **méthode anti-fausse-alerte** (identifiants réels, reproduction double,
+  distinction constaté/supposé) ; (3) **liste du déjà-corrigé** pour éviter les
+  doublons ; (4) une **section Application** dans chaque bureau.
+- **Problème de fond corrigé** : chaque bureau terminait par « remets ce rapport au
+  Secrétariat » pour consignation, mais le Secrétariat avait l'ordre de **ne rien
+  écrire au journal** — et aucun bureau n'a l'accès en écriture au dépôt. Résultat :
+  **le journal n'a pas bougé du 19 au 26 juillet** et les bureaux ont perdu la mémoire
+  d'une semaine (d'où des points re-signalés plusieurs fois). Le Secrétariat produit
+  désormais un **bloc à consigner** que le Patron transmet au Développement.
