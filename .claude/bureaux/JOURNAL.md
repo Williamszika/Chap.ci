@@ -405,3 +405,38 @@ Format d'une entrée :
   **le journal n'a pas bougé du 19 au 26 juillet** et les bureaux ont perdu la mémoire
   d'une semaine (d'où des points re-signalés plusieurs fois). Le Secrétariat produit
   désormais un **bloc à consigner** que le Patron transmet au Développement.
+
+### 2026-07-26 20:12 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : santé (accueil 200 en 1,05 s · `/api/health` 200 · sitemap 200, 326 URLs ·
+  PHP 8.1.34) · sécurité 24 h (0 IP suspecte, 0 blocage, comptes admin intègres,
+  0 alerte) · ménage (`cleanup` : 0 purge, rien de périmé) · scan du code serveur
+  (JWT HS256 + `hash_equals` + `session_version`, bcrypt, uploads validés par
+  `getimagesizefromstring`, requêtes préparées — RAS) · scan du code de l'app
+  (6 points sur 6 conformes) · modération (file **vide**, 3 annonces examinées-OK,
+  0 masquée, 0 signalée, digest envoyé).
+- **Cloisonnement des secrets testé, pas supposé** : clé cron → `/api/mod/queue` = **401** ;
+  jeton de modération → `/api/cron/stats` = **403**. Étanchéité confirmée.
+- **🟠 Problème ouvert — `cron_fail` : 10 échecs en 24 h.** Deux causes probables, aucune
+  n'étant une attaque (0 IP suspecte, 0 rate-limited) : (1) les **tâches cron cPanel**
+  portent encore l'ancienne clé, refusée depuis la rotation du 26/07 — auquel cas
+  `backup`, `cleanup`, `digest`, `alerts`, `activation-relance` et `review-invites`
+  **ne tournent plus, donc plus de sauvegarde quotidienne** ; (2) une routine de bureau
+  appelle avec les **chevrons `< >`** laissés autour du secret. *Non vérifiable depuis
+  une ronde* : le serveur enregistre la route en échec mais ne l'expose nulle part.
+- **🟠 PHP 8.1.34 en fin de vie** : support de sécurité terminé fin 2025, plus aucun
+  correctif d'interpréteur. Aucune faille exploitable démontrée. `php -l` passe sous
+  PHP 8.4 → montée en 8.3 à faible risque (cPanel → MultiPHP Manager).
+- **Fausses alertes écartées** (inscrites au prompt pour ne plus revenir) : `currentAdmins: []`
+  est normal (rempli seulement en cas de falsification) ; `/compte` `/admin` `/messages`
+  sans `meta robots` est normal (HashRouter, fragment jamais transmis, absents du sitemap) ;
+  `failRatio` 0,67 sur 3 tentatives est du bruit, pas un signal.
+- **Propositions au Patron** : (1) vérifier les tâches cron cPanel et les chevrons dans les
+  prompts ; (2) **horodater la dernière exécution de chaque route cron** et l'afficher dans
+  Admin → Tâches auto — aujourd'hui rien ne distingue « la sauvegarde tourne » de « elle est
+  morte depuis trois jours » sans ouvrir cPanel (risque nul, effort petit) ; (3) passer en PHP 8.3.
+- **Pour les autres bureaux** : 🤝 Concierge et 📊 Comptable — **2 inscriptions en 24 h,
+  0 nouvelle annonce**, catalogue toujours à 3 annonces / 1 commune. Deux personnes se sont
+  inscrites et sont reparties sans publier. 📣 Crieur — fiche `86d69a37…` en Googlebot :
+  200, JSON-LD, canonical, `og:image`, `index, follow`. RAS côté SEO technique.
+- *Note d'honnêteté* : le test de cloisonnement a généré 1 `cron_fail` et 1 `mtoken_fail`
+  — à déduire du décompte de demain.

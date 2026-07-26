@@ -71,6 +71,30 @@ DÉJÀ CORRIGÉ — ne pas re-signaler :
 - Clé cron sûre par construction : le serveur refuse toute clé hors
   [A-Za-z0-9._~-] et en génère une aléatoire à la place (26/07).
 
+FAUSSES ALERTES CONNUES — vérifiées le 26/07, ne les re-signale JAMAIS :
+- « currentAdmins »: [] dans le rapport sécurité est NORMAL. Ce champ n'est
+  rempli QUE si une falsification des comptes admin est détectée. Tant que
+  « adminsTampered » est false, une liste vide est le bon résultat.
+- /compte, /admin, /messages ne portent pas de balise meta robots : NORMAL.
+  Le site utilise HashRouter — les vraies adresses sont /#/compte, et le
+  fragment n'est JAMAIS transmis au serveur. Ces pages sont invisibles aux
+  robots par construction et absentes du sitemap (vérifié).
+- Un « failRatio » élevé calculé sur moins de ~30 tentatives ne veut rien dire.
+  2 échecs sur 3 connexions = 0,67, et c'est du bruit, pas une attaque. Donne
+  les nombres bruts et abstiens-toi de conclure.
+
+CHANTIERS OUVERTS (surveille, ne les redécouvre pas comme des nouveautés) :
+- PHP 8.1.34 en production : le support de SÉCURITÉ de PHP 8.1 a pris fin en
+  décembre 2025. L'interpréteur ne reçoit plus de correctif. Aucune faille
+  exploitable démontrée — c'est une exposition, pas une brèche. Le code passe
+  « php -l » sous PHP 8.4 sans erreur, donc la montée en 8.3 est à faible
+  risque (cPanel → MultiPHP Manager). Rappelle-le une fois par semaine au
+  maximum, tant que ce n'est pas fait.
+- Aucune route ne permet de relire le DÉTAIL des événements de sécurité (la
+  route en échec est enregistrée en base mais n'est exposée nulle part), et le
+  serveur n'horodate pas la dernière exécution de chaque tâche cron. Tu ne peux
+  donc pas nommer les tâches qui échouent : dis-le au lieu de deviner.
+
 LIMITE CONNUE DE TON ENVIRONNEMENT :
 - Le proxy sortant re-signe le TLS : `openssl s_client` ne montre PAS le vrai
   certificat de chap.ci. N'en fais pas un incident. Vérifie plutôt que la
@@ -87,8 +111,26 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
 3) SÉCURITÉ (fenêtre 24 h)
    curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' 'https://chap.ci/api/cron/security?days=1'
    → tentatives échouées, IP suspectes, failRatio, rate-limited, intégrité des
-     comptes admin. Signale toute tendance qui monte, même sans alerte franche
-     (ex. cron_fail qui grimpe = balayage de clé à surveiller).
+     comptes admin.
+
+   LIRE « cron_fail » CORRECTEMENT — la bonne hypothèse d'abord :
+   Des cron_fail en nombre ne sont PRESQUE JAMAIS une attaque. Par ordre de
+   probabilité décroissante :
+     1. Une clé a été régénérée et les TÂCHES CRON cPANEL portent encore
+        l'ancienne. Conséquence grave et silencieuse : backup, cleanup, digest,
+        alerts, activation-relance et review-invites ne tournent plus — donc
+        PLUS DE SAUVEGARDE QUOTIDIENNE. C'est la cause à écarter en premier.
+     2. Une routine de bureau appelle avec une clé mal recopiée — chevrons
+        « < > » laissés autour du secret, guillemets doubles au lieu
+        d'apostrophes simples, espace ou retour à la ligne parasite.
+     3. Seulement ensuite : un balayage extérieur — et dans ce cas tu verras
+        AUSSI des IP dans suspiciousIps ou du rate_limited.
+   Dans les cas 1 et 2, demande au Patron de comparer les commandes de
+   cPanel → Tâches cron et les prompts des routines avec le bouton
+   « Commande cPanel » de Admin → Tâches auto. Ne conclus JAMAIS à une attaque
+   sans IP suspecte à l'appui.
+
+   Signale par ailleurs toute tendance qui monte, même sans alerte franche.
 
 4) MÉNAGE
    curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' 'https://chap.ci/api/cron/cleanup'
@@ -120,9 +162,10 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      « fermer l'app ».
    - src/lib/marketing.ts : le garde « if (isNative) return » est intact —
      aucun pixel publicitaire ne doit tourner dans l'app native.
-   - package.json : plugins @capacitor/* attendus = core, cli, android, app,
-     geolocation, splash-screen, status-bar. Tout plugin NOUVEAU est à signaler
-     avec sa raison d'être.
+   - package.json : plugins @capacitor/* attendus = core, cli, android, ios,
+     app, geolocation, splash-screen, status-bar. (Le projet iOS existe depuis
+     l'origine bien qu'aucune app iOS ne soit publiée : ce n'est PAS une
+     anomalie.) Tout plugin NOUVEAU est à signaler avec sa raison d'être.
    - scripts/android-slim.mjs : présent et chaîné dans cap:sync / cap:android
      (c'est lui qui garde l'app à 6,4 Mo au lieu de 34 Mo).
    Rappel : le dossier android/ et l'AAB ne sont pas dans le dépôt ; leur
