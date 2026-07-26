@@ -1080,6 +1080,14 @@ function migrate(PDO $pdo): void {
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN reminder_count $intT"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Suivi : la vue de page a-t-elle été faite en étant CONNECTÉ (1) ou en simple
+  // visiteur (0) ? Un drapeau, pas un identifiant : on n'écrit jamais QUI a vu la
+  // page, seulement s'il avait un compte ouvert. Aucune donnée personnelle
+  // nouvelle n'est donc collectée. Sans ce drapeau, « 133 vues sur /publier » est
+  // illisible : on ne sait pas si les gens butent sur l'écran d'invitation à créer
+  // un compte, ou sur le formulaire lui-même — deux problèmes opposés.
+  try { $pdo->exec("ALTER TABLE visits ADD COLUMN authed $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // Avis à double sens : qui est noté (target_id) et à quel titre (kind).
   try { $pdo->exec("ALTER TABLE reviews ADD COLUMN target_id $id"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
@@ -3762,8 +3770,14 @@ try {
     } catch (Throwable $e) { /* en cas d'erreur DB, ne pas bloquer */ }
     $p   = substr(trim((string) ($b['path'] ?? '')), 0, 200) ?: '/';
     $ref = substr(trim((string) ($b['ref'] ?? '')), 0, 200);
-    $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,created_at) VALUES (?,?,?,?,?)')
-        ->execute([uuid(), $vid, $p, $ref ?: null, now_iso()]);
+    // Connecté ou non ? On tranche d'abord CÔTÉ SERVEUR, à partir de la session :
+    // sur le web, sendBeacon envoie le cookie HttpOnly (même origine). Repli sur le
+    // drapeau du client pour l'app native, où la requête part d'une autre origine
+    // et n'emporte pas le cookie. Ce drapeau n'ouvre aucun droit : au pire, une
+    // statistique de fréquentation est légèrement faussée.
+    $authed = current_user($pdo, $secret) ? 1 : (!empty($b['auth']) ? 1 : 0);
+    $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,authed,created_at) VALUES (?,?,?,?,?,?)')
+        ->execute([uuid(), $vid, $p, $ref ?: null, $authed, now_iso()]);
     jout(['ok' => true]);
   }
 
@@ -5172,7 +5186,15 @@ try {
     };
     $topCats = $pdo->prepare('SELECT category_id, COUNT(*) AS n FROM listings WHERE created_at >= ? GROUP BY category_id ORDER BY n DESC LIMIT 5');
     $topCats->execute([$since]);
-    $topPaths = $pdo->prepare('SELECT path, COUNT(*) AS n FROM visits WHERE created_at >= ? GROUP BY path ORDER BY n DESC LIMIT 8');
+    // Chaque page est scindée en « vues connectées » / « vues visiteur ». C'est ce
+    // qui rend /publier interprétable : beaucoup de visiteurs = le mur est la
+    // création de compte ; beaucoup de connectés = le mur est le formulaire.
+    // (`n` reste en tête pour ne rien casser chez les consommateurs existants.)
+    $topPaths = $pdo->prepare(
+      'SELECT path, COUNT(*) AS n,
+              SUM(CASE WHEN authed = 1 THEN 1 ELSE 0 END) AS connectes,
+              SUM(CASE WHEN authed = 1 THEN 0 ELSE 1 END) AS visiteurs
+       FROM visits WHERE created_at >= ? GROUP BY path ORDER BY n DESC LIMIT 8');
     $topPaths->execute([$since]);
     jout([
       'periodDays' => $days,

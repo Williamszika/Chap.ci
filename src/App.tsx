@@ -24,6 +24,7 @@ import { Welcome } from './pages/Welcome'
 import { ForgotPassword } from './pages/ForgotPassword'
 import { ResetPassword } from './pages/ResetPassword'
 import { Privacy } from './pages/Privacy'
+import { DeleteAccount } from './pages/DeleteAccount'
 import { Terms } from './pages/Terms'
 import { Contact } from './pages/Contact'
 import { AdminDashboard } from './pages/AdminDashboard'
@@ -88,6 +89,9 @@ export default function App() {
           <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
           <Route path="/nouveau-mot-de-passe" element={<ResetPassword />} />
           <Route path="/confidentialite" element={<Privacy />} />
+          {/* Publique et sans connexion : exigence Google Play pour la suppression
+              de compte. URL à déclarer : https://chap.ci/#/suppression-compte */}
+          <Route path="/suppression-compte" element={<DeleteAccount />} />
           <Route path="/conditions" element={<Terms />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/a-propos" element={<About />} />

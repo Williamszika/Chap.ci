@@ -17,7 +17,16 @@ export function LocationGate() {
   // Sur la publication / modification d'annonce, on n'affiche pas ce gabarit :
   // il recouvrirait le bouton « Publier ». Le formulaire a son propre sélecteur
   // de position (GPS + choix manuel). Le gate réapparaîtra ailleurs si besoin.
-  if (/^\/(publier|modifier)/.test(pathname)) return null
+  //
+  // Pages LÉGALES : on ne demande jamais la position par-dessus un texte de
+  // conformité. Ces adresses sont ouvertes directement, souvent par quelqu'un
+  // qui vient vérifier nos engagements — un examinateur Google Play pour
+  // /suppression-compte, un utilisateur qui cherche ses droits pour les autres.
+  // Leur mettre une demande de géolocalisation devant le texte serait au mieux
+  // incongru, au pire un motif de refus de publication.
+  if (/^\/(publier|modifier|suppression-compte|confidentialite|conditions)/.test(pathname)) {
+    return null
+  }
 
   const busy = status === 'loading'
 

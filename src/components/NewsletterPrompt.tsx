@@ -5,9 +5,13 @@ import { useAuth } from '../store/AuthContext'
 import { isSubscribed, subscribeNewsletter } from '../lib/newsletter'
 
 const SEEN_KEY = 'chapci.nlPrompt.v1'
-// Pages « action » où aucune pop-up ne doit s'ouvrir (elle recouvrirait le bouton
-// d'envoi) : publication et modification d'annonce.
-const isActionRoute = (path: string) => /^\/(publier|modifier)/.test(path)
+// Pages où aucune pop-up ne doit s'ouvrir :
+// - « action » (publier / modifier) : elle recouvrirait le bouton d'envoi ;
+// - « légales » (suppression de compte, confidentialité, conditions) : on ne
+//   propose pas une newsletter par-dessus un texte de conformité, en particulier
+//   sur /suppression-compte, que Google Play consulte pour valider l'application.
+const isActionRoute = (path: string) =>
+  /^\/(publier|modifier|suppression-compte|confidentialite|conditions)/.test(path)
 
 /**
  * Popup proposant la newsletter — affiché UNE seule fois (par appareil) aux

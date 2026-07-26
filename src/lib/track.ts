@@ -5,6 +5,7 @@
 // =============================================================================
 import { isPhp } from './backend'
 import { apiBase } from './native'
+import { phpGetUid } from './php'
 
 // Base API cohérente avec le reste de l'app : relative sur le web, absolue
 // (https://chap.ci/api) dans l'app native Capacitor.
@@ -35,7 +36,16 @@ export function trackPageView(path: string): void {
   lastPath = path
   lastTime = now
   try {
-    const body = JSON.stringify({ vid: visitorId(), path, ref: document.referrer || '' })
+    // `auth` : la page est-elle vue par quelqu'un qui a un compte ouvert ? On
+    // n'envoie PAS qui c'est — juste 1 ou 0. Le serveur préfère sa propre lecture
+    // de la session quand il l'a (cookie) ; ce drapeau sert surtout à l'app native,
+    // dont la requête n'emporte pas le cookie.
+    const body = JSON.stringify({
+      vid: visitorId(),
+      path,
+      ref: document.referrer || '',
+      auth: phpGetUid() ? 1 : 0,
+    })
     if (navigator.sendBeacon) {
       navigator.sendBeacon(API + '/track', new Blob([body], { type: 'application/json' }))
     } else {

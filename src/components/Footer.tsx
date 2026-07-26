@@ -37,6 +37,9 @@ const cols: { title: string; links: { to: string; label: string; state?: unknown
       { to: '/a-propos', label: 'À propos' },
       { to: '/confidentialite', label: 'RGPD' },
       { to: '/conditions', label: 'CGU' },
+      // Google Play exige que ce chemin soit TROUVABLE depuis le web : le lien du
+      // pied de page est ce qui le rend découvrable. Ne pas le retirer.
+      { to: '/suppression-compte', label: 'Supprimer mon compte' },
       { to: '/contact?sujet=partenariat', label: 'Partenariat & presse' },
     ],
   },
