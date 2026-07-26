@@ -489,3 +489,34 @@ Format d'une entrée :
 - **SEO technique** : tout vert et reproduit (fiche en Googlebot 200 + JSON-LD + canonical
   + og:image · `/vendre/{cat}/bingerville` 200 · sitemap 326 URLs · robots.txt · manifest
   PWA · bannière d'installation · les 3 pixels dans le bundle servi). Aucun correctif.
+
+### 2026-07-26 21:30 — [Design & Typographie] 🎨 L'Atelier (3ᵉ scan) — appliqué
+- **Rapport de bonne tenue** : 7 propositions, budget de 9 volontairement
+  sous-utilisé, audit de code annoncé comme tel (proxy réseau, pas de rendu). Les
+  dix emplacements cités ont été **vérifiés un par un avant application** — tous
+  exacts, y compris la distinction `ListingDetail.tsx` (route `/annonce/:id`) et
+  `AdDetail.tsx` (route `/pub/:id`), et le commentaire ligne 420 de `PostAd.tsx`
+  qui confirme le formulaire en une seule colonne.
+- **Appliqué (`19b3ddb`)** :
+  - Croix « Effacer » de la recherche (`Home.tsx`, `Browse.tsx`) : zone de clic de
+    16-18 px → **44×44 px MESURÉE au rendu** (`boundingBox`), pas seulement écrite
+    en CSS. C'est la leçon du 25/07 appliquée à la vérification elle-même.
+  - `Notifications.tsx`, `Profile.tsx` : `h-9 w-9` (36 px) → `h-11 w-11`.
+  - Contrastes : horodatage d'avis (`ListingDetail`) et prix barré de l'aperçu
+    promo (`PostAd`) → `gray-500`. Ce dernier avait été oublié lors du correctif
+    du 22/07 sur les autres prix barrés.
+  - `hover:` → `md:hover:` sur `Sheet.tsx` (composant universel) et `TopNav.tsx`.
+  - `PostAd` : `max-w-5xl` → `max-w-2xl` (tablette).
+  - Espace insécable avant le « ! » de « Copié ! ».
+- **NON VÉRIFIÉ AU RENDU, dit franchement** : le formulaire `/publier` n'apparaît
+  qu'une fois connecté — un visiteur voit « Connectez-vous pour publier » et
+  **aucun `<form>`**. La session n'a pas de compte de test : le CSS est juste, le
+  rendu n'a pas été vu. Un compte de test rendrait service à plusieurs bureaux.
+- **Observation pour l'Atelier (pas une proposition)** : l'écran d'invitation de
+  `/publier` est propre et clair, mais son icône est un **cadenas** — une image de
+  restriction sur l'écran même où l'on veut encourager à publier. À arbitrer par
+  le bureau Design, pas par le Développement.
+- **Chantier ouvert transmis** : 118 occurrences de `hover:` sans `md:` dans le
+  dépôt (l'Atelier en comptait ~108, écart dû au motif de recherche). Le bureau
+  recommande un balayage en une fois plutôt que par lots — non fait ce soir, à
+  décider par le Patron.
