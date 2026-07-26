@@ -102,7 +102,16 @@ export function PostAd() {
     setDescription(l.description === 'Aucune description fournie.' ? '' : (l.description ?? ''))
     setLoc({ regionId: l.regionId, cityId: l.cityId, commune: l.commune ?? undefined })
     if (l.lat != null && l.lng != null) setCoords({ lat: l.lat, lng: l.lng })
-    if (l.sellerName || l.sellerPhone) setSeller({ name: l.sellerName ?? '', phone: l.sellerPhone ?? '' })
+    // Le téléphone n'est plus renvoyé par la liste PUBLIQUE (il ne sort que pour
+    // le propriétaire). On ne remplace donc le numéro mémorisé sur cet appareil
+    // que si l'annonce en porte réellement un — sinon le champ se viderait tout
+    // seul à chaque modification.
+    if (l.sellerName || l.sellerPhone) {
+      setSeller((prev) => ({
+        name: l.sellerName ?? prev.name,
+        phone: l.sellerPhone || prev.phone,
+      }))
+    }
     // Promotion en cours : on rétablit le pourcentage.
     if (l.promoPrice && l.price > 0) {
       setPromoOn(true)

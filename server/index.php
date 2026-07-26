@@ -2532,7 +2532,14 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
 }
 
 // ---- Mise en forme des lignes -> JSON attendu par le frontend ---------------
-function listing_out(array $r): array {
+//
+// $withPhone : le téléphone du vendeur n'est JAMAIS renvoyé par défaut. Il ne
+// sort que pour le propriétaire de l'annonce (formulaire de modification) et
+// pour l'administration. Auparavant il partait dans /api/listings, route
+// PUBLIQUE et non authentifiée : un simple curl suffisait à récolter le numéro
+// de tous les vendeurs du site — matière première du démarchage et de la fraude
+// par SMS, et promesse inverse de celle faite dans la FAQ.
+function listing_out(array $r, bool $withPhone = false): array {
   return [
     'id' => $r['id'], 'title' => $r['title'], 'description' => $r['description'],
     'price' => (int) $r['price'], 'negotiable' => (bool) $r['negotiable'], 'currency' => 'FCFA',
@@ -2542,7 +2549,7 @@ function listing_out(array $r): array {
     'regionId' => $r['region_id'], 'cityId' => $r['city_id'] ?: '', 'commune' => $r['commune'] ?: null,
     'lat' => $r['lat'] !== null ? (float) $r['lat'] : null,
     'lng' => $r['lng'] !== null ? (float) $r['lng'] : null,
-    'sellerName' => $r['seller_name'], 'sellerPhone' => $r['seller_phone'],
+    'sellerName' => $r['seller_name'], 'sellerPhone' => $withPhone ? $r['seller_phone'] : null,
     'sellerId' => $r['user_id'] ?: null,
     // Vendeur vérifié (badge bleu) : présent quand la requête joint users.verified.
     'sellerVerified' => !empty($r['seller_verified']),
@@ -3031,7 +3038,7 @@ try {
     chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $id]);
     $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified FROM listings l
       LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?'); $st->execute([$id]);
-    jout(listing_out($st->fetch()));
+    jout(listing_out($st->fetch(), true)); // réponse au propriétaire : téléphone inclus
   }
 
   // Mes annonces — inclut les annonces masquées (gestion par le vendeur).
@@ -3039,7 +3046,9 @@ try {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
     $st->execute([$u['id']]);
-    jout(array_map('listing_out', $st->fetchAll()));
+    // « Mes annonces » : le demandeur est authentifié et n'obtient que les
+    // siennes — son propre téléphone peut donc lui être renvoyé.
+    jout(array_map(fn($r) => listing_out($r, true), $st->fetchAll()));
   }
 
   // Statistiques du tableau de bord vendeur : vues (avec tendance vs période
@@ -3179,7 +3188,7 @@ try {
     // Contenu modifié : on redemande une réindexation instantanée (IndexNow).
     chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $seg[1]]);
     $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
-    jout(listing_out($st->fetch()));
+    jout(listing_out($st->fetch(), true)); // réponse au propriétaire : téléphone inclus
   }
 
   // Masquer / réafficher son annonce (le vendeur, ou un admin).

@@ -42,7 +42,8 @@ export interface Listing {
   lat?: number
   lng?: number
   sellerName: string
-  sellerPhone: string
+  /** Renvoyé UNIQUEMENT au propriétaire de l'annonce ; `null` partout ailleurs. */
+  sellerPhone: string | null
   /** id du compte vendeur (si l'annonce a été publiée par un utilisateur connecté) */
   sellerId?: string
   /** Vendeur au badge bleu (compte vérifié) — affiché sur la carte. */
