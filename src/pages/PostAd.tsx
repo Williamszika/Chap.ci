@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
@@ -262,16 +262,34 @@ export function PostAd() {
     }
   }
 
+  /**
+   * Signale une erreur de saisie ET conduit au champ concerné : défilement doux,
+   * puis curseur dans le champ quand il est saisissable (la localisation est un
+   * sélecteur, on se contente alors de la faire apparaître à l'écran).
+   */
+  function fail(msg: string, fieldId: string) {
+    setError(msg)
+    const el = document.getElementById(fieldId)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) {
+      el.focus({ preventScroll: true })
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setModeration(null)
-    if (!title.trim()) return setError('Ajoutez un titre à votre annonce.')
-    if (!categoryId) return setError('Choisissez une catégorie.')
-    if (!price.trim()) return setError('Indiquez un prix (0 pour « gratuit »).')
-    if (!loc.regionId) return setError('Indiquez la localisation.')
-    if (!seller.name.trim()) return setError('Indiquez votre nom.')
-    if (!seller.phone.trim()) return setError('Indiquez un numéro de téléphone.')
+    // Le message d'erreur s'affiche tout en bas d'un formulaire long : seul, il
+    // dit CE QUI manque, jamais OÙ. On emmène donc l'utilisateur au champ fautif
+    // et on y place le curseur — sur un téléphone, c'est la différence entre
+    // corriger en deux secondes et abandonner la publication.
+    if (!title.trim()) return fail('Ajoutez un titre à votre annonce.', 'pa-title')
+    if (!categoryId) return fail('Choisissez une catégorie.', 'pa-category')
+    if (!price.trim()) return fail('Indiquez un prix (0 pour « gratuit »).', 'pa-price')
+    if (!loc.regionId) return fail('Indiquez la localisation.', 'pa-location')
+    if (!seller.name.trim()) return fail('Indiquez votre nom.', 'pa-seller-name')
+    if (!seller.phone.trim()) return fail('Indiquez un numéro de téléphone.', 'pa-seller-phone')
 
     const emoji = emojiFor(categoryId, subcategory)
     const finalImages =
@@ -498,8 +516,9 @@ export function PostAd() {
         </div>
 
         {/* Titre */}
-        <Field label="Titre de l’annonce">
+        <Field label="Titre de l’annonce" htmlFor="pa-title">
           <input
+            id="pa-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Ex : iPhone 13 Pro 256 Go comme neuf"
@@ -509,9 +528,10 @@ export function PostAd() {
         </Field>
 
         {/* Catégorie — menu déroulant (façon artifact) */}
-        <Field label="Catégorie">
+        <Field label="Catégorie" htmlFor="pa-category">
           <div className="relative">
             <select
+              id="pa-category"
               value={categoryId}
               onChange={(e) => pickCategory(e.target.value)}
               className="input appearance-none pr-10"
@@ -584,9 +604,10 @@ export function PostAd() {
         {/* ---- Prix, promo, localisation, livraison, description ---- */}
         <div className="space-y-6">
         {/* Prix — libellé adapté (Salaire, Loyer, Tarif…) */}
-        <Field label={form.priceLabel ?? 'Prix'}>
+        <Field label={form.priceLabel ?? 'Prix'} htmlFor="pa-price">
           <div className="relative">
             <input
+              id="pa-price"
               inputMode="numeric"
               value={price}
               onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
@@ -693,8 +714,10 @@ export function PostAd() {
         </div>
 
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
+        {/* Pas de htmlFor : la localisation se choisit dans un sélecteur, pas dans
+            un champ de saisie. L'id sert au défilement en cas d'erreur. */}
         <Field label="Localisation">
-          <div className="flex items-center justify-between rounded-xl border border-line2 bg-cream-100 px-4 py-3">
+          <div id="pa-location" className="flex items-center justify-between rounded-xl border border-line2 bg-cream-100 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2">
               <MapPin size={18} className="shrink-0 text-primary-500" />
               <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
@@ -741,8 +764,9 @@ export function PostAd() {
         )}
 
         {/* Description */}
-        <Field label="Description">
+        <Field label="Description" htmlFor="pa-description">
           <textarea
+            id="pa-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Décrivez votre article : état, caractéristiques, raison de la vente…"
@@ -761,20 +785,42 @@ export function PostAd() {
         <div className="card p-4">
           <p className="mb-3 text-sm font-bold text-gray-800">Vos coordonnées</p>
           <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0">
-            <input
-              value={seller.name}
-              onChange={(e) => setSeller({ ...seller, name: e.target.value })}
-              placeholder="Votre nom"
-              className="input"
-            />
-            <input
-              inputMode="tel"
-              value={seller.phone}
-              onChange={(e) => setSeller({ ...seller, phone: e.target.value })}
-              placeholder="Téléphone (ex : +225 07 00 00 00 00)"
-              className="input"
-            />
+            <div>
+              <label htmlFor="pa-seller-name" className="mb-1.5 block text-xs font-semibold text-gray-600">
+                Votre nom
+              </label>
+              <input
+                id="pa-seller-name"
+                value={seller.name}
+                onChange={(e) => setSeller({ ...seller, name: e.target.value })}
+                placeholder="Votre nom"
+                className="input"
+              />
+            </div>
+            <div>
+              <label htmlFor="pa-seller-phone" className="mb-1.5 block text-xs font-semibold text-gray-600">
+                Votre téléphone
+              </label>
+              <input
+                id="pa-seller-phone"
+                inputMode="tel"
+                value={seller.phone}
+                onChange={(e) => setSeller({ ...seller, phone: e.target.value })}
+                placeholder="Téléphone (ex : +225 07 00 00 00 00)"
+                className="input"
+              />
+            </div>
           </div>
+          {/* Réassurance demandée par le bureau Support. Cette phrase n'est vraie
+              que depuis le correctif du 26/07 : le numéro sortait auparavant dans
+              l'API publique. Ne la réécrire qu'en connaissance de cause. */}
+          <p className="mt-2.5 flex items-start gap-1.5 text-xs leading-relaxed text-gray-600">
+            <Lock size={13} className="mt-0.5 shrink-0 text-ivoire-green-dark" />
+            <span>
+              Ce numéro <b>reste privé</b> : il n’apparaît pas sur votre annonce. Les
+              acheteurs vous contactent par la messagerie Chap.ci.
+            </span>
+          </p>
         </div>
 
         {error && (
@@ -802,10 +848,15 @@ export function PostAd() {
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+// `htmlFor` relie le libellé à son champ : le libellé devient cliquable, et un
+// lecteur d'écran annonce « Titre de l'annonce » au lieu de « champ de saisie ».
+// Il est omis quand le contenu n'est pas un champ de formulaire (la localisation,
+// par exemple, est un bouton qui ouvre un sélecteur) : pointer vers un élément
+// non saisissable serait pire que ne rien pointer du tout.
+function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-bold text-gray-800">{label}</label>
+      <label htmlFor={htmlFor} className="mb-2 block text-sm font-bold text-gray-800">{label}</label>
       {children}
     </div>
   )
@@ -821,6 +872,9 @@ function AttrInput({
   value: string
   onChange: (v: string) => void
 }) {
+  // Identifiant unique et stable, généré par React : ces champs dépendent de la
+  // catégorie choisie, on ne peut pas les nommer en dur.
+  const attrId = useId()
   if (field.type === 'toggle') {
     return (
       <label className="flex items-center justify-between rounded-xl border border-line2 px-4 py-3">
@@ -835,6 +889,7 @@ function AttrInput({
     )
   }
   if (field.type === 'chips') {
+    // Une série de boutons n'est pas un champ de saisie : pas de htmlFor ici.
     return (
       <Field label={field.label}>
         <div className="flex flex-wrap gap-2">
@@ -854,9 +909,10 @@ function AttrInput({
   }
   // text / number
   return (
-    <Field label={field.label}>
+    <Field label={field.label} htmlFor={attrId}>
       <div className="relative">
         <input
+          id={attrId}
           value={value}
           inputMode={field.type === 'number' ? 'numeric' : 'text'}
           onChange={(e) =>
