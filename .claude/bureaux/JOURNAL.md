@@ -460,3 +460,32 @@ Format d'une entrée :
   qu'après une journée pleine sans intervention de notre part.
 - **Toujours en attente du Patron** : ouvrir Admin → Sauvegarde. C'est la seule
   vérification qui tranchera si les tâches cron cPanel tournent encore.
+
+### 2026-07-26 20:58 — [Croissance] 📣 Le Crieur
+- **Première lecture réussie de `cron/stats` depuis la création du bureau.** Le prompt
+  corrigé fonctionne : la clé passe en en-tête, entre apostrophes simples. Toutes les
+  rondes précédentes travaillaient sans données de trafic.
+- **Chiffres (30 j)** : 2 090 visites · 83 visiteurs · 6 inscrits. Catalogue **inchangé** :
+  3 annonces, 1 vendeur, 1 commune (Bingerville), 2 catégories — figé sur 3 rondes.
+- **LA MESURE DE LA SOIRÉE** : pages les plus vues — `/` (848), `/compte` (244),
+  `/explorer` (239), **`/publier` (133)**. Des gens atteignent le formulaire de
+  publication, et il n'en sort aucune annonce.
+- **MAIS CE CHIFFRE N'EST PAS ENCORE EXPLOITABLE — vérifié le 26/07** : la table `visits`
+  ne stocke que `visitor_id, path, referrer, created_at` (server/index.php:1007) et le
+  front n'envoie qu'un identifiant anonyme (src/lib/track.ts:38). Or `/publier` montre un
+  écran d'invitation aux non-connectés. **Les 133 vues mélangent donc deux populations
+  opposées** : visiteurs bloqués par la création de compte, et titulaires de compte
+  bloqués par le formulaire. Deux diagnostics contraires, deux correctifs sans rapport.
+- **Proposition au Patron (Développement)** : ajouter un booléen `authed` (0/1) à la table
+  `visits` et au corps de `/track`. Aucune donnée personnelle nouvelle — un simple drapeau,
+  pas d'identifiant d'utilisateur. Effet : `/publier` se scinde en deux chiffres, et le
+  bureau Support sait enfin quel mur attaquer. Effort petit, risque nul.
+- **Précision de méthode** : la fenêtre de 30 jours GLISSE. `2 090 − 1 759 = +331` est un
+  solde net, pas « 331 visites en deux jours » — le trafic réel de la période est
+  supérieur. Ne pas lire ces écarts comme des flux.
+- **Bien joué** : arrêt volontaire à 8 mots-clés au lieu de 20, motivé (« le catalogue ne
+  soutient honnêtement pas plus »), et refus de forcer des variantes nouchi sur des titres
+  trop informels. C'est la règle d'honnêteté appliquée correctement.
+- **SEO technique** : tout vert et reproduit (fiche en Googlebot 200 + JSON-LD + canonical
+  + og:image · `/vendre/{cat}/bingerville` 200 · sitemap 326 URLs · robots.txt · manifest
+  PWA · bannière d'installation · les 3 pixels dans le bundle servi). Aucun correctif.
