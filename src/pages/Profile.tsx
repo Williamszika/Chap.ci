@@ -275,7 +275,7 @@ export function Profile() {
             <button
               onClick={() => setTab('accueil')}
               aria-label="Retour au compte"
-              className="-ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-gray-600 transition hover:bg-cream-100"
+              className="-ml-1 grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-600 transition md:hover:bg-cream-100"
             >
               <ArrowLeft size={20} />
             </button>

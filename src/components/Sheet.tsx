@@ -120,7 +120,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
           <h3 id={titleId} className="text-base font-bold text-gray-900">{title}</h3>
           <button
             onClick={onClose}
-            className="grid h-11 w-11 place-items-center rounded-full text-gray-500 hover:bg-gray-100"
+            className="grid h-11 w-11 place-items-center rounded-full text-gray-500 md:hover:bg-gray-100"
             aria-label="Fermer"
           >
             <X size={22} />

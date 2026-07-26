@@ -121,7 +121,7 @@ export function Notifications() {
               <button
                 onClick={() => setSelectMode(true)}
                 aria-label="Gérer les notifications"
-                className="grid h-9 w-9 place-items-center rounded-full text-gray-400 transition hover:bg-[#F3EADB] hover:text-gray-600 active:scale-95"
+                className="grid h-11 w-11 place-items-center rounded-full text-gray-400 transition active:scale-95 md:hover:bg-[#F3EADB] md:hover:text-gray-600"
               >
                 <Trash2 size={17} />
               </button>

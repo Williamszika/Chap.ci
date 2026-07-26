@@ -528,7 +528,7 @@ export function ListingDetail() {
                       <Stars value={r.rating} size={13} />
                     </div>
                     {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
-                    <p className="mt-1 text-[11px] text-gray-400">{timeAgo(r.createdAt)}</p>
+                    <p className="mt-1 text-[11px] text-gray-500">{timeAgo(r.createdAt)}</p>
                   </div>
                 ))}
               </div>
@@ -627,7 +627,7 @@ function ShareSheet({
             <span className="grid h-14 w-14 place-items-center rounded-full bg-gray-100 text-gray-700">
               {copied ? '✓' : '🔗'}
             </span>
-            <span className="text-xs font-medium text-gray-700">{copied ? 'Copié !' : 'Copier'}</span>
+            <span className="text-xs font-medium text-gray-700">{copied ? 'Copié !' : 'Copier'}</span>
           </button>
         </div>
         {hasNative && (

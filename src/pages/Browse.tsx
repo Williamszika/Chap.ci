@@ -192,6 +192,7 @@ export function Browse() {
                   update({ q: undefined })
                 }}
                 aria-label="Effacer"
+                className="grid h-11 w-11 place-items-center"
               >
                 <X size={16} className="text-gray-400" />
               </button>

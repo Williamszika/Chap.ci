@@ -202,7 +202,7 @@ export function Home() {
               className="w-full bg-transparent text-[16px] text-gray-800 outline-none placeholder:text-gray-400 md:text-lg"
             />
             {q && (
-              <button type="button" onClick={() => setQ('')} aria-label="Effacer" className="shrink-0 text-gray-400">
+              <button type="button" onClick={() => setQ('')} aria-label="Effacer" className="grid h-11 w-11 shrink-0 place-items-center text-gray-400">
                 <X size={18} />
               </button>
             )}
