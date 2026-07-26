@@ -1007,6 +1007,12 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS visits (
       id $id PRIMARY KEY, visitor_id $txt, path $txt, referrer $txt, created_at $ts
     )$eng",
+    // Dernier passage RÉUSSI de chaque tâche planifiée. Sans cette trace, une
+    // tâche cron qui échoue est totalement silencieuse : le 26/07, la sauvegarde
+    // quotidienne ne tournait plus depuis douze jours sans que rien ne l'indique.
+    "CREATE TABLE IF NOT EXISTS cron_runs (
+      path VARCHAR(64) PRIMARY KEY, last_ok_at $ts, runs $intT
+    )$eng",
     "CREATE TABLE IF NOT EXISTS saved_searches (
       id $id PRIMARY KEY, user_id $id, label $txt, params $txt, last_notified_at $ts, created_at $ts
     )$eng",
@@ -4798,9 +4804,23 @@ try {
 
     // Offres automatiques : infos pour la commande cron.
     if ($path === 'admin/digest-info' && $method === 'GET') {
+      // Dernier passage réussi de chaque tâche, pour que le panneau puisse
+      // afficher « il y a 2 h » ou « jamais » au lieu de laisser croire que tout
+      // tourne. Clé = suffixe de la route (backup, cleanup…), comme le registre
+      // CRON_JOBS côté interface.
+      $runs = [];
+      try {
+        foreach ($pdo->query('SELECT path, last_ok_at, runs FROM cron_runs')->fetchAll() as $r) {
+          $runs[substr((string) $r['path'], 5)] = [
+            'lastOkAt' => $r['last_ok_at'],
+            'runs'     => (int) $r['runs'],
+          ];
+        }
+      } catch (Throwable $e) { /* table absente : on renvoie une liste vide */ }
       jout([
         'cronKey' => $config['cron_key'] ?? '',
         'site'    => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+        'runs'    => $runs,
       ]);
     }
     // Offres automatiques : envoi manuel immédiat (pour tester).
@@ -4875,6 +4895,20 @@ try {
       log_security_event($pdo, 'cron_fail', null, $path);
       jerr('Clé invalide.', 403);
     }
+    // Trace du passage. On l'écrit ICI, à l'authentification réussie, et non à la
+    // fin du traitement : ce qu'il s'agit de détecter, c'est une tâche qui ne
+    // s'exécute plus DU TOUT — cron absent, clé périmée, commande mal écrite.
+    // C'est exactement ce qui est arrivé à la sauvegarde quotidienne, muette
+    // pendant douze jours. Une tâche qui passe ici mais échoue ensuite se
+    // signalerait autrement (erreur 500, e-mail manquant).
+    try {
+      $st = $pdo->prepare('UPDATE cron_runs SET last_ok_at = ?, runs = COALESCE(runs,0) + 1 WHERE path = ?');
+      $st->execute([now_iso(), $path]);
+      if ($st->rowCount() === 0) {
+        $pdo->prepare('INSERT INTO cron_runs (path,last_ok_at,runs) VALUES (?,?,1)')
+            ->execute([$path, now_iso()]);
+      }
+    } catch (Throwable $e) { /* la trace ne doit jamais empêcher la tâche de tourner */ }
   }
 
   // ---------- TÂCHE PLANIFIÉE : offres du jour / de la semaine ----------

@@ -2349,23 +2349,30 @@ function EmailsTab() {
 // ---------- Tâches automatiques (clé cron + URLs prêtes à copier) ----------
 // Registre des tâches planifiées du serveur. Chaque entrée génère une URL cron
 // prête à copier, avec la clé RÉELLEMENT active (récupérée via digestInfo).
-const CRON_JOBS: { id: string; label: string; desc: string; query?: string; schedule: string; cronExpr: string }[] = [
-  { id: 'security',       label: 'Surveillance sécurité',       desc: 'Compte les tentatives de connexion suspectes et repère les IP à surveiller.', query: '?days=1',  schedule: 'Chaque jour à 8h',    cronExpr: '0 8 * * *' },
-  { id: 'cleanup',        label: 'Ménage / maintenance',        desc: 'Purge les vieilles données et masque les annonces de plus de 90 jours.',                        schedule: 'Chaque jour à 4h',    cronExpr: '0 4 * * *' },
-  { id: 'backup',         label: 'Sauvegarde de la base',       desc: 'Sauvegarde complète (7 dernières conservées) + email récapitulatif.',                          schedule: 'Chaque jour à 3h',    cronExpr: '0 3 * * *' },
-  { id: 'digest',         label: 'Résumé du jour',              desc: 'Envoie aux abonnés les nouvelles annonces du jour.',                          query: '?type=daily', schedule: 'Chaque jour à 18h',   cronExpr: '0 18 * * *' },
-  { id: 'suggestions',    label: 'Suggestions personnalisées',  desc: 'Recommande à chaque utilisateur des annonces selon ses centres d’intérêt.',                     schedule: 'Lundi & jeudi à 9h',  cronExpr: '0 9 * * 1,4' },
-  { id: 'seo',            label: 'Bureau de Croissance SEO',    desc: 'Publie chaque jour une diffusion animée sur l’écran (annonce, publication ou message) selon les objectifs du site.', schedule: 'Chaque jour à 9h', cronExpr: '0 9 * * *' },
-  { id: 'ads-expiring',   label: 'Rappel d’expiration des pubs', desc: 'Prévient l’annonceur par e-mail ~3 jours avant la fin de sa publicité pour qu’il la renouvelle.', schedule: 'Chaque jour à 11h', cronExpr: '0 11 * * *' },
-  { id: 'activation-relance', label: 'Relance « publiez votre 1ʳᵉ annonce »', desc: 'Invite une seule fois, par e-mail, les inscrits sans aucune annonce (≥ 3 jours) à publier leur première.', schedule: 'Chaque jour à 12h', cronExpr: '0 12 * * *' },
-  { id: 'alerts',         label: 'Alertes recherches',          desc: 'Prévient quand une annonce correspond à une recherche sauvegardée.',                            schedule: 'Toutes les 2 heures', cronExpr: '0 */2 * * *' },
-  { id: 'review-invites', label: 'Invitations à noter',         desc: 'Invite l’acheteur à laisser un avis après une vente confirmée par le vendeur.',                 schedule: 'Chaque jour à 10h',   cronExpr: '0 10 * * *' },
-  { id: 'stats',          label: 'Statistiques hebdo',          desc: 'Agrégats anonymes d’activité (pour le rapport hebdomadaire).', query: '?days=7',                schedule: 'Lundi à 7h',          cronExpr: '0 7 * * 1' },
-  { id: 'report',         label: 'Rapport mensuel',             desc: 'Envoie à contact@chap.ci un récap activité + sécurité + santé de la base.',   query: '?days=30',  schedule: 'Le 1er du mois à 7h', cronExpr: '0 7 1 * *' },
+// `maxAgeH` : au-delà de ce nombre d'heures sans passage, la tâche est signalée
+// comme en panne. Toujours un peu plus que l'intervalle prévu, pour tolérer un
+// décalage d'exécution sans crier au loup.
+const CRON_JOBS: { id: string; label: string; desc: string; query?: string; schedule: string; cronExpr: string; maxAgeH: number }[] = [
+  { id: 'security',       label: 'Surveillance sécurité',       desc: 'Compte les tentatives de connexion suspectes et repère les IP à surveiller.', query: '?days=1',  schedule: 'Chaque jour à 8h',    cronExpr: '0 8 * * *',   maxAgeH: 26 },
+  { id: 'cleanup',        label: 'Ménage / maintenance',        desc: 'Purge les vieilles données et masque les annonces de plus de 90 jours.',                        schedule: 'Chaque jour à 4h',    cronExpr: '0 4 * * *',   maxAgeH: 26 },
+  { id: 'backup',         label: 'Sauvegarde de la base',       desc: 'Sauvegarde complète (7 dernières conservées) + email récapitulatif.',                          schedule: 'Chaque jour à 3h',    cronExpr: '0 3 * * *',   maxAgeH: 26 },
+  { id: 'digest',         label: 'Résumé du jour',              desc: 'Envoie aux abonnés les nouvelles annonces du jour.',                          query: '?type=daily', schedule: 'Chaque jour à 18h',   cronExpr: '0 18 * * *',  maxAgeH: 26 },
+  { id: 'suggestions',    label: 'Suggestions personnalisées',  desc: 'Recommande à chaque utilisateur des annonces selon ses centres d’intérêt.',                     schedule: 'Lundi & jeudi à 9h',  cronExpr: '0 9 * * 1,4', maxAgeH: 96 },
+  { id: 'seo',            label: 'Bureau de Croissance SEO',    desc: 'Publie chaque jour une diffusion animée sur l’écran (annonce, publication ou message) selon les objectifs du site.', schedule: 'Chaque jour à 9h', cronExpr: '0 9 * * *', maxAgeH: 26 },
+  { id: 'ads-expiring',   label: 'Rappel d’expiration des pubs', desc: 'Prévient l’annonceur par e-mail ~3 jours avant la fin de sa publicité pour qu’il la renouvelle.', schedule: 'Chaque jour à 11h', cronExpr: '0 11 * * *',  maxAgeH: 26 },
+  { id: 'activation-relance', label: 'Relance « publiez votre 1ʳᵉ annonce »', desc: 'Invite une seule fois, par e-mail, les inscrits sans aucune annonce (≥ 3 jours) à publier leur première.', schedule: 'Chaque jour à 12h', cronExpr: '0 12 * * *', maxAgeH: 26 },
+  { id: 'alerts',         label: 'Alertes recherches',          desc: 'Prévient quand une annonce correspond à une recherche sauvegardée.',                            schedule: 'Toutes les 2 heures', cronExpr: '0 */2 * * *', maxAgeH: 4 },
+  { id: 'review-invites', label: 'Invitations à noter',         desc: 'Invite l’acheteur à laisser un avis après une vente confirmée par le vendeur.',                 schedule: 'Chaque jour à 10h',   cronExpr: '0 10 * * *',  maxAgeH: 26 },
+  { id: 'stats',          label: 'Statistiques hebdo',          desc: 'Agrégats anonymes d’activité (pour le rapport hebdomadaire).', query: '?days=7',                schedule: 'Lundi à 7h',          cronExpr: '0 7 * * 1',   maxAgeH: 192 },
+  { id: 'report',         label: 'Rapport mensuel',             desc: 'Envoie à contact@chap.ci un récap activité + sécurité + santé de la base.',   query: '?days=30',  schedule: 'Le 1er du mois à 7h', cronExpr: '0 7 1 * *',   maxAgeH: 768 },
 ]
 
 function AutomationTab() {
-  const [info, setInfo] = useState<{ cronKey: string; site: string } | null>(null)
+  const [info, setInfo] = useState<{
+    cronKey: string
+    site: string
+    runs?: Record<string, { lastOkAt: string | null; runs: number }>
+  } | null>(null)
   const [err, setErr] = useState('')
   const [reveal, setReveal] = useState(false)
   const [copied, setCopied] = useState('')
@@ -2397,6 +2404,25 @@ function AutomationTab() {
     `${info.site}/api/cron/${j.id}${j.query ? `${j.query}&` : '?'}key=${encodeURIComponent(key)}`
   const textFor = (j: typeof CRON_JOBS[number]) => (fmt === 'cmd' ? cmdFor(j) : urlFor(j))
 
+  // État réel de chaque tâche, d'après la trace serveur du dernier passage.
+  // « jamais » et « en retard » sont les deux cas qu'il faut voir d'un coup d'œil :
+  // le 26/07, la sauvegarde quotidienne était muette depuis douze jours sans que
+  // rien, nulle part, ne le signale.
+  const statusOf = (j: typeof CRON_JOBS[number]) => {
+    const at = info.runs?.[j.id]?.lastOkAt
+    if (!at) return { tone: 'bad' as const, text: 'jamais exécutée' }
+    const ms = Date.parse(at)
+    if (Number.isNaN(ms)) return { tone: 'bad' as const, text: 'date illisible' }
+    const late = Date.now() - ms > j.maxAgeH * 3600_000
+    return { tone: late ? ('warn' as const) : ('ok' as const), text: timeAgo(ms) }
+  }
+  const TONE = {
+    ok:   'bg-ivoire-green/10 text-ivoire-green-dark',
+    warn: 'bg-amber-100 text-amber-800',
+    bad:  'bg-red-100 text-red-700',
+  }
+  const broken = CRON_JOBS.filter((j) => statusOf(j).tone !== 'ok')
+
   return (
     <div className="space-y-4">
       {/* Modération automatique : jeton de service cloisonné (Le Gardien) */}
@@ -2412,6 +2438,27 @@ function AutomationTab() {
           ailleurs ne correspond plus à celle-ci.
         </p>
       </div>
+
+      {/* Alerte : des tâches ne tournent pas. C'est la première chose à voir. */}
+      {broken.length > 0 && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-3.5 text-sm">
+          <p className="font-display font-bold text-red-800">
+            {broken.length === 1
+              ? '1 tâche automatique ne tourne pas'
+              : `${broken.length} tâches automatiques ne tournent pas`}
+          </p>
+          <p className="mt-1 text-[13px] leading-relaxed text-red-700">
+            {broken.map((j) => j.label).join(' · ')}
+          </p>
+          <p className="mt-2 text-[13px] leading-relaxed text-red-700">
+            Vérifiez dans <b>cPanel → Tâches planifiées</b> que la commande de chacune
+            correspond bien à celle affichée plus bas. La cause la plus fréquente est une
+            clé recopiée entre <b>guillemets doubles</b> : le shell y avale tout ce qui
+            ressemble à <code className="rounded bg-red-100 px-1">$VARIABLE</code>, et la
+            tâche échoue en silence.
+          </p>
+        </div>
+      )}
 
       {/* La clé active */}
       <div className="rounded-2xl bg-white p-4 shadow-card">
@@ -2477,7 +2524,12 @@ function AutomationTab() {
                 <p className="font-display text-sm font-bold text-gray-800">{j.label}</p>
                 <p className="mt-0.5 text-xs text-gray-600">{j.desc}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">{j.schedule}</span>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">{j.schedule}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${TONE[statusOf(j).tone]}`}>
+                  {statusOf(j).tone === 'ok' ? '✓ ' : '⚠ '}{statusOf(j).text}
+                </span>
+              </div>
             </div>
             <div className="mt-2 flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{textFor(j)}</code>

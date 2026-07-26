@@ -685,7 +685,12 @@ export async function phpCampaignCount(): Promise<number> {
 export async function phpCampaignSend(subject: string, message: string, offset: number, limit: number): Promise<{ sent: number; processed: number; total: number; done: boolean }> {
   return req('/admin/campaign/send', { method: 'POST', body: { subject, message, offset, limit } })
 }
-export async function phpDigestInfo(): Promise<{ cronKey: string; site: string }> {
+export async function phpDigestInfo(): Promise<{
+  cronKey: string
+  site: string
+  /** Dernier passage réussi par tâche (clé = suffixe de route : backup, cleanup…). */
+  runs?: Record<string, { lastOkAt: string | null; runs: number }>
+}> {
   return req('/admin/digest-info')
 }
 
