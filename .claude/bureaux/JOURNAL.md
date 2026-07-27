@@ -551,3 +551,30 @@ Format d'une entrée :
   désormais VRAIE, ce qui n'était pas le cas ce matin).
 - **Bien vu** : le bureau a lu le code plutôt que d'inventer un ressenti faute de
   compte de test, et a marqué ses points `[CONSTATÉ]` / `[SUPPOSITION]`.
+
+### 2026-07-26 21:47 — [Données] 📊 Le Comptable
+- **Première lecture réussie de `cron/stats` depuis la création du bureau.** Le prompt
+  corrigé fonctionne, et le bureau a correctement annoncé qu'il posait son point zéro
+  sans prétendre à une tendance — la règle inscrite au prompt a tenu.
+- **Point zéro de la série (30 j)** : 2 098 visites · 84 visiteurs · 6 comptes ·
+  3 annonces actives · 1 vendeur · 1 commune · 2 catégories sur 13 · 2 conversations ·
+  3 demandes d'achat · 0 avis · 0 signalement · 4 abonnés newsletter.
+- **L'entonnoir** : 84 visiteurs → 6 comptes → **1 seul compte ayant publié** → 3 annonces.
+  Cinq comptes sur six n'ont jamais rien publié.
+- **DÉDUCTION QUE LE RAPPORT NE FAIT PAS, ET QUI CHANGE LA PRIORITÉ** : `/publier`
+  totalise 133 vues pour **6 comptes existants au total**. Or cet écran montre un
+  formulaire aux personnes connectées et un **écran d'invitation à créer un compte**
+  aux autres. Même en supposant que les six titulaires y soient revenus plusieurs fois,
+  l'écrasante majorité de ces 133 vues sont nécessairement **anonymes**.
+  → Le mur n'est probablement PAS le formulaire de publication : c'est **l'obligation
+    de créer un compte avant même de voir le formulaire**. Le drapeau `authed` déployé
+    le 26/07 tranchera dans les 48 h ; jusque-là, cela reste une déduction, pas une
+    mesure.
+- **Sourcing proposé** : concentrer sur Bingerville + Cocody plutôt que 22 communes ;
+  cibler téléphones d'occasion, mode, alimentation, meubles ; approcher boutiques de
+  quartier, couturières, restauratrices. Levier immédiat : les testeurs du test fermé,
+  12 × 2 annonces = 24 annonces et 4-5 communes.
+- **Demandes au Patron** : les 3 chiffres de la Play Console (installations, testeurs
+  actifs, plantages) une fois par semaine ; trancher la niche géographique.
+- **Convergence** : trois bureaux indépendants — Croissance 20:58, Support 21:41,
+  Données 21:47 — désignent la même marche. Le sujet n'est plus de la diagnostiquer.
