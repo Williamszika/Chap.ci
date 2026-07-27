@@ -4826,10 +4826,17 @@ try {
           ];
         }
       } catch (Throwable $e) { /* table absente : on renvoie une liste vide */ }
+      // Depuis quand cette trace existe-t-elle ? Sans cette date, une tâche dont
+      // l'heure n'est pas encore venue paraît « en panne » alors qu'elle attend
+      // simplement son tour — et le panneau crie au loup dès le déploiement.
+      $since = null;
+      try { $since = $pdo->query('SELECT MIN(last_ok_at) FROM cron_runs')->fetchColumn() ?: null; }
+      catch (Throwable $e) { /* table absente */ }
       jout([
-        'cronKey' => $config['cron_key'] ?? '',
-        'site'    => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
-        'runs'    => $runs,
+        'cronKey'      => $config['cron_key'] ?? '',
+        'site'         => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+        'runs'         => $runs,
+        'trackedSince' => $since,
       ]);
     }
     // Offres automatiques : envoi manuel immédiat (pour tester).

@@ -690,6 +690,8 @@ export async function phpDigestInfo(): Promise<{
   site: string
   /** Dernier passage réussi par tâche (clé = suffixe de route : backup, cleanup…). */
   runs?: Record<string, { lastOkAt: string | null; runs: number }>
+  /** Début du suivi : avant cette date, on ne sait rien, on n'accuse donc rien. */
+  trackedSince?: string | null
 }> {
   return req('/admin/digest-info')
 }

@@ -2372,6 +2372,7 @@ function AutomationTab() {
     cronKey: string
     site: string
     runs?: Record<string, { lastOkAt: string | null; runs: number }>
+    trackedSince?: string | null
   } | null>(null)
   const [err, setErr] = useState('')
   const [reveal, setReveal] = useState(false)
@@ -2410,18 +2411,31 @@ function AutomationTab() {
   // rien, nulle part, ne le signale.
   const statusOf = (j: typeof CRON_JOBS[number]) => {
     const at = info.runs?.[j.id]?.lastOkAt
-    if (!at) return { tone: 'bad' as const, text: 'jamais exécutée' }
-    const ms = Date.parse(at)
-    if (Number.isNaN(ms)) return { tone: 'bad' as const, text: 'date illisible' }
-    const late = Date.now() - ms > j.maxAgeH * 3600_000
-    return { tone: late ? ('warn' as const) : ('ok' as const), text: timeAgo(ms) }
+    if (at) {
+      const ms = Date.parse(at)
+      if (Number.isNaN(ms)) return { tone: 'bad' as const, text: 'date illisible' }
+      const late = Date.now() - ms > j.maxAgeH * 3600_000
+      return { tone: late ? ('warn' as const) : ('ok' as const), text: timeAgo(ms) }
+    }
+    // Aucune trace. Ce n'est une PANNE que si le suivi tourne depuis assez
+    // longtemps pour que la tâche ait forcément dû passer. Une tâche de midi
+    // n'a rien à se reprocher à 8 h du matin : on ne l'accuse pas.
+    const depuis = info.trackedSince ? Date.parse(info.trackedSince) : NaN
+    const suiviTropJeune = Number.isNaN(depuis) || Date.now() - depuis < j.maxAgeH * 3600_000
+    return suiviTropJeune
+      ? { tone: 'wait' as const, text: 'en attente de son 1ᵉʳ passage' }
+      : { tone: 'bad' as const, text: 'jamais exécutée' }
   }
   const TONE = {
     ok:   'bg-ivoire-green/10 text-ivoire-green-dark',
+    wait: 'bg-gray-100 text-gray-500',
     warn: 'bg-amber-100 text-amber-800',
     bad:  'bg-red-100 text-red-700',
   }
-  const broken = CRON_JOBS.filter((j) => statusOf(j).tone !== 'ok')
+  // Seules les tâches réellement fautives déclenchent l'alerte : une tâche qui
+  // attend son heure n'est pas un incident, et une alarme qui se trompe le
+  // premier jour apprend à ne plus la lire.
+  const broken = CRON_JOBS.filter((j) => ['warn', 'bad'].includes(statusOf(j).tone))
 
   return (
     <div className="space-y-4">
@@ -2527,7 +2541,7 @@ function AutomationTab() {
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">{j.schedule}</span>
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${TONE[statusOf(j).tone]}`}>
-                  {statusOf(j).tone === 'ok' ? '✓ ' : '⚠ '}{statusOf(j).text}
+                  {{ ok: '✓ ', wait: '· ', warn: '⚠ ', bad: '⚠ ' }[statusOf(j).tone]}{statusOf(j).text}
                 </span>
               </div>
             </div>
