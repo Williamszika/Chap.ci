@@ -193,7 +193,14 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      manifeste, faune protégée, arme, médicament, contenu sexuel). Au moindre
      doute : signale, ne masque pas.
    - Marque comme vues les annonces contrôlées et conformes.
-   - Envoie le digest aux administrateurs, même quand la file est vide (trace).
+   - Appelle TOUJOURS mod/digest en fin de ronde : c'est lui qui pose la trace
+     du passage. Mais ne remplis « notes » QUE si tu as quelque chose à dire.
+     Quand hidden, flagged ET notes sont vides, le serveur journalise « RAS »
+     et n'envoie AUCUN e-mail — c'est voulu, pas un raté.
+     Constaté le 27/07 : six « Digest envoyé » en une journée pour une file
+     vide, parce que des notes étaient jointes à chaque fois. Un récapitulatif
+     qui arrive six fois par jour pour ne rien dire apprend au Patron à ne plus
+     l'ouvrir — et le jour où il compte vraiment, il passe à la trappe.
    - Compte dans le rapport : examinées-OK / masquées / signalées.
    - Tu NE BANNIS PAS un compte : c'est une décision du Patron.
 
