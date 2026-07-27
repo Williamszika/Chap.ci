@@ -104,8 +104,9 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
    d'instructions Xcode — elles ne serviraient à personne cette semaine.
 
 2) CE QUI A CHANGÉ SUR LE SITE DEPUIS CE COMMIT
-   git log --oneline <commit_de_la_version>..HEAD -- src/ public/ index.html \
+   git log --oneline COMMIT..HEAD -- src/ public/ index.html \
        capacitor.config.ts package.json vite.config.ts
+   Remplace COMMIT par celui que tu as lu au §1 (aujourd'hui : b7868ec).
    Classe chaque commit dans l'une de ces catégories :
      • CORRECTION DE SÉCURITÉ OU DE CONFIDENTIALITÉ
      • CONFORMITÉ (exigences Play / App Store, pages légales)
