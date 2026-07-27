@@ -223,8 +223,12 @@ export function PromoBanner() {
               Votre publicité ici 🧡
             </h2>
             <p className="max-w-md text-sm text-white/70 md:text-base">
-              Affichez votre marque, votre boutique ou votre annonce devant des milliers
-              d’acheteurs — dès {formatFCFA(2000)} la semaine, payable par Mobile Money.
+              {/* Ne JAMAIS chiffrer l'audience ici : cet encart vend un espace payant.
+                  Annoncer « des milliers d'acheteurs » à un annonceur qui paie
+                  2 000 FCFA la semaine serait une promesse invérifiable — et fausse
+                  aujourd'hui. On décrit l'emplacement, pas une audience. */}
+              Affichez votre marque, votre boutique ou votre annonce en tête de l’accueil
+              et des recherches — dès {formatFCFA(2000)} la semaine, payable par Mobile Money.
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-4">
               <Link

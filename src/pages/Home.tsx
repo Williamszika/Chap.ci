@@ -168,7 +168,7 @@ export function Home() {
             Achetez et vendez <span className="text-white/90">chap-chap</span> en Côte d’Ivoire 🇨🇮
           </h1>
           <p className="mt-1 hidden text-sm text-white txt-legible md:block">
-            Des milliers d’annonces près de chez vous : voitures, téléphones, immobilier, mode…
+            Voitures, téléphones, immobilier, mode, services — près de chez vous.
           </p>
           {/* Mobile : accroche courte et punchy (le h1 mobile reste le sr-only ci-dessus) */}
           <p className="font-display text-[17px] font-extrabold leading-tight txt-legible md:hidden">

@@ -315,8 +315,8 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
   echo "<header>Chap<span class=\"ci\">.ci</span></header>\n";
   echo "<h1>" . h($h1) . " 🇨🇮</h1>\n";
   echo "<p class=\"lead\">Vous avez " . h($sell) . " à vendre " . h($place) . " ? Sur <strong>Chap.ci</strong>, "
-     . "publier une annonce est <strong>100 % gratuit</strong> et prend moins de 2 minutes. Touchez des milliers "
-     . "d'acheteurs " . ($cityName !== '' ? 'à ' . h($cityName) . ' et partout en Côte d’Ivoire' : 'partout en Côte d’Ivoire') . ".</p>\n";
+     . "publier une annonce est <strong>100 % gratuit</strong> et prend moins de 2 minutes. Vos acheteurs "
+     . "vous trouvent " . ($cityName !== '' ? 'à ' . h($cityName) . ' et partout en Côte d’Ivoire' : 'partout en Côte d’Ivoire') . ".</p>\n";
   echo "<a class=\"cta\" href=\"" . h($publish) . "\">➕ Publier une annonce gratuitement</a>\n";
 
   echo "<h2>Pourquoi vendre sur Chap.ci ?</h2>\n<ul class=\"why\">\n"

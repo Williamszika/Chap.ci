@@ -16,7 +16,17 @@ Deux conditions sur quatre sont remplies, chacune suffisante à elle seule :
 - **(b) exigence Play Store** — la page publique de suppression de compte, que Google
   réclame et dont un examinateur vérifie la présence **dans l'application**.
 
-**13 commits** touchent l'application depuis la v1.1.
+**14 commits** touchent l'application depuis la v1.1.
+
+### Une correction ajoutée en cours de préparation
+
+Le site annonçait **« Des milliers d'annonces près de chez vous »** — avec **3 annonces**
+au catalogue. La phrase apparaissait telle quelle sur les captures destinées à Google.
+Deux autres surfaces disaient « touchez des milliers d'acheteurs », dont **l'encart qui
+vend de la publicité à 2 000 FCFA la semaine** : promettre des milliers d'acheteurs à un
+annonceur qui paie, quand le site reçoit 89 visiteurs par mois, n'est pas une maladresse
+de rédaction. Les trois formulations ont été remplacées par des phrases qui décrivent
+l'offre sans chiffrer l'audience.
 
 ## Numéros à saisir AVANT de lancer le build
 
@@ -66,20 +76,18 @@ Textes et boutons plus lisibles, notamment sur les petits écrans.
 
 Le poids attendu de l'AAB est donc bien dans la fourchette 6–7 Mo.
 
-## Captures à remplacer sur la fiche Play
+## Captures à remplacer sur la fiche Play — DÉJÀ REFAITES
 
-Quatre écrans sur cinq ont changé (catégorie Santé, correctifs de l'Atelier) :
+Les 12 captures concernées ont été régénérées le 27/07 sur la version corrigée, dans
+`store/captures/` : `01-accueil`, `02-annonce`, `03-explorer` et `04-vendeur`, en
+`telephone-*` (1080×1920), `tablette7-*` et `tablette10-*` (1920×1080).
+`05-aide` est inchangée et n'a pas été touchée.
 
-| Écran | À refaire ? |
-|---|---|
-| accueil | **oui** — la grille de catégories a changé |
-| explorer | **oui** — idem |
-| annonce | **oui** — ListingDetail retouché |
-| vendeur | **oui** — Profile retouché |
-| aide | non — inchangée |
+**Il n'y a donc qu'à les téléverser.** Elles montrent les vraies annonces avec leurs
+vraies photos — ce qui, accessoirement, prouve que le correctif d'affichage fonctionne.
 
-À refaire dans les trois formats : `telephone-*` (1080×1920), `tablette7-*` et
-`tablette10-*` (1920×1080). Les fichiers actuels sont dans `store/captures/`.
+C'est en les relisant qu'est apparue la promesse « Des milliers d'annonces » corrigée
+ci-dessus : une capture destinée à un examinateur mérite d'être regardée deux fois.
 
 ## Marche à suivre
 
