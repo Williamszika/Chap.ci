@@ -357,9 +357,32 @@ function security_stats(PDO $pdo, array $config, string $since): array {
   $loginFail = 0;
   foreach ($fbi->fetchAll() as $r) if (!ip_ignored((string) $r['ip'], $ignore)) $loginFail += (int) $r['n'];
   $loginOk = $counts['login_ok'] ?? 0;
+  // Détail par motif, pour les seules catégories de DIAGNOSTIC.
+  //
+  // log_security_event() enregistre déjà la route dans « detail » — cron_fail
+  // stocke par exemple « cron/backup ». Mais rien ne l'exposait : le bureau
+  // Sécurité voyait le compteur monter sans pouvoir dire QUELLE tâche échouait,
+  // et l'a signalé comme « limite connue » trois rondes de suite. C'est ce
+  // trou qui a laissé la sauvegarde quotidienne muette pendant douze jours.
+  //
+  // Volontairement limité à ces trois types : ce sont des motifs techniques
+  // (route, cause). On n'expose PAS le détail de login_fail ou mfa_fail, qui
+  // peut contenir une adresse e-mail — la clé cron n'est pas un accès admin.
+  $byDetail = [];
+  $dSt = $pdo->prepare("SELECT kind, detail, COUNT(*) AS n FROM security_events
+                        WHERE kind IN ('cron_fail','mtoken_fail','rate_limited') AND created_at >= ?
+                        GROUP BY kind, detail ORDER BY n DESC");
+  $dSt->execute([$since]);
+  foreach ($dSt->fetchAll() as $r) {
+    $k = (string) $r['kind'];
+    if (!isset($byDetail[$k])) $byDetail[$k] = [];
+    if (count($byDetail[$k]) >= 10) continue;   // top 10 par type, pas de déluge
+    $d = trim((string) ($r['detail'] ?? ''));
+    $byDetail[$k][] = ['detail' => $d === '' ? '(non renseigné)' : $d, 'n' => (int) $r['n']];
+  }
   return ['counts' => $counts, 'loginOk' => $loginOk, 'loginFail' => $loginFail,
           'ratio' => ($loginOk + $loginFail) ? round($loginFail / ($loginOk + $loginFail), 2) : 0,
-          'suspicious' => $suspicious];
+          'suspicious' => $suspicious, 'byDetail' => $byDetail];
 }
 function iso_to_ms(?string $iso): int { return $iso ? (int) (strtotime($iso) * 1000) : 0; }
 
@@ -5345,6 +5368,10 @@ try {
       'mfaFail'         => $mfaFail,
       'rateLimited'     => $sec['counts']['rate_limited'] ?? 0,
       'newSignups'      => $sec['counts']['signup'] ?? 0,
+      // Quelle route échoue, et combien de fois. Sans ce détail, un compteur
+      // cron_fail qui monte ne dit pas s'il s'agit d'une tâche cassée ou d'un
+      // balayage extérieur — les deux se corrigent très différemment.
+      'byDetail'        => $sec['byDetail'],
       'ignoredIps'      => $config['security_ignore_ips'] ?? [],
       // Intégrité des rôles admin : « ok » ou « ALTÉRÉE » (+ liste si altérée).
       'adminsIntegrity' => $adminsTampered ? 'ALTÉRÉE' : 'ok',

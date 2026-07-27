@@ -118,6 +118,15 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    → tentatives échouées, IP suspectes, failRatio, rate-limited, intégrité des
      comptes admin.
 
+   LIS D'ABORD « byDetail » — il te dit QUELLE ROUTE échoue.
+   La réponse contient byDetail.cron_fail : la liste des routes ayant échoué,
+   avec leur nombre d'occurrences (ex. « cron/backup » : 12). Idem pour
+   mtoken_fail (motif : missing / unknown / revoked / scope) et rate_limited.
+   Ce champ existe depuis le 27/07/2026 : ne note plus « pas de détail par
+   route » comme limite de ton environnement, tu l'as.
+   Cite TOUJOURS la route fautive dans ton rapport. « cron_fail 14 » ne se
+   corrige pas ; « cron/backup a échoué 12 fois » se corrige en une minute.
+
    LIRE « cron_fail » CORRECTEMENT — la bonne hypothèse d'abord :
    Des cron_fail en nombre ne sont PRESQUE JAMAIS une attaque. Par ordre de
    probabilité décroissante :
