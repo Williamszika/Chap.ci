@@ -645,3 +645,20 @@ Format d'une entrée :
   ÉTRANGÈRES non établies en Côte d'Ivoire, pas Chap.ci ; interopérabilité BCEAO vise les
   établissements agréés, sans objet tant que la plateforme n'encaisse pas ; projet de loi
   e-commerce toujours à l'étude. À resurveiller le mois prochain.
+
+### 2026-07-27 08:45 — [Direction] Arbitrage : bandeau de consentement aux traceurs
+- **Décision du Patron : attendre.** Le bureau Juridique proposait un bandeau de
+  consentement avant l'activation des pixels Google, Meta et TikTok. Trois options lui
+  ont été présentées — poser le bandeau, retirer les pixels, ou attendre.
+- **Motif retenu** : un bandeau ajoute de la friction sur toutes les pages et pour tous
+  les visiteurs, au moment précis où le problème n°1 de la maison est que 84 visiteurs
+  ne produisent qu'un seul vendeur. Le risque juridique est réel mais théorique — aucun
+  texte ivoirien spécifique aux traceurs n'a été trouvé par la veille — tandis que le
+  coût de conversion serait immédiat.
+- **Conditions de réouverture, inscrites au prompt du Juriste** : une campagne
+  publicitaire payante qui démarre, un texte ivoirien sur les cookies qui paraît, ou un
+  catalogue dépassant la cinquantaine d'annonces. Hors de ces cas, le bureau se contente
+  d'une ligne en « problèmes ouverts » et passe à la suite.
+- **Rappel de méthode** : une proposition écartée n'est pas une proposition oubliée. Sans
+  condition de réouverture écrite, un bureau la represente chaque mois et le Patron finit
+  par ne plus lire ses rapports.

@@ -75,10 +75,24 @@ MÉTHODE (obligatoire) :
 - Consentement : l'inscription enregistre l'acceptation des conditions avec un
   numéro de version (cgu_version, server/index.php:2609) — trace utile en cas
   de litige.
-- POINT OUVERT CONNU : le site n'affiche PAS de bandeau de consentement aux
-  cookies, alors que trois traceurs publicitaires sont actifs sur le web. La
-  politique les documente et explique comment les refuser. À toi de dire si
-  cela suffit au regard du droit ivoirien, et sinon ce qu'il faut ajouter.
+- BANDEAU DE CONSENTEMENT AUX TRACEURS — ARBITRÉ LE 27/07/2026, NE PLUS
+  REPROPOSER CHAQUE MOIS. Le site n'affiche pas de bandeau alors que trois
+  traceurs (Google Analytics, Meta, TikTok) sont actifs sur le web ; la
+  politique les documente et explique comment les refuser, mais après coup.
+  L'analyse du bureau a été présentée au Patron avec trois options : poser un
+  bandeau, retirer les pixels, ou attendre. **Le Patron a choisi d'attendre**,
+  la friction d'un bandeau sur toutes les pages étant jugée plus coûteuse, à ce
+  stade, que le risque juridique — la plateforme ne mène aucune campagne
+  publicitaire et compte 84 visiteurs par mois.
+  Ne le resignale QUE si l'une de ces trois conditions est remplie :
+    (1) une campagne publicitaire payante démarre réellement (les pixels se
+        mettent alors à servir, et l'exposition change de nature) ;
+    (2) un texte ivoirien spécifique aux cookies ou traceurs paraît — c'est
+        précisément ce que ta veille doit guetter ;
+    (3) le catalogue dépasse une cinquantaine d'annonces, seuil à partir
+        duquel le trafic cesse d'être négligeable.
+  Hors de ces cas, mentionne-le en une ligne dans « problèmes ouverts » et
+  passe à la suite.
 - Le site NE PREND PAS le paiement : les transactions se règlent entre les
   parties (Mobile Money, espèces). Ce point change beaucoup d'obligations —
   vérifie-le avant de raisonner en « e-commerce » classique.
