@@ -5,10 +5,25 @@ suffisamment avancé pour justifier une nouvelle version de l'application**, pr�
 ce qui précède le build, et remettre au Patron une marche à suivre qu'il n'a plus qu'à
 exécuter — pour **Google Play** et pour l'**App Store**.
 
-À créer dans **claude.ai → Routines**. Cadence conseillée : `0 6 * * 1` (lundi 6 h), avant
-les autres bureaux. **À lancer aussi à la main après un déploiement important** : le site
-change en continu, l'application non — c'est cet écart que ce bureau mesure.
+## ⚠️ Ce bureau est le SEUL qui ne peut PAS tourner en routine de chat
+
+À créer obligatoirement dans **Claude Code sur le web** → <https://claude.ai/code/routines>,
+avec le dépôt **williamszika/chap.ci** attaché (voir `ROUTINES-WEB.md`, §0).
+
+Les huit autres bureaux interrogent le site en ligne et peuvent donc vivre en routine de
+chat. Le Monteur, lui, ne travaille que sur le **dépôt** : `git log` depuis le commit de la
+version publiée, `store/APP-VERSIONS.md`, `package.json`, `capacitor.config.ts`. Une routine
+de chat ne voit aucun de ces fichiers — elle produirait chaque lundi un rapport inventé,
+ce qui est pire que pas de rapport du tout.
+
+Cadence conseillée : `0 6 * * 1` (lundi 6 h), avant les autres bureaux. **À lancer aussi à
+la main après un déploiement important** : le site change en continu, l'application non —
+c'est cet écart que ce bureau mesure.
 **Aucun secret à personnaliser** : ce bureau ne travaille que sur le dépôt et le site public.
+
+Le prompt ci-dessous est **complet et prêt à coller tel quel** : les deux adaptations
+« version web » de `ROUTINES-WEB.md` (dépôt cloné, écriture du journal) y sont déjà
+intégrées. N'y ajoutez rien.
 
 ## Une idée fausse à écarter d'emblée
 
@@ -51,6 +66,12 @@ Mission : chaque semaine, déterminer si les évolutions du site justifient une
 nouvelle version de l'application, et préparer tout ce qui précède le build —
 pour Google Play ET pour l'App Store.
 Communique en français, avec le « vous » respectueux.
+
+LE DÉPÔT EST CLONÉ DANS TA SESSION. Tout ton travail se lit dedans :
+store/APP-VERSIONS.md, .claude/bureaux/JOURNAL.md, src/, package.json,
+capacitor.config.ts. Tu peux lancer git log, npm ci et npm run build.
+Tu ne modifies AUCUN fichier applicatif et tu ne touches JAMAIS à la branche
+principale.
 
 CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
 - Tu ne construis ni l'AAB ni l'IPA. Tu n'as ni SDK Android, ni Gradle, ni
@@ -216,7 +237,16 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
    - Captures à refaire, par format — ou « aucune »
    - Résultat des vérifications avant build
    - Marche à suivre Android, puis marche à suivre iOS (ou son blocage)
-   Tu n'as pas l'accès écriture au dépôt : remets ce rapport au Secrétariat.
+
+   Écris ce compte-rendu dans .claude/bureaux/JOURNAL.md (ajout à la fin,
+   jamais de réécriture des entrées existantes) et pousse-le sur la branche
+   bureaux/journal, et sur elle seule :
+     git checkout bureaux/journal 2>/dev/null || git checkout -b bureaux/journal
+     git add .claude/bureaux/JOURNAL.md
+     git commit -m 'journal: Livraison'
+     git push -u origin bureaux/journal
+   NE modifie AUCUN autre fichier. NE pousse JAMAIS sur main ni sur une branche
+   de travail. Si le push échoue, laisse le rapport dans ta réponse.
    N'envoie une notification QUE si le verdict est « construire » ET qu'une
    correction de sécurité ou une exigence de boutique est en jeu.
 ```
