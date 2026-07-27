@@ -114,6 +114,36 @@ export function DeleteAccount() {
           </ul>
         </section>
 
+        {/* Suppression PARTIELLE. Déclarée à Google Play (« Proposez-vous un moyen
+            de supprimer une partie des données sans supprimer le compte ? » → Oui) :
+            la page doit donc la décrire, sinon la déclaration ne correspond à rien. */}
+        <section className="mt-6 rounded-2xl border border-line2 bg-white p-5">
+          <p className="font-display text-base font-bold text-ink">
+            Vous préférez garder votre compte ?
+          </p>
+          <p className="mt-2 text-[14px] leading-relaxed text-gray-700">
+            Vous n’êtes pas obligé de tout supprimer. Une fois connecté, vous pouvez
+            effacer vous-même, à tout moment et sans nous écrire :
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-[14px] leading-relaxed text-gray-700">
+            <li>vos annonces, une par une, depuis « Mes annonces » ;</li>
+            <li>vos recherches enregistrées et leurs alertes ;</li>
+            <li>vos favoris ;</li>
+            <li>vos notifications.</li>
+          </ul>
+          <p className="mt-2 text-[14px] leading-relaxed text-gray-700">
+            Pour effacer vos conversations ou un avis que vous avez laissé, écrivez-nous
+            à{' '}
+            <a
+              href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Suppression de certaines de mes données')}`}
+              className="font-semibold text-primary-600 underline underline-offset-2"
+            >
+              {CONTACT_EMAIL}
+            </a>
+            {' '}: nous traitons la demande sous 30 jours.
+          </p>
+        </section>
+
         <p className="mt-6 flex items-start gap-2 rounded-xl border border-line bg-cream px-4 py-3 text-[13px] leading-relaxed text-gray-700">
           <ShieldCheck size={16} className="mt-0.5 shrink-0 text-ivoire-green-dark" />
           <span>
