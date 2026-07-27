@@ -41,8 +41,20 @@ RewriteRule ^([A-Za-z0-9]{8,64})\.txt$ seo.php [L]
 RewriteRule ^(suppression-compte|confidentialite|conditions|aide|faq|contact|a-propos|publicite|don|explorer|publier)/?$ /#/$1 [R=301,NE,L]
 
 # --- L'application (SPA) et sa page d'accueil --------------------------------
-DirectoryIndex index.html index.php
+# index.html SEUL. La racine du site est une application statique : aucun
+# index.php n'y a de raison d'être. Le laisser dans DirectoryIndex faisait
+# qu'une requête explicite vers /index.php partait dans l'interpréteur PHP et
+# revenait en 500 au corps vide — signalé par un audit externe le 27/07.
+# Un 500 ne divulgue rien ici, mais une erreur serveur qu'on ne s'explique pas
+# est une erreur serveur qu'on ne surveille pas.
+DirectoryIndex index.html
 Options -Indexes
+
+# Toute requête explicite vers /index.php à la racine est une erreur : on répond
+# 404 franchement, au lieu de laisser LiteSpeed produire un 500 muet.
+# (L'API a son propre index.php, dans /api/, servi par son propre .htaccess :
+#  cette règle ne s'applique QU'À la racine.)
+RewriteRule ^index\.php$ - [R=404,L]
 
 # --- En-têtes de sécurité ----------------------------------------------------
 # Les endpoints /api/ ont déjà les leurs ; ceci couvre les pages du site.
