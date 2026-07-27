@@ -27,7 +27,10 @@ import { Privacy } from './pages/Privacy'
 import { DeleteAccount } from './pages/DeleteAccount'
 import { Terms } from './pages/Terms'
 import { Contact } from './pages/Contact'
-import { AdminDashboard } from './pages/AdminDashboard'
+// AdminDashboard est la plus grosse page du dépôt et ne sert qu'au Patron.
+// Importée statiquement, elle partait dans le paquet initial de CHAQUE visiteur.
+// En chargement différé, elle ne se télécharge qu'à l'ouverture de /admin.
+// (Même patron que PostAd ci-dessous ; le <Suspense> global est déjà en place.)
 import { Messages } from './pages/Messages'
 import { Conversation } from './pages/Conversation'
 import { SellerProfile } from './pages/SellerProfile'
@@ -39,6 +42,9 @@ import { Notifications } from './pages/Notifications'
 // module d'analyse d'image (nsfw, ~2,8 Mo) qui ne doit PAS peser sur l'accueil.
 // Seuls les visiteurs qui publient le téléchargent.
 const PostAd = lazy(() => import('./pages/PostAd').then((m) => ({ default: m.PostAd })))
+const AdminDashboard = lazy(() =>
+  import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })),
+)
 
 function ScrollToTop() {
   const { pathname } = useLocation()
