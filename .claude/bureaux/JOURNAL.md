@@ -662,3 +662,87 @@ Format d'une entrée :
 - **Rappel de méthode** : une proposition écartée n'est pas une proposition oubliée. Sans
   condition de réouverture écrite, un bureau la represente chaque mois et le Patron finit
   par ne plus lire ses rapports.
+
+---
+
+## 2026-07-27 (soir) — ronde des neuf bureaux
+
+Première ronde où les neuf bureaux rapportent le même soir, et première où le
+Secrétariat a pu produire une synthèse complète. Résumé consigné par le
+Développement, avec les corrections de faits que la synthèse contenait encore.
+
+### 🛡️ Le Gardien — Confiance & Sécurité
+- Santé verte, 0 IP suspecte, 0 rate-limited, comptes admin intègres.
+- **`cron_fail` : 5 sur 24 h, contre 11 la veille** — et nommés pour la première
+  fois grâce à `byDetail` : `cron/security` ×3, `cron/stats` ×2. Ni l'un ni
+  l'autre n'est une tâche cPanel : **la sauvegarde n'était pas en cause**.
+  Honnêteté notable du bureau : il signale qu'un de ces échecs vient de son
+  propre test de cloisonnement.
+- Étanchéité des secrets re-testée : clé cron sur `/mod/queue` → 401, jeton de
+  modération sur `/cron/stats` → 403.
+- Digest de modération : `skipped: true`, aucun e-mail. Le correctif de la
+  veille tient — fini les six envois quotidiens pour une file vide.
+- Fichiers `.sql`/`.md`/`.txt` de `/api/` : 404 partout. Propre.
+
+### 📣 Le Crieur — Croissance
+- Sitemap 349 URLs conforme, `/vendre/sante` et sa bannière répondent 200.
+- Catalogue **figé pour la 4ᵉ ronde consécutive** : 3 annonces, 1 vendeur,
+  1 commune, 2 catégories sur 15.
+- 9 mots-clés livrés au lieu de 20, **et il dit pourquoi** : le catalogue n'en
+  soutient pas davantage. C'est le comportement attendu.
+
+### 📊 Le Comptable — Données
+- Entonnoir : 91 visiteurs → 6 comptes (6,6 %) → 1 publiant (17 %) → 3 annonces.
+- **A refusé de conclure sur le signal `/publier`** en soulevant une objection
+  technique précise sur le drapeau `authed`. **Il avait raison** : les lignes
+  antérieures au 26/07 sont à `NULL` et étaient comptées comme anonymes.
+  Corrigé le soir même (`connectes` / `visiteurs` / `inconnu` séparés).
+
+### 🤝 Le Concierge — Support
+- A trouvé, en lisant le code, que `NewsletterPrompt` n'excluait pas
+  `/bienvenue` — et que seule l'inscription par e-mail abonne silencieusement à
+  la newsletter. Les comptes Google et Facebook recevaient donc la pop-up
+  par-dessus « Publier ma première annonce ». Corrigé.
+- Présente sa trouvaille comme une lecture de code, faute de compte de test.
+
+### ⚡ Le Mécanicien — Performance
+- 169,4 Ko hors images sur l'accueil, tout en Brotli, cache correct.
+- A **mesuré puis annulé** un passage en `lazy()` de 16 pages : −30,7 Ko gzip.
+  Appliqué le soir même, build confirmé à 127,7 Ko.
+
+### 🎨 L'Atelier — Design
+- `<h1>` manquant sur Explorer, 2 horodatages sous le seuil de contraste :
+  corrigés.
+- Arbitrage rendu sur le cadenas de `/publier` → icône d'invitation. Appliqué.
+- Chantier `hover:` sans `md:` — 108 occurrences, toujours en attente
+  d'arbitrage du Patron.
+
+### ⚖️ Le Juriste — mensuel
+- **P1 nouveau** : `Terms.tsx` invoque la loi n° 2013-546 sur l'identification
+  de l'éditeur, mais `EDITOR_NAME`, `EDITOR_ADDRESS` et le téléphone sont vides.
+  La page revendique une conformité qu'elle n'assure pas. **Arbitrage du Patron
+  requis** : publier ses nom, prénoms et téléphone personnels, ou immatriculer
+  une société. Le bureau ne tranche pas, et a raison.
+- Suppression de compte : **P1 du mois dernier clos**, vérifié dans le code.
+- Déclaration ARTCI : toujours en attente, invérifiable depuis l'extérieur.
+
+### 🗂️ Le Secrétariat
+- Synthèse envoyée aux deux adresses, bloc de journal produit.
+- **Trois erreurs de fait dans sa synthèse**, corrigées ici : le drapeau
+  `authed` EST implémenté (le Crieur s'en sert le même soir), les sauvegardes
+  fonctionnent (`cron/backup` absent des échecs), et le catalogue est figé
+  depuis 2 jours et non 3 semaines. Cause : il raisonne sur un JOURNAL.md qui
+  n'avait pas été tenu depuis le 26/07. C'est précisément ce que cette entrée
+  corrige.
+
+### Ce que le Développement a livré dans la foulée
+`NewsletterPrompt` (+/bienvenue) · `authed` en trois compteurs · 17 pages en
+`lazy()` · `h1` Explorer · 2 contrastes · icône `/publier` · catégorie Santé
+dans la fiche Play.
+
+### Ce qui reste au Patron, par ordre
+1. **12 testeurs** pour le test fermé — 0 inscrit, et c'est le seul délai que
+   personne ne peut raccourcir.
+2. **Mentions légales** (P1 Juriste) — arbitrage vie privée / immatriculation.
+3. **Déclaration ARTCI** — invérifiable par les bureaux.
+4. Balayage `hover:`/`md:` · passage à PHP 8.3 · connexion Google native (v1.3).
