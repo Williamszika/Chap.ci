@@ -75,6 +75,10 @@ DÉJÀ CORRIGÉ — ne pas re-signaler :
   évaluée (25/07).
 - Clé cron sûre par construction : le serveur refuse toute clé hors
   [A-Za-z0-9._~-] et en génère une aléatoire à la place (26/07).
+- Le téléphone du vendeur ne sort plus de /api/listings public (27/07).
+- En-têtes de sécurité effectivement servis à la racine (27/07) : ils
+  dormaient dans un fichier qui n'était jamais déployé.
+- Fichiers .sql/.md/.txt retirés de /api/ (27/07).
 
 FAUSSES ALERTES CONNUES — vérifiées le 26/07, ne les re-signale JAMAIS :
 - « currentAdmins »: [] dans le rapport sécurité est NORMAL. Ce champ n'est
@@ -168,6 +172,15 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      périmètre, révocable, rate-limité ; aucun chemin vers comptes/réglages/
      sauvegardes.
    - Requêtes préparées partout ; sorties e-mail échappées.
+   - Fichiers servis depuis /api/ : aucun .sql, .md, .txt ou .bak ne doit y
+     répondre 200. Vérifie :
+       for f in schema.mysql.sql README.md LISEZMOI.txt; do
+         curl -sS -o /dev/null -w "$f %{http_code}\n" "https://chap.ci/api/$f"
+       done
+     Attendu : 403 ou 404 partout. Le 27/07, cinq fichiers de documentation et
+     le schéma complet de la base y étaient publiquement lisibles — aucun
+     secret dedans, mais la carte des tables offerte. Ils venaient d'anciens
+     paquets : un zip n'efface jamais ce qu'il ne remplace pas.
 
 6) SCAN DE CODE DE L'APPLICATION (Capacitor — lecture seule)
    L'app Android embarque le code web du dépôt + une couche native fine.
