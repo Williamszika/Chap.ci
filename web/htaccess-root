@@ -57,6 +57,31 @@ Options -Indexes
   Header always set Permissions-Policy "geolocation=(self)"
   # Force HTTPS pendant 6 mois (le site est déjà en HTTPS).
   Header always set Strict-Transport-Security "max-age=15552000"
+
+  # --- Politique de sécurité du contenu (CSP) — EN MODE RAPPORT --------------
+  #
+  # Signalée comme absente par l'audit externe du 27/07, à juste titre : c'est
+  # la principale défense contre l'injection de script (XSS).
+  #
+  # ⚠️ Volontairement en « Report-Only » pour l'instant : elle NE BLOQUE RIEN.
+  # Une CSP trop stricte posée d'un coup casse silencieusement le paiement, la
+  # connexion Google ou la carte — et on ne s'en aperçoit qu'en lisant les
+  # plaintes des utilisateurs. On la fait donc d'abord tourner à vide, on relit
+  # la console du navigateur sur les parcours réels (accueil, publier, payer,
+  # se connecter), puis on la bascule en « Content-Security-Policy » tout court.
+  #
+  # Les domaines listés sont ceux réellement appelés par le code du dépôt :
+  #   accounts.google.com          connexion Google (GSI)
+  #   googletagmanager.com         Google Analytics 4
+  #   connect.facebook.net         pixel Meta + connexion Facebook
+  #   analytics.tiktok.com         pixel TikTok
+  #   nominatim.openstreetmap.org  recherche d'adresse
+  #   ipapi.co / ipwho.is / api.bigdatacloud.net  localisation approximative
+  #   pay.wave.com                 paiement Wave
+  # 'unsafe-inline' sur les styles est requis par React (styles en ligne) ;
+  # sur les scripts, il l'est par les extraits d'installation des pixels.
+  # Les retirer suppose de passer aux nonces — chantier à part, pas ici.
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.googletagmanager.com https://connect.facebook.net https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://chap.ci https://accounts.google.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://graph.facebook.com https://analytics.tiktok.com https://nominatim.openstreetmap.org https://ipapi.co https://ipwho.is https://api.bigdatacloud.net; frame-src 'self' https://accounts.google.com https://www.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
 </IfModule>
 
 # --- Cache des fichiers versionnés -------------------------------------------
