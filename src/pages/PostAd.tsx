@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, X, MapPin, Check, Lock, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import type { Listing } from '../types'
@@ -365,8 +365,12 @@ export function PostAd() {
   if (!user) {
     return (
       <div className="flex min-h-[72vh] flex-col items-center justify-center gap-5 px-6 text-center">
+        {/* Icône d'INVITATION, pas de restriction. Un cadenas disait « interdit »
+            sur l'écran même où l'on veut donner envie de publier — c'est la page
+            la plus décisive de la conversion visiteur → vendeur.
+            Arbitrage du bureau Design, 27/07. */}
         <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-100 text-primary-600">
-          <Lock size={30} />
+          <UserPlus size={30} />
         </div>
         <div>
           <h1 className="font-display text-2xl font-black text-ink">Connectez-vous pour publier</h1>

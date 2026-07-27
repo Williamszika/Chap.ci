@@ -5266,7 +5266,8 @@ try {
     $topPaths = $pdo->prepare(
       'SELECT path, COUNT(*) AS n,
               SUM(CASE WHEN authed = 1 THEN 1 ELSE 0 END) AS connectes,
-              SUM(CASE WHEN authed = 1 THEN 0 ELSE 1 END) AS visiteurs
+              SUM(CASE WHEN authed = 0 THEN 1 ELSE 0 END) AS visiteurs,
+              SUM(CASE WHEN authed IS NULL THEN 1 ELSE 0 END) AS inconnu
        FROM visits WHERE created_at >= ? GROUP BY path ORDER BY n DESC LIMIT 8');
     $topPaths->execute([$since]);
     jout([

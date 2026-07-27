@@ -214,7 +214,7 @@ export function Notifications() {
                     >
                       {n.body}
                     </span>
-                    <span className="mt-1 block text-xs text-gray-400">{timeAgo(n.createdAt)}</span>
+                    <span className="mt-1 block text-xs text-gray-500">{timeAgo(n.createdAt)}</span>
                   </span>
                   {!selectMode && unread && (
                     <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-500" />

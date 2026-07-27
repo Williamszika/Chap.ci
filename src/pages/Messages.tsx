@@ -91,7 +91,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
                       <p className={`truncate font-display text-gray-900 ${unread ? 'font-extrabold' : 'font-bold'}`}>
                         {c.otherName}
                       </p>
-                      <span className={`shrink-0 text-[11px] ${unread ? 'font-bold text-primary-600' : 'text-gray-400'}`}>
+                      <span className={`shrink-0 text-[11px] ${unread ? 'font-bold text-primary-600' : 'text-gray-500'}`}>
                         {c.lastAt ? timeAgo(c.lastAt) : ''}
                       </span>
                     </div>

@@ -164,6 +164,10 @@ export function Browse() {
 
   return (
     <div className="min-h-screen bg-cream-200">
+      {/* Titre de page pour les lecteurs d'écran : l'écran Explorer n'en avait
+          aucun, alors qu'il est le 2ᵉ plus visité du site. Même patron que
+          Home.tsx. Invisible à l'œil, indispensable à la navigation vocale. */}
+      <h1 className="sr-only">Explorer les annonces</h1>
       {/* En-tête sticky */}
       <div className="safe-top sticky top-0 z-30 bg-white/90 backdrop-blur-md shadow-sm">
         <div className="flex items-center gap-2 px-3 py-2.5">

@@ -6,12 +6,21 @@ import { isSubscribed, subscribeNewsletter } from '../lib/newsletter'
 
 const SEEN_KEY = 'chapci.nlPrompt.v1'
 // Pages où aucune pop-up ne doit s'ouvrir :
-// - « action » (publier / modifier) : elle recouvrirait le bouton d'envoi ;
+// - « action » (publier / modifier / bienvenue) : elle recouvrirait le bouton
+//   qu'on cherche justement à faire cliquer ;
 // - « légales » (suppression de compte, confidentialité, conditions) : on ne
 //   propose pas une newsletter par-dessus un texte de conformité, en particulier
 //   sur /suppression-compte, que Google Play consulte pour valider l'application.
+//
+// /bienvenue a été ajoutée le 27/07 sur signalement du bureau Support. C'est
+// l'écran qui suit l'inscription et qui porte « Publier ma première annonce ».
+// L'inscription par e-mail abonne silencieusement à la newsletter (Register.tsx),
+// donc la pop-up ne s'y armait pas ; mais les inscriptions Google et Facebook ne
+// le font pas — ces comptes-là arrivaient sur /bienvenue non abonnés, et la
+// pop-up s'ouvrait 2,5 s plus tard PAR-DESSUS le bouton de publication, au
+// moment exact où l'on veut le moins de friction possible.
 const isActionRoute = (path: string) =>
-  /^\/(publier|modifier|suppression-compte|confidentialite|conditions)/.test(path)
+  /^\/(publier|modifier|bienvenue|suppression-compte|confidentialite|conditions)/.test(path)
 
 /**
  * Popup proposant la newsletter — affiché UNE seule fois (par appareil) aux
