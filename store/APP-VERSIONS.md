@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | v1.1 (versionCode 2) | **aucune** |
+| Version publiée | **aucune** — la v1.1 est restée en BROUILLON | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -38,6 +38,26 @@ de l'interface à s'adapter — ce que le responsive assure déjà.
 que le volet iOS est bloqué, et ne pas produire d'instructions Xcode inutiles.** Mettez
 cette table à jour le jour où la situation change.
 
+## Le chemin vers la production (compte personnel)
+
+Constaté le 27/07 dans la Play Console : la release du 25 juillet est restée en
+**« Brouillon / Non examinée »**, et la fiche affiche encore « Nom temporaire de
+l'application : ci.chap.app (unreviewed) ». **Aucune version n'a donc jamais atteint le
+moindre testeur.** Ce n'était ni un refus, ni un délai d'examen : le déploiement n'a pas
+été lancé.
+
+Le compte développeur étant **personnel**, Google impose avant la production :
+
+**12 testeurs inscrits en continu pendant 14 jours, sur un test FERMÉ.**
+
+Le test interne ne compte pas dans ce quota — il sert seulement à vérifier que
+l'application fonctionne. L'ordre est donc : test interne (vérification) → test fermé
+(12 testeurs, 14 jours) → demande d'accès à la production.
+
+Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
+zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
+raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
 ---
 
 ## v1.1 — versionCode 2
@@ -49,7 +69,7 @@ cette table à jour le jour où la situation change.
 | Poids de l'AAB | 6,4 Mo |
 | minSdk | 22 (Android 5.1) |
 | targetSdk | 35 |
-| État Play | test interne — jamais passée en test fermé ni en production |
+| État Play | **jamais déployée** — release restée « Brouillon / Non examinée » |
 
 **Contenu :** allègement du paquet natif par `scripts/android-slim.mjs` (retrait du
 moteur de détourage `ort/wasm` et des bannières `og/`), qui fait passer l'application
