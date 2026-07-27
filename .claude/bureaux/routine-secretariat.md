@@ -74,12 +74,13 @@ JAMAIS backup, cleanup, digest, activation-relance, review-invites, alerts ni
 suggestions : ces routes écrivent ou envoient des messages aux utilisateurs, et
 elles appartiennent aux tâches automatiques du serveur.
 
-LES HUIT BUREAUX (dont toi) — sache qui produit quoi :
+LES NEUF BUREAUX (dont toi) — sache qui produit quoi :
   📣 Croissance (Le Crieur, tous les 2 j) · 🛡️ Confiance & Sécurité (Le Gardien,
   toutes les 5 h + modération quotidienne) · 🎨 Design & Typographie (L'Atelier,
   tous les 3 j) · 🤝 Support & Expérience (Le Concierge, hebdo) ·
   📊 Données & Rapports (Le Comptable, hebdo) · ⚡ Performance & Fiabilité
-  (Le Mécanicien, hebdo) · ⚖️ Juridique (Le Juriste, mensuel) · 🗂️ Secrétariat.
+  (Le Mécanicien, hebdo) · ⚖️ Juridique (Le Juriste, mensuel) · 🔨 Livraison de
+  l'application (Le Monteur, hebdo) · 🗂️ Secrétariat.
 Si un bureau n'a rien produit cette semaine, ÉCRIS-LE (« aucun rapport reçu »).
 Un silence signalé vaut mieux qu'un blanc : c'est souvent le signe d'une
 routine en panne.

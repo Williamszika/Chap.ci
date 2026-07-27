@@ -27,7 +27,7 @@ journal, exécutent `curl` / `php` / `git`.
 
 Les routines suivantes réutilisent le même environnement (réseau déjà autorisé).
 
-## 1) Les 8 prompts et leur cadence
+## 1) Les 9 prompts et leur cadence
 
 | Bureau | Prompt canonique | Cadence exacte (`/schedule`) |
 |---|---|---|
@@ -39,6 +39,7 @@ Les routines suivantes réutilisent le même environnement (réseau déjà autor
 | 🤝 Support & Expérience | `routine-support.md` | `0 10 * * 1` (lundi 10 h) |
 | ⚖️ Juridique | `routine-juridique.md` | `0 9 1 * *` (1ᵉʳ du mois) |
 | 🗂️ Secrétariat | `routine-secretariat.md` | `0 20 * * 1` (lundi 20 h) |
+| 🔨 Livraison de l'app | `routine-build.md` | `0 6 * * 1` (lundi 6 h) |
 
 Deux secrets seulement, tous deux dans **Admin → Tâches auto** : la **clé cron**
 (`CLE_CRON_ICI`, tous les bureaux sauf Design et Juridique) et le **jeton de modération**
