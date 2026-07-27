@@ -610,3 +610,38 @@ Format d'une entrée :
   catalogue grossira.
 - **Trouvé en passant, pour 🎨 l'Atelier** : la page **Explorer n'a aucun `h1`**. Manque
   réel pour l'accessibilité et le référencement, sans rapport avec cette ronde.
+
+### 2026-07-26 22:15 — [Juridique] ⚖️ Le Juriste (ronde mensuelle)
+- **Ronde de très bonne tenue** : sources datées et vérifiables, distinction rigoureuse
+  entre loi en vigueur, projet et règle de plateforme, et refus explicite de conclure là
+  où il n'a pas trouvé de source (« aucun texte ivoirien n'impose formellement un bandeau
+  cookies »). 4 propositions sur 8 possibles — le bureau n'a pas rempli son quota pour
+  faire nombre.
+- **🔴 P1 POUR LE PATRON, HORS DE PORTÉE DE TOUS LES BUREAUX — déclaration ARTCI.** La loi
+  n° 2013-450 impose depuis 2013 une déclaration préalable de tout traitement de données
+  personnelles auprès de l'ARTCI. Le bureau ne peut pas savoir, depuis les pages
+  publiques, si Chap.ci l'a faite. Si elle ne l'a jamais été, c'est une non-conformité
+  vieille de treize ans, avec des sanctions pouvant atteindre 100 M FCFA. L'ARTCI a
+  ouvert le 2 juillet 2026 un guichet dématérialisé, **CERTINUM**, qui simplifie la
+  démarche ; les traitements de Chap.ci (compte, localisation, messages) relèvent
+  probablement des normes simplifiées. **Seul le Patron peut vérifier et agir.**
+- **🟠 P2 — séquence de consentement aux traceurs.** Les pixels Google, Meta et TikTok se
+  chargent dès l'arrivée sur le site web. La politique explique comment les refuser, mais
+  ce refus n'est possible qu'APRÈS leur activation : le texte promet un choix que le
+  mécanisme ne permet pas d'exercer à temps. Incohérence interne, simple à corriger,
+  bandeau proposé et rédigé. **Non appliqué** : un bandeau de consentement ajoute de la
+  friction sur toutes les pages, ce qui touche directement le problème n°1 de la maison.
+  Arbitrage du Patron.
+- **🟢 P1 clos** : suppression de compte publique, vérifiée par le bureau dans `App.tsx`
+  (aucune protection d'accès sur la route) et dans `Footer.tsx` (lien présent).
+- **ÉCART PROMESSE / RÉALITÉ TROUVÉ ET CORRIGÉ LE MÊME JOUR** : le bureau demandait qu'on
+  lui confirme la rétention réelle « pour corriger le texte plutôt que l'inverse ».
+  Vérification dans `cron/cleanup` : journaux de sécurité purgés à **180 jours**, visites
+  à **120 jours**. Or la page de suppression annonçait **12 mois** — chiffre écrit par le
+  Développement sans vérification. Corrigé (`8b6c6ff`) : 6 mois et 4 mois, exactement ce
+  que fait le code, avec un commentaire liant les deux. La section 6 de la politique, qui
+  ne donnait AUCUNE durée, les porte désormais — une mention que la loi 2013-450 exige.
+- **Veille sans impact** : annexe fiscale 2026 et TVA plateformes visent les plateformes
+  ÉTRANGÈRES non établies en Côte d'Ivoire, pas Chap.ci ; interopérabilité BCEAO vise les
+  établissements agréés, sans objet tant que la plateforme n'encaisse pas ; projet de loi
+  e-commerce toujours à l'étude. À resurveiller le mois prochain.
