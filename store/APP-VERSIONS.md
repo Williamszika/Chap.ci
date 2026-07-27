@@ -20,6 +20,26 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 ---
 
+## État des deux boutiques
+
+| | Google Play | App Store |
+|---|---|---|
+| Version publiée | v1.1 (versionCode 2) | **aucune** |
+| Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
+| Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
+| Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
+
+**Un seul binaire par boutique couvre tous les formats.** Il n'existe pas de « version
+tablette » à part : le même AAB sert téléphones et tablettes Android, le même IPA sert
+iPhone et iPad. Seules changent les **captures d'écran** de chaque fiche, et la capacité
+de l'interface à s'adapter — ce que le responsive assure déjà.
+
+**Tant que la ligne « Mac » reste à « non disponible », le bureau Livraison doit dire
+que le volet iOS est bloqué, et ne pas produire d'instructions Xcode inutiles.** Mettez
+cette table à jour le jour où la situation change.
+
+---
+
 ## v1.1 — versionCode 2
 
 | Champ | Valeur |
