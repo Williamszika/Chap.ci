@@ -5,6 +5,7 @@ import { useAuth } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { FacebookSignInButton } from '../components/FacebookSignInButton'
 import { usePublicConfig } from '../lib/publicConfig'
+import { isNative } from '../lib/native'
 import { useGeo } from '../store/GeoContext'
 import { upsertMyProfile, type ProfileFields } from '../lib/profiles'
 import { Mark, Wordmark } from '../components/Logo'
@@ -21,9 +22,12 @@ export function Register() {
   const from = (location.state as { from?: string } | null)?.from
   const goAfterAuth = () => navigate(from || '/bienvenue')
   const { signUp, signInWithGoogleCredential, signInWithFacebookToken, enabled } = useAuth()
+  // Masqués dans l'application native : Google refuse ses connexions OAuth
+  // depuis un navigateur embarqué (WebView). Explication détaillée dans
+  // Login.tsx — les deux écrans doivent rester cohérents.
   const cfg = usePublicConfig()
-  const googleEnabled = !!cfg?.googleClientId
-  const facebookEnabled = !!cfg?.facebookAppId
+  const googleEnabled = !isNative && !!cfg?.googleClientId
+  const facebookEnabled = !isNative && !!cfg?.facebookAppId
   // La localisation est déjà captée à l'ouverture du site (GeoContext) : on
   // l'enregistre silencieusement dans le profil, sans alourdir le formulaire.
   const { place } = useGeo()

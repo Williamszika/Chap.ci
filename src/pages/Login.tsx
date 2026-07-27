@@ -6,6 +6,7 @@ import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { FacebookSignInButton } from '../components/FacebookSignInButton'
 import { PHONE_LOGIN_ENABLED } from '../lib/features'
 import { usePublicConfig } from '../lib/publicConfig'
+import { isNative } from '../lib/native'
 import { Mark, Wordmark } from '../components/Logo'
 
 function AppleIcon() {
@@ -23,10 +24,22 @@ export function Login() {
   const from = (location.state as { from?: string } | null)?.from
   const goAfterAuth = () => navigate(from || '/compte')
   const { signIn, signInWithProvider, signInWithGoogleCredential, signInWithFacebookToken, sendPhoneCode, verifyPhoneCode, verifyLoginMfa, enabled } = useAuth()
-  // Connexion Google / Facebook : activées si configurées (runtime, /api/config).
+  // Connexion Google / Facebook : activées si configurées (runtime, /api/config)
+  // — mais JAMAIS dans l'application native.
+  //
+  // Depuis septembre 2021, Google REFUSE ses connexions OAuth depuis un
+  // navigateur embarqué (WebView), pour empêcher l'application hôte de lire les
+  // identifiants au passage. Dans l'app, la page est servie depuis
+  // https://localhost et le script Google Identity Services ne rend donc aucun
+  // bouton. L'écran observé le 27/07 : un blanc, suivi d'un séparateur « ou »
+  // orphelin — l'utilisateur croit l'application cassée alors que l'email
+  // fonctionne juste en dessous.
+  // Rétablir Google dans l'app suppose un plugin de connexion NATIVE ; tant
+  // qu'il n'est pas en place et testé sur un vrai téléphone, on masque ces
+  // boutons proprement plutôt que d'afficher un vide.
   const cfg = usePublicConfig()
-  const googleEnabled = !!cfg?.googleClientId
-  const facebookEnabled = !!cfg?.facebookAppId
+  const googleEnabled = !isNative && !!cfg?.googleClientId
+  const facebookEnabled = !isNative && !!cfg?.facebookAppId
   // Connexion Apple non disponible sur le backend auto-hébergé : on la masque.
   const showApple = false
 
