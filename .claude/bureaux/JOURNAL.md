@@ -662,3 +662,109 @@ Format d'une entrée :
 - **Rappel de méthode** : une proposition écartée n'est pas une proposition oubliée. Sans
   condition de réouverture écrite, un bureau la represente chaque mois et le Patron finit
   par ne plus lire ses rapports.
+
+### 2026-07-27 19:49 — [Livraison] 🔨 Le Monteur
+
+- **`store/APP-VERSIONS.md` est à jour, pas périmé.** Il consigne déjà la v1.2
+  (versionCode 3, commit `a993629`, construite le jour même) et l'état réel des
+  deux boutiques : **aucune version n'est publiée ni sur Google Play ni sur
+  l'App Store.** La v1.2 est construite (AAB 6,5 Mo) mais **pas encore
+  téléversée** — elle attend dans la Play Console. La v1.1 précédente n'avait
+  jamais quitté l'état « Brouillon ».
+- **Ce que les utilisateurs de l'application n'ont PAS entre les mains** :
+  strictement tout le contenu de la v1.2, puisqu'aucune version n'a jamais
+  atteint un testeur. En particulier : les photos d'annonces (qui ne
+  s'affichaient pas du tout jusqu'ici — `mediaUrl()`), la catégorie Santé &
+  Bien-être, la page de suppression de compte exigée par Google, le numéro de
+  téléphone du vendeur qui ne sort plus de l'API publique, et le formulaire de
+  publication guidé. Le coût de l'attente n'est donc pas un retard de
+  fonctionnalité mineure : c'est une application encore invisible pour tout le
+  monde, alors que le correctif le plus important (photos + confidentialité du
+  téléphone) est prêt depuis ce matin.
+- **iOS : bloqué.** La table du §1 indique « Mac + Xcode — non disponible ». Il
+  faudrait un Mac avec Xcode et un compte Apple Developer (99 $/an, non ouvert)
+  pour avancer. Pas d'instructions Xcode ci-dessous : elles ne serviraient à
+  personne cette semaine.
+
+**Verdict : ATTENDRE — ne PAS lancer un nouveau build.**
+Depuis le commit `a993629` (celui de la v1.2 déjà construite), 5 commits sont
+arrivés (`09b2d83` → `78eb5b6`) :
+  - `09b2d83` store: consignation de la v1.2 elle-même — documentation
+  - `02edf6d` securite: détail par route pour `cron_fail`/`mtoken_fail` —
+    `server/index.php` + un prompt de bureau — **serveur seul**, commun au site
+    et à l'app, déjà actif pour tout le monde
+  - `ea8604b`, `86570b7`, `78eb5b6` — mise à jour de prompts de bureaux internes
+    (`.claude/bureaux/`) — sans rapport avec l'application
+
+`git log --oneline a993629..HEAD -- src/ public/ index.html capacitor.config.ts package.json vite.config.ts`
+ne renvoie **aucun commit**. Aucune des 4 conditions de build (§3) n'est
+remplie : rien à corriger en urgence sur l'interface, rien qui touche une
+exigence de boutique, aucune fonctionnalité visible accumulée, et le dernier
+build date de ce matin même. **La priorité n'est pas un build : c'est de
+téléverser celui qui existe déjà.**
+
+**Numéros de version** — inchangés, aucun nouveau build à préparer :
+  - Android : versionCode **3**, versionName **1.2** (déjà fixés dans l'AAB
+    construit)
+  - iOS (à préparer le jour où le Mac sera disponible) : CFBundleShortVersionString
+    **1.2** (même chiffre qu'Android), CFBundleVersion **1** (première
+    soumission)
+
+**Notes de version prêtes à coller pour la v1.2 (pas encore utilisées, puisque
+rien n'a encore été envoyé en examen)** :
+
+*Play — « Nouveautés » (291/500 caractères)* :
+> Vos photos d'annonces s'affichent de nouveau. Nouvelle catégorie Santé &
+> Bien-être. Formulaire de publication mieux guidé. Votre numéro de téléphone
+> n'est plus visible publiquement, pour votre sécurité. Écrans plus lisibles.
+> Vous pouvez désormais supprimer votre compte depuis l'application.
+
+*App Store — « Nouveautés de cette version »* :
+> Vos photos d'annonces s'affichent enfin correctement dans l'application.
+> Nous avons ajouté une catégorie Santé & Bien-être et rendu le formulaire de
+> publication plus simple à remplir.
+> Votre numéro de téléphone n'est plus visible publiquement sur le site : les
+> acheteurs vous contactent uniquement par la messagerie Chap.ci.
+> Plusieurs écrans sont désormais plus lisibles et plus accessibles. Vous
+> pouvez aussi supprimer votre compte directement depuis l'application.
+
+**Captures d'écran : aucune à refaire.** Aucun commit affectant `src/` n'est
+arrivé depuis `a993629`, donc les 5 écrans (accueil, annonce, explorer,
+vendeur, aide) n'ont pas changé visuellement depuis la référence — ni en
+téléphone, ni en tablette 7/10 pouces. Les jeux existants dans
+`store/captures/` restent valables pour la v1.2.
+
+**Vérifications avant build — toutes passées :**
+  - `capacitor.config.ts` : `appId` = `ci.chap.app`, aucune clé `server.url`.
+  - `src/lib/native.ts` : `SITE_ORIGIN === 'https://chap.ci'`, `mediaUrl()`
+    présent et utilisé pour les images.
+  - `src/lib/marketing.ts` : garde `if (isNative) return` intact — pas de
+    pixel en app native.
+  - `src/components/NativeShell.tsx` : gestionnaire `backButton` et réglages
+    `StatusBar` présents.
+  - `package.json` : `cap:sync` et `cap:android` chaînent bien
+    `node scripts/android-slim.mjs`. `cap:ios` ne le chaîne pas — normal, ce
+    script ne retire que des ressources Android.
+  - Plugins `@capacitor/*` : `core`, `cli`, `android`, `ios`, `app`,
+    `geolocation`, `splash-screen`, `status-bar` — exactement la liste
+    attendue, aucun nouveau plugin.
+  - `npm run build` : passe sans erreur TypeScript.
+
+**Marche à suivre — Android / Google Play** (le build existe déjà, pas de
+rebuild nécessaire) :
+  1. Dans la Play Console, ouvrir la release v1.2 (versionCode 3) restée en
+     brouillon, ou créer une version dans **Test interne** avec l'AAB de
+     6,5 Mo déjà produit.
+  2. Coller les notes de version Play ci-dessus.
+  3. Les captures actuelles conviennent (aucune périmée).
+  4. Envoyer pour examen.
+  5. Rappel du chemin vers la production sur un compte personnel (déjà noté
+     au §"Le chemin vers la production") : test interne → test fermé avec
+     **12 testeurs inscrits en continu pendant 14 jours** → accès production.
+     Ce délai ne raccourcit pas ; le recrutement des testeurs reste la
+     priorité la plus urgente du bureau Livraison, plus urgente qu'un nouveau
+     build.
+
+**Marche à suivre — iOS / App Store : bloqué.**
+Il faudrait un Mac avec Xcode et un compte Apple Developer (99 $/an) pour
+avancer. Rien d'autre à faire cette semaine de ce côté.
