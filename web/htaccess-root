@@ -25,6 +25,21 @@ RewriteRule ^sitemap\.xml$ seo.php [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^([A-Za-z0-9]{8,64})\.txt$ seo.php [L]
 
+# --- URL « propres » des pages publiques -> leur route à dièse ----------------
+# L'application est un HashRouter : sa seule vraie URL est https://chap.ci/ et
+# tout se joue après le dièse. Sans ces redirections, https://chap.ci/aide et
+# https://chap.ci/suppression-compte renvoient une 404 Apache.
+#
+# Ce n'est pas cosmétique : Google Play EXIGE une URL de suppression de compte
+# accessible publiquement et la teste ; l'App Store et la CNIL ivoirienne font
+# de même pour la politique de confidentialité. Une 404 sur ces adresses fait
+# refuser la fiche. Elles circulent aussi hors de l'application (courriel,
+# WhatsApp, en-tête d'un document), où personne ne pense à écrire le dièse.
+#
+# ⚠️ Le drapeau NE (noescape) est INDISPENSABLE : sans lui, Apache encode le
+# dièse en %23 et redirige vers /%23/aide, qui ne mène nulle part.
+RewriteRule ^(suppression-compte|confidentialite|conditions|aide|faq|contact|a-propos|publicite|don|explorer|publier)/?$ /#/$1 [R=301,NE,L]
+
 # --- L'application (SPA) et sa page d'accueil --------------------------------
 DirectoryIndex index.html index.php
 Options -Indexes
