@@ -45,9 +45,19 @@ return [
   'security_ignore_ips' => getenv('CHAPCI_SECURITY_IGNORE_IPS') ?: '160.79.',
 
   // Emails administrateurs : seuls ces comptes peuvent voir/exporter les abonnés
-  // à la newsletter. Séparez par des virgules. METTEZ VOTRE email de compte.
+  // à la newsletter. Séparez par des virgules.
+  //
+  // ⚠️ AUCUNE valeur par défaut, et c'est volontaire. Ce dépôt est PUBLIC :
+  // une adresse écrite ici est lisible par n'importe qui, et désigne le compte
+  // à viser pour un hameçonnage ou un bourrage d'identifiants. Renseignez-la
+  // dans le config.php DU SERVEUR (qui n'est jamais livré par le zip) ou dans
+  // la variable d'environnement CHAPCI_ADMIN_EMAILS.
+  //
+  // Une liste vide ne bloque rien de visible côté visiteur : elle retire
+  // seulement l'accès aux écrans d'administration. Si vous perdez cet accès
+  // après une mise à jour, c'est ici qu'il faut regarder en premier.
   'admin_emails' => array_filter(array_map('trim',
-    explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
+    explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: ''))),
 
   // Destinataire des RAPPORTS automatiques (signalements, sauvegardes, alertes du
   // Bureau des développeurs). Séparé des admins : eux gardent l'accès au site,
