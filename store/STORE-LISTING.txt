@@ -1,72 +1,103 @@
 ════════════════════════════════════════════════════════════════════
- CHAP.CI — TEXTES DE LA FICHE GOOGLE PLAY  (à copier-coller)
+ CHAP.CI — TEXTES DE LA FICHE GOOGLE PLAY   (révision du 27/07/2026)
 ════════════════════════════════════════════════════════════════════
 
-NOM DE L'APPLICATION (max 30 caractères)
-Chap.ci
+⚠️ CETTE VERSION REMPLACE CELLE DU 21/07.
+   L'ancienne annonçait « des milliers d'annonces » et « des milliers
+   d'acheteurs » pour un catalogue de 3 annonces et 84 visiteurs par mois.
+   C'était un risque au regard du Règlement sur les métadonnées de Google,
+   et surtout une promesse qui aurait fait désinstaller dès le premier
+   écran. Les textes ci-dessous sont vrais.
 
 ────────────────────────────────────────────────────────────────────
-DESCRIPTION COURTE (max 80 caractères)
+NOM DE L'APPLICATION (29 / 30 caractères)
 ────────────────────────────────────────────────────────────────────
-Petites annonces 100% ivoiriennes : achetez et vendez chap-chap 🇨🇮
+Chap.ci — Petites annonces CI
+
+  Le nom est le signal de référencement le plus fort d'une fiche. Personne
+  ne cherche « chap.ci » : les gens cherchent « petites annonces ».
 
 ────────────────────────────────────────────────────────────────────
-DESCRIPTION COMPLÈTE (max 4000 caractères)
+BRÈVE DESCRIPTION (79 / 80 caractères)
 ────────────────────────────────────────────────────────────────────
-Chap.ci, c'est la marketplace 100 % ivoirienne pour acheter et vendre
-chap-chap, partout en Côte d'Ivoire 🇨🇮
+Achetez et vendez chap-chap partout en Côte d'Ivoire. Gratuit, sans commission.
 
-Que vous soyez à Abidjan (Cocody, Yopougon, Marcory…), Bouaké, San-Pédro
-ou Yamoussoukro, publiez votre annonce GRATUITEMENT en moins de 2 minutes
-et touchez des milliers d'acheteurs près de chez vous.
+────────────────────────────────────────────────────────────────────
+DESCRIPTION COMPLÈTE (1 740 / 4 000 caractères)
+────────────────────────────────────────────────────────────────────
+Chap.ci est la place de marché ivoirienne pour acheter et vendre chap-chap, partout en Côte d'Ivoire.
 
-⚡ VENDRE, C'EST SIMPLE ET GRATUIT
-• Publiez une annonce en 2 minutes, avec vos photos.
-• Aucune commission sur vos ventes.
-• Vos acheteurs vous contactent directement.
+Nous démarrons — et c'est votre chance. Les premières annonces d'une commune sont celles qu'on voit le plus. Publiez la vôtre aujourd'hui, elle ne sera pas noyée dans la masse.
 
-🛍️ ACHETEZ CE QUE VOUS VOULEZ
-Des milliers d'annonces dans toutes les catégories :
-📱 Téléphones • 🚗 Véhicules • 🏠 Immobilier • 👗 Mode & Beauté
-💻 Électronique • 🛋️ Maison & Meubles • 💼 Emploi • 🛠️ Services
-🏗️ Matériel Pro • 🍲 Alimentation • 🌾 Agriculture • 🐐 Animaux
-⚽ Loisirs & Sport • 🍼 Bébé & Enfant
+VENDRE EST GRATUIT, ET LE RESTE
+• Publiez en moins de deux minutes, avec vos photos.
+• Aucune commission sur vos ventes, jamais.
+• Les acheteurs vous écrivent directement dans l'application.
 
-📍 PRÈS DE CHEZ VOUS
-Activez votre position pour voir en priorité les annonces de votre
-commune et vendre à des acheteurs proches.
+UNE APPLICATION QUI VOUS AIDE À PUBLIER
+• Tapez le nom de votre article : la catégorie se remplit toute seule.
+• Ajoutez une photo : une description vous est proposée automatiquement.
+• Votre commune est reconnue si vous l'autorisez.
+Tout cela fonctionne sur votre téléphone, sans envoyer vos photos ailleurs.
 
-🔒 ACHETEZ ET VENDEZ EN CONFIANCE
-• Profils vendeurs et badge « vérifié ».
-• Avis réservés aux vrais acheteurs.
-• Messagerie intégrée acheteur ↔ vendeur.
-• Numéros de téléphone protégés.
+VOTRE NUMÉRO RESTE PRIVÉ
+Il n'apparaît jamais sur votre annonce. Les acheteurs passent par la messagerie de Chap.ci. Vous décidez à qui vous le donnez, et quand.
 
-💳 100 % IVOIRIEN
-Pensé pour la Côte d'Ivoire : prix en FCFA, paiement Mobile Money
-(Orange Money, Wave, MTN), français ivoirien, communes et villes de chez nous.
+CE QUE VOUS POUVEZ VENDRE
+Téléphones, véhicules, immobilier, mode et beauté, électronique, maison et meubles, emploi, services, matériel professionnel, alimentation, agriculture, animaux, loisirs et sport, bébé et enfant.
 
-Téléchargez Chap.ci et rejoignez la communauté qui achète et vend
-chap-chap en Côte d'Ivoire !
+PENSÉE POUR LA CÔTE D'IVOIRE
+Prix en FCFA. Vingt-deux communes d'Abidjan et les villes de l'intérieur. Une application légère, qui tient sur les téléphones d'entrée de gamme et supporte les réseaux capricieux.
+
+Les paiements se règlent entre vous, comme au marché : Mobile Money, Wave ou espèces. Chap.ci ne prend rien au passage et n'encaisse aucune transaction.
+
+ACHETER EN CONFIANCE
+• Profils vendeurs avec avis, réservés à ceux qui ont réellement acheté.
+• Signalement d'une annonce en un geste.
+• Modération quotidienne.
+
+Rejoignez les premiers vendeurs de Chap.ci.
 
 ────────────────────────────────────────────────────────────────────
 AUTRES CHAMPS DE LA FICHE
 ────────────────────────────────────────────────────────────────────
-Catégorie d'application : Shopping (Achats)
-Type : Application · Gratuite
-E-mail de contact : bracknetswilliam@gmail.com   (à confirmer/changer)
-Site web : https://chap.ci
-Politique de confidentialité : https://chap.ci/#/confidentialite
+Type                        : Appli · Gratuite
+Catégorie                   : Shopping
+E-mail de contact           : contact@chap.ci
+Numéro de téléphone         : LAISSER VIDE (il serait public)
+Site web                    : https://chap.ci
+Règles de confidentialité   : https://chap.ci/#/confidentialite
+Suppression de compte       : https://chap.ci/#/suppression-compte
+Marketing externe           : activé
+Public visé                 : 18 ans et plus UNIQUEMENT
+                              (une seule case en dessous fait basculer
+                               l'appli dans le programme Familles)
 
 ────────────────────────────────────────────────────────────────────
-RESSOURCES GRAPHIQUES (dans ce dossier « store/ »)
+RESSOURCES GRAPHIQUES
 ────────────────────────────────────────────────────────────────────
-• Icône de l'app (512×512)      → app-icon-512.png
-• Bannière / feature graphic     → feature-graphic-1024x500.png   (1024×500)
-• Captures d'écran téléphone     → 01-accueil.png … 05-aide.png   (1236×2676)
+Icône 512×512               → store/app-icon-512.png
+Image de présentation       → store/feature-graphic-1024x500.png (1024×500)
 
-⚠️ CAPTURES : celles fournies sont un point de départ (interface réelle de
-l'app). Pour une fiche au top, remplace-les par des captures prises sur ton
-téléphone/émulateur AVEC de vraies annonces affichées (grille d'annonces,
-fiche produit, messagerie). Play exige au moins 2 captures téléphone.
-Format accepté : PNG/JPG, portrait, entre 320 et 3840 px de côté.
+Captures d'écran            → store/captures/   (regénérées le 27/07)
+  telephone-*.png    1080×1920  (9:16)  — 5 écrans
+  tablette7-*.png    1920×1080  (16:9)  — 5 écrans
+  tablette10-*.png   1920×1080  (16:9)  — 5 écrans
+
+  Écrans capturés : accueil · fiche annonce · explorer · profil vendeur · aide
+  Prises sur l'interface RÉELLE, avec les VRAIES annonces en production.
+
+⚠️ CE QUE CES CAPTURES MONTRENT, ET QU'IL FAUT SAVOIR
+  • L'explorateur affiche « 3 annonces ». C'est la vérité du catalogue.
+  • La fiche annonce affiche « Aucune description fournie » : le vendeur
+    n'en a pas écrit.
+  • Le bandeau noir de l'accueil affiche « FAIS TA PROMO ICI CHAP-CHAP »,
+    c'est-à-dire un emplacement publicitaire encore libre.
+  Aucun de ces trois points ne se corrige dans un logiciel de retouche :
+  ils se corrigent en faisant entrer des annonces. Retoucher les captures
+  serait de surcroît contraire au Règlement sur les métadonnées, qui exige
+  qu'elles représentent l'application telle qu'elle est.
+
+  Recommandation : téléverser en priorité 01-accueil, 02-annonce, 05-aide
+  et 04-vendeur. Ajouter 03-explorer seulement quand le catalogue aura
+  dépassé la dizaine d'annonces.
