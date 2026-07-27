@@ -160,9 +160,26 @@ export function Privacy() {
                 nécessaire aux finalités pour lesquelles elles ont été collectées. Vous pouvez{' '}
                 <b>supprimer votre compte à tout moment</b> depuis <i>Compte → Paramètres → Supprimer
                 mon compte</i>. La suppression efface définitivement votre profil, vos annonces, vos
-                commandes, vos messages et vos avis. Certaines données peuvent toutefois être conservées
-                temporairement lorsque la loi l’exige (par exemple à des fins de preuve, de lutte contre
-                la fraude ou de réquisition judiciaire).
+                commandes, vos messages et vos avis.
+              </p>
+              <p className="mt-3">
+                Deux catégories survivent temporairement à la suppression, avec des durées précises :
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>
+                  les <b>journaux techniques de sécurité</b> (adresses IP, tentatives de connexion),
+                  effacés automatiquement au bout de <b>6 mois</b> — ils servent à détecter les
+                  attaques et les tentatives de fraude, et peuvent être requis par la justice ;
+                </li>
+                <li>
+                  les <b>statistiques de fréquentation anonymes</b>, effacées au bout de{' '}
+                  <b>4 mois</b> — elles ne permettent pas de vous identifier.
+                </li>
+              </ul>
+              <p className="mt-3">
+                Ces deux purges sont automatiques et quotidiennes. Vous pouvez aussi demander la
+                suppression <a href="#/suppression-compte" className="font-semibold text-primary-600 underline underline-offset-2">depuis
+                cette page</a>, sans être connecté.
               </p>
             </Section>
 

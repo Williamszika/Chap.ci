@@ -23,9 +23,13 @@ const SUPPRIME = [
   'Vos avis et vos notes',
 ]
 
+// Ces durées ne sont pas décoratives : elles doivent correspondre EXACTEMENT à
+// ce que purge la tâche cron/cleanup (server/index.php) — 180 jours pour le
+// journal de sécurité, 120 jours pour les visites. Annoncer autre chose serait
+// un écart entre ce que le site promet et ce qu'il fait.
 const CONSERVE = [
-  'Les journaux techniques de sécurité (adresses IP, tentatives de connexion), conservés au maximum 12 mois, comme l’impose la lutte contre la fraude',
-  'Les données rendues anonymes, qui ne permettent plus de vous identifier (comptage de visites, par exemple)',
+  'Les journaux techniques de sécurité (adresses IP, tentatives de connexion), conservés 6 mois au maximum, comme l’impose la lutte contre la fraude',
+  'Les statistiques de fréquentation anonymes, conservées 4 mois — elles ne permettent pas de vous identifier',
 ]
 
 export function DeleteAccount() {
