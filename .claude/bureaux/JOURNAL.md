@@ -578,3 +578,35 @@ Format d'une entrée :
   actifs, plantages) une fois par semaine ; trancher la niche géographique.
 - **Convergence** : trois bureaux indépendants — Croissance 20:58, Support 21:41,
   Données 21:47 — désignent la même marche. Le sujet n'est plus de la diagnostiquer.
+
+### 2026-07-26 21:55 — [Performance] ⚡ Le Mécanicien — appliqué et vérifié
+- **Ronde exemplaire** : mesures en trois passes avec médiane, refus explicite de faire
+  passer une estimation pour un relevé Lighthouse faute de navigateur, et un gain
+  **mesuré par un vrai build** plutôt qu'estimé. Ses deux P1 étaient justes.
+- **Disponibilité** : accueil médiane 1,01 s · `/api/health` 0,70 s · sitemap 200 ·
+  aucun 5xx. Compression br et gzip actives. Images 720×1280, 108-160 Ko, ratio réservé,
+  zéro décalage de mise en page.
+- **🔴 CE QUE LA RONDE A FAIT DÉCOUVRIR, ET QUI DÉPASSE SON CONSTAT** : en cherchant
+  pourquoi la règle de cache ne s'appliquait pas, on a trouvé **deux `.htaccess` racine**
+  dans le dépôt. `web/htaccess-root`, celui que le zip déploie, ne portait que le routage
+  SEO. `deploy/htaccess-racine.txt`, qui contient les **en-têtes de sécurité**, n'a
+  jamais été appliqué — et comme le zip écrase `.htaccess` à chaque mise en ligne, toute
+  règle ajoutée à la main sur le serveur était effacée au déploiement suivant.
+  Vérifié en production avant correction : **aucun** `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` ni `Strict-Transport-Security`.
+  Le site n'avait aucune protection contre l'affichage en iframe ni contre le sniffing.
+  → Les deux fichiers sont fusionnés (`ce82a62`), avec un avertissement en tête. **Vérifié
+    déployé le 27/07 : les cinq en-têtes répondent.**
+- **Cache** : le JS principal, le plus gros fichier du site, ne renvoyait AUCUN
+  `Cache-Control` quand le CSS en avait un de 7 jours. Désormais un an, `immutable`, avec
+  exceptions `no-cache` sur le service worker et `index.html` — sans quoi l'application
+  cesserait de se mettre à jour. Vérifié déployé.
+- **Allègement appliqué** : `AdminDashboard`, la plus grosse page du dépôt, partait dans
+  le paquet initial de chaque visiteur alors que seul le Patron l'ouvre. Passée en
+  `lazy()`. **Gain mesuré sur le bundle réel de production : 180,1 → 154,1 Ko gzip, soit
+  −26,0 Ko et −14,5 %.** Le bureau annonçait −26,61 Ko : sa mesure était bonne.
+- **Écarté pour l'instant** : conversion WebP des photos (gain estimé, non mesuré) et
+  variantes redimensionnées serveur — sans intérêt à 3 annonces, à reprendre quand le
+  catalogue grossira.
+- **Trouvé en passant, pour 🎨 l'Atelier** : la page **Explorer n'a aucun `h1`**. Manque
+  réel pour l'accessibilité et le référencement, sans rapport avec cette ronde.
