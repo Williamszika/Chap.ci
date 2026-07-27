@@ -76,20 +76,28 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
 
 ÉTAT CONNU DU PROJET (surveille, ne re-découvre pas) :
 - Site chap.ci (React + HashRouter) ; rendu serveur crawlable via web/seo.php.
-- Sitemap ≈ 326 URLs : accueil + fiches annonces + 322 pages « /vendre/... »
-  (14 catégories × 22 communes + 14 pages catégorie seule). Bingerville incluse.
+- Sitemap = 349 URLs (mesuré le 27/07) : accueil + fiches annonces + 345 pages
+  « /vendre/... » (15 catégories × 22 communes + 15 pages catégorie seule).
+  La 15ᵉ catégorie, « Santé & Bien-être », a été ajoutée le 27/07 avec sa
+  bannière /og/sante.png. Bingerville incluse.
 - Fiches /annonce/{uuid} : JSON-LD Product/Offer (XOF), canonical, index,follow,
   og:image absolue — VÉRIFIÉ EN PRODUCTION, fonctionnel. Ne pas re-signaler.
 - Pages /vendre/... : og:image = bannière /og/{catégorie}.png (1200×630).
 - IndexNow : ping automatique à la création/modification d'annonce (serveur).
 - Search Console : propriété déjà vérifiée.
 - Pixels web : Meta, TikTok et Google GA4 posés sur le site.
-- APPLICATION : Chap.ci v1.1 (versionCode 2), « ci.chap.app », 6,4 Mo,
-  Android 5.1+, cible API 35. PHASE : test interne Play Console — PAS ENCORE
-  PUBLIQUE (test fermé 12 testeurs × 14 jours requis avant production).
-  Pas d'app iOS. Le site propose l'installation PWA (bannière « Installer »).
-- CONSTAT MAJEUR EN COURS (ronde du 25/07) : le catalogue ne comptait que
-  3 annonces actives, 1 vendeur, 1 commune (Bingerville), 2 catégories.
+- APPLICATION : Chap.ci v1.2 (versionCode 3), « ci.chap.app », 6,5 Mo,
+  Android 5.1+, cible API 35. Construite et déployée le 27/07 en TEST INTERNE :
+  c'est la PREMIÈRE version qui atteint réellement un téléphone — la v1.1 était
+  restée « Brouillon » dans la Play Console et n'est jamais sortie. PAS ENCORE
+  PUBLIQUE : le test fermé (12 testeurs × 14 jours) n'a pas commencé, 0 testeur
+  inscrit. C'est le vrai goulot d'étranglement, devant le SEO. Pas d'app iOS et
+  aucune possible à court terme (Xcode exige un Mac). Le site propose
+  l'installation PWA (bannière « Installer »).
+- CONSTAT MAJEUR, TOUJOURS D'ACTUALITÉ (revérifié le 27/07) : le catalogue ne
+  compte que 3 annonces actives, 1 vendeur, 1 commune (Bingerville),
+  2 catégories (alimentation, mode) — pour 2 185 visites et 90 visiteurs
+  uniques sur 30 jours. 349 URLs indexables, presque rien à indexer.
   Le frein n'est PAS technique, il est côté offre. Ne re-diagnostique pas :
   MESURE L'ÉVOLUTION (voir §2) et rapporte la tendance.
 

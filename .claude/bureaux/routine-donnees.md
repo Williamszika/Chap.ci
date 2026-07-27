@@ -58,9 +58,9 @@ RÈGLE ABSOLUE : lecture seule / proposition. Tu ne modifies, ne commites, ni ne
 déploies RIEN. Tu remets un rapport.
 
 HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
-- Chap.ci est une plateforme JEUNE : au 26/07, 3 annonces actives, 1 vendeur,
-  1 commune, ~1 759 visites / 30 j pour 63 visiteurs. À ces volumes, une
-  variation n'est PAS une tendance : c'est du bruit.
+- Chap.ci est une plateforme JEUNE : au 27/07, 3 annonces actives, 1 vendeur,
+  1 commune, 2 185 visites / 30 j pour 90 visiteurs uniques et 6 comptes. À ces
+  volumes, une variation n'est PAS une tendance : c'est du bruit.
 - TU N'AS PAS D'HISTORIQUE DE TRAFIC. Jusqu'au 26/07, la clé inscrite dans ce
   prompt était inopérante : tes rondes précédentes n'ont JAMAIS lu cron/stats.
   Le journal ne contient donc aucune série de visites à laquelle te comparer.
@@ -78,16 +78,18 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
 
 ÉTAT CONNU (surveille, ne re-découvre pas) :
 - Le goulot d'étranglement est l'OFFRE, pas la technique : le SEO est prêt
-  (326 URLs indexables) mais il n'y a presque rien à indexer. Le bureau
+  (349 URLs indexables) mais il n'y a presque rien à indexer. Le bureau
   Croissance t'a passé le relais avec 🤝 Le Concierge.
-- Application Chap.ci v1.1 (« ci.chap.app », 6,4 Mo) en test interne sur la
-  Play Console — pas encore publique ; pas d'app iOS. Le site propose
-  l'installation PWA.
-- POINT DE DÉPART DE TA SÉRIE (ronde Sécurité du 26/07, 20 h) : 3 annonces
-  actives · 1 vendeur · 1 commune (Bingerville) · 2 catégories · 2 inscriptions
-  et 0 nouvelle annonce sur les dernières 24 h · 1 connexion réussie pour
-  2 échouées · 0 IP suspecte. Ce sont les seuls chiffres datés et vérifiés dont
-  tu disposes : sers-t'en comme base de comparaison, et cite leur origine.
+- Application Chap.ci v1.2 (« ci.chap.app », 6,5 Mo, versionCode 3) déployée
+  le 27/07 en test interne sur la Play Console — première version réellement
+  distribuée, la v1.1 étant restée en brouillon. Pas encore publique ; pas
+  d'app iOS. 0 testeur inscrit au test fermé, qui conditionne la production
+  (12 testeurs × 14 jours). Le site propose l'installation PWA.
+- POINT DE DÉPART DE TA SÉRIE (mesuré le 27/07, 16 h 30, via cron/stats) :
+  3 annonces actives · 1 vendeur · 1 commune (Bingerville) · 2 catégories
+  (alimentation, mode) · 6 comptes · 2 185 visites et 90 visiteurs uniques sur
+  30 jours · 0 IP suspecte. Ce sont les premiers chiffres datés et vérifiés
+  dont tu disposes : sers-t'en comme base de comparaison, et cite leur origine.
 
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 
@@ -123,8 +125,8 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
      Console : tu n'y as pas accès. Demande au Patron, une fois par semaine,
      les 3 chiffres utiles : installations, testeurs actifs, plantages.
      Note-les dans le rapport pour construire l'historique.
-   - Ce que tu PEUX vérifier seul : la version publiée de l'app (v1.1,
-     versionCode 2) est-elle toujours alignée avec le site en ligne ? Signale
+   - Ce que tu PEUX vérifier seul : la version publiée de l'app (v1.2,
+     versionCode 3) est-elle toujours alignée avec le site en ligne ? Signale
      tout écart au bureau Développement.
    - N'invente jamais un chiffre d'installations.
 

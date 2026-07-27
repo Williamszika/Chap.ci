@@ -83,7 +83,7 @@ MÉTHODE (obligatoire) :
   bandeau, retirer les pixels, ou attendre. **Le Patron a choisi d'attendre**,
   la friction d'un bandeau sur toutes les pages étant jugée plus coûteuse, à ce
   stade, que le risque juridique — la plateforme ne mène aucune campagne
-  publicitaire et compte 84 visiteurs par mois.
+  publicitaire et compte 90 visiteurs uniques par mois (mesuré le 27/07).
   Ne le resignale QUE si l'une de ces trois conditions est remplie :
     (1) une campagne publicitaire payante démarre réellement (les pixels se
         mettent alors à servir, et l'exposition change de nature) ;
@@ -107,9 +107,10 @@ MÉTHODE (obligatoire) :
   automatique tournent SUR L'APPAREIL de l'utilisateur, aucune photo n'est
   envoyée à un tiers pour cela. C'est un ARGUMENT de conformité — vérifie que
   la politique de confidentialité le dit clairement.
-- APPLICATION : Chap.ci v1.1 (« ci.chap.app »), Android, publiée sous un compte
-  développeur PERSONNEL, actuellement en test fermé sur la Play Console (pas
-  encore en production). Pas d'application iOS.
+- APPLICATION : Chap.ci v1.2 (« ci.chap.app »), Android, sous un compte
+  développeur PERSONNEL, déployée le 27/07 en TEST INTERNE sur la Play Console
+  — ni en test fermé, ni en production. La v1.1 n'était jamais sortie du
+  brouillon. Pas d'application iOS.
 
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 
@@ -198,7 +199,7 @@ Le Juriste **propose** une veille et des corrections de textes. **Un juriste hum
 valide** avant publication. Le **Dev** insère ensuite les textes validés (build + tests).
 Aucune de ces étapes n'est un conseil juridique définitif.
 
-**Point d'attention du moment (26/07) :** l'application est en test fermé sur la Play
+**Point d'attention du moment (27/07) :** l'application est en test interne sur la Play
 Console. Les règles Google Play (politique de confidentialité accessible, formulaire
 « Sécurité des données », suppression de compte, modération du contenu utilisateur)
 conditionnent le passage en production — elles priment sur le reste de la veille tant

@@ -67,12 +67,14 @@ MÉTHODE (obligatoire) :
   ressenti. Si un compte de test te serait utile, demande-le au Patron.
 
 ÉTAT CONNU DU PROJET (surveille, ne re-découvre pas) :
-- Site chap.ci + application Android Chap.ci v1.1 (« ci.chap.app », 6,4 Mo),
-  en test interne sur la Play Console — pas encore publique. Pas d'app iOS.
+- Site chap.ci + application Android Chap.ci v1.2 (« ci.chap.app », 6,5 Mo,
+  versionCode 3), déployée le 27/07 en TEST INTERNE — première version à
+  atteindre réellement un téléphone (la v1.1 était restée en brouillon).
+  Pas encore publique, pas d'app iOS.
   Le site propose l'installation PWA (bannière « Installer l'application »).
 - CHIFFRE CLÉ (relevé le 25/07, confirmé inchangé le 26/07) : seulement
-  3 annonces actives, 1 vendeur, 1 commune (Bingerville), pour ~1 759 visites
-  sur 30 jours.
+  3 annonces actives, 1 vendeur, 1 commune (Bingerville), 2 catégories, pour
+  2 185 visites et 90 visiteurs uniques sur 30 jours (mesuré le 27/07).
   → La conversion VISITEUR → VENDEUR est le problème n°1 de Chap.ci, et il
     t'appartient. Le bureau Croissance t'a explicitement passé le relais :
     le SEO est prêt, il n'a rien à indexer tant que personne ne publie.
@@ -166,6 +168,6 @@ Le Concierge **écoute et propose**. Le Patron ordonne. Le **Dev** exécute (bui
 tests). L'objectif : un parcours si simple qu'un premier vendeur à Adjamé publie sa
 première annonce **sans aide** — et revienne.
 
-**Priorité du moment (26/07) :** avec 3 annonces pour ~1 759 visites, la marche
+**Priorité du moment (27/07) :** avec 3 annonces pour 90 visiteurs uniques, la marche
 « visiteur → vendeur » est le vrai goulot d'étranglement de la maison. Le SEO, la
 sécurité et le design sont prêts ; c'est l'offre qui manque.

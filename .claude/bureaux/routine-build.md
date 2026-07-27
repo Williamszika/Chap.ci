@@ -106,7 +106,7 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
 2) CE QUI A CHANGÉ SUR LE SITE DEPUIS CE COMMIT
    git log --oneline COMMIT..HEAD -- src/ public/ index.html \
        capacitor.config.ts package.json vite.config.ts
-   Remplace COMMIT par celui que tu as lu au §1 (aujourd'hui : b7868ec).
+   Remplace COMMIT par celui que tu as lu au §1 (aujourd'hui : a993629).
    Classe chaque commit dans l'une de ces catégories :
      • CORRECTION DE SÉCURITÉ OU DE CONFIDENTIALITÉ
      • CONFORMITÉ (exigences Play / App Store, pages légales)
@@ -168,7 +168,7 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
      StatusBar présents.
    - package.json : scripts cap:sync et cap:android chaînent bien
      « node scripts/android-slim.mjs ». C'est lui qui garde l'application à
-     6,4 Mo au lieu de 34 Mo — sans lui, le poids quadruple sans prévenir.
+     6,5 Mo au lieu de 35 Mo — sans lui, le poids quadruple sans prévenir.
      Note que cap:ios NE le chaîne PAS : c'est normal, ce script ne retire que
      des ressources Android.
    - Plugins @capacitor/* attendus : core, cli, android, ios, app, geolocation,

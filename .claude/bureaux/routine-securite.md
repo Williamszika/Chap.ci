@@ -95,10 +95,15 @@ CHANTIERS OUVERTS (surveille, ne les redécouvre pas comme des nouveautés) :
   « php -l » sous PHP 8.4 sans erreur, donc la montée en 8.3 est à faible
   risque (cPanel → MultiPHP Manager). Rappelle-le une fois par semaine au
   maximum, tant que ce n'est pas fait.
-- Aucune route ne permet de relire le DÉTAIL des événements de sécurité (la
-  route en échec est enregistrée en base mais n'est exposée nulle part), et le
-  serveur n'horodate pas la dernière exécution de chaque tâche cron. Tu ne peux
-  donc pas nommer les tâches qui échouent : dis-le au lieu de deviner.
+- Le détail par route EXISTE désormais : cron/security renvoie « byDetail »
+  (top 10 des motifs pour cron_fail, mtoken_fail et rate_limited), déployé le
+  27/07. Ne note plus « je ne peux pas nommer les tâches qui échouent » : tu le
+  peux, et tu dois le faire.
+- L'horodatage des tâches EXISTE aussi : la table cron_runs enregistre le
+  dernier passage réussi de chaque tâche depuis le 26/07, affiché dans
+  Admin → Tâches auto. Tu n'y as pas accès (routes /admin/* fermées derrière
+  une session administrateur, ce qui est le bon comportement) : demande la
+  capture au Patron plutôt que de conclure à l'aveugle.
 
 LIMITE CONNUE DE TON ENVIRONNEMENT :
 - Le proxy sortant re-signe le TLS : `openssl s_client` ne montre PAS le vrai
@@ -181,7 +186,7 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      l'origine bien qu'aucune app iOS ne soit publiée : ce n'est PAS une
      anomalie.) Tout plugin NOUVEAU est à signaler avec sa raison d'être.
    - scripts/android-slim.mjs : présent et chaîné dans cap:sync / cap:android
-     (c'est lui qui garde l'app à 6,4 Mo au lieu de 34 Mo).
+     (c'est lui qui garde l'app à 6,5 Mo au lieu de 35 Mo).
    Rappel : le dossier android/ et l'AAB ne sont pas dans le dépôt ; leur
    contrôle (signature, targetSdk, taille) relève du Développement au moment du
    build. Ne le signale pas comme un manque.

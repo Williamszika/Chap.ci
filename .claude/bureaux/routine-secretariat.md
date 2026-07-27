@@ -86,11 +86,19 @@ Un silence signalé vaut mieux qu'un blanc : c'est souvent le signe d'une
 routine en panne.
 
 ÉTAT CONNU DU PROJET (contexte pour hiérarchiser) :
-- Site chap.ci + application Android Chap.ci v1.1 (« ci.chap.app », 6,4 Mo) en
-  test fermé sur la Play Console — pas encore publique. Pas d'app iOS.
-- Le goulot d'étranglement est l'OFFRE, pas la technique : au 25/07, 3 annonces
-  actives, 1 vendeur, 1 commune, pour ~1 759 visites sur 30 jours. Toute
-  proposition qui fait entrer des annonces passe DEVANT le reste.
+- Site chap.ci + application Android Chap.ci v1.2 (« ci.chap.app », 6,5 Mo,
+  versionCode 3), déployée le 27/07 en TEST INTERNE — pas en test fermé, pas en
+  production. C'est la première version qui atteint réellement un téléphone :
+  la v1.1 était restée en brouillon et n'est jamais sortie. Pas d'app iOS.
+- CHEMIN CRITIQUE DU PROJET : pour un compte développeur personnel, Google
+  exige 12 testeurs inscrits en continu pendant 14 jours sur un TEST FERMÉ
+  avant d'autoriser la production. Au 27/07 : 0 testeur inscrit, le compte à
+  rebours n'a pas démarré. Aucun autre chantier ne raccourcit ce délai.
+  Fais-en un indicateur de tête dans chaque synthèse.
+- Le goulot d'étranglement produit reste l'OFFRE, pas la technique : au 27/07,
+  3 annonces actives, 1 vendeur, 1 commune (Bingerville), 2 catégories, pour
+  2 185 visites et 90 visiteurs uniques sur 30 jours. Toute proposition qui
+  fait entrer des annonces passe DEVANT le reste.
 
 1) RASSEMBLE les rapports des bureaux
    - Lis .claude/bureaux/JOURNAL.md — les entrées des 7 derniers jours.
