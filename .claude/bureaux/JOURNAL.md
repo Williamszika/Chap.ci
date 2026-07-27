@@ -746,3 +746,48 @@ dans la fiche Play.
 2. **Mentions légales** (P1 Juriste) — arbitrage vie privée / immatriculation.
 3. **Déclaration ARTCI** — invérifiable par les bureaux.
 4. Balayage `hover:`/`md:` · passage à PHP 8.3 · connexion Google native (v1.3).
+
+### 2026-07-27 22:00 — [Secrétariat] 🗂️ Le Secrétaire Général
+
+- **Fait** : synthèse hebdomadaire consolidée à partir des rapports du 20 au 27/07
+  (les neuf bureaux ont rapporté) + données serveur en direct. E-mail envoyé aux
+  deux adresses via `cron/report-email`, `sent: true` confirmé sur les deux.
+- **État de la semaine** : 🟠 à surveiller. Chiffre à retenir : **3 annonces
+  actives, 0 nouvelle**, catalogue figé depuis 4 rondes.
+- **Décision la plus urgente** : recruter les **12 testeurs** du test fermé —
+  0 inscrit, le compte à rebours de 14 jours n'a pas démarré.
+
+#### Trois corrections apportées par le Développement à cette synthèse
+
+Le Secrétariat raisonnait encore sur des faits dépassés dans la journée. Corrigés
+ici pour que la prochaine ronde ne les reprenne pas :
+
+1. **« 0 connecté sur les 64 vues de /publier — premier indice que le mur est la
+   création de compte »** → **non mesuré**. Le drapeau `authed` ne tourne que
+   depuis le 26/07 au soir : sur les 136 vues de `/publier` en 30 jours,
+   **133 sont non étiquetées** et 3 seulement sont mesurées (0 connecté,
+   3 visiteurs). Sur l'ensemble du site, **4,2 % du trafic est étiqueté**
+   (78 vues sur 1 838). Aucune conclusion ne tient sur cet échantillon.
+   Le bureau Données avait soulevé cette réserve et avait raison ; le bureau
+   Support est allé un cran trop loin en écrivant « ce n'est plus le mur de
+   connexion ». À revoir dans une semaine, mesure propre dans un mois.
+2. **« Vérifier les tâches cron cPanel » (P2)** → **clos le 27/07**. Les 12
+   tâches sont saines : 10 vertes, 2 en attente légitime de leur première
+   exécution (`digest` à 18 h, rapport mensuel le 1ᵉʳ). `cron/backup` n'apparaît
+   plus dans les échecs. Les `cron_fail` restants (5 sur 24 h) sont nommés :
+   `cron/security` ×3 et `cron/stats` ×2 — des routines, pas des tâches cPanel.
+3. **« 84 visiteurs »** → **91** (2 189 visites / 30 j, mesuré le 27/07 à 20 h).
+   Et **108** occurrences de `hover:` sans `md:`, pas 118 — recomptées par
+   l'Atelier le soir même.
+
+#### Problèmes ouverts, après correction
+- **0 testeur** sur les 12 requis (P1) · **mentions légales incomplètes** (P1,
+  arbitrage du Patron) · **déclaration ARTCI** (P1, invérifiable par les bureaux)
+- PHP 8.1 en fin de support · balayage `hover:`/`md:` · sourcing d'annonces
+
+#### Leçon de méthode
+Une synthèse vaut ce que vaut le journal qu'elle lit. Celui-ci n'avait pas été
+tenu depuis le 26/07, et le Secrétariat a produit une image de la semaine
+périmée de vingt-quatre heures — sur les points précis que la journée avait
+justement réglés. **Le journal se tient le jour même, ou la synthèse ment sans
+le savoir.**
