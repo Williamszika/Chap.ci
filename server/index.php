@@ -1036,6 +1036,15 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS cron_runs (
       path VARCHAR(64) PRIMARY KEY, last_ok_at $ts, runs $intT
     )$eng",
+    // Violations de la politique de sécurité du contenu, AGRÉGÉES.
+    // La CSP tourne en « Report-Only » : elle n'empêche rien, elle raconte. On
+    // ne garde donc pas chaque rapport (un navigateur peut en envoyer des
+    // milliers) mais un compteur par couple directive + origine bloquée. C'est
+    // ce relevé qui permettra de la durcir sur des faits plutôt qu'au jugé.
+    "CREATE TABLE IF NOT EXISTS csp_reports (
+      k VARCHAR(190) PRIMARY KEY, directive VARCHAR(64), blocked VARCHAR(190),
+      n $intT, first_at $ts, last_at $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS saved_searches (
       id $id PRIMARY KEY, user_id $id, label $txt, params $txt, last_notified_at $ts, created_at $ts
     )$eng",
@@ -5385,6 +5394,15 @@ try {
       // cron_fail qui monte ne dit pas s'il s'agit d'une tâche cassée ou d'un
       // balayage extérieur — les deux se corrigent très différemment.
       'byDetail'        => $sec['byDetail'],
+      // Ce que la CSP aurait bloqué si elle n'était pas en mode rapport.
+      // Tant que cette liste contient des origines légitimes, la durcir
+      // casserait le site : c'est le relevé qui dit quand on peut le faire.
+      'cspViolations'   => (function () use ($pdo) {
+        try {
+          return $pdo->query('SELECT directive, blocked, n, last_at FROM csp_reports ORDER BY n DESC LIMIT 20')
+                     ->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) { return []; }
+      })(),
       'ignoredIps'      => $config['security_ignore_ips'] ?? [],
       // Intégrité des rôles admin : « ok » ou « ALTÉRÉE » (+ liste si altérée).
       'adminsIntegrity' => $adminsTampered ? 'ALTÉRÉE' : 'ok',
@@ -5605,6 +5623,49 @@ try {
       }
     }
     jout(['orders' => $checked, 'emailed' => $emailed]);
+  }
+
+  // ---- Rapports de violation de la CSP ---------------------------------------
+  // Le navigateur poste ici, tout seul, ce que la politique AURAIT bloqué. Route
+  // publique par nécessité : aucun navigateur n'y joindra de jeton.
+  //
+  // Trois garde-fous, parce qu'une route publique qui écrit en base est une
+  // invitation :
+  //  1. la charge utile est plafonnée (un rapport CSP tient en quelques lignes) ;
+  //  2. l'origine bloquée est réduite à « schéma://hôte » — sans le chemin, qui
+  //     serait de cardinalité infinie et remplirait la table à lui seul ;
+  //  3. le nombre de lignes distinctes est plafonné : au-delà, on compte sans
+  //     créer de nouvelle ligne. Personne ne peut faire gonfler la base en
+  //     postant mille URL différentes.
+  // On agrège au lieu de tout garder : ce qui compte, c'est QUELLES origines
+  // reviennent, pas combien de fois exactement.
+  if ($path === 'csp-report' && $method === 'POST') {
+    $raw = file_get_contents('php://input') ?: '';
+    if (strlen($raw) > 8192) jout(['ok' => true]);          // trop gros : on ignore en silence
+    $b = json_decode($raw, true);
+    $r = is_array($b) ? ($b['csp-report'] ?? $b) : null;
+    if (!is_array($r)) jout(['ok' => true]);
+    $dir = substr((string) ($r['effective-directive'] ?? $r['violated-directive'] ?? '?'), 0, 64);
+    $blk = (string) ($r['blocked-uri'] ?? '?');
+    // « inline », « eval », « data » n'ont pas d'hôte : on les garde tels quels.
+    if (preg_match('~^https?://~i', $blk)) {
+      $u = parse_url($blk);
+      $blk = ($u['scheme'] ?? 'https') . '://' . ($u['host'] ?? '?');
+    }
+    $blk = substr($blk, 0, 190);
+    $k = substr(sha1($dir . '|' . $blk), 0, 40);
+    try {
+      $up = $pdo->prepare('UPDATE csp_reports SET n = n + 1, last_at = ? WHERE k = ?');
+      $up->execute([now_iso(), $k]);
+      if ($up->rowCount() === 0) {
+        $cnt = (int) $pdo->query('SELECT COUNT(*) FROM csp_reports')->fetchColumn();
+        if ($cnt < 300) {
+          $pdo->prepare('INSERT INTO csp_reports (k,directive,blocked,n,first_at,last_at) VALUES (?,?,?,1,?,?)')
+              ->execute([$k, $dir, $blk, now_iso(), now_iso()]);
+        }
+      }
+    } catch (Throwable $e) { /* un rapport perdu ne doit jamais casser une page */ }
+    jout(['ok' => true]);
   }
 
   if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION]);
