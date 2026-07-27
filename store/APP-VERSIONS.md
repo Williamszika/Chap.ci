@@ -60,6 +60,30 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.2 — versionCode 3
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `a993629` |
+| Date du build | 27 juillet 2026 |
+| Poids de l'AAB | 6,5 Mo |
+| minSdk | 22 (Android 5.1) |
+| targetSdk | 35 |
+| Signature | `CN=Chap.ci, L=Abidjan, C=CI` — SHA-1 `0E:C0:95:D9:70:92:F2:C0:19:A1:41:D1:35:DC:81:6A:73:28:FE:33` |
+| État Play | construite — **en attente de téléversement** |
+
+**Contenu :** les photos d'annonces s'affichent enfin dans l'application (`mediaUrl()` :
+l'app est servie depuis `https://localhost`, où un chemin relatif ne pointe nulle part) ;
+catégorie **Santé & Bien-être** ; page publique de **suppression de compte** exigée par
+Google ; le téléphone du vendeur ne sort plus de l'API publique ; formulaire de publication
+guidé ; correctifs d'accessibilité ; boutons sociaux masqués dans l'app (Google refuse
+l'OAuth en WebView) ; le site ne promet plus « des milliers d'annonces ».
+
+**Construite dans l'environnement de session**, pas sur un poste : le SDK Android, Gradle
+et le keystore y sont présents — c'était déjà le cas pour la v1.1.
+
+---
+
 ## v1.1 — versionCode 2
 
 | Champ | Valeur |
