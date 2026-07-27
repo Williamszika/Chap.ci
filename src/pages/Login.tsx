@@ -224,7 +224,21 @@ export function Login() {
                     Mot de passe oublié ?
                   </button>
                 </div>
-                {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+                {error && (
+                  <div className="rounded-xl bg-red-50 px-4 py-3">
+                    <p className="text-sm font-medium text-red-600">{error}</p>
+                    {/* Indice montré à TOUT LE MONDE, jamais conditionné au compte :
+                        un message qui ne s'afficherait que pour les comptes Google
+                        révélerait lesquels existent. Il sert à celui qui s'est
+                        inscrit avec Google et l'a oublié — cas fréquent, et
+                        jusqu'ici sans issue. */}
+                    {(googleEnabled || facebookEnabled) && (
+                      <p className="mt-1.5 text-xs text-red-600/80">
+                        Vous vous êtes inscrit avec Google ou Facebook ? Utilisez le bouton correspondant ci-dessus.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
                   {busy ? <Loader2 size={20} className="animate-spin" /> : 'Se connecter'}
                 </button>

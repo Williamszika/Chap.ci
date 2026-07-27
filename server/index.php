@@ -2669,7 +2669,19 @@ try {
     rate_limit($pdo, 'login_fail', $email, 8, 900);
     $st = $pdo->prepare('SELECT id,email,password_hash,status FROM users WHERE email = ?');
     $st->execute([$email]); $u = $st->fetch();
-    if (!$u || !password_verify((string) ($b['password'] ?? ''), $u['password_hash'])) {
+    // Un compte créé via Google ou Facebook n'a PAS de mot de passe : la colonne
+    // password_hash reste NULL. Le fichier déclare strict_types, donc
+    // password_verify(..., null) levait une TypeError — l'utilisateur recevait
+    // « Erreur serveur. Réessayez plus tard. » au lieu d'un message utile.
+    //
+    // Deux dégâts, l'un visible, l'autre non :
+    //  - quelqu'un qui s'était inscrit avec Google et revenait par e-mail +
+    //    mot de passe se heurtait à une erreur incompréhensible et repartait ;
+    //  - la réponse DIFFÉRAIT de celle d'un e-mail inconnu, ce qui permettait
+    //    d'énumérer les comptes existants en comparant les deux messages.
+    // On traite donc l'absence de mot de passe comme un échec ordinaire.
+    $hash = $u ? (string) ($u['password_hash'] ?? '') : '';
+    if (!$u || $hash === '' || !password_verify((string) ($b['password'] ?? ''), $hash)) {
       log_security_event($pdo, 'login_fail', $email);
       jerr('Email ou mot de passe incorrect.', 401);
     }
