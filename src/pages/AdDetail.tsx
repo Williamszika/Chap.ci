@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { mediaUrl } from '../lib/native'
 import { Link, useParams } from 'react-router-dom'
 import { Megaphone, ArrowRight, Loader2 } from 'lucide-react'
 import { fetchAd, type Ad } from '../lib/ads'
@@ -58,7 +59,7 @@ export function AdDetail() {
       {ad.images.length > 1 && (
         <div className="mt-3 grid grid-cols-2 gap-3">
           {ad.images.slice(1).map((img, i) => (
-            <img key={i} src={img} alt="" className="h-40 w-full rounded-2xl object-cover md:h-52" />
+            <img key={i} src={mediaUrl(img)} alt="" className="h-40 w-full rounded-2xl object-cover md:h-52" />
           ))}
         </div>
       )}

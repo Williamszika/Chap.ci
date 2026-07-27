@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { mediaUrl } from '../lib/native'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Send, Tag } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
@@ -134,7 +135,7 @@ export function Conversation() {
                 className="flex max-w-[46%] shrink-0 items-center gap-2 rounded-xl border border-line bg-cream-200 px-2 py-1.5 transition hover:bg-cream-100"
               >
                 {conv.listingImage ? (
-                  <img src={conv.listingImage} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+                  <img src={mediaUrl(conv.listingImage)} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
                 ) : (
                   <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-600">
                     <Tag size={16} />

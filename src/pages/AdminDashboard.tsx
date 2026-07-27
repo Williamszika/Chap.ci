@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { mediaUrl } from '../lib/native'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, MessageSquare, Star, Mail,
@@ -1535,7 +1536,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
                       className="group relative h-12 w-20 shrink-0 overflow-hidden rounded-lg"
                     >
                       {a.images[0] ? (
-                        <img src={a.images[0]} alt="" className="h-full w-full object-cover" />
+                        <img src={mediaUrl(a.images[0])} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <span className="grid h-full w-full place-items-center bg-gray-900 text-lg">📺</span>
                       )}
@@ -1664,7 +1665,7 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             {/* Visuels supplémentaires */}
             {preview.images.length > 1 && (
               <div className="mt-2 grid grid-cols-3 gap-2">
-                {preview.images.map((im, i) => <img key={i} src={im} alt="" className="h-20 w-full rounded-lg object-cover" />)}
+                {preview.images.map((im, i) => <img key={i} src={mediaUrl(im)} alt="" className="h-20 w-full rounded-lg object-cover" />)}
               </div>
             )}
 
@@ -2901,7 +2902,7 @@ function ErrRetry({ msg, onRetry }: { msg: string; onRetry: () => void }) {
 }
 function Thumb({ listing }: { listing: { images: string[]; categoryId: string; subcategory?: string | null } }) {
   const img = listing.images?.[0]
-  if (img) return <img src={img} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+  if (img) return <img src={mediaUrl(img)} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
   return (
     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-xl">
       {emojiFor(listing.categoryId, listing.subcategory ?? undefined)}

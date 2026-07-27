@@ -13,12 +13,14 @@ import {
   Baby,
   Apple,
   PawPrint,
+  HeartPulse,
   Package,
   type LucideProps,
 } from 'lucide-react'
 
 const map: Record<string, React.ComponentType<LucideProps>> = {
   Car,
+  HeartPulse,
   Home,
   Smartphone,
   Laptop,

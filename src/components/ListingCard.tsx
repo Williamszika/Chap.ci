@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { mediaUrl } from '../lib/native'
 import { Link } from 'react-router-dom'
 import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
 import { VerifiedBadge } from './VerifiedBadge'
@@ -37,7 +38,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
         <img
-          src={listing.images[0] || fallbackImg}
+          src={mediaUrl(listing.images[0]) || fallbackImg}
           alt={listing.title}
           loading="lazy"
           className="h-full w-full object-cover"

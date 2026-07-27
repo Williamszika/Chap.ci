@@ -190,7 +190,7 @@ export function Home() {
 
         {/* Barre de recherche (plus grande sur desktop) */}
         <form onSubmit={submitSearch} className="relative mt-2.5 md:mt-3.5 md:max-w-2xl">
-          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-primary-400 md:rounded-2xl md:px-5 md:py-3">
+          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400 md:rounded-2xl md:px-5 md:py-3">
             <Search size={20} className="text-gray-400" />
             <input
               value={q}

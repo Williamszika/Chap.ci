@@ -232,6 +232,9 @@ function chapci_seo_cats(): array {
     'animaux'      => ['Animaux', 'vos animaux'],
     'loisirs'      => ['Loisirs & Sport', 'vos articles de sport & loisirs'],
     'bebe'         => ['Bébé & Enfant', 'vos articles bébé & enfant'],
+    // Santé : compléments, soins, matériel paramédical. SANS médicaments —
+    // vente réservée aux pharmaciens, et interdite par les règles Google Play.
+    'sante'        => ['Santé & Bien-être', 'vos produits de santé et bien-être'],
   ];
 }
 function chapci_seo_cities(): array {

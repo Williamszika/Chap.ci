@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { mediaUrl } from '../lib/native'
 
 /**
  * Image de l'écran publicitaire — NETTE, adaptée automatiquement au visuel.
@@ -52,7 +53,7 @@ export function AdImageFill({ src, className = '' }: { src: string; className?: 
     <>
       {tall && bg && <div className="absolute inset-0" style={{ background: bg }} aria-hidden />}
       <img
-        src={src}
+        src={mediaUrl(src)}
         alt=""
         aria-hidden
         onLoad={onLoad}

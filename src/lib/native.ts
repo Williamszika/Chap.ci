@@ -25,3 +25,23 @@ export function apiBase(): string {
 export function assetOrigin(): string {
   return isNative ? SITE_ORIGIN : window.location.origin
 }
+
+/**
+ * Adresse d'une image stockée sur le serveur (`/uploads/...`).
+ *
+ * Le serveur renvoie des chemins RELATIFS. Sur le web ils se résolvent contre
+ * chap.ci et tout va bien. Dans l'app native, la page est servie depuis
+ * `https://localhost` : `/uploads/photo.jpg` y devient
+ * `https://localhost/uploads/photo.jpg`, qui n'existe pas — l'image échoue et
+ * l'écran retombe sur une vignette de remplacement. C'est ce qui privait
+ * l'application de TOUTES les photos d'annonces.
+ *
+ * Laisse intactes les adresses déjà absolues (http, https) et les images
+ * embarquées en data:.
+ */
+export function mediaUrl(src: string | null | undefined): string {
+  const s = (src ?? '').trim()
+  if (!s) return ''
+  if (/^(https?:|data:|blob:)/i.test(s)) return s
+  return isNative ? SITE_ORIGIN + (s.startsWith('/') ? s : '/' + s) : s
+}

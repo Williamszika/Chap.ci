@@ -104,6 +104,28 @@ export const categories: Category[] = [
     color: 'bg-pink-100 text-pink-700',
     subcategories: ['Vêtements bébé', 'Poussettes', 'Jouets', 'Mobilier bébé', 'Matériel de puériculture'],
   },
+  // ⚠️ Santé : catégorie VOLONTAIREMENT SANS MÉDICAMENTS.
+  // La vente de médicaments — y compris les remèdes traditionnels présentés
+  // comme tels — est réservée aux pharmaciens en Côte d'Ivoire, et Google Play
+  // interdit les applications qui facilitent la vente de produits
+  // pharmaceutiques non approuvés. C'est aussi, depuis toujours, un motif de
+  // masquage immédiat dans nos règles de modération.
+  // N'ajoutez JAMAIS de sous-catégorie « Médicaments » ici sans avoir d'abord
+  // fait valider la question par un pharmacien ou un juriste.
+  {
+    id: 'sante',
+    name: 'Santé & Bien-être',
+    icon: 'HeartPulse',
+    color: 'bg-teal-100 text-teal-700',
+    subcategories: [
+      'Compléments alimentaires',
+      'Soins & Hygiène',
+      'Matériel médical & Paramédical',
+      'Optique & Audition',
+      'Bien-être & Massage',
+      'Nutrition sportive',
+    ],
+  },
 ]
 
 export const categoryById = (id?: string) => categories.find((c) => c.id === id)

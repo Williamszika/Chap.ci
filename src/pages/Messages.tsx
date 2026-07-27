@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { mediaUrl } from '../lib/native'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, LogIn } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
@@ -72,7 +73,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
                   <div className="relative shrink-0">
                     {c.listingImage ? (
                       <img
-                        src={c.listingImage}
+                        src={mediaUrl(c.listingImage)}
                         alt=""
                         className="h-14 w-14 rounded-full object-cover ring-1 ring-line"
                       />

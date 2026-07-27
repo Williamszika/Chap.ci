@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { mediaUrl } from '../lib/native'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -175,7 +176,7 @@ export function Profile() {
           <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 shadow-card md:rounded-3xl md:p-5">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white md:h-20 md:w-20">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                <img src={mediaUrl(avatarUrl)} alt="" className="h-full w-full object-cover" />
               ) : (
                 <div className="grid h-full w-full place-items-center text-2xl font-black md:text-3xl">
                   {(displayName || 'C').charAt(0).toUpperCase()}
@@ -532,7 +533,7 @@ export function Profile() {
                     <div className="flex items-center gap-3">
                       <Link to={`/annonce/${l.id}`} className="flex flex-1 items-center gap-3">
                         <div className="relative">
-                          <img src={l.images[0]} alt="" className={`h-16 w-16 rounded-xl object-cover ${l.hidden ? 'opacity-40' : ''}`} />
+                          <img src={mediaUrl(l.images[0])} alt="" className={`h-16 w-16 rounded-xl object-cover ${l.hidden ? 'opacity-40' : ''}`} />
                           {l.hidden && (
                             <span className="absolute inset-0 grid place-items-center">
                               <EyeOff size={18} className="text-gray-600" />

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { mediaUrl } from '../lib/native'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -323,7 +324,7 @@ export function ListingDetail() {
                   }`}
                   aria-label={`Voir la photo ${i + 1}`}
                 >
-                  <img src={src} alt="" className="h-full w-full object-cover" />
+                  <img src={mediaUrl(src)} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
