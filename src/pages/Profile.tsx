@@ -32,10 +32,12 @@ import {
   BellOff,
   Package,
   HelpCircle,
+  Megaphone,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { fetchVerifyStatus, requestVerify, type VerifyStatus } from '../lib/verify'
+import { MyAdsPanel } from '../components/MyAdsPanel'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { activePromo } from '../lib/promo'
@@ -57,7 +59,7 @@ import { phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs } from '../lib/php'
 import { downscaleImage } from '../lib/image'
 import type { Listing, Order, Review } from '../types'
 
-type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'params'
+type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'pubs' | 'params'
 
 const statusLabel: Record<string, { label: string; cls: string }> = {
   en_cours: { label: 'En cours', cls: 'bg-amber-50 text-amber-700' },
@@ -230,6 +232,9 @@ export function Profile() {
             <AccountRow tint="gray" icon={<MessageSquare size={20} />} label="Messages" sub="Vos conversations" onClick={() => navigate('/messages')} />
             <AccountRow tint="gold" icon={<ShoppingBag size={20} />} label="Mes commandes" sub={`${purchases.filter((o) => o.status === 'en_cours').length} en cours`} onClick={() => setTab('achats')} />
             <AccountRow tint="green" icon={<BarChart3 size={20} />} label="Tableau de bord pro" sub="Statistiques & ventes" onClick={() => setTab('ventes')} />
+            {isPhp && (
+              <AccountRow tint="primary" icon={<Megaphone size={20} />} label="Mes publicités" sub="Audience, coût, prolongation" onClick={() => setTab('pubs')} />
+            )}
           </div>
 
           {/* Compte & sécurité */}
@@ -287,7 +292,9 @@ export function Profile() {
                   ? 'Mes annonces'
                   : tab === 'achats'
                     ? 'Mes commandes'
-                    : 'Compte & sécurité'}
+                    : tab === 'pubs'
+                      ? 'Mes publicités'
+                      : 'Compte & sécurité'}
             </h1>
           </div>
         )}
@@ -514,6 +521,9 @@ export function Profile() {
               )}
             </div>
           ))}
+
+        {/* PUBLICITÉS — audience, coût, historique, prolongation */}
+        {tab === 'pubs' && user && <MyAdsPanel />}
 
         {/* ANNONCES */}
         {tab === 'annonces' && (

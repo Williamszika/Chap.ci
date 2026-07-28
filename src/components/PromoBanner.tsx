@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Megaphone, ArrowRight } from 'lucide-react'
-import { fetchActiveAds, type Ad } from '../lib/ads'
+import { fetchActiveAds, trackAdView, trackAdClick, type Ad } from '../lib/ads'
 import { formatFCFA } from '../lib/format'
 import { AdImageFill } from './AdImageFill'
 import { AnimatedAdText } from './AnimatedAdText'
@@ -63,6 +63,16 @@ export function PromoBanner() {
   const ad = ads.length > 0 ? ads[idx % ads.length] : null
   const img = useMemo(() => ad?.images?.[0] ?? null, [ad])
 
+  // Audience : une bannière affichée compte une VUE, une seule fois par visite.
+  // Sans ce comptage, on vend de la visibilité sans pouvoir en rendre compte —
+  // et les rapports envoyés à l'annonceur seraient vides.
+  const vues = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!ad?.id || vues.current.has(ad.id)) return
+    vues.current.add(ad.id)
+    trackAdView(ad.id)
+  }, [ad?.id])
+
   return (
     <section className="pt-2">
       <div className="relative flex min-h-[200px] flex-col justify-end overflow-hidden bg-black text-white shadow-card-lg md:min-h-[290px] md:rounded-3xl">
@@ -102,6 +112,7 @@ export function PromoBanner() {
                   href={ad.link}
                   target="_blank"
                   rel="noopener noreferrer nofollow"
+                  onClick={() => trackAdClick(ad.id)}
                   className="mt-1 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 font-display font-bold text-ink shadow-sm transition hover:bg-cream-100 active:scale-95"
                 >
                   En savoir plus <ArrowRight size={16} />
@@ -158,6 +169,7 @@ export function PromoBanner() {
                         href={ad.link}
                         target="_blank"
                         rel="noopener noreferrer nofollow"
+                        onClick={() => trackAdClick(ad.id)}
                         className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-display font-bold text-ink shadow-sm transition hover:bg-cream-100 active:scale-95"
                       >
                         En savoir plus <ArrowRight size={17} />
@@ -181,7 +193,7 @@ export function PromoBanner() {
                   <Megaphone size={11} /> Publicité
                 </span>
                 {ad.link ? (
-                  <a href={ad.link} target="_blank" rel="noopener noreferrer nofollow" className="absolute inset-0" aria-label="Voir la publicité" />
+                  <a href={ad.link} target="_blank" rel="noopener noreferrer nofollow" onClick={() => trackAdClick(ad.id)} className="absolute inset-0" aria-label="Voir la publicité" />
                 ) : (
                   <Link to={`/pub/${ad.id}`} className="absolute inset-0" aria-label="Voir la publicité" />
                 )}

@@ -1041,6 +1041,24 @@ function migrate(PDO $pdo): void {
     // ne garde donc pas chaque rapport (un navigateur peut en envoyer des
     // milliers) mais un compteur par couple directive + origine bloquée. C'est
     // ce relevé qui permettra de la durcir sur des faits plutôt qu'au jugé.
+    // Audience des publicites, AGREGEE PAR JOUR.
+    // Sans elle, aucun rapport n'est possible : on ne peut pas dire a un
+    // annonceur combien de fois sa banniere a ete vue si personne ne compte.
+    // Une ligne par pub et par jour — pas un evenement par vue : a 2 000
+    // visites par mois, la table reste minuscule et les totaux sont immediats.
+    "CREATE TABLE IF NOT EXISTS ad_stats (
+      ad_id $id, day VARCHAR(10), views $intT, clicks $intT,
+      PRIMARY KEY (ad_id, day)
+    )$eng",
+    // Journal des e-mails envoyes a un annonceur.
+    // Motif : le 28/07, un annonceur a paye et n'a recu aucun e-mail. Impossible
+    // de dire si l'envoi avait echoue ou si le message etait parti dans les
+    // indesirables — send_mail renvoyait un booleen que PERSONNE n'enregistrait.
+    // On garde desormais la trace de chaque tentative, avec son resultat.
+    "CREATE TABLE IF NOT EXISTS ad_mails (
+      id $id PRIMARY KEY, ad_id $id, kind VARCHAR(24), email $txt,
+      ok $intT, created_at $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS csp_reports (
       k VARCHAR(190) PRIMARY KEY, directive VARCHAR(64), blocked VARCHAR(190),
       n $intT, first_at $ts, last_at $ts
@@ -1190,6 +1208,18 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN email $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN phone $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN expiry_notified $txt"); } catch (Throwable $e) {}
+  // Prolongation : identifiant de la publicité que celle-ci prolonge.
+  // On réutilise TOUT le circuit existant (paiement Mobile Money, validation
+  // par l'administrateur) : une prolongation est une demande ordinaire, qui
+  // repousse la date de fin de la bannière d'origine au lieu d'en créer une
+  // seconde. L'annonceur n'a rien de nouveau à apprendre.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN extends_ad_id $id"); } catch (Throwable $e) {}
+  // Motif de refus, saisi par l'administrateur et repris dans l'e-mail.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN reject_reason $txt"); } catch (Throwable $e) {}
+  // Dernier rapport d'audience envoye (cadence : tous les 3 jours).
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN last_report_at $ts"); } catch (Throwable $e) {}
+  // E-mail de fin de campagne envoye une seule fois.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN expired_notified $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
@@ -1920,45 +1950,151 @@ function send_welcome_email(array $config, string $to, string $fullName = ''): b
     email_layout($config, $inner, "Votre compte $name est prêt — achetez et vendez chap-chap partout en Côte d’Ivoire."));
 }
 /** Notification e-mail à l'annonceur selon le statut de sa publicité. Best-effort. */
-function send_ad_status_email(array $config, array $ad, string $kind): bool {
+/** Totaux d'audience d'une publicite (vues, clics) sur toute sa vie. */
+function ad_audience(PDO $pdo, string $adId): array {
+  try {
+    $st = $pdo->prepare('SELECT COALESCE(SUM(views),0) v, COALESCE(SUM(clicks),0) c FROM ad_stats WHERE ad_id = ?');
+    $st->execute([$adId]);
+    $r = $st->fetch() ?: [];
+    $v = (int) ($r['v'] ?? 0); $c = (int) ($r['c'] ?? 0);
+    return ['views' => $v, 'clicks' => $c, 'ctr' => $v > 0 ? round($c / $v * 100, 1) : 0.0];
+  } catch (Throwable $e) { return ['views' => 0, 'clicks' => 0, 'ctr' => 0.0]; }
+}
+
+/**
+ * Enregistre une tentative d'envoi a un annonceur.
+ *
+ * Le 28/07, un annonceur a paye et n'a rien recu. On ne pouvait meme pas dire
+ * si l'e-mail etait parti : send_mail renvoyait un booleen que personne ne
+ * gardait. Desormais chaque tentative laisse une ligne, avec son resultat.
+ */
+function log_ad_mail(?PDO $pdo, string $adId, string $kind, string $email, bool $ok): void {
+  if (!$pdo) return;
+  try {
+    $pdo->prepare('INSERT INTO ad_mails (id,ad_id,kind,email,ok,created_at) VALUES (?,?,?,?,?,?)')
+        ->execute([uuid(), $adId, mb_substr($kind, 0, 24), mb_substr($email, 0, 190), $ok ? 1 : 0, now_iso()]);
+  } catch (Throwable $e) { /* le journal ne doit jamais empecher un envoi */ }
+}
+
+/** Bloc HTML « chiffres de votre publicite », partage par plusieurs e-mails. */
+function ad_stats_block(array $a): string {
+  $v = (int) ($a['views'] ?? 0); $c = (int) ($a['clicks'] ?? 0); $ctr = (float) ($a['ctr'] ?? 0);
+  $n = fn($x) => number_format($x, 0, ',', "\u{00A0}");
+  return '<table role="presentation" style="width:100%;margin:14px 0;border-collapse:separate;border-spacing:8px 0">'
+    . '<tr>'
+    . '<td style="width:33%;background:#FFF6EC;border-radius:12px;padding:12px;text-align:center">'
+    . '<div style="font-size:22px;font-weight:800;color:#1a1f2b">' . $n($v) . '</div>'
+    . '<div style="font-size:12px;color:#6b7280">affichages</div></td>'
+    . '<td style="width:33%;background:#FFF6EC;border-radius:12px;padding:12px;text-align:center">'
+    . '<div style="font-size:22px;font-weight:800;color:#1a1f2b">' . $n($c) . '</div>'
+    . '<div style="font-size:12px;color:#6b7280">clics</div></td>'
+    . '<td style="width:33%;background:#FFF6EC;border-radius:12px;padding:12px;text-align:center">'
+    . '<div style="font-size:22px;font-weight:800;color:#1a1f2b">' . str_replace('.', ',', (string) $ctr) . '&nbsp;%</div>'
+    . '<div style="font-size:12px;color:#6b7280">taux de clic</div></td>'
+    . '</tr></table>';
+}
+
+/**
+ * E-mails du cycle de vie d'une publicite.
+ *
+ * Sept moments, du paiement a l'expiration :
+ *   pending   paiement recu, en attente de validation
+ *   active    validee, en ligne, avec la date ET l'heure de fin
+ *   rejected  refusee, AVEC LE MOTIF (saisi par l'administrateur)
+ *   report    tous les 3 jours : audience + invitation a prolonger
+ *   expiring  la veille de la fin : audience + date et heure exactes
+ *   expired   apres la fin : bilan complet
+ *
+ * $pdo sert uniquement a journaliser l'envoi (table ad_mails). Sans lui, la
+ * fonction marche toujours — mais on perd la trace, et c'est precisement ce
+ * qui a empeche de comprendre pourquoi un annonceur n'avait rien recu le 28/07.
+ */
+function send_ad_status_email(array $config, array $ad, string $kind, ?PDO $pdo = null, array $extra = []): bool {
   $to = trim((string) ($ad['email'] ?? ''));
-  if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+  if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+    log_ad_mail($pdo, (string) ($ad['id'] ?? ''), $kind, $to, false);
+    return false;
+  }
   $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
   $name  = $config['mail_from_name'] ?? 'Chap.ci';
   $price = number_format((int) ($ad['price'] ?? 0), 0, ',', "\u{00A0}");
   $titleTxt = trim((string) ($ad['title'] ?? '')) !== '' ? '« ' . htmlspecialchars((string) $ad['title']) . ' »' : 'votre bannière';
-  $expTxt = !empty($ad['expires_at']) ? gmdate('d/m/Y', (int) strtotime((string) $ad['expires_at'])) : '';
-  $pub = $site . '/#/publicite';
+  $ts = !empty($ad['expires_at']) ? (int) strtotime((string) $ad['expires_at']) : 0;
+  // Date ET heure : « le 04/08 » ne dit pas si la banniere tombe le matin ou le
+  // soir. Un annonceur qui veut prolonger a besoin de l'heure.
+  $expTxt  = $ts ? gmdate('d/m/Y', $ts) : '';
+  $expFull = $ts ? gmdate('d/m/Y \à H\hi', $ts) . ' (heure d’Abidjan)' : '';
+  $stats = $extra['stats'] ?? ($pdo && !empty($ad['id']) ? ad_audience($pdo, (string) $ad['id']) : null);
+  $bloc  = $stats ? ad_stats_block($stats) : '';
+  $pub   = $site . '/#/publicite';
+  // Lien direct vers SA publicite (prolongation, suivi) — jeton signe, sans compte.
+  $lien  = !empty($ad['id']) ? $site . '/#/pub/' . rawurlencode((string) $ad['id']) : $pub;
+
   if ($kind === 'pending') {
     $subject = "Votre publicité est bien reçue — $name";
     $inner = '<h2 style="margin-top:0;color:#111827">Publicité reçue ✅</h2>'
       . '<p>Bonjour,</p>'
       . '<p>Nous avons bien reçu ' . $titleTxt . '. Elle est <b>en attente de validation</b> : notre équipe '
       . 'vérifie votre paiement de <b>' . $price . ' FCFA</b>, puis votre bannière passe à l’écran.</p>'
-      . '<p>Vous recevrez un e-mail dès qu’elle est en ligne. Merci de votre confiance !</p>';
+      . '<p>Vous recevrez un e-mail dès qu’elle est en ligne — en général sous 24 heures. '
+      . 'Si vous n’avez rien reçu d’ici là, répondez simplement à ce message.</p>';
   } elseif ($kind === 'active') {
     $subject = "Votre publicité est en ligne 🎉 — $name";
     $inner = '<h2 style="margin-top:0;color:#111827">C’est en ligne 🎉</h2>'
       . '<p>Bonjour,</p>'
       . '<p>' . ucfirst($titleTxt) . ' est <b>validée et diffusée</b> sur l’écran publicitaire de ' . htmlspecialchars($name) . '.</p>'
-      . ($expTxt ? '<p>Elle restera affichée jusqu’au <b>' . $expTxt . '</b>.</p>' : '')
-      . email_button($pub, 'Gérer mes publicités');
+      . ($expFull ? '<p>Elle restera affichée jusqu’au <b>' . $expFull . '</b>.</p>' : '')
+      . '<p>Vous recevrez un rapport d’audience tous les 3 jours.</p>'
+      . email_button($lien, 'Voir ma publicité');
   } elseif ($kind === 'rejected') {
+    // Le motif est saisi par l'administrateur au moment du refus. Sans lui,
+    // l'annonceur ne sait pas quoi corriger et recommence la meme erreur.
+    $motif = trim((string) ($extra['reason'] ?? ($ad['reject_reason'] ?? '')));
     $subject = "Votre publicité n’a pas été validée — $name";
     $inner = '<h2 style="margin-top:0;color:#111827">Publicité non validée</h2>'
       . '<p>Bonjour,</p>'
-      . '<p>Malheureusement ' . $titleTxt . ' n’a pas pu être validée (paiement introuvable ou visuel non conforme).</p>'
-      . '<p>Si vous pensez qu’il s’agit d’une erreur, répondez simplement à cet e-mail.</p>'
+      . '<p>' . ucfirst($titleTxt) . ' n’a pas pu être validée.</p>'
+      . ($motif !== ''
+          ? '<p style="background:#FEF2F2;border-left:3px solid #DC2626;padding:10px 12px;margin:12px 0">'
+            . '<b>Motif :</b> ' . nl2br(htmlspecialchars($motif)) . '</p>'
+          : '<p>Motif : paiement introuvable ou visuel non conforme.</p>')
+      . '<p>Si vous pensez qu’il s’agit d’une erreur, répondez simplement à cet e-mail — '
+      . 'nous rouvrons le dossier.</p>'
       . email_button($pub, 'Refaire une publicité');
-  } else { // expiring
-    $subject = "Votre publicité expire bientôt — $name";
-    $inner = '<h2 style="margin-top:0;color:#111827">Bientôt terminée ⏳</h2>'
+  } elseif ($kind === 'report') {
+    $subject = "Votre publicité en chiffres — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Où en est votre publicité 📊</h2>'
       . '<p>Bonjour,</p>'
-      . '<p>' . ucfirst($titleTxt) . ' se termine ' . ($expTxt ? 'le <b>' . $expTxt . '</b>' : 'très bientôt') . '. '
-      . 'Pour rester à l’écran sans interruption, pensez à la <b>renouveler</b>.</p>'
-      . email_button($pub, 'Renouveler ma publicité');
+      . '<p>Voici l’audience de ' . $titleTxt . ' depuis sa mise en ligne :</p>'
+      . $bloc
+      . ($expFull ? '<p>Elle reste à l’écran jusqu’au <b>' . $expFull . '</b>.</p>' : '')
+      . '<p>Une bannière qui reste plus longtemps est vue par des visiteurs différents : '
+      . 'la même annonce touche de nouvelles personnes chaque semaine. Vous pouvez '
+      . '<b>prolonger dès maintenant</b>, sans attendre la fin.</p>'
+      . email_button($lien, 'Prolonger ma publicité');
+  } elseif ($kind === 'expired') {
+    $subject = "Votre publicité est terminée — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Campagne terminée</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' est arrivée à son terme' . ($expTxt ? ' le <b>' . $expTxt . '</b>' : '') . '. '
+      . 'Voici son bilan complet :</p>'
+      . $bloc
+      . '<p>Merci de votre confiance. Pour repartir à l’écran, il suffit de '
+      . 'relancer une bannière — vos visuels sont conservés.</p>'
+      . email_button($pub, 'Relancer une publicité');
+  } else { // expiring — la VEILLE de la fin
+    $subject = "Votre publicité se termine demain ⏳ — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Elle se termine demain ⏳</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' quitte l’écran ' . ($expFull ? '<b>le ' . $expFull . '</b>' : 'demain') . '.</p>'
+      . $bloc
+      . '<p>Pour rester affiché <b>sans interruption</b>, prolongez avant cette heure : '
+      . 'la bannière enchaîne alors sans coupure.</p>'
+      . email_button($lien, 'Prolonger maintenant');
   }
-  return send_mail($config, $to, $subject, email_layout($config, $inner, $subject));
+  $ok = send_mail($config, $to, $subject, email_layout($config, $inner, $subject));
+  log_ad_mail($pdo, (string) ($ad['id'] ?? ''), $kind, $to, $ok);
+  return $ok;
 }
 
 /** Résumé lisible des articles d'une commande (ex : « Vélo » (+2 autres)). */
@@ -3915,15 +4051,153 @@ try {
     $tariff = ad_tariff($pdo, $u);
     $price  = $tariff['prices'][$formule] * $qty;
     $id = uuid();
-    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,email,phone,style,anim,anim_loop,anims,anim_gap,text_color)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    // Prolongation d'une bannière EN COURS uniquement : on vérifie que la pub
+    // visée existe, qu'elle est active et qu'elle n'est pas déjà finie. Sans
+    // cette vérification, n'importe qui pourrait rallonger la campagne d'un
+    // autre en devinant un identifiant.
+    $prolonge = null;
+    $cible = trim((string) ($b['extends'] ?? ''));
+    if ($cible !== '') {
+      $q = $pdo->prepare("SELECT id, email, user_id FROM ads WHERE id = ? AND status = 'active' AND expires_at > ?");
+      $q->execute([$cible, now_iso()]);
+      $src = $q->fetch();
+      if (!$src) jerr('Cette publicité n’est plus en cours : elle ne peut pas être prolongée.');
+      $memeCompte = !empty($u['id']) && (string) $src['user_id'] === (string) $u['id'];
+      $memeEmail  = strtolower((string) $src['email']) === $email;
+      if (!$memeCompte && !$memeEmail) jerr('Cette publicité ne vous appartient pas.', 403);
+      $prolonge = (string) $src['id'];
+    }
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,email,phone,style,anim,anim_loop,anims,anim_gap,text_color,extends_ad_id)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
         ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), $formule, $qty,
                    $price, $method_, mb_substr($payNum, 0, 20), 'pending', null, null, client_ip(), now_iso(), $email, $phone,
-                   $style, $anim, $loop, json_encode($anims), $gap, $tcol]);
+                   $style, $anim, $loop, json_encode($anims), $gap, $tcol, $prolonge]);
     log_security_event($pdo, 'ad_submit', $u['email'] ?? null); // compteur anti-spam
     // Notification « reçue, en attente de validation » à l'annonceur.
-    send_ad_status_email($config, ['email' => $email, 'title' => $title, 'price' => $price], 'pending');
+    send_ad_status_email($config, ['id' => $id, 'email' => $email, 'title' => $title, 'price' => $price], 'pending', $pdo);
     jout(['ok' => true, 'id' => $id, 'price' => $price, 'member' => $tariff['member']]);
+  }
+
+  // Mes publicités (titulaire de compte) : historique, coût, performance.
+  // Un annonceur sans compte suit la sienne par le lien reçu par e-mail ;
+  // celui qui a un compte retrouve TOUTES les siennes, y compris les anciennes.
+  if ($path === 'ads/mine' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    // On retrouve aussi les publicités payées SANS être connecté : le formulaire
+    // est ouvert à tous, et l'annonceur y saisit son e-mail. Sans ce second
+    // critère, quelqu'un qui a un compte mais a commandé en visiteur ne verrait
+    // rien ici — et conclurait, à juste titre, que Chap.ci a perdu sa campagne.
+    $st = $pdo->prepare('SELECT id,title,description,images,formule,qty,price,status,starts_at,expires_at,created_at,reject_reason
+                         FROM ads WHERE user_id = ? OR LOWER(email) = ? ORDER BY created_at DESC LIMIT 100');
+    $st->execute([$u['id'], strtolower((string) ($u['email'] ?? ''))]);
+    $out = [];
+    $totalDepense = 0; $totalVues = 0; $totalClics = 0;
+    foreach ($st->fetchAll() as $a) {
+      $aud = ad_audience($pdo, (string) $a['id']);
+      // Le coût ne compte que si la publicité a réellement été diffusée : une
+      // demande refusée, ou en attente de paiement, n'est pas une dépense.
+      // 'merged' EN FAIT PARTIE : c'est une prolongation payée, fondue dans la
+      // bannière d'origine. L'oublier faisait afficher 2 000 F à quelqu'un qui
+      // en avait versé 6 000 — il l'aurait vu avant nous.
+      if (in_array($a['status'], ['active', 'expired', 'merged'], true)) $totalDepense += (int) $a['price'];
+      $totalVues += $aud['views']; $totalClics += $aud['clicks'];
+      $out[] = [
+        'id' => $a['id'], 'title' => $a['title'], 'description' => $a['description'],
+        'images' => json_decode((string) $a['images'], true) ?: [],
+        'formule' => $a['formule'], 'qty' => (int) $a['qty'], 'price' => (int) $a['price'],
+        'status' => $a['status'], 'rejectReason' => $a['reject_reason'] ?? '',
+        'createdAt' => iso_to_ms($a['created_at'] ?? null),
+        'startsAt' => iso_to_ms($a['starts_at'] ?? null),
+        'expiresAt' => iso_to_ms($a['expires_at'] ?? null),
+        'views' => $aud['views'], 'clicks' => $aud['clicks'], 'ctr' => $aud['ctr'],
+      ];
+    }
+    // Courbe consolidée : toutes ses publicités confondues, 30 derniers jours.
+    $courbe = [];
+    try {
+      $c = $pdo->prepare('SELECT s.day, SUM(s.views) v, SUM(s.clicks) c
+                          FROM ad_stats s JOIN ads a ON a.id = s.ad_id
+                          WHERE a.user_id = ? OR LOWER(a.email) = ? GROUP BY s.day ORDER BY s.day DESC LIMIT 30');
+      $c->execute([$u['id'], strtolower((string) ($u['email'] ?? ''))]);
+      $courbe = array_reverse($c->fetchAll(PDO::FETCH_ASSOC));
+    } catch (Throwable $e) { $courbe = []; }
+    jout([
+      'ads' => $out,
+      'total' => [
+        'depense' => $totalDepense, 'vues' => $totalVues, 'clics' => $totalClics,
+        'ctr' => $totalVues > 0 ? round($totalClics / $totalVues * 100, 1) : 0,
+        'cpv' => $totalVues > 0 ? round($totalDepense / $totalVues, 1) : 0, // coût pour 1 affichage
+      ],
+      'courbe' => $courbe,
+    ]);
+  }
+
+  // ---- MESURE D'AUDIENCE DES PUBLICITES --------------------------------------
+  // Deux routes publiques : un affichage compte une VUE, un appui sur le bouton
+  // compte un CLIC. Sans elles, impossible de rendre le moindre compte à un
+  // annonceur — et c'est bien ce qu'on lui vend.
+  //
+  // Trois garde-fous, parce qu'une route publique qui écrit en base est une
+  // invitation :
+  //  1. l'identifiant doit correspondre à une publicité ACTIVE — sinon on
+  //     laisserait n'importe qui créer des lignes à volonté ;
+  //  2. les compteurs sont agrégés par jour, pas un événement par vue : la
+  //     table reste minuscule quel que soit le trafic ;
+  //  3. une limite par IP empêche de gonfler artificiellement les chiffres
+  //     d'un annonceur — les siens comme ceux d'un concurrent.
+  if (count($seg) === 3 && $seg[0] === 'ads' && in_array($seg[2], ['view', 'click'], true) && $method === 'POST') {
+    $adId = $seg[1];
+    $chk = $pdo->prepare("SELECT 1 FROM ads WHERE id = ? AND status = 'active'");
+    $chk->execute([$adId]);
+    if (!$chk->fetch()) jout(['ok' => true]);        // pub inconnue ou inactive : on ignore, sans rien dire
+    rate_limit($pdo, 'ad_' . $seg[2], null, $seg[2] === 'view' ? 400 : 60, 3600);
+    $col = $seg[2] === 'view' ? 'views' : 'clicks';
+    $day = gmdate('Y-m-d');
+    try {
+      $up = $pdo->prepare("UPDATE ad_stats SET $col = $col + 1 WHERE ad_id = ? AND day = ?");
+      $up->execute([$adId, $day]);
+      if ($up->rowCount() === 0) {
+        $pdo->prepare('INSERT INTO ad_stats (ad_id,day,views,clicks) VALUES (?,?,?,?)')
+            ->execute([$adId, $day, $col === 'views' ? 1 : 0, $col === 'clicks' ? 1 : 0]);
+      }
+    } catch (Throwable $e) { /* une statistique perdue ne casse jamais une page */ }
+    jout(['ok' => true]);
+  }
+
+  // Chiffres d'une publicité : ce que SON annonceur voit sur /pub/:id.
+  //
+  // Réservé au propriétaire (ou à un administrateur). Ces chiffres ne sont pas
+  // publics : les laisser ouverts revenait à publier l'audience de chaque
+  // annonceur — lisible par son concurrent — et à afficher le trafic réel du
+  // site sur une page indexable. L'annonceur SANS compte, lui, reçoit les
+  // mêmes chiffres par e-mail tous les 3 jours : il n'a rien à consulter ici.
+  if (count($seg) === 3 && $seg[0] === 'ads' && $seg[2] === 'stats' && $method === 'GET') {
+    $st = $pdo->prepare('SELECT id,title,status,starts_at,expires_at,formule,qty,user_id,email FROM ads WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $ad = $st->fetch();
+    if (!$ad) jerr('Publicité introuvable.', 404);
+    $u = current_user($pdo, $secret);
+    $sien = $u && (
+      ((string) ($ad['user_id'] ?? '') !== '' && (string) $ad['user_id'] === (string) $u['id'])
+      || strtolower((string) ($ad['email'] ?? '')) === strtolower((string) ($u['email'] ?? ''))
+      || is_admin($config, $pdo, $u)
+    );
+    if (!$sien) jerr('Ces statistiques ne sont visibles que par l’annonceur.', 403);
+    $a = ad_audience($pdo, (string) $ad['id']);
+    // Courbe des 14 derniers jours, pour que l'annonceur voie l'évolution.
+    $par = $pdo->prepare('SELECT day, views, clicks FROM ad_stats WHERE ad_id = ? ORDER BY day DESC LIMIT 14');
+    $par->execute([$seg[1]]);
+    jout([
+      'id'        => $ad['id'],
+      'title'     => $ad['title'],
+      'status'    => $ad['status'],
+      'startsAt'  => iso_to_ms($ad['starts_at'] ?? null),
+      'expiresAt' => iso_to_ms($ad['expires_at'] ?? null),
+      'views'     => $a['views'],
+      'clicks'    => $a['clicks'],
+      'ctr'       => $a['ctr'],
+      'parJour'   => array_reverse($par->fetchAll(PDO::FETCH_ASSOC)),
+    ]);
   }
 
   // Pubs actives (écran publicitaire de l'accueil). Le mélange se fait côté client.
@@ -3948,9 +4222,17 @@ try {
     $st->execute([$seg[1], now_iso()]);
     $r = $st->fetch();
     if (!$r) jerr('Publicité introuvable ou expirée.', 404);
+    // Les réglages du texte (style, animations, couleur) sont renvoyés ici comme
+    // ils le sont déjà sur /ads/active : ils servent à la PROLONGATION, qui
+    // repart de la bannière existante au lieu de la faire refaire.
     jout([
       'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
       'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
+      'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+      'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
+      'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
+      'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
+      'textColor' => ($r['text_color'] ?? '') !== '' ? $r['text_color'] : null,
       'expiresAt' => iso_to_ms($r['expires_at']),
     ]);
   }
@@ -4559,19 +4841,48 @@ try {
       $ad = $st->fetch();
       if (!$ad) jerr('Publicité introuvable.', 404);
       $unit = ['day' => 86400, 'week' => 7 * 86400, 'month' => 30 * 86400][$ad['formule']] ?? 7 * 86400;
-      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $unit * max(1, (int) $ad['qty']));
-      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ?, expiry_notified = '' WHERE id = ?")
-          ->execute([now_iso(), $expires, $seg[2]]);
+      $duree = $unit * max(1, (int) $ad['qty']);
+      $cible = trim((string) ($ad['extends_ad_id'] ?? ''));
+      if ($cible !== '') {
+        // PROLONGATION : on repousse la fin de la bannière d'origine à partir
+        // de SA date de fin, pas de maintenant — l'annonceur ne perd aucun jour
+        // de ce qu'il a déjà payé, et l'affichage ne s'interrompt jamais.
+        $q = $pdo->prepare('SELECT expires_at FROM ads WHERE id = ?'); $q->execute([$cible]);
+        $base = (int) strtotime((string) ($q->fetchColumn() ?: now_iso()));
+        if ($base < time()) $base = time();
+        $expires = gmdate('Y-m-d\TH:i:s\Z', $base + $duree);
+        $pdo->prepare("UPDATE ads SET expires_at = ?, expiry_notified = '', expired_notified = '' WHERE id = ?")
+            ->execute([$expires, $cible]);
+        // La demande de prolongation, elle, est classée : elle ne doit pas
+        // apparaître comme une seconde bannière à l'écran.
+        $pdo->prepare("UPDATE ads SET status = 'merged', starts_at = ?, expires_at = ? WHERE id = ?")
+            ->execute([now_iso(), $expires, $seg[2]]);
+        $src = $pdo->prepare('SELECT * FROM ads WHERE id = ?'); $src->execute([$cible]);
+        $orig = $src->fetch() ?: $ad;
+        send_ad_status_email($config, array_merge($orig, ['expires_at' => $expires]), 'active', $pdo);
+        jout(['ok' => true, 'prolonge' => $cible, 'expiresAt' => iso_to_ms($expires)]);
+      }
+      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $duree);
+      // last_report_at est daté de la MISE EN LIGNE, pas laissé vide : sinon le
+      // premier rapport d'audience part au prochain passage du cron — quelques
+      // heures après le « c'est en ligne », avec des chiffres à zéro. On veut
+      // le premier bilan à J+3, comme annoncé à l'annonceur.
+      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ?, expiry_notified = '', last_report_at = ? WHERE id = ?")
+          ->execute([now_iso(), $expires, now_iso(), $seg[2]]);
       // Notification « en ligne » à l'annonceur (avec la date de fin).
-      send_ad_status_email($config, array_merge($ad, ['expires_at' => $expires]), 'active');
+      send_ad_status_email($config, array_merge($ad, ['expires_at' => $expires]), 'active', $pdo);
       jout(['ok' => true, 'expiresAt' => iso_to_ms($expires)]);
     }
 
     // Rejeter une pub (visuel non conforme, paiement absent…).
     if (count($seg) === 4 && $seg[1] === 'ads' && $seg[3] === 'reject' && $method === 'POST') {
       $st = $pdo->prepare('SELECT * FROM ads WHERE id = ?'); $st->execute([$seg[2]]); $ad = $st->fetch();
-      $pdo->prepare("UPDATE ads SET status = 'rejected' WHERE id = ?")->execute([$seg[2]]);
-      if ($ad) send_ad_status_email($config, $ad, 'rejected'); // notification à l'annonceur
+      // Motif OBLIGATOIRE dans l'e-mail : « non conforme » sans explication
+      // fait recommencer la même erreur, et revenir se plaindre.
+      $motif = mb_substr(trim((string) (body()['reason'] ?? '')), 0, 400);
+      $pdo->prepare("UPDATE ads SET status = 'rejected', reject_reason = ? WHERE id = ?")
+          ->execute([$motif, $seg[2]]);
+      if ($ad) send_ad_status_email($config, $ad, 'rejected', $pdo, ['reason' => $motif]);
       jout(['ok' => true]);
     }
 
@@ -5016,23 +5327,62 @@ try {
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);
     }
-    $now  = now_iso();
-    $soon = gmdate('Y-m-d\TH:i:s\Z', time() + 3 * 86400); // fin dans 3 jours
+    @set_time_limit(0);
+    $now = now_iso();
+    // « echecs » compte les envois DUS qui n'ont pas pu partir. Sans lui, un
+    // relevé à 0/0/0 se lit « rien à envoyer » aussi bien que « la messagerie
+    // est tombée » — deux situations opposées, et seule la seconde est grave.
+    $res = ['rapports' => 0, 'veille' => 0, 'terminees' => 0, 'echecs' => 0];
+
+    // ── 1. RAPPORT D'AUDIENCE tous les 3 jours ─────────────────────────────
+    // On vend de la visibilité : un annonceur doit voir ce qu'il achète, sans
+    // avoir à le demander. C'est aussi le meilleur moment pour proposer une
+    // prolongation — quand les chiffres sont sous ses yeux.
+    $il3j = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400);
+    $st = $pdo->prepare("SELECT * FROM ads
+      WHERE status = 'active' AND email IS NOT NULL AND email <> '' AND expires_at > ?
+        AND (last_report_at IS NULL OR last_report_at = '' OR last_report_at <= ?)");
+    $st->execute([$now, $il3j]);
+    foreach ($st->fetchAll() as $ad) {
+      @set_time_limit(30);
+      if (send_ad_status_email($config, $ad, 'report', $pdo)) $res['rapports']++; else $res['echecs']++;
+      $pdo->prepare('UPDATE ads SET last_report_at = ? WHERE id = ?')->execute([now_iso(), $ad['id']]);
+    }
+
+    // ── 2. LA VEILLE de la fin ─────────────────────────────────────────────
+    // Avant : 3 jours avant, sans heure. Un annonceur qui veut prolonger a
+    // besoin de savoir à quelle HEURE sa bannière tombe, et d'être prévenu
+    // assez tard pour que l'information soit encore d'actualité.
+    $demain = gmdate('Y-m-d\TH:i:s\Z', time() + 86400);
     $st = $pdo->prepare("SELECT * FROM ads
       WHERE status = 'active' AND email IS NOT NULL AND email <> ''
         AND (expiry_notified IS NULL OR expiry_notified <> '1')
         AND expires_at > ? AND expires_at <= ?");
-    $st->execute([$now, $soon]);
-    $rows = $st->fetchAll();
-    @set_time_limit(0);
-    $sent = 0;
-    foreach ($rows as $ad) {
+    $st->execute([$now, $demain]);
+    foreach ($st->fetchAll() as $ad) {
       @set_time_limit(30);
-      if (send_ad_status_email($config, $ad, 'expiring')) $sent++;
+      if (send_ad_status_email($config, $ad, 'expiring', $pdo)) $res['veille']++; else $res['echecs']++;
       $pdo->prepare("UPDATE ads SET expiry_notified = '1' WHERE id = ?")->execute([$ad['id']]);
     }
-    jout(['checked' => count($rows), 'emailed' => $sent]);
+
+    // ── 3. TERMINÉES : bilan complet, une seule fois ───────────────────────
+    $st = $pdo->prepare("SELECT * FROM ads
+      WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at <= ?
+        AND (expired_notified IS NULL OR expired_notified <> '1')");
+    $st->execute([$now]);
+    foreach ($st->fetchAll() as $ad) {
+      @set_time_limit(30);
+      if (send_ad_status_email($config, $ad, 'expired', $pdo)) $res['terminees']++; else $res['echecs']++;
+      // Le statut passe à « expired » ici : la bannière quitte l'écran et
+      // l'annonceur reçoit son bilan dans le même mouvement.
+      $pdo->prepare("UPDATE ads SET status = 'expired', expired_notified = '1' WHERE id = ?")
+          ->execute([$ad['id']]);
+    }
+
+    jout($res);
   }
+
+
 
   // ---------- RELANCE D'ACTIVATION : inscrits sans annonce ----------
   // Invite (UNE seule fois) les comptes créés depuis ≥ 3 jours, sans aucune

@@ -599,6 +599,18 @@ export async function phpAdSubmit<T>(body: Record<string, unknown>): Promise<T> 
 export async function phpAdsActive<T>(): Promise<T> {
   return req<T>('/ads/active')
 }
+/** Mesure d'audience : un affichage, puis un clic. Silencieux et sans blocage. */
+export async function phpAdTrack(id: string, quoi: 'view' | 'click'): Promise<void> {
+  try { await req(`/ads/${encodeURIComponent(id)}/${quoi}`, { method: 'POST', body: {} }) } catch { /* jamais bloquant */ }
+}
+/** Chiffres publics d'une publicité (son annonceur les consulte sur /pub/:id). */
+export async function phpAdStats<T>(id: string): Promise<T> {
+  return req<T>(`/ads/${encodeURIComponent(id)}/stats`)
+}
+/** Historique complet des publicités du compte connecté. */
+export async function phpAdsMine<T>(): Promise<T> {
+  return req<T>('/ads/mine')
+}
 export async function phpVerifyStatus<T>(): Promise<T> {
   return req<T>('/verify/status')
 }
@@ -611,8 +623,8 @@ export async function phpAdGet<T>(id: string): Promise<T> {
 export async function phpAdminAds<T>(): Promise<T> {
   return req<T>('/admin/ads')
 }
-export async function phpAdminAdAction(id: string, action: 'approve' | 'reject'): Promise<void> {
-  await req(`/admin/ads/${id}/${action}`, { method: 'POST', body: {} })
+export async function phpAdminAdAction(id: string, action: 'approve' | 'reject', reason = ''): Promise<void> {
+  await req(`/admin/ads/${id}/${action}`, { method: 'POST', body: { reason } })
 }
 export async function phpAdminAdDelete(id: string): Promise<void> {
   await req(`/admin/ads/${id}`, { method: 'DELETE' })

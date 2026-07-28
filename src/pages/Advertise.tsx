@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
-  Camera, X, Minus, Plus, Loader2, Megaphone, ArrowRight, CheckCircle2, Copy, Check,
+  Camera, X, Minus, Plus, Loader2, Megaphone, ArrowRight, CheckCircle2, Copy, Check, RefreshCw,
 } from 'lucide-react'
-import { fetchAdTariff, submitAd, AD_FALLBACK_TARIFF, AD_FORMULES, AD_GAP_DEFAULT, type AdTariff, type AdStyle } from '../lib/ads'
+import { fetchAdTariff, fetchAd, submitAd, AD_FALLBACK_TARIFF, AD_FORMULES, AD_GAP_DEFAULT, type AdTariff, type AdStyle } from '../lib/ads'
+import { mediaUrl } from '../lib/native'
+import { useAuth } from '../store/AuthContext'
 import { donationOperators } from '../data/donation'
 import { downscaleListingImage } from '../lib/image'
 import { classifyImage } from '../lib/nsfw'
@@ -30,6 +32,7 @@ function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
 }
 
 export function Advertise() {
+  const { user } = useAuth()
   const [tariff, setTariff] = useState<AdTariff>(AD_FALLBACK_TARIFF)
   const [images, setImages] = useState<string[]>([])
   const [photoBusy, setPhotoBusy] = useState(false)
@@ -57,11 +60,54 @@ export function Advertise() {
   const fileRef = useRef<HTMLInputElement>(null)
   const mounted = useRef(true)
 
+  // ---- Prolongation d'une bannière EN COURS (/publicite?prolonger=…) --------
+  // Le lien arrive du rapport tous les 3 jours, de l'e-mail de la veille, ou du
+  // bouton « Prolonger » du compte. On repart du visuel et des réglages
+  // existants : l'annonceur qui prolonge ne refait pas sa bannière, il rachète
+  // du temps d'écran. Le serveur, lui, vérifie que la pub est bien à lui.
+  const [params] = useSearchParams()
+  const prolonge = params.get('prolonger') || ''
+  const [source, setSource] = useState<{ id: string; title: string } | null>(null)
+  const [sourceErr, setSourceErr] = useState('')
+
   useEffect(() => {
     mounted.current = true
     fetchAdTariff().then((t) => { if (mounted.current) setTariff(t) }).catch(() => {})
     return () => { mounted.current = false }
   }, [])
+
+  // Membre connecté : on pré-remplit son e-mail. C'est lui qui recevra les
+  // rapports, et c'est lui qui prouve que la bannière est la sienne au moment
+  // de la prolonger. Le champ reste modifiable (on peut payer pour un tiers).
+  useEffect(() => {
+    if (user?.email) setEmail((e) => e || user.email)
+  }, [user?.email])
+
+  useEffect(() => {
+    if (!prolonge) return
+    let alive = true
+    fetchAd(prolonge)
+      .then((a) => {
+        if (!alive) return
+        setSource({ id: prolonge, title: a.title || '' })
+        setTitle(a.title || '')
+        setDescription(a.description || '')
+        setLink(a.link || '')
+        // Les visuels reviennent en URL /uploads/… : le serveur les accepte
+        // telles quelles, aucune image n'est réenvoyée ni redupliquée.
+        setImages(a.images || [])
+        if (a.style) setStyle(a.style)
+        if (a.anims?.length) setAnims(a.anims)
+        else if (a.anim) setAnims([a.anim])
+        if (a.animGap) setGap(a.animGap)
+        setLoop(a.animLoop !== false)
+        if (a.textColor) setTextColor(a.textColor)
+      })
+      .catch(() => {
+        if (alive) setSourceErr('Cette publicité n’est plus à l’écran : elle ne peut plus être prolongée. Vous pouvez en relancer une nouvelle ci-dessous.')
+      })
+    return () => { alive = false }
+  }, [prolonge])
 
   const unit = tariff.prices[formule]
   const total = unit * qty
@@ -129,6 +175,7 @@ export function Advertise() {
         loop,
         textColor,
         website,
+        ...(source ? { extends: source.id } : {}),
       })
       setDone({ id: r.id, price: r.price })
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -153,11 +200,24 @@ export function Advertise() {
       <div className="mx-auto w-full max-w-2xl px-4 pb-16 pt-6 md:px-6">
         <div className="rounded-2xl border border-ivoire-green/30 bg-ivoire-green/5 p-6 text-center md:p-8">
           <CheckCircle2 className="mx-auto text-ivoire-green" size={46} />
-          <h1 className="mt-3 font-display text-xl font-extrabold text-ink">Demande enregistrée !</h1>
+          <h1 className="mt-3 font-display text-xl font-extrabold text-ink">
+            {source ? 'Prolongation enregistrée !' : 'Demande enregistrée !'}
+          </h1>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-600">
-            Pour activer votre publicité, envoyez <b className="tnum">{formatFCFA(done.price)}</b> par{' '}
-            <b>{op.name}</b> au numéro Chap.ci ci-dessous. Elle s’affichera sur l’écran publicitaire
-            de l’accueil <b>après validation</b> (sous 24 h ouvrées).
+            {source ? (
+              <>
+                Pour prolonger votre bannière, envoyez <b className="tnum">{formatFCFA(done.price)}</b> par{' '}
+                <b>{op.name}</b> au numéro Chap.ci ci-dessous. Après validation, les jours achetés{' '}
+                <b>s’ajoutent à votre date de fin actuelle</b> : l’affichage n’est jamais interrompu et
+                aucun jour déjà payé n’est perdu.
+              </>
+            ) : (
+              <>
+                Pour activer votre publicité, envoyez <b className="tnum">{formatFCFA(done.price)}</b> par{' '}
+                <b>{op.name}</b> au numéro Chap.ci ci-dessous. Elle s’affichera sur l’écran publicitaire
+                de l’accueil <b>après validation</b> (sous 24 h ouvrées).
+              </>
+            )}
           </p>
           <div className="mx-auto mt-4 flex max-w-sm items-center gap-3 rounded-xl border border-line2 bg-white px-4 py-3.5">
             <span className="flex-1 text-left font-mono text-[15px] font-semibold tracking-tight text-gray-800">{op.number}</span>
@@ -186,13 +246,47 @@ export function Advertise() {
       {/* Héro « info-hero » */}
       <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
         <h1 className="font-display text-[26px] font-extrabold tracking-tight text-ink md:text-[34px]">
-          Faire de la publicité sur Chap.ci
+          {source ? 'Prolonger votre publicité' : 'Faire de la publicité sur Chap.ci'}
         </h1>
         <p className="mx-auto mt-2 max-w-[52ch] text-sm leading-relaxed text-[#57534E] md:mt-3">
-          Créez votre bannière, choisissez la durée, payez par Mobile Money. Après validation, elle
-          s’affiche sur l’écran publicitaire de la page d’accueil. <b>Aucun compte requis.</b>
+          {source ? (
+            <>
+              Votre bannière {source.title ? <b>« {source.title} »</b> : 'actuelle'} reste à l’écran :
+              choisissez simplement la durée à ajouter. Les jours achetés <b>s’ajoutent à votre date
+              de fin</b>, sans coupure d’affichage.
+            </>
+          ) : (
+            <>
+              Créez votre bannière, choisissez la durée, payez par Mobile Money. Après validation, elle
+              s’affiche sur l’écran publicitaire de la page d’accueil. <b>Aucun compte requis.</b>
+            </>
+          )}
         </p>
       </section>
+
+      {/* Prolongation demandée mais bannière déjà terminée : on le dit, et on
+          laisse le formulaire ouvert — l'annonceur n'a pas fait fausse route,
+          il repart simplement sur une nouvelle campagne. */}
+      {sourceErr && (
+        <div className="mx-auto mt-4 max-w-6xl px-4 md:px-6">
+          <p className="rounded-xl border border-[#F4D9B0] bg-[#FFF6EC] px-4 py-3 text-sm leading-relaxed text-gray-700">
+            ⏳ {sourceErr}
+          </p>
+        </div>
+      )}
+
+      {source && (
+        <div className="mx-auto mt-4 max-w-6xl px-4 md:px-6">
+          <p className="flex items-start gap-2 rounded-xl border border-ivoire-green/30 bg-ivoire-green/5 px-4 py-3 text-sm leading-relaxed text-gray-700">
+            <RefreshCw size={16} className="mt-0.5 shrink-0 text-ivoire-green-dark" />
+            <span>
+              <b>Prolongation.</b> Votre visuel et vos réglages sont repris tels quels — vous pouvez
+              les modifier si vous le souhaitez. Indiquez <b>le même e-mail</b> que lors de la
+              commande d’origine : c’est lui qui prouve que cette bannière est la vôtre.
+            </span>
+          </p>
+        </div>
+      )}
 
       <div className="mx-auto max-w-6xl px-4 py-7 md:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6">
         {/* Colonne formulaire */}
@@ -206,7 +300,9 @@ export function Advertise() {
             <div className="flex flex-wrap gap-2.5">
               {images.map((img, i) => (
                 <div key={i} className="relative h-20 w-32 overflow-hidden rounded-xl border border-line">
-                  <img src={img} alt="" className="h-full w-full object-cover" />
+                  {/* En prolongation, les visuels reviennent en /uploads/… :
+                      mediaUrl les rend affichables dans l'application native. */}
+                  <img src={mediaUrl(img)} alt="" className="h-full w-full object-cover" />
                   <button
                     onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
                     aria-label="Retirer cette image"
@@ -515,7 +611,11 @@ export function Advertise() {
             {error && <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
 
             <button onClick={submit} disabled={busy} className="btn-primary mt-3 w-full py-3.5 text-[15px]">
-              {busy ? <Loader2 size={20} className="animate-spin" /> : <>💳 Payer {formatFCFA(total)} et publier</>}
+              {busy
+                ? <Loader2 size={20} className="animate-spin" />
+                : source
+                  ? <>💳 Payer {formatFCFA(total)} et prolonger</>
+                  : <>💳 Payer {formatFCFA(total)} et publier</>}
             </button>
             <p className="mt-2 text-center text-[11px] leading-relaxed text-gray-400">
               Paiement par Mobile Money au numéro Chap.ci (affiché après l’envoi). Votre bannière

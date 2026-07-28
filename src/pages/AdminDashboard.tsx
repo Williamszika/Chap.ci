@@ -1291,7 +1291,24 @@ const AD_STATUS_PILL: Record<string, [string, string]> = {
   active: ['À l’écran', 'bg-ivoire-green/10 text-ivoire-green-dark'],
   rejected: ['Rejetée', 'bg-gray-100 text-gray-500'],
   expired: ['Expirée', 'bg-gray-100 text-gray-500'],
+  merged: ['Prolongation', 'bg-sky-50 text-sky-700'],
 }
+
+/**
+ * Motifs de refus proposés en un clic.
+ *
+ * Ils partent TELS QUELS dans l'e-mail envoyé à l'annonceur : ils sont donc
+ * rédigés pour être lus par lui, pas pour classer un dossier. Un refus sans
+ * motif fait recommencer la même erreur, puis revenir se plaindre — et il
+ * s'agit ici de quelqu'un qui a payé.
+ */
+const MOTIFS_REFUS = [
+  'Nous n’avons pas retrouvé votre paiement depuis le numéro indiqué.',
+  'Le visuel est trop flou ou illisible à l’écran.',
+  'Le contenu ne respecte pas nos conditions (contenu interdit ou trompeur).',
+  'Le lien indiqué ne fonctionne pas.',
+  'Le montant reçu ne correspond pas à la formule choisie.',
+]
 const AD_FORMULE_LABEL: Record<string, string> = { day: 'jour(s)', week: 'semaine(s)', month: 'mois' }
 
 // Bureau de Croissance SEO : un « employé virtuel » qui diffuse 1 message/jour.
@@ -1386,9 +1403,24 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [bMsg, setBMsg] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Refus : jamais en un clic. On demande le motif, qui part dans l'e-mail.
+  const [refus, setRefus] = useState<{ ad: AdminAd; reason: string; busy: boolean } | null>(null)
+
   const act = async (a: AdminAd, action: 'approve' | 'reject') => {
-    if (action === 'approve' && !confirm(`Activer « ${a.title} » ? La pub passera à l’écran (paiement de ${formatPrice(a.price)} F vérifié ?).`)) return
+    if (action === 'reject') { setRefus({ ad: a, reason: '', busy: false }); return }
+    if (!confirm(`Activer « ${a.title} » ? La pub passera à l’écran (paiement de ${formatPrice(a.price)} F vérifié ?).`)) return
     try { await adminAdAction(a.id, action); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
+  }
+  const confirmerRefus = async () => {
+    if (!refus || refus.reason.trim().length < 5) return
+    setRefus({ ...refus, busy: true })
+    try {
+      await adminAdAction(refus.ad.id, 'reject', refus.reason.trim())
+      setRefus(null); load(); onChanged?.()
+    } catch (e) {
+      alert((e as Error).message)
+      setRefus((r) => (r ? { ...r, busy: false } : r))
+    }
   }
   const remove = async (a: AdminAd) => {
     if (!confirm('Supprimer définitivement cette publicité ?')) return
@@ -1705,6 +1737,71 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
               )}
               <button onClick={() => { const a = preview; setPreview(null); remove(a) }} aria-label="Supprimer" className="flex items-center justify-center gap-1.5 rounded-xl border border-line2 px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
                 <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refus : le motif est obligatoire et part dans l'e-mail à l'annonceur. */}
+      {refus && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          onClick={() => !refus.busy && setRefus(null)}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-4 shadow-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="font-display text-lg font-extrabold text-ink">
+                {refus.ad.status === 'active' ? 'Retirer de l’écran' : 'Refuser la publicité'}
+              </h3>
+              <button onClick={() => setRefus(null)} disabled={refus.busy} aria-label="Fermer" className="grid h-8 w-8 place-items-center rounded-full text-gray-500 hover:bg-gray-100">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-[12.5px] leading-relaxed text-gray-500">
+              « {refus.ad.title || 'image seule'} » · <b className="tnum">{formatPrice(refus.ad.price)} F</b>
+              {refus.ad.email ? <> · {refus.ad.email}</> : null}
+            </p>
+
+            <p className="mt-3 text-sm font-semibold text-gray-700">Motif (envoyé à l’annonceur)</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {MOTIFS_REFUS.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setRefus({ ...refus, reason: m })}
+                  className={`rounded-lg border px-2.5 py-1.5 text-left text-[11.5px] leading-snug transition ${
+                    refus.reason === m ? 'border-primary-500 bg-[#FFF6EC] text-ink' : 'border-line2 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={refus.reason}
+              onChange={(e) => setRefus({ ...refus, reason: e.target.value.slice(0, 400) })}
+              rows={3}
+              placeholder="Ou écrivez le motif exact…"
+              className="input mt-2 min-h-[76px] resize-y text-sm leading-relaxed"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              {refus.reason.trim().length}/400 · Ce texte apparaît tel quel dans l’e-mail. L’annonceur
+              a payé : dites-lui ce qu’il doit corriger.
+            </p>
+
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => setRefus(null)} disabled={refus.busy} className="btn-outline flex-1 py-2.5 text-sm">
+                Annuler
+              </button>
+              <button
+                onClick={confirmerRefus}
+                disabled={refus.busy || refus.reason.trim().length < 5}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+              >
+                {refus.busy ? <Loader2 size={16} className="animate-spin" /> : <><Ban size={16} /> Confirmer le refus</>}
               </button>
             </div>
           </div>

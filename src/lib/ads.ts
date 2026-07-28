@@ -51,7 +51,8 @@ export interface AdminAd extends Ad {
   /** Contact de l'annonceur (notifications de statut + vérification). */
   email?: string | null
   phone?: string | null
-  status: 'pending' | 'active' | 'rejected' | 'expired'
+  /** 'merged' = demande de prolongation appliquée à la bannière d'origine. */
+  status: 'pending' | 'active' | 'rejected' | 'expired' | 'merged'
   expiresAt?: number | null
   createdAt: number
 }
@@ -84,9 +85,43 @@ export async function submitAd(input: {
   loop?: boolean
   textColor?: string
   website?: string // pot de miel
+  /** Prolonge une bannière EN COURS au lieu d'en créer une seconde. */
+  extends?: string
 }): Promise<{ ok: boolean; id: string; price: number; member: boolean }> {
   if (!isPhp) throw new Error('La publicité nécessite le backend Chap.ci.')
   return php.phpAdSubmit(input)
+}
+
+/** Une bannière vient d'être affichée / son bouton vient d'être cliqué. */
+export function trackAdView(id: string): void { if (isPhp) void php.phpAdTrack(id, 'view') }
+export function trackAdClick(id: string): void { if (isPhp) void php.phpAdTrack(id, 'click') }
+
+export interface AdStats {
+  id: string; title: string; status: string
+  startsAt?: number; expiresAt?: number
+  views: number; clicks: number; ctr: number
+  parJour: { day: string; views: number; clicks: number }[]
+}
+export async function fetchAdStats(id: string): Promise<AdStats> {
+  if (!isPhp) throw new Error('Statistiques indisponibles.')
+  return php.phpAdStats<AdStats>(id)
+}
+
+export interface MyAd {
+  id: string; title: string; description: string; images: string[]
+  formule: 'day' | 'week' | 'month'; qty: number; price: number
+  status: string; rejectReason?: string
+  createdAt?: number; startsAt?: number; expiresAt?: number
+  views: number; clicks: number; ctr: number
+}
+export interface MyAds {
+  ads: MyAd[]
+  total: { depense: number; vues: number; clics: number; ctr: number; cpv: number }
+  courbe: { day: string; v: number; c: number }[]
+}
+export async function fetchMyAds(): Promise<MyAds> {
+  if (!isPhp) return { ads: [], total: { depense: 0, vues: 0, clics: 0, ctr: 0, cpv: 0 }, courbe: [] }
+  return php.phpAdsMine<MyAds>()
 }
 
 export async function fetchActiveAds(): Promise<Ad[]> {
@@ -104,9 +139,14 @@ export async function fetchAdminAds(): Promise<AdminAd[]> {
   return php.phpAdminAds<AdminAd[]>()
 }
 
-export async function adminAdAction(id: string, action: 'approve' | 'reject'): Promise<void> {
+/**
+ * Approuver ou refuser une publicité. En cas de REFUS, le motif part dans
+ * l'e-mail envoyé à l'annonceur : « non conforme » sans explication lui fait
+ * refaire la même erreur, puis venir se plaindre.
+ */
+export async function adminAdAction(id: string, action: 'approve' | 'reject', reason = ''): Promise<void> {
   if (!isPhp) throw new Error('Le tableau de bord admin nécessite le backend PHP.')
-  return php.phpAdminAdAction(id, action)
+  return php.phpAdminAdAction(id, action, reason)
 }
 
 export async function adminAdDelete(id: string): Promise<void> {
