@@ -60,6 +60,34 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.4 — versionCode 5
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `5878041` |
+| Date du build | 28 juillet 2026 |
+| Poids de l'AAB | 6,6 Mo |
+| minSdk | 22 (Android 5.1) · targetSdk 35 |
+| Signature | `CN=Chap.ci, L=Abidjan, C=CI` — SHA-1 `0E:C0:95:D9:70:92:F2:C0:19:A1:41:D1:35:DC:81:6A:73:28:FE:33` |
+| État Play | construite et signée — **destinée au TEST FERMÉ** |
+
+**Pourquoi si vite après la v1.3 :** la v1.3 était partie en test interne le matin
+même, mais le canal de test **fermé** n'avait pas encore été créé. Or c'est lui qui
+engage douze testeurs pendant quatorze jours consécutifs. Autant qu'ils gardent la
+version la plus complète, plutôt qu'une version dont on sait déjà qu'elle porte des
+logos faux. Un build de plus coûte quelques minutes ; quatorze jours sur une version
+périmée, non.
+
+**Contenu, en plus de la v1.3 :** les vrais logos (WhatsApp et Facebook n'étaient
+qu'un émoji et une lettre ; Orange Money était dessiné en cercle alors que sa marque
+est un carré) ; Facebook et TikTok dans le pied de page et le plan du site ; retrait
+de la mention « Paiement sécurisé · reçu envoyé par SMS » de la page de don, qui était
+fausse dans ses deux moitiés.
+
+Détail de la v1.3 : voir `store/BUILD-v1.3.md`.
+
+---
+
 ## v1.3 — versionCode 4
 
 | Champ | Valeur |
