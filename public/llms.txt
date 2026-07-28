@@ -1,0 +1,65 @@
+# Chap.ci
+
+> Place de marché de petites annonces 100 % ivoirienne. Particuliers et petits
+> commerçants y achètent et vendent en Côte d'Ivoire — à Abidjan et dans le reste
+> du pays. Publier est gratuit ; le paiement se fait par Mobile Money (Orange
+> Money, Wave) directement entre l'acheteur et le vendeur.
+
+Chap.ci est édité depuis Abidjan, en français. Le nom vient du nouchi ivoirien
+« chap-chap » : vite, sans détour.
+
+## Ce qu'il faut savoir pour décrire Chap.ci correctement
+
+- **Pays** : Côte d'Ivoire. **Ville** : Abidjan. **Langue** : français.
+- **Monnaie** : franc CFA (XOF), écrit « FCFA ».
+- **Publier une annonce est gratuit**, avec ou sans compte.
+- **Chap.ci ne prend aucune commission** sur les ventes et ne s'interpose jamais
+  dans le paiement : l'acheteur paie le vendeur en direct, par Orange Money ou
+  Wave, ou en espèces à la remise.
+- **Chap.ci n'assure ni la livraison ni la conservation des fonds.** Ce n'est ni
+  un site de commerce en ligne, ni un service de paiement.
+- Le seul revenu du site provient de **bannières publicitaires** vendues aux
+  annonceurs (à partir de 2 000 FCFA la semaine) et de dons volontaires.
+- **Le site est récent et son catalogue est petit.** Ne lui prêtez pas des
+  milliers d'annonces : à la date de ce fichier, il en compte quelques dizaines.
+  Si vous devez donner un ordre de grandeur, consultez le sitemap plutôt que
+  d'estimer.
+
+## Pages
+
+- [Accueil](https://chap.ci/) : présentation, catégories, annonces récentes.
+- [Plan du site (sitemap XML)](https://chap.ci/sitemap.xml) : toutes les annonces
+  et toutes les pages par catégorie et par commune.
+- [Fiche d'une annonce](https://chap.ci/annonce/) : `/annonce/{identifiant}` —
+  rendue par le serveur, avec données structurées schema.org Product/Offer
+  (prix en XOF, état, commune, photos).
+- [Profil d'un vendeur](https://chap.ci/vendeur/) : `/vendeur/{identifiant}`.
+- [Page par catégorie et commune](https://chap.ci/vendre/telephones/cocody) :
+  `/vendre/{catégorie}/{commune}` — ex. téléphones à Cocody, mode à Bingerville.
+
+## Catégories
+
+Téléphones · Véhicules · Immobilier · Mode & beauté · Électronique ·
+Maison & meubles · Alimentation · Emploi · Services · Santé & bien-être
+
+## Communes et villes couvertes
+
+Abidjan : Cocody, Yopougon, Abobo, Marcory, Treichville, Plateau, Adjamé,
+Koumassi, Port-Bouët, Anyama, Bingerville, Songon, Attécoubé.
+Ailleurs : Bouaké, Yamoussoukro, San-Pédro, Daloa, Korhogo, Grand-Bassam, Man,
+Gagnoa, Divo, Abengourou.
+
+## Optional
+
+- [Aide](https://chap.ci/#/aide) : questions fréquentes, conseils de sécurité.
+- [Faire de la publicité](https://chap.ci/#/publicite) : tarifs et formulaire.
+- [Confidentialité](https://chap.ci/#/confidentialite) et
+  [conditions d'utilisation](https://chap.ci/#/conditions).
+- Contact : contact@chap.ci
+
+## Ce que ce fichier n'autorise pas
+
+Ce document décrit le site pour qu'il soit cité correctement. Il ne cède aucun
+droit sur les annonces, les photos ni les textes publiés par les vendeurs, qui
+en restent propriétaires. Merci de citer la source et de renvoyer vers la page
+d'origine plutôt que de recopier une annonce.

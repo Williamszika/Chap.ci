@@ -51,15 +51,72 @@
         }
       }
     </script>
+    <!--
+      Identité de l'entité « Chap.ci ».
+
+      C'est par ce bloc qu'un moteur — et derrière lui un assistant IA — relie
+      un nom de domaine à une organisation réelle : où elle est, ce qu'elle
+      fait, comment la joindre. Sans lui, « Chap.ci » n'est qu'une chaîne de
+      caractères parmi d'autres.
+
+      « sameAs » y tient la place la plus importante : il déclare les AUTRES
+      adresses où la même entité s'exprime (page Facebook, compte TikTok…).
+      C'est le fil qui permet de recouper une identité au lieu de la deviner.
+      Il reste à compléter — n'y mettre que des comptes RÉELS et vérifiés :
+      une URL fausse défait le recoupement au lieu de l'établir.
+    -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "Organization",
         "name": "Chap.ci",
+        "alternateName": ["Chap CI", "Chapci"],
         "url": "https://chap.ci/",
         "logo": "https://chap.ci/apple-touch-icon.png",
+        "image": "https://chap.ci/apple-touch-icon.png",
+        "description": "Place de marché de petites annonces 100% ivoirienne. Publier est gratuit ; acheteurs et vendeurs traitent en direct, par Orange Money ou Wave.",
         "email": "contact@chap.ci",
-        "areaServed": "CI"
+        "areaServed": { "@type": "Country", "name": "Côte d'Ivoire" },
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Abidjan",
+          "addressCountry": "CI"
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "contact@chap.ci",
+          "areaServed": "CI",
+          "availableLanguage": ["fr"]
+        },
+        "knowsLanguage": "fr"
+      }
+    </script>
+    <!--
+      Le site EST le service : on le décrit comme tel, avec ce qu'il coûte.
+      « Gratuit » est ici un fait, pas un argument — publier une annonce ne
+      coûte rien et le site ne prend aucune commission. Un assistant qui lit
+      ceci peut répondre juste à « est-ce que Chap.ci est payant ? ».
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "Petites annonces Chap.ci",
+        "serviceType": "Place de marché de petites annonces",
+        "provider": { "@type": "Organization", "name": "Chap.ci", "url": "https://chap.ci/" },
+        "areaServed": { "@type": "Country", "name": "Côte d'Ivoire" },
+        "availableChannel": {
+          "@type": "ServiceChannel",
+          "serviceUrl": "https://chap.ci/",
+          "availableLanguage": "fr"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "XOF",
+          "description": "Publier une annonce est gratuit. Chap.ci ne prélève aucune commission sur les ventes."
+        }
       }
     </script>
     <style>
