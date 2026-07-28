@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
+import { mediaUrl } from '../lib/native'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import type { Listing } from '../types'
@@ -460,7 +461,9 @@ export function PostAd() {
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {images.map((src, i) => (
               <div key={i} className="group relative aspect-square overflow-hidden rounded-2xl border border-line bg-cream-100 shadow-card">
-                <img src={src} alt="" className="h-full w-full object-cover" />
+                {/* En modification, les photos existantes arrivent en « /uploads/… » :
+                    sans mediaUrl, l'application native affiche des cases vides. */}
+                <img src={mediaUrl(src)} alt="" className="h-full w-full object-cover" />
                 <button
                   type="button"
                   onClick={() => removeImage(i)}
@@ -843,7 +846,7 @@ export function PostAd() {
 
       {editIndex !== null && images[editIndex] && (
         <PhotoEditor
-          src={images[editIndex]}
+          src={mediaUrl(images[editIndex])}
           onCancel={() => setEditIndex(null)}
           onApply={applyEdited}
         />

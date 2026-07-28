@@ -1085,7 +1085,7 @@ function OrderCard({
       <button onClick={onOpen} className="block w-full text-left">
         {order.items.map((it, i) => (
           <div key={i} className="flex items-center gap-3 px-3 py-2">
-            {it.image && <img src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />}
+            {it.image && <img src={mediaUrl(it.image)} alt="" className="h-12 w-12 rounded-lg object-cover" />}
             <span className="min-w-0 flex-1 truncate text-sm text-gray-800">{it.title}</span>
             <span className="text-sm font-semibold text-primary-600">{priceLabel(it.price)}</span>
           </div>
@@ -1256,7 +1256,7 @@ function AvatarUpload({
     <div className="card flex items-center gap-4 p-4">
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gray-100">
         {currentUrl ? (
-          <img src={currentUrl} alt="" className="h-full w-full object-cover" />
+          <img src={mediaUrl(currentUrl)} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="grid h-full w-full place-items-center text-xl font-black text-gray-400">
             {(name || 'C').charAt(0).toUpperCase()}

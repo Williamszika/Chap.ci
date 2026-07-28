@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check } from 'lucide-react'
+import { mediaUrl } from '../lib/native'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -95,7 +96,7 @@ export function SellerProfile() {
           {/* Avatar */}
           <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-ivoire-green font-display text-4xl font-black text-white shadow-card ring-4 ring-white md:h-28 md:w-28">
             {profile?.avatarUrl ? (
-              <img src={profile.avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+              <img src={mediaUrl(profile.avatarUrl)} alt={displayName} className="h-full w-full object-cover" />
             ) : (
               displayName.charAt(0).toUpperCase()
             )}

@@ -16,7 +16,9 @@ import {
   Navigation,
   ShoppingBag,
   Flag,
+  Maximize2,
 } from 'lucide-react'
+import { PhotoViewer } from '../components/PhotoViewer'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { useToast } from '../store/ToastContext'
@@ -50,6 +52,8 @@ export function ListingDetail() {
   const listing = id ? getListing(id) : undefined
 
   const [imgIndex, setImgIndex] = useState(0)
+  // Photo ouverte en plein écran (null = visionneuse fermée).
+  const [viewer, setViewer] = useState<number | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
@@ -249,12 +253,45 @@ export function ListingDetail() {
               {listing.images.map((src, i) => (
                 <img
                   key={i}
-                  src={src}
+                  // mediaUrl est INDISPENSABLE ici. Dans l'application native, la
+                  // page est servie depuis https://localhost : « /uploads/photo.jpg »
+                  // y devient « https://localhost/uploads/photo.jpg », qui n'existe
+                  // pas. Les miniatures, elles, passaient bien par mediaUrl — d'où
+                  // le symptôme trompeur : les petites photos s'affichaient, la
+                  // grande restait vide.
+                  src={mediaUrl(src)}
                   alt={`${listing.title} — photo ${i + 1}`}
-                  className="h-full w-full shrink-0 snap-center object-cover"
+                  onClick={() => setViewer(i)}
+                  className="h-full w-full shrink-0 cursor-zoom-in snap-center object-cover"
                 />
               ))}
             </div>
+
+            {/* La vignette est RECADRÉE (object-cover) : sur une photo verticale,
+                le haut et le bas sont coupés. Rien ne le disait — on l'annonce,
+                et on donne le geste qui montre la photo entière. */}
+            {!listing.sold && (
+              <button
+                onClick={() => setViewer(imgIndex)}
+                className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-2 text-[12px] font-semibold text-white backdrop-blur transition active:scale-95"
+              >
+                <Maximize2 size={14} /> Voir en grand
+              </button>
+            )}
+
+            {/* Repère de position, comme sur l'écran publicitaire */}
+            {listing.images.length > 1 && !listing.sold && (
+              <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
+                {listing.images.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`block h-1.5 rounded-full transition-all ${
+                      i === imgIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Badges marketing (haut-gauche) */}
             {listing.sold ? (
@@ -585,6 +622,16 @@ export function ListingDetail() {
           </>
         )}
       </div>
+
+      {/* Photo en grand : on ouvre à la photo touchée, on balaie pour changer. */}
+      {viewer !== null && (
+        <PhotoViewer
+          images={listing.images}
+          index={viewer}
+          alt={listing.title}
+          onClose={(n) => { selectImage(n); setViewer(null) }}
+        />
+      )}
 
       {shareOpen && (
         <ShareSheet
