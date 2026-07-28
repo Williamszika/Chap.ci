@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { Mark, Wordmark } from './Logo'
+import { isNative } from '../lib/native'
 import { FOOTER_COLS, FOOTER_TAGLINE, FOOTER_PAIEMENT } from '../data/footerLinks'
 
 /** Pied de page sombre (design artifact) — masqué sur les écrans « plein écran ». */
@@ -20,28 +21,40 @@ export function Footer() {
 
   const year = new Date().getFullYear()
 
-  return (
-    <footer className="mt-8 bg-ink text-sm text-white/70">
-      {/* Liseré drapeau ivoirien : orange · blanc · vert */}
-      <div className="flex h-1 w-full">
-        <div className="flex-1 bg-primary-500" />
-        <div className="flex-1 bg-white" />
-        <div className="flex-1 bg-ivoire-green" />
-      </div>
+  const bandeau = (
+    /* Liseré drapeau ivoirien : orange · blanc · vert */
+    <div className="flex h-1 w-full">
+      <div className="flex-1 bg-primary-500" />
+      <div className="flex-1 bg-white" />
+      <div className="flex-1 bg-ivoire-green" />
+    </div>
+  )
 
-      <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-10 md:pb-10">
-        {/* ------------------------------------------------------------------
-            TÉLÉPHONE ET TABLETTE : un seul lien vers le plan du site.
+  const copyright = (
+    <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-6 text-xs text-white/55 sm:flex-row">
+      <p>© {year} Chap.ci — Fait avec ❤️ à Abidjan 🇨🇮</p>
+      <p>Tous droits réservés</p>
+    </div>
+  )
 
-            Le pied de page complet mesurait 1 099 pixels sur un écran de 412 —
-            plus d'un écran et demi de défilement pour dix-huit liens en une
-            colonne. Il renvoie donc vers /plan-du-site, où les mêmes liens sont
-            présentés avec des cibles tactiles pleine largeur.
-
-            Le seuil est xl (1280 px) et non lg : une tablette 10 pouces en
-            paysage fait 1024 px et doit, elle aussi, recevoir la version courte.
-        ------------------------------------------------------------------- */}
-        <div className="xl:hidden">
+  // ---------------------------------------------------------------------------
+  //  APPLICATION NATIVE UNIQUEMENT : un seul lien vers le plan du site.
+  //
+  //  Dans l'application, le pied de page complet mesurait 1 099 pixels — plus
+  //  d'un écran et demi de défilement pour dix-huit liens empilés en une colonne,
+  //  au-dessus d'une barre d'onglets qui rend déjà l'essentiel accessible. On le
+  //  réduit donc à un renvoi vers /plan-du-site.
+  //
+  //  Le SITE, lui, garde son pied de page complet — y compris consulté depuis un
+  //  téléphone. Deux raisons : c'est là que les robots d'indexation passent (et
+  //  Google explore en mode téléphone), et un pied de page riche est un repère
+  //  attendu sur le web, où l'on n'a pas de barre d'onglets pour naviguer.
+  // ---------------------------------------------------------------------------
+  if (isNative) {
+    return (
+      <footer className="mt-8 bg-ink text-sm text-white/70">
+        {bandeau}
+        <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-10">
           <Link to="/" className="flex items-center gap-2">
             <Mark size={30} />
             <Wordmark className="text-lg text-white" />
@@ -60,21 +73,21 @@ export function Footer() {
           )}
 
           <p className="mt-4 text-xs leading-relaxed text-white/55">{FOOTER_PAIEMENT}</p>
+          {copyright}
         </div>
+      </footer>
+    )
+  }
 
-        {/* ------------------------------------------------------------------
-            GRAND ÉCRAN : le pied de page complet, en cinq colonnes.
+  // --- SITE WEB : pied de page complet, sur toutes les tailles d'écran --------
+  return (
+    <footer className="mt-8 bg-ink text-sm text-white/70">
+      {bandeau}
 
-            ⚠️ Il reste dans le DOM sur TOUS les formats, simplement masqué en
-            CSS en dessous de xl. C'est délibéré : le lien « Supprimer mon
-            compte » doit rester découvrable par un robot d'indexation, y compris
-            lorsqu'il explore le site en mode téléphone — Google Play exige que ce
-            chemin soit trouvable depuis le web. Le retirer du DOM sur mobile
-            reviendrait à le cacher au robot le plus important.
-        ------------------------------------------------------------------- */}
-        <div className="hidden gap-8 xl:grid xl:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
+      <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-10 md:pb-10">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
           {/* Marque */}
-          <div className="xl:pr-8">
+          <div className="lg:pr-8">
             <Link to="/" className="flex items-center gap-2">
               <Mark size={30} />
               <Wordmark className="text-lg text-white" />
@@ -99,10 +112,7 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-6 text-xs text-white/55 sm:flex-row">
-          <p>© {year} Chap.ci — Fait avec ❤️ à Abidjan 🇨🇮</p>
-          <p>Tous droits réservés</p>
-        </div>
+        {copyright}
       </div>
     </footer>
   )
