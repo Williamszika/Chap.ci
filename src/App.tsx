@@ -57,6 +57,7 @@ const SellerProfile = L('SellerProfile', () => import('./pages/SellerProfile'))
 const About = L('About', () => import('./pages/About'))
 const Faq = L('Faq', () => import('./pages/Faq'))
 const Notifications = L('Notifications', () => import('./pages/Notifications'))
+const SiteMap = L('SiteMap', () => import('./pages/SiteMap'))
 const AdminDashboard = lazy(() =>
   import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })),
 )
@@ -116,6 +117,9 @@ export default function App() {
           <Route path="/conditions" element={<Terms />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/a-propos" element={<About />} />
+          {/* Plan du site : reprend tous les liens du pied de page, qui se
+              réduit à un seul lien sur téléphone et tablette. */}
+          <Route path="/plan-du-site" element={<SiteMap />} />
           <Route path="/aide" element={<Faq />} />
           <Route path="/faq" element={<Faq />} />
           <Route path="/admin" element={<AdminDashboard />} />

@@ -38,7 +38,7 @@ RewriteRule ^([A-Za-z0-9]{8,64})\.txt$ seo.php [L]
 #
 # ⚠️ Le drapeau NE (noescape) est INDISPENSABLE : sans lui, Apache encode le
 # dièse en %23 et redirige vers /%23/aide, qui ne mène nulle part.
-RewriteRule ^(suppression-compte|confidentialite|conditions|aide|faq|contact|a-propos|publicite|don|explorer|publier)/?$ /#/$1 [R=301,NE,L]
+RewriteRule ^(suppression-compte|confidentialite|conditions|aide|faq|contact|a-propos|plan-du-site|publicite|don|explorer|publier)/?$ /#/$1 [R=301,NE,L]
 
 # --- L'application (SPA) et sa page d'accueil --------------------------------
 # index.html SEUL. La racine du site est une application statique : aucun

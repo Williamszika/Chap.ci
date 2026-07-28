@@ -1,49 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
 import { Mark, Wordmark } from './Logo'
-
-const cols: { title: string; links: { to: string; label: string; state?: unknown }[] }[] = [
-  {
-    title: 'Explorer',
-    links: [
-      { to: '/explorer', label: 'Toutes les annonces' },
-      { to: '/?voir=categories', label: 'Catégories' },
-      { to: '/explorer?tri=distance', label: 'Près de moi' },
-      { to: '/explorer?promo=1', label: 'Bons plans' },
-    ],
-  },
-  {
-    title: 'Vendre',
-    links: [
-      // Libellés alignés sur le CONTENU réel des destinations.
-      { to: '/publier', label: 'Publier une annonce' },
-      { to: '/publicite', label: 'Faire de la publicité' },
-      { to: '/aide?rubrique=vendre', label: 'Conseils vendeur' },
-      { to: '/compte', label: 'Tableau de bord pro', state: { tab: 'ventes' } },
-      { to: '/compte', label: 'Mes annonces', state: { tab: 'annonces' } },
-    ],
-  },
-  {
-    title: 'Aide',
-    links: [
-      { to: '/aide', label: 'Questions fréquentes' },
-      { to: '/aide?rubrique=securite', label: 'Conseils de sécurité' },
-      { to: '/contact?sujet=signaler', label: 'Signaler un problème' },
-      { to: '/contact', label: 'Nous contacter' },
-    ],
-  },
-  {
-    title: 'Chap.ci',
-    links: [
-      { to: '/a-propos', label: 'À propos' },
-      { to: '/confidentialite', label: 'RGPD' },
-      { to: '/conditions', label: 'CGU' },
-      // Google Play exige que ce chemin soit TROUVABLE depuis le web : le lien du
-      // pied de page est ce qui le rend découvrable. Ne pas le retirer.
-      { to: '/suppression-compte', label: 'Supprimer mon compte' },
-      { to: '/contact?sujet=partenariat', label: 'Partenariat & presse' },
-    ],
-  },
-]
+import { FOOTER_COLS, FOOTER_TAGLINE, FOOTER_PAIEMENT } from '../data/footerLinks'
 
 /** Pied de page sombre (design artifact) — masqué sur les écrans « plein écran ». */
 export function Footer() {
@@ -72,21 +30,60 @@ export function Footer() {
       </div>
 
       <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-10 md:pb-10">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
+        {/* ------------------------------------------------------------------
+            TÉLÉPHONE ET TABLETTE : un seul lien vers le plan du site.
+
+            Le pied de page complet mesurait 1 099 pixels sur un écran de 412 —
+            plus d'un écran et demi de défilement pour dix-huit liens en une
+            colonne. Il renvoie donc vers /plan-du-site, où les mêmes liens sont
+            présentés avec des cibles tactiles pleine largeur.
+
+            Le seuil est xl (1280 px) et non lg : une tablette 10 pouces en
+            paysage fait 1024 px et doit, elle aussi, recevoir la version courte.
+        ------------------------------------------------------------------- */}
+        <div className="xl:hidden">
+          <Link to="/" className="flex items-center gap-2">
+            <Mark size={30} />
+            <Wordmark className="text-lg text-white" />
+          </Link>
+          <p className="mt-3 leading-relaxed text-white/60">{FOOTER_TAGLINE}</p>
+
+          {/* Pas de lien vers la page où l'on se trouve déjà. */}
+          {pathname !== '/plan-du-site' && (
+            <Link
+              to="/plan-du-site"
+              className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 py-3.5 font-semibold text-white transition active:bg-white/10"
+            >
+              Plan du site — tous les liens
+              <ChevronRight size={18} className="shrink-0 text-white/50" />
+            </Link>
+          )}
+
+          <p className="mt-4 text-xs leading-relaxed text-white/55">{FOOTER_PAIEMENT}</p>
+        </div>
+
+        {/* ------------------------------------------------------------------
+            GRAND ÉCRAN : le pied de page complet, en cinq colonnes.
+
+            ⚠️ Il reste dans le DOM sur TOUS les formats, simplement masqué en
+            CSS en dessous de xl. C'est délibéré : le lien « Supprimer mon
+            compte » doit rester découvrable par un robot d'indexation, y compris
+            lorsqu'il explore le site en mode téléphone — Google Play exige que ce
+            chemin soit trouvable depuis le web. Le retirer du DOM sur mobile
+            reviendrait à le cacher au robot le plus important.
+        ------------------------------------------------------------------- */}
+        <div className="hidden gap-8 xl:grid xl:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
           {/* Marque */}
-          <div className="lg:pr-8">
+          <div className="xl:pr-8">
             <Link to="/" className="flex items-center gap-2">
               <Mark size={30} />
               <Wordmark className="text-lg text-white" />
             </Link>
-            <p className="mt-3 max-w-xs leading-relaxed text-white/60">
-              La marketplace 100 % ivoirienne. Achetez et vendez chap-chap, partout en Côte d’Ivoire — en toute
-              sécurité.
-            </p>
-            <p className="mt-4 text-xs text-white/55">Paiement : Orange Money · Wave</p>
+            <p className="mt-3 max-w-xs leading-relaxed text-white/60">{FOOTER_TAGLINE}</p>
+            <p className="mt-4 text-xs text-white/55">{FOOTER_PAIEMENT}</p>
           </div>
 
-          {cols.map((c) => (
+          {FOOTER_COLS.map((c) => (
             <div key={c.title}>
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-white/50">{c.title}</p>
               <ul className="space-y-2">
