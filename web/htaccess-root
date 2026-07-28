@@ -98,13 +98,21 @@ RewriteRule ^index\.php$ - [R=404,L]
   #     TikTok qui l'appelle. Il a été découvert par les rapports de violation
   #     le 27/07, deux minutes après leur activation. Aucune lecture du dépôt
   #     ne pouvait le deviner.
+  #   *.google-analytics.com       GA4 n'envoie PAS ses evenements sur
+  #     www.google-analytics.com mais sur des points regionaux
+  #     (region1.google-analytics.com...). Decouvert par les rapports le 28/07,
+  #     25 violations en une nuit — de loin la plus frequente. Passer la
+  #     politique en mode bloquant sans cela aurait eteint toute la mesure
+  #     d'audience, sans le moindre message d'erreur visible.
+  #   accounts.google.com (style-src) : le bouton « Continuer avec Google »
+  #     injecte sa PROPRE feuille de style. Autoriser le script ne suffit pas.
   #   nominatim.openstreetmap.org  recherche d'adresse
   #   ipapi.co / ipwho.is / api.bigdatacloud.net  localisation approximative
   #   pay.wave.com                 paiement Wave
   # 'unsafe-inline' sur les styles est requis par React (styles en ligne) ;
   # sur les scripts, il l'est par les extraits d'installation des pixels.
   # Les retirer suppose de passer aux nonces — chantier à part, pas ici.
-  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.googletagmanager.com https://connect.facebook.net https://analytics.tiktok.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://chap.ci https://accounts.google.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://graph.facebook.com https://analytics.tiktok.com https://analytics-ipv6.tiktokw.us https://nominatim.openstreetmap.org https://ipapi.co https://ipwho.is https://api.bigdatacloud.net; frame-src 'self' https://accounts.google.com https://www.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; report-uri /api/csp-report"
+  Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.googletagmanager.com https://connect.facebook.net https://analytics.tiktok.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://chap.ci https://accounts.google.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://connect.facebook.net https://graph.facebook.com https://analytics.tiktok.com https://analytics-ipv6.tiktokw.us https://nominatim.openstreetmap.org https://ipapi.co https://ipwho.is https://api.bigdatacloud.net; frame-src 'self' https://accounts.google.com https://www.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; report-uri /api/csp-report"
 </IfModule>
 
 # --- Cache des fichiers versionnés -------------------------------------------

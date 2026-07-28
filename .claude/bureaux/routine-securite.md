@@ -127,6 +127,17 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    → tentatives échouées, IP suspectes, failRatio, rate-limited, intégrité des
      comptes admin.
 
+   LIS « cspViolations » SANS TE TROMPER DE MOT.
+   La CSP tourne en « Report-Only » : elle NE BLOQUE RIEN. Ce champ liste ce
+   qu'elle AURAIT bloqué. N'écris jamais « bloqué par la politique » — un
+   lecteur pressé en conclurait que le site est dégradé, ce qui est faux.
+   Et ce ne sont PAS du bruit : chaque origine légitime qui y figure est une
+   LACUNE de la politique, à combler avant de la durcir. Le 28/07,
+   region1.google-analytics.com y est apparu 25 fois — passer en mode bloquant
+   sans l'avoir vu aurait éteint toute la mesure d'audience, en silence.
+   Signale donc, pour chaque origine : est-elle légitime (à autoriser) ou
+   inattendue (à examiner) ? C'est la seule question qui compte ici.
+
    LIS D'ABORD « byDetail » — il te dit QUELLE ROUTE échoue.
    La réponse contient byDetail.cron_fail : la liste des routes ayant échoué,
    avec leur nombre d'occurrences (ex. « cron/backup » : 12). Idem pour
