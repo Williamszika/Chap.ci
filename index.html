@@ -62,8 +62,10 @@
       « sameAs » y tient la place la plus importante : il déclare les AUTRES
       adresses où la même entité s'exprime (page Facebook, compte TikTok…).
       C'est le fil qui permet de recouper une identité au lieu de la deviner.
-      Il reste à compléter — n'y mettre que des comptes RÉELS et vérifiés :
-      une URL fausse défait le recoupement au lieu de l'établir.
+      N'y mettre que des comptes RÉELS et actifs : une URL fausse ou morte
+      défait le recoupement au lieu de l'établir. Ces deux-là sont tenus à jour
+      dans src/data/footerLinks.ts (SOCIALS), qui alimente les icônes du site —
+      si l'un change, les deux fichiers changent.
     -->
     <script type="application/ld+json">
       {
@@ -72,6 +74,10 @@
         "name": "Chap.ci",
         "alternateName": ["Chap CI", "Chapci"],
         "url": "https://chap.ci/",
+        "sameAs": [
+          "https://www.facebook.com/profile.php?id=61592274181471",
+          "https://www.tiktok.com/@chap.ci"
+        ],
         "logo": "https://chap.ci/apple-touch-icon.png",
         "image": "https://chap.ci/apple-touch-icon.png",
         "description": "Place de marché de petites annonces 100% ivoirienne. Publier est gratuit ; acheteurs et vendeurs traitent en direct, par Orange Money ou Wave.",
@@ -244,7 +250,14 @@
           <a href="/#/explorer">Voir les annonces</a> ·
           <a href="/#/publier">Publier une annonce</a> ·
           <a href="/#/aide">Aide</a> ·
-          <a href="/#/confidentialite">Confidentialité</a>
+          <a href="/#/confidentialite">Confidentialité</a> ·
+          <a href="/llms.txt">llms.txt</a>
+        </p>
+        <p>
+          Chap.ci sur
+          <a href="https://www.facebook.com/profile.php?id=61592274181471" rel="me noopener">Facebook</a>
+          et sur
+          <a href="https://www.tiktok.com/@chap.ci" rel="me noopener">TikTok</a>.
         </p>
         <p><small>Chap.ci — Abidjan, Côte d'Ivoire 🇨🇮 — contact@chap.ci</small></p>
       </main>

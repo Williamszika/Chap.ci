@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { Mark, Wordmark } from './Logo'
 import { isNative } from '../lib/native'
+import { SocialLinks } from './SocialLinks'
 import { FOOTER_COLS, FOOTER_TAGLINE, FOOTER_PAIEMENT } from '../data/footerLinks'
 
 /** Pied de page sombre (design artifact) — masqué sur les écrans « plein écran ». */
@@ -72,6 +73,7 @@ export function Footer() {
             </Link>
           )}
 
+          <SocialLinks className="mt-5" />
           <p className="mt-4 text-xs leading-relaxed text-white/55">{FOOTER_PAIEMENT}</p>
           {copyright}
         </div>
@@ -93,6 +95,7 @@ export function Footer() {
               <Wordmark className="text-lg text-white" />
             </Link>
             <p className="mt-3 max-w-xs leading-relaxed text-white/60">{FOOTER_TAGLINE}</p>
+            <SocialLinks className="mt-4" />
             <p className="mt-4 text-xs text-white/55">{FOOTER_PAIEMENT}</p>
           </div>
 

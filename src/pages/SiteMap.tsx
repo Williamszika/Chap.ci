@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
+import { SocialLinks } from '../components/SocialLinks'
 import { FOOTER_COLS, FOOTER_TAGLINE, FOOTER_PAIEMENT } from '../data/footerLinks'
 
 /**
@@ -51,6 +52,19 @@ export function SiteMap() {
             </ul>
           </section>
         ))}
+
+        {/* Comptes officiels — sur téléphone, ce plan tient lieu de pied de page :
+            s'ils n'apparaissent pas ici, ils n'apparaissent nulle part dans
+            l'application. */}
+        <section className="mt-8">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Suivez Chap.ci</h2>
+          <div className="flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-3.5">
+            <SocialLinks tone="clair" />
+            <p className="text-[13px] leading-snug text-gray-500">
+              Nos bons plans et les nouvelles annonces, chaque semaine.
+            </p>
+          </div>
+        </section>
 
         <p className="mt-8 rounded-2xl bg-cream-100 px-4 py-3 text-center text-xs leading-relaxed text-gray-600">
           {FOOTER_PAIEMENT}

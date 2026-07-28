@@ -57,6 +57,31 @@ export const FOOTER_COLS: FooterCol[] = [
   },
 ]
 
+/**
+ * Comptes officiels — SOURCE UNIQUE.
+ *
+ * Ils servent deux choses à la fois, et c'est pour cela qu'ils vivent ici :
+ *  • les icônes du pied de page et du plan du site (ce que voit un visiteur) ;
+ *  • le champ `sameAs` des données structurées de index.html (ce que lit un
+ *    moteur de recherche, et derrière lui un assistant IA).
+ *
+ * `sameAs` est ce qui permet de RECOUPER une identité : trois adresses
+ * différentes qui parlent de la même organisation se confirment l'une l'autre,
+ * là où un domaine seul ne se vérifie pas. D'où une règle : n'inscrire ici que
+ * des comptes RÉELS et actifs. Une URL morte affaiblit le recoupement au lieu
+ * de le renforcer.
+ *
+ * ⚠️ En cas de changement, mettre à jour AUSSI le tableau `sameAs` de
+ * index.html et la section « Réseaux » de public/llms.txt : ces deux fichiers
+ * ne sont pas construits par l'application et ne peuvent pas importer ceci.
+ */
+export type Social = { id: 'facebook' | 'tiktok'; label: string; url: string }
+
+export const SOCIALS: Social[] = [
+  { id: 'facebook', label: 'Facebook', url: 'https://www.facebook.com/profile.php?id=61592274181471' },
+  { id: 'tiktok', label: 'TikTok', url: 'https://www.tiktok.com/@chap.ci' },
+]
+
 /** Phrase de présentation, reprise à l'identique aux deux endroits. */
 export const FOOTER_TAGLINE =
   'La marketplace 100 % ivoirienne. Achetez et vendez chap-chap, partout en Côte d’Ivoire — en toute sécurité.'
