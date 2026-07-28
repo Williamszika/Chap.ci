@@ -18,6 +18,7 @@ import {
   Flag,
   Maximize2,
 } from 'lucide-react'
+import { BrandBadge } from '../components/BrandLogo'
 import { PhotoViewer } from '../components/PhotoViewer'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -664,11 +665,11 @@ function ShareSheet({
         <p className="mb-3 text-center font-bold text-gray-800">Partager cette annonce</p>
         <div className="grid grid-cols-3 gap-3">
           <a href={wa} target="_blank" rel="noopener noreferrer" onClick={onClose} className="flex flex-col items-center gap-1.5">
-            <span className="grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white text-2xl">🟢</span>
+            <BrandBadge id="whatsapp" />
             <span className="text-xs font-medium text-gray-700">WhatsApp</span>
           </a>
           <a href={fb} target="_blank" rel="noopener noreferrer" onClick={onClose} className="flex flex-col items-center gap-1.5">
-            <span className="grid h-14 w-14 place-items-center rounded-full bg-[#1877F2] text-white text-xl font-black">f</span>
+            <BrandBadge id="facebook" />
             <span className="text-xs font-medium text-gray-700">Facebook</span>
           </a>
           <button onClick={copy} className="flex flex-col items-center gap-1.5">

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { BrandLogo } from '../components/BrandLogo'
 import { useLocation } from 'react-router-dom'
 import { User, Mail, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react'
 import { phpContact } from '../lib/php'
@@ -199,7 +200,7 @@ export function Contact() {
           </a>
 
           <div className="rounded-[14px] border border-line bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]">
-            <div className="text-[26px] leading-none" aria-hidden>🟢</div>
+            <BrandLogo id="whatsapp" className="h-[26px] w-[26px]" />
             <p className="mt-2 font-display text-sm font-bold text-ink">WhatsApp</p>
             <p className="mt-1 truncate text-[13px] text-gray-500">+225 07 •• •• ••</p>
           </div>

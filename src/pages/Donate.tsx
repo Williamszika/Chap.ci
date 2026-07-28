@@ -171,8 +171,19 @@ export function Donate() {
             </button>
           )}
 
-          <p className="text-center text-xs text-gray-400">
-            Paiement sécurisé · reçu envoyé par SMS
+          {/* Ces deux promesses étaient FAUSSES, et sur un écran qui demande de
+              l'argent — le pire endroit possible.
+              « Paiement sécurisé » laissait croire que Chap.ci encaisse et
+              protège la transaction : le site n'est à aucun moment dans le
+              circuit, l'argent va du téléphone du donateur à l'opérateur.
+              « Reçu envoyé par SMS » : aucun reçu n'a jamais été envoyé, et
+              aucun ne peut l'être — le site ignore purement et simplement
+              qu'un don a eu lieu. Le seul justificatif existant est celui de
+              l'opérateur, et on le dit. */}
+          <p className="text-center text-xs leading-relaxed text-gray-400">
+            Le transfert se fait directement auprès de votre opérateur&nbsp;: c'est lui qui vous
+            envoie le message de confirmation. Chap.ci n'encaisse rien et ne conserve
+            aucune donnée bancaire.
           </p>
 
           {/* Pourquoi faire un don / Sécurité — côte à côte sur grand écran */}
