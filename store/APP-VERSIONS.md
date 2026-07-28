@@ -60,6 +60,31 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.3 — versionCode 4
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `f5e15a7` |
+| Date du build | 28 juillet 2026 |
+| Poids de l'AAB | 6,6 Mo |
+| minSdk | 22 (Android 5.1) |
+| targetSdk | 35 |
+| Signature | `CN=Chap.ci, L=Abidjan, C=CI` — SHA-1 `0E:C0:95:D9:70:92:F2:C0:19:A1:41:D1:35:DC:81:6A:73:28:FE:33` |
+| État Play | construite et signée — **en attente de téléversement** |
+
+**Contenu :** la **grande photo d'une annonce ne s'affichait pas** dans l'application —
+seules les miniatures apparaissaient, parce qu'elle seule n'appelait pas `mediaUrl()`.
+Même oubli corrigé sur la photo du vendeur, l'avatar du compte, la vignette d'une commande
+et les photos déjà en ligne quand on **modifie** une annonce. Nouvelle **visionneuse plein
+écran** : on touche la photo, elle s'affiche entière, on balaie vers la gauche ou la droite
+(le bouton retour d'Android la referme au lieu de quitter l'annonce). Ajouts venus du site :
+« Mes publicités » dans le compte (audience, coût, prolongation), cycle de vie complet des
+publicités, pied de page réduit à un lien dans l'application.
+
+Détail : voir `store/BUILD-v1.3.md`.
+
+---
+
 ## v1.2 — versionCode 3
 
 | Champ | Valeur |
