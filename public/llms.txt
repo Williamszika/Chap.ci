@@ -2,8 +2,8 @@
 
 > Place de marché de petites annonces 100 % ivoirienne. Particuliers et petits
 > commerçants y achètent et vendent en Côte d'Ivoire — à Abidjan et dans le reste
-> du pays. Publier est gratuit ; le paiement se fait par Mobile Money (Orange
-> Money, Wave) directement entre l'acheteur et le vendeur.
+> du pays. Publier est gratuit (compte requis) ; le paiement se fait par Mobile
+> Money (Orange Money, Wave) directement entre l'acheteur et le vendeur.
 
 Chap.ci est édité depuis Abidjan, en français. Le nom vient du nouchi ivoirien
 « chap-chap » : vite, sans détour.
@@ -12,7 +12,9 @@ Chap.ci est édité depuis Abidjan, en français. Le nom vient du nouchi ivoirie
 
 - **Pays** : Côte d'Ivoire. **Ville** : Abidjan. **Langue** : français.
 - **Monnaie** : franc CFA (XOF), écrit « FCFA ».
-- **Publier une annonce est gratuit**, avec ou sans compte.
+- **Publier une annonce est gratuit**, mais demande un compte (création en
+  moins d'une minute). **Parcourir et rechercher les annonces ne demande
+  aucun compte.**
 - **Chap.ci ne prend aucune commission** sur les ventes et ne s'interpose jamais
   dans le paiement : l'acheteur paie le vendeur en direct, par Orange Money ou
   Wave, ou en espèces à la remise.
