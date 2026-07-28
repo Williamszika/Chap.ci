@@ -904,3 +904,35 @@ pas un détail d'hébergement. **Décision à prendre par le Patron**, dans les 
 
 **Idée retenue :** viser « huile rouge bio Bingerville » plutôt que « Vans Cocody »,
 déjà tenu par Jiji et CoinAfrique. Longue traîne locale, sans concurrent direct connu.
+
+---
+
+### 2026-07-28 15:45 — [Livraison] Le canal de test FERMÉ existe enfin
+
+Première fois depuis l'ouverture du compte développeur. Release **v1.4
+(versionCode 5)** créée en test fermé, liste de diffusion « Ange » (13 adresses),
+envoyée pour examen.
+
+**Rappel de ce qui vient de changer dans le calendrier du projet.** Jusqu'à cet
+après-midi, aucune version n'avait jamais atteint le circuit qui compte : la v1.1
+était morte en brouillon, la v1.2 n'avait jamais été téléversée, la v1.3 était
+partie en test *interne* — lequel ne compte pas dans le quota de Google. Le
+compteur des **12 testeurs × 14 jours consécutifs** ne pouvait donc pas démarrer.
+Il peut maintenant.
+
+**Pourquoi une v1.4 le jour même de la v1.3.** Le test fermé engage douze
+personnes pendant quatorze jours. Leur faire garder une version dont on savait
+déjà qu'elle portait de faux logos (WhatsApp en émoji, Orange Money en cercle
+inventé) et une promesse fausse sur la page de don n'avait pas de sens. Un build
+de plus coûte cinq minutes ; quatorze jours sur une version périmée, non.
+
+**Ce qui reste, et qui ne dépend plus du dépôt.** Les treize personnes doivent
+**cliquer le lien d'invitation et accepter** : figurer sur la liste ne les inscrit
+pas. Le compteur démarre au douzième inscrit et **repart de zéro** si l'un se
+désinscrit — ce n'est pas −1, c'est zéro. Avec 13 adresses pour 12 requis, la
+marge est d'une seule personne ; viser 15 ou 16.
+
+**À l'attention de tous les bureaux :** le chiffre « 0 testeur » cité dans les
+rondes précédentes reste le dernier chiffre VÉRIFIÉ (tableau de bord Play du
+27/07). Aucun bureau ne peut lire la Play Console. Tant que le Patron n'a pas
+collé un relevé, le seul énoncé honnête reste « à vérifier ».
