@@ -791,3 +791,63 @@ tenu depuis le 26/07, et le Secrétariat a produit une image de la semaine
 périmée de vingt-quatre heures — sur les points précis que la journée avait
 justement réglés. **Le journal se tient le jour même, ou la synthèse ment sans
 le savoir.**
+
+---
+
+## 28/07/2026 — Le cycle de vie d'un annonceur, et les recettes du site
+
+### Ce qui a été livré
+
+**Cycle de vie des publicités (Développement).** Un annonceur avait payé et
+n'avait reçu aucun e-mail — ni accusé de réception, ni validation. Le circuit
+couvre désormais six moments : réception, mise en ligne (avec la date **et
+l'heure** de fin), refus **avec motif**, rapport d'audience tous les 3 jours,
+rappel la veille de la fin, bilan après expiration. Deux tables neuves :
+`ad_stats` (vues et clics agrégés par jour) et `ad_mails` (journal des envois).
+
+**Prolongation.** Une bannière en cours peut être prolongée : les jours achetés
+s'ajoutent à la date de fin **existante**, pas à la date du paiement. Aucun jour
+payé n'est perdu, l'affichage ne s'interrompt pas, et la demande est fondue dans
+la bannière d'origine (statut `merged`) au lieu d'ouvrir une seconde bannière.
+
+**« Mes publicités »** dans le compte : dépense, affichages, clics, coût pour
+1 000 vues, graphique jour par jour et historique de chaque campagne.
+`/pub/:id` montre ces chiffres à son seul annonceur.
+
+**Recettes du site (onglet Administration, propriétaire uniquement).**
+Publicités encaissées + dons, total, et une colonne de pointage « retrouvé sur
+le relevé Mobile Money ».
+
+### Ce qui a été trouvé en vérifiant
+
+1. **Les statistiques d'une publicité étaient publiques.** N'importe qui pouvait
+   lire l'audience d'un annonceur — son concurrent compris — sur une page
+   indexable. Route restreinte au propriétaire (ou à un administrateur).
+2. **Une prolongation payée n'entrait pas dans le total dépensé.** Un annonceur
+   ayant versé 6 000 F en lisait 2 000. Le statut `merged` était exclu de la
+   somme.
+3. **Le premier rapport d'audience partait trop tôt.** `last_report_at` restait
+   vide à l'activation : le rapport suivait de quelques heures le « c'est en
+   ligne », chiffres à zéro. Il est désormais daté de la mise en ligne.
+4. **La reprise des anciens paiements se rejouait à chaque requête** et
+   re-cochait ce que le propriétaire venait de décocher. `pay_confirmed` a
+   maintenant trois états — jamais tranché / retrouvé / cherché et absent — au
+   lieu d'une simple date.
+5. **Le relevé du cron ne distinguait pas « rien à envoyer » de « la messagerie
+   est tombée ».** Compteur `echecs` ajouté.
+
+### Ce que le site ne peut pas savoir, et qu'il ne faut pas prétendre
+
+**Les dons ne laissent aucune trace ici.** La page `/don` affiche un numéro
+Mobile Money ; l'argent va du téléphone du donateur à l'opérateur, sans jamais
+passer par Chap.ci. Aucun code ne peut les compter. Ils se relèvent sur le
+compte Mobile Money et s'inscrivent à la main. De même, **aucune API Orange
+Money ou Wave n'est branchée** : la confirmation « cet argent est bien sur le
+compte » est et reste un pointage manuel. Un bureau qui écrirait le contraire se
+tromperait.
+
+### Problèmes ouverts (inchangés)
+- **2 testeurs sur les 12 requis** (P1) · canal de test fermé toujours pas créé
+- **mentions légales incomplètes** (P1, arbitrage du Patron) · **ARTCI** (P1)
+- Catalogue : 3 annonces, 1 vendeur, 1 commune — le vrai goulot, et il ne bouge
+  pas.

@@ -1059,6 +1059,20 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, ad_id $id, kind VARCHAR(24), email $txt,
       ok $intT, created_at $ts
     )$eng",
+    // Recettes SAISIES A LA MAIN — dons, virements, tout ce que le site ne peut
+    // pas connaitre tout seul.
+    //
+    // Un don ne laisse AUCUNE trace ici : la page /don affiche un numero, le
+    // donateur envoie l'argent depuis son telephone, et l'operation se passe
+    // entierement entre lui et Orange Money. Chap.ci n'est jamais dans la
+    // boucle. La seule facon honnete de les compter est donc de les relever sur
+    // le compte Mobile Money et de les inscrire ici. « confirmed » marque une
+    // ligne effectivement retrouvee sur le releve.
+    "CREATE TABLE IF NOT EXISTS revenues (
+      id $id PRIMARY KEY, kind VARCHAR(16), label $txt, amount $intT,
+      method VARCHAR(16), number $txt, occurred_at $ts, note $txt,
+      confirmed $intT, confirmed_at $ts, created_at $ts, created_by $txt
+    )$eng",
     "CREATE TABLE IF NOT EXISTS csp_reports (
       k VARCHAR(190) PRIMARY KEY, directive VARCHAR(64), blocked VARCHAR(190),
       n $intT, first_at $ts, last_at $ts
@@ -1220,6 +1234,29 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN last_report_at $ts"); } catch (Throwable $e) {}
   // E-mail de fin de campagne envoye une seule fois.
   try { $pdo->exec("ALTER TABLE ads ADD COLUMN expired_notified $txt"); } catch (Throwable $e) {}
+  // Rapprochement bancaire : ce versement a-t-il ete retrouve sur le releve
+  // Mobile Money ? Approuver une publicite, c'est deja avoir verifie le
+  // paiement — la date est donc posee automatiquement a l'approbation. Elle
+  // reste modifiable a la main : un paiement peut avoir ete annonce trop vite.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN pay_confirmed_at $ts"); } catch (Throwable $e) {}
+  // pay_confirmed a TROIS etats, et c'est deliberé :
+  //   NULL  jamais tranche     1  retrouve sur le releve     0  cherche, pas trouve
+  // Une simple date n'aurait su distinguer « pas encore regarde » de « regarde,
+  // et absent du releve » — or c'est exactement ce que le proprietaire veut
+  // pouvoir dire en decochant une ligne.
+  try { $pdo->exec("ALTER TABLE ads ADD COLUMN pay_confirmed $intT"); } catch (Throwable $e) {}
+  // Reprise de l'existant, UNE SEULE FOIS : les publicites deja diffusees ont
+  // ete approuvees, donc leur versement avait bien ete verifie. Sans cela, le
+  // releve afficherait « a verifier » sur toute l'histoire du site — un
+  // avertissement permanent que personne ne peut plus lever de memoire.
+  // La clause « pay_confirmed IS NULL » est ce qui empeche cette reprise de se
+  // rejouer a chaque requete et de recocher ce qu'on vient de decocher.
+  try {
+    $pdo->exec("UPDATE ads SET pay_confirmed = 1, pay_confirmed_at = starts_at
+                WHERE pay_confirmed IS NULL
+                  AND starts_at IS NOT NULL AND starts_at <> ''
+                  AND status IN ('active','expired','merged')");
+  } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
@@ -4729,6 +4766,150 @@ try {
       jout(['ok' => true]);
     }
 
+    // ------------------------------------------------------------------------
+    //  RECETTES DU SITE — ce que Chap.ci a réellement encaissé
+    //
+    //  Deux natures de recette, et elles ne se connaissent pas de la même façon.
+    //
+    //  Les PUBLICITÉS, le site les connaît : chaque bannière porte son prix, son
+    //  moyen de paiement et le numéro qui a payé. Rien à saisir.
+    //
+    //  Les DONS, le site ne les connaît PAS — et ce n'est pas un oubli. La page
+    //  /don affiche un numéro Mobile Money ; le donateur envoie l'argent depuis
+    //  son téléphone, directement à l'opérateur. Chap.ci n'est à aucun moment
+    //  dans la transaction : aucun serveur ne peut deviner qu'elle a eu lieu.
+    //  On les inscrit donc à la main, d'après le relevé Mobile Money.
+    //
+    //  D'où la colonne « confirmé » : elle ne dit pas « payé », elle dit
+    //  « retrouvé sur le relevé de l'opérateur ». C'est la seule preuve qui
+    //  vaille, et elle vient du téléphone du propriétaire, pas d'ici.
+    // ------------------------------------------------------------------------
+    //  Réservé au PROPRIÉTAIRE. Un modérateur modère ; il n'a pas à connaître
+    //  le chiffre d'affaires, ni les numéros de téléphone des payeurs.
+    if (str_starts_with($path, 'admin/revenues')) {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('Les recettes sont réservées au propriétaire du site.', 403);
+      }
+    }
+
+    if ($path === 'admin/revenues' && $method === 'GET') {
+      $depuis = trim((string) ($_GET['from'] ?? ''));   // AAAA-MM-JJ (facultatif)
+      $jusqua = trim((string) ($_GET['to'] ?? ''));
+      $borne = function (string $col) use ($depuis, $jusqua): array {
+        $w = []; $p = [];
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $depuis)) { $w[] = "$col >= ?"; $p[] = $depuis . 'T00:00:00Z'; }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $jusqua)) { $w[] = "$col <= ?"; $p[] = $jusqua . 'T23:59:59Z'; }
+        return [$w ? ' AND ' . implode(' AND ', $w) : '', $p];
+      };
+
+      // Publicités encaissées : payantes uniquement. Une diffusion maison
+      // (kind admin/seo) ou une demande refusée n'a jamais rapporté un franc.
+      [$wAds, $pAds] = $borne('created_at');
+      $st = $pdo->prepare("SELECT id,title,price,pay_method,pay_number,email,status,created_at,starts_at,pay_confirmed,pay_confirmed_at
+        FROM ads
+        WHERE price > 0 AND (kind IS NULL OR kind NOT IN ('admin','seo'))
+          AND status IN ('active','expired','merged')$wAds
+        ORDER BY created_at DESC LIMIT 500");
+      $st->execute($pAds);
+      $pubs = array_map(fn($r) => [
+        'id' => $r['id'], 'label' => ($r['title'] ?: '(bannière image seule)'),
+        'amount' => (int) $r['price'],
+        'method' => $r['pay_method'] ?: '', 'number' => $r['pay_number'] ?: '',
+        'email' => $r['email'] ?: null,
+        'status' => $r['status'],
+        'at' => iso_to_ms($r['starts_at'] ?: $r['created_at']),
+        'confirmed' => (int) ($r['pay_confirmed'] ?? 0) === 1,
+        'confirmedAt' => !empty($r['pay_confirmed_at']) ? iso_to_ms($r['pay_confirmed_at']) : null,
+      ], $st->fetchAll());
+
+      // Recettes saisies à la main (dons et autres).
+      [$wRev, $pRev] = $borne('occurred_at');
+      $st2 = $pdo->prepare("SELECT * FROM revenues WHERE 1 = 1$wRev ORDER BY occurred_at DESC LIMIT 500");
+      $st2->execute($pRev);
+      $manuelles = array_map(fn($r) => [
+        'id' => $r['id'], 'kind' => $r['kind'] ?: 'don', 'label' => (string) $r['label'],
+        'amount' => (int) $r['amount'], 'method' => $r['method'] ?: '', 'number' => $r['number'] ?: '',
+        'note' => (string) ($r['note'] ?? ''),
+        'at' => iso_to_ms($r['occurred_at'] ?: $r['created_at']),
+        'confirmed' => (int) ($r['confirmed'] ?? 0) === 1,
+        'confirmedAt' => !empty($r['confirmed_at']) ? iso_to_ms($r['confirmed_at']) : null,
+      ], $st2->fetchAll());
+
+      $somme = fn(array $l) => array_sum(array_map(fn($x) => (int) $x['amount'], $l));
+      $dons  = array_values(array_filter($manuelles, fn($x) => $x['kind'] === 'don'));
+      $autres = array_values(array_filter($manuelles, fn($x) => $x['kind'] !== 'don'));
+      $toutes = array_merge($pubs, $manuelles);
+      $confirmees = array_values(array_filter($toutes, fn($x) => $x['confirmed']));
+
+      // Recettes par mois : de quoi voir une tendance sans exporter quoi que ce soit.
+      $mois = [];
+      foreach ($toutes as $x) {
+        if (!$x['at']) continue;
+        $m = gmdate('Y-m', (int) ($x['at'] / 1000));
+        $mois[$m] = ($mois[$m] ?? 0) + (int) $x['amount'];
+      }
+      krsort($mois);
+      $parMois = [];
+      foreach (array_slice($mois, 0, 12, true) as $m => $v) $parMois[] = ['mois' => $m, 'total' => $v];
+
+      jout([
+        'pubs' => $pubs,
+        'dons' => $dons,
+        'autres' => $autres,
+        'totaux' => [
+          'pub' => $somme($pubs),
+          'don' => $somme($dons),
+          'autre' => $somme($autres),
+          'total' => $somme($toutes),
+          'confirme' => $somme($confirmees),
+          'aVerifier' => $somme($toutes) - $somme($confirmees),
+          'nbAVerifier' => count($toutes) - count($confirmees),
+        ],
+        'parMois' => array_reverse($parMois),
+      ]);
+    }
+
+    // Inscrire une recette relevée sur le compte Mobile Money (don, virement…).
+    if ($path === 'admin/revenues' && $method === 'POST') {
+      $b = body();
+      $montant = (int) ($b['amount'] ?? 0);
+      if ($montant <= 0) jerr('Indiquez le montant reçu.');
+      $kind = in_array($b['kind'] ?? '', ['don', 'pub', 'autre'], true) ? $b['kind'] : 'don';
+      $quand = trim((string) ($b['occurredAt'] ?? ''));
+      $quand = preg_match('/^\d{4}-\d{2}-\d{2}$/', $quand) ? $quand . 'T12:00:00Z' : now_iso();
+      $id = uuid();
+      $pdo->prepare('INSERT INTO revenues (id,kind,label,amount,method,number,occurred_at,note,confirmed,confirmed_at,created_at,created_by)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+          ->execute([$id, $kind,
+            mb_substr(trim((string) ($b['label'] ?? '')), 0, 120) ?: 'Don',
+            $montant,
+            in_array($b['method'] ?? '', ['orange', 'wave', 'mtn', 'moov', 'especes', 'autre'], true) ? $b['method'] : 'orange',
+            mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['number'] ?? '')), 0, 20),
+            $quand,
+            mb_substr(trim((string) ($b['note'] ?? '')), 0, 300),
+            // Saisi d'après le relevé : la ligne naît donc confirmée, sauf mention contraire.
+            array_key_exists('confirmed', $b) && empty($b['confirmed']) ? 0 : 1,
+            array_key_exists('confirmed', $b) && empty($b['confirmed']) ? null : now_iso(),
+            now_iso(), (string) ($u['email'] ?? '')]);
+      jout(['ok' => true, 'id' => $id]);
+    }
+
+    // Pointer / dépointer une recette (« retrouvée sur le relevé Mobile Money »).
+    if (count($seg) === 4 && $seg[1] === 'revenues' && $seg[3] === 'confirm' && $method === 'POST') {
+      $on = !empty(body()['confirmed']);
+      $pdo->prepare('UPDATE revenues SET confirmed = ?, confirmed_at = ? WHERE id = ?')
+          ->execute([$on ? 1 : 0, $on ? now_iso() : null, $seg[2]]);
+      // La même bascule vaut pour un paiement de publicité.
+      $pdo->prepare('UPDATE ads SET pay_confirmed = ?, pay_confirmed_at = ? WHERE id = ?')
+          ->execute([$on ? 1 : 0, $on ? now_iso() : null, $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    if (count($seg) === 3 && $seg[1] === 'revenues' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM revenues WHERE id = ?')->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
     // Publicités : demandes en attente d'abord, puis récentes.
     if ($path === 'admin/ads' && $method === 'GET') {
       $rows = $pdo->query("SELECT * FROM ads
@@ -4855,8 +5036,8 @@ try {
             ->execute([$expires, $cible]);
         // La demande de prolongation, elle, est classée : elle ne doit pas
         // apparaître comme une seconde bannière à l'écran.
-        $pdo->prepare("UPDATE ads SET status = 'merged', starts_at = ?, expires_at = ? WHERE id = ?")
-            ->execute([now_iso(), $expires, $seg[2]]);
+        $pdo->prepare("UPDATE ads SET status = 'merged', starts_at = ?, expires_at = ?, pay_confirmed = 1, pay_confirmed_at = ? WHERE id = ?")
+            ->execute([now_iso(), $expires, now_iso(), $seg[2]]);
         $src = $pdo->prepare('SELECT * FROM ads WHERE id = ?'); $src->execute([$cible]);
         $orig = $src->fetch() ?: $ad;
         send_ad_status_email($config, array_merge($orig, ['expires_at' => $expires]), 'active', $pdo);
@@ -4867,8 +5048,12 @@ try {
       // premier rapport d'audience part au prochain passage du cron — quelques
       // heures après le « c'est en ligne », avec des chiffres à zéro. On veut
       // le premier bilan à J+3, comme annoncé à l'annonceur.
-      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ?, expiry_notified = '', last_report_at = ? WHERE id = ?")
-          ->execute([now_iso(), $expires, now_iso(), $seg[2]]);
+      // pay_confirmed_at : approuver, c'est avoir verifie le versement sur le
+      // compte Mobile Money. La recette est donc pointee dans le meme geste,
+      // sans un second clic ailleurs — et reste depointable si l'on s'est
+      // trompe (voir l'onglet Recettes).
+      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ?, expiry_notified = '', last_report_at = ?, pay_confirmed = 1, pay_confirmed_at = ? WHERE id = ?")
+          ->execute([now_iso(), $expires, now_iso(), now_iso(), $seg[2]]);
       // Notification « en ligne » à l'annonceur (avec la date de fin).
       send_ad_status_email($config, array_merge($ad, ['expires_at' => $expires]), 'active', $pdo);
       jout(['ok' => true, 'expiresAt' => iso_to_ms($expires)]);

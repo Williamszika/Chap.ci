@@ -814,3 +814,20 @@ export async function phpDownloadBackup(file?: string): Promise<void> {
   a.remove()
   URL.revokeObjectURL(a.href)
 }
+
+// ---- Recettes du site (propriétaire uniquement) ----
+export async function phpAdminRevenues<T>(from = '', to = ''): Promise<T> {
+  const q = new URLSearchParams()
+  if (from) q.set('from', from)
+  if (to) q.set('to', to)
+  return req<T>(`/admin/revenues${q.toString() ? `?${q}` : ''}`)
+}
+export async function phpAdminRevenueAdd<T>(body: Record<string, unknown>): Promise<T> {
+  return req<T>('/admin/revenues', { method: 'POST', body })
+}
+export async function phpAdminRevenueConfirm(id: string, confirmed: boolean): Promise<void> {
+  await req(`/admin/revenues/${id}/confirm`, { method: 'POST', body: { confirmed } })
+}
+export async function phpAdminRevenueDelete(id: string): Promise<void> {
+  await req(`/admin/revenues/${id}`, { method: 'DELETE' })
+}
