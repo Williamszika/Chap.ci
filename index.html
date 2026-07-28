@@ -104,7 +104,94 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      ─────────────────────────────────────────────────────────────────────────
+       CE QUE LIT UN ROBOT — et pourquoi ce texte est ici
+
+       Chap.ci est une application d'une seule page : tout est construit par
+       JavaScript après le chargement. Un navigateur exécute ce JavaScript ;
+       BEAUCOUP DE ROBOTS NON. Mesuré le 28/07/2026, la page d'accueil ne
+       livrait que 114 CARACTÈRES de texte lisible — un titre et une accroche.
+       Une intelligence artificielle à qui l'on demandait « c'est quoi
+       Chap.ci ? » ouvrait cette page et ne trouvait littéralement rien à dire.
+
+       Ce bloc y remédie. Il est placé DANS #root : React le remplace dès qu'il
+       démarre, et l'écran de démarrage (#app-splash) le couvre entre-temps —
+       aucun visiteur ne le voit jamais. Ce n'est pas du camouflage : tout le
+       monde reçoit exactement le même HTML, y compris Google. C'est simplement
+       la seule version de la page qui existe avant que le JavaScript ne tourne.
+
+       RÈGLE : ce texte ne doit énoncer QUE des faits vérifiables. Pas de
+       « milliers d'annonces », pas d'audience inventée. Le catalogue est
+       petit ; la description dit ce que le site EST, pas ce qu'on aimerait
+       qu'il soit. Les liens pointent vers des pages réellement fabriquées par
+       le serveur (seo.php), pas vers des routes à dièse que les robots ne
+       savent pas suivre.
+      ─────────────────────────────────────────────────────────────────────────
+    -->
+    <div id="root">
+      <main>
+        <h1>Chap.ci — petites annonces en Côte d'Ivoire</h1>
+        <p>
+          Chap.ci est une place de marché <strong>100&nbsp;% ivoirienne</strong> pour acheter et
+          vendre <em>chap-chap</em> à Abidjan et partout en Côte d'Ivoire. Publier une annonce est
+          <strong>gratuit</strong> et prend deux minutes, avec ou sans compte.
+        </p>
+        <p>
+          Les acheteurs contactent directement le vendeur et paient par
+          <strong>Orange Money</strong> ou <strong>Wave</strong>, de la main à la main. Chap.ci ne
+          prend aucune commission sur les ventes et ne s'interpose jamais dans le paiement.
+        </p>
+
+        <h2>Ce que l'on trouve sur Chap.ci</h2>
+        <ul>
+          <li><a href="/vendre/telephones">Téléphones et accessoires</a></li>
+          <li><a href="/vendre/vehicules">Véhicules — voitures, motos, pièces</a></li>
+          <li><a href="/vendre/immobilier">Immobilier — location et vente</a></li>
+          <li><a href="/vendre/mode">Mode &amp; beauté — vêtements, chaussures, coiffure</a></li>
+          <li><a href="/vendre/electronique">Électronique et informatique</a></li>
+          <li><a href="/vendre/maison">Maison &amp; meubles</a></li>
+          <li><a href="/vendre/alimentation">Alimentation et produits du terroir</a></li>
+          <li><a href="/vendre/emploi">Emploi et petits boulots</a></li>
+          <li><a href="/vendre/services">Services — artisans, réparation, événementiel</a></li>
+          <li><a href="/vendre/sante">Santé &amp; bien-être</a></li>
+        </ul>
+
+        <h2>Où&nbsp;?</h2>
+        <p>
+          Dans les communes d'Abidjan —
+          <a href="/vendre/telephones/cocody">Cocody</a>,
+          <a href="/vendre/telephones/yopougon">Yopougon</a>,
+          <a href="/vendre/telephones/abobo">Abobo</a>,
+          <a href="/vendre/telephones/marcory">Marcory</a>,
+          <a href="/vendre/telephones/treichville">Treichville</a>,
+          <a href="/vendre/telephones/plateau">Plateau</a>,
+          <a href="/vendre/telephones/adjame">Adjamé</a>,
+          <a href="/vendre/telephones/koumassi">Koumassi</a>,
+          <a href="/vendre/telephones/port-bouet">Port-Bouët</a>,
+          <a href="/vendre/telephones/bingerville">Bingerville</a> —
+          et dans le reste du pays&nbsp;: Bouaké, Yamoussoukro, San-Pédro, Daloa, Korhogo,
+          Grand-Bassam, Man, Gagnoa.
+        </p>
+
+        <h2>Comment ça marche</h2>
+        <ol>
+          <li>Le vendeur publie son annonce avec des photos, un prix en FCFA et sa commune.</li>
+          <li>L'acheteur la trouve par la recherche, la catégorie ou la proximité.</li>
+          <li>Ils discutent dans la messagerie du site, sans échanger de numéro de téléphone.</li>
+          <li>Ils conviennent d'un lieu de remise et paient par Mobile Money.</li>
+        </ol>
+
+        <p>
+          <a href="/sitemap.xml">Plan du site</a> ·
+          <a href="/#/explorer">Voir les annonces</a> ·
+          <a href="/#/publier">Publier une annonce</a> ·
+          <a href="/#/aide">Aide</a> ·
+          <a href="/#/confidentialite">Confidentialité</a>
+        </p>
+        <p><small>Chap.ci — Abidjan, Côte d'Ivoire 🇨🇮 — contact@chap.ci</small></p>
+      </main>
+    </div>
     <div id="app-splash" aria-hidden="true">
       <svg viewBox="0 0 100 100" role="img" aria-label="Chap.ci">
         <defs>
