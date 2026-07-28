@@ -1665,7 +1665,11 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
             {/* Visuels supplémentaires */}
             {preview.images.length > 1 && (
               <div className="mt-2 grid grid-cols-3 gap-2">
-                {preview.images.map((im, i) => <img key={i} src={mediaUrl(im)} alt="" className="h-20 w-full rounded-lg object-cover" />)}
+                {/* object-contain, pas cover : le Patron doit voir le visuel ENTIER
+                    qu'un annonceur a payé, pas une bande recadrée au centre. */}
+                {preview.images.map((im, i) => (
+                  <img key={i} src={mediaUrl(im)} alt="" className="h-20 w-full rounded-lg bg-gray-100 object-contain" />
+                ))}
               </div>
             )}
 
