@@ -115,6 +115,25 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
    → visites, pages vues, ratio visites → nouvelles annonces (conversion
      visiteur→vendeur). Signale ce ratio à chaque ronde.
 
+   ⚠️ LIRE `topPages` SANS SE TROMPER — trois colonnes, pas deux.
+   Chaque page est ventilée en `connectes` / `visiteurs` / `inconnu`.
+     connectes  = vue mesurée, la personne était connectée
+     visiteurs  = vue mesurée, la personne n'était PAS connectée
+     inconnu    = vue NON MESURÉE — la ligne est antérieure au drapeau `authed`,
+                  déployé le 26/07/2026 au soir.
+   « inconnu » ne veut PAS dire « anonyme ». Ces lignes ne disent rien du tout :
+   elles sont muettes, pas négatives. Les compter comme des visiteurs non
+   connectés est une faute de lecture — elle a déjà été commise deux fois, les
+   27 et 28/07, et a fait conclure à un « mur de la création de compte » qui
+   n'était appuyé sur AUCUNE mesure.
+   Le stock d'« inconnu » est FIGÉ : il ne bougera plus jamais, puisqu'il
+   compte des lignes écrites avant le drapeau. S'il ne change pas d'une ronde à
+   l'autre, ce n'est pas un signal — c'est la preuve que tu regardes un vestige.
+   Règle : ne raisonne QUE sur `connectes + visiteurs`, annonce cette somme
+   comme ton échantillon réel, et si elle est inférieure à 30 vues, écris
+   explicitement « échantillon insuffisant, aucune conclusion » — n'en tire
+   aucune déduction et n'en transmets aucune aux autres bureaux.
+
 3) MOTS-CLÉS depuis les VRAIES annonces (skill seo-ivoirien)
    - Croise : catégorie + commune (« canapé Angré »), marque + modèle (titres
      réels), intention + prix (« moins de 50 000 FCFA »), variantes ivoiriennes

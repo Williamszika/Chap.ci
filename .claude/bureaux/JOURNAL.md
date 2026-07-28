@@ -847,7 +847,60 @@ compte » est et reste un pointage manuel. Un bureau qui écrirait le contraire 
 tromperait.
 
 ### Problèmes ouverts (inchangés)
-- **2 testeurs sur les 12 requis** (P1) · canal de test fermé toujours pas créé
+- **Testeurs : nombre INCONNU depuis le dépôt** (P1) · canal de test fermé toujours
+  pas créé. Correction de ma propre écriture du matin, qui annonçait « 2 testeurs » :
+  le Patron m'avait transmis deux adresses, mais je lui avais moi-même dit que je ne
+  pouvais pas les inscrire — seule la Play Console le peut. Deux adresses reçues ne
+  sont pas deux testeurs inscrits. Le dernier chiffre VÉRIFIÉ est celui du tableau de
+  bord Play collé le 27/07 : « 0 testeur actuellement inscrit ». Aucun bureau ne peut
+  lire la Play Console : le seul énoncé honnête est « à vérifier par le Patron ».
 - **mentions légales incomplètes** (P1, arbitrage du Patron) · **ARTCI** (P1)
 - Catalogue : 3 annonces, 1 vendeur, 1 commune — le vrai goulot, et il ne bouge
   pas.
+
+---
+
+### 2026-07-28 13:30 — [Croissance] 📣 Le Crieur, ronde traitée
+
+**Vérifié et confirmé.** Catalogue : 4 annonces (contre 3 depuis trois rondes),
+2 vendeurs (« Grâce colombe », « Flan sahi »), 2 communes (Bingerville + **Cocody**,
+première annonce hors Bingerville), 2 catégories. Sitemap : 350 URL. robots.txt :
+`Allow: /` + `Sitemap:` présents. Le premier mouvement du catalogue depuis le 23/07.
+
+**Trois corrections.**
+
+1. **`inconnu` ≠ « anonyme ».** Le Crieur lit « /publier : 139 vues → 1 connecté,
+   5 visiteurs, 133 inconnus » et conclut que « l'écrasante majorité des vues sont
+   anonymes — le mur est la création de compte », puis transmet cette déduction aux
+   bureaux Support et Données. C'est la faute déjà corrigée le 27/07. Les 133
+   « inconnu » sont des lignes écrites **avant** le drapeau `authed` (26/07 au soir) :
+   elles ne sont pas anonymes, elles sont **muettes**. Preuve arithmétique : ce chiffre
+   valait déjà 133 le 27/07 et n'a pas bougé — c'est un stock figé, pas un flux.
+   L'échantillon réellement mesuré est **6 vues** (1 + 5). On ne conclut rien sur un
+   mur avec six observations. Prompt du bureau corrigé : lecture des trois colonnes,
+   seuil de 30 vues avant toute déduction.
+
+2. **`STORE-LISTING.txt` n'était pas en erreur.** Le Crieur propose de corriger
+   « l'explorateur affiche 3 annonces » en 4. Or ce fichier décrit **ce que montrent
+   les captures**, pas l'état du catalogue — et la capture montrait bien 3. Sa
+   correction aurait introduit le mensonge qu'elle prétendait retirer. Le vrai défaut
+   était ailleurs : la capture était périmée. Elle a été refaite (4 annonces, 2
+   communes, grille pleine), et le texte suit.
+
+3. **Comparaison de prix bancale.** « 30 000 F contre 15 000–18 000 F sur Jiji et
+   CoinAfrique » : les quatre annonces de Chap.ci sont déclarées **neuves**, et le
+   rapport ne dit pas l'état des annonces comparées. Un modèle neuf plus cher qu'un
+   modèle d'occasion n'est pas une anomalie. À reprendre à état égal, ou à ne pas
+   énoncer.
+
+**Point d'infrastructure à ne pas classer « neutre ».** Cloudflare a inséré un bloc
+géré dans `robots.txt` : `Content-Signal: search=yes,ai-train=no,use=reference`, plus
+un `Disallow: /` pour GPTBot, ClaudeBot, Google-Extended, CCBot, Bytespider,
+meta-externalagent, Amazonbot et Applebot-Extended. Le référencement Google classique
+n'est pas touché — mais **Chap.ci est désormais absent des réponses des assistants
+IA**, y compris des aperçus IA de Google (c'est ce que gouverne `Google-Extended`).
+Pour une place de marché qui cherche à être trouvée, c'est un arbitrage de croissance,
+pas un détail d'hébergement. **Décision à prendre par le Patron**, dans les deux sens.
+
+**Idée retenue :** viser « huile rouge bio Bingerville » plutôt que « Vans Cocody »,
+déjà tenu par Jiji et CoinAfrique. Longue traîne locale, sans concurrent direct connu.

@@ -88,9 +88,10 @@ Captures d'écran            → store/captures/   (regénérées le 27/07)
   Prises sur l'interface RÉELLE, avec les VRAIES annonces en production.
 
 ⚠️ CE QUE CES CAPTURES MONTRENT, ET QU'IL FAUT SAVOIR
-  • L'explorateur affiche « 3 annonces ». C'est la vérité du catalogue.
-  • La fiche annonce affiche « Aucune description fournie » : le vendeur
-    n'en a pas écrit.
+  • L'explorateur affiche « 4 annonces », sur 2 communes (Cocody, Bingerville).
+    C'est la vérité du catalogue au 28/07/2026.
+  • La fiche annonce (Vans, Cocody) montre trois photos, une description
+    rédigée et le bouton « Voir en grand » introduit en v1.3.
   • Le bandeau noir de l'accueil affiche « FAIS TA PROMO ICI CHAP-CHAP »,
     c'est-à-dire un emplacement publicitaire encore libre.
   Aucun de ces trois points ne se corrige dans un logiciel de retouche :
