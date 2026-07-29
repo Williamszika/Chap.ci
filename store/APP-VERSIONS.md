@@ -60,6 +60,29 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.5 — versionCode 6
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `928585a` |
+| Date du build | 29 juillet 2026 |
+| Poids de l'AAB | 6,6 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **destinée au canal de TEST FERMÉ** |
+
+**Pourquoi une v1.5 le lendemain.** Le canal de test fermé n'avait toujours pas
+de release au 29/07 à 14 h : rien n'était donc en examen, et rien n'empêchait de
+livrer la version complète. Or ce canal engage douze personnes pendant quatorze
+jours — autant qu'elles gardent la meilleure version, pas une déjà en retard de
+trois correctifs.
+
+**En plus de la v1.4 :** glissement gauche/droite entre les onglets ; sept
+correctifs d'ergonomie (boutons portés à 44 px, contraste des libellés porté de
+2,6:1 à 4,83:1) ; correction de la phrase « publier avec ou sans compte », qui
+était fausse.
+
+---
+
 ## v1.4 — versionCode 5
 
 | Champ | Valeur |
