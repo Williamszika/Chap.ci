@@ -117,10 +117,17 @@ rurale) · `commune` ⚠️ · `quartier` ⚠️ · `surface` · `habitable` ⚠
 `sdb` ⚠️ · `etat` ⚠️
 
 ### 2. Le dossier foncier (vente uniquement) ⚠️
-`doc` (les 9 documents, filtrés par zone) · `numero` · `lotissement` · `lot` ·
-`idufci` · `titulaire` (Moi-même / Un parent — succession / Ma société / Un tiers —
-procuration) · `bornage` (Borné par un géomètre agréé / Non borné / Je ne sais pas) ·
-`plan` · `permis` · `conformite`
+`docs` **(choix multiple)** — les 9 documents, filtrés par zone. Un vendeur détient
+souvent plusieurs pièces à la fois (une ADU **et** la lettre d'attribution, par
+exemple) : il les coche toutes. « Aucun document » est exclusif dans les deux sens.
+Le verdict affiché est celui du **meilleur** document coché ; si le vendeur en coche
+plusieurs, l'acheteur reçoit un contrôle supplémentaire — vérifier qu'ils désignent
+bien la même parcelle.
+
+`numeros` — un numéro **obligatoire** par document coché qui en porte un ·
+`lotissement` · `lot` · `idufci` **obligatoire** · `titulaire` (Moi-même / Un parent
+— succession / Ma société / Un tiers — procuration) · `bornage` (Borné par un
+géomètre agréé / Non borné / Je ne sais pas) · `plan` · `permis` · `conformite`
 
 ### 3. Situation ⚠️
 `juridique` (Libre de tout litige / Succession en cours / Litige en cours /
@@ -131,9 +138,18 @@ Hypothèque en cours) · `occupation` · `acces` · `viabilisation` (choix multi
 multiple) · `vendeur` ⚠️
 
 ### 5. Engagement du vendeur ⚠️
-Trois cases obligatoires, dont celle-ci, qui doit rester mot pour mot :
-« Je comprends que **Chap.ci ne vérifie aucun document** et ne garantit aucune
-vente. »
+Trois cases **bloquantes** : sans les trois, la publication est refusée. Le bouton
+« Publier » reste visible mais grisé, et le clic emmène le vendeur au premier champ
+manquant plutôt que de le laisser chercher.
+
+Celle-ci doit rester mot pour mot : « Je comprends que **Chap.ci ne vérifie aucun
+document** et ne garantit aucune vente. »
+
+### 6. Menu dépliant sous chaque annonce ⚠️
+Sous la fiche, un `<details>` « Comprendre les documents fonciers » reprend
+l'intégralité du guide : tableau des neuf documents, réforme de 2025, cinq arnaques,
+liens de vérification gratuite. Même contenu que l'onglet Documents, servi par la
+même fonction — une seule source, pas deux textes qui divergent.
 
 ---
 
@@ -152,9 +168,25 @@ formulaire :
    son verdict (`ok` / `warn` / `bad`), sa description et le conseil affiché à
    l'acheteur. Une simple liste de chaînes ne suffit pas.
 
-Il faudra aussi, côté serveur, décider si l'attribut `doc` est repris dans les
+Il faudra aussi, côté serveur, décider si l'attribut `docs` est repris dans les
 filtres de recherche (« terrain avec ACD ») — ce serait un argument commercial
 réel, et gratuit.
+
+---
+
+## 7 bis. L'IDUFCI obligatoire — la réserve à garder en tête
+
+L'IDUFCI est exigé à la publication, sur demande du Patron. La conséquence est
+connue et assumée : **un vendeur dont l'ACD ou le titre foncier est antérieur à
+2019 n'a pas ce numéro sur ses papiers**, et la plateforme qui le délivre n'est
+ouverte qu'aux géomètres, notaires et banques. Il devra passer par son notaire
+avant de pouvoir publier.
+
+C'est un filtre volontaire : il écarte le vendeur pressé en même temps que
+l'escroc. Si le terrain montre qu'il écarte surtout des vendeurs honnêtes, la
+soupape la moins coûteuse est une case « Je ne l'ai pas encore » qui laisse
+publier, en affichant la mention sur la fiche — l'acheteur reste informé, le
+vendeur n'est plus bloqué.
 
 ---
 
