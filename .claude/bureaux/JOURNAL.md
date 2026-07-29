@@ -986,3 +986,54 @@ Analytics dans le tableau de bord Cloudflare. C'est une décision du Patron.
 La conclusion (ce n'est pas une attaque) est juste — le TLD `.invalid` ne résout
 nulle part, aucun script n'a pu s'exécuter — mais elle est juste par chance.
 Une coïncidence de dates n'est pas un lien de cause.
+
+---
+
+### 2026-07-29 02:10 — [Design & Typographie] 🎨 L'Atelier, ronde appliquée
+
+**Les sept points sont exacts et tous appliqués.** Le bureau a travaillé sur le
+code faute de pouvoir atteindre le rendu (403 du proxy de session), et il a
+prévenu — mention correcte, aucune conclusion tirée d'un rendu supposé.
+
+**Cibles tactiles (P1).** Trois boutons flottants de la fiche annonce (retour,
+partager, favori) mesuraient 40 px ; les boutons « Retour » de la messagerie et
+de la conversation n'avaient aucune dimension explicite (≈30 px réels) ; l'œil
+du mot de passe de l'inscription était à 36 px. Tous portés à 44 px, avec le
+retour tactile `active:scale-90` déjà en place sur le cœur de `ListingCard`.
+
+L'argument le plus juste de son rapport n'est pas « c'est sous le seuil » mais
+**« c'est plus petit que le bouton IDENTIQUE déjà corrigé sur `Profile.tsx` »**.
+Ce n'était pas un manque, c'était un écart interne — et un écart se corrige sans
+arbitrage.
+
+**Contraste (P2).** `text-gray-400` (≈2,6:1 sur blanc) sur trois textes qui
+PORTENT DU SENS : les libellés d'attributs de la fiche (« État », « Livraison »),
+le lien « élargir la recherche » — **seule issue** d'une recherche sans
+résultat — et le bouton « Signaler cette annonce ». Passés en `gray-500`.
+
+**Vérifié dans un vrai navigateur, pas sur le code** — parce qu'écrire `h-11` ne
+prouve pas 44 px :
+
+| Mesure | Résultat |
+|---|---|
+| Retour · Partager · Favori (fiche) | **44 × 44 px** |
+| Retour (messagerie) | **44 × 44 px** |
+| Contraste du libellé « État » | **4,83:1** — au-dessus du seuil AA de 4,5 |
+
+Le chiffre annoncé par le bureau (« ≈4,8:1 ») était juste au centième près.
+
+**Ce qu'il faut lui garder.** Il cite `ListingCard.tsx` comme modèle : cible
+tactile réelle de 44 px sur le `<button>`, badge visuel de 32 px sur le `<span>`
+à l'intérieur. C'est la bonne façon de garder un repère fin à l'œil sans
+sacrifier le pouce, et c'est la règle à appliquer aux prochains boutons
+flottants.
+
+**Chantiers ouverts, inchangés :** `hover:` sans `md:` (~106-113 occurrences, en
+attente d'arbitrage du Patron) ; tri des `text-gray-400` restants (162 après ce
+lot, à raison de 2-3 fichiers par ronde — la consigne de ne PAS faire de
+remplacement global tient, la majorité étant du décor légitime).
+
+**Signalé au passage, hors périmètre Design :** le catalogue est passé à
+**7 annonces et 3 vendeurs** (contre 4 et 2 la veille), avec deux catégories
+neuves — un pantalon et un terrain à 2 000 000 F. Premier mouvement soutenu
+depuis la création des bureaux.

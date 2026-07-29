@@ -200,7 +200,7 @@ export function Register() {
             <div className="relative">
               <Lock size={18} className="absolute left-3 top-3.5 text-gray-400" />
               <input id="reg-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="input pl-10 pr-11" autoComplete="new-password" />
-              <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Voir le mot de passe'} className="absolute right-2 top-1.5 grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:text-gray-600">
+              <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Voir le mot de passe'} className="absolute right-1 top-0.5 grid h-11 w-11 place-items-center rounded-lg text-gray-400 md:hover:text-gray-600">
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>

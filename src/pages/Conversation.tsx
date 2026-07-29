@@ -118,7 +118,7 @@ export function Conversation() {
       <div className="flex min-h-screen flex-col bg-cream-200 md:h-[calc(100vh-7rem)] md:min-h-0 md:overflow-hidden md:rounded-3xl md:border md:border-line md:bg-white md:shadow-card">
           {/* En-tête — bouton « retour » vers la liste des conversations */}
           <header className="safe-top sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-white/90 px-3 py-2.5 backdrop-blur-md md:rounded-t-3xl">
-            <button onClick={() => navigate('/messages')} aria-label="Retour" className="-ml-1 p-1">
+            <button onClick={() => navigate('/messages')} aria-label="Retour" className="-ml-1 grid h-11 w-11 shrink-0 place-items-center rounded-full transition md:hover:bg-cream-100">
               <ArrowLeft size={22} />
             </button>
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-base font-bold text-white">

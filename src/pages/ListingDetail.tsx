@@ -325,7 +325,7 @@ export function ListingDetail() {
             {/* Retour (mobile) */}
             <button
               onClick={() => navigate(-1)}
-              className="absolute left-3 top-3 z-30 grid h-10 w-10 place-items-center rounded-full bg-white/95 shadow md:hidden"
+              className="absolute left-3 top-3 z-30 grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow transition active:scale-90 md:hidden"
               aria-label="Retour"
             >
               <ArrowLeft size={20} />
@@ -335,14 +335,14 @@ export function ListingDetail() {
             <div className="absolute right-3 top-3 z-30 flex gap-2">
               <button
                 onClick={() => setShareOpen(true)}
-                className="grid h-10 w-10 place-items-center rounded-full bg-white/95 shadow md:hidden"
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow transition active:scale-90 md:hidden"
                 aria-label="Partager"
               >
                 <Share2 size={19} />
               </button>
               <button
                 onClick={() => toggleFavorite(listing.id)}
-                className="grid h-10 w-10 place-items-center rounded-full bg-white/95 shadow"
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/95 shadow transition active:scale-90"
                 aria-label={fav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
               >
                 <Heart size={19} className={fav ? 'fill-red-500 text-red-500' : 'text-gray-700'} />
@@ -442,7 +442,7 @@ export function ListingDetail() {
             <dl className="mt-5 grid grid-cols-2 gap-3">
               {attrItems.map((a) => (
                 <div key={a.label} className="rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
-                  <dt className="text-xs text-gray-400">{a.label}</dt>
+                  <dt className="text-xs text-gray-500">{a.label}</dt>
                   <dd className="mt-0.5 font-semibold text-gray-900">{a.value}</dd>
                 </div>
               ))}
@@ -735,7 +735,7 @@ function ReportButton({ listingId }: { listingId: string }) {
     return (
       <button
         onClick={() => (user ? setOpen(true) : navigate('/connexion'))}
-        className="mt-4 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-400 hover:text-red-500"
+        className="mt-4 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-500 md:hover:text-red-500"
       >
         <Flag size={13} /> Signaler cette annonce
       </button>

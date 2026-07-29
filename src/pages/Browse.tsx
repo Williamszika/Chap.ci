@@ -359,7 +359,7 @@ export function Browse() {
                 setQInput('')
                 setParams(new URLSearchParams(), { replace: true })
               }}
-              className="mt-1 text-sm font-medium text-gray-400 underline"
+              className="mt-1 text-sm font-medium text-gray-500 underline"
             >
               Élargir la recherche / réinitialiser les filtres
             </button>

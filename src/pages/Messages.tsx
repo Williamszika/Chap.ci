@@ -24,7 +24,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
   return (
     <div className="flex h-full flex-col">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-white/90 px-3 py-3 backdrop-blur-md md:rounded-t-3xl">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="-ml-1 p-1 md:hidden">
+        <button onClick={() => navigate(-1)} aria-label="Retour" className="-ml-1 grid h-11 w-11 shrink-0 place-items-center rounded-full transition md:hidden md:hover:bg-cream-100">
           <ArrowLeft size={22} />
         </button>
         <h1 className="font-display text-lg font-extrabold text-ink">Messages</h1>
