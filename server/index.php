@@ -6669,7 +6669,27 @@ try {
     jout(['ok' => true]);
   }
 
-  if ($path === '' || $path === 'health') jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION]);
+  // Santé — et EMPREINTE du fichier réellement servi.
+  //
+  // Deux fois aujourd'hui il a fallu deviner si un correctif était vraiment en
+  // production : le zip est extrait à la main, et rien côté serveur ne disait
+  // quelle version tournait. L'empreinte est le md5 de ce fichier-ci ; elle se
+  // compare en une commande à celle du dépôt :
+  //
+  //     md5sum server/index.php    (les 12 premiers caractères)
+  //
+  // Elle n'expose rien : c'est une somme de contrôle d'un fichier que le
+  // serveur exécute déjà, pas un secret. `depose` est sa date d'écriture sur
+  // le disque — donc l'heure réelle de l'extraction du zip.
+  if ($path === '' || $path === 'health') {
+    $empreinte = ''; $depose = null;
+    $moi = @file_get_contents(__FILE__);
+    if ($moi !== false) $empreinte = substr(md5($moi), 0, 12);
+    $t = @filemtime(__FILE__);
+    if ($t) $depose = gmdate('Y-m-d\TH:i:s\Z', $t);
+    jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION,
+          'empreinte' => $empreinte, 'depose' => $depose]);
+  }
 
   jerr('Route inconnue: ' . $path, 404);
 } catch (Throwable $e) {

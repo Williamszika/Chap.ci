@@ -122,6 +122,24 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    - Accueil, /api/health, sitemap.xml : codes HTTP et version PHP.
    - Une anomalie de disponibilité est P1 immédiate.
 
+   ÉCART DÉPÔT / PRODUCTION — la question se règle en une commande.
+   `/api/health` renvoie `empreinte` : les 12 premiers caractères du md5 du
+   `index.php` RÉELLEMENT servi, et `depose`, l'heure où le fichier a été écrit
+   sur le disque (donc l'heure d'extraction du zip).
+
+       curl -sS https://chap.ci/api/health          → "empreinte"
+       md5sum server/index.php | cut -c1-12         → l'attendu du dépôt
+
+   Identiques : la production exécute bien le code du dépôt, il n'y a rien à
+   dire. Différentes : le zip n'a pas été poussé, ou l'extraction a échoué —
+   dis-le en une ligne, avec les deux valeurs et `depose`. N'invente jamais un
+   déploiement à partir d'un en-tête ou d'un comportement observé : c'est ce
+   raisonnement indirect qui a coûté une ronde le 29/07. L'empreinte est la
+   seule preuve.
+
+   Elle n'expose rien : c'est la somme de contrôle d'un fichier que le serveur
+   exécute déjà, pas un secret.
+
 3) SÉCURITÉ (fenêtre 24 h)
    curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' 'https://chap.ci/api/cron/security?days=1'
    → tentatives échouées, IP suspectes, failRatio, rate-limited, intégrité des
