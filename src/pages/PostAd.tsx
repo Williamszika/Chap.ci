@@ -210,6 +210,24 @@ export function PostAd() {
   const champsVisibles = form.fields.filter((f) => !f.when || f.when(attrs))
   const venteFonciere = categoryId === 'immobilier' && attrs.transaction === 'Vente'
 
+  /**
+   * En immobilier, la sous-catégorie dit déjà s'il s'agit d'une vente ou d'une
+   * location. La reposer en « Type d'offre » revient à demander deux fois la
+   * même chose — et tant qu'on n'y répondait pas une seconde fois, le dossier
+   * foncier restait invisible : le vendeur ne découvrait la moitié du
+   * formulaire qu'au moment de publier.
+   *
+   * On déduit donc la réponse de la sous-catégorie. « Bureaux & Commerces » et
+   * « Toutes » ne tranchent pas : on ne devine rien, les puces restent à remplir.
+   */
+  function deduireTransaction(sub: string) {
+    if (categoryId !== 'immobilier') return
+    const vente = ['Vente', 'Terrains'].includes(sub)
+    const location = ['Location', 'Colocation', 'Location vacances'].includes(sub)
+    if (vente) setAttr('transaction', 'Vente')
+    else if (location) setAttr('transaction', 'Location')
+  }
+
   // Sélectionne une catégorie et réinitialise ce qui en dépend.
   function pickCategory(id: string) {
     setCategoryId(id)
@@ -642,7 +660,7 @@ export function PostAd() {
             id="pa-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex : iPhone 13 Pro 256 Go comme neuf"
+            placeholder={form.titlePlaceholder ?? 'Ex : iPhone 13 Pro 256 Go comme neuf'}
             className="input"
             maxLength={80}
           />
@@ -683,7 +701,7 @@ export function PostAd() {
                 <button
                   key={s}
                   type="button"
-                  onClick={() => setSubcategory(s)}
+                  onClick={() => { setSubcategory(s); deduireTransaction(s) }}
                   className={`chip ${subcategory === s ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
                 >
                   {s}

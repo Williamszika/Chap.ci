@@ -39,6 +39,13 @@ export interface AttrField {
 }
 
 export interface CategoryForm {
+  /**
+   * Exemple de titre, montré en filigrane dans le champ « Titre de l'annonce ».
+   * Il doit parler de CE QUE l'on vend : un exemple d'iPhone au-dessus d'un
+   * formulaire de terrain n'aide personne et donne l'impression d'un site qui
+   * ne regarde pas ce qu'on lui dit.
+   */
+  titlePlaceholder?: string
   /** Afficher le sélecteur État (occasion / neuf). */
   condition: boolean
   /** Afficher l'option « Livraison possible ». */
@@ -54,6 +61,7 @@ const DEFAULT: CategoryForm = { condition: true, delivery: true, fields: [] }
 
 export const categoryForms: Record<string, CategoryForm> = {
   vehicules: {
+    titlePlaceholder: 'Ex : Toyota Corolla 2015, essence, 120 000 km',
     condition: true,
     delivery: false,
     fields: [
@@ -76,6 +84,7 @@ export const categoryForms: Record<string, CategoryForm> = {
   //  Une LOCATION ne déclenche rien de tout cela.
   // ---------------------------------------------------------------------------
   immobilier: {
+    titlePlaceholder: 'Ex : Terrain 500 m² à Bingerville, ACD',
     condition: false,
     delivery: false,
     priceLabel: 'Prix / Loyer (FCFA)',
@@ -152,6 +161,7 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   telephones: {
+    titlePlaceholder: 'Ex : iPhone 13 Pro 256 Go comme neuf',
     condition: true,
     delivery: true,
     fields: [
@@ -161,6 +171,7 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   electronique: {
+    titlePlaceholder: 'Ex : Ordinateur portable HP 15 pouces, 8 Go',
     condition: true,
     delivery: true,
     fields: [
@@ -169,11 +180,13 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   maison: {
+    titlePlaceholder: 'Ex : Salon 5 places en cuir, très bon état',
     condition: true,
     delivery: true,
     fields: [{ key: 'materiau', label: 'Matière', type: 'text', placeholder: 'Ex : Bois, métal, cuir, rotin…' }],
   },
   mode: {
+    titlePlaceholder: 'Ex : Pagne wax 6 yards, neuf',
     condition: true,
     delivery: true,
     fields: [
@@ -183,6 +196,7 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   emploi: {
+    titlePlaceholder: 'Ex : Caissière — supermarché à Cocody',
     condition: false,
     delivery: false,
     priceLabel: 'Salaire (FCFA / mois)',
@@ -194,6 +208,7 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   services: {
+    titlePlaceholder: 'Ex : Plombier — dépannage à domicile, Abidjan',
     condition: false,
     delivery: false,
     priceLabel: 'Tarif (FCFA)',
@@ -204,11 +219,13 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   'materiel-pro': {
+    titlePlaceholder: 'Ex : Groupe électrogène 5 kVA, peu servi',
     condition: true,
     delivery: true,
     fields: [{ key: 'marque', label: 'Marque', type: 'text', placeholder: 'Ex : Bosch, Caterpillar…' }],
   },
   alimentation: {
+    titlePlaceholder: 'Ex : Huile rouge de Man, bidon de 5 litres',
     condition: false,
     delivery: true,
     fields: [
@@ -217,6 +234,7 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   agriculture: {
+    titlePlaceholder: 'Ex : Semences de maïs, sac de 25 kg',
     // Produits agricoles (récoltes, semences, aliments) : « occasion / neuf »
     // n'a pas de sens.
     condition: false,
@@ -224,6 +242,7 @@ export const categoryForms: Record<string, CategoryForm> = {
     fields: [{ key: 'quantite', label: 'Quantité disponible', type: 'text', placeholder: 'Ex : 50 kg, 1 tonne…' }],
   },
   animaux: {
+    titlePlaceholder: 'Ex : Chiot berger allemand, 3 mois, vacciné',
     condition: false,
     delivery: false,
     fields: [
@@ -233,11 +252,13 @@ export const categoryForms: Record<string, CategoryForm> = {
     ],
   },
   loisirs: {
+    titlePlaceholder: 'Ex : Vélo VTT 26 pouces, bon état',
     condition: true,
     delivery: true,
     fields: [{ key: 'marque', label: 'Marque', type: 'text', placeholder: 'Ex : Adidas, Yamaha… (optionnel)' }],
   },
   bebe: {
+    titlePlaceholder: 'Ex : Poussette 3 roues, pliable',
     condition: true,
     delivery: true,
     fields: [{ key: 'age', label: 'Âge recommandé', type: 'text', placeholder: 'Ex : 0-6 mois, 2 ans…' }],
