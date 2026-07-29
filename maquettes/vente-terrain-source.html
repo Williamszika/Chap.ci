@@ -1,0 +1,1111 @@
+<title>Chap.ci — Vendre un terrain ou une maison</title>
+
+<style>
+__FONTS__
+
+/* ============================================================
+   Jetons — repris du système Chap.ci (tailwind.config.js) :
+   orange #F77F00, vert ivoire #009E60, encre #1B1A17, crème,
+   lignes chaudes #EFE6D7 / #E6DAC6, ombres brunes.
+   Les couleurs d'état (sûr / à régulariser / non sécurisé) sont
+   volontairement distinctes de l'orange de marque : l'orange ne
+   sert qu'aux commandes, jamais à qualifier un dossier.
+   ============================================================ */
+:root{
+  --bg:#FFFDF9; --bg2:#FFF6EA; --surface:#FFFFFF; --surface2:#FFFBF4;
+  --ink:#1B1A17; --ink2:#4B4238; --muted:#877868;
+  --line:#EFE6D7; --line2:#E2D5BE;
+  --accent:#F77F00; --on-accent:#FFFFFF; --accent-soft:#FFF1DE;
+  --ok:#00714A; --ok-bg:#E3F3EB; --ok-line:#B4DDC9;
+  --warn:#8A4A12; --warn-bg:#F8EAD5; --warn-line:#E4C89C;
+  --bad:#A5360A; --bad-bg:#FBE4D9; --bad-line:#EDB9A2;
+  --shadow:0 1px 3px rgba(60,40,10,.09),0 1px 2px rgba(60,40,10,.05);
+  --shadow-lg:0 14px 36px -12px rgba(120,70,10,.30),0 6px 14px -8px rgba(120,70,10,.18);
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#14120F; --bg2:#191612; --surface:#1F1B16; --surface2:#241F19;
+    --ink:#F6F0E6; --ink2:#D5CABA; --muted:#9C8E7C;
+    --line:#2E2820; --line2:#3E362A;
+    --accent:#FF9426; --on-accent:#1B1207; --accent-soft:#37280F;
+    --ok:#5CCE9B; --ok-bg:#12271E; --ok-line:#28563F;
+    --warn:#E2AC63; --warn-bg:#2D2113; --warn-line:#59422A;
+    --bad:#F28A60; --bad-bg:#2F1A11; --bad-line:#663625;
+    --shadow:0 1px 3px rgba(0,0,0,.45);
+    --shadow-lg:0 14px 36px -12px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14120F; --bg2:#191612; --surface:#1F1B16; --surface2:#241F19;
+  --ink:#F6F0E6; --ink2:#D5CABA; --muted:#9C8E7C;
+  --line:#2E2820; --line2:#3E362A;
+  --accent:#FF9426; --on-accent:#1B1207; --accent-soft:#37280F;
+  --ok:#5CCE9B; --ok-bg:#12271E; --ok-line:#28563F;
+  --warn:#E2AC63; --warn-bg:#2D2113; --warn-line:#59422A;
+  --bad:#F28A60; --bad-bg:#2F1A11; --bad-line:#663625;
+  --shadow:0 1px 3px rgba(0,0,0,.45);
+  --shadow-lg:0 14px 36px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#FFFDF9; --bg2:#FFF6EA; --surface:#FFFFFF; --surface2:#FFFBF4;
+  --ink:#1B1A17; --ink2:#4B4238; --muted:#877868;
+  --line:#EFE6D7; --line2:#E2D5BE;
+  --accent:#F77F00; --on-accent:#FFFFFF; --accent-soft:#FFF1DE;
+  --ok:#00714A; --ok-bg:#E3F3EB; --ok-line:#B4DDC9;
+  --warn:#8A4A12; --warn-bg:#F8EAD5; --warn-line:#E4C89C;
+  --bad:#A5360A; --bad-bg:#FBE4D9; --bad-line:#EDB9A2;
+  --shadow:0 1px 3px rgba(60,40,10,.09),0 1px 2px rgba(60,40,10,.05);
+  --shadow-lg:0 14px 36px -12px rgba(120,70,10,.30),0 6px 14px -8px rgba(120,70,10,.18);
+  color-scheme:light;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg2); color:var(--ink);
+  font-family:'Inter Variable',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-size:16px; line-height:1.55; overflow-x:hidden;
+  font-feature-settings:'cv05' 1;
+}
+h1,h2,h3,.display{font-family:'Jakarta Variable','Inter Variable',system-ui,sans-serif;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+:where(a){color:var(--accent);text-underline-offset:3px}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+
+/* ---------- Chrome de page ---------- */
+.topbar{
+  position:sticky; top:0; z-index:30;
+  background:var(--bg2); background:color-mix(in srgb,var(--bg2) 88%,transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--line);
+}
+.topbar__in{max-width:1180px;margin:0 auto;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand__mark{
+  width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+  background:var(--accent);color:var(--on-accent);
+  font-family:'Jakarta Variable',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.02em;
+}
+.brand__txt{min-width:0}
+.brand__t{font-family:'Jakarta Variable',sans-serif;font-weight:800;font-size:15px;letter-spacing:-.015em;line-height:1.2}
+.brand__s{font-size:12px;color:var(--muted);line-height:1.3}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  appearance:none;border:0;background:none;cursor:pointer;white-space:nowrap;
+  padding:9px 10px 12px;font-size:14px;font-weight:600;color:var(--muted);
+  border-bottom:2.5px solid transparent;transition:color .15s
+}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 132px}
+.cols{display:grid;gap:22px;align-items:start}
+.cols > *{min-width:0}
+.guide,.tablewrap{min-width:0;max-width:100%}
+@media (min-width:1040px){
+  .cols{grid-template-columns:minmax(0,1fr) minmax(0,400px);gap:28px}
+  .wrap{padding-bottom:120px}
+  #panel-guide{grid-column:1 / -1}
+}
+
+/* ---------- Cartes / sections ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.sec{padding:18px 16px}
+.sec + .sec{border-top:1px solid var(--line)}
+.sec__head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+.sec__t{font-size:17px;font-weight:750;letter-spacing:-.015em;margin:0}
+.sec__hint{font-size:13.5px;color:var(--muted);margin:0 0 16px}
+.req{
+  font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;flex:none
+}
+.stack{display:flex;flex-direction:column;gap:16px}
+.grid2{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:520px){.grid2{grid-template-columns:1fr 1fr}}
+
+/* ---------- Champs ---------- */
+.field{display:flex;flex-direction:column;gap:7px;min-width:0}
+.label{font-size:13.5px;font-weight:650;color:var(--ink2)}
+.label .opt{font-weight:500;color:var(--muted)}
+.help{font-size:12.5px;color:var(--muted);line-height:1.45}
+.input{
+  width:100%;background:var(--surface2);border:1px solid var(--line2);border-radius:11px;
+  padding:12px 13px;font-size:15px;transition:border-color .15s,background .15s
+}
+.input::placeholder{color:var(--muted);opacity:.85}
+.input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.input:focus-visible{outline:2.5px solid var(--accent);outline-offset:1px}
+.unit{position:relative}
+.unit .input{padding-right:52px}
+.unit__u{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);pointer-events:none}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  appearance:none;cursor:pointer;border:1px solid var(--line2);background:var(--surface2);
+  color:var(--ink2);border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:600;
+  transition:transform .12s,background .15s,color .15s,border-color .15s
+}
+.chip:hover{background:var(--accent-soft);border-color:var(--accent)}
+.chip:active{transform:scale(.97)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+
+.toggle{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;
+  border:1px solid var(--line2);background:var(--surface2);border-radius:11px;padding:11px 13px
+}
+.toggle span{font-size:14px;font-weight:600;color:var(--ink2)}
+.toggle small{display:block;font-size:12.5px;font-weight:450;color:var(--muted);line-height:1.4}
+.toggle input{width:20px;height:20px;flex:none;accent-color:var(--accent);cursor:pointer}
+
+/* ---------- Choix du document : la pièce maîtresse ---------- */
+.docs{display:flex;flex-direction:column;gap:9px}
+.doc{
+  position:relative;display:block;cursor:pointer;
+  border:1px solid var(--line2);border-radius:12px;background:var(--surface2);
+  padding:12px 13px 12px 17px;overflow:hidden;transition:border-color .15s,background .15s
+}
+.doc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--lvl)}
+.doc[data-lvl="ok"]{--lvl:var(--ok)}
+.doc[data-lvl="warn"]{--lvl:var(--warn)}
+.doc[data-lvl="bad"]{--lvl:var(--bad)}
+.doc:hover{border-color:var(--lvl)}
+.doc input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;appearance:none;cursor:pointer}
+.doc input:focus-visible{outline:2.5px solid var(--accent);outline-offset:-4px;border-radius:12px}
+.doc[data-on="1"]{border-color:var(--lvl);background:var(--surface);box-shadow:0 0 0 1.5px var(--lvl) inset}
+.doc__top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.doc__n{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.01em;line-height:1.3}
+.doc__by{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+.doc__d{display:block;font-size:13px;color:var(--ink2);margin-top:7px;line-height:1.5}
+
+.pill{
+  display:inline-flex;align-items:center;gap:5px;flex:none;
+  font-size:10.5px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;
+  padding:4px 9px;border-radius:999px;border:1px solid
+}
+.pill[data-lvl="ok"]{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)}
+.pill[data-lvl="warn"]{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)}
+.pill[data-lvl="bad"]{color:var(--bad);background:var(--bad-bg);border-color:var(--bad-line)}
+.pill svg{width:12px;height:12px;flex:none}
+
+/* ---------- Encarts ---------- */
+.note{
+  display:flex;gap:10px;border-radius:11px;padding:12px 13px;font-size:13px;line-height:1.5;
+  border:1px solid var(--line2);background:var(--surface2);color:var(--ink2)
+}
+.note svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--muted)}
+.note--warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)}
+.note--warn svg{color:var(--warn)}
+.note--bad{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad)}
+.note--bad svg{color:var(--bad)}
+.note strong{font-weight:700}
+.note a{color:inherit;font-weight:650}
+
+/* ---------- Engagement ---------- */
+.oath{display:flex;gap:11px;align-items:flex-start;cursor:pointer;font-size:13.5px;line-height:1.5;color:var(--ink2)}
+.oath input{width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--accent);cursor:pointer}
+
+/* ---------- Aperçu acheteur ---------- */
+.pv{position:sticky;top:104px;display:flex;flex-direction:column;gap:14px}
+.pv__label{
+  font-size:10.5px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)
+}
+.pv__photo{
+  aspect-ratio:4/3;border-radius:12px 12px 0 0;background:
+    linear-gradient(150deg,var(--accent-soft),var(--bg2) 65%);
+  display:grid;place-items:center;color:var(--muted);font-size:13px;border-bottom:1px solid var(--line)
+}
+.pv__body{padding:14px 15px;display:flex;flex-direction:column;gap:11px}
+.pv__t{font-size:16.5px;font-weight:750;letter-spacing:-.015em;margin:0;line-height:1.3}
+.pv__loc{font-size:13px;color:var(--muted);margin:0}
+.pv__price{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.pv__price b{font-family:'Jakarta Variable',sans-serif;font-size:23px;font-weight:800;letter-spacing:-.02em;color:var(--accent);font-variant-numeric:tabular-nums}
+.pv__price span{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.banner{border:1px solid;border-radius:11px;padding:11px 12px;display:flex;gap:10px}
+.banner[data-lvl="ok"]{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
+.banner[data-lvl="warn"]{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)}
+.banner[data-lvl="bad"]{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad)}
+.banner svg{width:17px;height:17px;flex:none;margin-top:2px}
+.banner b{display:block;font-size:13.5px;font-weight:750;letter-spacing:-.005em}
+.banner p{margin:3px 0 0;font-size:12.5px;line-height:1.5;opacity:.95}
+.attrs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.attr{background:var(--surface);padding:9px 11px;min-width:0}
+.attr dt{font-size:11px;color:var(--muted);letter-spacing:.02em}
+.attr dd{margin:1px 0 0;font-size:13.5px;font-weight:650;overflow-wrap:anywhere}
+.checks{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.checks li{display:flex;gap:9px;font-size:13px;line-height:1.5;color:var(--ink2)}
+.checks svg{width:15px;height:15px;flex:none;margin-top:3px;color:var(--accent)}
+.pv__foot{font-size:11.5px;color:var(--muted);line-height:1.5;border-top:1px dashed var(--line2);padding-top:11px}
+
+/* ---------- Guide ---------- */
+.guide{display:flex;flex-direction:column;gap:16px;max-width:760px}
+.guide h2{font-size:19px;font-weight:780;letter-spacing:-.02em;margin:6px 0 0}
+.guide h3{font-size:15px;font-weight:720;margin:0}
+.guide p{margin:0;font-size:14.5px;color:var(--ink2);line-height:1.6}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--surface2)}
+tbody tr:last-child td{border-bottom:0}
+td b{font-weight:700}
+/* Sous 760px le tableau se déplie en fiches : la colonne « ce qu'il vaut »
+   porte l'essentiel, elle ne doit pas partir hors écran. */
+@media (max-width:760px){
+  .tablewrap{overflow-x:visible}
+  table{min-width:0}
+  thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  tbody tr{display:block;padding:13px;border-bottom:1px solid var(--line)}
+  tbody tr:last-child{border-bottom:0}
+  td{display:block;border:0;padding:0}
+  td:first-child{font-size:14.5px}
+  td:nth-child(2){color:var(--muted);font-size:12.5px;margin-top:1px}
+  td:nth-child(3){margin-top:8px}
+}
+.scams{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.scams li{display:flex;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 13px;font-size:13.5px;line-height:1.55;color:var(--ink2)}
+.scams b{display:block;color:var(--ink);margin-bottom:2px}
+.scams .no{
+  flex:none;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;
+  background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad-line);
+  font-size:12px;font-weight:800;font-variant-numeric:tabular-nums
+}
+.links{display:flex;flex-direction:column;gap:9px}
+.linkrow{
+  display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;
+  background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 13px;
+  transition:border-color .15s
+}
+.linkrow:hover{border-color:var(--accent)}
+.linkrow b{display:block;font-size:14px;font-weight:700}
+.linkrow small{display:block;font-size:12.5px;color:var(--muted);line-height:1.45}
+.linkrow svg{width:16px;height:16px;flex:none;color:var(--muted)}
+
+/* ---------- Barre de verdict ---------- */
+.bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:var(--surface); background:color-mix(in srgb,var(--surface) 94%,transparent);
+  backdrop-filter:blur(14px);border-top:1px solid var(--line2);
+  box-shadow:0 -6px 22px -14px rgba(60,40,10,.4);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))
+}
+.bar__in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar__l{min-width:0;flex:1}
+.bar__v{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;letter-spacing:-.005em}
+.bar__v[data-lvl="ok"]{color:var(--ok)}
+.bar__v[data-lvl="warn"]{color:var(--warn)}
+.bar__v[data-lvl="bad"]{color:var(--bad)}
+.bar__v svg{width:15px;height:15px;flex:none}
+.bar__m{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meter{height:4px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:7px}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s cubic-bezier(.23,1,.32,1)}
+.btn{
+  appearance:none;cursor:pointer;flex:none;border:0;border-radius:12px;
+  background:var(--accent);color:var(--on-accent);
+  padding:12px 20px;font-size:14.5px;font-weight:750;letter-spacing:-.01em;
+  box-shadow:0 8px 18px -10px rgba(247,127,0,.85);transition:transform .12s,filter .15s
+}
+.btn:hover{filter:brightness(1.05)}
+.btn:active{transform:scale(.97)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
+
+.toast{
+  position:fixed;left:16px;right:16px;bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:60;
+  max-width:560px;margin:0 auto;border-radius:12px;padding:13px 15px;
+  font-size:13.5px;line-height:1.5;box-shadow:var(--shadow-lg);
+  border:1px solid var(--line2);background:var(--surface);color:var(--ink);
+  animation:pop .3s cubic-bezier(.23,1,.32,1) both
+}
+.toast[data-lvl="bad"]{background:var(--bad-bg);border-color:var(--bad-line);color:var(--bad)}
+.toast[data-lvl="ok"]{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
+.toast b{display:block;font-weight:750;margin-bottom:3px}
+.toast ul{margin:5px 0 0;padding-left:17px}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.hidden{display:none !important}
+.mono{font-variant-numeric:tabular-nums}
+</style>
+
+<header class="topbar">
+  <div class="topbar__in">
+    <div class="brand">
+      <div class="brand__mark" aria-hidden="true">Ch</div>
+      <div class="brand__txt">
+        <div class="brand__t">Vendre un terrain ou une maison</div>
+        <div class="brand__s">Maquette de test — Chap.ci · non connectée au site</div>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="tab-form" aria-selected="true" aria-controls="panel-form">Formulaire</button>
+      <button class="tab" role="tab" id="tab-pv" aria-selected="false" aria-controls="panel-pv">Aperçu acheteur</button>
+      <button class="tab" role="tab" id="tab-guide" aria-selected="false" aria-controls="panel-guide">Documents</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="cols">
+
+    <!-- =================== FORMULAIRE =================== -->
+    <div id="panel-form" role="tabpanel" aria-labelledby="tab-form">
+      <div class="card">
+
+        <!-- 1. Le bien -->
+        <section class="sec">
+          <div class="sec__head">
+            <h2 class="sec__t">1. Le bien</h2>
+            <span class="req">Obligatoire</span>
+          </div>
+          <p class="sec__hint">Ce que vous vendez, et où il se trouve.</p>
+          <div class="stack">
+            <div class="field">
+              <span class="label" id="l-tx">Type d’offre</span>
+              <div class="chips" role="group" aria-labelledby="l-tx" data-chips="transaction"></div>
+            </div>
+            <div class="field">
+              <span class="label" id="l-nat">Nature du bien</span>
+              <div class="chips" role="group" aria-labelledby="l-nat" data-chips="nature"></div>
+            </div>
+            <div class="field">
+              <span class="label" id="l-zone">Zone</span>
+              <div class="chips" role="group" aria-labelledby="l-zone" data-chips="zone"></div>
+              <p class="help" id="zoneHelp"></p>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label class="label" for="f-commune">Commune / localité</label>
+                <input class="input" id="f-commune" data-bind="commune" placeholder="Ex : Bingerville" maxlength="60">
+              </div>
+              <div class="field">
+                <label class="label" for="f-quartier">Quartier / village</label>
+                <input class="input" id="f-quartier" data-bind="quartier" placeholder="Ex : Adjamé-Bingerville" maxlength="60">
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="field">
+                <label class="label" for="f-surface">Superficie du terrain</label>
+                <div class="unit">
+                  <input class="input mono" id="f-surface" data-bind="surface" inputmode="numeric" placeholder="Ex : 500">
+                  <span class="unit__u">m²</span>
+                </div>
+                <p class="help" id="haHint"></p>
+              </div>
+              <div class="field" data-only="bati">
+                <label class="label" for="f-habitable">Surface habitable</label>
+                <div class="unit">
+                  <input class="input mono" id="f-habitable" data-bind="habitable" inputmode="numeric" placeholder="Ex : 180">
+                  <span class="unit__u">m²</span>
+                </div>
+              </div>
+            </div>
+            <div class="grid2" data-only="bati">
+              <div class="field">
+                <label class="label" for="f-chambres">Chambres</label>
+                <input class="input mono" id="f-chambres" data-bind="chambres" inputmode="numeric" placeholder="Ex : 4">
+              </div>
+              <div class="field">
+                <label class="label" for="f-eau">Salles d’eau</label>
+                <input class="input mono" id="f-eau" data-bind="sdb" inputmode="numeric" placeholder="Ex : 2">
+              </div>
+            </div>
+            <div class="field" data-only="bati">
+              <span class="label" id="l-etat">État du bâti</span>
+              <div class="chips" role="group" aria-labelledby="l-etat" data-chips="etat"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Le dossier foncier -->
+        <section class="sec" data-only="vente">
+          <div class="sec__head">
+            <h2 class="sec__t">2. Le dossier foncier</h2>
+            <span class="req">Obligatoire</span>
+          </div>
+          <p class="sec__hint">C’est la première question que pose tout acheteur sérieux. Répondez franchement : un dossier
+            incomplet annoncé se vend ; un dossier caché fait fuir.</p>
+          <div class="stack">
+            <div class="field">
+              <span class="label" id="l-doc">Document de propriété que vous détenez</span>
+              <div class="docs" role="radiogroup" aria-labelledby="l-doc" id="docList"></div>
+            </div>
+
+            <div id="docExtra" class="stack"></div>
+
+            <div class="field">
+              <span class="label" id="l-qual">Le document est établi au nom de</span>
+              <div class="chips" role="group" aria-labelledby="l-qual" data-chips="titulaire"></div>
+              <p class="help" id="titulaireHelp"></p>
+            </div>
+
+            <div class="field">
+              <span class="label" id="l-born">Bornage du terrain</span>
+              <div class="chips" role="group" aria-labelledby="l-born" data-chips="bornage"></div>
+              <p class="help">Un terrain borné par un géomètre agréé se vend mieux, et plus vite.</p>
+            </div>
+            <label class="toggle">
+              <span>Plan de situation ou plan de lotissement disponible
+                <small>Le plan qui situe le lot dans l’îlot.</small></span>
+              <input type="checkbox" data-bind="plan">
+            </label>
+            <label class="toggle" data-only="bati">
+              <span>Permis de construire
+                <small>Délivré par la mairie ou le ministère.</small></span>
+              <input type="checkbox" data-bind="permis">
+            </label>
+            <label class="toggle" data-only="bati">
+              <span>Certificat de conformité
+                <small>Constate que la construction respecte le permis.</small></span>
+              <input type="checkbox" data-bind="conformite">
+            </label>
+          </div>
+        </section>
+
+        <!-- 3. Situation -->
+        <section class="sec" data-only="vente">
+          <div class="sec__head">
+            <h2 class="sec__t">3. Situation du bien</h2>
+            <span class="req">Obligatoire</span>
+          </div>
+          <p class="sec__hint">Litiges, occupation, accès. Ce que l’acheteur découvrira de toute façon sur place.</p>
+          <div class="stack">
+            <div class="field">
+              <span class="label" id="l-jur">Situation juridique</span>
+              <div class="chips" role="group" aria-labelledby="l-jur" data-chips="juridique"></div>
+            </div>
+            <div class="field">
+              <span class="label" id="l-occ">Occupation</span>
+              <div class="chips" role="group" aria-labelledby="l-occ" data-chips="occupation"></div>
+            </div>
+            <div class="field">
+              <span class="label" id="l-acc">Accès</span>
+              <div class="chips" role="group" aria-labelledby="l-acc" data-chips="acces"></div>
+            </div>
+            <div class="field">
+              <span class="label" id="l-via">Viabilisation <span class="opt">· plusieurs choix possibles</span></span>
+              <div class="chips" role="group" aria-labelledby="l-via" data-chips="viabilisation" data-multi="1"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Prix -->
+        <section class="sec">
+          <div class="sec__head">
+            <h2 class="sec__t">4. Prix et frais</h2>
+            <span class="req">Obligatoire</span>
+          </div>
+          <p class="sec__hint" id="prixHint"></p>
+          <div class="stack">
+            <div class="grid2">
+              <div class="field">
+                <label class="label" for="f-prix" id="l-prix">Prix demandé</label>
+                <div class="unit">
+                  <input class="input mono" id="f-prix" data-bind="prix" inputmode="numeric" placeholder="Ex : 25000000">
+                  <span class="unit__u">FCFA</span>
+                </div>
+                <p class="help" id="m2Hint"></p>
+              </div>
+              <div class="field">
+                <span class="label" id="l-vend">Vous êtes</span>
+                <div class="chips" role="group" aria-labelledby="l-vend" data-chips="vendeur"></div>
+              </div>
+            </div>
+            <label class="toggle">
+              <span>Prix négociable<small>Affiché sur l’annonce.</small></span>
+              <input type="checkbox" data-bind="negociable">
+            </label>
+            <label class="toggle" data-only="vente">
+              <span>Vente devant notaire
+                <small>Le transfert de propriété passe par un acte notarié : sans lui, la mutation ne peut pas être enregistrée.</small></span>
+              <input type="checkbox" data-bind="notaire">
+            </label>
+            <div class="field" data-only="vente">
+              <span class="label" id="l-frais">Frais à la charge de l’acheteur <span class="opt">· plusieurs choix possibles</span></span>
+              <div class="chips" role="group" aria-labelledby="l-frais" data-chips="frais" data-multi="1"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Engagement -->
+        <section class="sec">
+          <div class="sec__head">
+            <h2 class="sec__t">5. Votre engagement</h2>
+            <span class="req">Obligatoire</span>
+          </div>
+          <p class="sec__hint">Trois cases. Elles ne coûtent rien à un vendeur honnête.</p>
+          <div class="stack">
+            <label class="oath"><input type="checkbox" data-bind="oath1">
+              <span>Je déclare que ces informations sont exactes et que je suis en droit de vendre ce bien.</span></label>
+            <label class="oath"><input type="checkbox" data-bind="oath2">
+              <span>Je comprends que <b>Chap.ci ne vérifie aucun document</b> et ne garantit aucune vente. Ce que j’écris ici
+                m’engage, moi seul.</span></label>
+            <label class="oath"><input type="checkbox" data-bind="oath3">
+              <span>Je m’engage à présenter les <b>originaux</b> à l’acheteur et à passer par un notaire pour la vente.</span></label>
+            <div class="note note--warn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <div>Vendre deux fois le même terrain, ou vendre un bien qui ne vous appartient pas, est une escroquerie.
+                Chap.ci supprime l’annonce, ferme le compte et transmet le dossier sur réquisition.</div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- =================== APERÇU =================== -->
+    <div id="panel-pv" role="tabpanel" aria-labelledby="tab-pv" class="hidden">
+      <div class="pv">
+        <div class="pv__label">Ce que voit l’acheteur</div>
+        <div class="card" style="overflow:hidden">
+          <div class="pv__photo">Vos photos apparaîtront ici</div>
+          <div class="pv__body">
+            <h3 class="pv__t" id="pvTitle"></h3>
+            <p class="pv__loc" id="pvLoc"></p>
+            <div class="pv__price"><b id="pvPrice"></b><span id="pvM2"></span></div>
+            <div class="banner" id="pvBanner" data-lvl="bad"></div>
+            <dl class="attrs" id="pvAttrs"></dl>
+            <div>
+              <div class="pv__label" style="margin-bottom:8px">Avant de payer, vérifiez</div>
+              <ul class="checks" id="pvChecks"></ul>
+            </div>
+            <p class="pv__foot">Ces informations sont déclarées par le vendeur. <b>Chap.ci ne les vérifie pas</b> et ne
+              détient aucun fonds. Ne versez jamais d’argent — ni en espèces, ni par Mobile Money — avant la signature
+              chez un notaire.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================== GUIDE =================== -->
+    <div id="panel-guide" role="tabpanel" aria-labelledby="tab-guide" class="hidden">
+      <div class="guide">
+        <p>Sept documents circulent couramment pour un terrain en Côte d’Ivoire. Trois seulement donnent la propriété ;
+          les autres ouvrent une procédure, ou ne valent rien du tout. Voilà pourquoi le formulaire pose la question
+          d’abord, et pourquoi la réponse est affichée en clair sur l’annonce.</p>
+
+        <h2>Les documents, du plus sûr au plus risqué</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Document</th><th>Qui le délivre</th><th>Ce qu’il vaut</th></tr></thead>
+            <tbody id="guideRows"></tbody>
+          </table>
+        </div>
+
+        <h2>Ce qui a changé en 2025</h2>
+        <div class="note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <div>Depuis le <b>1<sup>er</sup> janvier 2025</b>, l’<b>Attestation de Droit d’Usage coutumier (ADU)</b>, munie
+            d’un QR code, est le seul document d’entrée accepté pour demander un ACD. La période de transition accordée
+            aux détenteurs d’attestations villageoises déjà enregistrées s’est achevée le <b>31 mars 2025</b> : depuis
+            cette date, une attestation villageoise n’ouvre plus de dossier. Le QR code existe précisément pour empêcher
+            qu’une même parcelle soit attribuée deux fois.</div>
+        </div>
+
+        <h2>Les cinq arnaques les plus fréquentes</h2>
+        <ul class="scams">
+          <li><span class="no">1</span><div><b>La double vente</b>La même parcelle est vendue à plusieurs acheteurs, souvent
+            sur la base d’attestations villageoises successives. C’est de loin la fraude la plus répandue.</div></li>
+          <li><span class="no">2</span><div><b>La photocopie</b>Le vendeur ne montre jamais l’original — parce qu’il ne l’a
+            pas, ou parce que le document est falsifié. Un document authentique se présente en original.</div></li>
+          <li><span class="no">3</span><div><b>Le lotissement fantôme</b>Un « lot » vendu dans un lotissement jamais approuvé,
+            annulé, ou en sursis. Cela se vérifie gratuitement, en ligne, en deux minutes.</div></li>
+          <li><span class="no">4</span><div><b>Le faux mandataire</b>Une personne vend « pour le compte du propriétaire »
+            sans procuration notariée, ou un héritier vend seul un bien indivis sans l’accord des autres.</div></li>
+          <li><span class="no">5</span><div><b>Le prix trop beau</b>Un terrain 40 % sous le prix du quartier cache presque
+            toujours un litige, un enclavement, une emprise publique ou un dossier vide.</div></li>
+        </ul>
+
+        <h2>Vérifier soi-même, gratuitement</h2>
+        <div class="links">
+          <a class="linkrow" href="https://construction.gouv.ci/mclulotissement/index.php" target="_blank" rel="noopener">
+            <div style="flex:1;min-width:0"><b>Portail des lotissements — MCLU</b>
+              <small>Recherche publique par nom de lotissement, région et département. Renvoie un statut officiel :
+                approuvé, annulé ou en sursis.</small></div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+          <a class="linkrow" href="https://www.afor.ci/" target="_blank" rel="noopener">
+            <div style="flex:1;min-width:0"><b>AFOR — Agence Foncière Rurale</b>
+              <small>Délivre le certificat foncier en zone rurale et renseigne sur son état.</small></div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+          <a class="linkrow" href="https://servicepublic.gouv.ci/" target="_blank" rel="noopener">
+            <div style="flex:1;min-width:0"><b>Service public de Côte d’Ivoire</b>
+              <small>Démarches officielles : ACD, titre foncier, pièces à fournir, guichets compétents.</small></div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a>
+        </div>
+        <p style="font-size:13px;color:var(--muted)">L’authenticité d’un titre foncier ou d’un ACD se contrôle à la
+          Conservation foncière du lieu, ou par un notaire. L’identifiant IDUFCI d’une parcelle, lui, n’est consultable
+          que par les professionnels habilités — géomètres, notaires, banques : demandez-le à votre notaire plutôt que
+          d’essayer vous-même.</p>
+        <p style="font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px">
+          Ce guide résume l’état du droit ivoirien tel qu’il est publié par les services de l’État à la date du
+          29 juillet 2026. Il informe, il ne remplace pas un notaire.</p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div class="bar">
+  <div class="bar__in">
+    <div class="bar__l">
+      <div class="bar__v" id="barVerdict" data-lvl="bad"></div>
+      <div class="bar__m" id="barMsg"></div>
+      <div class="meter"><i id="barMeter" style="width:0%"></i></div>
+    </div>
+    <button class="btn" id="publish">Publier</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict'
+
+  /* ------------------------------------------------------------------ *
+   *  Référentiel des documents fonciers ivoiriens.
+   *  `lvl` : ok = propriété définitive · warn = procédure en cours,
+   *  à régulariser · bad = ne vaut pas propriété.
+   * ------------------------------------------------------------------ */
+  var DOCS = [
+    { id:'tf', zones:['urbaine','rurale'], lvl:'ok',
+      nom:'Titre foncier (TF)', par:'Conservation foncière — Livre foncier',
+      desc:'Propriété pleine et entière, inscrite au Livre foncier. Le document le plus sûr qui existe.',
+      numLabel:'Numéro du titre foncier', numPh:'Ex : TF 12345 — Circonscription d’Abidjan',
+      check:'Demandez l’original et faites-le contrôler à la Conservation foncière ou par un notaire : un état des droits réels dira s’il existe une hypothèque.' },
+    { id:'acd', zones:['urbaine'], lvl:'ok',
+      nom:'ACD — Arrêté de Concession Définitive', par:'Ministère de la Construction (MCLU), ou le Préfet hors Abidjan',
+      desc:'En ville, c’est l’acte qui donne la propriété. Il ouvre le permis de construire et le prêt bancaire, et donne lieu à l’inscription au Livre foncier.',
+      numLabel:'Numéro de l’ACD', numPh:'Ex : 2024/1234/MCLU',
+      check:'Demandez l’ACD original et vérifiez qu’il est bien au nom du vendeur. Un ACD ancien peut avoir été muté depuis.' },
+    { id:'tfr', zones:['rurale'], lvl:'ok',
+      nom:'Titre foncier rural', par:'Immatriculation après certificat foncier',
+      desc:'Aboutissement de la procédure rurale : pleine propriété, immatriculée.',
+      numLabel:'Numéro du titre foncier rural', numPh:'Ex : TF 987 — Département d’Agboville',
+      check:'Demandez l’original et l’état des droits réels auprès de la Conservation foncière.' },
+    { id:'cf', zones:['rurale'], lvl:'warn',
+      nom:'Certificat foncier', par:'AFOR — Agence Foncière Rurale',
+      desc:'Constate des droits coutumiers reconnus par l’État. C’est l’étape obligatoire vers le titre foncier rural — mais ce n’est pas encore la pleine propriété.',
+      numLabel:'Numéro du certificat foncier', numPh:'Ex : CF 2023/0456',
+      check:'Faites confirmer le certificat auprès de l’AFOR et du comité villageois de gestion foncière. Vérifiez qu’aucune opposition n’a été enregistrée.' },
+    { id:'acp', zones:['urbaine'], lvl:'warn',
+      nom:'ACP — Arrêté de Concession Provisoire', par:'Ministère de la Construction (MCLU)',
+      desc:'Concession accordée à titre provisoire, sous condition de mise en valeur. Elle doit devenir un ACD.',
+      numLabel:'Numéro de l’ACP', numPh:'Ex : 2022/0789/MCLU',
+      check:'Demandez où en est la transformation en ACD et quelles conditions de mise en valeur restent à remplir. Une ACP peut être retirée.' },
+    { id:'adu', zones:['urbaine','rurale'], lvl:'warn',
+      nom:'ADU — Attestation de Droit d’Usage coutumier', par:'Ministère de la Construction (MCLU) — avec QR code',
+      desc:'Depuis le 1ᵉʳ janvier 2025, c’est le seul document d’entrée accepté pour demander un ACD. Elle ne vaut pas titre de propriété : elle ouvre la procédure.',
+      numLabel:'Numéro de l’ADU', numPh:'Ex : ADU-2025-000123',
+      check:'Scannez le QR code de l’ADU devant le vendeur. Une ADU dont le QR code ne renvoie rien, ou renvoie un autre nom, est à écarter.' },
+    { id:'lettre', zones:['urbaine'], lvl:'warn',
+      nom:'Lettre d’attribution', par:'Mairie ou société de lotissement',
+      desc:'Document transitoire. Elle ne prouve pas la propriété : elle doit être transformée en ACD.',
+      numLabel:'Référence de la lettre d’attribution', numPh:'Ex : LA/2019/0342',
+      check:'Une lettre d’attribution seule ne protège pas. Demandez le dossier ACD en cours et le récépissé de dépôt.' },
+    { id:'village', zones:['urbaine','rurale'], lvl:'bad',
+      nom:'Attestation villageoise', par:'Chefferie du village',
+      desc:'Depuis le 31 mars 2025, elle n’ouvre plus de dossier ACD. Elle n’a jamais valu titre de propriété.',
+      numLabel:'Référence de l’attestation', numPh:'Ex : attestation du 12/03/2018',
+      check:'Exigez au minimum une ADU en cours au nom du vendeur. Sans cela, la parcelle ne peut plus entrer dans la procédure officielle.' },
+    { id:'aucun', zones:['urbaine','rurale'], lvl:'bad',
+      nom:'Aucun document / papier de vente entre particuliers', par:'Aucune autorité',
+      desc:'Un papier signé entre particuliers ne transfère pas la propriété et ne protège pas l’acheteur.',
+      numLabel:'', numPh:'',
+      check:'Sans document, le risque de double vente est maximal. N’engagez aucun argent avant qu’un titre existe.' }
+  ]
+  var DOC = {}
+  DOCS.forEach(function (d) { DOC[d.id] = d })
+
+  var VERDICT = {
+    ok:   { t:'Dossier définitif',  m:'Le vendeur détient un document qui donne la propriété.' },
+    warn: { t:'À régulariser',      m:'Procédure en cours : la propriété n’est pas encore acquise.' },
+    bad:  { t:'Non sécurisé',       m:'Aucun document ne donne la propriété. Prudence maximale.' }
+  }
+
+  var CHIPS = {
+    transaction:  ['Vente', 'Location'],
+    nature:       ['Terrain nu', 'Terrain agricole', 'Maison / Villa', 'Appartement', 'Immeuble', 'Bureau / Commerce'],
+    zone:         ['Zone urbaine (lotissement)', 'Zone rurale (domaine coutumier)'],
+    etat:         ['Neuf', 'Bon état', 'À rafraîchir', 'À rénover', 'En construction'],
+    titulaire:    ['Moi-même', 'Un parent (succession)', 'Ma société', 'Un tiers (procuration)'],
+    juridique:    ['Libre de tout litige', 'Succession en cours', 'Litige en cours', 'Hypothèque en cours'],
+    occupation:   ['Libre', 'Locataire en place', 'Occupé par des tiers', 'Cultures en place'],
+    acces:        ['Voie bitumée', 'Voie carrossable', 'Piste', 'Enclavé'],
+    viabilisation:['Eau (SODECI)', 'Électricité (CIE)', 'Assainissement', 'Éclairage public'],
+    bornage:      ['Borné (géomètre agréé)', 'Non borné', 'Je ne sais pas'],
+    vendeur:      ['Propriétaire', 'Héritier', 'Mandataire', 'Agence', 'Promoteur', 'Chefferie / famille'],
+    frais:        ['Frais de notaire', 'Droits d’enregistrement', 'Mutation / transfert', 'Bornage', 'Commission d’agence']
+  }
+
+  var S = {
+    transaction:'Vente', nature:'Terrain nu', zone:'Zone urbaine (lotissement)', etat:'',
+    commune:'', quartier:'', surface:'', habitable:'', chambres:'', sdb:'',
+    doc:'', numero:'', lotissement:'', lot:'', idufci:'',
+    titulaire:'', bornage:'', plan:false, permis:false, conformite:false,
+    juridique:'', occupation:'', acces:'', viabilisation:[],
+    prix:'', negociable:false, notaire:false, vendeur:'', frais:[],
+    oath1:false, oath2:false, oath3:false
+  }
+
+  var $  = function (s, r) { return (r || document).querySelector(s) }
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)) }
+  var esc = function (v) { return String(v).replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c] }) }
+  var nb = function (n) { return Number(n).toLocaleString('fr-FR').replace(/\u202F/g, '\u00A0') }
+  var isBati = function () { return S.nature !== 'Terrain nu' && S.nature !== 'Terrain agricole' }
+  var isVente = function () { return S.transaction === 'Vente' }
+  var isUrbain = function () { return S.zone.indexOf('urbaine') > -1 }
+
+  var ICON = {
+    ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>',
+    warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    bad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+    tick:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+  }
+  var LVLTXT = { ok:'Sûr', warn:'Provisoire', bad:'Sans valeur' }
+
+  /* ------------------------- rendu des puces ------------------------- */
+  function paintChips () {
+    $$('[data-chips]').forEach(function (box) {
+      var key = box.dataset.chips
+      var multi = box.dataset.multi === '1'
+      if (!box.dataset.built) {
+        box.innerHTML = CHIPS[key].map(function (o) {
+          return '<button type="button" class="chip" data-v="' + esc(o) + '">' + esc(o) + '</button>'
+        }).join('')
+        box.dataset.built = '1'
+        box.addEventListener('click', function (e) {
+          var b = e.target.closest('.chip'); if (!b) return
+          var v = b.dataset.v
+          if (multi) {
+            var i = S[key].indexOf(v)
+            if (i > -1) S[key].splice(i, 1); else S[key].push(v)
+          } else {
+            S[key] = S[key] === v ? '' : v
+            if (key === 'zone' || key === 'nature') { if (!allowed(S.doc)) S.doc = '' }
+          }
+          render()
+        })
+      }
+      $$('.chip', box).forEach(function (b) {
+        var on = multi ? S[key].indexOf(b.dataset.v) > -1 : S[key] === b.dataset.v
+        b.setAttribute('aria-pressed', on ? 'true' : 'false')
+      })
+    })
+  }
+
+  function allowed (id) {
+    if (!id) return true
+    var d = DOC[id]; if (!d) return false
+    return d.zones.indexOf(isUrbain() ? 'urbaine' : 'rurale') > -1
+  }
+
+  // La liste n'est reconstruite que si la zone change : sinon on se contente
+  // de déplacer la marque de sélection, ce qui préserve le focus clavier.
+  var docSig = ''
+  function paintDocs () {
+    var list = $('#docList')
+    var zone = isUrbain() ? 'urbaine' : 'rurale'
+    if (docSig !== zone) {
+      docSig = zone
+      list.innerHTML = DOCS.filter(function (d) { return d.zones.indexOf(zone) > -1 }).map(function (d) {
+        return '<label class="doc" data-lvl="' + d.lvl + '" data-id="' + d.id + '">' +
+          '<input type="radio" name="doc" value="' + d.id + '">' +
+          '<span class="doc__top"><span><span class="doc__n">' + esc(d.nom) + '</span>' +
+          '<span class="doc__by">' + esc(d.par) + '</span></span>' +
+          '<span class="pill" data-lvl="' + d.lvl + '">' + ICON[d.lvl] + LVLTXT[d.lvl] + '</span></span>' +
+          '<span class="doc__d">' + esc(d.desc) + '</span></label>'
+      }).join('')
+    }
+    $$('.doc', list).forEach(function (l) {
+      var on = l.dataset.id === S.doc
+      l.setAttribute('data-on', on ? '1' : '0')
+      $('input', l).checked = on
+    })
+  }
+  document.addEventListener('change', function (e) {
+    if (e.target.name === 'doc') { S.doc = e.target.value; render() }
+  })
+
+  /* --------------------- champs liés au document --------------------- */
+  var extraSig = null
+  function paintDocExtra () {
+    var box = $('#docExtra')
+    var d = DOC[S.doc]
+    var sig = (S.doc || '-') + '|' + (isUrbain() ? 'u' : 'r')
+    if (sig === extraSig) return // ne pas reconstruire pendant la frappe
+    extraSig = sig
+    var html = ''
+    if (d && d.numLabel) {
+      html += '<div class="field"><label class="label" for="f-num">' + esc(d.numLabel) +
+        ' <span class="opt">· recommandé</span></label>' +
+        '<input class="input" id="f-num" data-bind="numero" maxlength="60" placeholder="' + esc(d.numPh) + '">' +
+        '<p class="help">Un numéro visible sur l’annonce rassure : il se vérifie.</p></div>'
+    }
+    if (isUrbain()) {
+      html += '<div class="grid2">' +
+        '<div class="field"><label class="label" for="f-lotis">Nom du lotissement</label>' +
+        '<input class="input" id="f-lotis" data-bind="lotissement" maxlength="60" placeholder="Ex : Extension Nord 2"></div>' +
+        '<div class="field"><label class="label" for="f-lot">N° de lot et d’îlot</label>' +
+        '<input class="input" id="f-lot" data-bind="lot" maxlength="40" placeholder="Ex : lot 214, îlot 12"></div></div>' +
+        '<div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>' +
+        '<div>Le statut d’un lotissement — approuvé, annulé ou en sursis — se vérifie gratuitement sur le ' +
+        '<a href="https://construction.gouv.ci/mclulotissement/index.php" target="_blank" rel="noopener">portail du MCLU</a>. ' +
+        'Votre acheteur le fera : autant le faire avant lui.</div></div>'
+    }
+    html += '<div class="field"><label class="label" for="f-idufci">Identifiant IDUFCI de la parcelle <span class="opt">· facultatif</span></label>' +
+      '<input class="input mono" id="f-idufci" data-bind="idufci" maxlength="40" placeholder="Communiqué par votre géomètre">' +
+      '<p class="help">Numéro unique attribué à chaque parcelle du pays. Il n’est consultable que par les professionnels habilités.</p></div>'
+    box.innerHTML = html
+    bindInputs(box)
+  }
+
+  /* --------------------------- liaisons ----------------------------- */
+  function bindInputs (root) {
+    $$('[data-bind]', root).forEach(function (el) {
+      if (el.dataset.bound) return
+      el.dataset.bound = '1'
+      var k = el.dataset.bind
+      if (el.type === 'checkbox') {
+        el.checked = !!S[k]
+        el.addEventListener('change', function () { S[k] = el.checked; render() })
+      } else {
+        el.value = S[k] || ''
+        el.addEventListener('input', function () {
+          S[k] = el.inputMode === 'numeric' ? el.value.replace(/\D/g, '') : el.value
+          if (el.inputMode === 'numeric') el.value = S[k]
+          render()
+        })
+      }
+    })
+  }
+
+  /* ------------------------ visibilité conditionnelle ---------------- */
+  function paintOnly () {
+    $$('[data-only]').forEach(function (el) {
+      var k = el.dataset.only
+      var show = k === 'bati' ? isBati() : k === 'vente' ? isVente() : true
+      el.classList.toggle('hidden', !show)
+    })
+  }
+
+  /* ----------------------------- aperçu ------------------------------ */
+  function niveau () {
+    if (!isVente()) return 'warn'
+    return S.doc ? DOC[S.doc].lvl : 'bad'
+  }
+
+  function titre () {
+    var t = S.nature || 'Bien immobilier'
+    if (S.surface) t += ' de ' + nb(S.surface) + ' m²'
+    if (isBati() && S.chambres) t += ' · ' + S.chambres + ' chambres'
+    return t + (isVente() ? ' à vendre' : ' à louer')
+  }
+
+  function checklist () {
+    var out = []
+    if (S.doc && DOC[S.doc]) out.push(DOC[S.doc].check)
+    if (isUrbain() && S.lotissement) {
+      out.push('Vérifiez que le lotissement « ' + S.lotissement + ' » est approuvé sur le portail public du MCLU. Un lotissement annulé ou en sursis ne peut pas donner de titre.')
+    }
+    if (S.bornage === 'Non borné' || S.bornage === 'Je ne sais pas') {
+      out.push('Le terrain n’est pas borné, ou le vendeur l’ignore. Exigez un bornage contradictoire par un géomètre agréé, en présence du vendeur, avant tout versement.')
+    }
+    if (S.titulaire === 'Un tiers (procuration)' || S.vendeur === 'Mandataire') {
+      out.push('Le vendeur agit pour le compte d’un tiers : demandez la procuration notariée et la pièce d’identité du véritable propriétaire.')
+    }
+    if (S.titulaire === 'Un parent (succession)' || S.vendeur === 'Héritier') {
+      out.push('Bien issu d’une succession : demandez le certificat d’hérédité et l’accord écrit de tous les héritiers. Un seul héritier ne peut pas vendre seul.')
+    }
+    if (S.juridique && S.juridique !== 'Libre de tout litige') {
+      out.push('Le vendeur déclare : ' + S.juridique.toLowerCase() + '. Faites lever la situation, par écrit, avant le moindre versement.')
+    }
+    if (S.occupation && S.occupation !== 'Libre') {
+      out.push('Le bien n’est pas libre (' + S.occupation.toLowerCase() + '). Faites préciser par écrit la date de libération et qui en supporte le coût.')
+    }
+    if (S.acces === 'Enclavé') out.push('Terrain enclavé : faites établir une servitude de passage écrite, sinon vous ne pourrez ni construire ni revendre.')
+    if (isVente() && !S.notaire) out.push('Le vendeur n’annonce pas de vente devant notaire. Sans acte notarié, la mutation ne peut pas être enregistrée : vous paieriez sans devenir propriétaire.')
+    out.push('Ne versez jamais d’acompte avant la signature du compromis chez un notaire — et choisissez votre propre notaire.')
+    return out
+  }
+
+  function paintPreview () {
+    var lvl = niveau()
+    $('#pvTitle').textContent = titre()
+    $('#pvLoc').textContent = [S.quartier, S.commune].filter(Boolean).join(', ') || 'Localité non renseignée'
+    $('#pvPrice').textContent = S.prix ? nb(S.prix) + ' FCFA' : 'Prix à indiquer'
+    var m2 = (S.prix && S.surface && Number(S.surface) > 0)
+      ? nb(Math.round(Number(S.prix) / Number(S.surface))) + ' FCFA/m²' : ''
+    $('#pvM2').textContent = [m2, S.negociable ? 'négociable' : ''].filter(Boolean).join(' · ')
+
+    var b = $('#pvBanner')
+    b.setAttribute('data-lvl', lvl)
+    if (!isVente()) {
+      b.innerHTML = ICON.warn + '<div><b>Location</b><p>Le dossier foncier ne concerne que les ventes. Demandez au bailleur le contrat de bail et une quittance.</p></div>'
+    } else {
+      var d = DOC[S.doc]
+      b.innerHTML = ICON[lvl] + '<div><b>' + VERDICT[lvl].t + (d ? ' · ' + esc(d.nom.split(' — ')[0]) : '') + '</b><p>' +
+        (d ? esc(d.desc) : 'Le vendeur n’a pas indiqué de document de propriété.') +
+        '</p></div>'
+    }
+
+    var rows = []
+    if (S.surface) rows.push(['Superficie', nb(S.surface) + ' m²'])
+    if (isBati() && S.habitable) rows.push(['Habitable', nb(S.habitable) + ' m²'])
+    if (isBati() && S.chambres) rows.push(['Chambres', S.chambres])
+    if (isBati() && S.sdb) rows.push(['Salles d’eau', S.sdb])
+    if (isBati() && S.etat) rows.push(['État', S.etat])
+    if (isVente() && S.numero) rows.push(['N° du document', S.numero])
+    if (isVente() && S.lot) rows.push(['Lot / îlot', S.lot])
+    if (isVente() && S.lotissement) rows.push(['Lotissement', S.lotissement])
+    if (isVente() && S.bornage) rows.push(['Bornage', S.bornage])
+    if (isVente()) rows.push(['Plan', S.plan ? 'Disponible' : 'Non fourni'])
+    if (isBati() && isVente()) rows.push(['Permis de construire', S.permis ? 'Oui' : 'Non fourni'])
+    if (S.juridique) rows.push(['Situation', S.juridique])
+    if (S.occupation) rows.push(['Occupation', S.occupation])
+    if (S.acces) rows.push(['Accès', S.acces])
+    if (S.viabilisation.length) rows.push(['Viabilisation', S.viabilisation.join(', ')])
+    if (S.vendeur) rows.push(['Vendeur', S.vendeur])
+    if (isVente()) rows.push(['Notaire', S.notaire ? 'Vente devant notaire' : 'Non annoncé'])
+    if (isVente() && S.frais.length) rows.push(['Frais acheteur', S.frais.join(', ')])
+    $('#pvAttrs').innerHTML = rows.length
+      ? rows.map(function (r) {
+          return '<div class="attr"><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'
+        }).join('')
+      : '<div class="attr" style="grid-column:1/-1"><dt>Caractéristiques</dt><dd style="font-weight:500;color:var(--muted)">Remplissez le formulaire pour les voir apparaître</dd></div>'
+
+    $('#pvChecks').innerHTML = checklist().map(function (c) {
+      return '<li>' + ICON.tick + '<span>' + esc(c) + '</span></li>'
+    }).join('')
+  }
+
+  /* -------------------------- barre de verdict ----------------------- */
+  function manques () {
+    var m = []
+    if (!S.nature) m.push('la nature du bien')
+    if (!S.commune) m.push('la commune')
+    if (!S.surface) m.push('la superficie')
+    if (!S.prix) m.push(isVente() ? 'le prix' : 'le loyer')
+    if (isVente()) {
+      if (!S.doc) m.push('le document de propriété')
+      if (S.doc && DOC[S.doc].numLabel && !S.numero) m.push('le numéro du document')
+      if (!S.titulaire) m.push('le nom porté sur le document')
+      if (!S.juridique) m.push('la situation juridique')
+      if (!S.occupation) m.push('l’occupation')
+      if (!S.bornage) m.push('le bornage')
+    }
+    if (!S.vendeur) m.push('votre qualité')
+    if (!(S.oath1 && S.oath2 && S.oath3)) m.push('les trois engagements')
+    return m
+  }
+
+  function paintBar () {
+    var lvl = niveau()
+    var v = $('#barVerdict')
+    v.setAttribute('data-lvl', lvl)
+    v.innerHTML = ICON[lvl] + '<span>' + (isVente() ? VERDICT[lvl].t : 'Annonce de location') + '</span>'
+    var m = manques()
+    $('#barMsg').textContent = m.length
+      ? 'Il manque ' + m.slice(0, 2).join(', ') + (m.length > 2 ? ' et ' + (m.length - 2) + ' autre' + (m.length > 3 ? 's' : '') : '')
+      : 'Tout est rempli. L’annonce peut partir.'
+    var total = isVente() ? 12 : 5
+    var pct = Math.round(((total - m.length) / total) * 100)
+    $('#barMeter').style.width = Math.max(0, Math.min(100, pct)) + '%'
+    $('#publish').disabled = false
+  }
+
+  /* ----------------------------- divers ------------------------------ */
+  function paintHints () {
+    $('#zoneHelp').textContent = isUrbain()
+      ? 'Terrain issu d’un lotissement approuvé : l’ACD est le document définitif.'
+      : 'Terre du domaine coutumier : le certificat foncier de l’AFOR est l’étape obligatoire.'
+    var ha = Number(S.surface)
+    $('#haHint').textContent = ha >= 10000 ? 'Soit ' + (ha / 10000).toFixed(2).replace('.', ',') + ' hectares.' : ''
+    $('#prixHint').textContent = isVente()
+      ? 'Un prix nettement sous le marché du quartier fait fuir les acheteurs sérieux : ils y lisent un litige.'
+      : 'Indiquez le loyer mensuel.'
+    var lp = $('#l-prix')
+    if (lp) lp.textContent = isVente() ? 'Prix demandé' : 'Loyer mensuel'
+    $('#m2Hint').textContent = (S.prix && S.surface && Number(S.surface) > 0)
+      ? 'Soit ' + nb(Math.round(Number(S.prix) / Number(S.surface))) + ' FCFA le m².' : ''
+    var th = $('#titulaireHelp')
+    th.textContent = S.titulaire === 'Moi-même' ? ''
+      : S.titulaire ? 'Le document n’est pas à votre nom : l’acheteur vous demandera une procuration notariée ou un certificat d’hérédité. Préparez-la.'
+      : ''
+  }
+
+  function paintGuide () {
+    var rows = $('#guideRows')
+    if (rows.dataset.built) return
+    rows.innerHTML = DOCS.map(function (d) {
+      return '<tr><td><b>' + esc(d.nom) + '</b></td><td>' + esc(d.par) + '</td>' +
+        '<td><span class="pill" data-lvl="' + d.lvl + '" style="margin-bottom:6px">' + ICON[d.lvl] + LVLTXT[d.lvl] + '</span><br>' +
+        esc(d.desc) + '</td></tr>'
+    }).join('')
+    rows.dataset.built = '1'
+  }
+
+  function render () {
+    paintOnly()
+    paintChips()
+    paintDocs()
+    paintDocExtra()
+    paintHints()
+    paintPreview()
+    paintBar()
+  }
+
+  /* ------------------------------ onglets ---------------------------- */
+  var PANELS = { 'tab-form':'panel-form', 'tab-pv':'panel-pv', 'tab-guide':'panel-guide' }
+  var wide = window.matchMedia('(min-width:1040px)')
+  var current = 'tab-form'
+
+  function paintTabs () {
+    var large = wide.matches
+    // Sur grand écran l'aperçu est affiché en permanence à côté du formulaire :
+    // son onglet n'a plus de raison d'être.
+    $('#tab-pv').style.display = large ? 'none' : ''
+    Object.keys(PANELS).forEach(function (t) {
+      var sel = t === current
+      $('#' + t).setAttribute('aria-selected', sel ? 'true' : 'false')
+      var show = sel || (large && t === 'tab-pv' && current === 'tab-form')
+      $('#' + PANELS[t]).classList.toggle('hidden', !show)
+    })
+    if (current === 'tab-guide') paintGuide()
+  }
+  $$('.tab').forEach(function (t) {
+    t.addEventListener('click', function () { current = t.id; paintTabs(); window.scrollTo({ top:0, behavior:'smooth' }) })
+  })
+  wide.addEventListener('change', function () {
+    if (wide.matches && current === 'tab-pv') current = 'tab-form'
+    paintTabs()
+  })
+
+  /* ----------------------------- publier ----------------------------- */
+  var toast = null
+  $('#publish').addEventListener('click', function () {
+    if (toast) toast.remove()
+    var m = manques()
+    var el = document.createElement('div')
+    el.className = 'toast'
+    if (m.length) {
+      el.setAttribute('data-lvl', 'bad')
+      el.innerHTML = '<b>Il manque ' + m.length + ' information' + (m.length > 1 ? 's' : '') + '</b><ul>' +
+        m.map(function (x) { return '<li>' + esc(x.charAt(0).toUpperCase() + x.slice(1)) + '</li>' }).join('') + '</ul>'
+    } else {
+      var lvl = niveau()
+      el.setAttribute('data-lvl', lvl === 'ok' ? 'ok' : 'bad')
+      el.innerHTML = lvl === 'ok'
+        ? '<b>Annonce prête</b>Elle partirait en modération avec la mention « Dossier définitif ». (Maquette : rien n’est envoyé.)'
+        : '<b>Annonce prête, mais signalée</b>Elle partirait avec le bandeau « ' + VERDICT[lvl].t +
+          ' » bien visible sur la fiche. C’est volontaire : l’acheteur doit le savoir avant de vous appeler. (Maquette : rien n’est envoyé.)'
+    }
+    document.body.appendChild(el)
+    toast = el
+    setTimeout(function () { if (toast === el) { el.remove(); toast = null } }, 9000)
+  })
+
+  bindInputs(document)
+  render()
+  paintTabs()
+})()
+</script>
