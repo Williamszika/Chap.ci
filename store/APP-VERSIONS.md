@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune** — la v1.1 est restée en BROUILLON | **aucune** |
+| Version publiée | **aucune** — dernière construite : v1.6 (code 7) | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -57,6 +57,37 @@ l'application fonctionne. L'ordre est donc : test interne (vérification) → te
 Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
 zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
 raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
+---
+
+## v1.6 — versionCode 7
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `5b9df6f` |
+| Date du build | 29 juillet 2026, soir |
+| Poids de l'AAB | 6,6 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **à téléverser sur le canal de test fermé** |
+
+**Pourquoi cette version est nécessaire, et pas seulement souhaitable.**
+
+L'application embarque sa propre copie du site (`webDir: 'dist'`, aucun
+`server.url`) : une extraction de zip sur chap.ci ne l'atteint donc PAS. Le
+serveur, lui, est commun aux deux.
+
+Le 29/07 au soir, le serveur s'est mis à refuser toute vente immobilière dont le
+dossier foncier est incomplet. La v1.5 porte l'ANCIEN formulaire, qui n'a pas
+les champs correspondants : un testeur qui tenterait de publier un terrain
+depuis l'application recevrait un refus qu'il n'aurait aucun moyen de corriger.
+
+La v1.6 apporte le formulaire qui va avec la règle.
+
+**En plus de la v1.5 :** le dossier foncier (neuf documents à cocher, numéros,
+IDUFCI, bornage, engagements) ; le bandeau de verdict et le guide dépliant sous
+chaque annonce de vente ; l'exemple de titre adapté à chaque catégorie ; la
+sous-catégorie immobilière qui décide seule du type d'offre ; le lien « Mes
+annonces » qui n'envoie plus une annonce masquée vers une page introuvable.
 
 ---
 
