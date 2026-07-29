@@ -5064,7 +5064,15 @@ try {
       $st = $pdo->prepare('SELECT * FROM ads WHERE id = ?'); $st->execute([$seg[2]]); $ad = $st->fetch();
       // Motif OBLIGATOIRE dans l'e-mail : « non conforme » sans explication
       // fait recommencer la même erreur, et revenir se plaindre.
+      //
+      // Le commentaire disait « obligatoire » et le serveur acceptait le vide —
+      // relevé par le Gardien le 29/07. Un commentaire qui ment est pire que
+      // pas de commentaire : le prochain lecteur s'y fie. Le front impose déjà
+      // cinq caractères ; le serveur ne s'en remet plus à lui.
       $motif = mb_substr(trim((string) (body()['reason'] ?? '')), 0, 400);
+      if (mb_strlen($motif) < 5) {
+        jerr('Indiquez le motif du refus : il part tel quel dans l’e-mail à l’annonceur.');
+      }
       $pdo->prepare("UPDATE ads SET status = 'rejected', reject_reason = ? WHERE id = ?")
           ->execute([$motif, $seg[2]]);
       if ($ad) send_ad_status_email($config, $ad, 'rejected', $pdo, ['reason' => $motif]);
@@ -5932,7 +5940,29 @@ try {
       // Ce que la CSP aurait bloqué si elle n'était pas en mode rapport.
       // Tant que cette liste contient des origines légitimes, la durcir
       // casserait le site : c'est le relevé qui dit quand on peut le faire.
+      //
+      // ⚠️ LA FENÊTRE EST INDISPENSABLE, et son absence a déjà trompé un bureau.
+      // La table csp_reports est un COMPTEUR CUMULÉ (une ligne par origine, un
+      // « n » qui monte depuis le 27/07). Servie sans borne de temps, elle se
+      // lisait comme l'activité du jour : le 29/07, le Gardien a proposé
+      // d'autoriser quatre origines dont TROIS l'étaient déjà depuis deux jours.
+      // Leurs lignes ne bougeaient plus — il regardait un vestige.
+      //
+      // On ne renvoie donc que ce qui a été revu RÉCEMMENT, et l'on annonce la
+      // fenêtre dans la réponse. Une origine corrigée disparaît d'elle-même du
+      // relevé au bout de sept jours : c'est ainsi que le relevé dit la vérité
+      // sans qu'on ait à purger la table ni à se souvenir de rien.
+      'cspFenetreJours' => 7,
       'cspViolations'   => (function () use ($pdo) {
+        try {
+          $st = $pdo->prepare('SELECT directive, blocked, n, first_at, last_at FROM csp_reports
+                               WHERE last_at >= ? ORDER BY last_at DESC, n DESC LIMIT 20');
+          $st->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 7 * 86400)]);
+          return $st->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) { return []; }
+      })(),
+      // Le cumul reste disponible, mais NOMMÉ pour ce qu'il est : un historique.
+      'cspViolationsHistorique' => (function () use ($pdo) {
         try {
           return $pdo->query('SELECT directive, blocked, n, last_at FROM csp_reports ORDER BY n DESC LIMIT 20')
                      ->fetchAll(PDO::FETCH_ASSOC);

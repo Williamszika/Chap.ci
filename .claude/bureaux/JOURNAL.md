@@ -936,3 +936,53 @@ marge est d'une seule personne ; viser 15 ou 16.
 rondes précédentes reste le dernier chiffre VÉRIFIÉ (tableau de bord Play du
 27/07). Aucun bureau ne peut lire la Play Console. Tant que le Patron n'a pas
 collé un relevé, le seul énoncé honnête reste « à vérifier ».
+
+---
+
+### 2026-07-29 01:15 — [Confiance & Sécurité] 🛡️ Le Gardien, ronde traitée
+
+**Ronde saine et bien menée.** Santé verte, 0 IP suspecte, `failRatio` 0, comptes
+admin intègres, file de modération vide, fichiers `/api/` toujours en 404. Le
+scan de code des deux fonctionnalités du 28/07 est juste : la gate propriétaire
+sur `admin/revenues` et la restriction de `ads/:id/stats` sont bien ce qu'il
+décrit.
+
+**Sa proposition n° 2 était bonne, et elle est appliquée.** `POST
+admin/ads/:id/reject` documentait un motif « OBLIGATOIRE » et acceptait le vide.
+Le serveur exige désormais 5 caractères. Un commentaire qui ment est pire que
+pas de commentaire : le prochain lecteur s'y fie.
+
+**Sa proposition n° 1 portait sur un vestige.** Il demande d'autoriser quatre
+origines CSP ; **trois l'étaient déjà** depuis le 27–28/07
+(`region1.google-analytics.com` via `*.google-analytics.com`,
+`analytics-ipv6.tiktokw.us`, `accounts.google.com` en `style-src`). Vérifié sur
+l'en-tête réellement servi par chap.ci, pas sur le dépôt.
+
+**La faute n'est pas la sienne, elle est dans l'outil.** `cspViolations` servait
+`SELECT … FROM csp_reports ORDER BY n DESC` — **sans aucune borne de temps**. La
+table est un compteur cumulé depuis le 27/07 : le « n » d'une origine corrigée
+ne redescend jamais. Le champ se lisait comme l'activité du jour ; c'était un
+registre historique.
+
+C'est **exactement la même erreur de nature** que `inconnu` lu comme « anonyme »
+le 28/07 : un stock figé pris pour un flux. Deux bureaux différents, deux
+champs différents, une seule cause — un compteur cumulé servi sans fenêtre.
+Corrigé à la source plutôt que dans le rapport : `cspViolations` ne renvoie plus
+que les 7 derniers jours (avec `cspFenetreJours` et `last_at`), et le cumul est
+désormais nommé `cspViolationsHistorique`. Une origine corrigée disparaît d'elle-
+même du relevé — sans purge, sans mémoire à tenir.
+
+Prompt du bureau complété : vérifier l'en-tête servi (`curl -sSI`) **avant**
+d'écrire une proposition d'autorisation, jamais après.
+
+**Retenu de son rapport :** `static.cloudflareinsights.com` est bien nouveau et
+légitime — c'est Cloudflare qui l'injecte. Ajouté à `script-src`, avec la note
+qui manquait : le refuser ne le fera pas disparaître, il faudrait couper Web
+Analytics dans le tableau de bord Cloudflare. C'est une décision du Patron.
+
+**Réserve sur un raisonnement.** Il rattache la sonde `exemple-de-test.invalid`
+à « l'audit externe mentionné dans le commit `c2a847d` ». Ce commit corrige une
+énumération d'utilisateurs sur la connexion : rien à voir avec une sonde CSP.
+La conclusion (ce n'est pas une attaque) est juste — le TLD `.invalid` ne résout
+nulle part, aucun script n'a pu s'exécuter — mais elle est juste par chance.
+Une coïncidence de dates n'est pas un lien de cause.

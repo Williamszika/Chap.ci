@@ -138,6 +138,23 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    Signale donc, pour chaque origine : est-elle légitime (à autoriser) ou
    inattendue (à examiner) ? C'est la seule question qui compte ici.
 
+   ⚠️ AVANT DE PROPOSER D'AUTORISER UNE ORIGINE, VÉRIFIE QU'ELLE NE L'EST PAS
+   DÉJÀ. Deux champs, et ils ne disent pas la même chose :
+     cspViolations             ce qui a été revu dans les 7 DERNIERS JOURS
+                               (champ cspFenetreJours) — le seul actionnable
+     cspViolationsHistorique   le CUMUL depuis le 27/07 — un vestige, pas un
+                               signal. Le « n » d'une origine corrigée ne
+                               redescend jamais : il reste gravé.
+   Le 29/07, cette confusion a fait proposer d'autoriser quatre origines dont
+   TROIS l'étaient depuis deux jours. Regarde « last_at » : si la date est
+   antérieure au dernier durcissement, l'origine ne viole plus rien.
+   Et la vérification qui tranche en dix secondes — fais-la AVANT d'écrire ta
+   proposition, jamais après :
+     curl -sSI 'https://chap.ci/' | grep -i content-security-policy
+   Si l'origine figure déjà dans l'en-tête SERVI, il n'y a rien à faire.
+   Le dépôt ne fait pas foi : le .htaccess se modifie aussi à la main sur le
+   serveur. C'est l'en-tête réellement servi qui compte, et lui seul.
+
    LIS D'ABORD « byDetail » — il te dit QUELLE ROUTE échoue.
    La réponse contient byDetail.cron_fail : la liste des routes ayant échoué,
    avec leur nombre d'occurrences (ex. « cron/backup » : 12). Idem pour
