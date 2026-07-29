@@ -17,6 +17,10 @@ export interface User {
   id: string
   email: string
   verified?: boolean
+  /** Adresse confirmée par code : condition pour publier une annonce. */
+  emailVerified?: boolean
+  /** '' = aucun badge · 'anciennete' = vert (6 mois) · 'admin' = bleu (équipe). */
+  badge?: 'admin' | 'anciennete' | ''
   user_metadata?: { full_name?: string | null; avatar_url?: string | null }
 }
 

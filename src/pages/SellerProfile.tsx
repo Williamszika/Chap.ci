@@ -105,7 +105,7 @@ export function SellerProfile() {
           {/* Nom + badge vérifié (bleu, uniquement si le vendeur est vérifié) */}
           <h1 className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 font-display text-2xl font-black text-ink">
             <span className="break-words">{displayName}</span>
-            {profile?.verified && <VerifiedBadge size={22} title="Vendeur vérifié" />}
+            {profile?.badge && <VerifiedBadge kind={profile.badge} size={22} />}
           </h1>
 
           {/* Métadonnées */}

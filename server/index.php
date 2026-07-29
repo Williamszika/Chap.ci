@@ -9,6 +9,10 @@ declare(strict_types=1);
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_WARNING);
 
 $config = require __DIR__ . '/config.php';
+// Rendu accessible aux quelques fonctions qui ne reçoivent pas $config en
+// argument (user_public, appelée depuis une dizaine d'endroits) : le passer
+// partout aurait demandé de toucher chaque appelant pour un seul besoin.
+$GLOBALS['chapci_config'] = $config;
 
 // Valeurs par défaut pour les réglages ajoutés au fil des fonctionnalités
 // (crons, emails, réseaux sociaux…). Un `config.php` créé AVANT l'ajout d'une
@@ -1085,6 +1089,13 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, kind $txt, email $txt, ip $txt, ua $txt, detail $txt, created_at $ts
     )$eng",
     // Codes de vérification par SMS (connexion par téléphone). Usage unique, expirent.
+    // Codes de verification envoyes par e-mail (6 chiffres).
+    // Meme forme que otp_codes (telephone) : une table separee plutot qu'une
+    // colonne « type », parce que les deux n'ont ni la meme duree de vie ni les
+    // memes limites, et qu'on veut pouvoir purger l'une sans toucher l'autre.
+    "CREATE TABLE IF NOT EXISTS email_codes (
+      id $id PRIMARY KEY, email $txt, code_hash $txt, attempts $intT, created_at $ts, expires_at $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS otp_codes (
       id $id PRIMARY KEY, phone $txt, code_hash $txt, attempts $intT, created_at $ts, expires_at $ts
     )$eng",
@@ -1187,76 +1198,15 @@ function migrate(PDO $pdo): void {
   // Relance d'activation : date d'envoi de l'e-mail « publiez votre 1ʳᵉ annonce »
   // (envoyé UNE seule fois par compte — jamais de spam).
   try { $pdo->exec("ALTER TABLE users ADD COLUMN activation_emailed $ts"); } catch (Throwable $e) {}
-  // Rôles fins des modérateurs : liste des fonctionnalités autorisées (JSON) +
-  // code d'accès personnel au tableau de bord (haché). Vide = ancien modérateur.
-  try { $pdo->exec("ALTER TABLE admins ADD COLUMN permissions $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE admins ADD COLUMN access_code_hash $txt"); } catch (Throwable $e) {}
-  // Blocage d'un modérateur par l'admin (1 = accès révoqué jusqu'au déblocage).
-  try { $pdo->exec("ALTER TABLE admins ADD COLUMN blocked $intT DEFAULT 0"); } catch (Throwable $e) {}
-  // Compteur de vues par annonce (statistiques vendeur).
-  try { $pdo->exec("ALTER TABLE listings ADD COLUMN views $intT"); } catch (Throwable $e) {}
-  // Réponse envoyée depuis Admin → Contact (texte, date, admin qui a répondu).
-  try { $pdo->exec("ALTER TABLE contact_messages ADD COLUMN reply_body $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE contact_messages ADD COLUMN replied_at $ts"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE contact_messages ADD COLUMN replied_by $txt"); } catch (Throwable $e) {}
-  // Préférences de notifications (JSON : {favorite:bool, message:bool, ...}).
-  try { $pdo->exec("ALTER TABLE profiles ADD COLUMN notif_prefs $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("CREATE INDEX idx_notif_user ON notifications (user_id, read_flag)"); } catch (Throwable $e) {}
-  // Index léger sur le journal de sécurité (accélère rate-limit et rapports).
-  try { $pdo->exec("CREATE INDEX idx_sec_events ON security_events (kind, created_at)"); } catch (Throwable $e) {}
-  // Écran publicitaire : recherche des pubs actives non expirées.
-  try { $pdo->exec("CREATE INDEX idx_ads_active ON ads (status, expires_at)"); } catch (Throwable $e) {}
-  // Diffusions de l'admin sur l'écran : type (paid/admin), style d'écriture, animation.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN kind $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN style $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim $txt"); } catch (Throwable $e) {}
-  // Animation en boucle continue pendant toute la durée d'affichage ('1') ou une
-  // seule fois ('0'). NULL (anciennes lignes) = boucle activée par défaut.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim_loop $txt"); } catch (Throwable $e) {}
-  // Liste JSON des animations enchaînées du texte + pause (secondes) entre elles.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anims $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN anim_gap $txt"); } catch (Throwable $e) {}
-  // Couleur du texte de la diffusion (ex. « #FFFFFF »), pour la lisibilité sur l'image.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN text_color $txt"); } catch (Throwable $e) {}
-  // Contact de l'annonceur (pour les notifications de statut) + rappel d'expiration envoyé.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN email $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN phone $txt"); } catch (Throwable $e) {}
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN expiry_notified $txt"); } catch (Throwable $e) {}
-  // Prolongation : identifiant de la publicité que celle-ci prolonge.
-  // On réutilise TOUT le circuit existant (paiement Mobile Money, validation
-  // par l'administrateur) : une prolongation est une demande ordinaire, qui
-  // repousse la date de fin de la bannière d'origine au lieu d'en créer une
-  // seconde. L'annonceur n'a rien de nouveau à apprendre.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN extends_ad_id $id"); } catch (Throwable $e) {}
-  // Motif de refus, saisi par l'administrateur et repris dans l'e-mail.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN reject_reason $txt"); } catch (Throwable $e) {}
-  // Dernier rapport d'audience envoye (cadence : tous les 3 jours).
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN last_report_at $ts"); } catch (Throwable $e) {}
-  // E-mail de fin de campagne envoye une seule fois.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN expired_notified $txt"); } catch (Throwable $e) {}
-  // Rapprochement bancaire : ce versement a-t-il ete retrouve sur le releve
-  // Mobile Money ? Approuver une publicite, c'est deja avoir verifie le
-  // paiement — la date est donc posee automatiquement a l'approbation. Elle
-  // reste modifiable a la main : un paiement peut avoir ete annonce trop vite.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN pay_confirmed_at $ts"); } catch (Throwable $e) {}
-  // pay_confirmed a TROIS etats, et c'est deliberé :
-  //   NULL  jamais tranche     1  retrouve sur le releve     0  cherche, pas trouve
-  // Une simple date n'aurait su distinguer « pas encore regarde » de « regarde,
-  // et absent du releve » — or c'est exactement ce que le proprietaire veut
-  // pouvoir dire en decochant une ligne.
-  try { $pdo->exec("ALTER TABLE ads ADD COLUMN pay_confirmed $intT"); } catch (Throwable $e) {}
-  // Reprise de l'existant, UNE SEULE FOIS : les publicites deja diffusees ont
-  // ete approuvees, donc leur versement avait bien ete verifie. Sans cela, le
-  // releve afficherait « a verifier » sur toute l'histoire du site — un
-  // avertissement permanent que personne ne peut plus lever de memoire.
-  // La clause « pay_confirmed IS NULL » est ce qui empeche cette reprise de se
-  // rejouer a chaque requete et de recocher ce qu'on vient de decocher.
-  try {
-    $pdo->exec("UPDATE ads SET pay_confirmed = 1, pay_confirmed_at = starts_at
-                WHERE pay_confirmed IS NULL
-                  AND starts_at IS NOT NULL AND starts_at <> ''
-                  AND status IN ('active','expired','merged')");
-  } catch (Throwable $e) {}
+  // Verification de l'adresse e-mail : date de confirmation du code a 6 chiffres.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN email_verified_at $ts"); } catch (Throwable $e) {}
+  // La reprise de l'existant se fait ailleurs (backfill_email_verifie), APRES
+  // migrate() : elle doit s'exécuter UNE SEULE FOIS, et migrate() tourne à
+  // chaque requête. Premier essai le 29/07 : la clause « created_at <=
+  // aujourd'hui » rattrapait les comptes créés le jour même — un compte ouvert
+  // à l'instant ressortait déjà vérifié à la requête suivante, et le code
+  // n'était jamais demandé. Une date ne borne pas ce qu'un marqueur borne.
+
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
@@ -1313,8 +1263,56 @@ function user_public(PDO $pdo, array $u): array {
   $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
   return ['id' => $u['id'], 'email' => $u['email'], 'status' => $status ?: 'active',
           'verified' => ((int) ($vf->fetchColumn() ?: 0)) === 1,
+          // « emailVerified » commande le droit de publier ; « badge » ne
+          // commande rien, il se contente de dire ce qu'on est.
+          'emailVerified' => email_verifie($pdo, (string) $u['id']),
+          'badge' => badge_of($GLOBALS['chapci_config'] ?? [], $pdo, $u),
           'user_metadata' => ['full_name' => $name]];
 }
+/**
+ * Le badge d'un compte — CALCULÉ, jamais stocké.
+ *
+ * Trois états, et un seul est un badge « mérité » :
+ *
+ *   'admin'       BLEU  · l'équipe Chap.ci. Il ne se gagne pas, il se constate :
+ *                        c'est la liste des administrateurs qui fait foi. Son
+ *                        rôle est de dire « ce message vient bien du site »,
+ *                        pas de récompenser quelqu'un.
+ *   'anciennete'  VERT  · six mois de présence, adresse e-mail confirmée. Il ne
+ *                        se demande pas : il apparaît le jour dû, tout seul.
+ *   ''            aucun · tout le monde d'autre, y compris un compte dont
+ *                        l'adresse est vérifiée. Vérifier son e-mail est une
+ *                        CONDITION POUR PUBLIER, pas une distinction — donner
+ *                        un badge à chacun reviendrait à n'en donner à personne.
+ *
+ * Pourquoi calculer plutôt que stocker : un badge d'ancienneté rangé dans une
+ * colonne se décale du jour où quelqu'un oublie de faire tourner la mise à jour.
+ * Ici il n'y a rien à faire tourner — la date de création du compte suffit, et
+ * elle ne ment jamais.
+ */
+function badge_of(array $config, PDO $pdo, array $u): string {
+  try {
+    if (is_admin($config, $pdo, $u)) return 'admin';
+  } catch (Throwable $e) { /* la table admins peut manquer : on continue */ }
+  try {
+    $st = $pdo->prepare('SELECT created_at, email_verified_at FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $r = $st->fetch();
+    if (!$r || empty($r['email_verified_at'])) return '';
+    $mois = (time() - (int) strtotime((string) $r['created_at'])) / (30.44 * 86400);
+    return $mois >= 6 ? 'anciennete' : '';
+  } catch (Throwable $e) { return ''; }
+}
+
+/** Le compte a-t-il confirmé son adresse e-mail ? Condition pour publier. */
+function email_verifie(PDO $pdo, string $uid): bool {
+  try {
+    $st = $pdo->prepare('SELECT email_verified_at FROM users WHERE id = ?');
+    $st->execute([$uid]);
+    return !empty($st->fetchColumn());
+  } catch (Throwable $e) { return true; } // colonne absente : on ne bloque personne
+}
+
 /** Éligibilité au badge « vérifié » : ≥ 1 an d'ancienneté ET actif (vend et/ou paie). */
 function verify_eligibility(PDO $pdo, array $u): array {
   $uid = $u['id'];
@@ -2788,6 +2786,31 @@ try {
 // et devront être recréés via le nouveau système (permissions + code). Un marqueur
 // garantit que ça ne s'exécute qu'une fois (sinon on effacerait les modérateurs
 // recréés à chaque requête).
+/**
+ * Reprise de l'existant pour la vérification par e-mail — UNE SEULE FOIS.
+ *
+ * Tous les comptes présents le jour où la règle arrive sont considérés comme
+ * vérifiés. On ne bloque pas rétroactivement quelqu'un inscrit sous d'autres
+ * conditions : un vendeur actif qui trouverait soudain sa publication interdite
+ * ne viendrait pas demander pourquoi, il partirait.
+ *
+ * Le marqueur sur disque est ce qui rend l'opération unique. Sans lui, la
+ * reprise se rejouerait à chaque requête et rattraperait les comptes ouverts
+ * après la règle — ils n'auraient jamais à confirmer quoi que ce soit, et la
+ * fonctionnalité entière serait un décor.
+ */
+function backfill_email_verifie(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.email_verify_v1';
+  if (@is_file($marque)) return;
+  try {
+    $pdo->exec("UPDATE users SET email_verified_at = COALESCE(created_at, '2026-07-29T00:00:00Z')
+                WHERE email_verified_at IS NULL");
+    @file_put_contents($marque, gmdate('c'));
+    @chmod($marque, 0600);
+  } catch (Throwable $e) { /* colonne absente : on réessaiera au prochain passage */ }
+}
+backfill_email_verifie($config, $pdo);
+
 $resetMarker = chapci_secret_dir($config) . '/.reset_admins_v2';
 if (!file_exists($resetMarker)) {
   try { $pdo->exec('DELETE FROM admins'); } catch (Throwable $e) { /* table absente : rien à faire */ }
@@ -3043,8 +3066,11 @@ try {
     $st = $pdo->prepare('SELECT id,email,status,password_hash FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
     if (!$u) {
       $id = uuid();
-      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?)')
-          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'google']);
+      // email_verified_at pose d'emblee : Google et Facebook ont DEJA verifie
+      // l'adresse avant de nous la transmettre. Redemander un code serait une
+      // formalite vide, et un obstacle de plus a l'inscription la plus fluide.
+      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider,email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'google', now_iso()]);
       $pdo->prepare('INSERT INTO profiles (id,full_name,avatar_url,created_at) VALUES (?,?,?,?)')
           ->execute([$id, $name, (string) ($claims['picture'] ?? '') ?: null, now_iso()]);
       log_security_event($pdo, 'signup', $email, 'google');
@@ -3095,8 +3121,11 @@ try {
     $st = $pdo->prepare('SELECT id,email,status,password_hash FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
     if (!$u) {
       $id = uuid();
-      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?)')
-          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'facebook']);
+      // email_verified_at pose d'emblee : Google et Facebook ont DEJA verifie
+      // l'adresse avant de nous la transmettre. Redemander un code serait une
+      // formalite vide, et un obstacle de plus a l'inscription la plus fluide.
+      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider,email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'facebook', now_iso()]);
       $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
           ->execute([$id, $name, now_iso()]);
       log_security_event($pdo, 'signup', $email, 'facebook');
@@ -3206,6 +3235,13 @@ try {
     $ustatus = $stt->fetch()['status'] ?? 'active';
     if (in_array($ustatus, ['blocked', 'restricted'], true))
       jerr('Votre compte ne peut pas publier d’annonce pour le moment. Contactez le support.', 403);
+    // Adresse e-mail confirmée : obligatoire pour PUBLIER, et là seulement.
+    // Le message porte un code que l'écran sait reconnaître pour ouvrir la
+    // saisie du code au lieu d'afficher une erreur sèche.
+    if (!email_verifie($pdo, (string) $u['id'])) {
+      jout(['error' => 'Confirmez votre adresse e-mail avant de publier : nous vous envoyons un code.',
+            'emailUnverified' => true], 403);
+    }
     if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
     // Le Gardien : analyse anti-arnaque + contenu interdit AVANT publication.
     $mod = moderate_text(($b['title'] ?? '') . ' ' . ($b['description'] ?? ''));
@@ -3937,33 +3973,93 @@ try {
     $st = $pdo->prepare('SELECT id,full_name,bio,avatar_url FROM profiles WHERE id = ?');
     $st->execute([$seg[1]]); $p = $st->fetch();
     if (!$p) jout(null);
-    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$p['id']]);
+    $badge = badge_of($config, $pdo, ['id' => $p['id'], 'email' => '']);
     jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
-          'avatarUrl' => $p['avatar_url'] ?: null, 'verified' => ((int) ($vf->fetchColumn() ?: 0)) === 1]);
+          'avatarUrl' => $p['avatar_url'] ?: null,
+          'badge' => $badge, 'verified' => $badge !== '']);
   }
 
-  // ---------- BADGE DE VÉRIFICATION (bleu) ----------
-  // Éligible : ≥ 1 an d'ancienneté ET actif (a publié/vendu ou payé une pub).
+  // ---------- VÉRIFICATION DE L'ADRESSE E-MAIL ----------
+  //
+  // Un code à 6 chiffres, valable 15 minutes, 5 essais. C'est la condition
+  // pour PUBLIER une annonce — pas pour s'inscrire, ni pour acheter, ni pour
+  // écrire à un vendeur. On ne dresse un obstacle que devant l'action qui
+  // engage : une annonce publiée est vue par tout le monde, et une adresse
+  // jetable est ce qui permet de recommencer indéfiniment après un bannissement.
+  if ($path === 'verify/email/send' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if (email_verifie($pdo, (string) $u['id'])) jout(['ok' => true, 'already' => true]);
+    $email = strtolower(trim((string) $u['email']));
+    // 5 envois par heure et par compte : de quoi se tromper, pas de quoi
+    // transformer le site en distributeur d'e-mails.
+    rate_limit($pdo, 'verify_email_send', $email, 5, 3600);
+    try { $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]); } catch (Throwable $e) {}
+    try { $code = (string) random_int(100000, 999999); } catch (Throwable $e) { $code = (string) mt_rand(100000, 999999); }
+    $pdo->prepare('INSERT INTO email_codes (id,email,code_hash,attempts,created_at,expires_at) VALUES (?,?,?,?,?,?)')
+        ->execute([uuid(), $email, password_hash($code, PASSWORD_BCRYPT), 0, now_iso(),
+                   gmdate('Y-m-d\TH:i:s\Z', time() + 900)]);
+    $inner = '<h2 style="margin-top:0;color:#111827">Votre code de vérification</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>Voici le code qui confirme votre adresse sur Chap.ci :</p>'
+      . '<p style="font-size:34px;font-weight:800;letter-spacing:10px;color:#1a1f2b;'
+      . 'background:#FFF6EC;border-radius:14px;padding:18px;text-align:center;margin:18px 0">'
+      . $code . '</p>'
+      . '<p>Il est valable <b>15 minutes</b>. Si vous n\'avez rien demandé, ignorez ce message : '
+      . 'votre compte reste inchangé et personne ne peut publier en votre nom.</p>';
+    $ok = send_mail($config, $email, 'Votre code Chap.ci : ' . $code,
+                    email_layout($config, $inner, 'Code de vérification'));
+    log_security_event($pdo, 'verify_email_send', $email);
+    // On ne dit PAS si l'envoi a échoué côté serveur de messagerie : l'écran
+    // affiche la même chose dans les deux cas, et le journal garde la trace.
+    jout(['ok' => true, 'sent' => $ok]);
+  }
+
+  if ($path === 'verify/email/confirm' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if (email_verifie($pdo, (string) $u['id'])) jout(['ok' => true, 'already' => true]);
+    $email = strtolower(trim((string) $u['email']));
+    rate_limit($pdo, 'verify_email_try', $email, 20, 3600);
+    $saisi = preg_replace('/\D/', '', (string) (body()['code'] ?? ''));
+    $st = $pdo->prepare('SELECT id, code_hash, attempts, expires_at FROM email_codes WHERE email = ? ORDER BY created_at DESC');
+    $st->execute([$email]);
+    $row = $st->fetch();
+    if (!$row) jerr('Aucun code en cours. Demandez-en un nouveau.');
+    if (strtotime((string) $row['expires_at']) < time()) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]);
+      jerr('Ce code a expiré. Demandez-en un nouveau.');
+    }
+    if ((int) $row['attempts'] >= 5) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]);
+      log_security_event($pdo, 'verify_email_fail', $email, 'trop_d_essais');
+      jerr('Trop d’essais. Demandez un nouveau code.');
+    }
+    if ($saisi === '' || !password_verify($saisi, (string) $row['code_hash'])) {
+      $pdo->prepare('UPDATE email_codes SET attempts = attempts + 1 WHERE id = ?')->execute([$row['id']]);
+      log_security_event($pdo, 'verify_email_fail', $email, 'code_errone');
+      jerr('Code incorrect.');
+    }
+    $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]);
+    $pdo->prepare('UPDATE users SET email_verified_at = ? WHERE id = ?')->execute([now_iso(), $u['id']]);
+    log_security_event($pdo, 'verify_email_ok', $email);
+    jout(['ok' => true, 'emailVerified' => true, 'badge' => badge_of($config, $pdo, $u)]);
+  }
+
+  // État de vérification et badge — tout est calculé, rien n'est à demander.
   if ($path === 'verify/status' && $method === 'GET') {
     $u = require_user($pdo, $secret);
-    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
-    $e = verify_eligibility($pdo, $u);
+    $st = $pdo->prepare('SELECT created_at, email_verified_at FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $r = $st->fetch() ?: [];
+    $mois = (time() - (int) strtotime((string) ($r['created_at'] ?? now_iso()))) / (30.44 * 86400);
     jout([
-      'verified' => ((int) ($vf->fetchColumn() ?: 0)) === 1,
-      'eligible' => $e['eligible'], 'ageOk' => $e['ageOk'], 'activityOk' => $e['activityOk'],
-      'months' => $e['months'],
+      'emailVerified' => !empty($r['email_verified_at']),
+      'badge'         => badge_of($config, $pdo, $u),
+      'mois'          => (int) floor(max(0, $mois)),
+      // Nombre de mois restants avant le badge vert — de quoi l'annoncer sans
+      // le promettre au jour près.
+      'moisRestants'  => max(0, (int) ceil(6 - $mois)),
+      'membreDepuis'  => iso_to_ms($r['created_at'] ?? null),
     ]);
-  }
-  // L'utilisateur demande la vérification : accordée automatiquement si éligible.
-  if ($path === 'verify/request' && $method === 'POST') {
-    $u = require_user($pdo, $secret);
-    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
-    if (((int) ($vf->fetchColumn() ?: 0)) === 1) jout(['verified' => true, 'already' => true]);
-    $e = verify_eligibility($pdo, $u);
-    if (!$e['ageOk']) jerr('Il faut au moins 1 an d’ancienneté sur Chap.ci (vous êtes membre depuis ' . $e['months'] . ' mois).');
-    if (!$e['activityOk']) jerr('Publiez une annonce, réalisez une vente ou payez une publicité pour être vérifié.');
-    $pdo->prepare('UPDATE users SET verified = 1, verified_at = ? WHERE id = ?')->execute([now_iso(), $u['id']]);
-    jout(['verified' => true]);
   }
 
   if ($path === 'profile' && $method === 'PUT') {

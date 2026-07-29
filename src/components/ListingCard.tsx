@@ -81,9 +81,12 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </button>
         {/* Badges confiance / état / livraison, en surimpression bas de l'image */}
         <div className="absolute bottom-1.5 left-1.5 flex flex-wrap gap-1">
+          {/* Vert : le vendeur est là depuis au moins six mois. C'est le seul
+              badge qu'un vendeur puisse porter — le bleu est réservé à l'équipe
+              du site, précisément pour qu'on ne puisse pas l'usurper. */}
           {listing.sellerVerified && (
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-[#1877C9] shadow-sm">
-              <VerifiedBadge size={11} /> Vérifié
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-ivoire-green-dark shadow-sm">
+              <VerifiedBadge kind="anciennete" size={11} /> Vérifié
             </span>
           )}
           {listing.condition === 'neuf' && (

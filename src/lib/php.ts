@@ -20,6 +20,10 @@ export interface PhpUser {
   id: string
   email: string
   verified?: boolean
+  /** Adresse confirmée par code : condition pour publier une annonce. */
+  emailVerified?: boolean
+  /** '' = aucun badge · 'anciennete' = vert (6 mois) · 'admin' = bleu (équipe). */
+  badge?: 'admin' | 'anciennete' | ''
   user_metadata?: { full_name?: string | null }
 }
 
@@ -614,8 +618,13 @@ export async function phpAdsMine<T>(): Promise<T> {
 export async function phpVerifyStatus<T>(): Promise<T> {
   return req<T>('/verify/status')
 }
-export async function phpVerifyRequest<T>(): Promise<T> {
-  return req<T>('/verify/request', { method: 'POST' })
+/** Envoi du code de vérification à l'adresse du compte. */
+export async function phpVerifyEmailSend<T = { ok: boolean; already?: boolean }>(): Promise<T> {
+  return req<T>('/verify/email/send', { method: 'POST', body: {} })
+}
+/** Confirmation du code à 6 chiffres. */
+export async function phpVerifyEmailConfirm<T = { ok: boolean }>(code: string): Promise<T> {
+  return req<T>('/verify/email/confirm', { method: 'POST', body: { code } })
 }
 export async function phpAdGet<T>(id: string): Promise<T> {
   return req<T>(`/ads/${id}`)

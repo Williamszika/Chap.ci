@@ -7,6 +7,8 @@ export interface PublicProfile {
   avatarUrl?: string
   /** Badge bleu de vérification (membre fidèle et actif). */
   verified?: boolean
+  /** '' = aucun · 'anciennete' = vert (6 mois) · 'admin' = bleu (équipe). */
+  badge?: 'admin' | 'anciennete' | ''
 }
 
 export async function fetchProfile(id: string): Promise<PublicProfile | null> {

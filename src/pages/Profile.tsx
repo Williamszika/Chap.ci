@@ -33,10 +33,11 @@ import {
   Package,
   HelpCircle,
   Megaphone,
+  MailCheck,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { VerifiedBadge } from '../components/VerifiedBadge'
-import { fetchVerifyStatus, requestVerify, type VerifyStatus } from '../lib/verify'
+import { fetchVerifyStatus, sendEmailCode, confirmEmailCode, type VerifyStatus } from '../lib/verify'
 import { MyAdsPanel } from '../components/MyAdsPanel'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
@@ -188,7 +189,7 @@ export function Profile() {
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 font-display text-lg font-black text-ink md:text-xl">
                 <span className="truncate">{displayName || 'Mon compte'}</span>
-                {user.verified && <VerifiedBadge size={18} title="Compte vérifié" />}
+                {user.badge && <VerifiedBadge kind={user.badge} size={18} />}
               </p>
               <p className="truncate text-sm text-gray-500">
                 {user.email}{seller.phone ? ` · ${seller.phone}` : ''}
@@ -207,7 +208,7 @@ export function Profile() {
           </div>
 
           {/* Badge de vérification (membre fidèle et actif) */}
-          {isPhp && <VerificationCard verified={!!user.verified} onVerified={refreshUser} />}
+          {isPhp && <VerificationCard onVerified={refreshUser} />}
 
           {/* Accès administrateur */}
           {isAdmin && (
@@ -836,92 +837,151 @@ function MyAlerts() {
 
 
 /**
- * Carte « Badge de vérification » : affiche l'état vérifié, ou les conditions à
- * remplir (≥ 1 an d'ancienneté + vendre et/ou payer une pub) avec un bouton pour
- * obtenir le badge bleu dès que l'utilisateur est éligible.
+ * Carte « Mon compte » — vérification de l'adresse, puis badge.
+ *
+ * Deux choses que l'écran doit tenir séparées, parce que les confondre est la
+ * confusion la plus courante des places de marché :
+ *
+ *   VÉRIFIER SON ADRESSE  ouvre le droit de PUBLIER. C'est une porte, pas une
+ *                         récompense — et elle ne donne aucun badge.
+ *   LE BADGE VERT         arrive tout seul à six mois. Il ne se demande pas,
+ *                         il n'y a donc aucun bouton à proposer.
+ *
+ * D'où l'absence délibérée de tout bouton « obtenir le badge » : promettre une
+ * action là où le temps seul décide serait une fausse promesse.
  */
-function VerificationCard({ verified, onVerified }: { verified: boolean; onVerified: () => Promise<void> }) {
+function VerificationCard({ onVerified }: { onVerified: () => Promise<void> }) {
   const toast = useToast()
   const [status, setStatus] = useState<VerifyStatus | null>(null)
   const [busy, setBusy] = useState(false)
+  const [ouvert, setOuvert] = useState(false)
+  const [code, setCode] = useState('')
 
-  useEffect(() => {
-    let alive = true
-    fetchVerifyStatus().then((s) => { if (alive) setStatus(s) }).catch(() => {})
-    return () => { alive = false }
-  }, [])
+  const recharger = () => { fetchVerifyStatus().then(setStatus).catch(() => {}) }
+  useEffect(recharger, [])
 
-  const isVerified = verified || !!status?.verified
-
-  async function obtain() {
+  async function envoyer() {
     setBusy(true)
     try {
-      await requestVerify()
-      toast.success('Félicitations ! Votre compte est vérifié. 🎉')
-      await onVerified()
-      fetchVerifyStatus().then(setStatus).catch(() => {})
+      await sendEmailCode()
+      setOuvert(true)
+      toast.success('Code envoyé. Regardez votre boîte mail (et les indésirables).')
     } catch (e) {
-      toast.error((e as Error).message || 'Vérification impossible pour le moment.')
-    } finally {
-      setBusy(false)
-    }
+      toast.error((e as Error).message)
+    } finally { setBusy(false) }
   }
 
-  if (isVerified) {
+  async function confirmer() {
+    if (code.replace(/\D/g, '').length !== 6) return
+    setBusy(true)
+    try {
+      await confirmEmailCode(code)
+      toast.success('Adresse confirmée. Vous pouvez publier vos annonces. 🎉')
+      setOuvert(false); setCode('')
+      await onVerified()
+      recharger()
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally { setBusy(false) }
+  }
+
+  if (!status) return null
+
+  // ── Administrateur : badge bleu, rien à faire ni à attendre. ──────────────
+  if (status.badge === 'admin') {
     return (
       <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[#BEE3FF] bg-[#EAF6FF] p-4 shadow-card">
-        <VerifiedBadge size={32} />
+        <VerifiedBadge kind="admin" size={32} />
         <div className="min-w-0 flex-1">
-          <p className="font-display font-black text-[#0B6BCB]">Compte vérifié</p>
-          <p className="text-xs text-[#2E6FA8]">Le badge bleu apparaît à côté de votre nom, ici et sur votre profil public.</p>
+          <p className="font-display font-black text-[#0B6BCB]">Équipe Chap.ci</p>
+          <p className="text-xs text-[#2E6FA8]">
+            Le badge bleu montre aux membres qu’un message vient bien du site.
+          </p>
         </div>
       </div>
     )
   }
 
+  // ── Adresse non confirmée : la seule action possible de tout cet écran. ───
+  if (!status.emailVerified) {
+    return (
+      <div className="mt-4 rounded-2xl border border-[#F4D9B0] bg-[#FFF6EC] p-4 shadow-card">
+        <div className="flex items-center gap-2">
+          <MailCheck size={20} className="text-primary-600" />
+          <p className="font-display font-black text-ink">Confirmez votre adresse e-mail</p>
+        </div>
+        <p className="mt-1 text-sm leading-relaxed text-gray-600">
+          Nécessaire pour <b>publier une annonce</b>. Vous recevez un code à 6 chiffres,
+          valable 15 minutes. Acheter et discuter avec un vendeur ne demandent rien.
+        </p>
+
+        {!ouvert ? (
+          <button onClick={envoyer} disabled={busy} className="btn-primary mt-3 w-full py-2.5 text-sm">
+            {busy ? 'Envoi…' : 'Recevoir mon code'}
+          </button>
+        ) : (
+          <div className="mt-3">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="6 chiffres"
+              className="input tnum text-center text-2xl font-bold tracking-[0.4em]"
+            />
+            <button onClick={confirmer} disabled={busy || code.length !== 6} className="btn-primary mt-2 w-full py-2.5 text-sm disabled:opacity-50">
+              {busy ? 'Vérification…' : 'Confirmer'}
+            </button>
+            <button onClick={envoyer} disabled={busy} className="mt-2 w-full text-xs font-semibold text-gray-500 underline">
+              Je n’ai rien reçu — renvoyer un code
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Badge vert acquis. ────────────────────────────────────────────────────
+  if (status.badge === 'anciennete') {
+    return (
+      <div className="mt-4 flex items-center gap-3 rounded-2xl border border-ivoire-green/30 bg-ivoire-green/5 p-4 shadow-card">
+        <VerifiedBadge kind="anciennete" size={32} />
+        <div className="min-w-0 flex-1">
+          <p className="font-display font-black text-ivoire-green-dark">Membre vérifié</p>
+          <p className="text-xs text-gray-600">
+            Membre depuis {status.mois} mois. Le badge vert apparaît à côté de votre nom,
+            ici et sur votre profil public.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Adresse confirmée, badge en chemin. Aucun bouton : le temps suffit. ───
   return (
     <div className="mt-4 rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="flex items-center gap-2">
-        <VerifiedBadge size={22} />
-        <p className="font-display font-black text-ink">Badge de vérification</p>
+        <Check size={18} className="text-ivoire-green" strokeWidth={3} />
+        <p className="font-display font-black text-ink">Adresse confirmée</p>
       </div>
       <p className="mt-1 text-sm text-gray-500">
-        Le badge bleu de confiance est offert aux membres fidèles et actifs du site.
+        Vous pouvez publier vos annonces.
       </p>
-      <div className="mt-3 space-y-2.5">
-        <Criterion
-          ok={!!status?.ageOk}
-          label="Au moins 1 an d’ancienneté"
-          hint={status && !status.ageOk ? `Membre depuis ${status.months} mois sur 12` : undefined}
-        />
-        <Criterion
-          ok={!!status?.activityOk}
-          label="Vendre et/ou payer une publicité"
-          hint={status && !status.activityOk ? 'Publiez une annonce, réalisez une vente ou payez une pub' : undefined}
-        />
+      <div className="mt-3 rounded-xl bg-cream-100 p-3">
+        <p className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
+          <VerifiedBadge kind="anciennete" size={16} /> Badge vérifié — dans {status.moisRestants}&nbsp;mois
+        </p>
+        <p className="mt-1 text-[12px] leading-relaxed text-gray-500">
+          Il apparaît tout seul après <b>6 mois</b> de présence. Rien à demander,
+          rien à payer — vous êtes membre depuis {status.mois}&nbsp;mois.
+        </p>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+          <div
+            className="h-full rounded-full bg-ivoire-green transition-all"
+            style={{ width: `${Math.min(100, Math.round((status.mois / 6) * 100))}%` }}
+          />
+        </div>
       </div>
-      <button
-        onClick={obtain}
-        disabled={busy || !status || !status.eligible}
-        className="btn-primary mt-4 w-full py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {busy ? 'Vérification…' : status?.eligible ? 'Obtenir le badge vérifié' : 'Conditions non remplies'}
-      </button>
-    </div>
-  )
-}
-
-/** Une condition d'éligibilité (coche verte si remplie, sinon puce grise + indice). */
-function Criterion({ ok, label, hint }: { ok: boolean; label: string; hint?: string }) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full ${ok ? 'bg-ivoire-green text-white' : 'bg-gray-200 text-gray-400'}`}>
-        {ok ? <Check size={13} strokeWidth={3} /> : <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-      </span>
-      <span className="min-w-0">
-        <span className={`block text-sm font-semibold ${ok ? 'text-gray-800' : 'text-gray-600'}`}>{label}</span>
-        {hint && <span className="block text-xs text-gray-400">{hint}</span>}
-      </span>
     </div>
   )
 }

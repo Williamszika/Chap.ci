@@ -4,6 +4,9 @@ import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wa
 import { mediaUrl } from '../lib/native'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
+import { isPhp } from '../lib/backend'
+import { fetchVerifyStatus, sendEmailCode, confirmEmailCode, type VerifyStatus } from '../lib/verify'
+import { MailCheck } from 'lucide-react'
 import type { Listing } from '../types'
 import { useGeo } from '../store/GeoContext'
 import { useToast } from '../store/ToastContext'
@@ -41,7 +44,18 @@ type ModReason = { code: string; label: string; advice: string }
 
 export function PostAd() {
   const navigate = useNavigate()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
+  // État de vérification : chargé une fois, pour savoir si l'on doit ouvrir la
+  // saisie du code avant même d'afficher le formulaire.
+  const [verifStatus, setVerifStatus] = useState<VerifyStatus | null>(null)
+  useEffect(() => {
+    if (!user || !isPhp) { setVerifStatus({ emailVerified: true, badge: '', mois: 0, moisRestants: 0 }); return }
+    let vivant = true
+    fetchVerifyStatus()
+      .then((v) => { if (vivant) setVerifStatus(v) })
+      .catch(() => { if (vivant) setVerifStatus({ emailVerified: true, badge: '', mois: 0, moisRestants: 0 }) })
+    return () => { vivant = false }
+  }, [user])
   const { addListing, updateListing, getListing } = useApp()
   const { place } = useGeo()
   const toast = useToast()
@@ -363,6 +377,21 @@ export function PostAd() {
   // Publier / modifier une annonce EXIGE un compte connecté : on n'affiche pas le
   // formulaire aux visiteurs, on les invite à créer un compte ou se connecter
   // (retour automatique ici après authentification).
+  // ── Adresse e-mail non confirmée : on ne publie pas encore ────────────────
+  //
+  // Le mur arrive ICI, sur l'écran de publication, et nulle part ailleurs.
+  // Ni à l'inscription, ni pour acheter, ni pour écrire à un vendeur : on ne
+  // dresse un obstacle que devant l'action qui engage vraiment. Une annonce est
+  // vue de tous, et une adresse jetable est ce qui permet de recommencer
+  // indéfiniment après un bannissement.
+  //
+  // Et il ne dit PAS « accès refusé » : il propose le code, le reçoit et le
+  // valide sur place. Renvoyer quelqu'un vers ses réglages au moment précis où
+  // il allait publier, c'est le perdre.
+  if (user && verifStatus && !verifStatus.emailVerified) {
+    return <EmailGate email={user.email} onDone={refreshUser} onCancel={() => navigate(-1)} />
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-[72vh] flex-col items-center justify-center gap-5 px-6 text-center">
@@ -936,5 +965,80 @@ function AttrInput({
         )}
       </div>
     </Field>
+  )
+}
+
+
+/**
+ * Mur de confirmation de l'adresse — sur l'écran de publication uniquement.
+ *
+ * Il ne renvoie personne ailleurs : le code se demande, se saisit et se valide
+ * ici. Quelqu'un qui s'apprêtait à publier et qu'on expédie dans ses réglages
+ * ne revient pas.
+ */
+function EmailGate({ email, onDone, onCancel }: { email: string; onDone: () => Promise<void>; onCancel: () => void }) {
+  const toast = useToast()
+  const [envoye, setEnvoye] = useState(false)
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function envoyer() {
+    setBusy(true)
+    try { await sendEmailCode(); setEnvoye(true); toast.success('Code envoyé.') }
+    catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(false) }
+  }
+  async function confirmer() {
+    setBusy(true)
+    try {
+      await confirmEmailCode(code)
+      toast.success('Adresse confirmée. À vous de publier 🎉')
+      await onDone()
+    } catch (e) { toast.error((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="flex min-h-[72vh] flex-col items-center justify-center gap-5 px-6 text-center">
+      <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-100 text-primary-600">
+        <MailCheck size={30} />
+      </div>
+      <div>
+        <h1 className="font-display text-2xl font-black text-ink">Confirmez votre adresse</h1>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-gray-500">
+          Une dernière étape avant de publier. Nous envoyons un code à 6 chiffres à{' '}
+          <b className="text-gray-700">{email}</b> — il protège votre compte et rassure vos acheteurs.
+        </p>
+      </div>
+
+      <div className="flex w-full max-w-xs flex-col gap-2.5">
+        {!envoye ? (
+          <button onClick={envoyer} disabled={busy} className="btn-primary w-full py-3">
+            {busy ? 'Envoi…' : 'Recevoir mon code'}
+          </button>
+        ) : (
+          <>
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="6 chiffres"
+              className="input tnum text-center text-2xl font-bold tracking-[0.4em]"
+            />
+            <button onClick={confirmer} disabled={busy || code.length !== 6} className="btn-primary w-full py-3 disabled:opacity-50">
+              {busy ? 'Vérification…' : 'Confirmer et publier'}
+            </button>
+            <button onClick={envoyer} disabled={busy} className="text-xs font-semibold text-gray-500 underline">
+              Je n’ai rien reçu — renvoyer un code
+            </button>
+          </>
+        )}
+      </div>
+      <p className="max-w-xs text-[12px] leading-relaxed text-gray-400">
+        Le code est valable 15 minutes. Pensez à regarder vos indésirables.
+      </p>
+      <button onClick={onCancel} className="text-sm font-medium text-gray-500">Retour</button>
+    </div>
   )
 }
