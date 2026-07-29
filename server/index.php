@@ -2106,19 +2106,31 @@ function send_foncier_update_email(array $config, string $to, array $listing): b
  * personne ne reçoit deux fois le même message. Bornée par $max pour ne jamais
  * faire expirer la requête qui la déclenche.
  */
-function foncier_campagne(array $config, PDO $pdo, int $max = 200): array {
+function foncier_campagne(array $config, PDO $pdo, int $max = 200, bool $simulation = false): array {
   $st = $pdo->query("SELECT id, user_id, title, category_id, subcategory, attributes, hidden, hidden_reason
                      FROM listings WHERE category_id = 'immobilier' ORDER BY created_at DESC");
-  $masquees = 0; $mails = 0; $echecs = 0; $conformes = 0; $vues = 0;
+  $vues = 0; $conformes = 0; $masquees = 0; $mails = 0; $echecs = 0;
+  $dejaTraitees = 0; $masqueesAilleurs = 0; $sansCompte = 0; $restantes = 0;
   foreach ($st->fetchAll() as $l) {
-    if ($masquees >= $max) break;
     $attrs = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
     if (!foncier_concerne('immobilier', $l['subcategory'] ?? null, $attrs)) continue;
     $vues++;
     if (!foncier_manques($attrs)) { $conformes++; continue; }
-    // Déjà traitée lors d'un passage précédent : on n'écrit rien, on n'écrit
-    // surtout pas un second message.
-    if (!empty($l['hidden']) && (string) ($l['hidden_reason'] ?? '') === FONCIER_MOTIF) continue;
+
+    if (!empty($l['hidden'])) {
+      // Déjà traitée par cette campagne : on ne réécrit rien, et surtout on
+      // n'envoie pas un second message.
+      if ((string) ($l['hidden_reason'] ?? '') === FONCIER_MOTIF) { $dejaTraitees++; continue; }
+      // Masquée pour une AUTRE raison — décision d'un modérateur, ou choix du
+      // vendeur. On n'y touche pas : écraser le motif effacerait la décision, et
+      // la remise en ligne automatique republierait ensuite une annonce que
+      // quelqu'un avait retirée. Elle n'est de toute façon vue par personne.
+      $masqueesAilleurs++;
+      continue;
+    }
+
+    if ($masquees >= $max) { $restantes++; continue; }
+    if ($simulation) { $masquees++; continue; } // état des lieux : on n'écrit rien
 
     $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')
         ->execute([FONCIER_MOTIF, $l['id']]);
@@ -2129,17 +2141,61 @@ function foncier_campagne(array $config, PDO $pdo, int $max = 200): array {
       . 'Modifiez-la : elle repartira en ligne aussitôt.',
       '#/modifier/' . $l['id']);
 
+    $email = '';
     if (!empty($l['user_id'])) {
       $q = $pdo->prepare('SELECT email FROM users WHERE id = ?');
       $q->execute([$l['user_id']]);
       $email = (string) ($q->fetch()['email'] ?? '');
-      if ($email !== '') {
-        if (send_foncier_update_email($config, $email, $l)) $mails++; else $echecs++;
-      }
+    }
+    if ($email === '') {
+      // Annonce sans compte rattaché : masquée quand même — un acheteur ne doit
+      // pas la voir — mais PERSONNE ne peut la corriger. Elle est comptée à part
+      // pour que le Patron le sache au lieu de la découvrir des mois plus tard.
+      $sansCompte++;
+    } elseif (send_foncier_update_email($config, $email, $l)) {
+      $mails++;
+    } else {
+      $echecs++;
     }
   }
-  return ['examinees' => $vues, 'conformes' => $conformes, 'masquees' => $masquees,
-          'emails' => $mails, 'echecs' => $echecs];
+  return [
+    'examinees' => $vues, 'conformes' => $conformes, 'masquees' => $masquees,
+    'emails' => $mails, 'echecs' => $echecs, 'sansCompte' => $sansCompte,
+    'dejaTraitees' => $dejaTraitees, 'masqueesAilleurs' => $masqueesAilleurs,
+    'restantes' => $restantes, 'simulation' => $simulation,
+  ];
+}
+
+/**
+ * Renvoie le message aux vendeurs dont l'annonce est déjà masquée par la
+ * campagne. Ne masque rien, ne touche à rien d'autre.
+ *
+ * Raison d'être : le premier passage s'exécute au fil d'une requête web
+ * ordinaire. Si l'envoi échoue à ce moment-là — SMTP momentanément muet,
+ * quota de l'hébergeur — l'annonce est masquée et son propriétaire n'en sait
+ * rien. Sans cette relance, il n'existerait aucun moyen de rattraper : la
+ * campagne, elle, considère l'annonce comme déjà traitée et se tait.
+ *
+ * Déclenchée à la main par le propriétaire, jamais automatiquement : c'est
+ * précisément parce qu'elle peut envoyer deux fois le même message qu'elle
+ * doit rester une décision.
+ */
+function foncier_relance(array $config, PDO $pdo): array {
+  $st = $pdo->prepare('SELECT id, user_id, title FROM listings WHERE hidden = 1 AND hidden_reason = ?');
+  $st->execute([FONCIER_MOTIF]);
+  $envoyes = 0; $echecs = 0; $sansCompte = 0; $total = 0;
+  foreach ($st->fetchAll() as $l) {
+    $total++;
+    $email = '';
+    if (!empty($l['user_id'])) {
+      $q = $pdo->prepare('SELECT email FROM users WHERE id = ?');
+      $q->execute([$l['user_id']]);
+      $email = (string) ($q->fetch()['email'] ?? '');
+    }
+    if ($email === '') { $sansCompte++; continue; }
+    if (send_foncier_update_email($config, $email, $l)) $envoyes++; else $echecs++;
+  }
+  return ['concernees' => $total, 'envoyes' => $envoyes, 'echecs' => $echecs, 'sansCompte' => $sansCompte];
 }
 
 /** Email de bienvenue envoyé à la création d'un compte. */
@@ -3008,8 +3064,16 @@ function foncier_campagne_initiale(array $config, PDO $pdo): void {
   // et double les messages déjà partis. Le reliquat se rattrape par la route.
   @file_put_contents($marque, gmdate('c'));
   @chmod($marque, 0600);
-  try { foncier_campagne($config, $pdo, 200); }
-  catch (Throwable $e) { error_log('[chapci] foncier: ' . $e->getMessage()); }
+  try {
+    // Le résultat est écrit dans le journal ET dans le marqueur : une campagne
+    // qui masque des annonces et envoie des e-mails ne doit pas s'exécuter sans
+    // laisser de trace de ce qu'elle a fait. Sans cela, un e-mail non parti
+    // resterait invisible à jamais.
+    $r = foncier_campagne($config, $pdo, 200);
+    $ligne = gmdate('c') . ' ' . json_encode($r, JSON_UNESCAPED_UNICODE);
+    error_log('[chapci] foncier campagne: ' . $ligne);
+    @file_put_contents($marque, $ligne);
+  } catch (Throwable $e) { error_log('[chapci] foncier: ' . $e->getMessage()); }
 }
 foncier_campagne_initiale($config, $pdo);
 
@@ -5131,11 +5195,37 @@ try {
     //  Réservée au PROPRIÉTAIRE : elle masque des annonces et envoie des
     //  e-mails en série. Un modérateur modère au cas par cas.
     // ------------------------------------------------------------------------
-    if ($path === 'admin/foncier/campagne' && $method === 'POST') {
+    if (str_starts_with($path, 'admin/foncier/')) {
       if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
         jerr('Cette campagne est réservée au propriétaire du site.', 403);
       }
+    }
+    // État des lieux — ne masque rien, n'envoie rien. C'est la réponse à
+    // « qu'est-ce que la campagne a fait, au juste ? », consultable à tout moment.
+    if ($path === 'admin/foncier/campagne' && $method === 'GET') {
+      $etat = foncier_campagne($config, $pdo, 200, true);
+      $st = $pdo->query("SELECT id, title, hidden, hidden_reason, attributes FROM listings
+                         WHERE category_id = 'immobilier' ORDER BY created_at DESC LIMIT 100");
+      $etat['annonces'] = array_map(function (array $l) {
+        $a = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+        return [
+          'id' => $l['id'], 'titre' => $l['title'],
+          'masquee' => !empty($l['hidden']),
+          'parLaCampagne' => (string) ($l['hidden_reason'] ?? '') === FONCIER_MOTIF,
+          'vente' => foncier_concerne('immobilier', null, $a),
+          'manques' => foncier_manques($a),
+        ];
+      }, $st->fetchAll());
+      jout($etat);
+    }
+    if ($path === 'admin/foncier/campagne' && $method === 'POST') {
       jout(foncier_campagne($config, $pdo, 200));
+    }
+    // Renvoi du message aux vendeurs déjà prévenus. À déclencher seulement si
+    // l'on soupçonne que le premier e-mail n'est pas parti : il peut arriver
+    // deux fois, ce qui est moins grave qu'une annonce masquée sans explication.
+    if ($path === 'admin/foncier/relance' && $method === 'POST') {
+      jout(foncier_relance($config, $pdo));
     }
 
     if ($path === 'admin/revenues' && $method === 'GET') {

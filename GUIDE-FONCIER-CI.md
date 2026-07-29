@@ -192,8 +192,25 @@ un e-mail contenant le lien `#/modifier/<id>`.
 - Le marqueur est posé **avant** d'agir : si l'envoi échoue à mi-parcours, la
   requête suivante ne recommence pas tout et ne double pas les e-mails déjà
   partis. Le reliquat se rattrape par la route.
-- Relance manuelle : `POST /api/admin/foncier/campagne`, **propriétaire
-  uniquement** — elle masque des annonces et envoie des e-mails en série.
+- **Elle ne touche que les annonces VISIBLES.** Une annonce déjà masquée pour un
+  autre motif — retrait par un modérateur, choix du vendeur — est laissée telle
+  quelle : écraser `hidden_reason` effacerait la décision, et la remise en ligne
+  automatique republierait ensuite une annonce que quelqu'un avait retirée. Elle
+  n'est de toute façon vue par personne.
+- Une annonce **sans compte rattaché** est masquée quand même (un acheteur ne
+  doit pas la voir) mais comptée à part : personne ne peut la corriger, et le
+  Patron doit le savoir au lieu de le découvrir des mois plus tard.
+- Le compte rendu est écrit dans le journal PHP **et dans le marqueur lui-même** :
+  une campagne qui masque des annonces et envoie des e-mails ne doit pas
+  s'exécuter sans laisser trace de ce qu'elle a fait.
+
+**Les trois routes, propriétaire uniquement :**
+
+| Route | Effet |
+|---|---|
+| `GET /api/admin/foncier/campagne` | **État des lieux.** N'écrit rien, n'envoie rien : compteurs + liste des annonces immobilières avec, pour chacune, si elle est masquée, par qui, et ce qui lui manque. |
+| `POST /api/admin/foncier/campagne` | Exécute la campagne (masquage + notification + e-mail). Idempotente. |
+| `POST /api/admin/foncier/relance` | **Renvoie l'e-mail** aux vendeurs déjà masqués par la campagne. À n'utiliser que si l'on soupçonne que le premier n'est pas parti : il peut arriver deux fois, ce qui est moins grave qu'une annonce masquée sans explication. |
 - Les **locations** ne sont jamais touchées.
 - Dès qu'un vendeur enregistre un dossier complet, l'annonce **repart en ligne
   d'elle-même**. Lui imposer une démarche de plus serait une punition, pas une

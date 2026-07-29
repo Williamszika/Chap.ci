@@ -555,7 +555,11 @@ export function Profile() {
                 {shownMine.map((l) => (
                   <div key={l.id} className="card p-2.5">
                     <div className="flex items-center gap-3">
-                      <Link to={`/annonce/${l.id}`} className="flex flex-1 items-center gap-3">
+                      {/* Une annonce masquée n'a pas de fiche publique : le lien
+                          menait à « Annonce introuvable ». On envoie donc au
+                          formulaire, qui est de toute façon ce qu'il y a à
+                          faire. */}
+                      <Link to={l.hidden ? `/modifier/${l.id}` : `/annonce/${l.id}`} state={l.hidden ? { listing: l } : undefined} className="flex flex-1 items-center gap-3">
                         <div className="relative">
                           <img src={mediaUrl(l.images[0])} alt="" className={`h-16 w-16 rounded-xl object-cover ${l.hidden ? 'opacity-40' : ''}`} />
                           {l.hidden && (
