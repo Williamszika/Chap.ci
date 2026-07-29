@@ -5,6 +5,7 @@ import { mediaUrl } from '../lib/native'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { isPhp } from '../lib/backend'
+import * as php from '../lib/php'
 import { fetchVerifyStatus, sendEmailCode, confirmEmailCode, type VerifyStatus } from '../lib/verify'
 import { MailCheck } from 'lucide-react'
 import type { Listing } from '../types'
@@ -13,6 +14,8 @@ import { useToast } from '../store/ToastContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
+import { FoncierDocs } from '../components/FoncierDocs'
+import { DOC_PAR_ID, cleNumero, lireDocs } from '../data/foncier'
 import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
 import { formatFCFA } from '../lib/format'
@@ -41,6 +44,13 @@ const CAT_EMOJI: Record<string, string> = {
 
 /** Raison de refus renvoyée par le Gardien de publication (modération). */
 type ModReason = { code: string; label: string; advice: string }
+
+/** Les trois engagements exigés avant de publier une vente immobilière. */
+const ENGAGEMENTS = [
+  'Je déclare que ces informations sont exactes et que je suis en droit de vendre ce bien.',
+  'Je comprends que Chap.ci ne vérifie aucun document et ne garantit aucune vente. Ce que j’écris ici m’engage, moi seul.',
+  'Je m’engage à présenter les originaux à l’acheteur et à passer par un notaire pour la vente.',
+] as const
 
 export function PostAd() {
   const navigate = useNavigate()
@@ -71,8 +81,27 @@ export function PostAd() {
   const { id: editId } = useParams()
   const location = useLocation()
   const editing = !!editId
+  // Annonce à modifier : reçue par la navigation, ou retrouvée dans la liste
+  // déjà chargée. Ni l'un ni l'autre quand on ARRIVE par un lien direct — celui
+  // d'un e-mail, par exemple : la liste publique ne contient pas les annonces
+  // masquées, et le formulaire s'ouvrirait vide. On va alors la chercher.
+  const [fetchedListing, setFetchedListing] = useState<Listing | null>(null)
   const editListing =
-    ((location.state as { listing?: Listing } | null)?.listing) ?? (editId ? getListing(editId) : undefined)
+    ((location.state as { listing?: Listing } | null)?.listing)
+    ?? (editId ? getListing(editId) : undefined)
+    ?? fetchedListing
+    ?? undefined
+  const [loadingListing, setLoadingListing] = useState(false)
+  useEffect(() => {
+    if (!editing || !editId || editListing || !isPhp || !user) return
+    let vivant = true
+    setLoadingListing(true)
+    php.phpMyListings()
+      .then((mes) => { if (vivant) setFetchedListing(mes.find((l) => l.id === editId) ?? null) })
+      .catch(() => { /* l'écran affichera « annonce introuvable » */ })
+      .finally(() => { if (vivant) setLoadingListing(false) })
+    return () => { vivant = false }
+  }, [editing, editId, editListing, user])
 
   const [images, setImages] = useState<string[]>([])
   const [editIndex, setEditIndex] = useState<number | null>(null) // photo en cours d'édition
@@ -96,6 +125,8 @@ export function PostAd() {
   const [locating, setLocating] = useState(false)
   const [seller, setSeller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const [error, setError] = useState('')
+  // Vente immobilière : les trois engagements du vendeur, bloquants.
+  const [engagements, setEngagements] = useState<[boolean, boolean, boolean]>([false, false, false])
   const [moderation, setModeration] = useState<ModReason[] | null>(null) // refus du Gardien
   const [submitting, setSubmitting] = useState(false)
   const prefilled = useRef(false)
@@ -110,6 +141,10 @@ export function PostAd() {
     setCategoryId(l.categoryId ?? '')
     setSubcategory(l.subcategory ?? '')
     setAttrs(l.attributes ?? {})
+    // Les engagements déjà pris restent cochés : on ne fait pas recommencer un
+    // vendeur qui corrige une virgule. Une annonce d'avant la réforme, elle,
+    // n'a pas d'engagement — les cases sont vides, et bloquent.
+    if (l.attributes?.engagement === 'oui') setEngagements([true, true, true])
     setCondition(l.condition === 'neuf' ? 'neuf' : 'occasion')
     setPrice(String(l.price ?? ''))
     setNegotiable(!!l.negotiable)
@@ -169,6 +204,11 @@ export function PostAd() {
 
   const cat = categoryById(categoryId)
   const form = formFor(categoryId) // champs adaptés à la catégorie
+
+  // Champs réellement à l'écran : ceux dont la condition est remplie. Un champ
+  // masqué n'est jamais exigé, et sa valeur ne part pas au serveur.
+  const champsVisibles = form.fields.filter((f) => !f.when || f.when(attrs))
+  const venteFonciere = categoryId === 'immobilier' && attrs.transaction === 'Vente'
 
   // Sélectionne une catégorie et réinitialise ce qui en dépend.
   function pickCategory(id: string) {
@@ -306,6 +346,40 @@ export function PostAd() {
     if (!seller.name.trim()) return fail('Indiquez votre nom.', 'pa-seller-name')
     if (!seller.phone.trim()) return fail('Indiquez un numéro de téléphone.', 'pa-seller-phone')
 
+    // Champs de catégorie exigés (ceux qui sont à l'écran). Pour une vente
+    // immobilière, cela couvre le dossier foncier au complet.
+    for (const f of champsVisibles) {
+      if (!f.required) continue
+      if (f.type === 'docs') {
+        if (!lireDocs(attrs.docs).length) {
+          return fail('Cochez le ou les documents de propriété que vous détenez.', `pa-attr-${f.key}`)
+        }
+        const sansNumero = lireDocs(attrs.docs).filter((id) => DOC_PAR_ID[id].numLabel && !attrs[cleNumero(id)]?.trim())
+        if (sansNumero.length) {
+          return fail(`Indiquez le numéro : ${DOC_PAR_ID[sansNumero[0]].numLabel.toLowerCase()}.`, `fonc-${sansNumero[0]}`)
+        }
+        continue
+      }
+      if (!(attrs[f.key] ?? '').trim()) {
+        return fail(`Renseignez : ${f.label.toLowerCase()}.`, `pa-attr-${f.key}`)
+      }
+    }
+    if (venteFonciere && !engagements.every(Boolean)) {
+      return fail('Cochez les trois engagements avant de publier.', 'pa-engagement')
+    }
+
+    // Les champs devenus invisibles (l'offre est passée de Vente à Location, le
+    // bien de Maison à Terrain nu…) ne doivent pas partir avec l'annonce : ils
+    // s'afficheraient sur la fiche sans que personne ne les ait voulus.
+    const clesVisibles = new Set(champsVisibles.map((f) => f.key))
+    const attrsFinaux: Record<string, string> = {}
+    for (const [k, v] of Object.entries(attrs)) {
+      if (!v) continue
+      if (k === 'engagement') { if (venteFonciere) attrsFinaux[k] = v; continue }
+      if (k.startsWith('num_')) { if (venteFonciere && lireDocs(attrs.docs).includes(k.slice(4))) attrsFinaux[k] = v; continue }
+      if (clesVisibles.has(k)) attrsFinaux[k] = v
+    }
+
     const emoji = emojiFor(categoryId, subcategory)
     const finalImages =
       images.length > 0 ? images : [placeholderImage(title, emoji, subcategory)]
@@ -334,7 +408,7 @@ export function PostAd() {
       featured: false,
       promoPrice: promoPreview ? promoPreview.price : undefined,
       promoUntil: promoPreview ? Date.now() + Number(promoDays) * 86_400_000 : undefined,
-      attributes: Object.keys(attrs).length ? attrs : undefined,
+      attributes: Object.keys(attrsFinaux).length ? attrsFinaux : undefined,
     }
 
     setSubmitting(true)
@@ -390,6 +464,17 @@ export function PostAd() {
   // il allait publier, c'est le perdre.
   if (user && verifStatus && !verifStatus.emailVerified) {
     return <EmailGate email={user.email} onDone={refreshUser} onCancel={() => navigate(-1)} />
+  }
+
+  // Modification ouverte par un lien direct : on attend l'annonce avant de
+  // dessiner le formulaire. Un formulaire vide qui se remplit une seconde plus
+  // tard fait écraser une annonce par quelqu'un qui a commencé à taper.
+  if (editing && loadingListing && !editListing) {
+    return (
+      <div className="flex min-h-[72vh] items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-primary-500" />
+      </div>
+    )
   }
 
   if (!user) {
@@ -608,10 +693,55 @@ export function PostAd() {
           </Field>
         )}
 
-        {/* Champs spécifiques à la catégorie (marque, année, surface, taille…) */}
-        {categoryId && form.fields.map((f) => (
-          <AttrInput key={f.key} field={f} value={attrs[f.key] ?? ''} onChange={(v) => setAttr(f.key, v)} />
+        {/* Champs spécifiques à la catégorie (marque, année, surface, taille…).
+            Certains ne s'affichent que sous condition : le dossier foncier ne
+            concerne que les ventes, les chambres que le bâti. */}
+        {categoryId && champsVisibles.map((f) => (
+          <div key={f.key} id={`pa-attr-${f.key}`}>
+            {f.type === 'docs'
+              ? (
+                <Field label={f.label}>
+                  {f.help && <p className="-mt-1 mb-2 text-xs text-gray-500">{f.help}</p>}
+                  <FoncierDocs attrs={attrs} setAttr={setAttr} />
+                </Field>
+              )
+              : <AttrInput field={f} value={attrs[f.key] ?? ''} onChange={(v) => setAttr(f.key, v)} />}
+          </div>
         ))}
+
+        {/* Engagement du vendeur — vente immobilière uniquement. Les trois cases
+            sont bloquantes : sans elles, l'annonce ne part pas. */}
+        {venteFonciere && (
+          <div id="pa-engagement" className="space-y-3 rounded-2xl border border-line2 bg-cream-100/50 p-4">
+            <p className="font-display text-sm font-extrabold text-gray-900">Votre engagement</p>
+            <p className="-mt-1.5 text-xs text-gray-500">
+              Les trois cases sont obligatoires. Elles ne coûtent rien à un vendeur honnête.
+            </p>
+            {ENGAGEMENTS.map((t, i) => (
+              <label key={i} className="flex cursor-pointer items-start gap-2.5 text-[13.5px] leading-relaxed text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={engagements[i]}
+                  onChange={(e) => {
+                    const suivant = [...engagements] as [boolean, boolean, boolean]
+                    suivant[i] = e.target.checked
+                    setEngagements(suivant)
+                    setAttr('engagement', suivant.every(Boolean) ? 'oui' : '')
+                  }}
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-primary-500"
+                />
+                <span>{t}</span>
+              </label>
+            ))}
+            <div className="flex gap-2.5 rounded-xl border border-accent-ocre/30 bg-accent-ocre/8 p-3 text-[12.5px] leading-relaxed text-accent-ocre">
+              <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+              <p>
+                Vendre deux fois le même terrain, ou vendre un bien qui ne vous appartient pas, est une escroquerie.
+                Chap.ci supprime l’annonce, ferme le compte et transmet le dossier sur réquisition.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* État — masqué là où ça n'a pas de sens (emploi, service, immobilier…) */}
         {form.condition && (
@@ -924,17 +1054,26 @@ function AttrInput({
       </label>
     )
   }
-  if (field.type === 'chips') {
+  if (field.type === 'chips' || field.type === 'multi') {
     // Une série de boutons n'est pas un champ de saisie : pas de htmlFor ici.
+    const multiple = field.type === 'multi'
+    const choisis = multiple ? value.split(',').map((s) => s.trim()).filter(Boolean) : []
+    const actif = (o: string) => (multiple ? choisis.includes(o) : value === o)
+    const basculer = (o: string) => {
+      if (!multiple) return onChange(value === o ? '' : o)
+      onChange((choisis.includes(o) ? choisis.filter((x) => x !== o) : [...choisis, o]).join(', '))
+    }
     return (
-      <Field label={field.label}>
+      <Field label={multiple ? `${field.label} · plusieurs choix possibles` : field.label}>
+        {field.help && <p className="-mt-1 mb-2 text-xs text-gray-500">{field.help}</p>}
         <div className="flex flex-wrap gap-2">
           {field.options?.map((o) => (
             <button
               key={o}
               type="button"
-              onClick={() => onChange(value === o ? '' : o)}
-              className={`chip ${value === o ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+              aria-pressed={actif(o)}
+              onClick={() => basculer(o)}
+              className={`chip ${actif(o) ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
             >
               {o}
             </button>

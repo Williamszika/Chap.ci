@@ -228,7 +228,20 @@ export function Profile() {
           {/* Mon activité */}
           <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Mon activité</p>
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white shadow-card">
-            <AccountRow tint="ocre" icon={<Package size={20} />} label="Mes annonces" sub={`${myListings.length} en ligne · ${salesDone} vendue${salesDone > 1 ? 's' : ''}`} onClick={() => setTab('annonces')} />
+            {/* « En ligne » veut dire visible : une annonce masquée ne l'est
+                pas. Les compter ensemble laissait croire à un vendeur que son
+                annonce tournait alors qu'elle attendait une correction. */}
+            <AccountRow
+              tint="ocre"
+              icon={<Package size={20} />}
+              label="Mes annonces"
+              sub={[
+                `${myListings.filter((l) => !l.hidden && !l.sold).length} en ligne`,
+                myListings.some((l) => l.hidden) ? `${myListings.filter((l) => l.hidden).length} masquée${myListings.filter((l) => l.hidden).length > 1 ? 's' : ''}` : '',
+                `${salesDone} vendue${salesDone > 1 ? 's' : ''}`,
+              ].filter(Boolean).join(' · ')}
+              onClick={() => setTab('annonces')}
+            />
             <AccountRow tint="red" icon={<Heart size={20} className="fill-current" />} label="Mes favoris" badge={favorites.length || undefined} onClick={() => navigate('/favoris')} />
             <AccountRow tint="gray" icon={<MessageSquare size={20} />} label="Messages" sub="Vos conversations" onClick={() => navigate('/messages')} />
             <AccountRow tint="gold" icon={<ShoppingBag size={20} />} label="Mes commandes" sub={`${purchases.filter((o) => o.status === 'en_cours').length} en cours`} onClick={() => setTab('achats')} />
@@ -575,6 +588,14 @@ export function Profile() {
                         </div>
                       </Link>
                     </div>
+                    {/* Masquée : on dit POURQUOI, et le bouton qui suit répare.
+                        Une annonce masquée sans explication est abandonnée. */}
+                    {l.hidden && l.hiddenReason && (
+                      <div className="mt-2 flex gap-2 rounded-xl border border-accent-ocre/30 bg-accent-ocre/8 p-2.5 text-[12px] leading-relaxed text-accent-ocre">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                        <p>{l.hiddenReason}</p>
+                      </div>
+                    )}
                     <div className="mt-2 flex gap-1.5 border-t border-line pt-2">
                       <button
                         onClick={() => navigate(`/modifier/${l.id}`, { state: { listing: l } })}

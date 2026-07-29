@@ -1144,9 +1144,20 @@ function migrate(PDO $pdo): void {
   // (CREATE TABLE IF NOT EXISTS ne touche pas une table déjà présente.)
   try { $pdo->exec("ALTER TABLE user_interests ADD COLUMN subcategory $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Préférences de notification, par type. Cette colonne était LUE par notify()
+  // et par /notifications/prefs, mais créée nulle part : la requête levait une
+  // exception, notify() l'avalait (« une notification ne doit jamais casser
+  // l'action ») et AUCUNE notification interne n'arrivait — ni « Annonce
+  // publiée », ni les statuts de publicité. Une panne muette, par construction.
+  try { $pdo->exec("ALTER TABLE profiles ADD COLUMN notif_prefs $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN attributes $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN hidden $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Motif du masquage, montré au vendeur dans « Mes annonces ». Une annonce
+  // masquée sans explication est une annonce abandonnée.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN hidden_reason $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE users ADD COLUMN status $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
@@ -1925,6 +1936,91 @@ function email_button(string $href, string $label): string {
     . 'text-decoration:none;font-weight:bold;font-size:15px;border-radius:12px">' . htmlspecialchars($label) . '</a>'
     . '</td></tr></table>';
 }
+// =============================================================================
+//  Dossier foncier — la contrepartie serveur de src/data/foncier.ts.
+//
+//  Le formulaire du site vérifie déjà tout cela ; s'arrêter là laisserait la
+//  règle à la merci d'un curl. Ce qui est exigé de l'écran est donc exigé ici.
+//
+//  On ne duplique QUE ce qui sert au contrôle : l'identifiant de chaque
+//  document, et s'il porte un numéro. Les descriptions, les verdicts et les
+//  conseils à l'acheteur restent côté client, où ils sont affichés.
+// =============================================================================
+
+/** id => le document porte-t-il un numéro à saisir ? */
+const FONCIER_DOCS = [
+  'tf' => 'du titre foncier',
+  'acd' => 'de l’ACD',
+  'tfr' => 'du titre foncier rural',
+  'cf' => 'du certificat foncier',
+  'acp' => 'de l’ACP',
+  'adu' => 'de l’ADU',
+  'lettre' => 'de la lettre d’attribution',
+  'village' => 'de l’attestation villageoise',
+  'aucun' => '', // aucun numéro : c'est justement l'absence de document
+];
+
+/**
+ * L'annonce relève-t-elle du dossier foncier ? Une VENTE immobilière.
+ * Les annonces d'avant la réforme n'ont pas d'attribut `transaction` : on ne
+ * les traite comme des locations que lorsqu'elles le disent, explicitement ou
+ * par leur sous-catégorie. Le doute penche du côté de l'acheteur.
+ */
+function foncier_concerne(string $categoryId, ?string $subcategory, array $attrs): bool {
+  if ($categoryId !== 'immobilier') return false;
+  $t = $attrs['transaction'] ?? '';
+  if ($t !== '') return $t === 'Vente';
+  return !in_array((string) $subcategory, ['Location', 'Colocation', 'Location vacances'], true);
+}
+
+/**
+ * Ce qui manque au dossier foncier. Tableau vide = complet.
+ * Les libellés sont ceux que verra le vendeur : ils doivent être lisibles tels
+ * quels dans un message d'erreur.
+ */
+function foncier_manques(array $attrs): array {
+  $out = [];
+  $docs = array_values(array_filter(
+    array_map('trim', explode(',', (string) ($attrs['docs'] ?? ''))),
+    fn($d) => $d !== '' && array_key_exists($d, FONCIER_DOCS),
+  ));
+  if (!$docs) $out[] = 'le ou les documents de propriété que vous détenez';
+  foreach ($docs as $d) {
+    if (FONCIER_DOCS[$d] !== '' && trim((string) ($attrs['num_' . $d] ?? '')) === '') {
+      $out[] = 'le numéro ' . FONCIER_DOCS[$d];
+    }
+  }
+  if (trim((string) ($attrs['idufci'] ?? '')) === '') $out[] = 'l’identifiant IDUFCI de la parcelle';
+  if (trim((string) ($attrs['titulaire'] ?? '')) === '') $out[] = 'le nom porté sur vos documents';
+  if (trim((string) ($attrs['bornage'] ?? '')) === '') $out[] = 'le bornage du terrain';
+  if (trim((string) ($attrs['juridique'] ?? '')) === '') $out[] = 'la situation juridique';
+  if (trim((string) ($attrs['occupation'] ?? '')) === '') $out[] = 'l’occupation du bien';
+  if (trim((string) ($attrs['nature'] ?? '')) === '') $out[] = 'la nature du bien';
+  if (trim((string) ($attrs['vendeur'] ?? '')) === '') $out[] = 'votre qualité (propriétaire, héritier…)';
+  if (($attrs['engagement'] ?? '') !== 'oui') $out[] = 'les trois engagements du vendeur';
+  return $out;
+}
+
+/**
+ * Refuse la publication d'une vente immobilière au dossier incomplet.
+ * Le message énumère ce qui manque : un refus qui ne dit pas quoi corriger
+ * fait abandonner le vendeur, et une annonce abandonnée ne protège personne.
+ */
+function foncier_exiger(string $categoryId, ?string $subcategory, array $attrs): void {
+  if (!foncier_concerne($categoryId, $subcategory, $attrs)) return;
+  $m = foncier_manques($attrs);
+  if (!$m) return;
+  jout([
+    'error' => 'Vente immobilière : le dossier foncier est incomplet. Il manque ' . implode(', ', $m) . '.',
+    'foncier' => true, 'manques' => $m,
+  ], 422);
+}
+
+/** Motif inscrit sur les annonces masquées par la campagne de mise à jour. */
+const FONCIER_MOTIF = 'Nouvelle règle sur les ventes immobilières : votre annonce doit indiquer '
+  . 'le ou les documents de propriété que vous détenez, leur numéro et l’identifiant IDUFCI de la parcelle. '
+  . 'Modifiez-la avec le nouveau formulaire, elle repartira en ligne aussitôt.';
+
 /** Gabarit HTML commun (logo + contenu + pied de page contact/réseaux/légal). */
 function email_layout(array $config, string $inner, string $preheader = ''): string {
   $site    = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
@@ -1964,6 +2060,88 @@ function email_layout(array $config, string $inner, string $preheader = ''): str
     . '<p style="margin:10px 0 0">' . htmlspecialchars($name) . ' — 100% ivoirien 🇨🇮</p>'
     . '</div></div></div>';
 }
+/**
+ * Annonce immobilière masquée en attendant sa mise à jour : on explique
+ * pourquoi, on dit exactement quoi faire, et on donne le lien qui ouvre le
+ * formulaire sur la bonne annonce. Un message qui se contente d'annoncer un
+ * masquage fait perdre un vendeur ; celui-ci lui rend son annonce.
+ */
+function send_foncier_update_email(array $config, string $to, array $listing): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $titre = htmlspecialchars(mb_substr((string) $listing['title'], 0, 80));
+  $lien = $site . '/#/modifier/' . rawurlencode((string) $listing['id']);
+  $inner = '<h2 style="margin:0 0 12px;font-size:19px;color:#111827">Votre annonce immobilière doit être mise à jour</h2>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Bonjour,</p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Votre annonce '
+    . '<b>« ' . $titre . ' »</b> a été <b>temporairement masquée</b>. Elle n’est pas supprimée : '
+    . 'vos photos, votre texte et votre prix sont intacts.</p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">En Côte d’Ivoire, sept documents circulent '
+    . 'couramment pour un terrain, et trois seulement donnent la propriété. Depuis le 1<sup>er</sup> janvier 2025, '
+    . 'l’ADU à QR code est le seul document d’entrée accepté pour demander un ACD, et depuis le 31 mars 2025 '
+    . 'l’attestation villageoise n’ouvre plus de dossier. Un acheteur doit l’apprendre <b>avant</b> d’appeler, '
+    . 'pas après avoir versé un acompte.</p>'
+    . '<p style="margin:0 0 6px;font-size:15px;line-height:1.6">Le formulaire vous demande maintenant :</p>'
+    . '<ul style="margin:0 0 14px;padding-left:20px;font-size:15px;line-height:1.7;color:#374151">'
+    . '<li>le ou les documents que vous détenez — vous pouvez en cocher plusieurs ;</li>'
+    . '<li>leur numéro ;</li>'
+    . '<li>l’identifiant IDUFCI de la parcelle ;</li>'
+    . '<li>le bornage, la situation juridique et l’occupation du bien.</li>'
+    . '</ul>'
+    . '<p style="margin:0 0 4px;font-size:15px;line-height:1.6">Cela prend deux minutes. '
+    . 'Dès que c’est enregistré, votre annonce <b>repart en ligne automatiquement</b> — et elle affichera '
+    . 'votre dossier en clair, ce qui rassure les acheteurs sérieux.</p>'
+    . email_button($lien, 'Mettre mon annonce à jour')
+    . '<p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280">Vous n’avez pas le numéro IDUFCI ? '
+    . 'Il figure sur les documents récents. Sinon, votre notaire ou votre géomètre agréé peut vous le '
+    . 'communiquer : eux seuls ont accès à la plateforme qui le délivre.</p>';
+  return send_mail($config, $to, 'Votre annonce immobilière doit être mise à jour — Chap.ci',
+    email_layout($config, $inner, 'Deux minutes pour remettre votre annonce en ligne.'));
+}
+
+/**
+ * Campagne de mise en conformité : masque les ventes immobilières publiées
+ * avant la nouvelle règle, inscrit le motif et prévient chaque vendeur.
+ *
+ * Idempotente — une annonce déjà masquée pour ce motif n'est pas retraitée, et
+ * personne ne reçoit deux fois le même message. Bornée par $max pour ne jamais
+ * faire expirer la requête qui la déclenche.
+ */
+function foncier_campagne(array $config, PDO $pdo, int $max = 200): array {
+  $st = $pdo->query("SELECT id, user_id, title, category_id, subcategory, attributes, hidden, hidden_reason
+                     FROM listings WHERE category_id = 'immobilier' ORDER BY created_at DESC");
+  $masquees = 0; $mails = 0; $echecs = 0; $conformes = 0; $vues = 0;
+  foreach ($st->fetchAll() as $l) {
+    if ($masquees >= $max) break;
+    $attrs = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+    if (!foncier_concerne('immobilier', $l['subcategory'] ?? null, $attrs)) continue;
+    $vues++;
+    if (!foncier_manques($attrs)) { $conformes++; continue; }
+    // Déjà traitée lors d'un passage précédent : on n'écrit rien, on n'écrit
+    // surtout pas un second message.
+    if (!empty($l['hidden']) && (string) ($l['hidden_reason'] ?? '') === FONCIER_MOTIF) continue;
+
+    $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')
+        ->execute([FONCIER_MOTIF, $l['id']]);
+    $masquees++;
+
+    notify($pdo, (string) $l['user_id'], 'listing', 'Annonce à mettre à jour',
+      'Votre annonce « ' . mb_substr((string) $l['title'], 0, 60) . ' » est masquée en attendant son dossier foncier. '
+      . 'Modifiez-la : elle repartira en ligne aussitôt.',
+      '#/modifier/' . $l['id']);
+
+    if (!empty($l['user_id'])) {
+      $q = $pdo->prepare('SELECT email FROM users WHERE id = ?');
+      $q->execute([$l['user_id']]);
+      $email = (string) ($q->fetch()['email'] ?? '');
+      if ($email !== '') {
+        if (send_foncier_update_email($config, $email, $l)) $mails++; else $echecs++;
+      }
+    }
+  }
+  return ['examinees' => $vues, 'conformes' => $conformes, 'masquees' => $masquees,
+          'emails' => $mails, 'echecs' => $echecs];
+}
+
 /** Email de bienvenue envoyé à la création d'un compte. */
 function send_welcome_email(array $config, string $to, string $fullName = ''): bool {
   $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
@@ -2762,6 +2940,7 @@ function listing_out(array $r, bool $withPhone = false): array {
     'promoUntil' => $r['promo_until'] ? iso_to_ms($r['promo_until']) : null,
     'attributes' => !empty($r['attributes']) ? (json_decode($r['attributes'], true) ?: null) : null,
     'hidden' => !empty($r['hidden']),
+    'hiddenReason' => !empty($r['hidden']) ? ($r['hidden_reason'] ?: null) : null,
     'sold' => !empty($r['sold']),
     'views' => (int) ($r['views'] ?? 0),
   ];
@@ -2810,6 +2989,29 @@ function backfill_email_verifie(array $config, PDO $pdo): void {
   } catch (Throwable $e) { /* colonne absente : on réessaiera au prochain passage */ }
 }
 backfill_email_verifie($config, $pdo);
+
+/**
+ * Mise en conformité des ventes immobilières — UNE SEULE FOIS, au déploiement.
+ *
+ * Le marqueur sur disque est indispensable : migrate() tourne à chaque requête,
+ * et sans lui la campagne repartirait en boucle. Elle est aussi idempotente en
+ * elle-même (une annonce déjà masquée pour ce motif est ignorée), mais deux
+ * garde-fous valent mieux qu'un quand il s'agit d'envoyer des e-mails.
+ *
+ * Le propriétaire peut la relancer à la demande : POST /api/admin/foncier/campagne.
+ */
+function foncier_campagne_initiale(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.foncier_v1';
+  if (@is_file($marque)) return;
+  // On pose le marqueur AVANT d'agir : si l'envoi des e-mails échoue à
+  // mi-parcours, on ne veut surtout pas que la requête suivante recommence tout
+  // et double les messages déjà partis. Le reliquat se rattrape par la route.
+  @file_put_contents($marque, gmdate('c'));
+  @chmod($marque, 0600);
+  try { foncier_campagne($config, $pdo, 200); }
+  catch (Throwable $e) { error_log('[chapci] foncier: ' . $e->getMessage()); }
+}
+foncier_campagne_initiale($config, $pdo);
 
 $resetMarker = chapci_secret_dir($config) . '/.reset_admins_v2';
 if (!file_exists($resetMarker)) {
@@ -3269,6 +3471,9 @@ try {
         if ($k !== '' && $v !== '') $attrs[$k] = $v;
       }
     }
+    // Vente immobilière : le dossier foncier est exigé ici aussi, pas seulement
+    // à l'écran. Sinon la règle ne tiendrait pas devant un simple curl.
+    foncier_exiger((string) ($b['categoryId'] ?? ''), $b['subcategory'] ?? null, $attrs);
     $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
     $pdo->prepare('INSERT INTO listings
       (id,user_id,title,description,price,negotiable,category_id,subcategory,condition_v,images,
@@ -3395,7 +3600,7 @@ try {
   // Modifier son annonce.
   if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'PUT') {
     $u = require_user($pdo, $secret); $b = body();
-    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $st = $pdo->prepare('SELECT user_id, hidden, hidden_reason FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
     $row = $st->fetch();
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
@@ -3424,6 +3629,7 @@ try {
         if ($k !== '' && $v !== '') $attrs[$k] = $v;
       }
     }
+    foncier_exiger((string) ($b['categoryId'] ?? ''), $b['subcategory'] ?? null, $attrs);
     $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
     $promoUntil = !empty($b['promoUntil']) ? gmdate('Y-m-d\TH:i:s\Z', (int) ($b['promoUntil'] / 1000)) : null;
     $pdo->prepare('UPDATE listings SET title=?,description=?,price=?,negotiable=?,category_id=?,subcategory=?,
@@ -3438,6 +3644,16 @@ try {
         $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0,
         isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, $seg[1],
       ]);
+    // Annonce masquée pour dossier foncier incomplet : la mise à jour vient de
+    // passer la validation, elle repart donc en ligne d'elle-même. Le vendeur a
+    // fait ce qu'on lui demandait ; lui imposer une démarche de plus serait une
+    // punition, pas une règle.
+    if (!empty($row['hidden']) && (string) ($row['hidden_reason'] ?? '') === FONCIER_MOTIF) {
+      $pdo->prepare('UPDATE listings SET hidden = 0, hidden_reason = NULL WHERE id = ?')->execute([$seg[1]]);
+      notify($pdo, $u['id'], 'listing', 'Annonce de nouveau en ligne ✅',
+        'Votre dossier foncier est complet : « ' . mb_substr(trim($b['title']), 0, 60) . ' » est de nouveau visible.',
+        '#/annonce/' . $seg[1]);
+    }
     // Contenu modifié : on redemande une réindexation instantanée (IndexNow).
     chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $seg[1]]);
     $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
@@ -3447,12 +3663,25 @@ try {
   // Masquer / réafficher son annonce (le vendeur, ou un admin).
   if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'visibility' && $method === 'POST') {
     $u = require_user($pdo, $secret); $b = body();
-    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $st = $pdo->prepare('SELECT user_id, category_id, subcategory, attributes, hidden_reason FROM listings WHERE id = ?');
+    $st->execute([$seg[1]]);
     $row = $st->fetch();
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
     $hidden = !empty($b['hidden']) ? 1 : 0;
-    $pdo->prepare('UPDATE listings SET hidden = ? WHERE id = ?')->execute([$hidden, $seg[1]]);
+    // Réafficher une annonce masquée pour dossier foncier incomplet reviendrait
+    // à contourner la règle d'un clic. Le seul chemin de retour est le
+    // formulaire, qui remet l'annonce en ligne dès qu'il est rempli.
+    if (!$hidden && (string) ($row['hidden_reason'] ?? '') === FONCIER_MOTIF) {
+      $attrs = !empty($row['attributes']) ? (json_decode((string) $row['attributes'], true) ?: []) : [];
+      $m = foncier_manques($attrs);
+      if ($m) {
+        jout(['error' => 'Complétez d’abord le dossier foncier de cette annonce : il manque '
+              . implode(', ', $m) . '.', 'foncier' => true, 'manques' => $m], 422);
+      }
+    }
+    $pdo->prepare('UPDATE listings SET hidden = ?, hidden_reason = CASE WHEN ? = 1 THEN hidden_reason ELSE NULL END WHERE id = ?')
+        ->execute([$hidden, $hidden, $seg[1]]);
     jout(['ok' => true, 'hidden' => (bool) $hidden]);
   }
 
@@ -4886,6 +5115,27 @@ try {
       if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
         jerr('Les recettes sont réservées au propriétaire du site.', 403);
       }
+    }
+
+    // ------------------------------------------------------------------------
+    //  Campagne de mise en conformité des ventes immobilières.
+    //
+    //  Masque les annonces publiées avant la nouvelle règle, inscrit le motif
+    //  et prévient chaque vendeur — notification dans l'application ET e-mail
+    //  avec le lien qui ouvre le formulaire sur la bonne annonce.
+    //
+    //  Elle s'exécute une fois toute seule au déploiement ; cette route existe
+    //  pour la relancer si de vieilles annonces réapparaissent, et pour voir le
+    //  compte rendu. Idempotente : personne n'est prévenu deux fois.
+    //
+    //  Réservée au PROPRIÉTAIRE : elle masque des annonces et envoie des
+    //  e-mails en série. Un modérateur modère au cas par cas.
+    // ------------------------------------------------------------------------
+    if ($path === 'admin/foncier/campagne' && $method === 'POST') {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('Cette campagne est réservée au propriétaire du site.', 403);
+      }
+      jout(foncier_campagne($config, $pdo, 200));
     }
 
     if ($path === 'admin/revenues' && $method === 'GET') {

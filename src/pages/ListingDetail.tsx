@@ -38,6 +38,22 @@ import { phpListingView } from '../lib/php'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { formFor } from '../data/categoryForms'
+import { DOC_PAR_ID, cleNumero, estVenteFonciere, lireDocs } from '../data/foncier'
+import { FoncierDossier } from '../components/FoncierDossier'
+
+/**
+ * Quelques champs sont libellés pour celui qui REMPLIT le formulaire (« Vous
+ * êtes », « Vos documents sont établis au nom de »). Sur la fiche, c'est un
+ * acheteur qui lit : le tutoiement du formulaire n'y veut plus rien dire.
+ */
+const LIBELLE_ACHETEUR: Record<string, string> = {
+  titulaire: 'Documents au nom de',
+  vendeur: 'Vendeur',
+  notaire: 'Vente devant notaire',
+  plan: 'Plan de situation',
+  idufci: 'Identifiant IDUFCI',
+  frais: 'Frais à la charge de l’acheteur',
+}
 import { ListingCard } from '../components/ListingCard'
 import { PromoTag } from '../components/PromoTag'
 import { Stars } from '../components/Stars'
@@ -132,15 +148,34 @@ export function ListingDetail() {
   const form = formFor(listing.categoryId)
   const sellerInitial = (listing.sellerName || '?').trim().charAt(0).toUpperCase() || '?'
 
+  // Dossier foncier : affiché pour une VENTE immobilière, sous les attributs.
+  // Le détail (documents, contrôles, guide dépliant) vit dans FoncierDossier.
+  const attributs = listing.attributes ?? {}
+  const dossierFoncier = estVenteFonciere(listing) && !!attributs.docs
+
   // Grille d'attributs (mockup) : État · attributs de la catégorie · Livraison.
+  // Les documents et leurs numéros sont sortis de la grille : ils ont leur
+  // propre bandeau, avec le verdict qui va avec.
   const attrItems: { label: string; value: string }[] = []
   if (form.condition)
     attrItems.push({ label: 'État', value: listing.condition === 'neuf' ? 'Neuf' : 'Occasion' })
   for (const f of form.fields) {
-    const v = listing.attributes?.[f.key]
-    if (v) attrItems.push({ label: f.label, value: `${v}${f.unit ? ` ${f.unit}` : ''}` })
+    if (f.type === 'docs') continue
+    if (f.when && !f.when(attributs)) continue
+    const v = attributs[f.key]
+    if (!v) continue
+    attrItems.push({
+      label: LIBELLE_ACHETEUR[f.key] ?? f.label,
+      value: f.type === 'toggle' ? 'Oui' : `${v}${f.unit ? ` ${f.unit}` : ''}`,
+    })
   }
-  attrItems.push({ label: 'Livraison', value: listing.delivery ? 'Possible' : 'Sur place' })
+  for (const id of lireDocs(attributs.docs)) {
+    const num = attributs[cleNumero(id)]
+    if (num) attrItems.push({ label: `N° ${DOC_PAR_ID[id].court}`, value: num })
+  }
+  // « Livraison » n'a pas de sens sur un terrain ou une offre d'emploi : on ne
+  // l'affiche que là où la catégorie la propose.
+  if (form.delivery) attrItems.push({ label: 'Livraison', value: listing.delivery ? 'Possible' : 'Sur place' })
 
   // Bouton « Contacter » vert ivoire (comme le mockup), dans le même esprit que btn-primary.
   const greenBtn =
@@ -447,6 +482,13 @@ export function ListingDetail() {
                 </div>
               ))}
             </dl>
+          )}
+
+          {/* Dossier foncier — verdict, contrôles à faire, guide dépliant */}
+          {dossierFoncier && (
+            <div className="mt-5">
+              <FoncierDossier attributes={attributs} />
+            </div>
           )}
 
           {/* Description */}

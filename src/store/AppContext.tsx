@@ -164,7 +164,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // l'ancienne version.
       if (mode === 'remote' && !isLocal) {
         const updated = await updateListingRemote(id, input)
-        setRemoteListings((prev) => prev.map((l) => (l.id === id ? updated : l)))
+        setRemoteListings((prev) => {
+          // L'annonce était MASQUÉE : elle n'est donc pas dans la liste publique
+          // chargée au démarrage, et un simple `map` ne l'y remettrait pas — le
+          // vendeur qui vient de la corriger atterrissait sur « Annonce
+          // introuvable ». On l'ajoute quand elle redevient visible.
+          if (!prev.some((l) => l.id === id)) return updated.hidden ? prev : [updated, ...prev]
+          return prev.map((l) => (l.id === id ? updated : l))
+        })
         return updated
       }
       // Annonce locale (créée sur l'appareil, ou mode 100 % local) : mise à jour

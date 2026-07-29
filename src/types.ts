@@ -60,6 +60,8 @@ export interface Listing {
   attributes?: Record<string, string>
   /** Annonce masquée (par le vendeur ou la modération) : invisible du public. */
   hidden?: boolean
+  /** Pourquoi l'annonce est masquée — montré au vendeur, jamais au public. */
+  hiddenReason?: string | null
   /** Annonce vendue : retirée du public, badge « Vendu ». */
   sold?: boolean
   /** Nombre de vues (statistiques vendeur). */

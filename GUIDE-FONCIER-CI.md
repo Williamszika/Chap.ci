@@ -153,24 +153,67 @@ même fonction — une seule source, pas deux textes qui divergent.
 
 ---
 
-## 7. Ce que le schéma actuel ne sait pas faire
+## 7. Où cela vit dans le code
 
-`src/data/categoryForms.ts` décrit une liste plate de champs par catégorie
-(`text` / `number` / `chips` / `toggle`). Il manque trois choses pour porter ce
-formulaire :
+| Fichier | Rôle |
+|---|---|
+| `src/data/foncier.ts` | **La source de vérité.** Les neuf documents, leur verdict, leur description, le contrôle affiché à l'acheteur, les arnaques, les liens officiels. |
+| `src/data/categoryForms.ts` | Le formulaire immobilier. `AttrField` porte maintenant `when` (visibilité conditionnelle), `required`, `help`, et les types `multi` et `docs`. |
+| `src/components/FoncierDocs.tsx` | Le sélecteur de documents : cases à cocher, un champ « numéro » par document coché, exclusivité de « Aucun document ». |
+| `src/components/FoncierDossier.tsx` | Ce que voit l'acheteur sous l'annonce : bandeau du verdict, contrôles avant paiement, menu dépliant du guide. |
+| `src/pages/PostAd.tsx` | Rendu des champs conditionnels, les trois engagements, la validation bloquante, le nettoyage des champs devenus invisibles. |
+| `src/pages/ListingDetail.tsx` | Insertion du dossier sous la grille d'attributs. |
+| `server/index.php` | `foncier_concerne()`, `foncier_manques()`, `foncier_exiger()`, `foncier_campagne()`, `send_foncier_update_email()`. |
 
-1. **Les champs conditionnels** — le bloc foncier ne concerne que la vente ; les
-   chambres ne concernent que le bâti ; la liste des documents dépend de la zone.
-   Il faut une fonction de visibilité par champ.
-2. **Le choix multiple** — `viabilisation` et `frais` acceptent plusieurs valeurs ;
-   `chips` n'en garde qu'une.
-3. **Les options portant un niveau de risque** — chaque document doit transporter
-   son verdict (`ok` / `warn` / `bad`), sa description et le conseil affiché à
-   l'acheteur. Une simple liste de chaînes ne suffit pas.
+Les attributs stockés : `docs` (`"acd,adu"`), `num_<id>` par document, `idufci`,
+`titulaire`, `bornage`, `juridique`, `occupation`, `vendeur`, `notaire`, `plan`,
+`lotissement`, `lot`, `viabilisation`, `frais`, `engagement`.
 
-Il faudra aussi, côté serveur, décider si l'attribut `docs` est repris dans les
-filtres de recherche (« terrain avec ACD ») — ce serait un argument commercial
-réel, et gratuit.
+**Le serveur exige la même chose que l'écran.** Le formulaire vérifie déjà tout ;
+s'arrêter là laisserait la règle à la merci d'un `curl`. `POST /listings` et
+`PUT /listings/:id` refusent une vente immobilière au dossier incomplet, et
+`POST /listings/:id/visibility` refuse de réafficher une annonce masquée pour ce
+motif tant qu'elle ne l'est pas.
+
+Reste à décider : reprendre `docs` dans les filtres de recherche (« terrain avec
+ACD »). Ce serait un argument commercial réel, et gratuit.
+
+---
+
+## 7 ter. La campagne de mise à jour
+
+`foncier_campagne()` masque les ventes immobilières publiées avant la règle,
+inscrit le motif dans `listings.hidden_reason`, dépose une notification et envoie
+un e-mail contenant le lien `#/modifier/<id>`.
+
+- Elle s'exécute **une seule fois** au déploiement (marqueur `.foncier_v1` dans
+  le dossier protégé), et est **idempotente** : une annonce déjà masquée pour ce
+  motif n'est jamais retraitée, personne n'est prévenu deux fois.
+- Le marqueur est posé **avant** d'agir : si l'envoi échoue à mi-parcours, la
+  requête suivante ne recommence pas tout et ne double pas les e-mails déjà
+  partis. Le reliquat se rattrape par la route.
+- Relance manuelle : `POST /api/admin/foncier/campagne`, **propriétaire
+  uniquement** — elle masque des annonces et envoie des e-mails en série.
+- Les **locations** ne sont jamais touchées.
+- Dès qu'un vendeur enregistre un dossier complet, l'annonce **repart en ligne
+  d'elle-même**. Lui imposer une démarche de plus serait une punition, pas une
+  règle.
+
+### Ce que le test a fait remonter
+
+Trois défauts de parcours, invisibles en lecture, trouvés en jouant le trajet
+complet du vendeur :
+
+1. **`notif_prefs` n'existait pas.** La colonne était lue par `notify()` et par
+   `/notifications/prefs`, mais créée nulle part. La requête levait une
+   exception, `notify()` l'avalait, et **aucune notification interne n'arrivait**
+   sur le site — ni « Annonce publiée », ni les statuts de publicité. Panne
+   muette, par construction.
+2. **Le lien de l'e-mail ouvrait un formulaire vide.** Une annonce masquée n'est
+   pas dans la liste publique ; `PostAd` n'avait donc rien à préremplir, et le
+   vendeur pouvait écraser son annonce avec du vide.
+3. **Après correction, « Annonce introuvable ».** `updateListing` faisait un
+   `map` sur la liste en mémoire : une annonce absente n'y était pas réinsérée.
 
 ---
 
