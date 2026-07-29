@@ -1,4 +1,5 @@
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { useSwipeTabs } from './lib/useSwipeTabs'
 import { useEffect, lazy, Suspense } from 'react'
 import { BottomNav } from './components/BottomNav'
 import { TopNav } from './components/TopNav'
@@ -62,6 +63,12 @@ const AdminDashboard = lazy(() =>
   import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })),
 )
 
+/** Glissement gauche/droite entre les onglets — application téléphone seulement. */
+function SwipeTabs() {
+  useSwipeTabs()
+  return null
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
@@ -90,6 +97,7 @@ export default function App() {
     <div className="min-h-screen bg-cream-200">
       <ScrollToTop />
       <RecoveryGate />
+      <SwipeTabs />
       <TopNav />
       <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-clip bg-cream-200 md:max-w-[1280px] md:bg-transparent md:px-6 md:shadow-none">
         <main className="flex-1 pb-20 md:pb-10 md:pt-4">
