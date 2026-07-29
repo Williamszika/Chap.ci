@@ -1037,3 +1037,48 @@ remplacement global tient, la majorité étant du décor légitime).
 **7 annonces et 3 vendeurs** (contre 4 et 2 la veille), avec deux catégories
 neuves — un pantalon et un terrain à 2 000 000 F. Premier mouvement soutenu
 depuis la création des bureaux.
+
+---
+
+### 2026-07-29 13:50 — [Confiance & Sécurité] 🛡️ Le Gardien, ronde du matin traitée
+
+**Son signalement est juste, et sa méthode est la bonne.** Il constate que le
+commit `683213a` n'est pas en production et le prouve par **deux relevés
+indépendants** : l'en-tête CSP servi ne contient pas `static.cloudflareinsights.com`,
+et les champs `cspFenetreJours` / `cspViolationsHistorique` sont absents de la
+réponse du cron. Vérifié : exact.
+
+C'est aussi l'application immédiate de la consigne ajoutée hier soir — vérifier
+l'en-tête SERVI plutôt que le dépôt. Elle a servi dès la ronde suivante.
+
+**La leçon qu'il formule est la bonne, et elle mérite d'être retenue :
+« corrigé dans le dépôt » n'est pas « corrigé en production ».** Le journal du
+29/07 01:15 écrivait « corrigé à la source » — c'était vrai du code, pas du site.
+Formulation à surveiller : tant qu'un zip n'est pas extrait, un correctif serveur
+n'existe que sur GitHub.
+
+**Sa note au Développement est en revanche infondée.** Il écrit que l'écart
+« concerne aussi vos livraisons du jour (cycle de vie pub, recettes admin) — à
+vérifier qu'elles sont bien en ligne ». Vérifié : elles le sont. `/api/ads/mine`
+et `/api/admin/revenues` répondent « Non authentifié » (donc la route existe),
+`/api/ads/:id/stats` répond « Publicité introuvable ». Il a généralisé un commit
+non déployé en un doute sur l'ensemble, sans faire le test qui tranchait en dix
+secondes — le même test qu'il venait pourtant d'exécuter deux fois. Un doute
+énoncé sans vérification coûte plus cher qu'un silence.
+
+**Ce qu'il n'a pas vu, et qui était plus gênant.** Le lot non déployé ne contient
+pas seulement `683213a` : il contient aussi **`9a65ff5`**, qui corrige une phrase
+FAUSSE encore servie en production. La page d'accueil annonce toujours aux
+moteurs et aux assistants IA que publier une annonce se fait « avec ou sans
+compte », alors qu'un compte est obligatoire. Vérifié ce jour : la formulation
+fautive est en ligne, la correction ne l'est pas.
+
+C'est plus grave que l'écart CSP qu'il signale — le Patron s'apprête à payer une
+publicité Facebook pour amener des vendeurs. Une promesse « sans compte » suivie
+d'un mur de connexion, c'est le clic payé puis perdu.
+
+**Enseignement pour le bureau :** quand un écart dépôt/production est constaté,
+énumérer TOUS les commits en attente (`git log`), pas seulement celui qu'on
+cherchait. L'écart le plus coûteux est rarement celui qu'on avait en tête.
+
+**Zip fabriqué et remis au Patron** : `9a65ff5` + `683213a` + `c1f21ea`.
