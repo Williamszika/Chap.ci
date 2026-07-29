@@ -59,6 +59,19 @@ export interface CategoryForm {
 
 const DEFAULT: CategoryForm = { condition: true, delivery: true, fields: [] }
 
+// -----------------------------------------------------------------------------
+//  Sous-catégorie choisie, injectée par l'écran sous la clé réservée `_sub`.
+//  Elle sert UNIQUEMENT aux conditions de visibilité : elle n'est jamais
+//  enregistrée avec l'annonce (le nettoyage de PostAd l'écarte, comme tout
+//  champ invisible). Sans elle, « Stockage » s'affichait pour une coque de
+//  téléphone et « Marque » pour un service de réparation.
+// -----------------------------------------------------------------------------
+const sousCat = (a: Record<string, string>) => a._sub ?? ''
+/** Smartphone ou tablette — la sous-catégorie vide (« Toutes ») compte comme tel : c'est le cas le plus fréquent. */
+const telSmart = (a: Record<string, string>) => ['', 'Toutes', 'Smartphones', 'Tablettes'].includes(sousCat(a))
+const telFixe = (a: Record<string, string>) => sousCat(a) === 'Téléphones fixes'
+const telRep = (a: Record<string, string>) => sousCat(a) === 'Réparation'
+
 export const categoryForms: Record<string, CategoryForm> = {
   vehicules: {
     titlePlaceholder: 'Ex : Toyota Corolla 2015, essence, 120 000 km',
@@ -160,14 +173,60 @@ export const categoryForms: Record<string, CategoryForm> = {
         when: (a) => a.transaction === 'Vente' },
     ],
   },
+  // ---------------------------------------------------------------------------
+  //  Téléphones — le formulaire suit la sous-catégorie.
+  //
+  //  Un smartphone, une coque et un service de réparation ne se décrivent pas
+  //  avec les mêmes champs : « Stockage » au-dessus d'une coque faisait aussi
+  //  faux que l'exemple d'iPhone au-dessus d'un terrain.
+  //
+  //  Et comme pour le foncier, la question qui fâche est posée AVANT l'appel :
+  //  l'arnaque n° 1 du téléphone d'occasion est l'appareil encore lié au compte
+  //  iCloud ou Google de l'ancien propriétaire — inutilisable une fois payé.
+  //  La réponse s'affiche en clair sur l'annonce.
+  // ---------------------------------------------------------------------------
   telephones: {
     titlePlaceholder: 'Ex : iPhone 13 Pro 256 Go comme neuf',
     condition: true,
     delivery: true,
     fields: [
-      { key: 'marque', label: 'Marque', type: 'chips', options: ['Apple', 'Samsung', 'Tecno', 'Infinix', 'Itel', 'Xiaomi', 'Huawei', 'Nokia', 'Autre'] },
-      { key: 'stockage', label: 'Stockage', type: 'chips', options: ['32 Go', '64 Go', '128 Go', '256 Go', '512 Go', '1 To'] },
-      { key: 'garantie', label: 'Sous garantie', type: 'toggle' },
+      { key: 'marque', label: 'Marque', type: 'chips', required: true,
+        options: ['Apple', 'Samsung', 'Tecno', 'Infinix', 'Itel', 'Xiaomi', 'Oppo', 'Realme', 'Huawei', 'Nokia', 'Autre'],
+        when: (a) => !telRep(a) },
+      { key: 'modele', label: 'Modèle', type: 'text',
+        placeholder: 'Ex : iPhone 13 Pro, Galaxy A24, Spark 20',
+        help: 'Le modèle exact fait trouver votre annonce : c’est lui que les acheteurs tapent dans la recherche.',
+        when: (a) => telSmart(a) || telFixe(a) },
+      { key: 'stockage', label: 'Stockage', type: 'chips',
+        options: ['32 Go', '64 Go', '128 Go', '256 Go', '512 Go', '1 To'],
+        when: telSmart },
+      { key: 'ram', label: 'Mémoire (RAM)', type: 'chips',
+        options: ['2 Go', '3 Go', '4 Go', '6 Go', '8 Go', '12 Go'],
+        when: telSmart },
+      { key: 'batterie', label: 'Santé de la batterie', type: 'chips',
+        options: ['100 %', 'Plus de 90 %', '80 à 90 %', 'Moins de 80 %', 'Batterie changée', 'Je ne sais pas'],
+        help: 'Réglages → Batterie sur iPhone. Une réponse honnête évite le retour fâché.',
+        when: telSmart },
+      { key: 'provenance', label: 'Provenance', type: 'chips',
+        options: ['Neuf scellé (sous carton)', 'Occasion Côte d’Ivoire', 'Occasion d’Europe (« France au revoir »)'],
+        when: (a) => telSmart(a) || telFixe(a) },
+
+      // --- La question qui évite l'arnaque ------------------------------------
+      { key: 'comptes', label: 'Comptes iCloud / Google', type: 'chips', required: true,
+        options: ['Déconnectés — prêt à l’emploi', 'Encore liés (vendu pour pièces)'],
+        help: 'Un téléphone encore lié au compte de l’ancien propriétaire est inutilisable. C’est l’arnaque n° 1 sur l’occasion : l’acheteur vérifiera avant de payer — vérifiez avant de vendre.',
+        when: telSmart },
+      { key: 'accessoires', label: 'Fournis avec', type: 'multi',
+        options: ['Boîte d’origine', 'Facture', 'Chargeur', 'Écouteurs', 'Coque offerte'],
+        help: 'La boîte d’origine permet à l’acheteur de comparer l’IMEI (*#06#) avec celui imprimé dessus.',
+        when: (a) => telSmart(a) || telFixe(a) },
+      { key: 'garantie', label: 'Sous garantie', type: 'toggle', when: (a) => !telRep(a) },
+
+      // --- Sous-catégorie Réparation : un service, pas un objet ---------------
+      { key: 'prestations', label: 'Ce que vous réparez', type: 'text',
+        placeholder: 'Ex : écrans, batteries, connecteurs de charge, désoxydation',
+        when: telRep },
+      { key: 'deplacement', label: 'Se déplace à domicile', type: 'toggle', when: telRep },
     ],
   },
   electronique: {

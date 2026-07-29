@@ -159,9 +159,13 @@ export function ListingDetail() {
   const attrItems: { label: string; value: string }[] = []
   if (form.condition)
     attrItems.push({ label: 'État', value: listing.condition === 'neuf' ? 'Neuf' : 'Occasion' })
+  // Même contexte que le formulaire : la sous-catégorie sous `_sub`, pour que
+  // les champs conditionnels (Téléphones, Immobilier) s'affichent — ou non —
+  // exactement comme ils ont été saisis.
+  const ctxAttrs: Record<string, string> = { ...attributs, _sub: listing.subcategory ?? '' }
   for (const f of form.fields) {
     if (f.type === 'docs') continue
-    if (f.when && !f.when(attributs)) continue
+    if (f.when && !f.when(ctxAttrs)) continue
     const v = attributs[f.key]
     if (!v) continue
     attrItems.push({

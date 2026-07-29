@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune** — dernière construite : v1.6 (code 7) | **aucune** |
+| Version publiée | **aucune** — dernière construite : v1.7 (code 8) | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -57,6 +57,29 @@ l'application fonctionne. L'ordre est donc : test interne (vérification) → te
 Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
 zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
 raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
+---
+
+## v1.7 — versionCode 8
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `d3e2d1c` |
+| Date du build | 29 juillet 2026, soir |
+| Poids de l'AAB | 6,6 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **remplace la v1.6, jamais envoyée en examen** |
+
+**Pourquoi une v1.7 deux heures après la v1.6.** La v1.6 attendait encore son
+envoi en examen quand le formulaire Téléphones a été refait : rien n'était donc
+engagé, et remplacer la release ne coûte qu'un téléversement. Les douze testeurs
+partiront avec la version complète — même raisonnement que pour la v1.5.
+
+**En plus de la v1.6 :** le formulaire Téléphones suit la sous-catégorie
+(smartphone, fixe, accessoire, réparation n'affichent plus les mêmes champs) ;
+la question « Comptes iCloud / Google » obligatoire — l'arnaque n° 1 de
+l'occasion, posée avant l'appel ; provenance, santé de la batterie, « Fournis
+avec » ; l'exemple de titre du champ Titre adapté à la catégorie.
 
 ---
 

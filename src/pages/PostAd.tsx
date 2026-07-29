@@ -207,7 +207,10 @@ export function PostAd() {
 
   // Champs réellement à l'écran : ceux dont la condition est remplie. Un champ
   // masqué n'est jamais exigé, et sa valeur ne part pas au serveur.
-  const champsVisibles = form.fields.filter((f) => !f.when || f.when(attrs))
+  // `_sub` donne la sous-catégorie aux conditions (Téléphones en dépend) sans
+  // jamais entrer dans les attributs enregistrés.
+  const ctxAttrs: Record<string, string> = { ...attrs, _sub: subcategory }
+  const champsVisibles = form.fields.filter((f) => !f.when || f.when(ctxAttrs))
   const venteFonciere = categoryId === 'immobilier' && attrs.transaction === 'Vente'
 
   /**
@@ -379,7 +382,9 @@ export function PostAd() {
         continue
       }
       if (!(attrs[f.key] ?? '').trim()) {
-        return fail(`Renseignez : ${f.label.toLowerCase()}.`, `pa-attr-${f.key}`)
+        // Le libellé garde sa casse : « iCloud » passé en minuscules ferait
+        // douter de la fiabilité du message lui-même.
+        return fail(`Renseignez « ${f.label} ».`, `pa-attr-${f.key}`)
       }
     }
     if (venteFonciere && !engagements.every(Boolean)) {
@@ -1061,13 +1066,16 @@ function AttrInput({
   const attrId = useId()
   if (field.type === 'toggle') {
     return (
-      <label className="flex items-center justify-between rounded-xl border border-line2 px-4 py-3">
-        <span className="text-sm font-medium text-gray-800">{field.label}</span>
+      <label className="flex items-center justify-between gap-3 rounded-xl border border-line2 px-4 py-3">
+        <span className="text-sm font-medium text-gray-800">
+          {field.label}
+          {field.help && <small className="mt-0.5 block text-xs font-normal leading-snug text-gray-500">{field.help}</small>}
+        </span>
         <input
           type="checkbox"
           checked={value === 'Oui'}
           onChange={(e) => onChange(e.target.checked ? 'Oui' : '')}
-          className="h-5 w-5 accent-primary-500"
+          className="h-5 w-5 shrink-0 accent-primary-500"
         />
       </label>
     )
@@ -1121,6 +1129,7 @@ function AttrInput({
           </span>
         )}
       </div>
+      {field.help && <p className="mt-1.5 text-xs text-gray-500">{field.help}</p>}
     </Field>
   )
 }
