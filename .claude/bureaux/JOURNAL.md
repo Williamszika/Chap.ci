@@ -1082,3 +1082,46 @@ d'un mur de connexion, c'est le clic payé puis perdu.
 cherchait. L'écart le plus coûteux est rarement celui qu'on avait en tête.
 
 **Zip fabriqué et remis au Patron** : `9a65ff5` + `683213a` + `c1f21ea`.
+
+---
+
+### 2026-07-30 — [Direction] Création du bureau 🔒 Sécurité du code (Le Serrurier)
+
+**Pentest complet du backend, méthode « à la Strix » (agent + exécution réelle).**
+PHP 8.4 disponible en session : le code a été rejoué, pas seulement lu. Cible : le
+code, jamais la production. Verdict d'ensemble : **les fondamentaux tiennent.**
+Audités et solides — injection SQL (requêtes préparées partout), contrôle d'accès
+/ IDOR (propriété vérifiée sur chaque route, messages réservés aux participants,
+`/admin/*` derrière un point de contrôle central + `admin_can`), upload (extension
+déduite du contenu réel, SVG assaini, `.htaccess` anti-exécution), authentification
+(JWT à temps constant sans confusion d'algorithme, OTP bcrypt plafonné + double
+rate-limit, login 8/15 min, énumération fermée), CORS (`*` réécrit en origine
+unique), en-têtes (nosniff, X-Frame-Options, HSTS, CSP) et cookie de session
+(HttpOnly + Secure + SameSite=Lax).
+
+**Une faille réelle trouvée et corrigée — XSS stockée (haute).** `web/seo.php`,
+bloc JSON-LD : le titre et la description d'annonce entraient dans un
+`<script type="application/ld+json">` encodé avec `JSON_UNESCAPED_SLASHES`, ce qui
+désactivait la protection native de PHP (`/` → `\/`). Un titre contenant
+`</script><script>…` refermait la balise et exécutait du code dans l'origine
+`chap.ci`, chez quiconque ouvrait le lien d'annonce partagé (ou un robot). PoC
+rejoué et confirmé. Corrigé par `JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS |
+JSON_HEX_QUOT` (sans `JSON_UNESCAPED_SLASHES`) — commit **efb4760**, branche
+`claude/ci-marketplace-mobile-app-bnllro`. Cookie de session HttpOnly : pas de vol
+direct de session, mais action same-origin possible → gravité **haute**.
+**Pour le Monteur : `web/seo.php` DOIT partir au prochain zip — sinon la faille
+reste ouverte en ligne.**
+
+**Nouveau bureau : 🔒 Le Serrurier** (`routine-serrurier.md`). Revue de code
+profonde, **hebdomadaire** (lundi 5 h), routine « avec code », **sans aucun
+secret** (il ne touche à aucune route protégée ; `/api/health` suffit). Il reprend
+le volet *audit de code profond* — autrefois « mensuel » chez le Gardien — et le
+fait chaque semaine : diff complet de la semaine + un sous-système fouillé par
+rotation (six semaines couvrent toute la surface). Le Gardien garde la
+surveillance vivante et la modération. Frontière écrite dans les deux prompts pour
+éviter les doublons. `BUREAUX.md` et `ROUTINES-WEB.md` mis à jour (9 bureaux,
+10 prompts).
+
+**Pour le Patron** : rien n'est déployé (ni zip, ni AAB). La correction XSS vit
+sur GitHub ; elle atteindra chap.ci au prochain zip. Le Serrurier est prêt à
+coller dans claude.ai/code/routines quand vous voudrez l'activer.

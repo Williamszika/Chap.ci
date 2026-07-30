@@ -27,7 +27,7 @@ journal, exécutent `curl` / `php` / `git`.
 
 Les routines suivantes réutilisent le même environnement (réseau déjà autorisé).
 
-## 1) Les 9 prompts et leur cadence
+## 1) Les 10 prompts et leur cadence
 
 | Bureau | Prompt canonique | Cadence exacte (`/schedule`) |
 |---|---|---|
@@ -40,10 +40,13 @@ Les routines suivantes réutilisent le même environnement (réseau déjà autor
 | ⚖️ Juridique | `routine-juridique.md` | `0 9 1 * *` (1ᵉʳ du mois) |
 | 🗂️ Secrétariat | `routine-secretariat.md` | `0 20 * * 1` (lundi 20 h) |
 | 🔨 Livraison de l'app (Play + App Store) | `routine-build.md` | `0 6 * * 1` (lundi 6 h) — **web obligatoire** |
+| 🔒 Sécurité du code | `routine-serrurier.md` | `0 5 * * 1` (lundi 5 h) — **web obligatoire, sans secret** |
 
-⚠️ Le **Monteur** est le seul bureau qui ne peut PAS tourner en routine de chat : il ne lit
-que le dépôt (`git log`, `store/APP-VERSIONS.md`, `package.json`). Son prompt est déjà livré
-en version web complète — **collez-le tel quel**, ne lui appliquez pas les adaptations du §2.
+⚠️ Le **Monteur** et le **Serrurier** sont les deux bureaux qui ne peuvent PAS tourner en
+routine de chat : ils ne valent que s'ils lisent le dépôt. Leurs prompts sont déjà livrés en
+version web complète — **collez-les tels quels**, ne leur appliquez pas les adaptations du §2.
+Le Serrurier est en plus **sans secret** : ne lui collez ni clé cron ni jeton de modération,
+il n'interroge que `/api/health` (public).
 
 Deux secrets seulement, tous deux dans **Admin → Tâches auto** : la **clé cron**
 (`CLE_CRON_ICI`, tous les bureaux sauf Design et Juridique) et le **jeton de modération**

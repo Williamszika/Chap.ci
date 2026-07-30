@@ -39,12 +39,15 @@ maison » chaque lundi soir.
 
 ## Les bureaux et leurs chefs
 
-Après réorganisation : **8 bureaux**. Deux fusions (Santé→Sécurité ; Modération→Sécurité)
-et deux créations (Performance, Support). La Croissance passe **tous les 2 jours**.
+Après réorganisation : **9 bureaux**. Deux fusions (Santé→Sécurité ; Modération→Sécurité)
+et trois créations (Performance, Support, **Sécurité du code**). La Croissance passe
+**tous les 2 jours**. La revue de code profonde, autrefois « mensuelle » chez le Gardien,
+devient **hebdomadaire** et revient au 🔒 Serrurier.
 
 | Bureau | Chef | Mission | Cadence |
 |---|---|---|---|
-| **Confiance & Sécurité** | 🛡️ *Le Gardien* | Scan sécurité + bugs + santé serveur **+ modération des annonces** (interdits, arnaques, doublons) | scan **toutes les 5 h** · modération **quotidienne** · audit profond **mensuel** |
+| **Confiance & Sécurité** | 🛡️ *Le Gardien* | Surveillance **vivante** : sécurité + bugs + santé serveur **+ modération des annonces** (interdits, arnaques, doublons) · scan de code léger | scan **toutes les 5 h** · modération **quotidienne** |
+| **Sécurité du code** | 🔒 *Le Serrurier* | Relecture **profonde** du code (diff de la semaine + un sous-système par rotation), avec l'œil d'un attaquant. **Sans secret** ; lit le dépôt, ne touche jamais la production | hebdo (lundi 5 h, **web**) |
 | **Développement** | 🔨 *Le Bâtisseur* | Implémente les propositions validées : build, tests, déploiement | à la demande (sessions interactives) |
 | **Design & Typographie** | 🎨 *L'Atelier* | Scan design (propositions, lecture seule), système visuel, polices, accessibilité, note ivoirienne | scan **tous les 3 j** · audit profond trimestriel |
 | **Croissance** | 📣 *Le Crieur* | **SEO + Google + poussée des mots-clés des annonces sur tout le net** (site **et** app), veille concurrence | **tous les 2 jours** ⭐ |
@@ -63,6 +66,7 @@ qui outillent sa mission. ⭐ = skill créé pour cette réorganisation.
 | Bureau | Skills mobilisés |
 |---|---|
 | 🛡️ Confiance & Sécurité | `moderation-ci` ⭐ · `security-review` · `deep-research` |
+| 🔒 Sécurité du code | `security-review` |
 | 🔨 Développement | *tous, selon la tâche validée* (exécute build + tests) |
 | 🎨 Design & Typographie | `design-ivoirien` · `marketplace-design` · `typographie` · `apple-design` · `affiche-design` · `review-animations` · `find-animation-opportunities` · `improve-animations` · `a11y-contraste` ⭐ |
 | 📣 Croissance | `seo-ivoirien` ⭐ · `deep-research` · `dataviz` · `affiche-design` · `typographie` |
@@ -149,8 +153,8 @@ sont relayés.
 | Quotidien | 🛡️ Modération des annonces · ⚡ vérif uptime |
 | **Tous les 2 jours** ⭐ | 📣 Croissance — SEO, Google, poussée des mots-clés (site + app) |
 | **Tous les 3 jours** | 🎨 Design — scan (propositions, lecture seule) |
-| Hebdo | 📊 Données (rapport + sourcing) · ⚡ Performance · 🤝 Support |
-| Mensuel | 🛡️ Audit sécurité profond · ⚖️ Veille juridique |
+| Hebdo | 📊 Données (rapport + sourcing) · ⚡ Performance · 🤝 Support · 🔒 Sécurité du code (revue profonde, lundi 5 h) |
+| Mensuel | ⚖️ Veille juridique |
 | Trimestriel | 🎨 Audit design profond |
 
 > Le scan des 5 h est **léger et ciblé** (code récent, `npm audit`, secrets,
@@ -219,6 +223,7 @@ bureau n'applique/commite/déploie de lui-même — même pour un « problème p
 | 🤝 Support & Expérience | `routine-support.md` | `0 10 * * 1` |
 | ⚖️ Juridique | `routine-juridique.md` | `0 9 1 * *` |
 | 🗂️ Secrétariat — synthèse (e-mail au Patron + contact@chap.ci) | `routine-secretariat.md` | `0 20 * * 1` |
+| 🔒 Sécurité du code (revue profonde, **web**, sans secret) | `routine-serrurier.md` | `0 5 * * 1` |
 
 > Chaque routine est **lecture seule / proposition** (sauf la modération, action
 > admin réversible). La clé cron réelle ne figure **jamais** dans ces fichiers ni
