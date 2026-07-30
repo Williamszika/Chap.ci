@@ -768,3 +768,126 @@ rebuild nécessaire) :
 **Marche à suivre — iOS / App Store : bloqué.**
 Il faudrait un Mac avec Xcode et un compte Apple Developer (99 $/an) pour
 avancer. Rien d'autre à faire cette semaine de ce côté.
+
+### 2026-07-30 17:40 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff complet de la semaine revu (50 commits, l'historique entier du
+  dépôt tient en 3 jours) · sous-système fouillé à fond : **Rendu & upload**
+  (rotation ISO semaine 31 % 6 = 1 — `web/seo.php`, `save_data_uri`,
+  `apply_watermark`, en-têtes servis) · CI et dépendances vérifiées ·
+  déploiement du correctif du 30/07 contrôlé en conditions réelles.
+
+- **Problèmes ouverts** :
+
+  1. **CRITIQUE — la XSS stockée du JSON-LD, « corrigée » ce matin, est
+     toujours ACTIVE en production.** Le commit `efb4760` (16:43 UTC)
+     remplace `JSON_UNESCAPED_SLASHES` par `JSON_HEX_TAG|JSON_HEX_AMP|
+     JSON_HEX_APOS|JSON_HEX_QUOT` dans `web/seo.php:201-203`
+     (`render_page()`). Il est **présent dans le dépôt mais pas sur le
+     serveur** : `/api/health` indique un dépôt à `depose:
+     2026-07-30T02:50:10Z`, soit **14 heures avant** le commit du correctif —
+     `web/seo.php` n'entre d'ailleurs pas dans l'empreinte de `index.php`,
+     donc ce fichier précis ne peut pas avoir bougé depuis.
+     **Preuve rejouée** : une vraie page d'annonce en production
+     (`https://chap.ci/annonce/c3a53e62-20e8-4808-a824-cab73a04d4d9`, servie
+     en direct — `cf-cache-status: DYNAMIC`, pas de cache) renvoie dans son
+     JSON-LD `"url":"https://chap.ci/annonce/…"` avec des **slashes NON
+     échappés**. Avec le correctif du dépôt, `json_encode` produirait
+     `"https:\/\/chap.ci\/…"` — je l'ai vérifié en local :
+     ```
+     $ php -r 'echo json_encode(["u"=>"https://chap.ci/x"],
+       JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);'
+     {"u":"https:\/\/chap.ci\/x"}
+     ```
+     Le serveur observé ne fait donc PAS tourner le code du dépôt pour ce
+     fichier : il exécute encore l'ancien `JSON_UNESCAPED_SLASHES`. Rejeu du
+     scénario d'attaque avec les flags réellement en ligne :
+     ```
+     $ php -r '$t="Telephone </script><script>alert(document.cookie)</script>";
+       echo json_encode(["name"=>$t], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);'
+     {"name":"Telephone </script><script>alert(document.cookie)</script>"}
+     ```
+     Le titre n'est jamais assaini à la publication (`server/index.php:3511`
+     et `3671` : seul `moderate_text()` — anti-arnaque — s'applique, aucun
+     `strip_tags`/`htmlspecialchars` sur `title`/`description`). N'importe
+     quel vendeur peut donc publier aujourd'hui une annonce dont le titre
+     referme la balise `<script>` du JSON-LD et exécute du code dans
+     l'origine `chap.ci`, pour tout visiteur humain qui ouvre le lien partagé
+     (le script du JSON-LD s'exécute AVANT le `location.replace` de
+     redirection, qui ne s'applique qu'aux robots — un humain charge donc et
+     exécute la charge avant d'être redirigé). C'est exactement la faille que
+     le commit du matin visait à fermer : elle reste ouverte tant que le zip
+     n'est pas redéployé.
+
+  2. **Mineure** — `web/seo.php:302`, le second bloc JSON-LD
+     (`render_sell_page()`, pages `/vendre/{catégorie}/{ville}`) garde
+     `JSON_UNESCAPED_SLASHES` sans `JSON_HEX_TAG`. **Pas exploitable
+     aujourd'hui** : les seules valeurs qui y entrent (`$catLabel`,
+     `$cityName`, `$site`, `$canon`) viennent de dictionnaires PHP fixes
+     (`chapci_seo_cats()` / `chapci_seo_cities()`) après un contrôle de
+     liste blanche sur `$catSlug`/`$citySlug` (ligne 144) — aucune saisie
+     utilisateur n'atteint ce `json_encode`. Signalé pour cohérence et
+     défense en profondeur, pas comme une brèche.
+
+  3. **Mineure** — `.github/workflows/security-scan.yml` se déclenche sur
+     `push: branches: ['**']` EN PLUS de `pull_request` : chaque push sur
+     n'importe quelle branche relance gitleaks + l'audit de dépendances,
+     ce qui gaspille des minutes CI sans bénéfice de sécurité supplémentaire
+     (le `pull_request` couvre déjà tout changement avant fusion).
+
+  4. **Aucun** ailleurs. Vérifié sans régression cette semaine : injection
+     SQL (paramétrage partout, `export_all` toujours sur liste blanche),
+     IDOR (chaque `UPDATE`/`DELETE` sur `listings` relit `user_id` avant
+     d'agir — vérifié ligne par ligne sur les routes `PUT`/`DELETE
+     /listings/{id}`), upload (`save_data_uri` : SVG assaini par regex,
+     extension déduite de `getimagesizefromstring`, `.htaccess`
+     anti-exécution regénéré), les nouvelles fonctionnalités de la semaine
+     (dossier foncier, vérification e-mail avant publication) sont bien
+     posées **côté serveur** (`foncier_exiger()` appelé sur `POST` ET `PUT
+     /listings` ; `email_verifie()` bloque la publication à 403), aucun
+     secret commité (`server/config.php` ne lit que des `getenv()`),
+     `php -l` propre sous PHP 8.4.19 sur `index.php` et `seo.php`,
+     `npm audit --omit=dev --audit-level=high` : rien de haut/critique
+     (seulement modéré, `react-router`, correctif disponible via
+     `npm audit fix`, non urgent).
+
+- **Propositions au Patron** :
+
+  - **Urgence n°1 — redéployer immédiatement.** Aucun changement de code
+    n'est nécessaire : le correctif existe déjà dans le dépôt
+    (`efb4760`, `web/seo.php:201-203`). Il faut simplement que le prochain
+    zip parte MAINTENANT, sans attendre un cycle normal, puisque la faille
+    qu'il ferme est active en production depuis 14h+. **Vérification après
+    déploiement** : recharger
+    `https://chap.ci/annonce/c3a53e62-20e8-4808-a824-cab73a04d4d9` en
+    User-Agent robot et confirmer que le JSON-LD affiche `https:\/\/chap.ci`
+    (slashes échappés) au lieu de `https://chap.ci` (slashes nus).
+
+  - `web/seo.php:302` — Avant : `json_encode($ld, JSON_UNESCAPED_UNICODE |
+    JSON_UNESCAPED_SLASHES)`. Après : `json_encode($ld, JSON_UNESCAPED_UNICODE
+    | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)` — même
+    correctif que la ligne 201, par cohérence. Risque du correctif : nul
+    (aucune saisie utilisateur n'y transite ; le format JSON-LD reste valide
+    pour Google). Vérification : recharger une page `/vendre/{cat}/{ville}`
+    et confirmer que le `BreadcrumbList` s'affiche toujours normalement dans
+    l'outil de test des données structurées de Google.
+
+  - `.github/workflows/security-scan.yml` — Avant : `on: { push:
+    { branches: ['**'] }, pull_request, workflow_dispatch }`. Après : retirer
+    le déclencheur `push` (garder `pull_request` + `workflow_dispatch`), ou à
+    défaut le limiter à `branches: [main]`. Risque du correctif : nul (les
+    pull requests restent scannées avant fusion). Vérification : le prochain
+    push sur une branche de travail ne déclenche plus le workflow ; une PR le
+    déclenche toujours.
+
+- **Pour les autres bureaux** : **Monteur** — priorité absolue du prochain
+  zip : `web/seo.php` seul suffirait à fermer la faille n°1, mais autant
+  embarquer aussi le correctif mineur de la ligne 302 puisque le fichier
+  bouge de toute façon. **Gardien** — rien à surveiller en direct ici (pas
+  un événement de sécurité vivant, c'est un défaut de code non déployé) ;
+  en revanche, si le tableau de bord admin permet de repérer les annonces au
+  titre contenant `<script` ou `</script>`, un balayage ponctuel des titres
+  actuels serait utile pour vérifier qu'aucune n'a déjà été publiée avec un
+  tel contenu avant le déploiement du correctif. **Dev** — aucun correctif de
+  code à écrire, tout est déjà commité ; seule l'action de déploiement
+  manque.
