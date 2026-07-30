@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   Flag,
   Maximize2,
+  ChevronRight,
 } from 'lucide-react'
 import { BrandBadge } from '../components/BrandLogo'
 import { PhotoViewer } from '../components/PhotoViewer'
@@ -39,6 +40,7 @@ import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { formFor } from '../data/categoryForms'
 import { DOC_PAR_ID, cleNumero, estVenteFonciere, lireDocs } from '../data/foncier'
+import { lireCouleurs, lireVariantes, type Couleur } from '../data/couleurs'
 import { FoncierDossier } from '../components/FoncierDossier'
 
 /**
@@ -153,10 +155,14 @@ export function ListingDetail() {
   const attributs = listing.attributes ?? {}
   const dossierFoncier = estVenteFonciere(listing) && !!attributs.docs
 
+  // Variantes par couleur : photo, prix et détails propres à chaque couleur.
+  const variantes = lireVariantes(attributs, listing.images?.length ?? 0)
+  const variantesActives = variantes.some((v) => v.photo !== null || v.prix !== null || v.note !== '')
+
   // Grille d'attributs (mockup) : État · attributs de la catégorie · Livraison.
   // Les documents et leurs numéros sont sortis de la grille : ils ont leur
   // propre bandeau, avec le verdict qui va avec.
-  const attrItems: { label: string; value: string }[] = []
+  const attrItems: { label: string; value: string; couleurs?: Couleur[] }[] = []
   if (form.condition)
     attrItems.push({ label: 'État', value: listing.condition === 'neuf' ? 'Neuf' : 'Occasion' })
   // Même contexte que le formulaire : la sous-catégorie sous `_sub`, pour que
@@ -168,6 +174,13 @@ export function ListingDetail() {
     if (f.when && !f.when(ctxAttrs)) continue
     const v = attributs[f.key]
     if (!v) continue
+    if (f.type === 'colors') {
+      // Les couleurs se montrent : une pastille peinte à côté de chaque nom.
+      // Quand le vendeur a détaillé ses variantes (photo, prix, détails par
+      // couleur), elles quittent la grille pour leur propre carte, plus riche.
+      if (!variantesActives) attrItems.push({ label: f.label, value: v, couleurs: lireCouleurs(v) })
+      continue
+    }
     attrItems.push({
       label: LIBELLE_ACHETEUR[f.key] ?? f.label,
       value: f.type === 'toggle' ? 'Oui' : `${v}${f.unit ? ` ${f.unit}` : ''}`,
@@ -193,6 +206,12 @@ export function ListingDetail() {
     setImgIndex(i)
     const el = galleryRef.current
     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+  }
+
+  /** Toucher une couleur → sa photo : on fait défiler la galerie ET on y remonte. */
+  function voirPhotoVariante(i: number) {
+    selectImage(i)
+    galleryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
   async function share() {
@@ -482,10 +501,69 @@ export function ListingDetail() {
               {attrItems.map((a) => (
                 <div key={a.label} className="rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
                   <dt className="text-xs text-gray-500">{a.label}</dt>
-                  <dd className="mt-0.5 font-semibold text-gray-900">{a.value}</dd>
+                  {a.couleurs?.length ? (
+                    <dd className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1.5">
+                      {a.couleurs.map((c) => (
+                        <span key={c.nom} className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                          <span
+                            aria-hidden="true"
+                            className={`h-3.5 w-3.5 shrink-0 rounded-full ${c.clair ? 'ring-1 ring-inset ring-black/20' : ''}`}
+                            style={{ background: c.css }}
+                          />
+                          {c.nom}
+                        </span>
+                      ))}
+                    </dd>
+                  ) : (
+                    <dd className="mt-0.5 font-semibold text-gray-900">{a.value}</dd>
+                  )}
                 </div>
               ))}
             </dl>
+          )}
+
+          {/* Couleurs détaillées — chaque couleur avec sa photo, son prix, ses
+              détails. Toucher une ligne fait défiler la galerie vers la photo
+              de cette couleur. */}
+          {variantesActives && (
+            <div className="mt-3 overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+              <p className="px-4 pb-1 pt-3 text-xs text-gray-500">Couleurs disponibles</p>
+              <div className="divide-y divide-line">
+                {variantes.map((v) => {
+                  const cliquable = v.photo !== null
+                  return (
+                    <button
+                      key={v.couleur.nom}
+                      type="button"
+                      disabled={!cliquable}
+                      onClick={cliquable ? () => voirPhotoVariante(v.photo!) : undefined}
+                      className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left ${
+                        cliquable ? 'transition hover:bg-cream-100 active:bg-cream-100' : 'cursor-default'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`h-4 w-4 shrink-0 rounded-full ${v.couleur.clair ? 'ring-1 ring-inset ring-black/20' : ''}`}
+                        style={{ background: v.couleur.css }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-gray-900">{v.couleur.nom}</span>
+                        {v.note && <span className="block text-xs text-gray-500">{v.note}</span>}
+                      </span>
+                      {v.prix !== null && (
+                        <span className="tnum shrink-0 font-display text-sm font-bold text-primary-600">
+                          {formatFCFA(v.prix)}
+                        </span>
+                      )}
+                      {cliquable && <ChevronRight size={15} className="shrink-0 text-gray-400" />}
+                    </button>
+                  )
+                })}
+              </div>
+              {variantes.some((v) => v.photo !== null) && (
+                <p className="px-4 pb-3 pt-1.5 text-[11px] text-gray-400">Touchez une couleur pour voir sa photo.</p>
+              )}
+            </div>
           )}
 
           {/* Dossier foncier — verdict, contrôles à faire, guide dépliant */}

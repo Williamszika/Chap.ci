@@ -16,6 +16,8 @@ import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
 import { FoncierDocs } from '../components/FoncierDocs'
 import { DOC_PAR_ID, cleNumero, lireDocs } from '../data/foncier'
+import { lireCouleurs } from '../data/couleurs'
+import { CouleursVariantes } from '../components/CouleursVariantes'
 import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
 import { formatFCFA } from '../lib/format'
@@ -310,6 +312,19 @@ export function PostAd() {
 
   function removeImage(i: number) {
     setImages((prev) => prev.filter((_, idx) => idx !== i))
+    // Les variantes couleur pointent vers les photos PAR INDEX : supprimer une
+    // photo décale tout ce qui suit. Sans ce remap, la couleur « Noir » se
+    // retrouverait liée à la photo du modèle bleu.
+    setAttrs((prev) => {
+      const next = { ...prev }
+      for (const [k, v] of Object.entries(prev)) {
+        if (!k.startsWith('var_') || !k.endsWith('_photo') || !/^\d+$/.test(v)) continue
+        const n = Number(v)
+        if (n === i) delete next[k]
+        else if (n > i) next[k] = String(n - 1)
+      }
+      return next
+    })
   }
 
   // Remplace la photo éditée par sa version recadrée / améliorée.
@@ -395,11 +410,19 @@ export function PostAd() {
     // bien de Maison à Terrain nu…) ne doivent pas partir avec l'annonce : ils
     // s'afficheraient sur la fiche sans que personne ne les ait voulus.
     const clesVisibles = new Set(champsVisibles.map((f) => f.key))
+    const couleursCochees = new Set(lireCouleurs(attrs.couleurs).map((c) => c.nom))
     const attrsFinaux: Record<string, string> = {}
     for (const [k, v] of Object.entries(attrs)) {
       if (!v) continue
       if (k === 'engagement') { if (venteFonciere) attrsFinaux[k] = v; continue }
       if (k.startsWith('num_')) { if (venteFonciere && lireDocs(attrs.docs).includes(k.slice(4))) attrsFinaux[k] = v; continue }
+      // Variante d'une couleur (photo/prix/détails) : elle ne part qu'avec sa
+      // couleur cochée, et seulement si le champ couleurs est à l'écran.
+      if (k.startsWith('var_')) {
+        const m = /^var_(.+)_(photo|prix|note)$/.exec(k)
+        if (m && clesVisibles.has('couleurs') && couleursCochees.has(m[1])) attrsFinaux[k] = v
+        continue
+      }
       if (clesVisibles.has(k)) attrsFinaux[k] = v
     }
 
@@ -721,14 +744,20 @@ export function PostAd() {
             concerne que les ventes, les chambres que le bâti. */}
         {categoryId && champsVisibles.map((f) => (
           <div key={f.key} id={`pa-attr-${f.key}`}>
-            {f.type === 'docs'
-              ? (
-                <Field label={f.label}>
-                  {f.help && <p className="-mt-1 mb-2 text-xs text-gray-500">{f.help}</p>}
-                  <FoncierDocs attrs={attrs} setAttr={setAttr} />
-                </Field>
-              )
-              : <AttrInput field={f} value={attrs[f.key] ?? ''} onChange={(v) => setAttr(f.key, v)} />}
+            {f.type === 'docs' ? (
+              <Field label={f.label}>
+                {f.help && <p className="-mt-1 mb-2 text-xs text-gray-500">{f.help}</p>}
+                <FoncierDocs attrs={attrs} setAttr={setAttr} />
+              </Field>
+            ) : f.type === 'colors' ? (
+              // Couleurs + variantes : chaque couleur cochée peut recevoir sa
+              // photo (désignée parmi celles de l'annonce), son prix, ses détails.
+              <Field label={f.label}>
+                <CouleursVariantes attrs={attrs} setAttr={setAttr} images={images} help={f.help} />
+              </Field>
+            ) : (
+              <AttrInput field={f} value={attrs[f.key] ?? ''} onChange={(v) => setAttr(f.key, v)} />
+            )}
           </div>
         ))}
 

@@ -17,6 +17,8 @@ export type AttrFieldType =
   | 'toggle'
   /** Puces à choix multiple ; les valeurs sont stockées séparées par « , ». */
   | 'multi'
+  /** Couleurs à cocher (pastilles peintes, choix multiple) — liste dans data/couleurs.ts. */
+  | 'colors'
   /** Bloc spécial : les documents fonciers détenus + leurs numéros (immobilier). */
   | 'docs'
 
@@ -83,6 +85,7 @@ export const categoryForms: Record<string, CategoryForm> = {
       { key: 'kilometrage', label: 'Kilométrage', type: 'number', unit: 'km', placeholder: 'Ex : 120000' },
       { key: 'carburant', label: 'Carburant', type: 'chips', options: ['Essence', 'Diesel', 'Hybride', 'Électrique', 'GPL'] },
       { key: 'boite', label: 'Boîte de vitesse', type: 'chips', options: ['Manuelle', 'Automatique'] },
+      { key: 'couleurs', label: 'Couleur', type: 'colors' },
     ],
   },
   // ---------------------------------------------------------------------------
@@ -203,6 +206,9 @@ export const categoryForms: Record<string, CategoryForm> = {
       { key: 'ram', label: 'Mémoire (RAM)', type: 'chips',
         options: ['2 Go', '3 Go', '4 Go', '6 Go', '8 Go', '12 Go'],
         when: telSmart },
+      { key: 'couleurs', label: 'Couleurs disponibles', type: 'colors',
+        help: 'Vous en avez plusieurs en stock ? Cochez chaque couleur disponible.',
+        when: (a) => telSmart(a) || telFixe(a) },
       { key: 'batterie', label: 'Santé de la batterie', type: 'chips',
         options: ['100 %', 'Plus de 90 %', '80 à 90 %', 'Moins de 80 %', 'Batterie changée', 'Je ne sais pas'],
         help: 'Réglages → Batterie sur iPhone. Une réponse honnête évite le retour fâché.',
@@ -235,6 +241,7 @@ export const categoryForms: Record<string, CategoryForm> = {
     delivery: true,
     fields: [
       { key: 'marque', label: 'Marque', type: 'text', placeholder: 'Ex : HP, Sony, LG, Canon…' },
+      { key: 'couleurs', label: 'Couleur', type: 'colors' },
       { key: 'garantie', label: 'Sous garantie', type: 'toggle' },
     ],
   },
@@ -242,7 +249,10 @@ export const categoryForms: Record<string, CategoryForm> = {
     titlePlaceholder: 'Ex : Salon 5 places en cuir, très bon état',
     condition: true,
     delivery: true,
-    fields: [{ key: 'materiau', label: 'Matière', type: 'text', placeholder: 'Ex : Bois, métal, cuir, rotin…' }],
+    fields: [
+      { key: 'materiau', label: 'Matière', type: 'text', placeholder: 'Ex : Bois, métal, cuir, rotin…' },
+      { key: 'couleurs', label: 'Couleur', type: 'colors' },
+    ],
   },
   mode: {
     titlePlaceholder: 'Ex : Pagne wax 6 yards, neuf',
@@ -251,6 +261,8 @@ export const categoryForms: Record<string, CategoryForm> = {
     fields: [
       { key: 'genre', label: 'Pour', type: 'chips', options: ['Femme', 'Homme', 'Enfant', 'Mixte'] },
       { key: 'taille', label: 'Taille', type: 'text', placeholder: 'Ex : M, 42, 39…' },
+      { key: 'couleurs', label: 'Couleurs disponibles', type: 'colors',
+        help: 'Plusieurs pièces en stock ? Cochez chaque couleur disponible.' },
       { key: 'marque', label: 'Marque', type: 'text', placeholder: 'Ex : Nike, Zara… (optionnel)' },
     ],
   },
@@ -314,13 +326,19 @@ export const categoryForms: Record<string, CategoryForm> = {
     titlePlaceholder: 'Ex : Vélo VTT 26 pouces, bon état',
     condition: true,
     delivery: true,
-    fields: [{ key: 'marque', label: 'Marque', type: 'text', placeholder: 'Ex : Adidas, Yamaha… (optionnel)' }],
+    fields: [
+      { key: 'marque', label: 'Marque', type: 'text', placeholder: 'Ex : Adidas, Yamaha… (optionnel)' },
+      { key: 'couleurs', label: 'Couleur', type: 'colors' },
+    ],
   },
   bebe: {
     titlePlaceholder: 'Ex : Poussette 3 roues, pliable',
     condition: true,
     delivery: true,
-    fields: [{ key: 'age', label: 'Âge recommandé', type: 'text', placeholder: 'Ex : 0-6 mois, 2 ans…' }],
+    fields: [
+      { key: 'age', label: 'Âge recommandé', type: 'text', placeholder: 'Ex : 0-6 mois, 2 ans…' },
+      { key: 'couleurs', label: 'Couleur', type: 'colors' },
+    ],
   },
 }
 

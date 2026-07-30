@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune** — dernière construite : v1.7 (code 8) | **aucune** |
+| Version publiée | **aucune** — dernière construite : v1.8 (code 9) | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -57,6 +57,25 @@ l'application fonctionne. L'ordre est donc : test interne (vérification) → te
 Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
 zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
 raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
+---
+
+## v1.8 — versionCode 9
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `20e42ae` |
+| Date du build | 30 juillet 2026 |
+| Poids de l'AAB | 6,6 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **remplace la v1.7, jamais envoyée en examen** |
+
+**En plus de la v1.7 :** les couleurs en pastilles peintes (quinze teintes,
+choix multiple) sur sept catégories ; et surtout les **variantes** — chaque
+couleur cochée peut porter sa photo (désignée parmi celles de l'annonce), son
+prix et ses détails. Un vendeur qui a le même téléphone en noir et en bleu ne
+publie plus deux annonces. Sur la fiche, toucher une couleur fait défiler la
+galerie jusqu'à sa photo.
 
 ---
 
