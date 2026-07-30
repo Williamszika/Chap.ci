@@ -193,8 +193,14 @@ function render_page(string $title, string $desc, string $img, string $canon, st
       ],
     ];
     if ($img !== '') $ld['image'] = $img;
+    // Sécurité : ce JSON est écrit DANS un <script>. Un titre d'annonce contenant
+    // « </script><script>… » refermerait le bloc et exécuterait du code (XSS
+    // stockée). JSON_HEX_TAG échappe < et > en </>, et l'absence de
+    // JSON_UNESCAPED_SLASHES rétablit \/ : « </script> » ne peut plus fermer la
+    // balise. JSON_UNESCAPED_SLASHES est donc VOLONTAIREMENT retiré.
     echo '<script type="application/ld+json">'
-       . json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "</script>\n";
+       . json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
+       . "</script>\n";
   }
   // Humains : redirection vers l'app. Robots : on garde le contenu.
   if (!$isBot) echo "<script>location.replace(" . json_encode($appUrl) . ");</script>\n";
