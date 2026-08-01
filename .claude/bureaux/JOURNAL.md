@@ -891,3 +891,89 @@ avancer. Rien d'autre à faire cette semaine de ce côté.
   tel contenu avant le déploiement du correctif. **Dev** — aucun correctif de
   code à écrire, tout est déjà commité ; seule l'action de déploiement
   manque.
+
+### 2026-08-01 19:48 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff de la semaine revu (50 commits sur 7 jours, dont 3 nouveaux
+  depuis le dernier passage du 30/07 : `500ea70`, `fdd3251`, `15a0fe1`) ·
+  sous-période encore dans la semaine ISO 31 (31 % 6 = 1) : sous-système
+  **Rendu & upload** déjà fouillé à fond jeudi dernier, seule la matière
+  nouvelle est reprise ici · CI et dépendances revérifiées · déploiement du
+  correctif du 30/07 recontrôlé en conditions réelles.
+
+- **Problèmes ouverts** :
+
+  1. **CRITIQUE, PERSISTANT — la XSS stockée du JSON-LD est toujours ACTIVE
+     en production, 41 heures après le rapport du 30/07.** Rien de nouveau
+     dans l'analyse : le correctif (`efb4760`, 30/07 16:43) est toujours
+     uniquement dans le dépôt, jamais parti en zip. Recontrôle à l'instant :
+     ```
+     $ curl -sS https://chap.ci/api/health
+     {"ok":true,...,"empreinte":"1a16b7fcf80d","depose":"2026-07-30T02:50:10Z"}
+     ```
+     `depose` n'a pas bougé d'une seconde depuis le contrôle de jeudi — aucun
+     zip n'est reparti depuis. Rejeu direct sur l'annonce réelle déjà citée
+     jeudi :
+     ```
+     $ curl -sS -A "Googlebot/2.1 (+http://www.google.com/bot.html)" \
+       "https://chap.ci/annonce/c3a53e62-20e8-4808-a824-cab73a04d4d9" \
+       | grep -o '"url":"[^"]*annonce[^"]*"'
+     "url":"https://chap.ci/annonce/c3a53e62-20e8-4808-a824-cab73a04d4d9"
+     ```
+     Slashes non échappés : le serveur exécute encore l'ancien
+     `JSON_UNESCAPED_SLASHES`. Le scénario d'attaque du rapport précédent
+     reste rejouable tel quel — n'importe quel vendeur peut publier un titre
+     qui referme `<script type="application/ld+json">` et exécute du code
+     dans l'origine `chap.ci` pour tout visiteur humain d'un lien partagé.
+     Aucun fait nouveau, seule la fenêtre d'exposition s'allonge (14h jeudi
+     → 41h aujourd'hui).
+
+  2. **Aucun autre.** `fdd3251` (01/08 18:42) ferme bien, dans le dépôt, le
+     2ᵉ sink JSON-LD (`web/seo.php:306`, `BreadcrumbList`) exactement comme
+     proposé jeudi — `JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT`
+     à la place de `JSON_UNESCAPED_SLASHES` seul, vérifié par lecture directe
+     du fichier. Le même commit retire aussi `push: branches: ['**']` du
+     déclencheur CI (`.github/workflows/security-scan.yml`), gardant
+     `main` + `pull_request` + `workflow_dispatch` — appliqué, et effectif
+     immédiatement puisqu'un workflow GitHub Actions se lit depuis la
+     référence poussée, sans étape de déploiement séparée. `15a0fe1`
+     (01/08 19:32, « Formulaires d'annonce : les schémas des quinze
+     catégories ») ajoute 17 fichiers sous `maquettes/formulaires/` : un
+     outil de maquettage autonome, non référencé dans `package.json` ni
+     `vite.config.*`, dont le propre message de commit précise « rien n'est
+     branché à l'application ». `_moteur.js` y utilise `innerHTML` sans
+     échappement systématique (`esc()` appliqué par endroits seulement) —
+     sans conséquence tant que ce code ne sert qu'à générer des aperçus
+     locaux pour validation avec le Patron ; à surveiller le jour où ce
+     moteur serait branché à une saisie utilisateur réelle. `git grep` sur
+     `json_encode` dans `server/index.php` : tous les usages restants sont
+     soit des réponses JSON d'API (content-type JSON, pas un sink HTML) soit
+     des sérialisations pour stockage en base — aucun nouveau `<script>` non
+     échappé. `SELECT * FROM $t` (`export_all`, ligne 2741) reste sur la
+     liste blanche de 16 noms de table en dur, inchangée. Aucun secret
+     commité. `php -l` propre sur `index.php` et `seo.php` (PHP 8.1.34 en
+     production via `/api/health`, 8.4 non encore utilisé — la CI cible
+     toujours 8.4). `npm audit --omit=dev --audit-level=high` : même
+     avertissement modéré déjà connu sur `react-router` (redirection
+     ouverte + injection de constructeur en SSR), correctif disponible,
+     toujours non urgent — rien de nouveau, rien de haut/critique.
+
+- **Propositions au Patron** : aucune nouvelle proposition de correctif —
+  tout ce qui pouvait se corriger dans le code est déjà commité. La seule
+  action qui reste, et qui devient plus urgente chaque jour qui passe, est
+  le déploiement du zip contenant `web/seo.php`. **Vérification après
+  déploiement** (inchangée depuis jeudi) : recharger
+  `https://chap.ci/annonce/c3a53e62-20e8-4808-a824-cab73a04d4d9` en
+  User-Agent robot et confirmer que le JSON-LD affiche `https:\/\/chap.ci`
+  (slashes échappés) au lieu de `https://chap.ci` (slashes nus) — ou plus
+  simplement, confirmer que `depose` dans `/api/health` a avancé au-delà de
+  `2026-07-30T02:50:10Z`.
+
+- **Pour les autres bureaux** : **Monteur** — c'est la même faille et la
+  même demande que jeudi, non traitée depuis : le prochain zip doit partir
+  sans attendre un cycle normal, `web/seo.php` (et tout le reste accumulé
+  depuis le 29/07, `index.php` inclus, jamais redéployé non plus) en fait
+  partie. **Gardien** — rien de vivant à ajouter ; même remarque que jeudi
+  sur un balayage ponctuel des titres d'annonces si l'outil admin le permet.
+  **Dev** — rien à écrire, tout est commité ; c'est un problème de cadence
+  de déploiement, pas de code manquant.
