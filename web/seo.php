@@ -223,8 +223,18 @@ function render_page(string $title, string $desc, string $img, string $canon, st
 // --- SEO : catégories & villes pour les pages « Vendez votre X à Y » ----------
 function chapci_seo_cats(): array {
   // slug (= id de catégorie de l'app) => [libellé, tournure « vendez … »]
+  //
+  // TREIZE, comme dans l'application. « Téléphones » et « Agriculture » ont été
+  // fondues le 01/08 ; les laisser ici faisait publier au sitemap 46 URL vers
+  // des pages désormais vides — 2 catégories × 23 déclinaisons de ville. Google
+  // les aurait explorées, trouvées sans annonce, et aurait baissé sa confiance
+  // dans tout le reste du plan de site. Une page vide indexée coûte plus cher
+  // qu'une page absente.
+  //
+  // ⚠️ Cette liste doit rester alignée sur src/data/categories.ts. Deux
+  // endroits pour la même vérité, c'est la garantie qu'ils divergeront : à
+  // chaque changement de catégorie, corrigez les DEUX.
   return [
-    'telephones'   => ['Téléphones', 'votre téléphone'],
     'vehicules'    => ['Véhicules', 'votre voiture'],
     'immobilier'   => ['Immobilier', 'votre bien immobilier'],
     'mode'         => ['Mode & Beauté', 'vos articles mode & beauté'],
@@ -234,7 +244,6 @@ function chapci_seo_cats(): array {
     'services'     => ['Services', 'vos services'],
     'materiel-pro' => ['Matériel Pro', 'votre matériel professionnel'],
     'alimentation' => ['Alimentation & Boissons', 'vos produits alimentaires'],
-    'agriculture'  => ['Agriculture', 'vos produits agricoles'],
     'animaux'      => ['Animaux', 'vos animaux'],
     'loisirs'      => ['Loisirs & Sport', 'vos articles de sport & loisirs'],
     'bebe'         => ['Bébé & Enfant', 'vos articles bébé & enfant'],
