@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune** — dernière construite : v1.8 (code 9) | **aucune** |
+| Version publiée | **aucune** — dernière construite : v1.9 (code 10) | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -57,6 +57,37 @@ l'application fonctionne. L'ordre est donc : test interne (vérification) → te
 Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
 zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
 raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
+---
+
+## v1.9 — versionCode 10
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `54f3a9e` |
+| Date du build | 1ᵉʳ août 2026 |
+| Poids de l'AAB | 6,7 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **remplace la v1.8, jamais envoyée en examen** |
+
+**Le changement le plus lourd depuis le début.** Les quatre-vingt-deux formulaires
+par sous-catégorie, préparés semaine après semaine sous forme d'aperçus, entrent
+enfin dans l'application : 937 champs, 641 obligatoires, 84 bandeaux d'alerte et
+49 réponses qui interdisent la publication. Un vendeur de poulets et un vendeur
+de terrains ne remplissent plus le même formulaire.
+
+**Quinze catégories deviennent treize** — « Téléphones » rejoint Électronique,
+« Agriculture » se répartit entre Alimentation, Animaux et Matériel Pro. Les
+annonces déjà publiées sont reclassées côté serveur au premier chargement ;
+l'application, elle, n'a plus qu'à afficher les treize.
+
+Aussi : le contraste de l'ocre porté à la norme AA, l'analyse locale des photos
+annoncée dans la politique de confidentialité (exigence Google Play), et deux
+survols qui restaient collés au doigt sur mobile.
+
+**Cet AAB est indispensable.** L'application embarque sa propre copie du site :
+déposer le zip sur chap.ci ne lui apporte rien. Sans ce téléversement, les
+utilisateurs de l'application continueraient de voir l'ancien formulaire unique.
 
 ---
 
