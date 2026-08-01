@@ -104,19 +104,47 @@ async function req<T>(
 
   // Délai de garde : au-delà de 15 s on abandonne, pour ne jamais laisser un
   // spinner bloqué indéfiniment sur un réseau instable (P·robustesse mobile).
+  //
+  // L'AbortController ne suffit PAS dans l'application Android, et c'est
+  // contre-intuitif. Capacitor remplace `window.fetch` (CapacitorHttp activé
+  // dans capacitor.config.ts) : les GET repartent vers le vrai fetch, qui
+  // respecte le signal — mais les POST, PUT, PATCH et DELETE sont convertis en
+  // appel au pont natif, et le `signal` est purement et simplement abandonné en
+  // route (@capacitor/android .../native-bridge.js, la branche qui appelle
+  // `cap.nativePromise('CapacitorHttp', 'request', …)` sans le transmettre).
+  //
+  // Autrement dit : sur un réseau ivoirien qui décroche en plein envoi, « Se
+  // connecter » et « Publier » — précisément les gestes qui comptent — tournent
+  // indéfiniment, sans message et sans moyen d'annuler. On double donc la garde
+  // par une course : quoi qu'il arrive côté transport, la promesse rend la main
+  // au bout de 15 s avec un message en français. La requête peut continuer sa
+  // vie dans le vide ; ce qui compte, c'est que l'écran, lui, réponde.
   const ctrl = new AbortController()
-  const timer = window.setTimeout(() => ctrl.abort(), 15000)
+  // Le corps d'une promesse s'exécute tout de suite : `minuterie` porte donc
+  // déjà son identifiant quand on en a besoin, plus bas.
+  let minuterie = 0
+  const garde = new Promise<never>((_, rejeter) => {
+    minuterie = window.setTimeout(() => {
+      ctrl.abort() // utile pour les GET, sans effet sur le pont natif
+      const e = new Error('délai dépassé')
+      e.name = 'AbortError'
+      rejeter(e)
+    }, 15000)
+  })
   let res: Response
   try {
-    res = await fetch(API + path, {
-      method: opts.method || 'GET',
-      headers,
-      // P3 · Envoie/reçoit le cookie de session HttpOnly (même origine, et origine
-      // croisée légitime grâce à Allow-Credentials côté serveur).
-      credentials: 'include',
-      body: hasBody ? JSON.stringify(opts.body) : undefined,
-      signal: ctrl.signal,
-    })
+    res = await Promise.race([
+      fetch(API + path, {
+        method: opts.method || 'GET',
+        headers,
+        // P3 · Envoie/reçoit le cookie de session HttpOnly (même origine, et origine
+        // croisée légitime grâce à Allow-Credentials côté serveur).
+        credentials: 'include',
+        body: hasBody ? JSON.stringify(opts.body) : undefined,
+        signal: ctrl.signal,
+      }),
+      garde,
+    ])
   } catch (e) {
     // Échec réseau réel (hors-ligne, DNS, CORS, timeout/abort) : message clair
     // en français au lieu du « Load failed » / « Failed to fetch » brut.
@@ -128,7 +156,10 @@ async function req<T>(
       0,
     )
   } finally {
-    window.clearTimeout(timer)
+    // Toujours désarmer la minuterie : sans cela, une réponse rapide laisserait
+    // derrière elle un rejet programmé qui remonterait quinze secondes plus tard
+    // comme promesse non gérée.
+    window.clearTimeout(minuterie)
   }
 
   const text = await res.text()

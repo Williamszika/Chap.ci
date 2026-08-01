@@ -19,6 +19,13 @@ chapci-backend.zip
 
 # Capacitor natif (généré par `npx cap add`)
 /android
+# ...SAUF le manifeste Android. Il porte les permissions (localisation), il se
+# modifie a la main, et `cap sync` ne le regenere PAS — seul `cap add android`
+# le ferait. Hors du depot, une permission ajoutee un soir disparaissait sans
+# bruit a la premiere regeneration, et la geolocalisation recassait sans que
+# personne ne sache pourquoi. C'est arrive : la v1.9 est partie en test ferme
+# sans aucune permission de localisation.
+!/android/app/src/main/AndroidManifest.xml
 /ios
 
 # Logs

@@ -3271,7 +3271,20 @@ try {
     $hash = $u ? (string) ($u['password_hash'] ?? '') : '';
     if (!$u || $hash === '' || !password_verify((string) ($b['password'] ?? ''), $hash)) {
       log_security_event($pdo, 'login_fail', $email);
-      jerr('Email ou mot de passe incorrect.', 401);
+      // Le message dit la sortie, pas seulement l'échec.
+      //
+      // L'application Android ne montre PAS le bouton « Continuer avec Google »
+      // (src/pages/Login.tsx:41, `!isNative`) : Google refuse l'authentification
+      // dans une vue web embarquée. Quelqu'un qui a ouvert son compte avec Google
+      // sur chap.ci n'a donc, dans l'application, ni bouton Google, ni mot de
+      // passe — et lisait « Email ou mot de passe incorrect » sans savoir qu'il
+      // n'en a jamais eu. Il réessayait jusqu'à se faire bloquer 15 minutes.
+      //
+      // La phrase reste STRICTEMENT LA MÊME pour tout le monde, e-mail inconnu
+      // compris : c'est ce qui empêche d'énumérer les comptes existants en
+      // comparant deux réponses (voir le commentaire ci-dessus). On ne révèle
+      // rien de plus ; on indique simplement où aller.
+      jerr('Email ou mot de passe incorrect. Si vous vous êtes inscrit avec Google ou Facebook, ouvrez chap.ci dans votre navigateur, connectez-vous, puis choisissez un mot de passe dans votre profil : il vous servira ensuite ici.', 401);
     }
     if (($u['status'] ?? 'active') === 'blocked') {
       log_security_event($pdo, 'login_blocked', $email);
@@ -3446,7 +3459,9 @@ try {
     $email = strtolower(trim((string) ($claims['email'] ?? '')));
     $name  = trim((string) ($claims['name'] ?? ''));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Ce compte Google n’a pas d’adresse email valide.', 400);
-    $st = $pdo->prepare('SELECT id,email,status,password_hash FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+    // `auth_provider` est lu ici parce qu'il décide, plus bas, s'il faut effacer
+    // le mot de passe local — voir le commentaire « anti-pré-détournement ».
+    $st = $pdo->prepare('SELECT id,email,status,password_hash,auth_provider FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
     if (!$u) {
       $id = uuid();
       // email_verified_at pose d'emblee : Google et Facebook ont DEJA verifie
@@ -3466,7 +3481,19 @@ try {
       // connecte via Google — qui, lui, prouve la possession de l'email), on
       // l'invalide et on incrémente session_version pour couper toute session
       // ouverte avec cet ancien mot de passe.
-      if (($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
+      //
+      // MAIS PAS QUAND C'EST GOOGLE QUI A CRÉÉ LE COMPTE.
+      // La règle ne vise que le compte ouvert par mot de passe puis revendiqué
+      // par Google. Appliquée à un compte que Google a lui-même ouvert, elle
+      // efface le mot de passe que son propriétaire légitime vient de choisir —
+      // et il n'a pas d'autre moyen d'entrer dans l'application Android, où le
+      // bouton Google n'existe pas. Le scénario était : il pose un mot de passe
+      // depuis chap.ci, se reconnecte une fois avec le bouton Google qu'il
+      // connaît, et se retrouve dehors le lendemain sans comprendre.
+      // Un compte marqué `auth_provider = 'google'` n'a jamais eu de mot de
+      // passe d'origine : il n'y a rien à s'y pré-détourner.
+      $creeParGoogle = ($u['auth_provider'] ?? '') === 'google';
+      if (!$creeParGoogle && ($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
         $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
             ->execute(['google', $u['id']]);
         log_security_event($pdo, 'oauth_password_reset', $email, 'google');
@@ -3501,7 +3528,9 @@ try {
       if ($fbId === '') { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
       $email = 'fb_' . $fbId . '@facebook.chapci';
     }
-    $st = $pdo->prepare('SELECT id,email,status,password_hash FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+    // `auth_provider` est lu ici parce qu'il décide, plus bas, s'il faut effacer
+    // le mot de passe local — voir le commentaire « anti-pré-détournement ».
+    $st = $pdo->prepare('SELECT id,email,status,password_hash,auth_provider FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
     if (!$u) {
       $id = uuid();
       // email_verified_at pose d'emblee : Google et Facebook ont DEJA verifie
@@ -3516,8 +3545,12 @@ try {
       $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
     } else {
       if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'facebook'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
-      // Anti-pré-détournement (voir Google) : invalide un mot de passe local éventuel.
-      if (($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
+      // Anti-pré-détournement (voir Google) : invalide un mot de passe local
+      // éventuel — sauf si c'est Facebook qui a ouvert le compte, auquel cas le
+      // mot de passe est celui que son propriétaire vient de choisir pour
+      // pouvoir entrer dans l'application Android.
+      $creeParFb = ($u['auth_provider'] ?? '') === 'facebook';
+      if (!$creeParFb && ($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
         $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
             ->execute(['facebook', $u['id']]);
         log_security_event($pdo, 'oauth_password_reset', $email, 'facebook');

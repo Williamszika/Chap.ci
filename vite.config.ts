@@ -21,7 +21,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' blob: data: https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://www.facebook.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co https://analytics.tiktok.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com",
+  "connect-src 'self' blob: data: https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://www.facebook.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co https://analytics.tiktok.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com",
   "worker-src 'self' blob:",
   "frame-src 'self' https://accounts.google.com https://www.facebook.com https://staticxx.facebook.com",
   "manifest-src 'self'",

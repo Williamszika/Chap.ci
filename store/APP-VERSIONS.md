@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **v1.9 (code 10) — ACTIVE en test fermé depuis le 01/08/2026** | **aucune** |
+| Version publiée | v1.9 (code 10) active en test fermé — **remplacée par la v1.10 (code 11)** | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -57,6 +57,41 @@ l'application fonctionne. L'ordre est donc : test interne (vérification) → te
 Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
 zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
 raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
+---
+
+## v1.10 — versionCode 11
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `à compléter au push` |
+| Date du build | 1ᵉʳ août 2026, soir |
+| Poids de l'AAB | 6,7 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **à téléverser en remplacement de la v1.10 sur le canal de test fermé** |
+
+**Une seule raison, et elle suffit : la géolocalisation ne pouvait pas
+fonctionner.** La v1.9 est partie en test fermé avec `INTERNET` pour unique
+permission. Quand l'accueil demandait la position au premier rendu, Android
+refusait **sans afficher la moindre boîte de dialogue**, et l'application se
+rabattait en silence sur une estimation par adresse IP — qui place à peu près
+tout le monde à Abidjan-Plateau. « Les annonces près de chez vous » ne voulait
+donc rien dire, et rien ne permettait de s'en apercevoir.
+
+`ACCESS_COARSE_LOCATION` et `ACCESS_FINE_LOCATION` sont désormais déclarées.
+Et le manifeste Android est **versionné** (`.gitignore` porte une exception) :
+il vivait hors du dépôt, où une permission ajoutée un soir disparaissait sans
+bruit à la première régénération.
+
+**Aussi :** le délai de garde des envois. Capacitor route les `POST`, `PUT` et
+`DELETE` par le pont natif, qui abandonne le signal d'annulation — sur un
+réseau qui décroche, « Se connecter » et « Publier » tournaient indéfiniment,
+sans message et sans moyen d'annuler. L'écran rend maintenant la main au bout
+de quinze secondes quoi qu'il arrive.
+
+> ⚠️ Le troisième défaut trouvé en même temps — les comptes ouverts avec Google
+> qui ne pouvaient pas entrer dans l'application — se corrige **côté serveur**,
+> pas ici. Il part avec le zip, et n'attend pas cette version.
 
 ---
 
