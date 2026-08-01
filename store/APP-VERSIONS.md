@@ -83,6 +83,13 @@ Et le manifeste Android est **versionné** (`.gitignore` porte une exception) :
 il vivait hors du dépôt, où une permission ajoutée un soir disparaissait sans
 bruit à la première régénération.
 
+**Aussi : trois photos au minimum pour publier.** Une annonce sans photo ne se
+vend pas — l'acheteur qui doit traverser Abidjan veut voir avant de se
+déplacer. La règle est posée dans le formulaire (« encore 2 photos », avant
+qu'on ne remplisse quoi que ce soit) ET dans la route du serveur. Les annonces
+déjà en ligne ne sont pas piégées : celle qui n'a qu'une photo reste
+modifiable, on demande seulement de ne pas descendre plus bas.
+
 **Aussi :** le délai de garde des envois. Capacitor route les `POST`, `PUT` et
 `DELETE` par le pont natif, qui abandonne le signal d'annulation — sur un
 réseau qui décroche, « Se connecter » et « Publier » tournaient indéfiniment,

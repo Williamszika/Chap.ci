@@ -1947,6 +1947,17 @@ function email_button(string $href, string $label): string {
 //  conseils à l'acheteur restent côté client, où ils sont affichés.
 // =============================================================================
 
+/**
+ * Photos exigées pour publier une annonce.
+ *
+ * Ce nombre est écrit à deux endroits — ici et dans src/pages/PostAd.tsx — et
+ * c'est volontaire : le client doit pouvoir le dire AVANT que le vendeur ne
+ * remplisse vingt champs, le serveur doit le faire respecter APRÈS. Si vous
+ * changez l'un, changez l'autre : sinon le formulaire laisse passer ce que la
+ * route refuse, et le vendeur reçoit un refus qu'il ne comprend pas.
+ */
+const LISTING_MIN_PHOTOS = 3;
+
 /** id => le document porte-t-il un numéro à saisir ? */
 const FONCIER_DOCS = [
   'tf' => 'du titre foncier',
@@ -3673,6 +3684,22 @@ try {
       $url = save_data_uri($config, (string) $img, true); // true = filigrane Chap.ci
       if ($url) $images[] = $url;
     }
+    // Trois photos au minimum. La règle est ici, et pas seulement dans l'écran :
+    // un formulaire se contourne, une route non.
+    //
+    // Pourquoi trois. Une annonce sans photo ne se vend pas — l'acheteur
+    // ivoirien qui doit se déplacer à travers Abidjan veut voir avant de bouger.
+    // Une seule photo, c'est la photo du fabricant ; deux, c'est la même sous
+    // deux angles. Trois, c'est le moment où le vendeur montre l'objet qu'il a
+    // réellement chez lui, avec ses défauts. C'est exactement ce qui distingue
+    // une vraie annonce d'une annonce recopiée.
+    //
+    // On compte les images RETENUES, pas celles envoyées : une photo refusée
+    // par save_data_uri (format invalide, SVG actif) ne compte pas, sans quoi
+    // on publierait une annonce à deux photos en croyant en avoir trois.
+    if (count($images) < LISTING_MIN_PHOTOS) {
+      jerr('Ajoutez au moins ' . LISTING_MIN_PHOTOS . ' photos de l’objet. Une annonce sans photo ne se vend pas : montrez-le sous plusieurs angles, et n’hésitez pas à montrer les défauts — c’est ce qui inspire confiance.', 422);
+    }
     $id = uuid();
     $promoUntil = !empty($b['promoUntil']) ? gmdate('Y-m-d\TH:i:s\Z', (int) ($b['promoUntil'] / 1000)) : null;
     // Attributs spécifiques à la catégorie (marque, année, surface…) : on ne
@@ -3814,7 +3841,7 @@ try {
   // Modifier son annonce.
   if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'PUT') {
     $u = require_user($pdo, $secret); $b = body();
-    $st = $pdo->prepare('SELECT user_id, hidden, hidden_reason FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $st = $pdo->prepare('SELECT user_id, hidden, hidden_reason, images FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
     $row = $st->fetch();
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
@@ -3835,6 +3862,25 @@ try {
       if ($img === '') continue;
       if (strncmp($img, 'data:', 5) === 0) { $url = save_data_uri($config, $img, true); if ($url) $images[] = $url; }
       else $images[] = $img;
+    }
+    // Trois photos minimum, comme à la publication — mais SANS piéger les
+    // annonces d'avant la règle.
+    //
+    // Une annonce publiée hier avec une seule photo est là, en ligne, et son
+    // vendeur a le droit d'en corriger le prix ou une faute. Lui refuser la
+    // modification tant qu'il n'a pas trouvé deux photos de plus, c'est le
+    // punir d'une règle qui n'existait pas quand il a publié — et le plus
+    // souvent, il abandonne la correction plutôt que de chercher des photos.
+    //
+    // On exige donc le minimum aux annonces qui l'atteignaient déjà, et pour
+    // les autres, on demande seulement de ne pas descendre plus bas. Le seuil
+    // se resserre tout seul, sans jamais bloquer personne.
+    $avant = $row['images'] ? (json_decode((string) $row['images'], true) ?: []) : [];
+    $plancher = min(LISTING_MIN_PHOTOS, max(1, count($avant)));
+    if (count($images) < $plancher) {
+      jerr($plancher >= LISTING_MIN_PHOTOS
+        ? 'Ajoutez au moins ' . LISTING_MIN_PHOTOS . ' photos de l’objet. Une annonce sans photo ne se vend pas.'
+        : 'Gardez au moins ' . $plancher . ' photo' . ($plancher > 1 ? 's' : '') . ' sur cette annonce. Vous pouvez en ajouter, pas en retirer toutes.', 422);
     }
     $attrs = [];
     if (!empty($b['attributes']) && is_array($b['attributes'])) {

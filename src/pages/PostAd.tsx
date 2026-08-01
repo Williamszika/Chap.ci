@@ -37,6 +37,21 @@ import type { LocationFilter } from '../types'
 
 const MAX_PHOTOS = 5
 
+/**
+ * Photos exigées pour publier.
+ *
+ * Une annonce sans photo ne se vend pas : l'acheteur qui doit traverser Abidjan
+ * veut voir avant de se déplacer. Une seule photo, c'est souvent celle du
+ * fabricant ; deux, la même sous deux angles. À trois, le vendeur montre
+ * l'objet qu'il a réellement chez lui — c'est là que se joue la différence
+ * entre une vraie annonce et une annonce recopiée.
+ *
+ * Le même nombre est écrit dans server/index.php (LISTING_MIN_PHOTOS), et il
+ * le faut : l'écran doit le dire AVANT, la route doit le faire respecter
+ * APRÈS. Si vous changez l'un, changez l'autre.
+ */
+const MIN_PHOTOS = 3
+
 /** Emoji par catégorie — pour le menu déroulant « Catégorie » (façon artifact). */
 const CAT_EMOJI: Record<string, string> = {
   electronique: '📱', vehicules: '🚗', immobilier: '🏠', mode: '👗',
@@ -220,6 +235,21 @@ export function PostAd() {
   const sousForm = formSous(categoryId, subcategory, attrs)
   const form = sousForm ?? formFor(categoryId)
 
+  /**
+   * Le nombre de photos exigé POUR CETTE annonce-là.
+   *
+   * Trois pour une nouvelle. Mais une annonce publiée avant la règle est déjà
+   * en ligne avec une ou deux photos, et son vendeur a le droit d'en corriger
+   * le prix ou une faute : lui refuser la modification tant qu'il n'a pas
+   * retrouvé deux photos de plus, c'est le punir d'une règle qui n'existait
+   * pas — et la plupart du temps, il abandonne la correction. On lui demande
+   * donc seulement de ne pas descendre plus bas. Le serveur applique
+   * exactement le même calcul.
+   */
+  const planchePhotos = editing
+    ? Math.min(MIN_PHOTOS, Math.max(1, editListing?.images?.length ?? MIN_PHOTOS))
+    : MIN_PHOTOS
+
   // Champs réellement à l'écran : ceux dont la condition est remplie. Un champ
   // masqué n'est jamais exigé, et sa valeur ne part pas au serveur.
   // `_sub` donne la sous-catégorie aux conditions (Téléphones en dépend) sans
@@ -388,6 +418,15 @@ export function PostAd() {
     // dit CE QUI manque, jamais OÙ. On emmène donc l'utilisateur au champ fautif
     // et on y place le curseur — sur un téléphone, c'est la différence entre
     // corriger en deux secondes et abandonner la publication.
+    if (images.length < planchePhotos) {
+      const manque = planchePhotos - images.length
+      return fail(
+        planchePhotos >= MIN_PHOTOS
+          ? `Ajoutez ${manque === 1 ? 'encore une photo' : `encore ${manque} photos`} : il en faut ${MIN_PHOTOS} au minimum. Montrez l’objet sous plusieurs angles — et ses défauts s’il en a, c’est ce qui inspire confiance.`
+          : `Gardez au moins ${planchePhotos} photo${planchePhotos > 1 ? 's' : ''} sur cette annonce.`,
+        'pa-photos',
+      )
+    }
     if (!title.trim()) return fail('Ajoutez un titre à votre annonce.', 'pa-title')
     if (!categoryId) return fail('Choisissez une catégorie.', 'pa-category')
     if (!price.trim()) return fail('Indiquez un prix (0 pour « gratuit »).', 'pa-price')
@@ -640,9 +679,23 @@ export function PostAd() {
         {/* ---- Photos, titre, catégorie, état ---- */}
         <div className="space-y-6">
         {/* Photos */}
-        <div>
-          <label className="mb-2 block text-sm font-bold text-gray-800">
-            Photos <span className="font-normal text-gray-400">({images.length}/{MAX_PHOTOS})</span>
+        <div id="pa-photos">
+          <label className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-gray-800">
+            Photos
+            <span className="font-normal text-gray-400">({images.length}/{MAX_PHOTOS})</span>
+            {/* Le compte à rebours plutôt que la règle : « encore 2 photos »
+                se lit et s'exécute ; « minimum 3 » se lit et se discute. */}
+            {images.length < planchePhotos ? (
+              <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11.5px] font-semibold text-primary-700">
+                {planchePhotos - images.length === 1
+                  ? 'encore 1 photo'
+                  : `encore ${planchePhotos - images.length} photos`}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-ivoire-green/10 px-2 py-0.5 text-[11.5px] font-semibold text-ivoire-green-dark">
+                <Check size={12} strokeWidth={3} /> c’est bon
+              </span>
+            )}
           </label>
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {images.map((src, i) => (
@@ -687,9 +740,12 @@ export function PostAd() {
             className="hidden"
             onChange={onFiles}
           />
-          <p className="mt-1.5 text-xs text-gray-400">
-            Touchez <b className="font-semibold text-gray-500">✨ Modifier</b> pour recadrer et embellir une photo.
-            La première sera la couverture. Sans photo, une image sera générée.
+          <p className="mt-1.5 text-xs text-gray-500">
+            <b className="font-semibold text-gray-700">{MIN_PHOTOS} photos au minimum</b>, prises par vous.
+            L’acheteur qui doit traverser Abidjan veut voir avant de se déplacer : montrez l’objet sous
+            plusieurs angles, et ses défauts s’il en a — c’est ce qui inspire confiance, et ce qui évite
+            la discussion sur place. La première photo sera la couverture. Touchez{' '}
+            <b className="font-semibold text-gray-700">✨ Modifier</b> pour recadrer et embellir.
           </p>
           {/* Là où il n'y a pas de couleur à cocher, on ne laisse pas un vide :
               on dit ce qu'il faut montrer à la place. Un matelas est blanc —
