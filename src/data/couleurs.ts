@@ -36,7 +36,34 @@ export const COULEURS: Couleur[] = [
   { nom: 'Multicolore', css: 'conic-gradient(#F77F00, #FACC15, #16A34A, #2563EB, #8B5CF6, #EC4899, #F77F00)' },
 ]
 
+/**
+ * Le répertoire des couleurs connues — celui qui permet de relire une annonce.
+ *
+ * Les quinze teintes ci-dessus ne suffisent plus : chaque sous-catégorie
+ * propose la palette de son métier. Un meuble se décline en iroko, teck et
+ * wengé ; un fond de teint en carnations ; une mèche en numéros (1B, 27, 613).
+ * Une annonce enregistrée avec « Iroko » doit pouvoir se relire des mois plus
+ * tard — sur la fiche, dans les filtres — sans qu'on sache de quelle
+ * sous-catégorie elle vient. Il faut donc les connaître toutes.
+ */
 const PAR_NOM: Record<string, Couleur> = Object.fromEntries(COULEURS.map((c) => [c.nom, c]))
+
+/**
+ * Ajoute les palettes des métiers au répertoire.
+ *
+ * Pourquoi un enregistrement, et non un simple `import` : ce fichier ne doit
+ * RIEN emprunter à `data/sous/`, qui lui emprunte déjà `COULEURS`. Les deux
+ * s'important l'un l'autre, celui qui démarre le second trouve le premier à
+ * moitié construit — `COULEURS` vaut `undefined` au moment où on le parcourt,
+ * et l'application ne s'ouvre plus. Le sens de lecture est donc à sens
+ * unique : `sous/` connaît les couleurs, les couleurs ne connaissent pas
+ * `sous/` et attendent qu'on vienne les compléter.
+ *
+ * Un nom déjà connu n'est pas remplacé : les quinze teintes générales font foi.
+ */
+export function enregistrerCouleurs(liste: Couleur[]): void {
+  for (const c of liste) if (!PAR_NOM[c.nom]) PAR_NOM[c.nom] = c
+}
 
 /** La couleur portant ce nom, ou null pour une valeur libre / inconnue. */
 export function couleurParNom(nom: string): Couleur | null {

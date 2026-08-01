@@ -58,18 +58,22 @@ function escapeXml(s: string): string {
 export const categoryEmoji: Record<string, string> = {
   vehicules: '🚗',
   immobilier: '🏠',
-  telephones: '📱',
-  electronique: '💻',
+  electronique: '📱',
   maison: '🛋️',
   mode: '👗',
   emploi: '💼',
   services: '🛠️',
   'materiel-pro': '🏗️',
   alimentation: '🍲',
-  agriculture: '🌱',
   animaux: '🐾',
   loisirs: '🏋️',
   bebe: '🍼',
+  sante: '💚',
+  // Les deux catégories fondues dans une autre. Elles restent ici : une
+  // annonce publiée avant la fusion garde son ancien identifiant tant que le
+  // serveur ne l'a pas reclassée, et une image générée sans emoji se voit.
+  telephones: '📱',
+  agriculture: '🌱',
 }
 
 /** Emojis affinés par sous-catégorie (motif recherché en minuscules) */

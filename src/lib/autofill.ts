@@ -15,10 +15,12 @@ function norm(s: string): string {
 // gagne (on parcourt du plus spécifique au plus générique).
 interface Guess { cat: string; sub?: string }
 const KEYWORDS: [string[], Guess][] = [
-  // Téléphones
-  [['iphone','samsung galaxy','tecno','infinix','itel','xiaomi','redmi','oppo','huawei','smartphone','android','telephone','téléphone','portable'], { cat: 'telephones', sub: 'Smartphones' }],
-  [['tablette','ipad'], { cat: 'telephones', sub: 'Tablettes' }],
-  [['chargeur','ecouteur','écouteur','casque telephone','coque','protege ecran','powerbank','power bank'], { cat: 'telephones', sub: 'Accessoires' }],
+  // Téléphones — dans Électronique depuis la fusion : un téléphone EST un
+  // appareil électronique, et l'acheteur qui compare un smartphone à une
+  // tablette n'a aucune raison de changer de rayon.
+  [['iphone','samsung galaxy','tecno','infinix','itel','xiaomi','redmi','oppo','huawei','smartphone','android','telephone','téléphone','portable'], { cat: 'electronique', sub: 'Smartphones' }],
+  [['tablette','ipad'], { cat: 'electronique', sub: 'Tablettes' }],
+  [['chargeur','ecouteur','écouteur','casque telephone','coque','protege ecran','powerbank','power bank'], { cat: 'electronique', sub: 'Accessoires téléphone' }],
   // Véhicules
   [['voiture','toyota','corolla','rav4','mercedes','peugeot','renault','hyundai','kia','nissan','4x4','berline','vehicule','véhicule'], { cat: 'vehicules', sub: 'Voitures' }],
   [['moto','scooter','yamaha','ktm','tricycle','mobylette'], { cat: 'vehicules', sub: 'Motos & Scooters' }],
@@ -48,8 +50,13 @@ const KEYWORDS: [string[], Guess][] = [
   [['parfum','maquillage','cosmetique','cosmétique','creme','crème','perruque','meche','mèche'], { cat: 'mode', sub: 'Beauté & Cosmétiques' }],
   // Alimentation
   [['huile rouge','huile','riz','attieke','attiéké','placali','poisson','viande','poulet braise','epice','épice','condiment','miel','confiture','jus','boisson','farine','manioc frais'], { cat: 'alimentation' }],
-  // Agriculture
-  [['cacao','cafe','café','anacarde','hevea','hévéa','semence','engrais','tracteur','vivrier','igname','manioc','banane plantain','coton'], { cat: 'agriculture' }],
+  // Agriculture — répartie depuis la fusion : ce qui se mange va en
+  // Alimentation, le tracteur en Matériel Pro. Un régime de bananes se vendait
+  // des deux côtés ; personne ne savait lequel regarder.
+  [['cacao','cafe','café','anacarde','hevea','hévéa','coton'], { cat: 'alimentation', sub: 'Cacao & Café' }],
+  [['semence','engrais','intrant'], { cat: 'alimentation', sub: 'Semences & Intrants' }],
+  [['vivrier','igname','manioc','banane plantain'], { cat: 'alimentation', sub: 'Produits vivriers' }],
+  [['tracteur','motoculteur','charrue'], { cat: 'materiel-pro', sub: 'Agriculture & Élevage' }],
   // Animaux
   [['poulet','poule','coq','pintade','mouton','chevre','chèvre','boeuf','bœuf','porc','lapin','chien','chat','poisson aquarium','oiseau','volaille'], { cat: 'animaux' }],
   // Loisirs & Sport

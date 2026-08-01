@@ -38,6 +38,19 @@ export interface AttrField {
    * masqué n'est jamais exigé, et sa valeur est effacée à l'enregistrement.
    */
   when?: (a: Record<string, string>) => boolean
+  /**
+   * L'aide n'est plus un conseil mais un avertissement : elle passe en rouge.
+   * Posé par l'adaptateur des sous-catégories quand le texte commence par `!`.
+   */
+  helpRouge?: boolean
+  /**
+   * Ce champ peut se préciser couleur par couleur — une robe existe en rouge
+   * du 38 au 44 et en noir seulement en 40. Annoncer « du 38 au 44 » fait
+   * venir un acheteur qui repart déçu.
+   */
+  varOK?: boolean
+  /** Le libellé abrégé du champ dans le bloc des variantes. */
+  labelVar?: string
 }
 
 export interface CategoryForm {

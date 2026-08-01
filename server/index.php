@@ -3077,6 +3077,123 @@ function foncier_campagne_initiale(array $config, PDO $pdo): void {
 }
 foncier_campagne_initiale($config, $pdo);
 
+/**
+ * Reclassement des annonces après la fusion des catégories — UNE SEULE FOIS.
+ *
+ * Deux catégories ont disparu parce qu'elles disaient la même chose qu'une
+ * autre : « Téléphones » (un téléphone EST un appareil électronique) et
+ * « Agriculture » (un régime de bananes se vendait aussi en Alimentation ;
+ * personne ne savait lequel des deux rayons regarder). Plusieurs
+ * sous-catégories ont par ailleurs été renommées pour dire ce qu'elles
+ * contiennent vraiment.
+ *
+ * Sans ce reclassement, toute annonce publiée avant la fusion resterait
+ * accrochée à un identifiant que plus aucun écran ne connaît : elle
+ * disparaîtrait des filtres, de la page catégorie et des alertes — invisible,
+ * mais toujours facturée à son vendeur s'il l'avait mise en avant. On ne
+ * supprime rien et on ne masque rien : on déplace.
+ *
+ * Le marqueur sur disque est indispensable — ce fichier est exécuté à chaque
+ * requête. La campagne est de toute façon idempotente (elle ne cherche que
+ * les anciens noms, qu'elle fait disparaître), mais deux garde-fous valent
+ * mieux qu'un quand on écrit dans la table des annonces.
+ */
+function fusion_categories(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.fusion_categories_v1';
+  if (@is_file($marque)) return;
+  @file_put_contents($marque, gmdate('c'));
+  @chmod($marque, 0600);
+
+  // [ancienne catégorie, ancienne sous-catégorie (null = toutes),
+  //  nouvelle catégorie, nouvelle sous-catégorie (null = inchangée)]
+  $regles = [
+    // --- Téléphones → Électronique -----------------------------------------
+    ['telephones', 'Smartphones',      'electronique', 'Smartphones'],
+    ['telephones', 'Tablettes',        'electronique', 'Tablettes'],
+    ['telephones', 'Téléphones fixes', 'electronique', 'Téléphones fixes'],
+    ['telephones', 'Accessoires',      'electronique', 'Accessoires téléphone'],
+    ['telephones', 'Réparation',       'electronique', 'Réparation & Dépannage'],
+    // Le reste (« Toutes », ou une valeur qu'on n'avait pas prévue) atterrit
+    // sur la sous-catégorie la plus fréquente plutôt que dans le vide.
+    ['telephones', null,               'electronique', 'Smartphones'],
+
+    // --- Agriculture → répartie selon ce qui est vendu ----------------------
+    ['agriculture', 'Produits vivriers',   'alimentation', 'Produits vivriers'],
+    ['agriculture', 'Cacao & Café',        'alimentation', 'Cacao & Café'],
+    ['agriculture', 'Semences & Intrants', 'alimentation', 'Semences & Intrants'],
+    ['agriculture', 'Élevage',             'animaux',      'Bétail & Élevage'],
+    ['agriculture', 'Matériel agricole',   'materiel-pro', 'Agriculture & Élevage'],
+    ['agriculture', null,                  'alimentation', 'Produits vivriers'],
+
+    // --- Sous-catégories renommées, à catégorie inchangée -------------------
+    ['vehicules',    'Location de véhicules',      'vehicules',    'Location'],
+    ['electronique', 'Accessoires',                'electronique', 'Accessoires téléphone'],
+    ['electronique', 'Réparation',                 'electronique', 'Réparation & Dépannage'],
+    ['services',     'Informatique',               'services',     'Informatique & Digital'],
+    ['services',     'Couture',                    'services',     'Couture & Artisanat'],
+    ['materiel-pro', 'Agriculture',                'materiel-pro', 'Agriculture & Élevage'],
+    ['materiel-pro', 'Restauration',               'materiel-pro', 'Restauration & Maquis'],
+    ['materiel-pro', 'Industrie',                  'materiel-pro', 'Industrie & Atelier'],
+    ['materiel-pro', 'Fournitures de bureau',      'materiel-pro', 'Bureau & Informatique'],
+    ['alimentation', 'Miel & Confitures',          'alimentation', 'Produits du terroir'],
+    ['animaux',      'Oiseaux & Poissons',         'animaux',      'Oiseaux, Poissons & Reptiles'],
+    ['animaux',      'Accessoires & Alimentation', 'animaux',      'Accessoires & Matériel'],
+    ['loisirs',      'Livres',                     'loisirs',      'Livres & BD'],
+    ['loisirs',      'Vélos',                      'loisirs',      'Vélos & Trottinettes'],
+    // « Jeux & Jouets » mélangeait deux marchés. On garde la catégorie plutôt
+    // que de déménager d'office chez Bébé : déplacer l'annonce de quelqu'un
+    // dans un autre rayon sans le lui dire est pire que de la laisser où elle
+    // est, et le vendeur peut la corriger en deux touches.
+    ['loisirs',      'Jeux & Jouets',              'loisirs',      'Jeux de société & Puzzles'],
+    ['bebe',         'Vêtements bébé',             'bebe',         'Vêtements bébé & enfant'],
+    ['bebe',         'Poussettes',                 'bebe',         'Poussettes & Sièges auto'],
+    ['bebe',         'Jouets',                     'bebe',         'Jouets & Éveil'],
+    ['bebe',         'Mobilier bébé',              'bebe',         'Mobilier & Chambre'],
+    ['bebe',         'Matériel de puériculture',   'bebe',         'Puériculture & Repas'],
+    ['sante',        'Compléments alimentaires',   'sante',        'Compléments & Tisanes'],
+    ['sante',        'Matériel médical & Paramédical', 'sante',    'Matériel médical de confort'],
+  ];
+
+  $bilan = [];
+  try {
+    foreach ($regles as [$cat, $sub, $ncat, $nsub]) {
+      if ($sub === null) {
+        $st = $pdo->prepare('UPDATE listings SET category_id = ?, subcategory = ? WHERE category_id = ?');
+        $st->execute([$ncat, $nsub, $cat]);
+      } else {
+        $st = $pdo->prepare('UPDATE listings SET category_id = ?, subcategory = ? WHERE category_id = ? AND subcategory = ?');
+        $st->execute([$ncat, $nsub, $cat, $sub]);
+      }
+      $n = $st->rowCount();
+      if ($n > 0) $bilan[] = "$cat/" . ($sub ?? '*') . " → $ncat/$nsub : $n";
+    }
+    // Les centres d'intérêt suivent les annonces — sinon les alertes de
+    // l'acheteur ne se déclencheraient plus jamais, sans rien signaler.
+    //
+    // La clé primaire est (user_id, category_id) : un acheteur qui suivait À LA
+    // FOIS « Téléphones » et « Électronique » ferait échouer la mise à jour sur
+    // un doublon, et TOUTE la reprise s'arrêterait là. On efface donc d'abord
+    // l'ancienne ligne de ceux qui ont déjà la nouvelle — ils ne perdent rien,
+    // c'est le même centre d'intérêt — avant de déplacer les autres.
+    foreach ([['telephones', 'electronique'], ['agriculture', 'alimentation']] as [$vieux, $neuf]) {
+      try {
+        $pdo->prepare('DELETE FROM user_interests WHERE category_id = ? AND user_id IN
+                       (SELECT user_id FROM (SELECT user_id FROM user_interests WHERE category_id = ?) AS t)')
+            ->execute([$vieux, $neuf]);
+        $st = $pdo->prepare('UPDATE user_interests SET category_id = ? WHERE category_id = ?');
+        $st->execute([$neuf, $vieux]);
+        if ($st->rowCount() > 0) $bilan[] = "alertes $vieux → $neuf : " . $st->rowCount();
+      } catch (Throwable $e) { /* table ou colonne absente : rien à reprendre */ }
+    }
+    $ligne = gmdate('c') . ' ' . json_encode($bilan, JSON_UNESCAPED_UNICODE);
+    error_log('[chapci] fusion categories: ' . $ligne);
+    @file_put_contents($marque, $ligne);
+  } catch (Throwable $e) {
+    error_log('[chapci] fusion categories: ' . $e->getMessage());
+  }
+}
+fusion_categories($config, $pdo);
+
 $resetMarker = chapci_secret_dir($config) . '/.reset_admins_v2';
 if (!file_exists($resetMarker)) {
   try { $pdo->exec('DELETE FROM admins'); } catch (Throwable $e) { /* table absente : rien à faire */ }

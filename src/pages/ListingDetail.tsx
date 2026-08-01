@@ -10,6 +10,7 @@ import {
   BadgeCheck,
   Truck,
   ShieldCheck,
+  ShieldAlert,
   Clock,
   Eye,
   Star,
@@ -39,6 +40,7 @@ import { phpListingView } from '../lib/php'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { formFor } from '../data/categoryForms'
+import { formSous } from '../data/sous'
 import { DOC_PAR_ID, cleNumero, estVenteFonciere, lireDocs } from '../data/foncier'
 import { lireCouleurs, lireVariantes, type Couleur } from '../data/couleurs'
 import { FoncierDossier } from '../components/FoncierDossier'
@@ -146,18 +148,38 @@ export function ListingDetail() {
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
     .slice(0, 6)
 
-  // Formulaire de la catégorie : détermine les attributs pertinents (marque, année…).
-  const form = formFor(listing.categoryId)
-  const sellerInitial = (listing.sellerName || '?').trim().charAt(0).toUpperCase() || '?'
+  const attributs = listing.attributes ?? {}
 
+  /**
+   * La fiche se lit avec le MÊME schéma que celui qui a servi à la remplir.
+   *
+   * C'est ce qui garantit qu'un acheteur voit tout ce que le vendeur a saisi,
+   * avec le libellé exact qu'on lui avait montré — et rien d'autre : un champ
+   * qui ne s'affichait pas au formulaire ne s'affiche pas non plus ici.
+   */
+  const sousForm = formSous(listing.categoryId, listing.subcategory ?? '', attributs)
+  const form = sousForm ?? formFor(listing.categoryId)
+  const sellerInitial = (listing.sellerName || '?').trim().charAt(0).toUpperCase() || '?'
   // Dossier foncier : affiché pour une VENTE immobilière, sous les attributs.
   // Le détail (documents, contrôles, guide dépliant) vit dans FoncierDossier.
-  const attributs = listing.attributes ?? {}
   const dossierFoncier = estVenteFonciere(listing) && !!attributs.docs
 
   // Variantes par couleur : photo, prix et détails propres à chaque couleur.
   const variantes = lireVariantes(attributs, listing.images?.length ?? 0)
-  const variantesActives = variantes.some((v) => v.photo !== null || v.prix !== null || v.note !== '')
+  /**
+   * Les champs déclinés couleur par couleur — les tailles, les pointures.
+   * C'est la particularité de la mode : une robe existe en rouge du 38 au 44
+   * et en noir seulement en 40. L'acheteur qui regarde une couleur doit voir
+   * les tailles de CETTE couleur, pas l'union de tout ce que le vendeur a.
+   */
+  const champsVar = (form.fields ?? []).filter((f) => f.varOK)
+  const varDe = (nom: string) =>
+    champsVar
+      .map((f) => ({ label: f.labelVar ?? f.label, valeur: attributs[`var_${nom}_${f.key}`] ?? '' }))
+      .filter((x) => x.valeur.trim() !== '')
+  const variantesActives =
+    variantes.some((v) => v.photo !== null || v.prix !== null || v.note !== '') ||
+    variantes.some((v) => varDe(v.couleur.nom).length > 0)
 
   // Grille d'attributs (mockup) : État · attributs de la catégorie · Livraison.
   // Les documents et leurs numéros sont sortis de la grille : ils ont leur
@@ -495,6 +517,34 @@ export function ListingDetail() {
             </div>
           )}
 
+          {/* Le bandeau : la seule chose à lire avant de se déplacer.
+              Une question par sous-catégorie, celle dont la réponse change la
+              décision — la carte grise pour une voiture, l'IMEI pour un
+              téléphone, les frais demandés pour une offre d'emploi. Il ne juge
+              pas le vendeur : « vendu pour pièces » ou « copie assumée »
+              passent en vert. Ce qui est signalé, c'est le silence. */}
+          {sousForm?.bandeaux.map((b, i) => (
+            <div
+              key={i}
+              className={`mt-3 flex gap-2.5 rounded-2xl border p-4 shadow-card ${
+                b.bon ? 'border-ivoire-green/25 bg-ivoire-green/8' : 'border-red-200 bg-red-50'
+              }`}
+            >
+              {b.bon ? (
+                <ShieldCheck size={19} className="mt-px shrink-0 text-ivoire-green-dark" />
+              ) : (
+                <ShieldAlert size={19} className="mt-px shrink-0 text-red-600" />
+              )}
+              <p
+                className={`min-w-0 text-[13.5px] font-medium leading-relaxed ${
+                  b.bon ? 'text-ivoire-green-dark' : 'text-red-700'
+                }`}
+              >
+                {b.texte}
+              </p>
+            </div>
+          ))}
+
           {/* Attributs — cartes façon mockup */}
           {attrItems.length > 0 && (
             <dl className="mt-5 grid grid-cols-2 gap-3">
@@ -549,6 +599,12 @@ export function ListingDetail() {
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-gray-900">{v.couleur.nom}</span>
                         {v.note && <span className="block text-xs text-gray-500">{v.note}</span>}
+                        {varDe(v.couleur.nom).map((x) => (
+                          <span key={x.label} className="mt-1 block text-xs text-gray-600">
+                            <span className="text-gray-500">{x.label} · </span>
+                            <b className="font-semibold text-primary-700">{x.valeur}</b>
+                          </span>
+                        ))}
                       </span>
                       {v.prix !== null && (
                         <span className="tnum shrink-0 font-display text-sm font-bold text-primary-600">

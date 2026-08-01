@@ -40,8 +40,8 @@ function loadImageEl(src: string): Promise<HTMLImageElement> {
 // On teste par inclusion de mots-clés dans le libellé renvoyé par le modèle.
 interface Obj { fr: string; cat: string }
 const LABELS: [string[], Obj][] = [
-  [['cellular', 'cellphone', 'mobile phone', 'smartphone'], { fr: 'Un téléphone', cat: 'telephones' }],
-  [['hand-held computer', 'ipod'], { fr: 'Une tablette', cat: 'telephones' }],
+  [['cellular', 'cellphone', 'mobile phone', 'smartphone'], { fr: 'Un téléphone', cat: 'electronique' }],
+  [['hand-held computer', 'ipod'], { fr: 'Une tablette', cat: 'electronique' }],
   [['laptop', 'notebook'], { fr: 'Un ordinateur portable', cat: 'electronique' }],
   [['desktop computer', 'computer keyboard', 'monitor'], { fr: 'Un ordinateur', cat: 'electronique' }],
   [['television', 'screen', 'monitor'], { fr: 'Un téléviseur', cat: 'electronique' }],

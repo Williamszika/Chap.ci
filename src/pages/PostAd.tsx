@@ -14,6 +14,7 @@ import { useToast } from '../store/ToastContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
+import { formSous } from '../data/sous'
 import { FoncierDocs } from '../components/FoncierDocs'
 import { DOC_PAR_ID, cleNumero, lireDocs } from '../data/foncier'
 import { lireCouleurs } from '../data/couleurs'
@@ -38,10 +39,10 @@ const MAX_PHOTOS = 5
 
 /** Emoji par catégorie — pour le menu déroulant « Catégorie » (façon artifact). */
 const CAT_EMOJI: Record<string, string> = {
-  telephones: '📱', vehicules: '🚗', immobilier: '🏠', mode: '👗',
-  electronique: '💻', maison: '🛋️', emploi: '💼', services: '🔧',
-  'materiel-pro': '🏗️', alimentation: '🍎', agriculture: '🌱',
-  animaux: '🐾', loisirs: '🎮', bebe: '👶',
+  electronique: '📱', vehicules: '🚗', immobilier: '🏠', mode: '👗',
+  maison: '🛋️', emploi: '💼', services: '🔧',
+  'materiel-pro': '🏗️', alimentation: '🍎',
+  animaux: '🐾', loisirs: '🎮', bebe: '👶', sante: '💚',
 }
 
 /** Raison de refus renvoyée par le Gardien de publication (modération). */
@@ -205,7 +206,19 @@ export function PostAd() {
   }, [title, categoryId, editing])
 
   const cat = categoryById(categoryId)
-  const form = formFor(categoryId) // champs adaptés à la catégorie
+
+  /**
+   * Le formulaire de la SOUS-catégorie, quand elle en a un — c'est-à-dire
+   * partout sauf en immobilier, qui a son dossier foncier, plus riche.
+   *
+   * On ne pose plus les mêmes questions à qui vend un canapé et à qui vend une
+   * bouteille de gaz. Le schéma décide de tout : les champs, ce qui est
+   * obligatoire, s'il y a des couleurs et lesquelles, si « occasion / neuf »
+   * a un sens, comment s'appelle le prix, et la question dont la réponse
+   * s'affichera en tête de la fiche.
+   */
+  const sousForm = formSous(categoryId, subcategory, attrs)
+  const form = sousForm ?? formFor(categoryId)
 
   // Champs réellement à l'écran : ceux dont la condition est remplie. Un champ
   // masqué n'est jamais exigé, et sa valeur ne part pas au serveur.
@@ -406,6 +419,14 @@ export function PostAd() {
       return fail('Cochez les trois engagements avant de publier.', 'pa-engagement')
     }
 
+    // Certaines réponses interdisent la publication : un produit qui éclaircit
+    // la peau, une bouteille de gaz qui fuit, un recrutement qui réclame des
+    // frais au candidat. Le refus est déjà affiché en rouge dans le formulaire,
+    // avec ce qu'il faut faire à la place ; on ne fait ici que tenir parole.
+    if (sousForm && sousForm.blocages.length) {
+      return fail(sousForm.blocages[0], 'pa-blocage')
+    }
+
     // Les champs devenus invisibles (l'offre est passée de Vente à Location, le
     // bien de Maison à Terrain nu…) ne doivent pas partir avec l'annonce : ils
     // s'afficheraient sur la fiche sans que personne ne les ait voulus.
@@ -419,8 +440,13 @@ export function PostAd() {
       // Variante d'une couleur (photo/prix/détails) : elle ne part qu'avec sa
       // couleur cochée, et seulement si le champ couleurs est à l'écran.
       if (k.startsWith('var_')) {
-        const m = /^var_(.+)_(photo|prix|note)$/.exec(k)
-        if (m && clesVisibles.has('couleurs') && couleursCochees.has(m[1])) attrsFinaux[k] = v
+        // `var_<Couleur>_<champ>` — le champ est `photo`, `prix`, `note`, ou la
+        // clé d'un champ déclinable par couleur (les tailles). Le nom de la
+        // couleur pouvant lui-même contenir un souligné (« 1B_naturel » n'existe
+        // pas, mais rien ne l'interdit), on cherche la couleur cochée qui
+        // correspond plutôt que de découper à l'aveugle.
+        const nom = [...couleursCochees].find((c) => k.startsWith(`var_${c}_`))
+        if (nom && clesVisibles.has('couleurs')) attrsFinaux[k] = v
         continue
       }
       if (clesVisibles.has(k)) attrsFinaux[k] = v
@@ -665,6 +691,15 @@ export function PostAd() {
             Touchez <b className="font-semibold text-gray-500">✨ Modifier</b> pour recadrer et embellir une photo.
             La première sera la couverture. Sans photo, une image sera générée.
           </p>
+          {/* Là où il n'y a pas de couleur à cocher, on ne laisse pas un vide :
+              on dit ce qu'il faut montrer à la place. Un matelas est blanc —
+              ce qui compte, c'est l'étiquette et les coins. Sur du bâtiment,
+              une photo d'avant/après vaut tous les arguments. */}
+          {sousForm && !sousForm.couleurs && sousForm.sansCouleur && (
+            <p className="mt-2 rounded-xl border border-line2 bg-cream-100/60 px-3 py-2 text-xs leading-relaxed text-gray-600">
+              {sousForm.sansCouleur}
+            </p>
+          )}
           {checkingPhotos && (
             <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
               <Loader2 size={13} className="animate-spin" /> Analyse des photos en cours…
@@ -752,12 +787,56 @@ export function PostAd() {
             ) : f.type === 'colors' ? (
               // Couleurs + variantes : chaque couleur cochée peut recevoir sa
               // photo (désignée parmi celles de l'annonce), son prix, ses détails.
+              // La palette est celle du métier — pour un meuble on ne choisit
+              // pas « rouge ou bleu », on choisit l'essence du bois.
               <Field label={f.label}>
-                <CouleursVariantes attrs={attrs} setAttr={setAttr} images={images} help={f.help} />
+                <CouleursVariantes
+                  attrs={attrs}
+                  setAttr={setAttr}
+                  images={images}
+                  help={f.help}
+                  palette={sousForm?.palette}
+                  champsVariante={champsVisibles.filter((c) => c.varOK)}
+                  aideChamps={sousForm?.aideCoulChamp}
+                />
               </Field>
             ) : (
               <AttrInput field={f} value={attrs[f.key] ?? ''} onChange={(v) => setAttr(f.key, v)} />
             )}
+          </div>
+        ))}
+
+        {/* Ce que l'acheteur lira en tête de la fiche.
+            Une question par sous-catégorie : la carte grise pour une voiture,
+            l'IMEI pour un téléphone, les frais demandés pour une offre
+            d'emploi. Le vendeur la voit ici telle qu'elle sortira — et
+            comprend, avant de publier, ce que sa réponse dit de lui. */}
+        {sousForm?.bandeaux.map((b, i) => (
+          <div
+            key={i}
+            className={`flex gap-2.5 rounded-2xl border p-3.5 ${
+              b.bon ? 'border-ivoire-green/30 bg-ivoire-green/8' : 'border-red-200 bg-red-50'
+            }`}
+          >
+            {b.bon ? (
+              <ShieldCheck size={17} className="mt-px shrink-0 text-ivoire-green-dark" />
+            ) : (
+              <ShieldAlert size={17} className="mt-px shrink-0 text-red-600" />
+            )}
+            <div className="min-w-0">
+              {i === 0 && (
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                  Ce que verra l’acheteur
+                </p>
+              )}
+              <p
+                className={`mt-0.5 text-[13px] leading-relaxed ${
+                  b.bon ? 'text-ivoire-green-dark' : 'text-red-700'
+                }`}
+              >
+                {b.texte}
+              </p>
+            </div>
           </div>
         ))}
 
@@ -1041,14 +1120,40 @@ export function PostAd() {
           </p>
         </div>
 
+        {/* Ce qui interdit de publier — dit avant le bouton, pas après.
+            Laisser quelqu'un remplir vingt champs, choisir une mise en avant,
+            puis lui refuser l'annonce, c'est le perdre. Et le refus donne
+            toujours la marche à suivre : un refus sans issue se contourne. */}
+        {sousForm && sousForm.blocages.length > 0 && (
+          <div id="pa-blocage" className="space-y-2 rounded-2xl border border-red-200 bg-red-50 p-4">
+            {sousForm.blocages.map((motif, i) => (
+              <p key={i} className="flex items-start gap-2.5 text-[13px] font-medium leading-relaxed text-red-700">
+                <ShieldAlert size={17} className="mt-px shrink-0" />
+                <span>{motif}</span>
+              </p>
+            ))}
+          </div>
+        )}
+
         {error && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
             {error}
           </p>
         )}
 
-        <button type="submit" disabled={submitting} className="btn-primary w-full py-3.5 text-base lg:mx-auto lg:flex lg:w-auto lg:min-w-[20rem]">
-          <Check size={20} /> {submitting ? 'Enregistrement…' : editing ? 'Enregistrer les modifications' : 'Publier mon annonce'}
+        <button
+          type="submit"
+          disabled={submitting || (sousForm ? sousForm.blocages.length > 0 : false)}
+          className="btn-primary w-full py-3.5 text-base disabled:cursor-not-allowed disabled:opacity-50 lg:mx-auto lg:flex lg:w-auto lg:min-w-[20rem]"
+        >
+          <Check size={20} />
+          {submitting
+            ? 'Enregistrement…'
+            : sousForm && sousForm.blocages.length > 0
+              ? 'Publication impossible'
+              : editing
+                ? 'Enregistrer les modifications'
+                : 'Publier mon annonce'}
         </button>
         </div>{/* ---- fin pleine largeur ---- */}
       </form>
@@ -1080,6 +1185,23 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; 
   )
 }
 
+/**
+ * L'aide sous un champ — et son ton.
+ *
+ * La plupart du temps c'est un conseil, en gris : où regarder, quoi vérifier,
+ * ce qui fait vendre. Mais la même ligne doit parfois avertir — « sans
+ * assurance, un dégât d'eau chez le client est à votre charge », « ce produit
+ * ne peut pas être publié ». Elle passe alors en rouge, et se voit. Les
+ * schémas le signalent par un `!` en tête, que l'adaptateur retire.
+ */
+function Aide({ texte, rouge, className = '' }: { texte: string; rouge?: boolean; className?: string }) {
+  return (
+    <p className={`text-xs leading-relaxed ${rouge ? 'font-medium text-red-700' : 'text-gray-500'} ${className}`}>
+      {texte}
+    </p>
+  )
+}
+
 /** Champ d'attribut spécifique à une catégorie (texte / nombre / choix / oui-non). */
 function AttrInput({
   field,
@@ -1098,7 +1220,7 @@ function AttrInput({
       <label className="flex items-center justify-between gap-3 rounded-xl border border-line2 px-4 py-3">
         <span className="text-sm font-medium text-gray-800">
           {field.label}
-          {field.help && <small className="mt-0.5 block text-xs font-normal leading-snug text-gray-500">{field.help}</small>}
+          {field.help && <small className={`mt-0.5 block text-xs font-normal leading-snug ${field.helpRouge ? 'font-medium text-red-700' : 'text-gray-500'}`}>{field.help}</small>}
         </span>
         <input
           type="checkbox"
@@ -1120,7 +1242,7 @@ function AttrInput({
     }
     return (
       <Field label={multiple ? `${field.label} · plusieurs choix possibles` : field.label}>
-        {field.help && <p className="-mt-1 mb-2 text-xs text-gray-500">{field.help}</p>}
+        {field.help && <Aide texte={field.help} rouge={field.helpRouge} className="-mt-1 mb-2" />}
         <div className="flex flex-wrap gap-2">
           {field.options?.map((o) => (
             <button
@@ -1158,7 +1280,7 @@ function AttrInput({
           </span>
         )}
       </div>
-      {field.help && <p className="mt-1.5 text-xs text-gray-500">{field.help}</p>}
+      {field.help && <Aide texte={field.help} rouge={field.helpRouge} className="mt-1.5" />}
     </Field>
   )
 }

@@ -12,20 +12,40 @@
 // =============================================================================
 import { Check, ImageOff } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
-import { COULEURS, cleVariante, lireCouleurs } from '../data/couleurs'
+import { COULEURS, type Couleur, cleVariante, lireCouleurs } from '../data/couleurs'
+import type { AttrField } from '../data/categoryForms'
 
 export function CouleursVariantes({
   attrs,
   setAttr,
   images,
   help,
+  palette,
+  champsVariante = [],
+  aideChamps,
 }: {
   attrs: Record<string, string>
   setAttr: (k: string, v: string) => void
   images: string[]
   help?: string
+  /**
+   * La palette du métier. Un meuble se décline en iroko, teck et wengé ; un
+   * fond de teint en carnations ; une mèche en numéros. Proposer les quinze
+   * teintes habituelles à qui vend un fond de teint, c'est lui demander de
+   * mentir. À défaut, les quinze teintes générales.
+   */
+  palette?: Couleur[]
+  /**
+   * Les champs qui se déclinent couleur par couleur — les tailles, surtout.
+   * Une robe existe en rouge du 38 au 44 et en noir seulement en 40 :
+   * annoncer « du 38 au 44 » fait venir un acheteur qui repart déçu et laisse
+   * un avis d'une étoile.
+   */
+  champsVariante?: AttrField[]
+  aideChamps?: string
 }) {
-  const choisis = lireCouleurs(attrs.couleurs)
+  const teintes = palette && palette.length ? palette : COULEURS
+  const choisis = lireCouleurs(attrs.couleurs).filter((c) => teintes.some((t) => t.nom === c.nom))
   const noms = choisis.map((c) => c.nom)
 
   function basculer(nom: string) {
@@ -35,6 +55,7 @@ export function CouleursVariantes({
       setAttr(cleVariante(nom, 'photo'), '')
       setAttr(cleVariante(nom, 'prix'), '')
       setAttr(cleVariante(nom, 'note'), '')
+      for (const c of champsVariante) setAttr(`var_${nom}_${c.key}`, '')
       setAttr('couleurs', noms.filter((x) => x !== nom).join(', '))
     } else {
       setAttr('couleurs', [...noms, nom].join(', '))
@@ -47,7 +68,7 @@ export function CouleursVariantes({
 
       {/* Les pastilles : cocher les couleurs disponibles */}
       <div className="flex flex-wrap gap-2">
-        {COULEURS.map((c) => (
+        {teintes.map((c) => (
           <button
             key={c.nom}
             type="button"
@@ -145,9 +166,49 @@ export function CouleursVariantes({
                     maxLength={100}
                   />
                 </div>
+
+                {/* Ce qui n'existe pas dans toutes les couleurs : les tailles,
+                    les pointures. Le vendeur a coché plus haut tout ce qu'il a ;
+                    il précise ici ce qui reste dans CETTE couleur-là. */}
+                {champsVariante.map((cv) => {
+                  const cle = `var_${c.nom}_${cv.key}`
+                  const valeurs = (attrs[cle] ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+                  return (
+                    <div key={cv.key} className="space-y-1.5">
+                      <p className="text-[11.5px] font-semibold text-gray-600">
+                        {cv.labelVar ?? cv.label} · {c.nom}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {cv.options?.map((o) => {
+                          const on = valeurs.includes(o)
+                          return (
+                            <button
+                              key={o}
+                              type="button"
+                              aria-pressed={on}
+                              onClick={() =>
+                                setAttr(cle, (on ? valeurs.filter((x) => x !== o) : [...valeurs, o]).join(', '))
+                              }
+                              className={`rounded-lg border px-2.5 py-1 text-[12px] font-medium transition ${
+                                on
+                                  ? 'border-primary-500 bg-primary-500 text-white'
+                                  : 'border-line2 bg-white text-gray-700'
+                              }`}
+                            >
+                              {o}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )
           })}
+          {champsVariante.length > 0 && aideChamps && (
+            <p className="text-xs leading-relaxed text-gray-500">{aideChamps}</p>
+          )}
         </div>
       )}
     </div>
