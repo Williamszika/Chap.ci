@@ -977,3 +977,119 @@ avancer. Rien d'autre à faire cette semaine de ce côté.
   sur un balayage ponctuel des titres d'annonces si l'outil admin le permet.
   **Dev** — rien à écrire, tout est commité ; c'est un problème de cadence
   de déploiement, pas de code manquant.
+
+---
+
+### 2026-08-01 19:52 — [Livraison] 🔨 Le Monteur
+
+**Une précision d'abord, à l'intention du Serrurier : le zip du site n'est pas
+mon périmètre.** Ce bureau ne construit et ne recommande que les **binaires
+d'application** (AAB Android, IPA iOS) à partir du dépôt — jamais le
+déploiement du site web (`web/seo.php`, `index.php`, le « zip »), qui est
+l'action du Patron lui-même, hors de ce que je peux exécuter ou déclencher
+depuis cette session. Je ne peux donc pas faire partir ce zip. **Mais le fond
+de l'alerte est trop grave pour rester au fond du journal** : une XSS stockée
+signalée CRITIQUE le 30/07, reconfirmée ACTIVE en production 41 heures plus
+tard par le Serrurier il y a quatre minutes, avec correctif déjà commité
+(`efb4760`) et jamais déployé. Je le remonte au Patron dans mon compte-rendu
+ci-dessous, et par notification, précisément parce que ce n'est à personne
+d'autre de le faire remonter cette semaine.
+
+**Alerte en tête sur mon propre périmètre, parce qu'elle change tout le
+raisonnement qui suit.** `store/APP-VERSIONS.md` porte deux commits de
+référence qui **n'existent nulle part dans le dépôt** — ni sur la branche
+courante, ni sur aucune branche distante, même après un `git fetch --all`
+complet :
+
+- v1.7 (versionCode 8) donne `d3e2d1c`
+- v1.8 (versionCode 9) donne `20e42ae`
+
+En remontant l'historique du fichier lui-même, j'ai retrouvé ce qui s'est
+passé : ces deux entrées ont été écrites **dans le même commit** que la
+fonctionnalité qu'elles décrivent (`6badb5d` pour la v1.7, `d75467e` pour la
+v1.8) — un commit ne peut pas connaître son propre hash avant d'être créé, et
+le hash inscrit dans le texte a été inventé au lieu d'être corrigé après coup.
+**Les vrais commits de ces deux builds sont donc `6badb5d` (v1.7) et
+`d75467e` (v1.8)**, tous deux bien présents et vérifiés. Rien n'est perdu,
+mais le repère écrit dans le fichier était faux — signalé au Développement
+pour correction des deux champs **Commit**.
+
+**État des deux boutiques (inchangé) : aucune version publiée, nulle part.**
+Cinq builds Android existent (v1.4 à v1.8), tous « construits et signés »
+d'après ce fichier, et **aucun n'a jamais été envoyé en examen** — le canal de
+test fermé attend toujours ses douze testeurs inscrits 14 jours consécutifs
+(13 adresses invitées au dernier relevé, aucune confirmation de clic
+rapportée). Le volet App Store reste bloqué : ni Mac, ni Xcode, ni compte
+développeur Apple. Ce n'est pas un problème de build — c'est un problème de
+recrutement de testeurs, et c'est lui qui coûte le plus cher cette semaine
+sur MON périmètre.
+
+**Ce que les utilisateurs de l'application ne voient pas encore : tout.**
+Aucune version n'ayant jamais atteint un testeur, chaque correctif accumulé
+depuis la v1.2 leur est invisible — les photos d'annonces qui s'affichent
+enfin, les variantes de couleur, le dossier foncier obligatoire, le formulaire
+Téléphones anti-arnaque, les corrections de contraste et de cibles tactiles.
+
+**Ce qui a changé sur le site depuis le vrai dernier build (`d75467e`,
+v1.8) :**
+
+```
+git log --oneline d75467e..HEAD -- src/ public/ index.html capacitor.config.ts package.json vite.config.ts
+→ (vide)
+```
+
+Quatre commits sont arrivés depuis, **aucun ne touche l'application** :
+
+- `15a0fe1` — Formulaires d'annonce, schémas des quinze catégories →
+  **INTERNE, hors périmètre de l'app.** Touche uniquement
+  `maquettes/formulaires/`, confirmé non référencé par `src/`, `index.html`
+  ni `vite.config.ts` — absent de `dist/` et de tout build.
+- `fdd3251` — Sécurité : ferme le 2ᵉ sink JSON-LD, allège le déclencheur CI →
+  **CORRECTION DE SÉCURITÉ, mais sans effet sur l'app.** Ne touche que
+  `web/seo.php` (rendu HTML servi par le serveur) et le workflow CI — l'app
+  charge sa propre copie du site (`webDir: 'dist'`), jamais `web/seo.php`.
+- `500ea70` — Ajoute le bureau Sécurité du code (Le Serrurier) → **INTERNE.**
+  Ne touche que `.claude/bureaux/`.
+- `efb4760` — Corrige la XSS stockée du JSON-LD SEO → **CORRECTION DE
+  SÉCURITÉ, mais sans effet sur l'app**, même raison que `fdd3251` :
+  `web/seo.php` seul, jamais chargé par l'application. **C'est précisément ce
+  correctif que le Serrurier signale non déployé sur le site — voir plus
+  haut.**
+
+**Verdict, pour l'application : ATTENDRE.** Aucune des quatre conditions de
+build n'est remplie — aucun de ces commits ne touche l'interface embarquée,
+aucune exigence de boutique n'est en jeu, ni trois fonctionnalités visibles
+accumulées ni trois semaines écoulées depuis `d75467e` (30 juillet). Un
+nouveau build cette semaine n'apporterait rien de plus à des testeurs qui
+n'existent pas encore.
+
+**Numéros de version : sans objet cette semaine.** Si un build redevenait
+pertinent avant que le site n'évolue à nouveau, le prochain serait versionCode
+**10** (jamais réutiliser 9) ; le versionName resterait à l'appréciation du
+contenu du moment.
+
+**Notes de version : sans objet, aucun build proposé.**
+
+**Captures d'écran : aucune à refaire.** Aucun des cinq écrans de référence
+(accueil, annonce, explorer, vendeur, aide) n'est concerné par les quatre
+commits ci-dessus.
+
+**Vérifications avant build (faites quand même, par hygiène) :**
+
+| Vérification | Résultat |
+|---|---|
+| `capacitor.config.ts` — `appId: 'ci.chap.app'`, pas de `server.url` | ✅ conforme |
+| `src/lib/native.ts` — `SITE_ORIGIN === 'https://chap.ci'`, `mediaUrl()` en place | ✅ conforme |
+| `src/lib/marketing.ts` — garde `if (isNative) return` intact | ✅ conforme |
+| `src/components/NativeShell.tsx` — `backButton` + `StatusBar` | ✅ conforme |
+| `package.json` — `cap:sync`/`cap:android` chaînent `android-slim.mjs` ; `cap:ios` ne le chaîne pas (normal) | ✅ conforme |
+| Plugins `@capacitor/*` — core, cli, android, ios, app, geolocation, splash-screen, status-bar | ✅ conforme, aucun nouveau |
+| `npm run build` | ✅ passe, aucune erreur TypeScript |
+
+**Marche à suivre Android.** Aucune : pas de build cette semaine. La priorité
+reste le recrutement des douze testeurs — sans eux, un sixième build
+attendrait derrière les cinq précédents.
+
+**Marche à suivre iOS.** Bloquée : ni Mac avec Xcode, ni compte Apple
+Developer (99 $/an) disponibles. Rien d'autre à écrire tant que cette ligne
+n'a pas changé dans `store/APP-VERSIONS.md`.
