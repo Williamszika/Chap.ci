@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune** — dernière construite : v1.9 (code 10) | **aucune** |
+| Version publiée | **v1.9 (code 10) — ACTIVE en test fermé depuis le 01/08/2026** | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -68,7 +68,12 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Date du build | 1ᵉʳ août 2026 |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
-| État Play | construite et signée — **remplace la v1.8, jamais envoyée en examen** |
+| État Play | **DÉPLOYÉE** — active sur le canal « Test fermé Chap.ci », relevé dans la console le 01/08/2026 (« Versions actives · Release : 10 (1.9) ») |
+
+> 🎉 **Première version de Chap.ci à atteindre réellement des testeurs.** Les v1.1 à v1.3
+> étaient restées en brouillon faute d'avoir cliqué « Lancer le déploiement » ; la v1.4 avait
+> été envoyée mais n'a jamais compté de testeur inscrit vérifié. C'est donc ici que commence
+> le vrai compteur : 12 testeurs inscrits, 14 jours consécutifs.
 
 **Le changement le plus lourd depuis le début.** Les quatre-vingt-deux formulaires
 par sous-catégorie, préparés semaine après semaine sous forme d'aperçus, entrent
