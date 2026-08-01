@@ -64,11 +64,11 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `à compléter au push` |
+| **Commit** | `e1a07b7` |
 | Date du build | 1ᵉʳ août 2026, soir |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
-| État Play | construite et signée — **à téléverser en remplacement de la v1.10 sur le canal de test fermé** |
+| État Play | construite et signée — **à téléverser en remplacement de la v1.9 sur le canal de test fermé** |
 
 **Une seule raison, et elle suffit : la géolocalisation ne pouvait pas
 fonctionner.** La v1.9 est partie en test fermé avec `INTERNET` pour unique
