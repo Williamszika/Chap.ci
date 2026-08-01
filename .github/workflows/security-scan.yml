@@ -2,8 +2,12 @@ name: Sécurité — scan de secrets & dépendances
 
 # « La Garde » : inspecte chaque changement de code avant qu'il n'atteigne le site.
 on:
+  # Les pull requests et la branche principale suffisent. Se déclencher sur
+  # « push: branches: ['**'] » relançait le scan à CHAQUE commit de CHAQUE branche
+  # de travail — des minutes consommées sans rien apprendre de plus, puisque la
+  # pull request rescanne le même code juste après.
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

@@ -299,7 +299,12 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
   if ($cityName !== '') $crumbs[] = ['name' => $cityName, 'item' => $canon];
   $ld = ['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => []];
   foreach ($crumbs as $ix => $cr) $ld['itemListElement'][] = ['@type' => 'ListItem', 'position' => $ix + 1, 'name' => $cr['name'], 'item' => $cr['item']];
-  echo '<script type="application/ld+json">' . json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "</script>\n";
+  // Même échappement que le JSON-LD produit : ces valeurs viennent aujourd'hui
+  // de listes fixes (catégories, communes), donc rien n'est injectable — mais un
+  // sink dans un <script> se ferme par principe, pas quand il devient exploitable.
+  echo '<script type="application/ld+json">'
+     . json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
+     . "</script>\n";
   echo "<style>"
     . "body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#FFF6EA;color:#1B1A17;line-height:1.55}"
     . ".w{max-width:820px;margin:0 auto;padding:20px 16px 48px}"
