@@ -38,6 +38,12 @@ export default {
         accent: {
           gold: '#E8A100',
           ocre: '#B5651D',
+          // Meme ocre, assombri pour le TEXTE. #B5651D sur fond creme ne donne
+          // que 4,33:1 — sous les 4,5:1 exiges par la norme WCAG AA, donc
+          // illisible en plein soleil, ce qui est la situation normale ici.
+          // #96500E monte a 6,1:1. A utiliser des que l'ocre porte des mots ;
+          // l'ocre clair reste bon pour un aplat, une bordure ou une icone.
+          'ocre-dark': '#96500E',
           terracotta: '#C1440E',
           sable: '#EAD9C0',
           sky: '#2E7DB8',

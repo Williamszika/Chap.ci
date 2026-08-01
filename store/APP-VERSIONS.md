@@ -64,7 +64,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `20e42ae` |
+| **Commit** | `d75467e` |
 | Date du build | 30 juillet 2026 |
 | Poids de l'AAB | 6,6 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
@@ -83,7 +83,7 @@ galerie jusqu'à sa photo.
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `d3e2d1c` |
+| **Commit** | `6badb5d` |
 | Date du build | 29 juillet 2026, soir |
 | Poids de l'AAB | 6,6 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |

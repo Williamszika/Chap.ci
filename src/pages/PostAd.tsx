@@ -646,7 +646,7 @@ export function PostAd() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-line2 bg-cream-100 text-gray-400 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-500"
+                className="grid aspect-square place-items-center rounded-2xl border-2 border-dashed border-line2 bg-cream-100 text-gray-400 transition md:hover:border-primary-300 md:hover:bg-primary-50 md:hover:text-primary-500"
                 aria-label="Ajouter des photos"
               >
                 <Plus size={26} />
@@ -785,7 +785,7 @@ export function PostAd() {
                 <span>{t}</span>
               </label>
             ))}
-            <div className="flex gap-2.5 rounded-xl border border-accent-ocre/30 bg-accent-ocre/8 p-3 text-[12.5px] leading-relaxed text-accent-ocre">
+            <div className="flex gap-2.5 rounded-xl border border-accent-ocre/30 bg-accent-ocre/8 p-3 text-[12.5px] leading-relaxed text-accent-ocre-dark">
               <ShieldAlert size={16} className="mt-0.5 shrink-0" />
               <p>
                 Vendre deux fois le même terrain, ou vendre un bien qui ne vous appartient pas, est une escroquerie.

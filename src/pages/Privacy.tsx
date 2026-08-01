@@ -124,6 +124,20 @@ export function Privacy() {
                 <b>ne vendons pas</b> vos données personnelles. Les coordonnées des vendeurs ne sont pas
                 affichées publiquement : les échanges passent par la messagerie de l’application.
               </p>
+              {/* Google Play exige que tout traitement automatise du contenu utilisateur soit
+                  annonce dans la politique de confidentialite. L'analyse est locale : c'est
+                  precisement ce qui la rend acceptable, donc c'est ce qu'il faut dire en premier. */}
+              <p className="mt-3 rounded-xl border border-line bg-cream-100/60 p-3">
+                <b>Analyse automatique des photos, sur votre téléphone.</b> Lorsque vous ajoutez une photo à
+                une annonce, elle est examinée par un programme de reconnaissance d’images afin d’écarter les
+                contenus à caractère sexuel, que nos règles interdisent. Cet examen a lieu{' '}
+                <b>entièrement sur votre appareil</b>, avant tout envoi : la photo n’est transmise à aucun
+                service extérieur pour être analysée, aucun résultat d’analyse n’est conservé, et rien n’en
+                est déduit sur vous. Si une photo est écartée, vous en êtes informé immédiatement et vous
+                pouvez en choisir une autre. Le programme de reconnaissance est <b>livré avec
+                l’application</b> : il ne va rien chercher sur Internet, et il fonctionne même hors
+                connexion.
+              </p>
             </Section>
 
             <Section id="sec-4" title="4. Localisation">

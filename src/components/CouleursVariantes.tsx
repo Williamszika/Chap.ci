@@ -116,7 +116,7 @@ export function CouleursVariantes({
                     </span>
                   </div>
                 ) : (
-                  <p className="flex items-center gap-1.5 text-[11.5px] text-gray-400">
+                  <p className="flex items-center gap-1.5 text-[11.5px] text-gray-500">
                     <ImageOff size={13} /> Ajoutez d’abord vos photos en haut du formulaire, puis liez ici celle de cette couleur.
                   </p>
                 )}

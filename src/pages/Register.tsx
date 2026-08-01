@@ -240,7 +240,7 @@ export function Register() {
                 type="button"
                 onClick={newCaptcha}
                 aria-label="Nouveau calcul"
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-white text-gray-500 transition hover:text-gray-700 active:scale-95"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-white text-gray-500 transition md:hover:text-gray-700 active:scale-95"
               >
                 <RefreshCw size={17} />
               </button>

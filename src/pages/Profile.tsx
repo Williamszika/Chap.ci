@@ -595,7 +595,7 @@ export function Profile() {
                     {/* Masquée : on dit POURQUOI, et le bouton qui suit répare.
                         Une annonce masquée sans explication est abandonnée. */}
                     {l.hidden && l.hiddenReason && (
-                      <div className="mt-2 flex gap-2 rounded-xl border border-accent-ocre/30 bg-accent-ocre/8 p-2.5 text-[12px] leading-relaxed text-accent-ocre">
+                      <div className="mt-2 flex gap-2 rounded-xl border border-accent-ocre/30 bg-accent-ocre/8 p-2.5 text-[12px] leading-relaxed text-accent-ocre-dark">
                         <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                         <p>{l.hiddenReason}</p>
                       </div>
@@ -1017,7 +1017,7 @@ const rowTints: Record<string, string> = {
   gray: 'bg-gray-100 text-gray-500',
   gold: 'bg-amber-100 text-amber-600',
   green: 'bg-ivoire-green/10 text-ivoire-green',
-  ocre: 'bg-accent-ocre/10 text-accent-ocre',
+  ocre: 'bg-accent-ocre/10 text-accent-ocre-dark',
   sky: 'bg-sky-100 text-sky-600',
 }
 

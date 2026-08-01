@@ -24,8 +24,8 @@ const TON: Record<NiveauFoncier, { fond: string; texte: string; bord: string; pa
     pastille: 'bg-ivoire-green/10 text-ivoire-green-dark ring-ivoire-green/25',
   },
   warn: {
-    fond: 'bg-accent-ocre/8', texte: 'text-accent-ocre', bord: 'border-accent-ocre/30',
-    pastille: 'bg-accent-ocre/10 text-accent-ocre ring-accent-ocre/25',
+    fond: 'bg-accent-ocre/8', texte: 'text-accent-ocre-dark', bord: 'border-accent-ocre/30',
+    pastille: 'bg-accent-ocre/10 text-accent-ocre-dark ring-accent-ocre/25',
   },
   bad: {
     fond: 'bg-accent-terracotta/8', texte: 'text-accent-terracotta', bord: 'border-accent-terracotta/30',
@@ -99,7 +99,7 @@ export function FoncierDossier({ attributes }: { attributes: Record<string, stri
         </button>
 
         {ouvert && (
-          <div className="space-y-4 border-t border-line px-4 pb-5 pt-4">
+          <div className="animate-fadeup space-y-4 border-t border-line px-4 pb-5 pt-4">
             <p className="text-[13px] leading-relaxed text-gray-600">
               Sept documents circulent couramment pour un terrain en Côte d’Ivoire. Trois seulement donnent la
               propriété ; les autres ouvrent une procédure, ou ne valent rien du tout. Voilà pourquoi le formulaire pose
@@ -182,7 +182,7 @@ export function FoncierDossier({ attributes }: { attributes: Record<string, stri
               notaire. L’identifiant IDUFCI d’une parcelle, lui, n’est consultable que par les professionnels
               habilités — géomètres, notaires, banques : demandez-le à votre notaire plutôt que d’essayer vous-même.
             </p>
-            <p className="border-t border-line pt-3 text-[11.5px] leading-relaxed text-gray-400">
+            <p className="border-t border-line pt-3 text-[11.5px] leading-relaxed text-gray-500">
               Ce guide résume l’état du droit ivoirien tel qu’il est publié par les services de l’État. Il informe, il ne
               remplace pas un notaire.
             </p>

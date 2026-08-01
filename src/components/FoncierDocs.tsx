@@ -23,7 +23,7 @@ const TON: Record<NiveauFoncier, { rail: string; pastille: string; bord: string;
     case_: 'border-ivoire-green bg-ivoire-green text-white',
   },
   warn: {
-    rail: 'bg-accent-ocre', pastille: 'bg-accent-ocre/10 text-accent-ocre ring-accent-ocre/25',
+    rail: 'bg-accent-ocre', pastille: 'bg-accent-ocre/10 text-accent-ocre-dark ring-accent-ocre/25',
     bord: 'border-accent-ocre ring-1 ring-accent-ocre', fond: 'bg-white',
     case_: 'border-accent-ocre bg-accent-ocre text-white',
   },
