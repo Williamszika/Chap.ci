@@ -157,14 +157,28 @@ export function Privacy() {
               <ul className="ml-4 mt-2 list-disc space-y-1.5">
                 <li><b>Notre hébergeur</b> : stockage sécurisé de la base de données et des photos.</li>
                 <li><b>Google</b> (Sign-In) : si vous choisissez de vous connecter avec Google, l’authentification est réalisée par Google, qui nous transmet votre email et votre nom.</li>
-                <li><b>Fournisseur SMS</b> : envoi du code de vérification lorsque vous vous connectez par téléphone.</li>
-                <li><b>Services de géocodage</b> : conversion de coordonnées GPS en nom de lieu (ville, commune).</li>
+                <li><b>Fournisseur SMS</b> : envoi du code de vérification lorsque vous vous connectez par téléphone. <i>Ce mode de connexion n’est pas actif aujourd’hui : aucun SMS n’est envoyé.</i></li>
+                {/* Nommer ces quatre-là n'est pas une formalité. La loi ivoirienne
+                    n° 2013-450 demande que la personne sache À QUI ses données sont
+                    transmises — pas seulement qu'elles le sont. « Services de géocodage »
+                    ne disait rien, et la position exacte d'une personne n'est pas une
+                    donnée moins sensible qu'une photo d'annonce. */}
+                <li>
+                  <b>Services de géolocalisation</b> : pour convertir vos coordonnées GPS en nom de lieu
+                  (ville, commune) et pour estimer votre position à partir de votre adresse IP si vous
+                  refusez le GPS. Ces services sont établis hors de Côte d’Ivoire :{' '}
+                  <b>BigDataCloud</b>, <b>Nominatim</b> (Fondation OpenStreetMap), <b>ipwho.is</b> et{' '}
+                  <b>ipapi.co</b>. Ils reçoivent la coordonnée ou l’adresse IP concernée, et rien d’autre :
+                  ni votre nom, ni votre compte, ni vos annonces.
+                </li>
                 <li><b>Service d’emailing</b> : envoi éventuel de la newsletter et des emails du site (si vous y consentez).</li>
               </ul>
               <p className="mt-2">
-                Tout transfert éventuel de données vers un pays tiers ne serait réalisé que dans le respect
-                des conditions prévues par la loi n° 2013-450 (niveau de protection suffisant et, le cas
-                échéant, autorisation de l’ARTCI).
+                Ces transferts vers des pays tiers sont limités à ce qui est indispensable au
+                fonctionnement du service, et réalisés dans le respect des conditions prévues par la loi
+                n° 2013-450 (niveau de protection suffisant et, le cas échéant, autorisation de l’ARTCI).
+                <b> Vos données de compte, vos annonces, vos photos et vos messages, eux, ne quittent pas
+                la Côte d’Ivoire.</b>
               </p>
             </Section>
 
