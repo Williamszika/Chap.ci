@@ -1093,3 +1093,106 @@ attendrait derrière les cinq précédents.
 **Marche à suivre iOS.** Bloquée : ni Mac avec Xcode, ni compte Apple
 Developer (99 $/an) disponibles. Rien d'autre à écrire tant que cette ligne
 n'a pas changé dans `store/APP-VERSIONS.md`.
+
+---
+
+### 2026-08-02 03:20 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff de la semaine revu ligne à ligne (43 commits, `c2a847d..HEAD`,
+  27/07 → 01/08) · sous-système fouillé à fond cette semaine (rotation semaine
+  ISO 31 % 6 = 1) : **Rendu & upload** — `web/seo.php` (tous les échappements),
+  `save_data_uri`, `apply_watermark`, en-têtes servis · CI et dépendances
+  vérifiées · déploiement des correctifs des semaines passées **confirmé
+  en ligne**.
+
+  **Déploiement confirmé.** La XSS stockée du JSON-LD (`efb4760`, 30/07) et
+  la fermeture du second sink dans `render_sell_page` (`fdd3251`, 01/08) sont
+  bien en production : `curl https://chap.ci/api/health` renvoie l'empreinte
+  `69dfb85233f0`, identique à `md5sum server/index.php` du dépôt, déposée le
+  `2026-08-01T22:19:04Z` — après les deux commits. Vérifié aussi en conditions
+  réelles : `curl -A facebookexternalhit ".../annonce/c3a53e62-…"` sert
+  désormais `"https:\/\/chap.ci"` (slashes échappés) dans le `<script
+  type="application/ld+json">`. Et par la preuve directe, rejouée en
+  `php -r` avec le payload `Titre</script><script>alert(1)</script>` contre
+  l'encodage actuel (`JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT`,
+  sans `JSON_UNESCAPED_SLASHES`) : la sortie devient
+  `<\/script><script>…`, qui ne peut plus refermer la
+  balise. **Ce dossier est clos.** Rien à remonter au Monteur ni au Patron
+  dessus cette semaine.
+
+  **Sous-système Rendu & upload : rien de neuf, rien de régressé.**
+  `save_data_uri` et `apply_watermark` (index.php:2879 et :2923) sont
+  identiques à la version déjà auditée « solide » : re-encodage GD, extension
+  déduite de `getimagesizefromstring`, SVG filtré (script/on*/javascript:/
+  href externe refusés), `.htaccess` anti-exécution regénéré à chaque appel,
+  nom de fichier en `date+uuid`. Un seul nouvel appel de site cette semaine
+  (route `PUT /listings/:id`, index.php:3863) réutilise la fonction telle
+  quelle, sans rien contourner. Le `web/htaccess-root` a changé (CSP élargie
+  pour l'IA photo embarquée TensorFlow.js : `'unsafe-eval'`, `'wasm-unsafe-eval'`,
+  `blob:`), documenté en détail dans les commentaires du fichier — voir « défaut
+  de robustesse » ci-dessous, ce n'est pas une brèche en soi puisque la
+  politique reste en mode `Report-Only` (elle n'a jamais bloqué quoi que ce
+  soit).
+
+  **Balayage du reste du diff (hors rotation).** `server/index.php` a gagné
+  1488 lignes cette semaine (vérification d'e-mail par code, badge de
+  vérification recalculé, prolongation de publicité, `admin/revenues`,
+  `admin/foncier/*`, compteurs de vues/clics de pub). Points vérifiés :
+  - Les deux nouvelles routes `admin/revenues` et `admin/foncier/*`
+    restent SOUS la porte centrale `if ($seg[0] === 'admin')` (index.php:4927,
+    `require_user` + `is_admin` obligatoires), avec un verrou supplémentaire
+    réservé au propriétaire (`owner_emails`) — cohérent avec le reste du bloc
+    admin.
+  - La prolongation de publicité (`POST /ads` avec `extends`) vérifie que la
+    pub ciblée est active ET appartient au même compte ou au même e-mail
+    avant de la prolonger (index.php:~1174) — pas d'IDOR.
+  - Les compteurs `ads/:id/view` et `ads/:id/click` interpolent `$col` dans le
+    SQL (`UPDATE ad_stats SET $col = $col + 1 …`), mais `$col` ne peut valoir
+    que `'views'` ou `'clicks'`, verrouillé en amont par
+    `in_array($seg[2], ['view','click'], true)` — pas d'injection.
+  - `admin/revenues` construit son `WHERE` par fragments (`$wAds`, `$wRev`)
+    mais les noms de colonnes sont des littéraux fixes passés par le code, et
+    les valeurs passent en paramètres liés (`$pAds`, `$pRev`) — même schéma
+    que `export_all`, déjà noté solide.
+  - `git grep` sur `json_encode` dans `server/index.php` : aucun nouveau
+    `<script>` non échappé, uniquement des réponses API ou des colonnes JSON
+    stockées en base.
+  - Aucun secret commis (`git grep` sur secret/password/token/clé : rien hors
+    `getenv()`, docs et libellés produit).
+
+  **CI et dépendances.** `.github/workflows/security-scan.yml` déclenché sur
+  `pull_request` + `main` (allègement du 01/08, déjà noté par le Monteur).
+  `php -l` propre sur `index.php` et `seo.php`. `npm audit --omit=dev
+  --audit-level=high` : toujours le seul avertissement **modéré** connu sur
+  `react-router` (redirection ouverte + injection de constructeur en SSR
+  côté hydratation) — rien de nouveau, rien de haut/critique.
+
+- **Problèmes ouverts** : aucun exploitable. Un point de robustesse à noter,
+  sans urgence : la CSP du site (`web/htaccess-root`) autorise désormais
+  `'unsafe-eval'`, `'wasm-unsafe-eval'` et `blob:` en `script-src`, ajoutés
+  pour le modèle TensorFlow.js embarqué qui analyse les photos avant
+  publication. C'est un vrai assouplissement — `unsafe-eval` est précisément
+  ce que la CSP existe pour interdire — mais deux choses le tempèrent : (1) la
+  politique n'est encore qu'en `Content-Security-Policy-Report-Only`, donc
+  elle ne bloque rien aujourd'hui, assouplie ou non ; (2) même passée en mode
+  bloquant plus tard, l'apport réel de la CSP contre une XSS DOM viendrait
+  surtout de la restriction des *sources* de script (`'self'` + domaines
+  listés), pas de `unsafe-eval` seul — `unsafe-eval` élargit ce qu'un script
+  déjà chargé peut faire, pas ce qui peut être chargé. À surveiller le jour où
+  la politique passera en mode bloquant : vérifier alors que cet assouplissement
+  reste nécessaire (le modèle est livré dans le paquet, `tfhub.dev` /
+  `storage.googleapis.com` / `www.kaggle.com` ne sont, d'après le commentaire
+  du fichier, jamais appelés en pratique — à confirmer au navigateur avant de
+  les retirer).
+
+- **Propositions au Patron** : aucune. Rien à corriger dans le code cette
+  semaine — le sous-système de rotation tient, le diff complet ne montre
+  aucune brèche, et le seul point ouvert des semaines passées (déploiement du
+  correctif JSON-LD) est refermé.
+
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à remonter.
+  **Dev** — rien à écrire. **Monteur** — rien sur votre périmètre (le
+  correctif confirmé déployé cette semaine ne concernait que le site, pas
+  l'application). Une seule note pour tous : si la CSP `Report-Only` passe un
+  jour en mode bloquant, revérifier à ce moment-là que `'unsafe-eval'` /
+  `'wasm-unsafe-eval'` sont toujours nécessaires à l'IA photo embarquée.
