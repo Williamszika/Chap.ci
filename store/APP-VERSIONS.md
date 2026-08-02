@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **v1.14 (code 15)** téléversée le 02/08 — 20 852 appareils · ⛔ **v1.15 corrige une page blanche : à envoyer** | **aucune** |
+| Version publiée | **aucune.** v1.16 (code 17) téléversée le 02/08 en test fermé — release créée mais ⛔ **jamais envoyée pour examen** | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -65,8 +65,14 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Champ | Valeur |
 |---|---|
 | Date du build | 2 août 2026 |
-| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` |
-| État Play | **à téléverser — remplace la v1.15, jamais envoyée** |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | **téléversée le 02/08** en test fermé — « Dernière release : 17 (1.16) », canal actif, 1 pays. ⛔ **« Pas encore envoyé pour examen »** |
+
+> ⚠️ **Téléverser n'est pas publier.** Créer la release la laisse en brouillon dans la
+> console ; tant que les modifications ne sont pas *envoyées pour examen* depuis la
+> **Vue d'ensemble de la publication**, aucun testeur ne reçoit rien. La fiche affiche
+> encore « Nom temporaire de l'application : ci.chap.app (unreviewed) » — l'application
+> n'a jamais passé d'examen Google. C'est ce qui bloque depuis la v1.1.
 
 **Contient tout ce qu'apportait la v1.15** (correction de la page blanche sur un lien
 d'annonce ouvert à froid). La v1.15 n'ayant jamais été téléversée, il n'y a qu'un seul
