@@ -52,11 +52,22 @@
       « Position précise / Position approximative », et l'approximative suffit
       largement à trier des annonces par commune.
 
-      Pas de <uses-feature android:name="android.hardware.location.gps" /> :
-      cette ligne EXCLUT du Play Store tous les appareils sans puce GPS, et il
-      en circule en Côte d'Ivoire. La position leur reste accessible par le
-      réseau.
+      ⚠️ NE PAS SUPPRIMER LES DEUX <uses-feature> CI-DESSOUS.
+      Ce n'est pas une précaution théorique, c'est un correctif. Android AJOUTE
+      TOUT SEUL `android.hardware.location.gps` dès qu'on déclare
+      ACCESS_FINE_LOCATION, et en `required="true"` par défaut — sans qu'on
+      l'écrive nulle part. Résultat constaté à l'envoi de la v1.10 sur la Play
+      Console : « cette version ne prend plus en charge 7 appareils », dont
+      6 tablettes, exclues faute de puce GPS.
+
+      Les redéclarer explicitement en required="false" écrase la valeur
+      implicite. Les appareils sans GPS restent servis : ils obtiennent leur
+      position par le réseau, ce qui suffit largement à trier des annonces
+      par commune.
     -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
 </manifest>

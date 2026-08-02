@@ -160,7 +160,7 @@ const sections: Section[] = [
       },
       {
         q: 'Combien de photos puis-je ajouter et comment les réussir ?',
-        a: 'Ajoutez plusieurs photos nettes, en pleine lumière, sous différents angles. Une bonne première photo attire beaucoup plus d’acheteurs. Les images sont automatiquement optimisées lors de l’envoi.',
+        a: 'Trois photos au minimum sont exigées pour publier, et cinq au maximum. Prenez-les vous-même, en pleine lumière et sous différents angles — c’est ce qui distingue une vraie annonce d’une annonce recopiée, et ce qui évite la discussion une fois l’acheteur sur place. Montrez les défauts s’il y en a : cela inspire plus confiance que de les cacher. La première photo sert de couverture et attire beaucoup plus d’acheteurs. Les images sont automatiquement optimisées lors de l’envoi.',
       },
       {
         q: 'Comment modifier, masquer ou supprimer mon annonce ?',

@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | v1.9 (code 10) active en test fermé — **remplacée par la v1.10 (code 11)** | **aucune** |
+| Version publiée | v1.9 (code 10) active en test fermé — **remplacée par la v1.11 (code 12)** | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -60,6 +60,35 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.11 — versionCode 12
+
+| Champ | Valeur |
+|---|---|
+| Date du build | 2 août 2026, 03h40 |
+| Poids de l'AAB | 6,7 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **remplace la v1.10, qui n'a pas été déployée** |
+
+**Une correction, trouvée par la Play Console elle-même.** En prévisualisant la
+v1.10, la console a averti : *« cette version ne prend plus en charge
+7 appareils »* — 1 téléphone et 6 tablettes.
+
+La cause n'est écrite nulle part dans notre manifeste : **Android ajoute tout
+seul `<uses-feature android:name="android.hardware.location.gps">` dès qu'on
+déclare `ACCESS_FINE_LOCATION`**, et en `required="true"` par défaut. Ne pas
+écrire la ligne ne suffit donc pas — il faut la réécrire explicitement en
+`required="false"` pour écraser la valeur implicite. Les trois lignes
+(`location`, `location.gps`, `location.network`) y sont maintenant, avec le
+commentaire qui explique pourquoi il ne faut jamais les supprimer.
+
+Sept appareils sur 20 739, c'est 0,03 % — mais le correctif coûtait deux
+minutes, et personne n'était encore installé.
+
+**Aussi :** la FAQ promettait encore des photos libres alors que le serveur en
+exige trois depuis la v1.10. Relevé par le bureau Support le 2 août.
+
+---
+
 ## v1.10 — versionCode 11
 
 | Champ | Valeur |
@@ -68,7 +97,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Date du build | 1ᵉʳ août 2026, soir |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
-| État Play | construite et signée — **à téléverser en remplacement de la v1.9 sur le canal de test fermé** |
+| État Play | téléversée le 02/08, **non déployée** — remplacée par la v1.11 avant confirmation (7 appareils exclus, voir ci-dessus). Le code 11 est brûlé. |
 
 **Une seule raison, et elle suffit : la géolocalisation ne pouvait pas
 fonctionner.** La v1.9 est partie en test fermé avec `INTERNET` pour unique
