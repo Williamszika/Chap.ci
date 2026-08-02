@@ -186,8 +186,30 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    Cite TOUJOURS la route fautive dans ton rapport. « cron_fail 14 » ne se
    corrige pas ; « cron/backup a échoué 12 fois » se corrige en une minute.
 
-   LIRE « cron_fail » CORRECTEMENT — la bonne hypothèse d'abord :
-   Des cron_fail en nombre ne sont PRESQUE JAMAIS une attaque. Par ordre de
+   LIRE « cron_fail » CORRECTEMENT — LIS D'ABORD LES DEUX MARQUES.
+   Depuis le 02/08/2026, chaque cron_fail porte son motif ET deux marques qui
+   tranchent avant toute hypothèse. Exemple complet :
+
+       cron/stats · cle-differente(url,30 car.) · externe
+
+   · « local » / « externe » : une TÂCHE cPANEL s'exécute TOUJOURS en local.
+     Un cron_fail marqué « externe » n'est donc JAMAIS une tâche du Patron —
+     c'est une sonde, un test, ou un balayage. Ne lui demande rien à corriger.
+   · « jamais-valide » : la clé envoyée fait moins de 24 caractères, donc une
+     valeur que ce serveur n'a jamais pu accepter. Ce n'est pas une ancienne
+     clé, c'est un essai.
+
+   POURQUOI CES MARQUES EXISTENT. Le 02/08, six cron_fail portant des clés de
+   5, 28 et 30 caractères ont été rapportés comme « signature typique d'une
+   tâche cPanel restée sur une ancienne clé ». C'étaient les sondes de
+   vérification du Développement, tirées depuis l'extérieur. Le Patron a passé
+   du temps à chercher des tâches à réparer qui n'existaient pas. Un rapport
+   qui accuse à tort coûte plus cher qu'un rapport muet.
+
+   Si les deux marques disent « externe », écris-le en une ligne et passe :
+   « N cron_fail, tous externes — sondes ou balayage, aucune tâche en cause. »
+
+   Ensuite seulement, pour les cron_fail marqués « local », par ordre de
    probabilité décroissante :
      1. Une clé a été régénérée et les TÂCHES CRON cPANEL portent encore
         l'ancienne. Conséquence grave et silencieuse : backup, cleanup, digest,

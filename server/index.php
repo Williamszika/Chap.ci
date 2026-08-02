@@ -6971,10 +6971,30 @@ try {
       // une clé : presque toujours une tâche configurée avec l'ancienne valeur.
       // L'endroit (en-tête / url / corps) et la longueur désignent laquelle,
       // sans jamais écrire le moindre morceau du secret dans le journal.
+      // D'OÙ vient l'appel, et la clé aurait-elle PU être valide un jour.
+      //
+      // La longueur seule ne suffit pas, on l'a appris à ses dépens : le
+      // 02/08, six échecs portant des clés de 5, 28 et 30 caractères ont été
+      // lus comme « une tâche cPanel restée sur une ancienne clé » alors que
+      // c'étaient des sondes de vérification tirées depuis l'extérieur. Un
+      // rapport de sécurité qui accuse à tort fait perdre plus de temps qu'un
+      // rapport muet.
+      //
+      // Deux marques tranchent :
+      //  · « local » — l'appel vient du serveur lui-même. Une tâche cPanel
+      //    s'exécute TOUJOURS en local ; une sonde extérieure, jamais. C'est
+      //    le seul signal qui distingue vraiment les deux.
+      //  · « jamais-valide » — moins de 24 caractères, donc une valeur que ce
+      //    serveur n'a JAMAIS pu accepter (chapci_hardened_secret refuse plus
+      //    court). Ce n'est donc pas une ancienne clé : c'est un essai.
+      $ipApp = (string) ($_SERVER['SERVER_ADDR'] ?? '');
+      $ipCli = client_ip();
+      $local = $ipCli === '127.0.0.1' || $ipCli === '::1' || ($ipApp !== '' && $ipCli === $ipApp);
       $motif = $cronKey === ''
         ? 'sans-cle'
-        : 'cle-differente(' . $cronOu . ',' . strlen($cronKey) . ' car.)';
-      log_security_event($pdo, 'cron_fail', null, $path . ' · ' . $motif);
+        : 'cle-differente(' . $cronOu . ',' . strlen($cronKey) . ' car.'
+          . (strlen($cronKey) < 24 ? ',jamais-valide' : '') . ')';
+      log_security_event($pdo, 'cron_fail', null, $path . ' · ' . $motif . ' · ' . ($local ? 'local' : 'externe'));
       jerr('Clé invalide.', 403);
     }
     // Trace du passage. On l'écrit ICI, à l'authentification réussie, et non à la
