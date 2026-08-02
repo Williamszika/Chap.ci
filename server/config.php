@@ -7,6 +7,29 @@
 // =============================================================================
 
 return [
+  // ---------------------------------------------------------------------------
+  //  L'ENTITÉ, telle qu'elle apparaît sur les documents comptables.
+  //
+  //  Ces lignes sortent en tête du registre des recettes, du registre des
+  //  dépenses et de l'état financier de fin d'exercice. Un document comptable
+  //  qui ne dit pas QUI l'a établi ne vaut rien devant l'administration.
+  //
+  //  Elles peuvent rester vides tant que l'activité n'est pas immatriculée :
+  //  les documents s'impriment alors au seul nom « Chap.ci ». Renseignez-les
+  //  dès l'obtention du RCCM et du compte contribuable — c'est le moment où
+  //  les registres deviennent opposables.
+  //
+  //  RCCM = Registre du commerce et du crédit mobilier (greffe du tribunal).
+  //  NCC  = Numéro de compte contribuable, délivré par la DGI.
+  // ---------------------------------------------------------------------------
+  'entite' => [
+    'nom'      => getenv('CHAPCI_ENTITE_NOM') ?: 'Chap.ci',
+    'activite' => getenv('CHAPCI_ENTITE_ACTIVITE') ?: 'Plateforme de petites annonces en ligne',
+    'adresse'  => getenv('CHAPCI_ENTITE_ADRESSE') ?: 'Abidjan, Côte d’Ivoire',
+    'rccm'     => getenv('CHAPCI_ENTITE_RCCM') ?: '',
+    'ncc'      => getenv('CHAPCI_ENTITE_NCC') ?: '',
+  ],
+
   'db' => [
     // 'mysql' OU 'pgsql' en production (selon ce que propose cPanel),
     // 'sqlite' pour un test local. Les tables se créent automatiquement.

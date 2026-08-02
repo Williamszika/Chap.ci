@@ -30,14 +30,14 @@ import {
   fetchSeoState, setSeoEnabled, runSeoNow,
   AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
 } from '../lib/ads'
-import { RevenuesTab } from '../components/RevenuesTab'
+import { ComptabiliteTab } from '../components/ComptabiliteTab'
 import { AnimatedAdText } from '../components/AnimatedAdText'
 import { AdImageFill } from '../components/AdImageFill'
 import { AdTextControls } from '../components/AdTextControls'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'revenues' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
+type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -120,7 +120,7 @@ export function AdminDashboard() {
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['revenues','Recettes'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'revenues' ? role.owner : canSee(id))).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['comptabilite','Comptabilité'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'comptabilite' ? role.owner : canSee(id))).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -151,7 +151,7 @@ export function AdminDashboard() {
         {tab === 'reports' && <ReportsTab onChanged={refreshStats} />}
         {tab === 'contact' && <ContactTab onChanged={refreshStats} />}
         {tab === 'ads' && <AdsTab onChanged={refreshStats} />}
-        {tab === 'revenues' && role.owner && <RevenuesTab />}
+        {tab === 'comptabilite' && role.owner && <ComptabiliteTab />}
         {tab === 'orders' && <OrdersTab />}
         {tab === 'conversations' && <ConversationsTab />}
         {tab === 'reviews' && <ReviewsTab />}

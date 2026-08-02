@@ -60,6 +60,31 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.16 — versionCode 17
+
+| Champ | Valeur |
+|---|---|
+| Date du build | 2 août 2026 |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` |
+| État Play | **à téléverser — remplace la v1.15, jamais envoyée** |
+
+**Contient tout ce qu'apportait la v1.15** (correction de la page blanche sur un lien
+d'annonce ouvert à froid). La v1.15 n'ayant jamais été téléversée, il n'y a qu'un seul
+fichier à envoyer : celui-ci.
+
+**Nouveauté : la comptabilité du site**, réservée au propriétaire. L'onglet *Recettes*
+disparaît ; tout est désormais rassemblé sous **Comptabilité** — un grand livre à deux
+registres chronologiques (recettes, achats et dépenses), le rapprochement avec les
+relevés Mobile Money, le régime fiscal calculé sur le chiffre d'affaires, et trois
+documents téléchargeables à remettre aux Impôts : les deux registres au format CSV et
+l'état financier de fin d'exercice au **Système Minimal de Trésorerie** (SYSCOHADA
+révisé), prêt à imprimer.
+
+Les recettes déjà saisies dans l'ancien onglet et les publicités encaissées sont
+reprises automatiquement au grand livre, sans doublon possible.
+
+---
+
 ## v1.15 — versionCode 16
 
 | Champ | Valeur |

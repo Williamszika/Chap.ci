@@ -871,3 +871,69 @@ export async function phpAdminRevenueConfirm(id: string, confirmed: boolean): Pr
 export async function phpAdminRevenueDelete(id: string): Promise<void> {
   await req(`/admin/revenues/${id}`, { method: 'DELETE' })
 }
+
+// -----------------------------------------------------------------------------
+//  Comptabilité — réservée au propriétaire.
+//
+//  Le grand livre rassemble en un seul registre ce qui était éparpillé : les
+//  publicités encaissées, les recettes relevées à la main, et les dépenses qui
+//  n'existaient nulle part. Voir `admin/comptabilite` côté serveur.
+// -----------------------------------------------------------------------------
+export async function phpComptabilite<T>(exercice: number): Promise<T> {
+  return req<T>(`/admin/comptabilite?exercice=${exercice}`)
+}
+export async function phpComptaAjout<T>(body: Record<string, unknown>): Promise<T> {
+  return req<T>('/admin/comptabilite', { method: 'POST', body })
+}
+export async function phpComptaSupprimer(id: string): Promise<void> {
+  await req(`/admin/comptabilite/${id}`, { method: 'DELETE' })
+}
+export async function phpComptaPointer(id: string, pointe: boolean): Promise<void> {
+  await req(`/admin/comptabilite/${id}/pointer`, { method: 'POST', body: { pointe } })
+}
+export async function phpComptaCloturer<T>(exercice: number): Promise<T> {
+  return req<T>('/admin/comptabilite/cloturer', { method: 'POST', body: { exercice } })
+}
+
+/**
+ * Télécharge un registre ou l'état financier.
+ *
+ * Un simple lien `<a href>` ne conviendrait pas : les routes d'administration
+ * exigent l'en-tête de déverrouillage `X-Admin-Unlock`, qu'un lien ne sait pas
+ * porter. On récupère donc le fichier par requête, puis on le remet au
+ * navigateur comme un téléchargement ordinaire.
+ */
+export async function phpComptaExport(exercice: number, quoi: 'recettes' | 'depenses' | 'smt'): Promise<void> {
+  const headers: Record<string, string> = {}
+  const token = phpGetToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  const unlock = localStorage.getItem(ADMIN_UNLOCK_KEY) || sessionStorage.getItem(ADMIN_UNLOCK_KEY)
+  if (unlock) headers['X-Admin-Unlock'] = unlock
+
+  const res = await fetch(`${API}/admin/comptabilite/export?exercice=${exercice}&quoi=${quoi}`, {
+    headers,
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    let msg = `Erreur ${res.status}`
+    try { msg = (await res.json())?.error ?? msg } catch { /* réponse non-JSON */ }
+    throw new ApiError(msg, res.status)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  // L'état financier s'ouvre dans un onglet — on veut l'imprimer, pas
+  // l'archiver tel quel. Les deux registres se téléchargent.
+  if (quoi === 'smt') {
+    a.target = '_blank'
+    a.rel = 'noopener'
+  } else {
+    a.download = `chapci-${quoi}-${exercice}.csv`
+  }
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  // Laisse au navigateur le temps d'ouvrir l'onglet avant de libérer l'objet.
+  window.setTimeout(() => URL.revokeObjectURL(url), 20000)
+}

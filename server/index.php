@@ -1077,6 +1077,50 @@ function migrate(PDO $pdo): void {
       method VARCHAR(16), number $txt, occurred_at $ts, note $txt,
       confirmed $intT, confirmed_at $ts, created_at $ts, created_by $txt
     )$eng",
+    // ------------------------------------------------------------------------
+    //  LE GRAND LIVRE — recettes ET dépenses, dans un seul registre.
+    //
+    //  Ce que la loi ivoirienne demande à un entreprenant, mot pour mot : deux
+    //  registres chronologiques, l'un consignant les factures d'achats et de
+    //  dépenses, l'autre consignant SELON L'ORDRE NUMÉRIQUE les factures de
+    //  ventes et de prestations. Conservés trois ans, présentables à toute
+    //  réquisition du service des Impôts. Le résultat de fin d'exercice se
+    //  présente selon le Système Minimal de Trésorerie du SYSCOHADA révisé.
+    //
+    //  D'où cette table, et ses trois choix :
+    //
+    //  1. UNE SEULE TABLE, deux sens. Les deux registres se tirent d'un
+    //     `WHERE sens = …`. Deux tables auraient signifié deux numérotations à
+    //     tenir, deux totaux à réconcilier, et un jour deux vérités.
+    //
+    //  2. UN NUMÉRO PAR EXERCICE ET PAR SENS, attribué à l'écriture et jamais
+    //     recalculé. « L'ordre numérique » exigé par le texte n'a de valeur que
+    //     si le numéro ne bouge plus : un numéro recalculé à l'affichage se
+    //     décale dès qu'on saisit une opération antidatée, et le registre
+    //     imprimé le mois dernier ne correspond plus à celui d'aujourd'hui.
+    //
+    //  3. LA SOURCE EST GARDÉE. Une publicité encaissée entre ici toute seule,
+    //     avec `source = 'ads'` et l'identifiant de la publicité. C'est ce qui
+    //     rend la reprise idempotente — on ne compte jamais deux fois — et ce
+    //     qui permet, devant un contrôleur, de remonter de la ligne du registre
+    //     à l'opération qui l'a produite.
+    //
+    //  `verrouille` marque un exercice clos : plus aucune écriture ne s'y
+    //  ajoute ni ne s'y modifie. Une comptabilité qu'on peut réécrire après
+    //  coup ne vaut rien devant l'administration.
+    // ------------------------------------------------------------------------
+    "CREATE TABLE IF NOT EXISTS compta (
+      id $id PRIMARY KEY, exercice $intT, sens VARCHAR(8), numero $intT,
+      date_op $ts, libelle $txt, montant $intT, categorie VARCHAR(32),
+      mode VARCHAR(16), reference $txt, tiers $txt, piece $txt, note $txt,
+      source VARCHAR(16), source_id $txt, verrouille $intT,
+      pointe $intT, pointe_le $ts,
+      cree_le $ts, cree_par $txt
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS exercices (
+      annee $intT PRIMARY KEY, cloture_le $ts, cloture_par $txt,
+      total_recettes $intT, total_depenses $intT
+    )$eng",
     "CREATE TABLE IF NOT EXISTS csp_reports (
       k VARCHAR(190) PRIMARY KEY, directive VARCHAR(64), blocked VARCHAR(190),
       n $intT, first_at $ts, last_at $ts
@@ -1224,6 +1268,10 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("CREATE INDEX idx_visits_visitor ON visits (visitor_id, created_at)"); } catch (Throwable $e) {}
   // Requêtes par plage de dates du tableau de bord vendeur.
   try { $pdo->exec("CREATE INDEX idx_view_days_day ON listing_view_days (day)"); } catch (Throwable $e) {}
+  // Comptabilité : on lit toujours par exercice et par sens, et on remonte de
+  // la ligne du registre à l'opération d'origine pour ne pas la compter deux fois.
+  try { $pdo->exec("CREATE INDEX idx_compta_ex ON compta (exercice, sens, numero)"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_compta_src ON compta (source, source_id)"); } catch (Throwable $e) {}
 }
 
 // ---- Auth courant -----------------------------------------------------------
@@ -2025,6 +2073,292 @@ function foncier_exiger(string $categoryId, ?string $subcategory, array $attrs):
     'error' => 'Vente immobilière : le dossier foncier est incomplet. Il manque ' . implode(', ', $m) . '.',
     'foncier' => true, 'manques' => $m,
   ], 422);
+}
+
+// =============================================================================
+//  COMPTABILITÉ — le grand livre, ses règles, et le cadre fiscal ivoirien.
+//
+//  Ce bloc sert une seule chose : qu'un contrôle des Impôts se passe bien.
+//  Tout ce qu'il produit doit pouvoir être imprimé, daté, numéroté, et
+//  rapproché d'un relevé Mobile Money.
+// =============================================================================
+
+/**
+ * Les catégories de dépense, adossées au plan comptable SYSCOHADA révisé.
+ *
+ * Le numéro entre parenthèses est le compte SYSCOHADA correspondant. Il ne
+ * sert à rien au quotidien — mais le jour où un comptable reprend ces
+ * registres pour établir un bilan, il retrouve ses comptes sans avoir à
+ * réinterpréter des libellés maison. C'est ce qui distingue un tableur d'une
+ * comptabilité.
+ */
+const COMPTA_DEPENSES = [
+  'hebergement'   => ['Hébergement et nom de domaine', '6281'],
+  'logiciel'      => ['Logiciels, licences et abonnements', '6288'],
+  'boutique'      => ['Frais de boutique d’applications (Google Play, Apple)', '6288'],
+  'sms'           => ['SMS et communications', '6262'],
+  'publicite'     => ['Publicité et promotion', '6271'],
+  'honoraires'    => ['Honoraires (comptable, juriste, développeur)', '6324'],
+  'banque'        => ['Frais bancaires et Mobile Money', '6312'],
+  'materiel'      => ['Matériel et petit équipement', '6055'],
+  'transport'     => ['Transport et déplacements', '6131'],
+  'impots'        => ['Impôts et taxes', '6411'],
+  'autre'         => ['Autres charges', '6580'],
+];
+
+/** Les catégories de recette. */
+const COMPTA_RECETTES = [
+  'publicite' => ['Vente d’espace publicitaire', '7062'],
+  'mise_avant'=> ['Mise en avant d’annonce', '7062'],
+  'don'       => ['Dons et soutiens', '7588'],
+  'autre'     => ['Autres produits', '7588'],
+];
+
+/** Les moyens de paiement réellement utilisés en Côte d'Ivoire. */
+const COMPTA_MODES = ['orange', 'mtn', 'moov', 'wave', 'especes', 'virement', 'carte', 'autre'];
+
+/**
+ * Le régime fiscal qui s'applique à un chiffre d'affaires annuel.
+ *
+ * Seuils du Code général des impôts ivoirien, en francs CFA toutes taxes
+ * comprises. Ils décident de l'impôt dû ET des obligations comptables : en
+ * dessous de 50 millions, deux registres chronologiques suffisent ; au-delà,
+ * une comptabilité complète devient obligatoire et cet écran ne suffit plus.
+ *
+ * ⚠️ Ce calcul INFORME, il ne remplace pas un comptable. Il est là pour qu'on
+ * voie venir le seuil avant de le franchir, pas pour établir une déclaration.
+ */
+function compta_regime(int $caAnnuel): array {
+  if ($caAnnuel <= 5000000) return [
+    'code' => 'entreprenant_communal',
+    'nom' => 'Taxe communale de l’entreprenant',
+    'seuil' => 5000000,
+    'obligation' => 'Deux registres chronologiques (recettes, dépenses), conservés 3 ans.',
+  ];
+  if ($caAnnuel <= 50000000) return [
+    'code' => 'entreprenant_etat',
+    'nom' => 'Taxe d’État de l’entreprenant',
+    'seuil' => 50000000,
+    'obligation' => 'Deux registres chronologiques + résultat de fin d’exercice au Système Minimal de Trésorerie (SYSCOHADA révisé).',
+  ];
+  if ($caAnnuel <= 200000000) return [
+    'code' => 'microentreprise',
+    'nom' => 'Régime des microentreprises (impôt de 7 % du chiffre d’affaires TTC)',
+    'seuil' => 200000000,
+    'obligation' => 'Comptabilité SYSCOHADA. Faites-vous accompagner par un comptable : cet écran ne suffit plus.',
+  ];
+  if ($caAnnuel <= 500000000) return [
+    'code' => 'reel_simplifie',
+    'nom' => 'Régime du réel simplifié',
+    'seuil' => 500000000,
+    'obligation' => 'Comptabilité complète et états financiers annuels. Un expert-comptable est indispensable.',
+  ];
+  return [
+    'code' => 'reel_normal',
+    'nom' => 'Régime du réel normal',
+    'seuil' => null,
+    'obligation' => 'Comptabilité complète, états financiers certifiés. Un expert-comptable est indispensable.',
+  ];
+}
+
+/** L'exercice comptable d'une date ISO — l'année civile, comme le veut le CGI. */
+function compta_exercice(?string $iso): int {
+  $t = $iso ? strtotime($iso) : false;
+  return (int) gmdate('Y', $t !== false ? $t : time());
+}
+
+/** Cet exercice est-il clos ? Un exercice clos ne reçoit plus rien. */
+function compta_clos(PDO $pdo, int $annee): bool {
+  try {
+    $st = $pdo->prepare('SELECT cloture_le FROM exercices WHERE annee = ?');
+    $st->execute([$annee]);
+    return !empty($st->fetchColumn());
+  } catch (Throwable $e) { return false; }
+}
+
+/**
+ * Remet les numéros dans l'ordre des dates, pour un exercice et un sens.
+ *
+ * Le Code général des impôts demande un registre à la fois CHRONOLOGIQUE et
+ * tenu « selon l'ordre numérique » : les deux ordres doivent coïncider. Donner
+ * simplement le numéro suivant à chaque écriture ne suffit pas — la facture
+ * d'hébergement de janvier retrouvée en août arriverait en n° 12 tout en étant
+ * datée avant le n° 1, et un contrôleur qui feuillette le registre y verrait
+ * exactement ce qu'il cherche : une pièce ajoutée après coup. Une suppression
+ * laisserait de même un trou (n° 1, n° 3) tout aussi parlant.
+ *
+ * On renumérote donc le registre entier après chaque écriture et après chaque
+ * suppression. C'est sans danger tant que l'exercice est ouvert : le registre
+ * n'est définitif qu'à la clôture, et un exercice clos n'accepte plus ni
+ * écriture ni suppression — donc plus aucune renumérotation. Le registre
+ * imprimé après la clôture dira la même chose dans trois ans.
+ *
+ * À date égale, l'ordre de saisie départage : deux dépenses du même jour
+ * gardent l'ordre dans lequel le propriétaire les a inscrites.
+ */
+function compta_renumeroter(PDO $pdo, int $exercice, string $sens): void {
+  // Garde-fou : un exercice clos ne bouge plus, jamais, quoi qu'on lui demande.
+  // Les trois appelants vérifient déjà la clôture avant d'écrire ou d'effacer ;
+  // la garantie tient à ce que ce registre-là ne change plus, et une garantie
+  // pareille se tient à un seul endroit, pas à trois.
+  if (compta_clos($pdo, $exercice)) return;
+  try {
+    $st = $pdo->prepare('SELECT id, numero FROM compta WHERE exercice = ? AND sens = ?
+                         ORDER BY date_op ASC, cree_le ASC, id ASC');
+    $st->execute([$exercice, $sens]);
+    $lignes = $st->fetchAll();
+    $maj = $pdo->prepare('UPDATE compta SET numero = ? WHERE id = ?');
+    foreach ($lignes as $i => $l) {
+      $voulu = $i + 1;
+      if ((int) $l['numero'] !== $voulu) $maj->execute([$voulu, $l['id']]);
+    }
+  } catch (Throwable $e) { /* le registre reste lisible même si la remise en ordre échoue */ }
+}
+
+/**
+ * Inscrit une écriture au grand livre et lui donne son numéro.
+ *
+ * Le numéro provisoire est le suivant disponible ; `compta_renumeroter()` le
+ * remet ensuite à sa place chronologique. Deux saisies simultanées pourraient
+ * en théorie viser le même numéro ; à l'échelle de ce site — quelques écritures
+ * par mois, un seul propriétaire — le cas ne se présente pas, et la
+ * renumérotation qui suit chaque écriture le corrigerait de toute façon.
+ */
+function compta_ecrire(PDO $pdo, array $e): ?string {
+  $exercice = (int) ($e['exercice'] ?? compta_exercice($e['date_op'] ?? null));
+  if (compta_clos($pdo, $exercice)) return null;
+  $sens = ($e['sens'] ?? 'recette') === 'depense' ? 'depense' : 'recette';
+
+  // Idempotence : une publicité déjà reprise ne revient pas une seconde fois.
+  if (!empty($e['source']) && !empty($e['source_id'])) {
+    $st = $pdo->prepare('SELECT id FROM compta WHERE source = ? AND source_id = ?');
+    $st->execute([$e['source'], $e['source_id']]);
+    if ($st->fetchColumn()) return null;
+  }
+
+  $st = $pdo->prepare('SELECT MAX(numero) FROM compta WHERE exercice = ? AND sens = ?');
+  $st->execute([$exercice, $sens]);
+  $numero = (int) $st->fetchColumn() + 1;
+
+  $id = uuid();
+  $pdo->prepare('INSERT INTO compta
+      (id,exercice,sens,numero,date_op,libelle,montant,categorie,mode,reference,tiers,piece,note,source,source_id,verrouille,pointe,pointe_le,cree_le,cree_par)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?)')
+    ->execute([
+      $id, $exercice, $sens, $numero,
+      $e['date_op'] ?? now_iso(),
+      mb_substr(trim((string) ($e['libelle'] ?? '')), 0, 160) ?: 'Opération',
+      max(0, (int) ($e['montant'] ?? 0)),
+      mb_substr((string) ($e['categorie'] ?? 'autre'), 0, 32),
+      in_array($e['mode'] ?? '', COMPTA_MODES, true) ? $e['mode'] : 'autre',
+      mb_substr(trim((string) ($e['reference'] ?? '')), 0, 60),
+      mb_substr(trim((string) ($e['tiers'] ?? '')), 0, 120),
+      mb_substr(trim((string) ($e['piece'] ?? '')), 0, 120),
+      mb_substr(trim((string) ($e['note'] ?? '')), 0, 300),
+      mb_substr((string) ($e['source'] ?? 'manuel'), 0, 16),
+      mb_substr((string) ($e['source_id'] ?? ''), 0, 60),
+      // Une publicité dont le paiement a déjà été pointé sur le relevé arrive
+      // pointée : le rapprochement déjà fait ne se refait pas.
+      !empty($e['pointe']) ? 1 : 0,
+      !empty($e['pointe']) ? now_iso() : null,
+      now_iso(), mb_substr((string) ($e['cree_par'] ?? ''), 0, 190),
+    ]);
+  // Une écriture antidatée doit reprendre sa place dans la chronologie, pas
+  // rester en queue de registre.
+  if (empty($e['sans_renumerotation'])) compta_renumeroter($pdo, $exercice, $sens);
+  return $id;
+}
+
+/**
+ * Fait entrer au grand livre ce qui a été encaissé sans passer par lui.
+ *
+ * Les publicités payées et les recettes relevées à la main existaient AVANT ce
+ * registre. Elles doivent y figurer, sinon le registre ment par omission — et
+ * un registre incomplet est pire qu'un registre absent devant un contrôleur.
+ *
+ * Idempotent par construction (voir `compta_ecrire`) : on peut l'appeler à
+ * chaque ouverture de l'écran sans jamais rien compter deux fois. C'est
+ * volontaire — un rapprochement qui demande de penser à le lancer finit par ne
+ * plus être lancé.
+ */
+function compta_reprise(PDO $pdo, string $par = 'reprise automatique'): int {
+  $candidats = [];
+
+  // Publicités réellement encaissées. Une diffusion maison (kind admin/seo) ou
+  // une demande refusée n'a jamais rapporté un franc : elle n'entre pas.
+  try {
+    $st = $pdo->query("SELECT id,title,price,pay_method,pay_number,email,starts_at,created_at,pay_confirmed
+                       FROM ads
+                       WHERE price > 0 AND (kind IS NULL OR kind NOT IN ('admin','seo'))
+                         AND status IN ('active','expired','merged')");
+    foreach ($st->fetchAll() as $a) {
+      $quand = $a['starts_at'] ?: $a['created_at'];
+      $candidats[] = [
+        'sens' => 'recette', 'date_op' => $quand,
+        'libelle' => 'Publicité — ' . (($a['title'] ?? '') ?: 'bannière image'),
+        'montant' => (int) $a['price'], 'categorie' => 'publicite',
+        'mode' => strtolower((string) ($a['pay_method'] ?? 'autre')),
+        'reference' => (string) ($a['pay_number'] ?? ''),
+        'tiers' => (string) ($a['email'] ?? ''),
+        'pointe' => (int) ($a['pay_confirmed'] ?? 0) === 1,
+        'source' => 'ads', 'source_id' => (string) $a['id'], 'cree_par' => $par,
+      ];
+    }
+  } catch (Throwable $e) { /* colonne absente sur une base ancienne */ }
+
+  // Recettes saisies à la main avant l'existence du registre (dons, virements).
+  try {
+    $st = $pdo->query('SELECT * FROM revenues');
+    foreach ($st->fetchAll() as $r) {
+      $k = (string) ($r['kind'] ?? 'don');
+      $candidats[] = [
+        'sens' => 'recette', 'date_op' => $r['occurred_at'] ?: $r['created_at'],
+        'libelle' => (string) ($r['label'] ?? 'Recette'),
+        'montant' => (int) $r['amount'],
+        'categorie' => isset(COMPTA_RECETTES[$k]) ? $k : ($k === 'pub' ? 'publicite' : 'autre'),
+        'mode' => strtolower((string) ($r['method'] ?? 'autre')),
+        'reference' => (string) ($r['number'] ?? ''),
+        'note' => (string) ($r['note'] ?? ''),
+        'pointe' => (int) ($r['confirmed'] ?? 0) === 1,
+        'source' => 'revenues', 'source_id' => (string) $r['id'],
+        'cree_par' => (string) ($r['created_by'] ?? $par),
+      ];
+    }
+  } catch (Throwable $e) { /* table absente */ }
+
+  // ⚠️ TRIER PAR DATE AVANT D'ÉCRIRE, et non source par source.
+  //
+  // Le texte parle d'un registre CHRONOLOGIQUE consigné selon l'ordre
+  // NUMÉRIQUE : les deux vont ensemble. Reprendre d'abord toutes les
+  // publicités puis tous les dons produisait un registre où la pièce n° 2
+  // était datée de janvier et la n° 1 de mars — exactement ce qu'un
+  // contrôleur relève en premier. Le numéro suit désormais la date.
+  usort($candidats, function (array $a, array $b): int {
+    $ta = strtotime((string) $a['date_op']) ?: 0;
+    $tb = strtotime((string) $b['date_op']) ?: 0;
+    // À date égale, l'identifiant d'origine départage : deux reprises
+    // successives rendent alors exactement le même ordre.
+    return $ta <=> $tb ?: strcmp((string) $a['source_id'], (string) $b['source_id']);
+  });
+
+  // Les candidats sont déjà triés : chacun arrive à sa place, inutile de
+  // renuméroter tout le registre à chaque ligne. On le fait une fois à la fin,
+  // pour chaque couple (exercice, sens) touché — ce qui remet aussi en ordre
+  // les écritures manuelles déjà présentes.
+  $n = 0;
+  $touches = [];
+  foreach ($candidats as $c) {
+    $c['sans_renumerotation'] = true;
+    if (compta_ecrire($pdo, $c)) {
+      $n++;
+      $touches[compta_exercice($c['date_op']) . '|' . $c['sens']] = true;
+    }
+  }
+  foreach (array_keys($touches) as $cle) {
+    [$ex, $sens] = explode('|', $cle);
+    compta_renumeroter($pdo, (int) $ex, $sens);
+  }
+  return $n;
 }
 
 /** Motif inscrit sur les annonces masquées par la campagne de mise à jour. */
@@ -5422,6 +5756,366 @@ try {
     // deux fois, ce qui est moins grave qu'une annonce masquée sans explication.
     if ($path === 'admin/foncier/relance' && $method === 'POST') {
       jout(foncier_relance($config, $pdo));
+    }
+
+    // ========================================================================
+    //  COMPTABILITÉ — réservée au propriétaire, comme les recettes.
+    //
+    //  Un modérateur modère ; il n'a rien à faire dans les comptes. La garde
+    //  est posée ici et non dans chaque route : une route ajoutée demain sous
+    //  `admin/comptabilite/` est protégée sans que personne n'y pense.
+    // ========================================================================
+    if (str_starts_with($path, 'admin/comptabilite')) {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('La comptabilité est réservée au propriétaire du site.', 403);
+      }
+    }
+
+    // Le tableau complet d'un exercice : les deux registres, les totaux, le
+    // résultat, le régime fiscal applicable. La reprise tourne à chaque
+    // ouverture — elle est idempotente, et un rapprochement qu'il faut penser
+    // à lancer finit par ne plus être lancé.
+    if ($path === 'admin/comptabilite' && $method === 'GET') {
+      $exercice = (int) ($_GET['exercice'] ?? gmdate('Y'));
+      if ($exercice < 2020 || $exercice > 2100) $exercice = (int) gmdate('Y');
+      $reprises = compta_reprise($pdo, (string) ($u['email'] ?? ''));
+
+      $lire = function (string $sens) use ($pdo, $exercice): array {
+        $st = $pdo->prepare('SELECT * FROM compta WHERE exercice = ? AND sens = ? ORDER BY numero ASC');
+        $st->execute([$exercice, $sens]);
+        return array_map(fn($r) => [
+          'id' => $r['id'], 'numero' => (int) $r['numero'],
+          'date' => (string) $r['date_op'], 'libelle' => (string) $r['libelle'],
+          'montant' => (int) $r['montant'], 'categorie' => (string) $r['categorie'],
+          'mode' => (string) $r['mode'], 'reference' => (string) ($r['reference'] ?? ''),
+          'tiers' => (string) ($r['tiers'] ?? ''), 'piece' => (string) ($r['piece'] ?? ''),
+          'note' => (string) ($r['note'] ?? ''), 'source' => (string) ($r['source'] ?? 'manuel'),
+          'pointe' => (int) ($r['pointe'] ?? 0) === 1,
+        ], $st->fetchAll());
+      };
+      $recettes = $lire('recette');
+      $depenses = $lire('depense');
+      $somme = fn(array $l) => array_sum(array_map(fn($x) => (int) $x['montant'], $l));
+      $totalR = $somme($recettes); $totalD = $somme($depenses);
+
+      // Ventilation par mois — c'est ce qu'on regarde pour voir venir un seuil.
+      $mois = [];
+      for ($m = 1; $m <= 12; $m++) $mois[sprintf('%04d-%02d', $exercice, $m)] = ['recettes' => 0, 'depenses' => 0];
+      foreach ([['recette', $recettes], ['depense', $depenses]] as [$sens, $lignes]) {
+        foreach ($lignes as $l) {
+          $k = substr((string) $l['date'], 0, 7);
+          if (isset($mois[$k])) $mois[$k][$sens === 'recette' ? 'recettes' : 'depenses'] += (int) $l['montant'];
+        }
+      }
+      $parMois = [];
+      foreach ($mois as $k => $v) $parMois[] = ['mois' => $k, 'recettes' => $v['recettes'], 'depenses' => $v['depenses'], 'resultat' => $v['recettes'] - $v['depenses']];
+
+      $ventil = function (array $lignes, array $ref): array {
+        $t = [];
+        foreach ($lignes as $l) {
+          $c = (string) $l['categorie'];
+          $t[$c] = ($t[$c] ?? 0) + (int) $l['montant'];
+        }
+        arsort($t);
+        $out = [];
+        foreach ($t as $c => $v) $out[] = ['code' => $c, 'nom' => $ref[$c][0] ?? $c, 'compte' => $ref[$c][1] ?? '', 'total' => $v];
+        return $out;
+      };
+
+      // Les exercices qui ont une écriture — c'est ce qui peuple le sélecteur.
+      $annees = [];
+      try {
+        foreach ($pdo->query('SELECT DISTINCT exercice FROM compta ORDER BY exercice DESC')->fetchAll() as $r) $annees[] = (int) $r['exercice'];
+      } catch (Throwable $e) {}
+      if (!in_array((int) gmdate('Y'), $annees, true)) array_unshift($annees, (int) gmdate('Y'));
+
+      jout([
+        'exercice' => $exercice,
+        'exercices' => $annees,
+        'clos' => compta_clos($pdo, $exercice),
+        'reprises' => $reprises,
+        'recettes' => $recettes,
+        'depenses' => $depenses,
+        'totaux' => [
+          'recettes' => $totalR,
+          'depenses' => $totalD,
+          'resultat' => $totalR - $totalD,
+          'nbRecettes' => count($recettes),
+          'nbDepenses' => count($depenses),
+          // Le rapprochement : ce qui a été retrouvé sur le relevé de
+          // l'opérateur. Une recette non pointée n'est pas une recette
+          // douteuse — c'est une recette qu'on n'a pas encore vérifiée.
+          'aPointer' => count(array_filter(array_merge($recettes, $depenses), fn($x) => !$x['pointe'])),
+        ],
+        'parMois' => $parMois,
+        'parCategorie' => [
+          'recettes' => $ventil($recettes, COMPTA_RECETTES),
+          'depenses' => $ventil($depenses, COMPTA_DEPENSES),
+        ],
+        'regime' => compta_regime($totalR),
+        // L'identité qui figure en tête des registres exportés.
+        //
+        // Le zip de déploiement n'écrase JAMAIS `api/config.php` — c'est la
+        // règle qui protège les mots de passe du Patron. Le bloc `entite` livré
+        // dans `server/config.php` n'arrive donc pas tout seul sur le serveur,
+        // et sans RCCM ni NCC un registre remis aux Impôts est incomplet. On
+        // renvoie ce qui manque pour que l'écran le dise, au lieu de laisser
+        // découvrir le trou au guichet.
+        'entite' => [
+          'nom' => trim((string) (($config['entite']['nom'] ?? '') ?: 'Chap.ci')),
+          'rccm' => trim((string) ($config['entite']['rccm'] ?? '')),
+          'ncc' => trim((string) ($config['entite']['ncc'] ?? '')),
+        ],
+        'categories' => [
+          'recettes' => array_map(fn($k) => ['code' => $k, 'nom' => COMPTA_RECETTES[$k][0], 'compte' => COMPTA_RECETTES[$k][1]], array_keys(COMPTA_RECETTES)),
+          'depenses' => array_map(fn($k) => ['code' => $k, 'nom' => COMPTA_DEPENSES[$k][0], 'compte' => COMPTA_DEPENSES[$k][1]], array_keys(COMPTA_DEPENSES)),
+        ],
+        'modes' => COMPTA_MODES,
+      ]);
+    }
+
+    // Inscrire une opération — une dépense le plus souvent, une recette au
+    // besoin (un virement reçu hors publicité).
+    if ($path === 'admin/comptabilite' && $method === 'POST') {
+      $b = body();
+      $montant = (int) ($b['montant'] ?? 0);
+      if ($montant <= 0) jerr('Indiquez le montant, en francs CFA.');
+      $libelle = trim((string) ($b['libelle'] ?? ''));
+      if ($libelle === '') jerr('Décrivez l’opération : c’est ce que lira le contrôleur.');
+      $sens = ($b['sens'] ?? 'depense') === 'recette' ? 'recette' : 'depense';
+      $ref = $sens === 'recette' ? COMPTA_RECETTES : COMPTA_DEPENSES;
+      $cat = (string) ($b['categorie'] ?? '');
+      if (!isset($ref[$cat])) $cat = 'autre';
+      $d = trim((string) ($b['date'] ?? ''));
+      $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d . 'T12:00:00Z' : now_iso();
+      $exercice = compta_exercice($date);
+      if (compta_clos($pdo, $exercice)) jerr("L’exercice $exercice est clos : plus aucune écriture ne peut y être ajoutée.", 409);
+
+      $id = compta_ecrire($pdo, [
+        'sens' => $sens, 'date_op' => $date, 'libelle' => $libelle, 'montant' => $montant,
+        'categorie' => $cat, 'mode' => (string) ($b['mode'] ?? 'autre'),
+        'reference' => (string) ($b['reference'] ?? ''), 'tiers' => (string) ($b['tiers'] ?? ''),
+        'piece' => (string) ($b['piece'] ?? ''), 'note' => (string) ($b['note'] ?? ''),
+        'source' => 'manuel', 'cree_par' => (string) ($u['email'] ?? ''),
+      ]);
+      if (!$id) jerr('L’écriture n’a pas pu être inscrite.', 500);
+      jout(['ok' => true, 'id' => $id]);
+    }
+
+    // Supprimer une écriture SAISIE À LA MAIN, et seulement elle.
+    //
+    // Une ligne venue d'une publicité encaissée ne se supprime pas : elle
+    // correspond à de l'argent réellement reçu, et l'effacer ferait mentir le
+    // registre. Une saisie manuelle, en revanche, peut être une faute de
+    // frappe qu'il faut pouvoir retirer le jour même.
+    if (count($seg) === 3 && $seg[1] === 'comptabilite' && $method === 'DELETE') {
+      $st = $pdo->prepare('SELECT exercice, sens, source FROM compta WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $row = $st->fetch();
+      if (!$row) jerr('Écriture introuvable.', 404);
+      if ((string) $row['source'] !== 'manuel') {
+        jerr('Cette ligne vient d’une opération réelle du site : elle ne peut pas être supprimée. Ajoutez une écriture de correction si le montant est faux.', 409);
+      }
+      if (compta_clos($pdo, (int) $row['exercice'])) jerr('Exercice clos : plus aucune modification.', 409);
+      $pdo->prepare('DELETE FROM compta WHERE id = ?')->execute([$seg[2]]);
+      // Sans cela le registre garderait un trou — n° 1, n° 3 — qui se lit comme
+      // une pièce retirée après coup.
+      compta_renumeroter($pdo, (int) $row['exercice'], (string) $row['sens']);
+      jout(['ok' => true]);
+    }
+
+    // Pointer une écriture : « je l'ai retrouvée sur le relevé Mobile Money ».
+    //
+    // C'est le rapprochement, et c'est ce qui distingue une liste d'une
+    // comptabilité. Il reste possible sur un exercice clos : pointer ne change
+    // aucun montant, cela note seulement qu'on a vérifié.
+    if (count($seg) === 4 && $seg[1] === 'comptabilite' && $seg[3] === 'pointer' && $method === 'POST') {
+      $b = body();
+      $v = array_key_exists('pointe', $b) ? (!empty($b['pointe']) ? 1 : 0) : 1;
+      $st = $pdo->prepare('SELECT id FROM compta WHERE id = ?');
+      $st->execute([$seg[2]]);
+      if (!$st->fetchColumn()) jerr('Écriture introuvable.', 404);
+      $pdo->prepare('UPDATE compta SET pointe = ?, pointe_le = ? WHERE id = ?')
+          ->execute([$v, $v ? now_iso() : null, $seg[2]]);
+      jout(['ok' => true, 'pointe' => $v === 1]);
+    }
+
+    // Clore un exercice. Geste volontaire, irréversible depuis l'écran : à
+    // partir de là, le registre imprimé et le registre en ligne diront
+    // toujours la même chose.
+    if ($path === 'admin/comptabilite/cloturer' && $method === 'POST') {
+      $b = body();
+      $annee = (int) ($b['exercice'] ?? 0);
+      if ($annee < 2020 || $annee > 2100) jerr('Exercice invalide.');
+      if ($annee >= (int) gmdate('Y')) jerr('On ne clôt pas un exercice en cours. Attendez le 1ᵉʳ janvier.', 409);
+      if (compta_clos($pdo, $annee)) jerr("L’exercice $annee est déjà clos.", 409);
+      $st = $pdo->prepare("SELECT sens, SUM(montant) t FROM compta WHERE exercice = ? GROUP BY sens");
+      $st->execute([$annee]);
+      $tot = ['recette' => 0, 'depense' => 0];
+      foreach ($st->fetchAll() as $r) $tot[(string) $r['sens']] = (int) $r['t'];
+      $pdo->prepare('INSERT INTO exercices (annee,cloture_le,cloture_par,total_recettes,total_depenses) VALUES (?,?,?,?,?)')
+          ->execute([$annee, now_iso(), (string) ($u['email'] ?? ''), $tot['recette'], $tot['depense']]);
+      $pdo->prepare('UPDATE compta SET verrouille = 1 WHERE exercice = ?')->execute([$annee]);
+      jout(['ok' => true, 'exercice' => $annee, 'totaux' => $tot]);
+    }
+
+    // ------------------------------------------------------------------------
+    //  LES EXPORTS — ce qui sort de l'écran et part chez le comptable.
+    //
+    //  Trois formats, trois usages :
+    //   · `recettes` / `depenses` en CSV — les deux registres chronologiques
+    //     exigés par le Code général des impôts, chacun dans son fichier,
+    //     ouvrables dans n'importe quel tableur.
+    //   · `smt` — le résultat de fin d'exercice présenté selon le Système
+    //     Minimal de Trésorerie du SYSCOHADA révisé, en HTML fait pour être
+    //     imprimé ou enregistré en PDF depuis le navigateur.
+    //
+    //  Le CSV porte un BOM UTF-8 : sans lui, Excel affiche « Coté d'Ivoire »
+    //  et « Hébergement » en charabia, et le document devient impossible à
+    //  présenter. Le séparateur est le point-virgule, celui qu'attend un
+    //  tableur configuré en français.
+    // ------------------------------------------------------------------------
+    if ($path === 'admin/comptabilite/export' && $method === 'GET') {
+      $exercice = (int) ($_GET['exercice'] ?? gmdate('Y'));
+      if ($exercice < 2020 || $exercice > 2100) $exercice = (int) gmdate('Y');
+      $quoi = (string) ($_GET['quoi'] ?? 'recettes');
+      compta_reprise($pdo, (string) ($u['email'] ?? ''));
+
+      $lignes = function (string $sens) use ($pdo, $exercice): array {
+        $st = $pdo->prepare('SELECT * FROM compta WHERE exercice = ? AND sens = ? ORDER BY numero ASC');
+        $st->execute([$exercice, $sens]);
+        return $st->fetchAll();
+      };
+      $ident = $config['entite'] ?? [];
+      $nomEntite = trim((string) ($ident['nom'] ?? '')) ?: 'Chap.ci';
+
+      if ($quoi === 'recettes' || $quoi === 'depenses') {
+        $sens = $quoi === 'recettes' ? 'recette' : 'depense';
+        $ref = $sens === 'recette' ? COMPTA_RECETTES : COMPTA_DEPENSES;
+        $rows = $lignes($sens);
+        $csv = "\xEF\xBB\xBF"; // BOM : Excel lit alors correctement les accents
+        $sep = ';';
+        $esc = function ($v) { return '"' . str_replace('"', '""', (string) $v) . '"'; };
+        // Un en-tête qui dit de quoi il s'agit : le fichier voyage seul.
+        $csv .= $esc($nomEntite) . $sep . $esc(($sens === 'recette' ? 'REGISTRE DES RECETTES' : 'REGISTRE DES ACHATS ET DÉPENSES') . " — exercice $exercice") . "\n";
+        if (!empty($ident['rccm'])) $csv .= $esc('RCCM') . $sep . $esc($ident['rccm']) . "\n";
+        if (!empty($ident['ncc'])) $csv .= $esc('Compte contribuable (NCC)') . $sep . $esc($ident['ncc']) . "\n";
+        $csv .= $esc('Édité le') . $sep . $esc(gmdate('d/m/Y H:i') . ' UTC') . "\n\n";
+        $csv .= implode($sep, array_map($esc, ['N°', 'Date', 'Libellé', 'Tiers', 'Catégorie', 'Compte SYSCOHADA', 'Mode de règlement', 'Référence', 'Pièce justificative', 'Pointé sur relevé', 'Montant (FCFA)'])) . "\n";
+        $total = 0;
+        foreach ($rows as $r) {
+          $c = (string) $r['categorie'];
+          $total += (int) $r['montant'];
+          $csv .= implode($sep, array_map($esc, [
+            (int) $r['numero'],
+            gmdate('d/m/Y', strtotime((string) $r['date_op']) ?: time()),
+            (string) $r['libelle'],
+            (string) ($r['tiers'] ?? ''),
+            $ref[$c][0] ?? $c,
+            $ref[$c][1] ?? '',
+            (string) $r['mode'],
+            (string) ($r['reference'] ?? ''),
+            (string) ($r['piece'] ?? ''),
+            ((int) ($r['pointe'] ?? 0) === 1) ? 'oui' : 'non',
+            (int) $r['montant'],
+          ])) . "\n";
+        }
+        $csv .= "\n" . implode($sep, array_map($esc, ['', '', 'TOTAL', '', '', '', '', '', '', '', $total])) . "\n";
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="chapci-' . $quoi . '-' . $exercice . '.csv"');
+        header('X-Content-Type-Options: nosniff');
+        echo $csv;
+        exit;
+      }
+
+      if ($quoi === 'smt') {
+        $rec = $lignes('recette'); $dep = $lignes('depense');
+        $sum = fn(array $l) => array_sum(array_map(fn($x) => (int) $x['montant'], $l));
+        $tr = $sum($rec); $td = $sum($dep);
+        $regime = compta_regime($tr);
+        $grp = function (array $l, array $ref): array {
+          $t = [];
+          foreach ($l as $x) { $c = (string) $x['categorie']; $t[$c] = ($t[$c] ?? 0) + (int) $x['montant']; }
+          arsort($t); return $t;
+        };
+        $gr = $grp($rec, COMPTA_RECETTES); $gd = $grp($dep, COMPTA_DEPENSES);
+        $f = fn(int $n) => number_format($n, 0, ',', ' ');
+        $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+        $clos = compta_clos($pdo, $exercice);
+
+        $ligneCat = function (array $t, array $ref) use ($f, $h): string {
+          $out = '';
+          foreach ($t as $c => $v) {
+            $out .= '<tr><td>' . $h($ref[$c][0] ?? $c) . '</td><td class="c">' . $h($ref[$c][1] ?? '—')
+                 . '</td><td class="n">' . $f($v) . '</td></tr>';
+          }
+          return $out ?: '<tr><td colspan="3" class="vide">Aucune écriture</td></tr>';
+        };
+
+        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Disposition: inline; filename="chapci-etat-financier-' . $exercice . '.html"');
+        header('X-Content-Type-Options: nosniff');
+        echo '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+          . '<title>' . $h($nomEntite) . ' — état financier ' . $exercice . '</title>'
+          . '<style>'
+          . '@page{size:A4;margin:18mm}'
+          . 'body{font-family:Georgia,"Times New Roman",serif;color:#111;max-width:800px;margin:0 auto;padding:28px;line-height:1.5}'
+          . 'h1{font-size:20px;margin:0 0 2px;letter-spacing:-.3px}'
+          . 'h2{font-size:14px;margin:26px 0 8px;padding-bottom:5px;border-bottom:1.5px solid #111;text-transform:uppercase;letter-spacing:.6px}'
+          . '.ent{font-size:12.5px;color:#444;margin-bottom:22px}'
+          . 'table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px}'
+          . 'th,td{padding:5px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}'
+          . 'th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#555;border-bottom:1px solid #111}'
+          . '.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}'
+          . '.c{color:#666;font-size:11.5px;white-space:nowrap}'
+          . '.tot td{border-top:1.5px solid #111;border-bottom:none;font-weight:bold;padding-top:8px}'
+          . '.res{margin:22px 0;padding:14px 16px;border:2px solid #111}'
+          . '.res .l{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#555}'
+          . '.res .v{font-size:26px;font-weight:bold;font-variant-numeric:tabular-nums}'
+          . '.neg{color:#A81E1E}'
+          . '.vide{color:#888;font-style:italic}'
+          . '.pied{margin-top:30px;padding-top:12px;border-top:1px solid #ccc;font-size:11px;color:#555;line-height:1.7}'
+          . '.att{background:#FFF8E1;border-left:3px solid #E8A100;padding:10px 12px;margin:16px 0;font-size:11.5px}'
+          . '@media print{.noprint{display:none}}'
+          . '</style></head><body>'
+          . '<button class="noprint" onclick="window.print()" style="float:right;font:inherit;padding:7px 14px;cursor:pointer">Imprimer / PDF</button>'
+          . '<h1>' . $h($nomEntite) . '</h1>'
+          . '<div class="ent">'
+          . ($ident['activite'] ?? 'Plateforme de petites annonces en ligne') . '<br>'
+          . ($ident['adresse'] ?? 'Abidjan, Côte d’Ivoire')
+          . (!empty($ident['rccm']) ? '<br>RCCM : ' . $h($ident['rccm']) : '')
+          . (!empty($ident['ncc']) ? ' &nbsp;·&nbsp; Compte contribuable : ' . $h($ident['ncc']) : '')
+          . '</div>'
+          . '<h2>État financier — exercice ' . $exercice . '</h2>'
+          . '<p style="font-size:12.5px;margin:0 0 4px">Système Minimal de Trésorerie — référentiel SYSCOHADA révisé.<br>'
+          . 'Période du 1<sup>er</sup> janvier au 31 décembre ' . $exercice . '. Montants en francs CFA (XOF).</p>'
+          . ($clos ? '' : '<div class="att"><b>Exercice non clos.</b> Ce document reflète les écritures enregistrées au '
+              . gmdate('d/m/Y') . '. Il n’est définitif qu’une fois l’exercice clôturé.</div>')
+          . '<h2>Recettes encaissées</h2>'
+          . '<table><tr><th>Nature</th><th>Compte</th><th class="n">Montant</th></tr>'
+          . $ligneCat($gr, COMPTA_RECETTES)
+          . '<tr class="tot"><td>Total des recettes</td><td></td><td class="n">' . $f($tr) . '</td></tr></table>'
+          . '<p style="font-size:11.5px;color:#555;margin-top:2px">' . count($rec) . ' écriture(s), numérotées de 1 à ' . count($rec) . ' au registre des recettes.</p>'
+          . '<h2>Dépenses décaissées</h2>'
+          . '<table><tr><th>Nature</th><th>Compte</th><th class="n">Montant</th></tr>'
+          . $ligneCat($gd, COMPTA_DEPENSES)
+          . '<tr class="tot"><td>Total des dépenses</td><td></td><td class="n">' . $f($td) . '</td></tr></table>'
+          . '<p style="font-size:11.5px;color:#555;margin-top:2px">' . count($dep) . ' écriture(s), numérotées de 1 à ' . count($dep) . ' au registre des dépenses.</p>'
+          . '<div class="res"><div class="l">Résultat de l’exercice ' . $exercice . '</div>'
+          . '<div class="v' . ($tr - $td < 0 ? ' neg' : '') . '">' . $f($tr - $td) . ' FCFA</div></div>'
+          . '<h2>Régime fiscal applicable</h2>'
+          . '<p style="font-size:12.5px;margin:0"><b>' . $h($regime['nom']) . '</b><br>'
+          . 'Déterminé par le chiffre d’affaires de l’exercice : ' . $f($tr) . ' FCFA TTC.<br>'
+          . $h($regime['obligation']) . '</p>'
+          . '<div class="pied">'
+          . 'Document établi le ' . gmdate('d/m/Y à H:i') . ' UTC à partir du grand livre tenu par le site Chap.ci.<br>'
+          . 'Les registres détaillés — recettes et dépenses, chronologiques et numérotés — sont exportables séparément au format CSV.<br>'
+          . 'Conformément au Code général des impôts, ces documents sont conservés <b>trois ans</b> et présentés à toute réquisition du service des Impôts.<br>'
+          . '<i>Ce document est produit automatiquement. Il ne remplace pas l’avis d’un expert-comptable, et n’a pas valeur de déclaration fiscale.</i>'
+          . '</div></body></html>';
+        exit;
+      }
+      jerr('Export inconnu.', 400);
     }
 
     if ($path === 'admin/revenues' && $method === 'GET') {
