@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **v1.12 (code 13)** téléversée le 02/08 — 20 852 appareils · **v1.14 prête, à passer par le test interne** | **aucune** |
+| Version publiée | **v1.14 (code 15)** téléversée le 02/08 — 20 852 appareils · ⛔ **v1.15 corrige une page blanche : à envoyer** | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -60,6 +60,31 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.15 — versionCode 16
+
+| Champ | Valeur |
+|---|---|
+| Date du build | 2 août 2026, 04h36 |
+| Poids de l'AAB | 5,32 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **corrige une page blanche introduite en v1.14** |
+
+**Un lien d'annonce ouvert à froid donnait une page entièrement blanche.**
+Erreur React #310 : le crochet `useFormSous` avait été placé APRÈS le `return`
+d'annonce introuvable. Au premier rendu l'annonce n'est pas encore chargée, la
+fonction sortait avant le crochet ; au rendu suivant elle l'appelait — React
+compte les crochets et s'arrête net.
+
+Le chemin touché est le pire possible : **le lien qu'on partage sur WhatsApp**.
+Naviguer depuis l'accueil fonctionnait, ce qui rend le défaut invisible quand
+on essaie soi-même. Trouvé en vérifiant le déploiement, pas avant.
+
+Le crochet est remonté au-dessus du `return`, avec le commentaire qui dit
+pourquoi il ne doit jamais redescendre. Vérifié au navigateur sur les huit
+annonces réelles, chargées à froid : 18 détails sur 18 affichés.
+
+---
+
 ## v1.14 — versionCode 15
 
 | Champ | Valeur |
@@ -67,7 +92,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Date du build | 2 août 2026, 04h18 |
 | Poids de l'AAB | **5,32 Mo** (6,63 avant) |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
-| État Play | construite et signée — **à vérifier en TEST INTERNE avant le test fermé** |
+| État Play | construite, **remplacée par la v1.15** (page blanche sur lien direct) |
 
 **R8 activé.** La Play Console notait « Optimisation : Faible » et le proposait.
 Le code compilé passe de **6 770 à 1 120 Ko (−83 %)**, l'AAB de 6,63 à 5,32 Mo.

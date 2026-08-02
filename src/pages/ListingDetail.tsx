@@ -117,6 +117,22 @@ export function ListingDetail() {
     }
   }, [listingId, user])
 
+  /**
+   * La fiche se lit avec le MÊME schéma que celui qui a servi à la remplir :
+   * l'acheteur voit tout ce que le vendeur a saisi, avec le libellé exact
+   * qu'on lui avait montré, et rien d'autre.
+   *
+   * ⚠️ CE CROCHET DOIT RESTER AU-DESSUS DU `return` D'ANNONCE INTROUVABLE.
+   * React exige que le nombre de crochets ne change pas d'un rendu à l'autre.
+   * Placé plus bas, il n'était PAS appelé au premier rendu (l'annonce n'est
+   * pas encore chargée quand on ouvre un lien partagé à froid), puis l'était
+   * au rendu suivant — React s'arrête alors sur l'erreur #310 et la page
+   * reste BLANCHE. C'est exactement ce qui arrivait à quelqu'un qui ouvrait
+   * un lien d'annonce reçu sur WhatsApp.
+   */
+  const attributs = listing?.attributes ?? {}
+  const sousForm = useFormSous(listing?.categoryId ?? '', listing?.subcategory ?? '', attributs)
+
   if (!listing) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
@@ -148,16 +164,6 @@ export function ListingDetail() {
     .filter((l) => l.categoryId === listing.categoryId && l.id !== listing.id)
     .slice(0, 6)
 
-  const attributs = listing.attributes ?? {}
-
-  /**
-   * La fiche se lit avec le MÊME schéma que celui qui a servi à la remplir.
-   *
-   * C'est ce qui garantit qu'un acheteur voit tout ce que le vendeur a saisi,
-   * avec le libellé exact qu'on lui avait montré — et rien d'autre : un champ
-   * qui ne s'affichait pas au formulaire ne s'affiche pas non plus ici.
-   */
-  const sousForm = useFormSous(listing.categoryId, listing.subcategory ?? '', attributs)
   const form = sousForm ?? formFor(listing.categoryId)
   const sellerInitial = (listing.sellerName || '?').trim().charAt(0).toUpperCase() || '?'
   // Dossier foncier : affiché pour une VENTE immobilière, sous les attributs.
