@@ -12,9 +12,11 @@ import { ToastProvider } from './store/ToastContext'
 import './lib/pwaInstall'
 // Pixels marketing (Meta, TikTok, Google) — actifs seulement sur le web en prod.
 import { initMarketing } from './lib/marketing'
-// Polices de la marque (auto-hébergées → fonctionnent hors-ligne dans la PWA)
-import '@fontsource-variable/inter'
-import '@fontsource-variable/plus-jakarta-sans'
+// Polices de la marque (auto-hébergées → fonctionnent hors-ligne dans la PWA).
+// Sous-ensemble LATIN seulement : voir polices.css. Importer les paquets entiers
+// embarquait sept alphabets et faisait télécharger 83 Ko de « latin-ext » —
+// polonais, tchèque, turc — à chaque première visite.
+import './polices.css'
 import './index.css'
 
 // HashRouter : fonctionne partout sans configuration serveur — idéal pour
@@ -41,31 +43,42 @@ createRoot(document.getElementById('root')!).render(
 initMarketing()
 
 /**
- * Retire l'écran de démarrage — mais pas avant qu'on l'ait vu.
+ * Retire l'écran de démarrage dès que la page est prête.
  *
- * Il porte une animation : la goutte se pose, le nom monte, la baseline suit.
- * Cela dure environ 840 ms. Or l'application se monte souvent plus vite que
- * ça, surtout au deuxième lancement quand tout est en cache — l'écran
- * disparaissait alors au milieu du geste, ce qui donne un clignotement plutôt
- * qu'une entrée.
+ * CE CODE A DÉJÀ COÛTÉ UNE SECONDE À CHAQUE VISITEUR. La version précédente
+ * imposait un plancher de 900 ms « pour laisser l'animation se dérouler », plus
+ * 400 ms de fondu. Mesuré au navigateur : le contenu réel était affiché à
+ * 320 ms, et l'écran d'accueil ne partait qu'à 1 400 ms. Plus d'une seconde à
+ * regarder un logo devant un site déjà prêt — à chaque actualisation.
  *
- * On garde donc un plancher : l'écran reste au moins le temps de son
- * animation, puis s'efface. Ce n'est pas une attente ajoutée — pendant ces
- * 900 ms, l'application finit de se monter derrière.
+ * Une animation d'entrée sert à couvrir une attente, pas à en créer une. Quand
+ * il n'y a rien à couvrir, elle doit s'effacer.
  *
- * C'est ce qui rend le lancement IDENTIQUE sur le site et dans l'application
- * Android : celle-ci masque son image fixe presque tout de suite
- * (capacitor.config.ts) et laisse cet écran-ci faire l'entrée.
+ * Le plancher tombe donc à 120 ms — juste assez pour éviter un clignotement
+ * quand tout est déjà en cache — et le fondu à 180 ms. Sur un premier
+ * chargement lent, l'application met de toute façon plus longtemps à se monter
+ * et l'animation a le temps de se jouer entièrement : on ne perd l'entrée que
+ * dans le seul cas où personne ne l'attendait.
+ *
+ * Le comportement reste identique sur le site et dans l'application Android,
+ * qui masque son image fixe tout de suite (capacitor.config.ts) et laisse cet
+ * écran-ci faire la liaison.
  */
-const DUREE_MINIMALE = 900
+const PLANCHER_SPLASH = 120
+const FONDU_SPLASH = 180
 const departSplash = performance.now()
 
-requestAnimationFrame(() => {
+function retirerSplash(): void {
   const splash = document.getElementById('app-splash')
   if (!splash) return
-  const reste = Math.max(0, DUREE_MINIMALE - (performance.now() - departSplash))
+  const reste = Math.max(0, PLANCHER_SPLASH - (performance.now() - departSplash))
   window.setTimeout(() => {
     splash.classList.add('hide')
-    window.setTimeout(() => splash.remove(), 400)
+    window.setTimeout(() => splash.remove(), FONDU_SPLASH)
   }, reste)
-})
+}
+
+// Deux images après le montage : la première déclenche le rendu, la seconde
+// s'exécute une fois qu'il est réellement peint. On retire l'écran à cet
+// instant-là, et pas avant — sinon on découvre un fond vide.
+requestAnimationFrame(() => requestAnimationFrame(retirerSplash))

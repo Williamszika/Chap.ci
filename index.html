@@ -137,7 +137,9 @@
         justify-content: center;
         gap: 12px;
         background: linear-gradient(180deg, #ffffff, #fff3e4);
-        transition: opacity 0.35s ease;
+        /* 0,18 s : le temps de ne pas voir une coupure, pas une seconde de plus.
+           Doit rester égal à FONDU_SPLASH dans main.tsx. */
+        transition: opacity 0.18s ease;
       }
       #app-splash.hide {
         opacity: 0;
