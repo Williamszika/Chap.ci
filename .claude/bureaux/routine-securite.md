@@ -93,12 +93,16 @@ FAUSSES ALERTES CONNUES — vérifiées le 26/07, ne les re-signale JAMAIS :
   les nombres bruts et abstiens-toi de conclure.
 
 CHANTIERS OUVERTS (surveille, ne les redécouvre pas comme des nouveautés) :
-- PHP 8.1.34 en production : le support de SÉCURITÉ de PHP 8.1 a pris fin en
-  décembre 2025. L'interpréteur ne reçoit plus de correctif. Aucune faille
-  exploitable démontrée — c'est une exposition, pas une brèche. Le code passe
-  « php -l » sous PHP 8.4 sans erreur, donc la montée en 8.3 est à faible
-  risque (cPanel → MultiPHP Manager). Rappelle-le une fois par semaine au
-  maximum, tant que ce n'est pas fait.
+- PHP : CHANTIER CLOS le 02/08/2026. La production est passée de 8.1.34 à
+  **8.5.7**, en deux temps le même soir (8.3.31 puis 8.5.7). Vérifié en
+  production après chaque bascule : base, accents (mbstring), connexion
+  (bcrypt), recherche/tri/catégorie, seo.php avec l'échappement JSON-LD, les
+  quatre verrous (401/403/403/404), aucune fuite d'erreur PHP, et la
+  publication d'une annonce avec 3 photos — ce dernier test étant le seul qui
+  exerce GD (le filigrane), qu'aucun contrôle extérieur ne peut atteindre.
+  **N'ADRESSE PLUS DE RAPPEL PHP.** Si tu vois encore « 8.1 » quelque part,
+  c'est que tu lis une note périmée : reporte-toi à `/api/health`, qui donne la
+  version réellement servie.
 - Le détail par route EXISTE désormais : cron/security renvoie « byDetail »
   (top 10 des motifs pour cron_fail, mtoken_fail et rate_limited), déployé le
   27/07. Ne note plus « je ne peux pas nommer les tâches qui échouent » : tu le

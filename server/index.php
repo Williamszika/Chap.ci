@@ -38,10 +38,14 @@ $config += [
   // par lequel le navigateur les demande. Ces deux clés vivaient uniquement dans
   // config.php — elles manquaient ici, et c'étaient les SEULES dans ce cas. Un
   // config.php antérieur à leur introduction faisait donc rtrim(null) à chaque
-  // photo enregistrée : sous PHP 8.1 une simple obsolescence qui renvoie une URL
-  // amputée (« /nom.jpg » au lieu de « /uploads/nom.jpg », photo introuvable),
-  // sous PHP 8.3+ une erreur fatale — c'est-à-dire au moment précis où la mise à
-  // jour de PHP recommandée chaque semaine serait faite.
+  // photo enregistrée, et comme ce fichier déclare strict_types=1 (ligne 8),
+  // c'était une TypeError FATALE : « Erreur serveur » à chaque publication, sur
+  // n'importe quel PHP 8. Reproduit puis corrigé le 02/08.
+  //
+  // Sans strict_types ce n'aurait été qu'une obsolescence rendant une adresse
+  // amputée (« /nom.jpg » au lieu de « /uploads/nom.jpg »), donc une photo
+  // introuvable sans le moindre message — le strict_types transforme ici une
+  // panne sournoise en panne franche, et c'est tant mieux.
   'uploads_dir'          => getenv('CHAPCI_UPLOADS_DIR')  ?: __DIR__ . '/../uploads',
   'uploads_path'         => getenv('CHAPCI_UPLOADS_PATH') ?: '/uploads',
   // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
