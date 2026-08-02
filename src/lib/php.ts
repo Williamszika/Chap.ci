@@ -744,6 +744,11 @@ export async function phpDigestInfo(): Promise<{
   runs?: Record<string, { lastOkAt: string | null; runs: number }>
   /** Début du suivi : avant cette date, on ne sait rien, on n'accuse donc rien. */
   trackedSince?: string | null
+  /** Une clé écrite dans config.php a été refusée et remplacée en silence par le
+   *  secret aléatoire. Cause la plus probable d'un « Clé invalide » qui se répète. */
+  cleIgnoree?: boolean
+  /** Pourquoi elle a été refusée, en clair. Vide si elle a été acceptée. */
+  cleMotif?: string
 }> {
   return req('/admin/digest-info')
 }

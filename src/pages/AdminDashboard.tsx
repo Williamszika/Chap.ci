@@ -2477,6 +2477,9 @@ function AutomationTab() {
     site: string
     runs?: Record<string, { lastOkAt: string | null; runs: number }>
     trackedSince?: string | null
+    /** Une clé posée dans config.php a été refusée et remplacée en silence. */
+    cleIgnoree?: boolean
+    cleMotif?: string
   } | null>(null)
   const [err, setErr] = useState('')
   const [reveal, setReveal] = useState(false)
@@ -2592,6 +2595,22 @@ function AutomationTab() {
             {copied === 'key' ? <CheckCircle2 size={16} className="text-ivoire-green-dark" /> : <Copy size={16} />}
           </button>
         </div>
+        {/* La clé de config.php a été refusée et remplacée en silence.
+            C'est la cause la plus probable d'un « Clé invalide » qui se répète :
+            le Patron copie SA clé dans cPanel, le serveur en attend une autre, et
+            jusqu'ici rien nulle part ne le disait. */}
+        {info.cleIgnoree && (
+          <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+            ⛔ <b>La clé écrite dans <code className="rounded bg-red-100 px-1">api/config.php</code> a été refusée</b>
+            {info.cleMotif ? <> — {info.cleMotif}</> : null}. Le serveur en utilise une autre, générée
+            automatiquement : c’est celle affichée ci-dessus, et c’est la <b>seule</b> qu’il accepte.
+            <br />
+            Si une de vos tâches cPanel porte encore l’ancienne, elle échoue à chaque passage avec
+            « Clé invalide ». Recopiez les commandes ci-dessous, ou corrigez la ligne{' '}
+            <code className="rounded bg-red-100 px-1">cron_key</code> de config.php — puis revenez ici vérifier
+            que cet avertissement a disparu.
+          </p>
+        )}
         {!keyIsSafe && (
           <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
             ⚠️ Cette clé contient des caractères spéciaux qui peuvent être <b>déformés</b> dans une URL

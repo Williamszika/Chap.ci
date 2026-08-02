@@ -191,8 +191,22 @@ function admin_otp_valid(array $config, string $input): bool {
 $config['jwt_secret'] = chapci_hardened_secret($config, 'jwt',
   (string) (getenv('CHAPCI_JWT_SECRET') ?: ($config['jwt_secret'] ?? '')));
 // urlSafe = true : la clé cron circule en URL / en-tête / commande shell.
-$config['cron_key'] = chapci_hardened_secret($config, 'cron',
-  (string) (getenv('CHAPCI_CRON_KEY') ?: ($config['cron_key'] ?? '')), true);
+$chapci_cron_key_voulue = (string) (getenv('CHAPCI_CRON_KEY') ?: ($config['cron_key'] ?? ''));
+$config['cron_key'] = chapci_hardened_secret($config, 'cron', $chapci_cron_key_voulue, true);
+// Une clé écrite dans config.php mais REFUSÉE (trop courte, ou contenant des
+// caractères qui ne survivent pas à une URL) est remplacée sans un mot par le
+// secret aléatoire. L'opérateur croit alors avoir posé sa clé, la copie dans ses
+// tâches cPanel, et récolte un « Clé invalide » à chaque passage — sans jamais
+// comprendre pourquoi. On retient le fait ici pour que le tableau de bord le
+// dise. On ne retient JAMAIS la valeur elle-même.
+$GLOBALS['chapci_cron_key_ignoree'] = $chapci_cron_key_voulue !== ''
+  && !hash_equals($config['cron_key'], $chapci_cron_key_voulue);
+$GLOBALS['chapci_cron_key_motif'] = !$GLOBALS['chapci_cron_key_ignoree'] ? ''
+  : (strlen(trim($chapci_cron_key_voulue)) < 24
+      ? 'trop courte (' . strlen(trim($chapci_cron_key_voulue)) . ' caractères, il en faut 24 au minimum)'
+      : (preg_match('/^[A-Za-z0-9._~-]+$/', trim($chapci_cron_key_voulue)) !== 1
+          ? 'caractères interdits (seuls lettres, chiffres, point, tiret, souligné et tilde survivent à une URL)'
+          : 'valeur trop connue pour servir de secret'));
 
 // Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
 // prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.
@@ -6784,6 +6798,12 @@ try {
         'site'         => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
         'runs'         => $runs,
         'trackedSince' => $since,
+        // Vrai si une clé écrite dans config.php a été refusée et remplacée en
+        // silence. C'est la cause la plus probable d'un « Clé invalide » qui se
+        // répète : l'opérateur copie SA clé dans cPanel, le serveur en attend
+        // une autre, et rien nulle part ne le dit.
+        'cleIgnoree'   => (bool) ($GLOBALS['chapci_cron_key_ignoree'] ?? false),
+        'cleMotif'     => (string) ($GLOBALS['chapci_cron_key_motif'] ?? ''),
       ]);
     }
     // Offres automatiques : envoi manuel immédiat (pour tester).
@@ -6852,10 +6872,26 @@ try {
         if (strcasecmp($hk, 'X-Cron-Key') === 0) { $cronKey = (string) $hv; break; }
       }
     }
-    if ($cronKey === '') $cronKey = (string) ($_GET['key'] ?? '');
-    if ($cronKey === '' && $method === 'POST') $cronKey = (string) (body()['key'] ?? '');
+    $cronOu = $cronKey !== '' ? 'entete' : '';
+    if ($cronKey === '') { $cronKey = (string) ($_GET['key'] ?? ''); if ($cronKey !== '') $cronOu = 'url'; }
+    if ($cronKey === '' && $method === 'POST') { $cronKey = (string) (body()['key'] ?? ''); if ($cronKey !== '') $cronOu = 'corps'; }
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey)) {
-      log_security_event($pdo, 'cron_fail', null, $path);
+      // POURQUOI l'échec, et pas seulement sur quelle route.
+      //
+      // « cron_fail » qui monte pose toujours la même question, et la route
+      // seule n'y répond pas : est-ce un robot qui tape au hasard, ou une de mes
+      // tâches cPanel qui porte une clé périmée ? Les deux se soignent de façon
+      // opposée — on ignore le premier, on corrige la seconde.
+      //
+      // « sans-cle » = personne n'a présenté de clé : un scanner, ou une tâche
+      // mal recopiée. « cle-differente » = quelqu'un connaît la route ET envoie
+      // une clé : presque toujours une tâche configurée avec l'ancienne valeur.
+      // L'endroit (en-tête / url / corps) et la longueur désignent laquelle,
+      // sans jamais écrire le moindre morceau du secret dans le journal.
+      $motif = $cronKey === ''
+        ? 'sans-cle'
+        : 'cle-differente(' . $cronOu . ',' . strlen($cronKey) . ' car.)';
+      log_security_event($pdo, 'cron_fail', null, $path . ' · ' . $motif);
       jerr('Clé invalide.', 403);
     }
     // Trace du passage. On l'écrit ICI, à l'authentification réussie, et non à la
