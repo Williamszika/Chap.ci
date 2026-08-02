@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune.** v1.16 (code 17) téléversée le 02/08 en test fermé — release créée mais ⛔ **jamais envoyée pour examen** | **aucune** |
+| Version publiée | **aucune.** v1.16 (code 17) téléversée le 02/08, release créée mais ⛔ **jamais envoyée pour examen**. v1.17 (code 18) la remplace : un seul fichier à envoyer | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -57,6 +57,34 @@ l'application fonctionne. L'ordre est donc : test interne (vérification) → te
 Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
 zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
 raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
+---
+
+## v1.17 — versionCode 18
+
+| Champ | Valeur |
+|---|---|
+| Date du build | 2 août 2026 |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` |
+| État Play | **à téléverser — remplace la v1.16, jamais envoyée** |
+
+**Contient tout ce qu'apportaient la v1.15 et la v1.16.** Aucune des deux n'a été
+envoyée à l'examen : il n'y a qu'un seul fichier à téléverser, celui-ci.
+
+**L'application s'ouvre une seconde plus tôt.** L'écran d'accueil imposait un
+plancher de 900 ms plus 400 ms de fondu ; mesuré au navigateur, le contenu était
+prêt à 320 ms et l'écran ne partait qu'à 1 531 ms. Plancher ramené à 120 ms,
+fondu à 180 ms, et le retrait déclenché une fois la page réellement peinte —
+385 ms au lieu de 1 531. Sur une connexion lente, l'animation se déroule
+entièrement comme avant : elle garde son temps là où elle sert vraiment.
+
+**Polices allégées** : sept alphabets embarqués (latin, latin-ext, grec, grec
+étendu, cyrillique, cyrillique étendu, vietnamien) ramenés au seul latin, qui
+couvre le français en entier. 288 Ko → 76 Ko dans le paquet.
+
+Côté serveur, cette version profite aussi de PHP 8.5, de la comptabilité et des
+dix-sept colonnes de base manquantes — mais tout cela vient de l'API, pas du
+paquet : l'application en bénéficiait déjà.
 
 ---
 
