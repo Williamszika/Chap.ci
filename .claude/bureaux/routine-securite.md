@@ -192,12 +192,15 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
 
        cron/stats · cle-differente(url,30 car.) · externe
 
-   · « local » / « externe » : une TÂCHE cPANEL s'exécute TOUJOURS en local.
-     Un cron_fail marqué « externe » n'est donc JAMAIS une tâche du Patron —
-     c'est une sonde, un test, ou un balayage. Ne lui demande rien à corriger.
    · « jamais-valide » : la clé envoyée fait moins de 24 caractères, donc une
-     valeur que ce serveur n'a jamais pu accepter. Ce n'est pas une ancienne
-     clé, c'est un essai.
+     valeur que ce serveur n'a jamais pu accepter. Ce n'est PAS une ancienne
+     clé restée quelque part : c'est un essai. Cette marque est fiable.
+   · « local » : l'appel vient démontrablement du serveur — donc une vraie
+     tâche cPanel. Fiable quand elle est là.
+     ⚠️ Son ABSENCE ne prouve RIEN. chap.ci est derrière Cloudflare : une tâche
+     cPanel qui appelle https://chap.ci sort sur Internet et revient par le
+     CDN, donc elle n'est pas vue comme locale. N'écris JAMAIS « ce n'est pas
+     une tâche du Patron » au seul motif que « local » manque.
 
    POURQUOI CES MARQUES EXISTENT. Le 02/08, six cron_fail portant des clés de
    5, 28 et 30 caractères ont été rapportés comme « signature typique d'une
@@ -206,11 +209,18 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    du temps à chercher des tâches à réparer qui n'existaient pas. Un rapport
    qui accuse à tort coûte plus cher qu'un rapport muet.
 
-   Si les deux marques disent « externe », écris-le en une ligne et passe :
-   « N cron_fail, tous externes — sondes ou balayage, aucune tâche en cause. »
+   Si TOUS les échecs portent « jamais-valide », écris-le en une ligne et
+   passe : « N cron_fail, toutes des clés qui n'ont jamais pu être valides —
+   sondes ou balayage, aucune tâche en cause. »
 
-   Ensuite seulement, pour les cron_fail marqués « local », par ordre de
-   probabilité décroissante :
+   S'il reste des échecs SANS « jamais-valide » (clé de 24 caractères ou plus,
+   donc plausiblement une vraie ancienne clé), croise avec les DERNIERS
+   PASSAGES RÉUSSIS : une tâche qui échoue vraiment n'a plus de passage récent.
+   Demande la capture de Admin → Tâches auto au Patron. Une route qui échoue ET
+   qui affiche un passage réussi récent tourne en double — une ligne cPanel
+   ancienne restée à côté de la nouvelle.
+
+   Ensuite seulement, par ordre de probabilité décroissante :
      1. Une clé a été régénérée et les TÂCHES CRON cPANEL portent encore
         l'ancienne. Conséquence grave et silencieuse : backup, cleanup, digest,
         alerts, activation-relance et review-invites ne tournent plus — donc

@@ -6980,13 +6980,23 @@ try {
       // rapport de sécurité qui accuse à tort fait perdre plus de temps qu'un
       // rapport muet.
       //
-      // Deux marques tranchent :
-      //  · « local » — l'appel vient du serveur lui-même. Une tâche cPanel
-      //    s'exécute TOUJOURS en local ; une sonde extérieure, jamais. C'est
-      //    le seul signal qui distingue vraiment les deux.
-      //  · « jamais-valide » — moins de 24 caractères, donc une valeur que ce
-      //    serveur n'a JAMAIS pu accepter (chapci_hardened_secret refuse plus
-      //    court). Ce n'est donc pas une ancienne clé : c'est un essai.
+      // « jamais-valide » : moins de 24 caractères, donc une valeur que ce
+      // serveur n'a JAMAIS pu accepter — chapci_hardened_secret refuse plus
+      // court. Ce n'est donc pas une ancienne clé oubliée quelque part, c'est
+      // un essai. Cette marque-là est vraie partout, quel que soit le réseau.
+      //
+      // « local » : l'appel vient DÉMONTRABLEMENT du serveur. On ne l'écrit que
+      // lorsqu'on peut le prouver, et on n'écrit RIEN sinon — surtout pas
+      // « externe ».
+      //
+      // Pourquoi cette prudence : chap.ci est derrière Cloudflare. Une tâche
+      // cPanel qui appelle https://chap.ci sort sur Internet et revient par le
+      // CDN ; PHP ne voit alors ni 127.0.0.1 ni SERVER_ADDR, mais l'adresse
+      // publique de sortie de l'hébergeur. Affirmer « externe » dans ce cas
+      // reviendrait à jurer que la tâche du Patron n'est pas en cause alors
+      // qu'elle l'est — l'erreur exactement inverse de celle qu'on répare ici,
+      // et la plus coûteuse des deux. Une marque absente veut dire « je ne
+      // sais pas », et c'est une réponse honnête.
       $ipApp = (string) ($_SERVER['SERVER_ADDR'] ?? '');
       $ipCli = client_ip();
       $local = $ipCli === '127.0.0.1' || $ipCli === '::1' || ($ipApp !== '' && $ipCli === $ipApp);
@@ -6994,7 +7004,7 @@ try {
         ? 'sans-cle'
         : 'cle-differente(' . $cronOu . ',' . strlen($cronKey) . ' car.'
           . (strlen($cronKey) < 24 ? ',jamais-valide' : '') . ')';
-      log_security_event($pdo, 'cron_fail', null, $path . ' · ' . $motif . ' · ' . ($local ? 'local' : 'externe'));
+      log_security_event($pdo, 'cron_fail', null, $path . ' · ' . $motif . ($local ? ' · local' : ''));
       jerr('Clé invalide.', 403);
     }
     // Trace du passage. On l'écrit ICI, à l'authentification réussie, et non à la
