@@ -704,7 +704,10 @@ function http_fetch(string $url, array $opts = []): array {
     if ($userpwd) curl_setopt($ch, CURLOPT_USERPWD, $userpwd);
     $resp = curl_exec($ch);
     $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    // curl_close() est obsolète depuis PHP 8.5 : depuis PHP 8.0 la ressource est
+    // un objet, libéré tout seul quand $ch sort de portée — la fonction ne fait
+    // plus rien. On la retire ; unset() dit la même intention sans obsolescence.
+    unset($ch);
     return $resp === false ? ['status' => 0, 'body' => ''] : ['status' => $status, 'body' => (string) $resp];
   }
   // Repli sans cURL (allow_url_fopen).
@@ -715,8 +718,32 @@ function http_fetch(string $url, array $opts = []): array {
     'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
   ]);
   $resp = @file_get_contents($url, false, $ctx);
+  // PHP 8.5 déprécie la variable magique $http_response_header quand elle est
+  // créée dans une portée locale — c'est exactement le cas ici. Elle disparaîtra
+  // en PHP 9, et ce repli renverrait alors silencieusement un statut 0 : un
+  // appel réussi passerait pour un échec, et un échec pour un succès.
+  //
+  // http_get_last_response_headers() la remplace depuis 8.5. On teste sa
+  // présence plutôt que la version de PHP : le code reste bon sur 8.1 comme
+  // sur 9. Ce chemin ne sert que si cURL manque — rare, mais c'est justement
+  // le genre de branche qu'on ne voit casser que le jour où on en a besoin.
+  // Sur 8.5 le premier terme l'emporte et la variable n'est jamais lue. Elle
+  // reste mentionnée pour PHP < 8.5, où c'est la seule voie d'accès au statut.
+  //
+  // PHP 8.5 émet malgré tout un avis d'obsolescence au PREMIER APPEL de cette
+  // fonction, parce que le compilateur a vu la variable dans le corps — quelle
+  // que soit la branche prise, et le « @ » n'y change rien (vérifié). Les seules
+  // façons de le taire seraient de perdre le statut HTTP sur les vieux PHP, ou
+  // de recourir à une acrobatie que personne ne comprendrait en la relisant.
+  //
+  // On l'assume : c'est un AVIS, la production le filtre déjà (error_reporting
+  // ligne 9), il ne se produit que si l'on sort du site, et en PHP 9 — où la
+  // variable disparaît — c'est le premier terme qui servira. Rien ne casse.
+  $entetes = function_exists('http_get_last_response_headers')
+    ? (http_get_last_response_headers() ?? [])
+    : (isset($http_response_header) ? $http_response_header : []);
   $status = 0;
-  if (isset($http_response_header[0]) && preg_match('#\s(\d{3})\s#', $http_response_header[0], $m)) $status = (int) $m[1];
+  if (isset($entetes[0]) && preg_match('#\s(\d{3})\s#', (string) $entetes[0], $m)) $status = (int) $m[1];
   return ['status' => $status, 'body' => $resp === false ? '' : $resp];
 }
 
@@ -1252,6 +1279,58 @@ function migrate(PDO $pdo): void {
   // un compte, ou sur le formulaire lui-même — deux problèmes opposés.
   try { $pdo->exec("ALTER TABLE visits ADD COLUMN authed $intT"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // PUBLICITÉS : dix colonnes que le code écrit et lit depuis longtemps, mais
+  // qu'aucune migration n'ajoutait — et que le CREATE TABLE ci-dessus ne déclare
+  // pas non plus. Sur chap.ci elles existent (posées à la main quand la
+  // fonctionnalité est née), donc rien n'a jamais échoué et le trou est resté
+  // invisible. Sur une base NEUVE — réinstallation, changement d'hébergeur,
+  // restauration, test local — la publicité mourait entière : la bannière
+  // rotative (SELECT kind, style, anim…), l'achat d'espace (INSERT email,
+  // phone…), la diffusion SEO quotidienne et le rappel d'expiration, tous en
+  // « no such column: kind ».
+  //
+  // Trouvé en montant un banc d'essai PHP 8.5 sur une base de test ancienne :
+  // c'est exactement le cas « installation neuve » que personne ne rejoue.
+  foreach ([
+    "email $txt", "phone $txt",           // contact de l'annonceur (achat sans compte)
+    "kind VARCHAR(16)",                   // 'seo' pour les bandeaux auto, vide sinon
+    "style $txt", "anim $txt",            // apparence et animation choisies
+    "anim_loop $intT", "anims $txt",      // boucle, et liste des animations enchaînées
+    "anim_gap $intT", "text_color $txt",  // pause entre deux animations, couleur du texte
+    "extends_ad_id $id",                  // prolongation d'une publicité existante
+    "pay_confirmed $intT",                // paiement Mobile Money vérifié à la main
+    "pay_confirmed_at $ts",               // et quand
+    "reject_reason $txt",                 // motif du refus, envoyé à l'annonceur
+    "expiry_notified $ts",                // rappel « votre publicité se termine » envoyé
+    "expired_notified $ts",               // avis de fin envoyé
+    "last_report_at $ts",                 // dernier relevé de performances expédié
+  ] as $col) {
+    try { $pdo->exec("ALTER TABLE ads ADD COLUMN $col"); }
+    catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  }
+  // Même oubli sur trois autres tables, trouvé en passant TOUTES les colonnes
+  // écrites par le code au crible de celles réellement déclarées.
+  //
+  //  · admins           : le code lit access_code_hash, blocked et permissions,
+  //                       la table n'en déclarait aucune. Sur une base neuve,
+  //                       ajouter un administrateur ou ouvrir le tableau de bord
+  //                       par code échouait — le système d'accès lui-même.
+  //  · contact_messages : répondre à un message écrivait dans trois colonnes
+  //                       absentes ; la réponse partait, puis l'écriture cassait.
+  //  · listings.views   : chaque consultation d'annonce fait « SET views = ... ».
+  //                       Sans la colonne, ouvrir une annonce renvoyait 500.
+  foreach ([
+    ['admins',           "access_code_hash $txt"],
+    ['admins',           "blocked $intT"],
+    ['admins',           "permissions $txt"],
+    ['contact_messages', "reply_body $txt"],
+    ['contact_messages', "replied_at $ts"],
+    ['contact_messages', "replied_by $txt"],
+    ['listings',         "views $intT"],
+  ] as [$table, $col]) {
+    try { $pdo->exec("ALTER TABLE $table ADD COLUMN $col"); }
+    catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  }
   // Avis à double sens : qui est noté (target_id) et à quel titre (kind).
   try { $pdo->exec("ALTER TABLE reviews ADD COLUMN target_id $id"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
