@@ -208,6 +208,35 @@ export function ListingDetail() {
       value: f.type === 'toggle' ? 'Oui' : `${v}${f.unit ? ` ${f.unit}` : ''}`,
     })
   }
+  /**
+   * Ce que le vendeur a saisi AVANT que le formulaire ne change.
+   *
+   * Les quatre-vingt-deux schémas n'emploient pas les mêmes clés que le
+   * formulaire générique d'avant : une annonce de mode publiée en juillet
+   * porte `genre`, `taille`, `marque` ; le schéma « Chaussures » attend
+   * `pointures`, `hauteurTalon`, `authenticite`. Aucun champ ne réclame donc
+   * les anciennes valeurs, et les huit annonces en ligne perdaient d'un coup
+   * TOUT ce que leurs vendeurs avaient rempli — sans que rien ne le signale.
+   *
+   * On les récupère : le libellé vient de l'ancien formulaire, qui existe
+   * toujours, et à défaut de la clé elle-même. Ce que quelqu'un a pris la
+   * peine d'écrire ne disparaît pas parce que nous avons changé d'avis.
+   */
+  const clesAffichees = new Set(form.fields.map((f) => f.key))
+  const ancien = formFor(listing.categoryId)
+  const LIBELLES_ANCIENS = new Map(ancien.fields.map((f) => [f.key, f.label]))
+  for (const [k, v] of Object.entries(attributs)) {
+    if (!v || clesAffichees.has(k)) continue
+    // Ce qui n'est pas un attribut d'annonce : les variantes de couleur (leur
+    // carte à part), le dossier foncier (son bandeau à lui), les engagements.
+    if (k.startsWith('var_') || k.startsWith('num_') || k === 'docs' || k === 'engagement' || k === 'couleurs') continue
+    const label = LIBELLE_ACHETEUR[k] ?? LIBELLES_ANCIENS.get(k)
+    attrItems.push({
+      label: label ?? k.charAt(0).toUpperCase() + k.slice(1),
+      value: v === 'Oui' ? 'Oui' : v,
+    })
+  }
+
   for (const id of lireDocs(attributs.docs)) {
     const num = attributs[cleNumero(id)]
     if (num) attrItems.push({ label: `N° ${DOC_PAR_ID[id].court}`, value: num })

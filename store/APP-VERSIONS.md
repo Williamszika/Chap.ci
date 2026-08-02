@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | v1.9 (code 10) active en test fermé — **remplacée par la v1.12 (code 13)** | **aucune** |
+| Version publiée | **v1.12 (code 13)** téléversée le 02/08 — 20 852 appareils pris en charge | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -60,6 +60,32 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.13 — versionCode 14
+
+| Champ | Valeur |
+|---|---|
+| Date du build | 2 août 2026, 04h05 |
+| Poids de l'AAB | 6,7 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **pas urgente si la v1.12 est en ligne** |
+
+**Les annonces publiées avant les nouveaux formulaires avaient perdu tous
+leurs détails.** Les 82 schémas n'emploient pas les mêmes clés que l'ancien
+formulaire générique : le schéma « Chaussures » attend des `pointures`,
+l'annonce de juillet portait une `taille`. Aucun champ ne réclamait plus les
+anciennes valeurs, et les huit annonces en ligne n'affichaient plus rien —
+sans le moindre message.
+
+La fiche affiche désormais aussi ce qu'aucun champ ne réclame, avec son
+libellé d'origine (repris de `categoryForms.ts`, qui existe toujours).
+Vérifié sur les huit annonces réelles de production : 18 détails sur 18
+récupérés.
+
+> Cette correction se joue surtout **côté site** : elle est dans le zip et agit
+> dès l'extraction. L'AAB n'est utile qu'au prochain envoi.
+
+---
+
 ## v1.12 — versionCode 13
 
 | Champ | Valeur |
@@ -67,7 +93,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Date du build | 2 août 2026, 03h54 |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
-| État Play | construite et signée — **c'est CELLE-CI qu'il faut téléverser** |
+| État Play | **TÉLÉVERSÉE le 02/08** — la console annonce 20 852 appareils pris en charge, les 7 exclus de la v1.10 sont bien récupérés |
 
 **Le démarrage divisé par deux.** Paquet initial : 221 → 133 Ko compressés
 (−40 %), sous le budget de 150 Ko que le projet s'est fixé.
