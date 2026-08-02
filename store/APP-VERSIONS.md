@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **v1.12 (code 13)** téléversée le 02/08 — 20 852 appareils pris en charge | **aucune** |
+| Version publiée | **v1.12 (code 13)** téléversée le 02/08 — 20 852 appareils · **v1.14 prête, à passer par le test interne** | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -60,6 +60,42 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.14 — versionCode 15
+
+| Champ | Valeur |
+|---|---|
+| Date du build | 2 août 2026, 04h18 |
+| Poids de l'AAB | **5,32 Mo** (6,63 avant) |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **à vérifier en TEST INTERNE avant le test fermé** |
+
+**R8 activé.** La Play Console notait « Optimisation : Faible » et le proposait.
+Le code compilé passe de **6 770 à 1 120 Ko (−83 %)**, l'AAB de 6,63 à 5,32 Mo.
+Le fichier de désobscurcissement part avec le paquet, ce qui referme aussi le
+troisième avertissement de la console.
+
+Ce qui rend l'opération tenable : Capacitor livre ses propres règles de
+conservation (`consumerProguardFiles`), qui protègent les greffons trouvés par
+réflexion. Vérifié dans le paquet produit, pas déduit : les quatre greffons
+que Capacitor cherche PAR CHAÎNE au démarrage gardent leur nom d'origine,
+`@CapacitorPlugin`, `@Permission`, `@PluginMethod` et `@JavascriptInterface`
+sont toujours là, `MainActivity` aussi, et les 17 ressources de l'écran de
+démarrage ont survécu au réducteur (`res/raw/keep.xml`).
+
+> ⚠️ **Passer par le test INTERNE d'abord.** R8 supprime ce qu'il croit
+> inutilisé ; ce type de défaut ne se voit qu'une fois installé sur un vrai
+> téléphone. Le test interne ne compte pas dans les 12 testeurs : c'est
+> exactement ce à quoi il sert.
+
+**L'écran de démarrage s'anime.** La goutte se pose, le nom monte, la baseline
+suit, le logo respire une fois. Jusqu'ici l'application montrait une image
+FIXE pendant 1,2 s puis sautait au contenu : le geste n'existait que sur le
+site. L'image native est ramenée à 350 ms — le temps que la WebView peigne
+`index.html` — et c'est l'écran animé qui fait l'entrée, comme sur le site.
+`prefers-reduced-motion` respecté.
+
+---
+
 ## v1.13 — versionCode 14
 
 | Champ | Valeur |
@@ -67,7 +103,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Date du build | 2 août 2026, 04h05 |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
-| État Play | construite et signée — **pas urgente si la v1.12 est en ligne** |
+| État Play | construite, **dépassée par la v1.14** |
 
 **Les annonces publiées avant les nouveaux formulaires avaient perdu tous
 leurs détails.** Les 82 schémas n'emploient pas les mêmes clés que l'ancien

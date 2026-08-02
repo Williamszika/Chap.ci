@@ -33,8 +33,21 @@ const config: CapacitorConfig = {
       enabled: true,
     },
     SplashScreen: {
-      launchShowDuration: 1200,
-      backgroundColor: '#FFFDF9',
+      // 1200 ms d'image FIXE, puis le contenu d'un coup : l'application ne
+      // montrait jamais l'écran de marque animé du site (#app-splash dans
+      // index.html), qui était retiré pendant que l'image le recouvrait
+      // encore. Deux lancements différents pour le même produit.
+      //
+      // On raccourcit donc l'image native au strict nécessaire — le temps que
+      // la WebView peigne index.html, qui est un fichier local — et c'est
+      // l'écran animé qui prend le relais. Le fond est le même des deux côtés,
+      // le passage de l'un à l'autre ne se voit pas.
+      //
+      // Ne pas descendre à 0 : sur un téléphone d'entrée de gamme, la WebView
+      // n'a alors rien peint et l'on voit un éclair blanc.
+      launchShowDuration: 350,
+      launchAutoHide: true,
+      backgroundColor: '#FFFFFF',
       androidSplashResourceName: 'splash',
       showSpinner: false,
       splashFullScreen: true,

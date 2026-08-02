@@ -26,6 +26,12 @@ chapci-backend.zip
 # personne ne sache pourquoi. C'est arrive : la v1.9 est partie en test ferme
 # sans aucune permission de localisation.
 !/android/app/src/main/AndroidManifest.xml
+# Meme raison pour la configuration de R8 : elle se regle a la main, elle dit
+# ce qu'il ne faut pas effacer, et la perdre casserait l'application au
+# lancement sans le moindre message a la compilation.
+!/android/app/build.gradle
+!/android/app/proguard-rules.pro
+!/android/app/src/main/res/raw/keep.xml
 /ios
 
 # Logs

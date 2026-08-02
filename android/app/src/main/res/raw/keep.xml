@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ce que R8 ne doit PAS effacer.
+
+  Le réducteur de ressources supprime tout ce à quoi aucun code Java ne fait
+  référence. Or l'écran de démarrage n'est désigné NULLE PART en Java : il est
+  nommé par une CHAÎNE DE CARACTÈRES dans capacitor.config.ts
+  (`androidSplashResourceName: 'splash'`), que Capacitor résout au lancement.
+  Sans cette liste, `splash.png` disparaîtrait de l'application et l'écran de
+  démarrage serait noir — un défaut qui ne se voit qu'une fois installé sur un
+  vrai téléphone, jamais à la compilation.
+
+  Même raison pour les icônes de lanceur : Android les désigne par le
+  manifeste, mais leurs déclinaisons de densité et l'icône adaptative se
+  résolvent à l'exécution.
+
+  ⚠️ Ne retirez rien d'ici sans avoir ouvert l'application sur un appareil.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/splash,@drawable/splash_dark,@drawable/ic_launcher_background,@drawable/ic_launcher_foreground,@mipmap/ic_launcher,@mipmap/ic_launcher_round,@mipmap/ic_launcher_foreground,@color/*,@style/AppTheme*" />

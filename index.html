@@ -147,6 +147,38 @@
         width: 92px;
         height: 92px;
         filter: drop-shadow(0 14px 26px rgba(217, 95, 0, 0.28));
+        /* La goutte arrive en se posant, puis respire une fois. Deux temps,
+           pas trois : au-delà, une attente qu'on décore devient une attente
+           qu'on subit. */
+        animation: splash-pose 0.62s cubic-bezier(0.22, 1.2, 0.36, 1) both,
+                   splash-souffle 2.4s ease-in-out 0.75s infinite;
+      }
+      #app-splash .wm {
+        animation: splash-monte 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.22s both;
+      }
+      #app-splash .tag {
+        animation: splash-monte 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.34s both;
+      }
+      @keyframes splash-pose {
+        0% { opacity: 0; transform: scale(0.62) translateY(-16px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      @keyframes splash-souffle {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.045); }
+      }
+      @keyframes splash-monte {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      /* Quelqu'un qui a demandé moins d'animations à son téléphone le pense :
+         on affiche tout d'un coup, sans mouvement. */
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash svg,
+        #app-splash .wm,
+        #app-splash .tag {
+          animation: none;
+        }
       }
       #app-splash .wm {
         font-family: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
