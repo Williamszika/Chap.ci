@@ -34,6 +34,16 @@ $config += [
   'mail_reply_to'        => getenv('CHAPCI_MAIL_REPLYTO')    ?: 'contact@chap.ci',
   'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
   'site_url'             => getenv('CHAPCI_SITE_URL')        ?: 'https://chap.ci',
+  // Emplacement des photos téléversées : le dossier sur le disque, et le chemin
+  // par lequel le navigateur les demande. Ces deux clés vivaient uniquement dans
+  // config.php — elles manquaient ici, et c'étaient les SEULES dans ce cas. Un
+  // config.php antérieur à leur introduction faisait donc rtrim(null) à chaque
+  // photo enregistrée : sous PHP 8.1 une simple obsolescence qui renvoie une URL
+  // amputée (« /nom.jpg » au lieu de « /uploads/nom.jpg », photo introuvable),
+  // sous PHP 8.3+ une erreur fatale — c'est-à-dire au moment précis où la mise à
+  // jour de PHP recommandée chaque semaine serait faite.
+  'uploads_dir'          => getenv('CHAPCI_UPLOADS_DIR')  ?: __DIR__ . '/../uploads',
+  'uploads_path'         => getenv('CHAPCI_UPLOADS_PATH') ?: '/uploads',
   // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
   // explicitement. En production (défaut), les erreurs restent génériques côté
   // client et les détails sont journalisés (error_log) côté serveur.
@@ -2005,6 +2015,69 @@ function email_button(string $href, string $label): string {
  * route refuse, et le vendeur reçoit un refus qu'il ne comprend pas.
  */
 const LISTING_MIN_PHOTOS = 3;
+
+/**
+ * Efface les annonces qui n'ont AUCUNE photo.
+ *
+ * La publication exige déjà LISTING_MIN_PHOTOS photos, et la modification ne
+ * laisse jamais retomber une annonce à zéro. Restent celles d'avant la règle :
+ * une annonce sans photo ne se vend pas, elle occupe une place dans les
+ * résultats et elle donne du site l'image d'un catalogue vide. Le Patron a
+ * tranché — on les efface, on ne les masque pas.
+ *
+ * Trois précautions, parce que supprimer ne se rattrape pas :
+ *
+ *  1. On ne regarde QUE la colonne `images` en base, jamais le disque. Si
+ *     `uploads/` tombait ou changeait de chemin, les URL resteraient en base :
+ *     une panne de stockage ne peut donc pas déclencher d'effacement.
+ *  2. Les annonces VENDUES sont épargnées. Ce sont des pièces d'historique —
+ *     une vente, un avis, une commande s'y rattachent, et la comptabilité vit
+ *     de cette traçabilité. Une annonce vendue ne s'affiche plus au catalogue,
+ *     elle ne gêne donc personne.
+ *  3. Le vendeur est prévenu, avec le titre de son annonce et la raison. Une
+ *     annonce qui disparaît sans un mot, c'est un vendeur qui croit à un bug.
+ *
+ * Les favoris pointant sur l'annonce partent avec elle : un favori sans
+ * annonce s'affiche comme une carte vide dans « Mes favoris ».
+ *
+ * @return int nombre d'annonces effacées
+ */
+function listings_purge_sans_photo(PDO $pdo): int {
+  $efface = 0;
+  try {
+    // On relit et on décode en PHP plutôt que de filtrer en SQL : la colonne
+    // peut contenir NULL, '', '[]', ou un JSON abîmé, et chaque base écrit ces
+    // cas à sa façon. Le décodage tranche pareil partout.
+    $st = $pdo->query("SELECT id, user_id, title, images FROM listings
+                       WHERE (sold IS NULL OR sold = 0)");
+    $sansPhoto = [];
+    foreach ($st->fetchAll() as $r) {
+      $brut = (string) ($r['images'] ?? '');
+      $liste = $brut === '' ? [] : (json_decode($brut, true) ?: []);
+      // Une entrée vide ne compte pas pour une photo.
+      $liste = array_filter((array) $liste, fn($u) => trim((string) $u) !== '');
+      if (count($liste) === 0) $sansPhoto[] = $r;
+    }
+    if (!$sansPhoto) return 0;
+
+    $del = $pdo->prepare('DELETE FROM listings WHERE id = ?');
+    $delFav = $pdo->prepare('DELETE FROM favorites WHERE listing_id = ?');
+    foreach ($sansPhoto as $r) {
+      notify(
+        $pdo, (string) ($r['user_id'] ?? ''), 'listing',
+        'Annonce retirée — aucune photo',
+        'Votre annonce « ' . mb_substr((string) $r['title'], 0, 60) . ' » a été retirée : '
+        . 'elle ne portait aucune photo. Republiez-la avec au moins '
+        . LISTING_MIN_PHOTOS . ' photos de l’objet, elle repartira aussitôt.',
+        '/#/publier'
+      );
+      $del->execute([$r['id']]);
+      try { $delFav->execute([$r['id']]); } catch (Throwable $e) { /* table absente */ }
+      $efface++;
+    }
+  } catch (Throwable $e) { /* le ménage ne doit jamais casser la route */ }
+  return $efface;
+}
 
 /** id => le document porte-t-il un numéro à saisir ? */
 const FONCIER_DOCS = [
@@ -7321,6 +7394,11 @@ try {
     $d3 = gmdate('Y-m-d\TH:i:s\Z', time() - 90 * 86400);
     $st = $pdo->prepare('UPDATE listings SET hidden = 1 WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) AND created_at < ?');
     $st->execute([$d3]); $done['annonces_expirees'] = $st->rowCount();
+    // Annonces sans aucune photo → effacées (le vendeur est prévenu).
+    // Contrairement à l'expiration ci-dessus, celle-ci supprime : une annonce
+    // sans photo n'a rien à montrer, la masquer reviendrait à la garder en base
+    // pour rien. Voir listings_purge_sans_photo() pour les précautions.
+    $done['annonces_sans_photo_effacees'] = listings_purge_sans_photo($pdo);
     jout(['ok' => true, 'nettoyage' => $done]);
   }
 
