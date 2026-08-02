@@ -1196,3 +1196,120 @@ n'a pas changé dans `store/APP-VERSIONS.md`.
   l'application). Une seule note pour tous : si la CSP `Report-Only` passe un
   jour en mode bloquant, revérifier à ce moment-là que `'unsafe-eval'` /
   `'wasm-unsafe-eval'` sont toujours nécessaires à l'IA photo embarquée.
+
+---
+
+### 2026-08-02 03:19 — [Livraison] 🔨 Le Monteur
+
+**Repère à corriger dans le prompt de cette routine, pas dans le dépôt.**
+`store/APP-VERSIONS.md` n'est PAS périmé — il est à jour, la v1.10 y figure
+avec son commit. C'est la valeur codée dans mes instructions (« aujourd'hui :
+`a993629` ») qui l'est : ce commit est celui de la v1.2, **trois versions en
+retard** sur le vrai dernier build. J'ai donc travaillé à partir du commit
+réellement inscrit en tête de fichier, **`e1a07b7`** (v1.10, versionCode 11),
+et je signale l'écart pour que le prompt stocké de cette routine soit
+recorrigé — sinon chaque semaine repart du même faux repère.
+
+**État des deux boutiques.** Google Play : la **v1.9 (versionCode 10)** est
+la première version de l'histoire du projet à avoir réellement atteint des
+testeurs — active sur le canal de test fermé depuis le 1ᵉʳ août. Elle est
+déjà **remplacée sur le papier** par la **v1.10 (versionCode 11)**, construite
+et signée le 1ᵉʳ août au soir (6,7 Mo), mais **pas encore téléversée** dans la
+Play Console à l'heure de ce rapport. App Store : toujours aucune version,
+volet **bloqué** — ni Mac avec Xcode, ni compte Apple Developer (99 $/an).
+
+**Ce que les testeurs ont ENTRE LES MAINS en ce moment (v1.9) et qui ne
+fonctionne pas.** La v1.9 n'a demandé que la permission `INTERNET` : quand
+l'accueil demandait la position, Android refusait sans la moindre boîte de
+dialogue, et l'app se rabattait en silence sur une estimation par adresse IP
+qui place à peu près tout le monde à Abidjan-Plateau. « Les annonces près de
+chez vous » ne veut donc rien dire pour les testeurs actuels, et rien ne le
+leur signale. C'est corrigé dans la v1.10, qui attend son téléversement — la
+fenêtre d'exposition de ce défaut se compte en jours tant qu'elle n'a pas
+remplacé la v1.9 en test fermé.
+
+**Ce qui suit n'y est pas non plus** : les trois photos minimum pour publier
+(formulaire ET route serveur), et le délai de garde de quinze secondes sur
+les envois (`POST`/`PUT`/`DELETE` qui tournaient indéfiniment sans message
+sur un réseau qui décroche).
+
+**Verdict pour un NOUVEAU build : ATTENDRE.**
+```
+git log --oneline e1a07b7..HEAD -- src/ public/ index.html capacitor.config.ts package.json vite.config.ts
+→ (vide)
+```
+Un seul commit est arrivé depuis la v1.10 (`7594b48`), et il ne touche que
+`store/APP-VERSIONS.md` lui-même (correction de deux numéros de commit
+inventés pour v1.7/v1.8) — aucun effet sur l'application. Aucune des quatre
+conditions du §3 n'est remplie : pas de correction de sécurité ou de
+confidentialité en attente côté interface, pas d'exigence de boutique
+nouvelle, pas trois fonctionnalités accumulées, pas trois semaines écoulées
+depuis le dernier build (30/07 → 01/08, deux jours). Un build de plus
+n'apporterait rien : la v1.10 couvre déjà tout ce qui a changé sur le site.
+
+**Mais l'action qui compte cette semaine n'est pas un build, c'est un
+téléversement.** La v1.10 existe, est signée, et corrige un défaut qui casse
+une fonctionnalité centrale pour des testeurs réels aujourd'hui. Tant qu'elle
+reste dans un tiroir, la v1.9 cassée continue de tourner sur leurs
+téléphones.
+
+**Numéros de version : sans objet, aucun nouveau build proposé.** Si le site
+évolue avant le prochain passage, le prochain build portera **versionCode
+12** (jamais réutiliser 11) ; le versionName suivra le contenu du moment
+(mineur pour des correctifs, majeur pour une refonte visible). Pour iOS,
+`CFBundleShortVersionString` suivrait le même versionName qu'Android, et
+`CFBundleVersion` démarrerait à 1 pour le premier envoi.
+
+**Notes de version — prêtes à coller pour le téléversement de la v1.10, qui
+lui, est déjà construite :**
+
+*Play (« Nouveautés »), 328 caractères sur 500 :*
+> Les annonces près de chez vous s'affichent enfin correctement grâce à la
+> position exacte de votre téléphone. Publier une annonce demande maintenant
+> au moins 3 photos, pour rassurer les acheteurs. Se connecter ou publier ne
+> reste plus bloqué indéfiniment sur un réseau lent : l'écran redevient
+> utilisable après quelques secondes.
+
+*App Store (« Nouveautés de cette version ») :*
+> Vos annonces près de chez vous s'affichent désormais grâce à la position
+> exacte de votre téléphone, et non plus à une estimation approximative qui
+> plaçait tout le monde au même endroit.
+>
+> Publier une annonce demande maintenant au moins 3 photos : les acheteurs
+> voient mieux avant de se déplacer.
+>
+> Sur un réseau lent, se connecter ou publier ne reste plus bloqué
+> indéfiniment — l'écran redevient utilisable après quelques secondes, même
+> sans réponse du serveur.
+
+**Captures d'écran : aucune à refaire.** Les cinq écrans de référence
+(accueil, annonce, explorer, vendeur, aide) ne sont concernés par aucun des
+commits de la v1.10 ni par l'unique commit arrivé depuis — rien de visuel
+n'a changé. Les trois jeux (téléphone, tablette 7", tablette 10") sont
+présents dans `store/captures/`.
+
+**Vérifications avant build (dépôt, à l'heure de ce rapport) :**
+
+| Vérification | Résultat |
+|---|---|
+| `capacitor.config.ts` — `appId: 'ci.chap.app'`, pas de `server.url` | ✅ conforme |
+| `src/lib/native.ts` — `SITE_ORIGIN === 'https://chap.ci'`, `mediaUrl()` en place | ✅ conforme |
+| `src/lib/marketing.ts` — garde `if (isNative) return` intacte | ✅ conforme |
+| `src/components/NativeShell.tsx` — `backButton` + `StatusBar` présents | ✅ conforme |
+| `package.json` — `cap:sync`/`cap:android` chaînent `android-slim.mjs` ; `cap:ios` ne le chaîne pas (normal) | ✅ conforme |
+| Plugins `@capacitor/*` — core, cli, android, ios, app, geolocation, splash-screen, status-bar | ✅ conforme, aucun nouveau |
+| `npm run build` | ✅ passe, aucune erreur TypeScript |
+
+**Marche à suivre Android.** Pas de nouveau build : celui qui compte
+(v1.10) existe déjà. La seule étape qui reste est le téléversement :
+Play Console → canal **Test fermé Chap.ci** → Créer une version → téléverser
+l'AAB v1.10 déjà signé (6,7 Mo — au-delà de 10 Mo, `android-slim.mjs` n'aurait
+pas tourné, ne pas téléverser) → coller les notes Play ci-dessus → captures
+inchangées, rien à remplacer → Envoyer pour examen. Ordre conservé :
+`npm ci` puis `npm run cap:sync` seraient nécessaires seulement pour un
+*nouveau* build, pas pour téléverser celui déjà signé.
+
+**Marche à suivre iOS.** Bloquée : ni Mac avec Xcode, ni compte Apple
+Developer (99 $/an) disponibles dans l'environnement. Rien d'autre à écrire
+tant que la ligne « Mac » de `store/APP-VERSIONS.md` reste à « non
+disponible ».
