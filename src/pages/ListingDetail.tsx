@@ -40,7 +40,7 @@ import { phpListingView } from '../lib/php'
 import { locationLabel } from '../data/locations'
 import { categoryById } from '../data/categories'
 import { formFor } from '../data/categoryForms'
-import { formSous } from '../data/sous'
+import { useFormSous } from '../data/sous'
 import { DOC_PAR_ID, cleNumero, estVenteFonciere, lireDocs } from '../data/foncier'
 import { lireCouleurs, lireVariantes, type Couleur } from '../data/couleurs'
 import { FoncierDossier } from '../components/FoncierDossier'
@@ -157,7 +157,7 @@ export function ListingDetail() {
    * avec le libellé exact qu'on lui avait montré — et rien d'autre : un champ
    * qui ne s'affichait pas au formulaire ne s'affiche pas non plus ici.
    */
-  const sousForm = formSous(listing.categoryId, listing.subcategory ?? '', attributs)
+  const sousForm = useFormSous(listing.categoryId, listing.subcategory ?? '', attributs)
   const form = sousForm ?? formFor(listing.categoryId)
   const sellerInitial = (listing.sellerName || '?').trim().charAt(0).toUpperCase() || '?'
   // Dossier foncier : affiché pour une VENTE immobilière, sous les attributs.

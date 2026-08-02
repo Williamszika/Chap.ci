@@ -408,7 +408,7 @@ export function Profile() {
                           const lbl = ['L', 'M', 'M', 'J', 'V', 'S', 'D'][d.dow - 1]
                           return (
                             <div key={d.day} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                              <span className="tnum text-[10px] font-semibold text-gray-400">{d.n}</span>
+                              <span className="tnum text-[10px] font-semibold text-gray-500">{d.n}</span>
                               <div className="flex w-full flex-1 items-end">
                                 <div
                                   className={`w-full rounded-t-md ${peak ? 'bg-ivoire-green' : 'bg-gradient-to-t from-primary-600 to-primary-400'}`}
@@ -431,7 +431,7 @@ export function Profile() {
                           const peak = (l.views ?? 0) === maxViews
                           return (
                             <div key={l.id} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                              <span className="tnum text-[10px] font-semibold text-gray-400">{l.views ?? 0}</span>
+                              <span className="tnum text-[10px] font-semibold text-gray-500">{l.views ?? 0}</span>
                               <div className="flex w-full flex-1 items-end">
                                 <div
                                   className={`w-full rounded-t-md ${peak ? 'bg-ivoire-green' : 'bg-gradient-to-t from-primary-600 to-primary-400'}`}
@@ -695,7 +695,7 @@ export function Profile() {
               onClick={() => {
                 if (confirm('Effacer vos données locales de cet appareil (favoris) ?')) resetDemo()
               }}
-              className="w-full text-center text-sm text-gray-400"
+              className="w-full text-center text-sm text-gray-500"
             >
               Effacer mes données locales (favoris)
             </button>
@@ -1125,7 +1125,7 @@ function SellerReviews({
                 </span>
               </div>
               {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
-              <p className="mt-1 text-[11px] text-gray-400">{timeAgo(r.createdAt)}</p>
+              <p className="mt-1 text-[11px] text-gray-500">{timeAgo(r.createdAt)}</p>
             </div>
           ))}
         </div>
@@ -1178,7 +1178,7 @@ function OrderCard({
       </button>
       <div className="border-t border-line px-4 py-2">
         <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="text-gray-400">{timeAgo(order.createdAt)}</span>
+          <span className="text-gray-500">{timeAgo(order.createdAt)}</span>
           <span className="tnum font-bold text-gray-800">{formatFCFA(total)}</span>
         </div>
         {footer}

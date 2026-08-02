@@ -24,7 +24,7 @@ qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | v1.9 (code 10) active en test fermé — **remplacée par la v1.11 (code 12)** | **aucune** |
+| Version publiée | v1.9 (code 10) active en test fermé — **remplacée par la v1.12 (code 13)** | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -60,6 +60,33 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.12 — versionCode 13
+
+| Champ | Valeur |
+|---|---|
+| Date du build | 2 août 2026, 03h54 |
+| Poids de l'AAB | 6,7 Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
+| État Play | construite et signée — **c'est CELLE-CI qu'il faut téléverser** |
+
+**Le démarrage divisé par deux.** Paquet initial : 221 → 133 Ko compressés
+(−40 %), sous le budget de 150 Ko que le projet s'est fixé.
+
+Les 82 formulaires par sous-catégorie partaient au démarrage, sur toutes les
+pages, alors que l'accueil et l'explorateur n'ont besoin que d'une liste de
+noms. Ils sont désormais découpés en douze fichiers chargés à la demande —
+seulement celui de la catégorie regardée. Vérifié au navigateur : zéro schéma
+téléchargé au démarrage, douze fichiers séparés bien produits. « Mon compte »
+passe aussi en chargement différé (−14 Ko).
+
+**Aussi :** neuf textes remontés au-dessus de la norme de contraste, et sept
+survols du menu du haut qui restaient collés au doigt sur tablette.
+
+> Les versions 10, 11 et 12 sont dépassées et ne doivent pas être téléversées.
+> Sauter des numéros est autorisé par Google — seule compte la croissance.
+
+---
+
 ## v1.11 — versionCode 12
 
 | Champ | Valeur |
@@ -67,7 +94,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Date du build | 2 août 2026, 03h40 |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
-| État Play | construite et signée — **remplace la v1.10, qui n'a pas été déployée** |
+| État Play | construite, **dépassée par la v1.12** avant tout téléversement |
 
 **Une correction, trouvée par la Play Console elle-même.** En prévisualisant la
 v1.10, la console a averti : *« cette version ne prend plus en charge

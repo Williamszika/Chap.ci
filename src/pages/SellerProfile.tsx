@@ -192,7 +192,7 @@ export function SellerProfile() {
       </nav>
 
       {loading ? (
-        <p className="py-16 text-center text-sm text-gray-400">Chargement…</p>
+        <p className="py-16 text-center text-sm text-gray-500">Chargement…</p>
       ) : tab === 'annonces' ? (
         sellerListings.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-400">
@@ -233,7 +233,7 @@ export function SellerProfile() {
                     <Stars value={r.rating} size={14} />
                   </div>
                   {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
-                  <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-500">
                     <MapPin size={11} /> {timeAgo(r.createdAt)}
                     {clickable && <span className="ml-auto font-semibold text-primary-500">Voir l’annonce ›</span>}
                   </p>

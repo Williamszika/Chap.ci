@@ -37,7 +37,7 @@
  *  Pixfan, ShutterCount, CoinAfrique CI, Adjemin, Jumia CI.
  * ========================================================================== */
 import type { ChampCourt, DonneesCat, SchemaSous, Vals } from './contrat'
-import type { Couleur } from '../couleurs'
+import { enregistrerCouleurs, type Couleur } from '../couleurs'
 
 
 const SOUS = [
@@ -773,3 +773,9 @@ export const ELECTRONIQUE: DonneesCat = {
   toutesCouleurs: TOUTES_COULEURS,
   schemas: SCHEMAS,
 }
+
+// La palette de ce metier rejoint le repertoire general au moment ou ce module
+// est charge. C'est ce qui permet a `couleurs.ts` de n'avoir AUCUN import vers
+// `data/sous/` : sans quoi les quatre-vingt-deux schemas repartiraient au
+// demarrage, juste pour resoudre le nom d'une teinte.
+enregistrerCouleurs(TOUTES_COULEURS)

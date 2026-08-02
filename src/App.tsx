@@ -14,7 +14,6 @@ import { trackPage } from './lib/marketing'
 import { Home } from './pages/Home'
 import { Browse } from './pages/Browse'
 import { ListingDetail } from './pages/ListingDetail'
-import { Profile } from './pages/Profile'
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
 // AdminDashboard est la plus grosse page du dépôt et ne sert qu'au Patron.
@@ -26,6 +25,17 @@ import { Register } from './pages/Register'
 // module d'analyse d'image (nsfw, ~2,8 Mo) qui ne doit PAS peser sur l'accueil.
 // Seuls les visiteurs qui publient le téléchargent.
 const PostAd = lazy(() => import('./pages/PostAd').then((m) => ({ default: m.PostAd })))
+
+// « Mon compte » aussi, malgré son trafic.
+//
+// Elle était gardée en statique pour rester instantanée — 366 vues sur 30 jours,
+// c'est la troisième page du site. Mais elle fait 1 569 lignes, et la garder
+// coûtait 13,9 Ko compressés à CHAQUE visiteur, y compris à celui qui ne verra
+// jamais son compte parce qu'il n'en a pas. Mesuré par le bureau Performance le
+// 2 août : paquet initial 221,08 → 207,21 Ko gzip.
+// Le <Suspense> global couvre déjà l'attente, et le fichier reste en cache
+// après la première ouverture : le prix n'est payé qu'une fois.
+const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })))
 
 // Pages secondaires en chargement différé.
 //

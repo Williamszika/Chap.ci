@@ -45,7 +45,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
             </button>
           </div>
         ) : loading || authLoading ? (
-          <div className="py-24 text-center text-sm text-gray-400">Chargement…</div>
+          <div className="py-24 text-center text-sm text-gray-500">Chargement…</div>
         ) : convs.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-24 text-center">
             <div className="text-5xl">💬</div>

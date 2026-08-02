@@ -14,7 +14,7 @@ import { useToast } from '../store/ToastContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
-import { formSous } from '../data/sous'
+import { useFormSous } from '../data/sous'
 import { FoncierDocs } from '../components/FoncierDocs'
 import { DOC_PAR_ID, cleNumero, lireDocs } from '../data/foncier'
 import { lireCouleurs } from '../data/couleurs'
@@ -232,7 +232,7 @@ export function PostAd() {
    * a un sens, comment s'appelle le prix, et la question dont la réponse
    * s'affichera en tête de la fiche.
    */
-  const sousForm = formSous(categoryId, subcategory, attrs)
+  const sousForm = useFormSous(categoryId, subcategory, attrs)
   const form = sousForm ?? formFor(categoryId)
 
   /**
@@ -618,7 +618,7 @@ export function PostAd() {
             J’ai déjà un compte — Se connecter
           </button>
         </div>
-        <button onClick={() => navigate(-1)} className="text-sm font-medium text-gray-400">
+        <button onClick={() => navigate(-1)} className="text-sm font-medium text-gray-500">
           Retour
         </button>
       </div>

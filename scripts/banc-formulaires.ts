@@ -1,7 +1,18 @@
 /* Banc d'essai des 82 sous-catégories.
    Ouvre chaque formulaire, coche chaque puce, et vérifie ce qui doit tenir :
    les clés, le bandeau, les blocages, les listes en cascade, les couleurs. */
-import { DONNEES_SOUS, formSous, sousDe } from '../src/data/sous/index.ts'
+import { CATEGORIES_A_SCHEMA, chargerSchema, formSous, sousDe } from '../src/data/sous/index.ts'
+import { NOMS_SOUS } from '../src/data/sous/noms.ts'
+
+// Les schémas se chargent désormais à la demande, catégorie par catégorie. Le
+// banc les charge donc TOUS d'un coup avant de commencer — c'est le seul
+// endroit où on veut vraiment tout en mémoire.
+const DONNEES_SOUS: Record<string, any> = {}
+for (const cat of CATEGORIES_A_SCHEMA) {
+  const d = await chargerSchema(cat)
+  if (d) DONNEES_SOUS[cat] = d
+  else console.log(`  !! ${cat} : schéma introuvable`)
+}
 
 type Souci = { ou: string; quoi: string }
 const soucis: Souci[] = []
@@ -102,6 +113,21 @@ for (const [cat, data] of Object.entries(DONNEES_SOUS)) {
   }
   bilan.push(`  ${cat}`)
   bilan.push(...lignes)
+}
+
+// La liste des noms (chargée au démarrage par l'accueil) doit dire exactement
+// la même chose que les schémas (chargés à la demande). Si les deux divergent,
+// une sous-catégorie devient soit inatteignable, soit sans formulaire — et
+// personne ne s'en aperçoit avant qu'un vendeur ne tombe dessus.
+for (const [cat, data] of Object.entries(DONNEES_SOUS)) {
+  const noms = NOMS_SOUS[cat] ?? []
+  const dansSchema = (data as any).sous as string[]
+  if (JSON.stringify(noms) !== JSON.stringify(dansSchema)) {
+    soucis.push({ ou: cat, quoi: `noms.ts et le schéma divergent :\n      noms.ts = ${JSON.stringify(noms)}\n      schéma  = ${JSON.stringify(dansSchema)}` })
+  }
+}
+for (const cat of Object.keys(NOMS_SOUS)) {
+  if (!DONNEES_SOUS[cat]) soucis.push({ ou: cat, quoi: 'présente dans noms.ts mais sans schéma chargeable' })
 }
 
 console.log(bilan.join('\n'))

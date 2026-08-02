@@ -12,48 +12,75 @@
 //  plus lieu d'être. Au-delà de cette frontière, plus personne ne voit `k`,
 //  `l` ni `o`.
 // =============================================================================
-import { enregistrerCouleurs, type Couleur } from '../couleurs'
+import { useEffect, useState } from 'react'
+import type { Couleur } from '../couleurs'
 import type { AttrField, CategoryForm } from '../categoryForms'
 import type { ChampCourt, DonneesCat, SchemaSous, Selon, Vals } from './contrat'
 
-import { VEHICULES } from './vehicules'
-import { MODE } from './mode'
-import { ELECTRONIQUE } from './electronique'
-import { MAISON } from './maison'
-import { EMPLOI } from './emploi'
-import { SERVICES } from './services'
-import { MATERIEL } from './materiel'
-import { ALIMENTATION } from './alimentation'
-import { ANIMAUX } from './animaux'
-import { LOISIRS } from './loisirs'
-import { BEBE } from './bebe'
-import { SANTE } from './sante'
-
-/** Les données par identifiant de catégorie — les mêmes ids que `categories.ts`. */
-export const DONNEES_SOUS: Record<string, DonneesCat> = {
-  vehicules: VEHICULES,
-  mode: MODE,
-  electronique: ELECTRONIQUE,
-  maison: MAISON,
-  emploi: EMPLOI,
-  services: SERVICES,
-  // L'identifiant garde son tiret : c'est celui sous lequel les annonces
-  // existantes sont enregistrées. Le renommer les orphelinerait toutes.
-  'materiel-pro': MATERIEL,
-  alimentation: ALIMENTATION,
-  animaux: ANIMAUX,
-  loisirs: LOISIRS,
-  bebe: BEBE,
-  sante: SANTE,
+/**
+ * Un chargeur par catégorie — et PAS un import statique.
+ *
+ * `import()` demande à Vite de découper : chaque catégorie devient un fichier
+ * à part, téléchargé seulement quand quelqu'un ouvre une annonce ou un
+ * formulaire de cette catégorie-là. Le paquet de démarrage n'en porte aucun.
+ *
+ * Écrire les chemins EN CLAIR est obligatoire : `import('./' + id)` empêcherait
+ * Vite de savoir quoi découper, et il embarquerait tout par sécurité — le
+ * problème qu'on vient précisément de corriger.
+ *
+ * L'identifiant `materiel-pro` garde son tiret : c'est celui sous lequel les
+ * annonces existantes sont enregistrées. Le renommer les orphelinerait toutes.
+ */
+const CHARGEURS: Record<string, () => Promise<Record<string, DonneesCat>>> = {
+  vehicules: () => import('./vehicules'),
+  mode: () => import('./mode'),
+  electronique: () => import('./electronique'),
+  maison: () => import('./maison'),
+  emploi: () => import('./emploi'),
+  services: () => import('./services'),
+  'materiel-pro': () => import('./materiel'),
+  alimentation: () => import('./alimentation'),
+  animaux: () => import('./animaux'),
+  loisirs: () => import('./loisirs'),
+  bebe: () => import('./bebe'),
+  sante: () => import('./sante'),
 }
 
-/** Toutes les couleurs que ces schémas peuvent proposer, toutes palettes confondues. */
-export const COULEURS_DES_SOUS: Couleur[] = Object.values(DONNEES_SOUS).flatMap((d) => d.toutesCouleurs)
+/** Les catégories qui possèdent un formulaire détaillé. */
+export const CATEGORIES_A_SCHEMA = Object.keys(CHARGEURS)
 
-// Les palettes des métiers rejoignent le répertoire général dès que ce fichier
-// est chargé. Sans cela, une annonce enregistrée en « Iroko » ou en « 1B ·
-// Noir naturel » se relirait sans sa pastille, et disparaîtrait des filtres.
-enregistrerCouleurs(COULEURS_DES_SOUS)
+// Une fois chargée, une catégorie reste en mémoire : rouvrir une annonce de la
+// même catégorie ne redemande rien, et le formulaire s'affiche du premier coup.
+const charges = new Map<string, DonneesCat>()
+const enCours = new Map<string, Promise<DonneesCat | null>>()
+
+/** Le schéma d'une catégorie s'il est déjà en mémoire, sinon `null`. */
+export function schemaCharge(categoryId: string): DonneesCat | null {
+  return charges.get(categoryId) ?? null
+}
+
+/** Charge le schéma d'une catégorie. Deux appels simultanés ne téléchargent qu'une fois. */
+export function chargerSchema(categoryId: string): Promise<DonneesCat | null> {
+  const deja = charges.get(categoryId)
+  if (deja) return Promise.resolve(deja)
+  const encours = enCours.get(categoryId)
+  if (encours) return encours
+  const chargeur = CHARGEURS[categoryId]
+  if (!chargeur) return Promise.resolve(null)
+  const p = chargeur()
+    .then((mod) => {
+      // Le module exporte sa catégorie sous un nom en majuscules (VEHICULES,
+      // MODE…). On prend la première valeur qui ressemble à un jeu de schémas
+      // plutôt que de maintenir une seconde table de correspondance.
+      const data = Object.values(mod).find((v) => v && typeof v === 'object' && 'schemas' in v)
+      if (data) charges.set(categoryId, data)
+      return data ?? null
+    })
+    .catch(() => null) // réseau coupé : la fiche s'affiche sans ses attributs
+    .finally(() => { enCours.delete(categoryId) })
+  enCours.set(categoryId, p)
+  return p
+}
 
 // -----------------------------------------------------------------------------
 //  Résolution
@@ -84,7 +111,7 @@ function valeurs(schema: SchemaSous, attrs: Record<string, string>, sous: string
 
 /** Le schéma d'une sous-catégorie, ou celui de la première si aucune n'est choisie. */
 function schemaDe(categoryId: string, sous: string): { data: DonneesCat; schema: SchemaSous; sous: string } | null {
-  const data = DONNEES_SOUS[categoryId]
+  const data = charges.get(categoryId)
   if (!data) return null
   // « Toutes » (ou rien) : on prend la première sous-catégorie. C'est la plus
   // courante, et cela vaut mieux qu'un formulaire vide — le vendeur voit
@@ -236,7 +263,39 @@ export function formSous(
   }
 }
 
-/** Les sous-catégories d'une catégorie, dans l'ordre des schémas. */
-export function sousDe(categoryId: string): string[] {
-  return DONNEES_SOUS[categoryId]?.sous ?? []
+// `sousDe` et `NOMS_SOUS` vivent dans `noms.ts` : ce sont les seules données
+// dont l'accueil et l'explorateur ont besoin, et elles doivent rester
+// disponibles sans télécharger le moindre schéma.
+export { sousDe, NOMS_SOUS } from './noms'
+
+/**
+ * Le formulaire d'une sous-catégorie, chargé à la demande.
+ *
+ * Rend `null` le temps que le schéma de la catégorie arrive — quelques
+ * dizaines de millisecondes la première fois, zéro ensuite (il reste en
+ * mémoire). Les deux écrans qui l'utilisent savent déjà quoi faire d'un
+ * `null` : ils retombent sur le formulaire générique de `categoryForms.ts`.
+ * L'annonce s'affiche donc tout de suite, ses attributs détaillés arrivent
+ * juste après — plutôt qu'un écran vide le temps du téléchargement.
+ */
+export function useFormSous(
+  categoryId: string,
+  sous: string,
+  attrs: Record<string, string>,
+): FormSous | null {
+  const [pret, setPret] = useState(() => !!schemaCharge(categoryId))
+
+  useEffect(() => {
+    if (!categoryId) return
+    if (schemaCharge(categoryId)) { setPret(true); return }
+    setPret(false)
+    let vivant = true
+    chargerSchema(categoryId).then(() => { if (vivant) setPret(true) })
+    return () => { vivant = false }
+  }, [categoryId])
+
+  // `pret` ne sert qu'à provoquer un nouveau rendu : c'est `formSous` qui lit
+  // le cache. Le lire ici garantit qu'on ne rend jamais un schéma périmé.
+  void pret
+  return formSous(categoryId, sous, attrs)
 }

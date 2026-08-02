@@ -62,7 +62,7 @@ export function TopNav() {
               key={it.label}
               to={it.to}
               className={`whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-semibold transition lg:px-3 ${
-                it.active ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:bg-cream-100'
+                it.active ? 'bg-primary-50 text-primary-700' : 'text-gray-600 md:hover:bg-cream-100'
               }`}
             >
               {it.label}
@@ -99,7 +99,7 @@ export function TopNav() {
 
         <NotificationBell
           align="right"
-          buttonClass="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line2 bg-white text-gray-600 transition hover:bg-cream-100"
+          buttonClass="relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line2 bg-white text-gray-600 transition md:hover:bg-cream-100"
         />
 
         {user ? (
@@ -108,7 +108,7 @@ export function TopNav() {
           <div className="flex shrink-0 items-center gap-2">
             <Link
               to="/connexion"
-              className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-cream-100"
+              className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold text-gray-700 transition md:hover:bg-cream-100"
             >
               Connexion
             </Link>
@@ -168,7 +168,7 @@ function AccountMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         className={`flex items-center gap-1.5 rounded-full border py-1.5 pl-1.5 pr-1.5 text-sm font-semibold transition lg:pr-3 ${
-          open ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-line2 text-gray-700 hover:bg-cream-100'
+          open ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-line2 text-gray-700 md:hover:bg-cream-100'
         }`}
       >
         <span className="grid h-7 w-7 place-items-center rounded-full bg-primary-100 text-sm font-bold text-primary-600">
@@ -185,7 +185,7 @@ function AccountMenu() {
         >
           {user ? (
             <>
-              <Link to="/compte" onClick={close} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
+              <Link to="/compte" onClick={close} className="flex items-center gap-3 px-4 py-2.5 md:hover:bg-gray-50">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-100 font-bold text-primary-600">
                   {initial}
                 </span>
@@ -216,7 +216,7 @@ function AccountMenu() {
               <button
                 onClick={logout}
                 role="menuitem"
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold text-red-600 transition md:hover:bg-red-50"
               >
                 <LogOut size={17} /> Déconnexion
               </button>
@@ -263,7 +263,7 @@ function Item({
       state={state}
       onClick={onClick}
       role="menuitem"
-      className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-50 ${
+      className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition md:hover:bg-gray-50 ${
         accent ? 'text-primary-700' : 'text-gray-700'
       }`}
     >

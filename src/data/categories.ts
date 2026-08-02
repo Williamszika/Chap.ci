@@ -1,5 +1,5 @@
 import type { Category } from '../types'
-import { sousDe } from './sous'
+import { sousDe } from './sous/noms'
 
 /**
  * Les catégories de Chap.ci, adaptées au marché ivoirien.
