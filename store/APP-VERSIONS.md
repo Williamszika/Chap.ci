@@ -42,6 +42,18 @@ parce que c'est celui qu'on oublie :
 Le commit à inscrire est celui qui contient le `versionCode` de ce build —
 autrement dit `git log --oneline -1` juste après avoir commité la montée de version.
 
+> **« État Play » est le seul champ que le Développement ne peut pas vérifier.**
+> Tous les autres se lisent dans le dépôt ou dans le fichier produit ; celui-là ne
+> vit que dans la Play Console, où seul le Patron entre. Il est donc écrit AVANT le
+> téléversement, avec la valeur espérée — et il reste faux jusqu'à ce que le Patron
+> confirme.
+>
+> **Aucun bureau ne doit affirmer l'état d'une version sur la foi de ce champ.**
+> Le 03/08, une ronde a écrit que la v1.17 « attend toujours son premier
+> téléversement » : elle ne faisait que relire une valeur posée deux jours plus tôt.
+> La formulation juste est « d'après le journal, non confirmé par le Patron ».
+> Quand l'état est inconnu, écris `NON VÉRIFIÉ` plutôt qu'une supposition.
+
 ---
 
 ## État des deux boutiques
@@ -91,7 +103,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | **Commit** | `057db9d` |
 | Date du build | 2 août 2026 |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` |
-| État Play | **à téléverser — remplace la v1.16, jamais envoyée** |
+| État Play | construite et signée le 02/08. **État réel dans la console : NON VÉRIFIÉ** — le Patron a répondu « déjà poussé » le 03/08 sans que la ligne de la release ait été relue. Remplace la v1.16, jamais envoyée à l'examen. |
 
 **Contient tout ce qu'apportaient la v1.15 et la v1.16.** Aucune des deux n'a été
 envoyée à l'examen : il n'y a qu'un seul fichier à téléverser, celui-ci.

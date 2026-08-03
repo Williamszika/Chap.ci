@@ -98,6 +98,14 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
    Si APP-VERSIONS.md paraît périmé — une version y manque, ou le Patron a parlé
    d'un build sans qu'il y figure — DIS-LE en tête de rapport : tout ton
    raisonnement en dépend, et un repère faux vaut moins que pas de repère.
+
+   ⚠️ LE CHAMP « ÉTAT PLAY » N'EST PAS UNE OBSERVATION. Il est écrit par le
+   Développement AVANT le téléversement, avec la valeur espérée, et personne ici
+   n'a accès à la Play Console pour le corriger. N'écris JAMAIS « la version
+   attend son téléversement » ou « elle a été envoyée » comme un fait : écris
+   « d'après le journal, non confirmé par le Patron », et demande-lui de relire
+   la ligne de la release. Le 03/08, une ronde a présenté comme un constat une
+   valeur posée deux jours plus tôt.
    Si la ligne « Mac + Xcode » y est « non disponible », le volet iOS est
    BLOQUÉ : dis-le en une phrase, rappelle ce qu'il faudrait pour le débloquer
    (un Mac avec Xcode, un compte Apple Developer à 99 $/an), et NE PRODUIS PAS
