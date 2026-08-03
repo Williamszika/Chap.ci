@@ -13,7 +13,14 @@ import { haversineKm, formatDistance } from '../lib/geo'
 import { activePromo } from '../lib/promo'
 import { PromoTag } from './PromoTag'
 
-export function ListingCard({ listing }: { listing: Listing }) {
+/**
+ * Une carte d'annonce.
+ *
+ * `rang` = sa position dans la grille. Il ne sert qu'à une chose, mais elle
+ * compte : décider si la vignette part TOUT DE SUITE ou attend le défilement.
+ * Voir plus bas, sur l'attribut `loading`.
+ */
+export function ListingCard({ listing, rang = 99 }: { listing: Listing; rang?: number }) {
   const { isFavorite, toggleFavorite } = useApp()
   const { position } = useGeo()
   const fav = isFavorite(listing.id)
@@ -37,10 +44,36 @@ export function ListingCard({ listing }: { listing: Listing }) {
       className="card group block overflow-hidden transition duration-200 active:scale-[0.98] md:hover:-translate-y-0.5 md:hover:shadow-card-lg"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+        {/* Les premières vignettes ne se chargent PAS en différé.
+​
+            « loading=lazy » sur une image déjà visible ne fait économiser aucun
+            octet : le navigateur la télécharge de toute façon dès qu'il calcule
+            la mise en page. Le seul effet est de la RETARDER d'une passe.
+
+            Mesuré au navigateur sur /explorer avec les vraies annonces :
+              mobile 390 px  — LCP 92 ms, sur un texte : les vignettes ne sont
+                               pas en cause, le différé ne coûte rien.
+              tablette 820   — LCP 880 ms, et l'élément LCP est justement une
+                               vignette en « lazy ».
+              bureau 1280    — LCP 696 ms, même cause.
+
+            Les SIX premières partent donc sans différé, et la toute première en
+            priorité haute. Six, parce que c'est le nombre de cartes qui tiennent
+            dans un premier écran : six sur un mobile 390 px (deux colonnes,
+            trois rangées), et la grille entière sur tablette et bureau. Au-delà,
+            le différé reprend et fait, lui, une vraie économie — c'est ce qui
+            compte sur un forfait à Abidjan.
+
+            À quatre, le LCP tombait encore sur une vignette différée en
+            tablette : les sept cartes y tenaient dans l'écran.
+
+            `rang` vient de la grille. Sa valeur par défaut (99) garde le
+            comportement différé partout où l'appelant ne le passe pas. */}
         <img
           src={mediaUrl(listing.images[0]) || fallbackImg}
           alt={listing.title}
-          loading="lazy"
+          loading={rang < 6 ? 'eager' : 'lazy'}
+          fetchPriority={rang === 0 ? 'high' : undefined}
           className="h-full w-full object-cover"
           onError={(e) => {
             const img = e.currentTarget

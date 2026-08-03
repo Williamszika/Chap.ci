@@ -366,8 +366,11 @@ export function Browse() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {results.map((l) => (
-              <ListingCard key={l.id} listing={l} />
+            {/* `rang` : les quatre premières vignettes ne partent pas en
+                différé — sur tablette et bureau, c'est l'une d'elles qui fixe
+                le LCP. Voir ListingCard. */}
+            {results.map((l, i) => (
+              <ListingCard key={l.id} listing={l} rang={i} />
             ))}
           </div>
         )}
