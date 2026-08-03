@@ -31,6 +31,19 @@ const sections: Section[] = [
         ),
       },
       {
+        q: 'Le site, l’installation sur mon téléphone et l’application, c’est pareil ?',
+        a: (
+          <>
+            Oui, c’est le même Chap.ci, avec les mêmes annonces et le même compte. Trois façons d’y accéder :{' '}
+            <b>le site</b>, dans votre navigateur ; <b>l’installation sur l’écran d’accueil</b>, qui vous donne
+            une icône comme une vraie application sans rien télécharger ; et <b>l’application Android</b>, en
+            préparation sur le Play Store. En attendant sa mise en ligne, l’installation depuis le site est
+            plus rapide et pèse moins lourd sur votre forfait — et vous recevez les nouveautés sans attendre
+            une mise à jour.
+          </>
+        ),
+      },
+      {
         q: 'Dans quelles villes fonctionne Chap.ci ?',
         a: 'Partout en Côte d’Ivoire. Vous pouvez filtrer les annonces par district, région, ville et commune — d’Abidjan à Bouaké, San-Pédro, Yamoussoukro, Korhogo…',
       },

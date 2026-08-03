@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { mediaUrl } from '../lib/native'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Send, Tag } from 'lucide-react'
+import { ArrowLeft, Send, Tag, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
 import {
@@ -150,6 +150,20 @@ export function Conversation() {
 
           {/* Suivi de transaction (achat / réception / avis) */}
           {id && conv?.listingId && <DealCard convId={id} userId={user.id} />}
+
+          {/* Rappel de sécurité — court, et seulement au DÉBUT d'une conversation.
+              Le bloc long existe sur la fiche annonce, mais la négociation et la
+              décision de payer se prennent ICI, parfois des jours plus tard. Une
+              ligne suffit ; répétée à chaque message, elle ne serait plus lue. */}
+          {!loading && messages.length <= 2 && (
+            <div className="mx-3 mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
+              <ShieldCheck size={15} className="mt-0.5 shrink-0 text-amber-700" />
+              <p className="text-[12.5px] leading-relaxed text-amber-800">
+                Restez sur Chap.ci pour échanger, et <b>vérifiez le produit avant de payer</b>.
+                Rencontrez-vous dans un lieu public, ou choisissez le paiement à la livraison.
+              </p>
+            </div>
+          )}
 
           {/* Messages */}
           <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-4 md:min-h-0">

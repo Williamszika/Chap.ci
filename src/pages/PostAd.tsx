@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { ecrireBrouillon, lireBrouillon, effacerBrouillon, ilYA } from '../lib/brouillon'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
@@ -148,6 +149,27 @@ export function PostAd() {
   const [moderation, setModeration] = useState<ModReason[] | null>(null) // refus du Gardien
   const [submitting, setSubmitting] = useState(false)
   const prefilled = useRef(false)
+
+  // Brouillon local — voir src/lib/brouillon.ts pour le pourquoi.
+  // On ne propose la reprise QU'EN création : en édition, le formulaire est déjà
+  // rempli par l'annonce existante, une reprise l'écraserait.
+  const [brouillon, setBrouillon] = useState(() => (editId ? null : lireBrouillon()))
+  const brouillonRepris = useRef(false)
+
+  // Sauvegarde automatique de la saisie, une seconde après la dernière frappe.
+  //
+  // Uniquement en création : en édition, l'annonce vit déjà sur le serveur, il
+  // n'y a rien à sauver localement. Les photos sont volontairement exclues —
+  // trois data:URI dépassent le quota du navigateur à elles seules.
+  useEffect(() => {
+    if (editing) return
+    const t = window.setTimeout(() => {
+      ecrireBrouillon({ title, categoryId, subcategory, attrs, condition, price,
+                        negotiable, delivery, description, loc })
+    }, 1000)
+    return () => window.clearTimeout(t)
+  }, [editing, title, categoryId, subcategory, attrs, condition, price,
+      negotiable, delivery, description, loc])
 
   // Mode édition : préremplit une fois le formulaire avec l'annonce existante.
   useEffect(() => {
@@ -531,7 +553,9 @@ export function PostAd() {
       // analysées à l'ajout) et est en ligne. Toast immédiat + la cloche est
       // rafraîchie (le serveur y a déposé une notification « Annonce publiée »).
       toast.success(editing ? 'Annonce mise à jour ✅' : 'Votre annonce est en ligne ✅')
-      if (!editing) trackPublish() // conversion pixels (Meta/TikTok/Google)
+      // Le brouillon a rempli son office : on l'efface, sinon la prochaine
+      // publication proposerait de reprendre une annonce déjà en ligne.
+      if (!editing) { effacerBrouillon(); trackPublish() } // conversion pixels
       refreshNotifs()
       navigate(`/annonce/${created.id}`)
     } catch (e) {
@@ -646,6 +670,50 @@ export function PostAd() {
             : 'Gratuit · en ligne en 2 minutes'}
         </p>
       </header>
+
+      {/* Reprise d'une saisie interrompue.
+          On PROPOSE, on n'impose pas : quelqu'un qui vient publier autre chose
+          ne doit pas retrouver l'ancienne annonce dans ses champs. Et on dit
+          franchement que les photos sont à remettre, plutôt que de le laisser
+          découvrir un formulaire à moitié rempli. */}
+      {brouillon && !brouillonRepris.current && (
+        <div className="mx-auto mb-1 mt-4 w-full max-w-2xl px-4 lg:px-8">
+          <div className="rounded-2xl border border-primary-200 bg-[#FFF6EC] p-4">
+            <p className="text-[14px] font-bold text-ink">
+              Vous aviez commencé une annonce {ilYA(brouillon.le)}
+            </p>
+            <p className="mt-1 text-[13px] leading-relaxed text-gray-700">
+              {brouillon.title ? <>« {brouillon.title} »</> : 'Sans titre'} — on peut reprendre
+              où vous en étiez. <b>Les photos sont à remettre</b> : elles sont trop lourdes pour
+              être gardées sur le téléphone.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const b = brouillon
+                  brouillonRepris.current = true
+                  setTitle(b.title); setCategoryId(b.categoryId); setSubcategory(b.subcategory)
+                  setAttrs(b.attrs || {}); setCondition(b.condition); setPrice(b.price)
+                  setNegotiable(b.negotiable); setDelivery(b.delivery)
+                  setDescription(b.description); setLoc(b.loc || {})
+                  setBrouillon(null)
+                }}
+                className="rounded-xl bg-primary-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
+              >
+                Reprendre
+              </button>
+              <button
+                type="button"
+                onClick={() => { effacerBrouillon(); setBrouillon(null) }}
+                className="rounded-xl border border-line2 bg-white px-4 py-2 text-sm font-semibold text-gray-600"
+              >
+                Recommencer à zéro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={submit} className="mx-auto w-full max-w-2xl px-4 pb-8 pt-5 lg:px-8">
         {/* Refus du Gardien de publication (modération automatique) */}
@@ -774,7 +842,7 @@ export function PostAd() {
         </div>
 
         {/* Titre */}
-        <Field label="Titre de l’annonce" htmlFor="pa-title">
+        <Field label="Titre de l’annonce" htmlFor="pa-title" requis>
           <input
             id="pa-title"
             value={title}
@@ -786,7 +854,7 @@ export function PostAd() {
         </Field>
 
         {/* Catégorie — menu déroulant (façon artifact) */}
-        <Field label="Catégorie" htmlFor="pa-category">
+        <Field label="Catégorie" htmlFor="pa-category" requis>
           <div className="relative">
             <select
               id="pa-category"
@@ -807,7 +875,7 @@ export function PostAd() {
 
         {/* Sous-catégorie — puces selon la catégorie choisie */}
         {cat && (
-          <Field label="Sous-catégorie">
+          <Field label="Sous-catégorie" requis>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -836,7 +904,7 @@ export function PostAd() {
         {categoryId && champsVisibles.map((f) => (
           <div key={f.key} id={`pa-attr-${f.key}`}>
             {f.type === 'docs' ? (
-              <Field label={f.label}>
+              <Field label={f.label} requis={f.required}>
                 {f.help && <p className="-mt-1 mb-2 text-xs text-gray-500">{f.help}</p>}
                 <FoncierDocs attrs={attrs} setAttr={setAttr} />
               </Field>
@@ -845,7 +913,7 @@ export function PostAd() {
               // photo (désignée parmi celles de l'annonce), son prix, ses détails.
               // La palette est celle du métier — pour un meuble on ne choisit
               // pas « rouge ou bleu », on choisit l'essence du bois.
-              <Field label={f.label}>
+              <Field label={f.label} requis={f.required}>
                 <CouleursVariantes
                   attrs={attrs}
                   setAttr={setAttr}
@@ -957,7 +1025,7 @@ export function PostAd() {
         {/* ---- Prix, promo, localisation, livraison, description ---- */}
         <div className="space-y-6">
         {/* Prix — libellé adapté (Salaire, Loyer, Tarif…) */}
-        <Field label={form.priceLabel ?? 'Prix'} htmlFor="pa-price">
+        <Field label={form.priceLabel ?? 'Prix'} htmlFor="pa-price" requis>
           <div className="relative">
             <input
               id="pa-price"
@@ -1069,7 +1137,7 @@ export function PostAd() {
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
         {/* Pas de htmlFor : la localisation se choisit dans un sélecteur, pas dans
             un champ de saisie. L'id sert au défilement en cas d'erreur. */}
-        <Field label="Localisation">
+        <Field label="Localisation" requis>
           <div id="pa-location" className="flex items-center justify-between rounded-xl border border-line2 bg-cream-100 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2">
               <MapPin size={18} className="shrink-0 text-primary-500" />
@@ -1197,6 +1265,13 @@ export function PostAd() {
           </p>
         )}
 
+        {/* Légende de l'astérisque. Sans elle, le symbole ne veut rien dire
+            pour qui ne l'a jamais rencontré — et ce site s'adresse aussi à des
+            gens qui remplissent leur premier formulaire en ligne. */}
+        <p className="text-[12.5px] text-gray-500">
+          Les champs marqués <span className="font-black text-primary-600">*</span> sont obligatoires.
+        </p>
+
         <button
           type="submit"
           disabled={submitting || (sousForm ? sousForm.blocages.length > 0 : false)}
@@ -1232,10 +1307,25 @@ export function PostAd() {
 // Il est omis quand le contenu n'est pas un champ de formulaire (la localisation,
 // par exemple, est un bouton qui ouvre un sélecteur) : pointer vers un élément
 // non saisissable serait pire que ne rien pointer du tout.
-function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
+/**
+ * Un champ du formulaire.
+ *
+ * `requis` affiche l'astérisque. Jusqu'ici rien ne distinguait un champ
+ * obligatoire d'un champ facultatif AVANT l'envoi : le vendeur remplissait ce
+ * qu'il voulait, cliquait « Publier », et découvrait l'exigence sous forme
+ * d'erreur. Sur un formulaire d'une douzaine de champs, c'est une déception
+ * évitable — et elle arrive au pire moment, celui où l'on croit avoir fini.
+ */
+function Field({ label, htmlFor, requis, children }: {
+  label: string; htmlFor?: string; requis?: boolean; children: React.ReactNode
+}) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-2 block text-sm font-bold text-gray-800">{label}</label>
+      <label htmlFor={htmlFor} className="mb-2 block text-sm font-bold text-gray-800">
+        {label}
+        {requis && <span className="ml-1 font-black text-primary-600" aria-hidden>*</span>}
+        {requis && <span className="sr-only"> (obligatoire)</span>}
+      </label>
       {children}
     </div>
   )
@@ -1297,7 +1387,7 @@ function AttrInput({
       onChange((choisis.includes(o) ? choisis.filter((x) => x !== o) : [...choisis, o]).join(', '))
     }
     return (
-      <Field label={multiple ? `${field.label} · plusieurs choix possibles` : field.label}>
+      <Field label={multiple ? `${field.label} · plusieurs choix possibles` : field.label} requis={field.required}>
         {field.help && <Aide texte={field.help} rouge={field.helpRouge} className="-mt-1 mb-2" />}
         <div className="flex flex-wrap gap-2">
           {field.options?.map((o) => (
@@ -1317,7 +1407,7 @@ function AttrInput({
   }
   // text / number
   return (
-    <Field label={field.label} htmlFor={attrId}>
+    <Field label={field.label} htmlFor={attrId} requis={field.required}>
       <div className="relative">
         <input
           id={attrId}
