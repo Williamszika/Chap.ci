@@ -213,12 +213,26 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    passe : « N cron_fail, toutes des clés qui n'ont jamais pu être valides —
    sondes ou balayage, aucune tâche en cause. »
 
-   S'il reste des échecs SANS « jamais-valide » (clé de 24 caractères ou plus,
-   donc plausiblement une vraie ancienne clé), croise avec les DERNIERS
-   PASSAGES RÉUSSIS : une tâche qui échoue vraiment n'a plus de passage récent.
-   Demande la capture de Admin → Tâches auto au Patron. Une route qui échoue ET
-   qui affiche un passage réussi récent tourne en double — une ligne cPanel
-   ancienne restée à côté de la nouvelle.
+   LA RÈGLE QUI TRANCHE : « derniersPassages ».
+   La même réponse contient désormais `derniersPassages` — pour chaque tâche, la
+   date de son DERNIER PASSAGE RÉUSSI et son nombre total de passages. Un échec
+   ne veut rien dire tout seul ; croisé avec cette date, il devient une réponse :
+
+     échec + AUCUN passage récent  -> la tâche est vraiment cassée. Signale-la,
+                                      nomme-la, demande la correction.
+     échec + passage récent        -> LA TÂCHE VA BIEN. Les échecs viennent de
+                                      quelqu'un d'autre. Écris-le et n'ouvre
+                                      AUCUN chantier.
+
+   « Récent » = plus frais que la périodicité de la tâche (cron/stats tourne le
+   lundi : un passage de moins de 8 jours est normal ; cron/cleanup est
+   quotidien : plus de 26 h sans passage est anormal).
+
+   NE REJOUE PAS LES MÊMES ÉVÉNEMENTS. La fenêtre `days=1` fait réapparaître
+   les échecs de la veille. Si le nombre n'a pas bougé depuis ta ronde
+   précédente, ce sont les MÊMES événements : dis « inchangé depuis hier » et
+   passe. Ne réécris pas la même recommandation deux jours de suite — c'est
+   ainsi qu'un rapport cesse d'être lu.
 
    Ensuite seulement, par ordre de probabilité décroissante :
      1. Une clé a été régénérée et les TÂCHES CRON cPANEL portent encore

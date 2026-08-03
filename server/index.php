@@ -7470,10 +7470,38 @@ try {
       }
     }
 
+    // DERNIER PASSAGE RÉUSSI DE CHAQUE TÂCHE — la moitié manquante du tableau.
+    //
+    // Le Gardien voit « cron/stats a échoué 7 fois » et en conclut, faute de
+    // mieux, qu'une tâche du Patron est cassée. Il se trompe à chaque fois où
+    // ces échecs viennent d'ailleurs — une sonde, un robot — pendant que la
+    // vraie tâche, elle, tourne très bien. Il a passé deux rondes à faire
+    // chercher au Patron des tâches à réparer qui n'existaient pas.
+    //
+    // Un échec ne dit rien tout seul. Échec + AUCUN passage récent = tâche
+    // cassée, à corriger. Échec + passage récent = la tâche va bien, et les
+    // échecs sont le fait de quelqu'un d'autre : rien à faire.
+    //
+    // Ces horodatages vivent dans cron_runs, que le tableau de bord affiche
+    // déjà — mais derrière une session administrateur, à laquelle le Gardien
+    // n'a pas accès, et c'est très bien ainsi. On les expose donc ici, sur une
+    // route qu'il a déjà le droit de lire. Ce ne sont que des dates : aucun
+    // secret, aucune donnée personnelle.
+    $passages = [];
+    try {
+      foreach ($pdo->query('SELECT path, last_ok_at, runs FROM cron_runs')->fetchAll() as $r) {
+        $passages[substr((string) $r['path'], 5)] = [
+          'dernier' => (string) $r['last_ok_at'],
+          'passages' => (int) $r['runs'],
+        ];
+      }
+    } catch (Throwable $e) { /* table absente : liste vide */ }
+
     jout([
       'periodDays'      => $days,
       'since'           => $since,
       'counts'          => $sec['counts'],
+      'derniersPassages' => $passages,
       'suspiciousIps'   => $sec['suspicious'],
       'failRatio'       => $sec['ratio'],
       'loginFail'       => $loginFail,
