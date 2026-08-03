@@ -126,20 +126,33 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    - Accueil, /api/health, sitemap.xml : codes HTTP et version PHP.
    - Une anomalie de disponibilité est P1 immédiate.
 
-   ÉCART DÉPÔT / PRODUCTION — la question se règle en une commande.
-   `/api/health` renvoie `empreinte` : les 12 premiers caractères du md5 du
-   `index.php` RÉELLEMENT servi, et `depose`, l'heure où le fichier a été écrit
-   sur le disque (donc l'heure d'extraction du zip).
+   ÉCART DÉPÔT / PRODUCTION — TROIS empreintes, une par morceau.
+   Le site se déploie en morceaux qui peuvent arriver séparément. `/api/health`
+   en donne l'empreinte de chacun — les 12 premiers caractères de son md5 :
 
-       curl -sS https://chap.ci/api/health          → "empreinte"
-       md5sum server/index.php | cut -c1-12         → l'attendu du dépôt
+       empreinte      -> server/index.php   (l'API)
+       empreinteSeo   -> seo.php            (rendu serveur pour les robots)
+       empreinteSite  -> index.html         (et donc le paquet JavaScript)
 
-   Identiques : la production exécute bien le code du dépôt, il n'y a rien à
-   dire. Différentes : le zip n'a pas été poussé, ou l'extraction a échoué —
-   dis-le en une ligne, avec les deux valeurs et `depose`. N'invente jamais un
-   déploiement à partir d'un en-tête ou d'un comportement observé : c'est ce
-   raisonnement indirect qui a coûté une ronde le 29/07. L'empreinte est la
-   seule preuve.
+       curl -sS https://chap.ci/api/health
+       md5sum server/index.php web/seo.php dist/index.html   → les attendus
+
+   ⚠️ CHAQUE EMPREINTE NE PROUVE QUE SON PROPRE FICHIER. Le 03/08, une ronde a
+   conclu que le correctif XSS de `seo.php` était « confirmé déployé grâce au
+   champ d'empreinte » — en ne regardant que celle de l'API, qui ne dit
+   strictement rien de `seo.php`. C'était vrai par chance ce jour-là. Pour
+   parler d'un correctif, cite l'empreinte DU FICHIER QUI LE PORTE, et aucune
+   autre.
+
+   Une empreinte VIDE veut dire que le fichier n'est pas là où le serveur
+   l'attend — le zip n'a pas été extrait au bon endroit. Dis-le.
+
+   Identiques : la production exécute bien le code du dépôt, rien à dire.
+   Différentes : le zip n'a pas été poussé, ou l'extraction a échoué — donne
+   les deux valeurs et `depose`. N'invente jamais un déploiement à partir d'un
+   en-tête ou d'un comportement observé : c'est ce raisonnement indirect qui a
+   coûté une ronde le 29/07. L'empreinte est la seule preuve — celle du bon
+   fichier.
 
    Elle n'expose rien : c'est la somme de contrôle d'un fichier que le serveur
    exécute déjà, pas un secret.

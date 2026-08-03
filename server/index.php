@@ -7826,14 +7826,43 @@ try {
   // Elle n'expose rien : c'est une somme de contrôle d'un fichier que le
   // serveur exécute déjà, pas un secret. `depose` est sa date d'écriture sur
   // le disque — donc l'heure réelle de l'extraction du zip.
+  // UNE EMPREINTE PAR MORCEAU DU DÉPLOIEMENT — parce qu'une seule ment.
+  //
+  // Le 03/08, un bureau a écrit que le correctif XSS de `seo.php` était
+  // « confirmé déployé grâce au champ d'empreinte ». C'était vrai ce jour-là,
+  // mais le raisonnement était faux : `empreinte` ne couvre que ce fichier-ci.
+  // Un zip extrait au mauvais endroit, ou un `seo.php` resté en arrière,
+  // n'aurait rien changé à sa valeur — et la même phrase aurait été écrite
+  // avec la même assurance. Une vérification qui ne peut pas échouer ne
+  // vérifie rien.
+  //
+  // Trois empreintes, donc, une par morceau qui se déploie séparément :
+  //   · api   -> server/index.php   (ce fichier)
+  //   · seo   -> seo.php            (rendu serveur pour les robots)
+  //   · site  -> index.html         (donc le paquet JavaScript qu'il désigne)
+  //
+  // Chacune se compare en une commande au dépôt :
+  //     md5sum server/index.php web/seo.php dist/index.html
+  //
+  // Aucune n'expose quoi que ce soit : ce sont des sommes de contrôle de
+  // fichiers déjà servis publiquement, pas des secrets. `depose` reste la date
+  // d'écriture de l'API sur le disque — l'heure réelle de l'extraction.
   if ($path === '' || $path === 'health') {
-    $empreinte = ''; $depose = null;
-    $moi = @file_get_contents(__FILE__);
-    if ($moi !== false) $empreinte = substr(md5($moi), 0, 12);
-    $t = @filemtime(__FILE__);
-    if ($t) $depose = gmdate('Y-m-d\TH:i:s\Z', $t);
+    $somme = function (string $chemin): array {
+      $c = @file_get_contents($chemin);
+      if ($c === false) return ['', null];
+      $t = @filemtime($chemin);
+      return [substr(md5($c), 0, 12), $t ? gmdate('Y-m-d\TH:i:s\Z', $t) : null];
+    };
+    [$empreinte, $depose] = $somme(__FILE__);
+    // seo.php et index.html vivent à la racine du site, un cran au-dessus d'api/.
+    [$empSeo]  = $somme(__DIR__ . '/../seo.php');
+    [$empSite, $deposeSite] = $somme(__DIR__ . '/../index.html');
     jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION,
-          'empreinte' => $empreinte, 'depose' => $depose]);
+          'empreinte' => $empreinte, 'depose' => $depose,
+          // Vides si le fichier n'est pas là où on l'attend — ce qui est en soi
+          // une information : le site n'a pas été extrait au bon endroit.
+          'empreinteSeo' => $empSeo, 'empreinteSite' => $empSite, 'deposeSite' => $deposeSite]);
   }
 
   jerr('Route inconnue: ' . $path, 404);
