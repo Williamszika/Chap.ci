@@ -189,7 +189,8 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
      StatusBar présents.
    - package.json : scripts cap:sync et cap:android chaînent bien
      « node scripts/android-slim.mjs ». C'est lui qui garde l'application à
-     6,5 Mo au lieu de 35 Mo — sans lui, le poids quadruple sans prévenir.
+     quelques mégaoctets au lieu de 35 — sans lui, le poids quintuple sans
+     prévenir. (Poids exact du dernier build : store/APP-VERSIONS.md.)
      Note que cap:ios NE le chaîne PAS : c'est normal, ce script ne retire que
      des ressources Android.
    - Plugins @capacitor/* attendus : core, cli, android, ios, app, geolocation,

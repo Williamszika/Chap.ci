@@ -308,7 +308,7 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      l'origine bien qu'aucune app iOS ne soit publiée : ce n'est PAS une
      anomalie.) Tout plugin NOUVEAU est à signaler avec sa raison d'être.
    - scripts/android-slim.mjs : présent et chaîné dans cap:sync / cap:android
-     (c'est lui qui garde l'app à 6,5 Mo au lieu de 35 Mo).
+     (c'est lui qui garde l'app à quelques mégaoctets au lieu de 35).
    Rappel : le dossier android/ et l'AAB ne sont pas dans le dépôt ; leur
    contrôle (signature, targetSdk, taille) relève du Développement au moment du
    build. Ne le signale pas comme un manque.

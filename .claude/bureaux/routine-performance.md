@@ -112,7 +112,8 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
 - Délai de garde réseau de 15 s sur les appels API (src/lib/php.ts:104) : une
   requête qui traîne est interrompue plutôt que de figer l'écran.
 - scripts/android-slim.mjs retire les bannières /og/ et les binaires ort* de
-  l'app après « cap sync » : c'est ce qui la garde à 6,5 Mo au lieu de 35 Mo.
+  l'app après « cap sync » : c'est ce qui la garde à quelques mégaoctets au
+  lieu de 35.
 
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 
@@ -164,8 +165,11 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
 7) PERFORMANCE DE L'APPLICATION (Android)
    L'app embarque le même code web : tes gains la servent aussi. Mais elle a
    ses propres contraintes — vérifie-les :
-   - Poids de l'installation : l'AAB v1.2 fait 6,5 Mo. Toute dépendance ajoutée
-     au bundle web grossit AUSSI l'app. Signale toute libraire lourde nouvelle.
+   - Poids de l'installation : lis le poids de l'AAB dans store/APP-VERSIONS.md,
+     version la plus récente en tête — ne recopie JAMAIS un chiffre ici, il
+     vieillit en silence (celui-ci a annoncé « 6,5 Mo, v1.2 » pendant quinze
+     builds). Toute dépendance ajoutée au bundle web grossit AUSSI l'app :
+     signale toute librairie lourde nouvelle.
    - Démarrage à froid : l'écran de lancement doit s'effacer dès l'interface
      prête (SplashScreen.hide() dans NativeShell) — un splash qui traîne se lit
      comme une lenteur.

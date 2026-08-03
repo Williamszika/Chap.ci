@@ -80,11 +80,23 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
 - Le goulot d'étranglement est l'OFFRE, pas la technique : le SEO est prêt
   (349 URLs indexables) mais il n'y a presque rien à indexer. Le bureau
   Croissance t'a passé le relais avec 🤝 Le Concierge.
-- Application Chap.ci v1.2 (« ci.chap.app », 6,5 Mo, versionCode 3) déployée
-  le 27/07 en test interne sur la Play Console — première version réellement
-  distribuée, la v1.1 étant restée en brouillon. Pas encore publique ; pas
-  d'app iOS. 0 testeur inscrit au test fermé, qui conditionne la production
-  (12 testeurs × 14 jours). Le site propose l'installation PWA.
+- APPLICATION ANDROID : NE FIGE JAMAIS DE NUMÉRO DE VERSION ICI.
+  Lis `store/APP-VERSIONS.md` — c'est le seul endroit tenu à jour, la version la
+  plus récente est en tête. Cette consigne a longtemps porté « v1.2, versionCode
+  3, 6,5 Mo, test interne du 27/07 » : quinze builds plus tard, six bureaux
+  raisonnaient encore là-dessus. Un chiffre recopié dans un prompt ne se met
+  jamais à jour tout seul ; il vieillit en silence et fait conclure à côté.
+  Ce qui reste vrai et ne bouge pas :
+    · appId « ci.chap.app », Android uniquement, compte développeur PERSONNEL.
+    · PAS d'application iOS, et il n'y en aura pas tant qu'un Mac + Xcode
+      manquent — ne produis aucune instruction Apple.
+    · Avant la production, Google impose 12 TESTEURS inscrits en continu
+      pendant 14 JOURS sur un test FERMÉ. C'est le seul délai incompressible.
+    · Le champ « État Play » de APP-VERSIONS.md est écrit À L'AVANCE par le
+      Développement : aucun bureau n'a accès à la Play Console. Ne l'énonce
+      jamais comme un constat — écris « d'après le journal, non confirmé par le
+      Patron » et demande la relecture de la ligne de la release.
+    · Le site propose aussi l'installation en PWA depuis le navigateur.
 - POINT DE DÉPART DE TA SÉRIE (mesuré le 27/07, 16 h 30, via cron/stats) :
   3 annonces actives · 1 vendeur · 1 commune (Bingerville) · 2 catégories
   (alimentation, mode) · 6 comptes · 2 185 visites et 90 visiteurs uniques sur
@@ -125,8 +137,8 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
      Console : tu n'y as pas accès. Demande au Patron, une fois par semaine,
      les 3 chiffres utiles : installations, testeurs actifs, plantages.
      Note-les dans le rapport pour construire l'historique.
-   - Ce que tu PEUX vérifier seul : la version publiée de l'app (v1.2,
-     versionCode 3) est-elle toujours alignée avec le site en ligne ? Signale
+   - Ce que tu PEUX vérifier seul : la version en tête de store/APP-VERSIONS.md
+     est-elle alignée avec le site en ligne ? Signale
      tout écart au bureau Développement.
    - N'invente jamais un chiffre d'installations.
 

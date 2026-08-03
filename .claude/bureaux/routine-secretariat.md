@@ -86,10 +86,23 @@ Un silence signalé vaut mieux qu'un blanc : c'est souvent le signe d'une
 routine en panne.
 
 ÉTAT CONNU DU PROJET (contexte pour hiérarchiser) :
-- Site chap.ci + application Android Chap.ci v1.2 (« ci.chap.app », 6,5 Mo,
-  versionCode 3), déployée le 27/07 en TEST INTERNE — pas en test fermé, pas en
-  production. C'est la première version qui atteint réellement un téléphone :
-  la v1.1 était restée en brouillon et n'est jamais sortie. Pas d'app iOS.
+- APPLICATION ANDROID : NE FIGE JAMAIS DE NUMÉRO DE VERSION ICI.
+  Lis `store/APP-VERSIONS.md` — c'est le seul endroit tenu à jour, la version la
+  plus récente est en tête. Cette consigne a longtemps porté « v1.2, versionCode
+  3, 6,5 Mo, test interne du 27/07 » : quinze builds plus tard, six bureaux
+  raisonnaient encore là-dessus. Un chiffre recopié dans un prompt ne se met
+  jamais à jour tout seul ; il vieillit en silence et fait conclure à côté.
+  Ce qui reste vrai et ne bouge pas :
+    · appId « ci.chap.app », Android uniquement, compte développeur PERSONNEL.
+    · PAS d'application iOS, et il n'y en aura pas tant qu'un Mac + Xcode
+      manquent — ne produis aucune instruction Apple.
+    · Avant la production, Google impose 12 TESTEURS inscrits en continu
+      pendant 14 JOURS sur un test FERMÉ. C'est le seul délai incompressible.
+    · Le champ « État Play » de APP-VERSIONS.md est écrit À L'AVANCE par le
+      Développement : aucun bureau n'a accès à la Play Console. Ne l'énonce
+      jamais comme un constat — écris « d'après le journal, non confirmé par le
+      Patron » et demande la relecture de la ligne de la release.
+    · Le site propose aussi l'installation en PWA depuis le navigateur.
 - CHEMIN CRITIQUE DU PROJET : pour un compte développeur personnel, Google
   exige 12 testeurs inscrits en continu pendant 14 jours sur un TEST FERMÉ
   avant d'autoriser la production. Au 27/07 : 0 testeur inscrit, le compte à

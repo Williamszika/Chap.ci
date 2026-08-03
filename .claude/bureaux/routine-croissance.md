@@ -86,14 +86,23 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
 - IndexNow : ping automatique à la création/modification d'annonce (serveur).
 - Search Console : propriété déjà vérifiée.
 - Pixels web : Meta, TikTok et Google GA4 posés sur le site.
-- APPLICATION : Chap.ci v1.2 (versionCode 3), « ci.chap.app », 6,5 Mo,
-  Android 5.1+, cible API 35. Construite et déployée le 27/07 en TEST INTERNE :
-  c'est la PREMIÈRE version qui atteint réellement un téléphone — la v1.1 était
-  restée « Brouillon » dans la Play Console et n'est jamais sortie. PAS ENCORE
-  PUBLIQUE : le test fermé (12 testeurs × 14 jours) n'a pas commencé, 0 testeur
-  inscrit. C'est le vrai goulot d'étranglement, devant le SEO. Pas d'app iOS et
-  aucune possible à court terme (Xcode exige un Mac). Le site propose
-  l'installation PWA (bannière « Installer »).
+- APPLICATION ANDROID : NE FIGE JAMAIS DE NUMÉRO DE VERSION ICI.
+  Lis `store/APP-VERSIONS.md` — c'est le seul endroit tenu à jour, la version la
+  plus récente est en tête. Cette consigne a longtemps porté « v1.2, versionCode
+  3, 6,5 Mo, test interne du 27/07 » : quinze builds plus tard, six bureaux
+  raisonnaient encore là-dessus. Un chiffre recopié dans un prompt ne se met
+  jamais à jour tout seul ; il vieillit en silence et fait conclure à côté.
+  Ce qui reste vrai et ne bouge pas :
+    · appId « ci.chap.app », Android uniquement, compte développeur PERSONNEL.
+    · PAS d'application iOS, et il n'y en aura pas tant qu'un Mac + Xcode
+      manquent — ne produis aucune instruction Apple.
+    · Avant la production, Google impose 12 TESTEURS inscrits en continu
+      pendant 14 JOURS sur un test FERMÉ. C'est le seul délai incompressible.
+    · Le champ « État Play » de APP-VERSIONS.md est écrit À L'AVANCE par le
+      Développement : aucun bureau n'a accès à la Play Console. Ne l'énonce
+      jamais comme un constat — écris « d'après le journal, non confirmé par le
+      Patron » et demande la relecture de la ligne de la release.
+    · Le site propose aussi l'installation en PWA depuis le navigateur.
 - CONSTAT MAJEUR, TOUJOURS D'ACTUALITÉ (revérifié le 27/07) : le catalogue ne
   compte que 3 annonces actives, 1 vendeur, 1 commune (Bingerville),
   2 catégories (alimentation, mode) — pour 2 185 visites et 90 visiteurs
