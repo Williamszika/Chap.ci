@@ -106,7 +106,20 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
 2) CE QUI A CHANGÉ SUR LE SITE DEPUIS CE COMMIT
    git log --oneline COMMIT..HEAD -- src/ public/ index.html \
        capacitor.config.ts package.json vite.config.ts
-   Remplace COMMIT par celui que tu as lu au §1 (aujourd'hui : a993629).
+   Remplace COMMIT par celui que tu as lu au §1. N'écris JAMAIS ici de valeur
+   d'exemple : cette ligne a longtemps porté « aujourd'hui : a993629 », figé le
+   jour de sa rédaction. Dix-sept builds plus tard il désignait toujours la
+   v1.2, et la ronde du 03/08 est partie de là — dix-sept versions en arrière.
+   Un exemple concret l'emporte toujours sur l'instruction abstraite qui
+   l'accompagne : c'est pourquoi il ne doit pas y en avoir.
+
+   VÉRIFIE que le commit lu existe vraiment avant de t'en servir :
+       git cat-file -t COMMIT     → doit répondre « commit »
+       git log --oneline -1 COMMIT
+   Si la réponse est vide, ou si le commit est plus vieux que la version qui
+   le précède dans APP-VERSIONS.md, le repère est faux : reconstitue-le avec
+       git log --oneline -p -- android/app/build.gradle | grep -B5 versionName
+   et DIS EN TÊTE DE RAPPORT que le journal des versions était erroné.
    Classe chaque commit dans l'une de ces catégories :
      • CORRECTION DE SÉCURITÉ OU DE CONFIDENTIALITÉ
      • CONFORMITÉ (exigences Play / App Store, pages légales)

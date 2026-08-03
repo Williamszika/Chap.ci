@@ -18,6 +18,30 @@ version tourne sur le Play Store.** D'où ce fichier, tenu à la main.
 Une section par version, la plus récente en premier. Le champ **Commit** est le seul
 qui compte vraiment : c'est lui qui permet de calculer ce qui a changé depuis.
 
+> **Le champ Commit avait disparu des sept dernières versions** (v1.11 à v1.17), sans
+> que rien ne le signale — jusqu'à ce que le Monteur bute dessus le 03/08 et parte
+> d'un commit vieux de dix-sept builds. Les sept ont été reconstitués depuis
+> `git log`. Pour les v1.11 à v1.13, `android/app/build.gradle` n'était pas encore
+> suivi par Git : le commit indiqué est celui qui suit immédiatement l'heure du build.
+
+**Gabarit à recopier à chaque nouvelle version.** Le champ Commit vient EN PREMIER,
+parce que c'est celui qu'on oublie :
+
+```
+## v1.X — versionCode N
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `abc1234` |
+| Date du build | J mois AAAA |
+| Poids de l'AAB | X,XX Mo |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33` |
+| État Play | à téléverser / téléversée le JJ/MM / envoyée à l'examen le JJ/MM |
+```
+
+Le commit à inscrire est celui qui contient le `versionCode` de ce build —
+autrement dit `git log --oneline -1` juste après avoir commité la montée de version.
+
 ---
 
 ## État des deux boutiques
@@ -64,6 +88,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
+| **Commit** | `057db9d` |
 | Date du build | 2 août 2026 |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` |
 | État Play | **à téléverser — remplace la v1.16, jamais envoyée** |
@@ -92,6 +117,7 @@ paquet : l'application en bénéficiait déjà.
 
 | Champ | Valeur |
 |---|---|
+| **Commit** | `b7709d1` |
 | Date du build | 2 août 2026 |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
 | État Play | **téléversée le 02/08** en test fermé — « Dernière release : 17 (1.16) », canal actif, 1 pays. ⛔ **« Pas encore envoyé pour examen »** |
@@ -123,6 +149,7 @@ reprises automatiquement au grand livre, sans doublon possible.
 
 | Champ | Valeur |
 |---|---|
+| **Commit** | `ccb4191` |
 | Date du build | 2 août 2026, 04h36 |
 | Poids de l'AAB | 5,32 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
@@ -148,6 +175,7 @@ annonces réelles, chargées à froid : 18 détails sur 18 affichés.
 
 | Champ | Valeur |
 |---|---|
+| **Commit** | `0911311` |
 | Date du build | 2 août 2026, 04h18 |
 | Poids de l'AAB | **5,32 Mo** (6,63 avant) |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
@@ -184,6 +212,7 @@ site. L'image native est ramenée à 350 ms — le temps que la WebView peigne
 
 | Champ | Valeur |
 |---|---|
+| **Commit** | `6d6835c` — reconstitué : build.gradle n’était pas encore suivi par Git |
 | Date du build | 2 août 2026, 04h05 |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
@@ -210,6 +239,7 @@ récupérés.
 
 | Champ | Valeur |
 |---|---|
+| **Commit** | `9ac4d76` — reconstitué : build.gradle n’était pas encore suivi par Git |
 | Date du build | 2 août 2026, 03h54 |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
@@ -237,6 +267,7 @@ survols du menu du haut qui restaient collés au doigt sur tablette.
 
 | Champ | Valeur |
 |---|---|
+| **Commit** | `a753aad` — reconstitué : build.gradle n’était pas encore suivi par Git |
 | Date du build | 2 août 2026, 03h40 |
 | Poids de l'AAB | 6,7 Mo |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:…:FE:33` |
