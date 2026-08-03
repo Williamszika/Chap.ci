@@ -1503,3 +1503,116 @@ disponible ».
   vous revient directement, pas à moi, pour l'usage que vous en ferez.
   **Dev** — rien à écrire. **Monteur** — rien sur votre périmètre, aucun
   fichier `src/`/`public/` touché cette semaine.
+
+---
+
+### 2026-08-03 07:12 — [Livraison] 🔨 Le Monteur
+
+**Ce rapport confirme et complète celui déjà écrit ce jour à 04:58 — trois
+commits sont arrivés depuis `057db9d` en tout, aucun ne change le verdict.**
+L'écart que je signalais ce matin-là (le repère codé dans mon prompt,
+`a993629`, contre le vrai commit de la v1.17, `057db9d`) est désormais corrigé
+dans le fichier lui-même par `7811da1` : `store/APP-VERSIONS.md` porte
+maintenant un champ Commit sur les dix-sept versions, y compris la v1.17. Je
+pars donc toujours de `057db9d`, qui reste le bon repère — la correction n'a
+rien changé à mon analyse, elle confirme le repère déjà utilisé.
+
+**Version publiée sur chaque boutique, et depuis combien de temps.** Toujours
+aucune, sur aucune des deux boutiques. Play : la v1.16 (code 17) a été
+téléversée le 02/08 mais jamais envoyée à l'examen ; la v1.17 (code 18,
+commit `057db9d`, construite le 02/08) la remplace et attend toujours son
+premier téléversement — un jour de plus qu'au rapport de 04:58. App Store :
+compte développeur non ouvert, Mac + Xcode indisponible — **le volet iOS est
+bloqué** ; il faudrait un Mac avec Xcode et un compte Apple Developer à
+99 $/an, et aucune instruction Xcode ne suit tant que cela n'a pas changé.
+
+**Ce que les utilisateurs de l'application NE VOIENT PAS ENCORE.** Inchangé :
+tant qu'aucune version n'a été envoyée à l'examen, aucun testeur externe n'a
+ouvert l'application. Ni les 82 formulaires par catégorie (v1.9), ni la
+géolocalisation réelle (v1.10), ni R8 et l'écran de démarrage animé (v1.14),
+ni la comptabilité (v1.16), ni le démarrage accéléré (v1.17) — rien de tout
+cela n'est entre les mains de personne. Le goulot n'est pas le code, c'est le
+bouton « Envoyer pour examen » jamais pressé dans la Play Console.
+
+**Verdict : ATTENDRE.**
+```
+git log --oneline 057db9d..HEAD -- src/ public/ index.html capacitor.config.ts package.json vite.config.ts
+→ (vide)
+```
+Trois commits sont arrivés depuis `057db9d` : `7c80c25` (supervision
+`cron/security`, déjà noté à 04:58), `7811da1` (correction du champ Commit
+dans `APP-VERSIONS.md` — ce fichier même) et `eb6fdb8` (ajout d'une empreinte
+par fichier serveur à `/api/health`, pour distinguer `server/index.php` de
+`web/seo.php`). Les trois touchent exclusivement `server/index.php`,
+`.claude/bureaux/*` et `store/APP-VERSIONS.md` — **aucune ligne** dans
+`src/`, `public/`, `index.html`, `capacitor.config.ts`, `package.json` ni
+`vite.config.ts`. Catégorie INTERNE au sens du §2 : outillage de supervision
+et documentation, sans effet sur l'application. Aucune des quatre conditions
+de build n'est remplie, pas même la plus faible (trois fonctionnalités
+visibles accumulées : toujours zéro). Construire cette semaine gaspillerait
+une soumission pour un contenu strictement identique à celui déjà en attente
+d'envoi.
+
+**Numéros de version proposés.** Sans objet — aucun contenu nouveau à
+empaqueter, inchangé depuis 04:58. Pour mémoire, si un build redevenait
+nécessaire avant la prochaine ronde : Android **versionCode 19** (le 18 de la
+v1.17 est le dernier utilisé, jamais le réutiliser), **versionName 1.18**
+pour des correctifs mineurs, ou **2.0** si une refonte visible s'y ajoutait
+d'ici là. iOS : `CFBundleShortVersionString` suivrait ce même 1.18,
+`CFBundleVersion` démarrerait à **1** — aucun envoi à Apple n'a encore eu
+lieu.
+
+**Notes de version — prêtes à coller pour le téléversement de la v1.17, qui
+lui, est déjà construite :**
+
+*Play (« Nouveautés »), 187 caractères sur 500 :*
+> L'application s'ouvre nettement plus vite, même sur une connexion lente.
+> Nous avons aussi réduit sa taille en allégeant les polices utilisées, sans
+> rien changer à l'affichage du français.
+
+*App Store (« Nouveautés de cette version ») :*
+> L'application s'ouvre nettement plus vite qu'avant, même sur une connexion
+> lente — l'écran d'accueil ne fait plus attendre inutilement.
+>
+> Nous avons aussi réduit la taille de l'application en allégeant les
+> polices utilisées à l'intérieur, sans rien changer à l'affichage des
+> textes en français.
+
+**Captures à refaire : aucune.** Aucun des trois commits arrivés depuis la
+v1.17 ne touche à un écran (voir verdict). Les cinq écrans de référence
+(accueil, annonce, explorer, vendeur, aide), dans leurs trois formats
+(téléphone, tablette 7", tablette 10"), sont déjà dans `store/captures/` et
+restent d'actualité pour Play. Pour l'App Store, les jeux iPhone et iPad
+restent à produire le jour où le volet iOS se débloquera — dimensions à lire
+dans App Store Connect au moment du dépôt (de l'ordre de iPhone ~1290×2796,
+iPad ~2048×2732, **à confirmer**, jamais à citer comme acquis).
+
+**Vérifications avant build (dépôt, à l'heure de ce rapport).**
+
+| Vérification | Résultat |
+|---|---|
+| `capacitor.config.ts` — `appId: 'ci.chap.app'`, pas de `server.url` | ✅ conforme |
+| `src/lib/native.ts` — `SITE_ORIGIN === 'https://chap.ci'`, `mediaUrl()` en place | ✅ conforme |
+| `src/lib/marketing.ts` — garde `if (isNative) return` intacte | ✅ conforme |
+| `src/components/NativeShell.tsx` — `backButton` + `StatusBar` présents | ✅ conforme |
+| `package.json` — `cap:sync`/`cap:android` chaînent `android-slim.mjs` ; `cap:ios` ne le chaîne pas (normal) | ✅ conforme |
+| Plugins `@capacitor/*` — core, cli, android, ios, app, geolocation, splash-screen, status-bar | ✅ conforme, aucun nouveau |
+| `npm run build` (`tsc -b && vite build`) | ✅ passe, aucune erreur TypeScript |
+
+**Marche à suivre Android.** Pas de nouveau build cette semaine : la priorité
+reste celle des rondes précédentes, inchangée — **envoyer enfin la v1.17
+(code 18)**, déjà construite, à l'examen depuis la Play Console (canal test
+fermé), avant même de songer à un futur build. Le jour où un nouveau paquet
+sera justifié, la marche reste : `npm ci` → `npm run cap:sync` → dans Android
+Studio, Build → Generate Signed Bundle / APK → AAB avec la clé de signature
+habituelle, versionCode et versionName renseignés AVANT de lancer le build →
+vérifier le poids de l'AAB obtenu (6-7 Mo attendu ; au-delà de 10 Mo,
+`android-slim.mjs` n'a pas tourné, ne pas téléverser) → Play Console → Test
+interne (ou Production) → Créer une version → téléverser l'AAB → coller les
+notes de version → remplacer les captures périmées (aucune cette semaine) →
+Envoyer pour examen.
+
+**Marche à suivre iOS.** Bloquée : ni Mac avec Xcode, ni compte Apple
+Developer (99 $/an) disponibles dans l'environnement. Rien d'autre à écrire
+tant que la ligne « Mac » de `store/APP-VERSIONS.md` reste à « non
+disponible ».
