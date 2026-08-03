@@ -214,7 +214,27 @@ $GLOBALS['chapci_cron_key_motif'] = !$GLOBALS['chapci_cron_key_ignoree'] ? ''
 
 // Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
 // prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.
-if (is_file(__DIR__ . '/smtp.local.php')) {
+//
+// CES RÉGLAGES SONT DES DONNÉES, PLUS DU CODE. Jusqu'au 3 août 2026 la route
+// admin/smtp GÉNÉRAIT un fichier api/smtp.local.php — c'est-à-dire qu'une
+// requête web faisait écrire, par PHP, un nouveau fichier PHP exécutable dans
+// le dossier servi par le serveur web. C'est le geste le plus caractéristique
+// d'une porte dérobée, et aucun outil de sécurité ne peut faire la différence
+// entre ce geste-là et celui d'un attaquant : la seule chose qu'il voit, c'est
+// « ce site écrit du code exécutable dans son propre dossier web ».
+//
+// Les réglages vivent désormais dans le dossier data (droits 0700, refusé au
+// web par son propre .htaccess ET par une règle dans api/.htaccess), sous forme
+// de JSON inerte. Rien n'y est exécutable.
+//
+// L'ancien fichier reste LU tant qu'il existe, pour ne rien casser sur une
+// installation déjà configurée — mais il n'est plus jamais écrit, et le premier
+// enregistrement depuis le tableau de bord le supprime.
+$smtpJson = chapci_secret_dir($config) . '/smtp.json';
+if (is_file($smtpJson)) {
+  $smtpOverride = json_decode((string) @file_get_contents($smtpJson), true);
+  if (is_array($smtpOverride)) $config['smtp'] = array_merge($config['smtp'] ?? [], $smtpOverride);
+} elseif (is_file(__DIR__ . '/smtp.local.php')) {
   $smtpOverride = include __DIR__ . '/smtp.local.php';
   if (is_array($smtpOverride)) $config['smtp'] = array_merge($config['smtp'] ?? [], $smtpOverride);
 }
@@ -6813,7 +6833,7 @@ try {
         'configured' => !empty($s['pass']),
       ]);
     }
-    // Réglages SMTP : enregistrement (écrit api/smtp.local.php, protégé).
+    // Réglages SMTP : enregistrement (écrit api/data/smtp.json, hors du web).
     if ($path === 'admin/smtp' && $method === 'POST') {
       $b = body();
       $arr = [
@@ -6825,11 +6845,21 @@ try {
       ];
       if (!filter_var($arr['user'], FILTER_VALIDATE_EMAIL)) jerr('Utilisateur SMTP (email) invalide.');
       if ($arr['pass'] === '') jerr('Renseignez le mot de passe de la boîte email.');
-      $php = "<?php\n// Réglages SMTP générés depuis le tableau de bord. Ne pas partager.\nreturn "
-        . var_export($arr, true) . ";\n";
-      if (@file_put_contents(__DIR__ . '/smtp.local.php', $php) === false) {
-        jerr('Écriture impossible dans le dossier api/ (droits). Renseignez plutôt le bloc smtp dans config.php.', 500);
+      // Des DONNÉES, pas du code : du JSON inerte, dans le dossier data (0700,
+      // refusé au web). Voir la note en tête de fichier : générer un .php
+      // exécutable depuis une requête web est indéfendable, quelle que soit la
+      // protection posée par-dessus.
+      $fichier = chapci_secret_dir($config) . '/smtp.json';
+      $json = json_encode($arr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+      if ($json === false || @file_put_contents($fichier, $json) === false) {
+        jerr('Écriture impossible dans le dossier api/data (droits). Renseignez plutôt le bloc smtp dans config.php.', 500);
       }
+      @chmod($fichier, 0600);
+      // L'ancien fichier généré n'a plus lieu d'être : on le retire dès qu'on
+      // sait écrire ailleurs, pour qu'il ne reste pas un .php écrit par PHP
+      // dans le dossier web.
+      if (is_file(__DIR__ . '/smtp.local.php')) @unlink(__DIR__ . '/smtp.local.php');
+      log_security_event($pdo, 'smtp_settings_saved', null, 'api/data/smtp.json');
       jout(['ok' => true]);
     }
 
