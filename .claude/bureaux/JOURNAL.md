@@ -1409,3 +1409,97 @@ pour examen.
 Developer (99 $/an) disponibles dans l'environnement. Rien d'autre à écrire
 tant que la ligne « Mac » de `store/APP-VERSIONS.md` reste à « non
 disponible ».
+
+---
+
+### 2026-08-03 05:10 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff de la semaine revu ligne à ligne — **un seul commit** arrivé
+  depuis mon dernier passage (`7c80c25`, 03/08, sur `server/index.php` +
+  documentation interne du bureau), le reste ayant déjà été audité le 02/08 ·
+  sous-système fouillé à fond cette semaine (rotation semaine ISO 32 % 6 = 2) :
+  **Argent** — `POST /orders`, `PATCH /orders/:id`, `POST/GET /reviews`,
+  `POST /ads` + audience + admin `approve/reject/revenues/confirm` · CI et
+  dépendances vérifiées · déploiement des correctifs confirmé, y compris le
+  commit de cette semaine.
+
+  **Le commit de la semaine (`7c80c25`)** ajoute `derniersPassages` à la
+  réponse de `cron/security` (date du dernier passage réussi + nombre total
+  par tâche cron, lues depuis `cron_runs`). La route reste protégée par
+  `hash_equals($config['cron_key'], $cronKey)` (index.php:7417) — aucune
+  ouverture d'accès, seules des dates sont exposées à une route qui pouvait
+  déjà lire les compteurs d'échec. Rien à signaler.
+
+  **Sous-système Argent : rien à corriger.**
+  - `POST /orders` (index.php:4690) exige une conversation RÉELLE
+    acheteur→vendeur préexistante avant de créer une commande (anti faux-avis
+    / anti-harcèlement), refuse une commande vide, et relit **prix, titre,
+    image depuis `listings`** pour chaque article — jamais les valeurs
+    envoyées par le client. `PATCH /orders/:id` (4780) vérifie
+    `seller_id === u.id` et restreint `status` à une liste blanche
+    (`en_cours`/`finalise`/`annule`).
+  - `POST /conversations/:id/deal` (4835) : chaque action (`bought`,
+    `received`, `sold`, `cancel`) est conditionnée au rôle réel dans la
+    conversation (`isBuyer`/`isSeller`), et `seller_confirmed` (le seul signal
+    qu'un acheteur ne peut pas falsifier) n'est mis à 1 que par l'action
+    `sold`, réservée au vendeur.
+  - `POST /reviews` (4919) : la vérification a une portée stricte — quand
+    l'avis vise une annonce précise, la vente confirmée doit concerner CETTE
+    annonce (jointure `order_items` + `orders.seller_confirmed = 1`), pas
+    n'importe quelle commande entre les deux comptes. C'est le correctif du
+    Gardien du 19/07, toujours en place, pas régressé.
+  - `POST /ads` (5136) : prix recalculé serveur (`ad_tariff()` × `qty`),
+    jamais celui du client. Prolongation (`extends`) vérifiée par
+    propriété (même compte OU même e-mail) avant de rattacher la demande à
+    une bannière existante — pas d'IDOR pour rallonger la campagne d'un
+    tiers. Les compteurs `ads/:id/view` et `ads/:id/click` (5274) exigent une
+    pub `active`, interpolent `$col` en SQL mais uniquement parmi
+    `['view','click']` verrouillé par `in_array(...,true)` en amont — pas
+    d'injection, déjà noté solide, toujours vrai.
+  - `admin/ads/:id/approve|reject`, `admin/revenues/:id/confirm` (6390-6574) :
+    tous à l'intérieur du bloc gardé (`admin_unlocked` + `admin_can`,
+    index.php:5508-5514) — pas de route admin financière hors la porte
+    centrale.
+  - `featured` (colonne `listings.featured`) reste à 0 partout dans le code :
+    posé à la création (4233, littéral `0`), absent de la liste `SET` de la
+    modification (4399-4401). Aucune route ne le met à 1 — fonctionnalité
+    non câblée, pas un défaut de sécurité (un utilisateur ne peut pas se
+    l'attribuer puisque rien ne le lui permet). `promoPrice`/`promoUntil`,
+    à l'inverse, sont bien acceptés du propriétaire de l'annonce (création ET
+    modification) : ce n'est pas une faille, c'est le vendeur qui fixe un
+    prix soldé sur SA PROPRE annonce, au même niveau de confiance que le prix
+    normal — rien à voir avec le paiement d'une mise en avant.
+
+  **CI et dépendances.** `.github/workflows/security-scan.yml` toujours
+  déclenché sur `pull_request` + `push: [main]`, pas sur toutes les branches.
+  `php -l` propre sur `index.php` et `seo.php` (PHP 8.5.7 en production
+  d'après `/api/health`). `npm audit --omit=dev --audit-level=high` :
+  **inchangé depuis hier** — même avertissement modéré `react-router`
+  (redirection ouverte + injection de constructeur SSR), rien de haut/critique.
+  `git grep` sur secret/password/token/clé (`server/config.php`, `src/`) :
+  rien hors `getenv()`, commentaires et libellés produit.
+
+  **Déploiement.** `curl https://chap.ci/api/health` renvoie l'empreinte
+  `87ea16f0d126`, identique à `md5sum server/index.php` du dépôt (HEAD
+  actuel, donc y COMPRIS le commit `7c80c25` de cette semaine) — déposée le
+  `2026-08-03T03:50:20Z`. La correction JSON-LD reste vérifiée en conditions
+  réelles : `curl -A facebookexternalhit https://chap.ci/annonce/a547dd78-…`
+  sert `"https:\/\/chap.ci"` (slashes échappés) dans le `<script
+  type="application/ld+json">` — la XSS du 30/07 reste fermée, ce dossier est
+  définitivement clos, je ne le rejoue plus la semaine prochaine sauf
+  régression.
+
+- **Problèmes ouverts** : aucun exploitable, aucun nouveau. Le seul point de
+  robustesse déjà noté le 02/08 (CSP `Report-Only` avec `unsafe-eval` pour
+  l'IA photo) est inchangé — rien à ajouter cette semaine.
+
+- **Propositions au Patron** : aucune. Semaine calme : un seul commit, déjà
+  sûr par construction, sous-système Argent entièrement revérifié sans
+  trouvaille, correctifs des semaines passées confirmés déployés jusqu'au
+  dernier commit.
+
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à remonter ; la
+  nouvelle donnée `derniersPassages` de `cron/security` (commit `7c80c25`)
+  vous revient directement, pas à moi, pour l'usage que vous en ferez.
+  **Dev** — rien à écrire. **Monteur** — rien sur votre périmètre, aucun
+  fichier `src/`/`public/` touché cette semaine.
