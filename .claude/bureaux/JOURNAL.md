@@ -1313,3 +1313,99 @@ inchangées, rien à remplacer → Envoyer pour examen. Ordre conservé :
 Developer (99 $/an) disponibles dans l'environnement. Rien d'autre à écrire
 tant que la ligne « Mac » de `store/APP-VERSIONS.md` reste à « non
 disponible ».
+
+---
+
+### 2026-08-03 04:58 — [Livraison] 🔨 Le Monteur
+
+**⚠️ `store/APP-VERSIONS.md` est incomplet sur le point qui compte le plus, et
+tout mon raisonnement en dépend.** La table de la v1.17 — la dernière version
+listée — ne porte AUCUN champ « Commit », contrairement à toutes les versions
+précédentes. Le commit de repère transmis pour cette ronde (`a993629`)
+correspond en réalité à la v1.2, une version vieille de **dix-sept builds** :
+s'y fier aurait fait recompter comme « pas encore dans l'app » tout ce qui a
+déjà été livré depuis (les 82 formulaires par catégorie, la comptabilité, R8,
+le démarrage accéléré…). J'ai reconstitué le vrai point de départ à partir de
+`git log` et des dates : le commit qui clôt la v1.17 est `057db9d` (2 août,
+23h19, « v1.17 : l'application s'ouvre une seconde plus tôt »), dont le
+contenu de code vient de `0d3e3ce` juste avant. **Tout ce qui suit part de
+`057db9d`, pas de `a993629`.** Merci de faire consigner le commit dans
+`APP-VERSIONS.md` à chaque build — c'est écrit en tête du fichier, et ça n'a
+pas été fait pour la v1.17.
+
+**Version publiée sur chaque boutique, et depuis combien de temps.** Aucune,
+sur aucune des deux boutiques. Play : la v1.16 (code 17) a été téléversée le
+02/08 mais jamais envoyée à l'examen ; la v1.17 (code 18) la remplace et
+attend toujours son premier téléversement. App Store : compte développeur non
+ouvert, Mac + Xcode indisponible — volet bloqué, voir plus bas.
+
+**Ce que les utilisateurs de l'application NE VOIENT PAS ENCORE.** Tant
+qu'aucune version n'a été envoyée à l'examen, la réponse est totale :
+**aucun testeur externe n'a encore ouvert l'application.** Ni les 82
+formulaires par catégorie (v1.9), ni la géolocalisation réelle (v1.10), ni R8
+et l'écran de démarrage animé (v1.14), ni la comptabilité (v1.16), ni le
+démarrage accéléré (v1.17) — rien de tout cela n'est entre les mains de
+personne. Le goulot n'est pas le code, c'est le bouton « Envoyer pour examen »
+jamais pressé dans la Play Console.
+
+**Verdict : ATTENDRE.** Depuis le commit réel de la v1.17 (`057db9d`), **un
+seul commit** est arrivé : `7c80c25` (« Sécurité : donner au Gardien la moitié
+du tableau qui lui manquait », 3 août 04h50). Il touche exclusivement
+`server/index.php` (l'endpoint de supervision `cron/security`) et un fichier
+de documentation interne du bureau Sécurité — **aucune ligne** dans `src/`,
+`public/`, `index.html`, `capacitor.config.ts`, `package.json` ni
+`vite.config.ts`. C'est un correctif de tableau de bord interne, sans la
+moindre surface visible pour un utilisateur de l'application — catégorie
+INTERNE au sens du §2, sans effet sur l'app. Aucune des quatre conditions de
+build n'est remplie, pas même la plus faible (trois fonctionnalités visibles
+accumulées : on est à zéro). Construire cette semaine gaspillerait une
+soumission pour un contenu strictement identique à celui déjà en attente
+d'envoi.
+
+**Numéros de version proposés.** Sans objet — aucun contenu nouveau à
+empaqueter. Pour mémoire, si un build redevenait nécessaire avant la
+prochaine ronde : Android **versionCode 19** (le 18 de la v1.17 est le
+dernier utilisé, jamais le réutiliser), **versionName 1.18** pour des
+correctifs mineurs, ou **2.0** si une refonte visible s'y ajoutait d'ici là.
+iOS : `CFBundleShortVersionString` suivrait ce même 1.18, `CFBundleVersion`
+démarrerait à **1** — aucun envoi à Apple n'a encore eu lieu.
+
+**Notes de version.** Sans objet cette semaine — rien de nouveau à décrire
+aux utilisateurs. Celles déjà rédigées pour la v1.17 (démarrage plus rapide,
+polices allégées) restent valables pour le jour où l'AAB sera enfin envoyé à
+l'examen ; elles sont dans `store/APP-VERSIONS.md`, section v1.17.
+
+**Captures à refaire : aucune.** L'unique commit arrivé depuis la v1.17 ne
+touche à aucun écran (voir verdict). Les cinq écrans de référence (accueil,
+annonce, explorer, vendeur, aide), dans leurs trois formats (téléphone,
+tablette 7", tablette 10"), sont déjà dans `store/captures/` et restent
+d'actualité pour Play. Pour l'App Store, les jeux iPhone et iPad restent à
+produire le jour où le volet iOS se débloquera — dimensions à lire dans App
+Store Connect au moment du dépôt, pas à deviner ici.
+
+**Vérifications avant build (dépôt, à l'heure de ce rapport).**
+
+| Vérification | Résultat |
+|---|---|
+| `capacitor.config.ts` — `appId: 'ci.chap.app'`, pas de `server.url` | ✅ conforme |
+| `src/lib/native.ts` — `SITE_ORIGIN === 'https://chap.ci'`, `mediaUrl()` en place | ✅ conforme |
+| `src/lib/marketing.ts` — garde `if (isNative) return` intacte | ✅ conforme |
+| `src/components/NativeShell.tsx` — `backButton` + `StatusBar` présents | ✅ conforme |
+| `package.json` — `cap:sync`/`cap:android` chaînent `android-slim.mjs` ; `cap:ios` ne le chaîne pas (normal) | ✅ conforme |
+| Plugins `@capacitor/*` — core, cli, android, ios, app, geolocation, splash-screen, status-bar | ✅ conforme, aucun nouveau |
+| `npm run build` (`tsc -b && vite build`) | ✅ passe, aucune erreur TypeScript |
+
+**Marche à suivre Android.** Pas de nouveau build cette semaine : la priorité
+reste celle des rondes précédentes, inchangée — **envoyer enfin la v1.17
+(code 18)**, déjà construite, à l'examen depuis la Play Console (canal test
+fermé), avant même de songer à un futur build. Le jour où un nouveau paquet
+sera justifié, la marche reste : `npm ci` → `npm run cap:sync` → Android
+Studio (Generate Signed Bundle, versionCode/versionName renseignés d'abord)
+→ vérifier le poids de l'AAB (6-7 Mo attendu, au-delà de 10 Mo ne pas
+téléverser) → Play Console → nouvelle version → notes → captures → envoyer
+pour examen.
+
+**Marche à suivre iOS.** Bloquée : ni Mac avec Xcode, ni compte Apple
+Developer (99 $/an) disponibles dans l'environnement. Rien d'autre à écrire
+tant que la ligne « Mac » de `store/APP-VERSIONS.md` reste à « non
+disponible ».
