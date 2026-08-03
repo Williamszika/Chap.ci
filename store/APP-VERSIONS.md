@@ -60,7 +60,7 @@ autrement dit `git log --oneline -1` juste après avoir commité la montée de v
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune.** v1.16 (code 17) téléversée le 02/08, release créée mais ⛔ **jamais envoyée pour examen**. v1.17 (code 18) la remplace : un seul fichier à envoyer | **aucune** |
+| Version publiée | **aucune, et aucune ne l'a JAMAIS été.** Relevé de la console le 03/08 : canal de test fermé « Actif », mais **Version brouillon**, et la fiche porte toujours « ci.chap.app (unreviewed) ». La v1.17 (code 18) est téléversée et reste **Brouillon — pas encore envoyé pour examen**. Les codes 17, 11, 10, 7, 6, 5 sont « remplacés par une autre version ». Liste de diffusion « Ange » : **18 adresses invitées** — mais une invitation à un test jamais publié ne peut produire aucun testeur inscrit, donc le compte à rebours des 14 jours **n'a jamais démarré**. | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -103,7 +103,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | **Commit** | `057db9d` |
 | Date du build | 2 août 2026 |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` |
-| État Play | construite et signée le 02/08. **État réel dans la console : NON VÉRIFIÉ** — le Patron a répondu « déjà poussé » le 03/08 sans que la ligne de la release ait été relue. Remplace la v1.16, jamais envoyée à l'examen. |
+| État Play | **TÉLÉVERSÉE**, vérifiée dans la console le 03/08 par le Patron : « Release sans nom · Brouillon · 18 (1.17) · Pas encore envoyé pour examen ». Le fichier est bien monté ; la release n'a jamais quitté l'état de brouillon. |
 
 **Contient tout ce qu'apportaient la v1.15 et la v1.16.** Aucune des deux n'a été
 envoyée à l'examen : il n'y a qu'un seul fichier à téléverser, celui-ci.
