@@ -106,6 +106,20 @@ CHANTIERS OUVERTS (surveille, ne les redécouvre pas comme des nouveautés) :
   **N'ADRESSE PLUS DE RAPPEL PHP.** Si tu vois encore « 8.1 » quelque part,
   c'est que tu lis une note périmée : reporte-toi à `/api/health`, qui donne la
   version réellement servie.
+  Cette note-ci est la version à jour. **Le prompt collé dans claude.ai est une
+  COPIE FIGÉE au jour où on l'a collée** : corriger ce fichier ne le corrige pas.
+  Le 04/08, une ronde a proposé de retirer un rappel PHP déjà retiré ici deux
+  jours plus tôt — elle lisait sa propre copie. Quand ce fichier change, le
+  Patron doit recoller le prompt dans claude.ai → Routines pour que le
+  changement prenne effet.
+- CSP · `www.google.com` : QUESTION DÉJÀ TRANCHÉE le 01/08, ne la rouvre pas.
+  Ce n'est pas notre code qui l'appelle, c'est le script `accounts.google.com/
+  gsi/client` du bouton « Continuer avec Google », qui contacte
+  `www.google.com` pour son propre compte. Chercher dans `src/` ne peut donc
+  rien donner. Et la CSP n'est pas servie par `index.php` : elle est dans
+  `web/htaccess-root`, avec quinze lignes de commentaire au-dessus qui
+  expliquent chaque origine. Va lire là avant de signaler une origine
+  « sans usage identifié ».
 - Le détail par route EXISTE désormais : cron/security renvoie « byDetail »
   (top 10 des motifs pour cron_fail, mtoken_fail et rate_limited), déployé le
   27/07. Ne note plus « je ne peux pas nommer les tâches qui échouent » : tu le
@@ -139,6 +153,29 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
 
        curl -sS https://chap.ci/api/health
        md5sum server/index.php web/seo.php dist/index.html   → les attendus
+
+   ⚠️ `dist/` EST DANS `.gitignore` — IL N'EXISTE PAS DANS TON CLONE.
+   Un `md5sum dist/index.html` sur un dépôt fraîchement cloné ne renvoie rien,
+   ou renvoie l'empreinte du vide (`d41d8cd98f00`). Tu ne peux donc PAS vérifier
+   `empreinteSite` sans avoir d'abord lancé :
+
+       npm ci && npm run build     (quelques minutes)
+
+   Deux conduites acceptables, et une seule interdite :
+     · tu construis, tu compares, tu conclus ;
+     · tu ne construis pas, et tu ÉCRIS « empreinteSite non vérifiée : dist/
+       absent du clone » — un blanc signalé vaut mieux qu'un vert inventé ;
+     · ce qui est interdit : écrire « les trois empreintes sont cohérentes »
+       sans avoir construit. Le 04/08 à 15h50, une ronde l'a fait. La
+       production servait `e36b1578fcb7` déposé la veille à 09h24, le dépôt
+       construisait `ec6e7f1bfd1e` : un déploiement entier manquait, et le
+       rapport le déclarait vert. C'est la même faute que la sonde à liste de
+       noms — une vérification qui ne peut pas échouer.
+
+   `depose` et `deposeSite` sont ton garde-fou : ce sont les dates d'écriture
+   RÉELLES sur le disque. Un `deposeSite` qui n'a pas bougé depuis des jours,
+   alors que des commits touchant `src/` sont arrivés entre-temps, signale un
+   front non déployé — même sans construire.
 
    ⚠️ CHAQUE EMPREINTE NE PROUVE QUE SON PROPRE FICHIER. Le 03/08, une ronde a
    conclu que le correctif XSS de `seo.php` était « confirmé déployé grâce au
