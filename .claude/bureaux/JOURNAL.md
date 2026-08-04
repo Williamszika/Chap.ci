@@ -1616,3 +1616,134 @@ Envoyer pour examen.
 Developer (99 $/an) disponibles dans l'environnement. Rien d'autre à écrire
 tant que la ligne « Mac » de `store/APP-VERSIONS.md` reste à « non
 disponible ».
+
+---
+
+### 2026-08-04 03:46 — [Livraison] 🔨 Le Monteur
+
+**Le repère change de verdict cette fois : deux commits sont arrivés après
+l'heure du rapport précédent (03/08 à 07:12), tous deux datés du 03/08, l'un
+à 08:04 et l'autre à 10:24 — après, donc, que le dernier rapport ait conclu
+« rien depuis `057db9d` ». Le repère lui-même ne bouge pas : `store/APP-
+VERSIONS.md` porte toujours la v1.17 (versionCode 18, commit `057db9d`, 2 août)
+comme dernière version construite, et rien n'indique qu'il soit périmé.**
+
+**Version publiée sur chaque boutique, et depuis combien de temps.** Toujours
+aucune, sur aucune des deux boutiques — inchangé depuis le 27/07. Play : la
+v1.17 (code 18) reste **téléversée mais jamais envoyée à l'examen**, un jour
+de plus qu'hier. App Store : compte développeur non ouvert, Mac + Xcode
+indisponible — **le volet iOS reste bloqué** ; il faudrait un Mac avec Xcode
+et un compte Apple Developer à 99 $/an.
+
+**Ce que les utilisateurs de l'application NE VOIENT PAS ENCORE.** La liste
+s'allonge de deux éléments cette semaine, en plus de tout ce qui attendait déjà
+(82 formulaires par catégorie, géolocalisation réelle, écran de démarrage
+animé, comptabilité, démarrage accéléré) : **le brouillon qui survit à une
+coupure**, et **les vignettes qui ne se font plus attendre sur l'explorateur**.
+Le goulot reste le même bouton jamais pressé dans la Play Console, mais la
+pile de ce qui patiente derrière lui grossit.
+
+**Verdict : CONSTRUIRE**, sur la condition (c) — au moins trois fonctionnalités
+visibles ou corrections d'interface accumulées :
+```
+git log --oneline 057db9d..HEAD -- src/ public/ index.html capacitor.config.ts package.json vite.config.ts
+99e9792 Vignettes : ne plus différer celles qu'on voit déjà
+d034aa7 Publier : ne plus perdre une saisie, et dire ce qui est obligatoire
+```
+Classement :
+- **FONCTIONNALITÉ VISIBLE** — le brouillon de `/publier` se sauvegarde seul et
+  propose une reprise après coupure (`d034aa7`) ; le rappel de prudence contre
+  les arnaques, jusque-là seulement sur la fiche annonce, apparaît désormais
+  au début de chaque conversation de messagerie, là où se prend la décision
+  (`d034aa7`) ; une question ajoutée à la FAQ (site / installation / application)
+  (`d034aa7`).
+- **CORRECTION D'INTERFACE** — les champs obligatoires du formulaire de
+  publication portent maintenant un astérisque et sa légende, au lieu de se
+  découvrir à l'envoi (`d034aa7`) ; les six premières vignettes de l'explorateur
+  ne sont plus mises en attente derrière un chargement différé qui, mesuré au
+  navigateur, retardait l'affichage sans rien économiser (`99e9792`).
+
+Cinq changements visibles pour deux commits — la condition (c) est remplie
+plusieurs fois. Aucune des deux autres n'entre en jeu : ni faille de sécurité
+ou de confidentialité (a), ni exigence de boutique (b) — c'est pourquoi ce
+rapport n'envoie pas d'alerte séparée au Patron, malgré le verdict.
+
+**Numéros de version proposés.**
+- **Android** — versionCode **19** (le 18 de la v1.17 est le dernier utilisé,
+  jamais réutilisé) ; versionName **1.18** (correctifs et petites nouveautés,
+  pas de refonte visible).
+- **iOS** — `CFBundleShortVersionString` **1.18** (même numéro que Android,
+  pour ne pas semer la confusion entre boutiques) ; `CFBundleVersion` **1**
+  (aucun envoi à Apple n'a encore eu lieu).
+
+**Notes de version — prêtes à coller.**
+
+*Play (« Nouveautés »), 414 caractères sur 500 :*
+> Vos brouillons d’annonce sont désormais sauvegardés automatiquement : une
+> coupure réseau ou un appel entrant ne vous fait plus perdre votre saisie,
+> avec une proposition de reprise au retour. Les champs à remplir
+> obligatoirement sont désormais visibles avant l’envoi. Un rappel de
+> prudence contre les arnaques apparaît directement dans vos échanges. Les
+> photos des annonces s’affichent plus vite dans l’explorateur.
+
+*App Store (« Nouveautés de cette version ») :*
+> Vos brouillons d’annonce sont désormais sauvegardés automatiquement : une
+> coupure réseau, un appel entrant ou l’application fermée par erreur ne vous
+> font plus perdre votre saisie. À la réouverture, une proposition de reprise
+> vous ramène là où vous vous étiez arrêté.
+>
+> Les champs obligatoires du formulaire de publication sont maintenant
+> indiqués clairement avant l’envoi, pour éviter les allers-retours.
+>
+> Un rappel de prudence contre les arnaques apparaît désormais directement
+> dans vos conversations avec l’acheteur ou le vendeur, au moment où la
+> négociation a lieu.
+>
+> Les photos des annonces s’affichent plus vite en parcourant les résultats.
+
+**Captures à refaire : l'écran « aide » seulement, dans ses trois formats
+(téléphone, tablette 7", tablette 10").** `d034aa7` ajoute une question à la
+FAQ (« Le site, l'installation sur mon téléphone et l'application, c'est
+pareil ? ») — la liste visible à l'écran a changé. Les quatre autres écrans
+de référence (accueil, annonce, explorer, vendeur) ne sont PAS à refaire :
+le changement sur l'explorateur (`99e9792`) ne touche que l'ordre de
+chargement des vignettes, pas leur apparence — une capture, qui est une
+image figée, ne peut pas montrer une différence de vitesse. `/publier` et la
+messagerie ne font pas partie des cinq écrans suivis. Pour l'App Store, les
+jeux iPhone et iPad restent à produire le jour où le volet iOS se débloquera
+— dimensions à lire dans App Store Connect au moment du dépôt (de l'ordre de
+iPhone ~1290×2796, iPad ~2048×2732, **à confirmer**, jamais à citer comme
+acquis).
+
+**Vérifications avant build (dépôt, à l'heure de ce rapport).**
+
+| Vérification | Résultat |
+|---|---|
+| `capacitor.config.ts` — `appId: 'ci.chap.app'`, pas de `server.url` | ✅ conforme |
+| `src/lib/native.ts` — `SITE_ORIGIN === 'https://chap.ci'`, `mediaUrl()` en place et utilisée pour les images d'annonces | ✅ conforme |
+| `src/lib/marketing.ts` — garde `if (isNative) return` intacte | ✅ conforme |
+| `src/components/NativeShell.tsx` — `backButton` + réglage `StatusBar` présents | ✅ conforme |
+| `package.json` — `cap:sync`/`cap:android` chaînent `android-slim.mjs` ; `cap:ios` ne le chaîne pas (normal, ce script ne retire que des ressources Android) | ✅ conforme |
+| Plugins `@capacitor/*` — core, cli, android, ios, app, geolocation, splash-screen, status-bar | ✅ conforme, aucun nouveau |
+| `npm run build` (`tsc -b && vite build`) | ✅ passe, aucune erreur TypeScript |
+
+**Marche à suivre Android.**
+```
+npm ci
+npm run cap:sync
+```
+Puis dans Android Studio : Build → Generate Signed Bundle / APK → AAB, avec la
+clé de signature habituelle. Renseigner **versionCode 19** et **versionName
+1.18** AVANT de lancer le build. Vérifier le poids de l'AAB obtenu : autour de
+6-7 Mo — au-delà de 10 Mo, `android-slim.mjs` n'a pas tourné, ne pas
+téléverser. Puis, dans la Play Console : la file d'attente porte déjà la
+v1.17 non envoyée — décider avec le Patron si cette v1.18 la remplace avant
+tout envoi, ou si la v1.17 part d'abord. Test fermé (ou Production) → Créer
+une version → téléverser l'AAB → coller les notes de version ci-dessus →
+remplacer la capture périmée de l'écran « aide » (3 formats) → Envoyer pour
+examen.
+
+**Marche à suivre iOS.** Bloquée : ni Mac avec Xcode, ni compte Apple
+Developer (99 $/an) disponibles dans l'environnement. Il faudrait l'un et
+l'autre pour débloquer ce volet ; rien d'autre à écrire tant que la ligne
+« Mac » de `store/APP-VERSIONS.md` reste à « non disponible ».
