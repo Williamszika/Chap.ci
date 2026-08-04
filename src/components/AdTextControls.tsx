@@ -68,7 +68,7 @@ export function AdTextControls({
           step={1}
           value={gap}
           onChange={(e) => setGap(Number(e.target.value))}
-          className="flex-1 accent-[#F77F00]"
+          className="flex-1 accent-primary-500"
           aria-label="Pause entre animations (secondes)"
         />
         <span className="tnum w-12 text-right text-sm font-bold text-ink">{gap} s</span>
@@ -80,7 +80,7 @@ export function AdTextControls({
           type="checkbox"
           checked={loop}
           onChange={(e) => setLoop(e.target.checked)}
-          className="h-4 w-4 accent-[#F77F00]"
+          className="h-4 w-4 accent-primary-500"
         />
         <span className="text-[13px] font-semibold text-ink">
           Enchaîner en boucle
@@ -98,7 +98,7 @@ export function AdTextControls({
               type="button"
               onClick={() => setTextColor(c)}
               aria-label={`Couleur ${c}`}
-              className={`h-6 w-6 rounded-full border transition ${textColor.toUpperCase() === c ? 'ring-2 ring-[#F77F00] ring-offset-1' : 'border-black/10'}`}
+              className={`h-6 w-6 rounded-full border transition ${textColor.toUpperCase() === c ? 'ring-2 ring-primary-500 ring-offset-1' : 'border-black/10'}`}
               style={{ backgroundColor: c }}
             />
           ))}
