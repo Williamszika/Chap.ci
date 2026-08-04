@@ -1,5 +1,8 @@
 # 📣 Routine « Croissance / SEO » — prompt de référence (tous les 2 jours)
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Bureau **Croissance — 📣 Le Crieur**. Mission : **faire voir le site ET l'application
 par tout le net**, tous les 2 jours. Travaille avec Google, pousse les mots-clés créés
 par les annonces sur Google **et partout**, et prépare l'indexation instantanée.
@@ -86,29 +89,13 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
 - IndexNow : ping automatique à la création/modification d'annonce (serveur).
 - Search Console : propriété déjà vérifiée.
 - Pixels web : Meta, TikTok et Google GA4 posés sur le site.
-- APPLICATION ANDROID : NE FIGE JAMAIS DE NUMÉRO DE VERSION ICI.
-  Lis `store/APP-VERSIONS.md` — c'est le seul endroit tenu à jour, la version la
-  plus récente est en tête. Cette consigne a longtemps porté « v1.2, versionCode
-  3, 6,5 Mo, test interne du 27/07 » : quinze builds plus tard, six bureaux
-  raisonnaient encore là-dessus. Un chiffre recopié dans un prompt ne se met
-  jamais à jour tout seul ; il vieillit en silence et fait conclure à côté.
-  Ce qui reste vrai et ne bouge pas :
-    · appId « ci.chap.app », Android uniquement, compte développeur PERSONNEL.
-    · PAS d'application iOS, et il n'y en aura pas tant qu'un Mac + Xcode
-      manquent — ne produis aucune instruction Apple.
-    · Avant la production, Google impose 12 TESTEURS inscrits en continu
-      pendant 14 JOURS sur un test FERMÉ. C'est le seul délai incompressible.
-    · Le champ « État Play » de APP-VERSIONS.md est écrit À L'AVANCE par le
-      Développement : aucun bureau n'a accès à la Play Console. Ne l'énonce
-      jamais comme un constat — écris « d'après le journal, non confirmé par le
-      Patron » et demande la relecture de la ligne de la release.
-    · Le site propose aussi l'installation en PWA depuis le navigateur.
-- CONSTAT MAJEUR, TOUJOURS D'ACTUALITÉ (revérifié le 27/07) : le catalogue ne
-  compte que 3 annonces actives, 1 vendeur, 1 commune (Bingerville),
-  2 catégories (alimentation, mode) — pour 2 185 visites et 90 visiteurs
-  uniques sur 30 jours. 349 URLs indexables, presque rien à indexer.
-  Le frein n'est PAS technique, il est côté offre. Ne re-diagnostique pas :
-  MESURE L'ÉVOLUTION (voir §2) et rapporte la tendance.
+- APPLICATION ANDROID : lis `.claude/bureaux/COMMUN.md` § 2, puis
+  `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
+- CONSTAT MAJEUR : le catalogue est trop maigre pour ce que le SEO sait déjà
+  indexer — des centaines d'URLs indexables, presque rien à y mettre. Le frein
+  n'est PAS technique, il est côté offre.
+  MESURE le catalogue au début de chaque ronde (`.claude/bureaux/COMMUN.md` § 1)
+  et rapporte la TENDANCE, jamais un chiffre recopié d'ici.
 
 1) JOURNAL
    Lis .claude/bureaux/JOURNAL.md (dernières entrées) avant d'agir.

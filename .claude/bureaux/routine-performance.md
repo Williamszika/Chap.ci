@@ -1,5 +1,8 @@
 # ⚡ Routine « Performance & Fiabilité » — prompt de référence (hebdo)
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Bureau **Performance & Fiabilité — ⚡ Le Mécanicien**. Mission : garder Chap.ci
 **rapide, léger et disponible** sur les téléphones et réseaux réels de Côte d'Ivoire
 (Android d'entrée de gamme, 3G/4G instable, data chère) — **site ET application**.

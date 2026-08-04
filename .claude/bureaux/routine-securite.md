@@ -1,5 +1,8 @@
 # 🛡️ Routine « Confiance & Sécurité » — prompt de référence
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Prompt canonique du bureau **Confiance & Sécurité — 🛡️ Le Gardien** (fusion de la
 Sécurité, de la Santé serveur et de la Modération). Scan sécurité/santé **toutes les
 5 h** ; le volet **modération** est traité **une fois par jour**.
@@ -145,7 +148,19 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    autre.
 
    Une empreinte VIDE veut dire que le fichier n'est pas là où le serveur
-   l'attend — le zip n'a pas été extrait au bon endroit. Dis-le.
+   l'attend. Deux causes, et il faut les distinguer AVANT de conclure :
+     · le zip n'a pas été extrait au bon endroit — la cause historique ;
+     · cPGuard, l'antivirus de l'hébergeur, a mis le fichier en QUARANTAINE.
+       Le 03/08, il a supprimé api/index.php à chaque installation pendant
+       onze heures sous la signature
+       {HEX}Malware.Expert.php.file.put.contents.php. De l'extérieur, les deux
+       causes donnent exactement le même 404.
+   Pour trancher, demande au Patron d'ouvrir cPanel → Sécurité → cPGuard →
+   VIRUS SCANNER → Background Scanner Logs, et de te dire ce qu'il y voit.
+   Le bouton « Disable » sur la fiche de détection lève la quarantaine ;
+   l'exclusion définitive passe par un ticket à l'hébergeur.
+   Signale-le comme une PANNE DE DISPONIBILITÉ (P1) : tant que l'API est à
+   terre, les tâches cron échouent aussi — donc pas de sauvegarde du jour.
 
    Identiques : la production exécute bien le code du dépôt, rien à dire.
    Différentes : le zip n'a pas été poussé, ou l'extraction a échoué — donne
@@ -281,15 +296,19 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      périmètre, révocable, rate-limité ; aucun chemin vers comptes/réglages/
      sauvegardes.
    - Requêtes préparées partout ; sorties e-mail échappées.
-   - Fichiers servis depuis /api/ : aucun .sql, .md, .txt ou .bak ne doit y
-     répondre 200. Vérifie :
-       for f in schema.mysql.sql README.md LISEZMOI.txt; do
-         curl -sS -o /dev/null -w "$f %{http_code}\n" "https://chap.ci/api/$f"
-       done
-     Attendu : 403 ou 404 partout. Le 27/07, cinq fichiers de documentation et
-     le schéma complet de la base y étaient publiquement lisibles — aucun
-     secret dedans, mais la carte des tables offerte. Ils venaient d'anciens
-     paquets : un zip n'efface jamais ce qu'il ne remplace pas.
+   - Fichiers servis depuis /api/ : rien d'autre que l'API ne doit y répondre.
+     ⚠️ NE TESTE PAS UNE LISTE DE NOMS CONNUS. Une sonde qui interroge
+     `schema.mysql.sql`, `README.md`, `LISEZMOI.txt` ne peut trouver que ces
+     trois-là : elle rendra « propre » sur un dossier plein de traces. C'est
+     arrivé le 04/08 — six fichiers de diagnostic et un dossier entier y
+     dormaient, invisibles parce qu'absents de la liste.
+     Fais lire l'état RÉEL du dossier au Patron : cPanel → Gestionnaire de
+     fichiers → `public_html/api`, fichiers cachés affichés. Demande-lui la
+     liste, compare-la à ce qui doit y être — `index.php`, `.htaccess`,
+     `config.php`, `smtp.local.php`, `watermark.png`, `workbox-*.js`,
+     et les dossiers `assets/ backups/ data/ icons/ og/` — et signale tout le
+     reste, quel que soit son nom.
+     Un zip n'efface jamais ce qu'il ne remplace pas : ce dossier accumule.
 
 6) SCAN DE CODE DE L'APPLICATION (Capacitor — lecture seule)
    L'app Android embarque le code web du dépôt + une couche native fine.

@@ -5,6 +5,20 @@ d'agents planifiés), chacun avec un **chef**. Les chefs **communiquent** via un
 journal de bord commun. Les bureaux **proposent** ; **le Patron ordonne** ; le
 **Bureau Développement exécute**.
 
+## Les fichiers de ce dossier
+
+| Fichier | Ce qu'il porte |
+|---|---|
+| [`COMMUN.md`](COMMUN.md) | **le socle commun** — ce que tout bureau doit savoir : chiffres à mesurer plutôt qu'à recopier, état Play, clé cron, routes interdites, remise du rapport. **Source unique** : chacun de ces points ne s'écrit qu'ici. |
+| `routine-*.md` | un prompt de référence par bureau. Chacun ouvre sur un renvoi vers `COMMUN.md`. |
+| [`JOURNAL.md`](JOURNAL.md) | le registre chronologique des rondes et des décisions. C'est lui qui porte les séries de chiffres, jamais les routines. |
+| [`ROUTINES-WEB.md`](ROUTINES-WEB.md) | comment créer les routines dans claude.ai. |
+
+**Un chiffre recopié dans une routine ne se met jamais à jour tout seul.** Six routines
+ont porté « 3 annonces actives, 1 vendeur » du 25 juillet au 4 août 2026, alors que le
+catalogue en comptait plus du double. Ce qui bouge se mesure ; ce qui se mesure va au
+JOURNAL ; les routines disent **comment** mesurer.
+
 ---
 
 ## La règle d'or (protocole de décision)

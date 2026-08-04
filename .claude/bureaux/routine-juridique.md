@@ -1,5 +1,8 @@
 # ⚖️ Routine « Juridique » — prompt de référence (mensuel)
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Bureau **Juridique — ⚖️ Le Juriste**. Veille juridique Côte d'Ivoire + conformité
 (ARTCI, protection des données, e-commerce) **et désormais conformité Play Store**,
 une fois par mois. Skills : **`deep-research`**, **`pdf`/`docx`**.
@@ -83,7 +86,8 @@ MÉTHODE (obligatoire) :
   bandeau, retirer les pixels, ou attendre. **Le Patron a choisi d'attendre**,
   la friction d'un bandeau sur toutes les pages étant jugée plus coûteuse, à ce
   stade, que le risque juridique — la plateforme ne mène aucune campagne
-  publicitaire et compte 90 visiteurs uniques par mois (mesuré le 27/07).
+  publicitaire et son audience se compte en dizaines de visiteurs uniques par
+  mois — vérifie l'ordre de grandeur du jour (`.claude/bureaux/COMMUN.md` § 1).
   Ne le resignale QUE si l'une de ces trois conditions est remplie :
     (1) une campagne publicitaire payante démarre réellement (les pixels se
         mettent alors à servir, et l'exposition change de nature) ;
@@ -107,23 +111,8 @@ MÉTHODE (obligatoire) :
   automatique tournent SUR L'APPAREIL de l'utilisateur, aucune photo n'est
   envoyée à un tiers pour cela. C'est un ARGUMENT de conformité — vérifie que
   la politique de confidentialité le dit clairement.
-- APPLICATION ANDROID : NE FIGE JAMAIS DE NUMÉRO DE VERSION ICI.
-  Lis `store/APP-VERSIONS.md` — c'est le seul endroit tenu à jour, la version la
-  plus récente est en tête. Cette consigne a longtemps porté « v1.2, versionCode
-  3, 6,5 Mo, test interne du 27/07 » : quinze builds plus tard, six bureaux
-  raisonnaient encore là-dessus. Un chiffre recopié dans un prompt ne se met
-  jamais à jour tout seul ; il vieillit en silence et fait conclure à côté.
-  Ce qui reste vrai et ne bouge pas :
-    · appId « ci.chap.app », Android uniquement, compte développeur PERSONNEL.
-    · PAS d'application iOS, et il n'y en aura pas tant qu'un Mac + Xcode
-      manquent — ne produis aucune instruction Apple.
-    · Avant la production, Google impose 12 TESTEURS inscrits en continu
-      pendant 14 JOURS sur un test FERMÉ. C'est le seul délai incompressible.
-    · Le champ « État Play » de APP-VERSIONS.md est écrit À L'AVANCE par le
-      Développement : aucun bureau n'a accès à la Play Console. Ne l'énonce
-      jamais comme un constat — écris « d'après le journal, non confirmé par le
-      Patron » et demande la relecture de la ligne de la release.
-    · Le site propose aussi l'installation en PWA depuis le navigateur.
+- APPLICATION ANDROID : lis `.claude/bureaux/COMMUN.md` § 2, puis
+  `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
 
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 

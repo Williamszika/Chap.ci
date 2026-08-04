@@ -1,5 +1,8 @@
 # 🔒 Routine « Revue de sécurité du code » — prompt de référence
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Prompt canonique du bureau **Sécurité du code — 🔒 Le Serrurier**. Relecture
 **hebdomadaire** du code, avec l'œil d'un attaquant : il lit le *diff* de la
 semaine et fouille un sous-système en profondeur, à tour de rôle. C'est le

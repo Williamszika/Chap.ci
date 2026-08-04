@@ -1,5 +1,8 @@
 # 🎨 Routine « Scan design » — prompt de référence (tous les 3 jours)
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Bureau **Design & Typographie — 🎨 L'Atelier**. Scanne le design tous les 3 jours,
 **propose** des améliorations concrètes, **sans jamais toucher au code** (donc sans
 risque d'introduire une faille ni de casser quoi que ce soit).

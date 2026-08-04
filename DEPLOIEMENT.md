@@ -12,7 +12,7 @@ Ces trois-là **ne sont pas dans le zip**. Si vous les perdez, vous perdez le si
 | | |
 |---|---|
 | `api/config.php` | vos identifiants de base de données et le secret des sessions |
-| `api/uploads/` | **toutes les photos des annonces** |
+| `uploads/` (à la racine, pas dans `api/`) | **toutes les photos des annonces** |
 | `api/data/` | la base et les sauvegardes |
 
 Le zip ne les touche pas. Il suffit de ne jamais « vider le dossier » avant

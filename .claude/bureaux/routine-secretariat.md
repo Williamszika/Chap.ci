@@ -1,5 +1,8 @@
 # 🗂️ Routine « Secrétariat — synthèse hebdo » — prompt de référence
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Bureau **Secrétariat — 🗂️ Le Secrétaire Général**. Mission : **rassembler le travail de
 tous les autres bureaux** en une synthèse, **l'envoyer par e-mail** au Patron
 (bracknetswilliam@gmail.com) **et** à contact@chap.ci, et **préparer le bloc de journal**
@@ -86,32 +89,20 @@ Un silence signalé vaut mieux qu'un blanc : c'est souvent le signe d'une
 routine en panne.
 
 ÉTAT CONNU DU PROJET (contexte pour hiérarchiser) :
-- APPLICATION ANDROID : NE FIGE JAMAIS DE NUMÉRO DE VERSION ICI.
-  Lis `store/APP-VERSIONS.md` — c'est le seul endroit tenu à jour, la version la
-  plus récente est en tête. Cette consigne a longtemps porté « v1.2, versionCode
-  3, 6,5 Mo, test interne du 27/07 » : quinze builds plus tard, six bureaux
-  raisonnaient encore là-dessus. Un chiffre recopié dans un prompt ne se met
-  jamais à jour tout seul ; il vieillit en silence et fait conclure à côté.
-  Ce qui reste vrai et ne bouge pas :
-    · appId « ci.chap.app », Android uniquement, compte développeur PERSONNEL.
-    · PAS d'application iOS, et il n'y en aura pas tant qu'un Mac + Xcode
-      manquent — ne produis aucune instruction Apple.
-    · Avant la production, Google impose 12 TESTEURS inscrits en continu
-      pendant 14 JOURS sur un test FERMÉ. C'est le seul délai incompressible.
-    · Le champ « État Play » de APP-VERSIONS.md est écrit À L'AVANCE par le
-      Développement : aucun bureau n'a accès à la Play Console. Ne l'énonce
-      jamais comme un constat — écris « d'après le journal, non confirmé par le
-      Patron » et demande la relecture de la ligne de la release.
-    · Le site propose aussi l'installation en PWA depuis le navigateur.
+- APPLICATION ANDROID : lis `.claude/bureaux/COMMUN.md` § 2, puis
+  `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
 - CHEMIN CRITIQUE DU PROJET : pour un compte développeur personnel, Google
   exige 12 testeurs inscrits en continu pendant 14 jours sur un TEST FERMÉ
-  avant d'autoriser la production. Au 27/07 : 0 testeur inscrit, le compte à
-  rebours n'a pas démarré. Aucun autre chantier ne raccourcit ce délai.
-  Fais-en un indicateur de tête dans chaque synthèse.
-- Le goulot d'étranglement produit reste l'OFFRE, pas la technique : au 27/07,
-  3 annonces actives, 1 vendeur, 1 commune (Bingerville), 2 catégories, pour
-  2 185 visites et 90 visiteurs uniques sur 30 jours. Toute proposition qui
-  fait entrer des annonces passe DEVANT le reste.
+  avant d'autoriser la production. Le compte à rebours ne démarre qu'une fois
+  une release ENVOYÉE POUR EXAMEN et le test ouvert — une release restée en
+  brouillon ne compte pas, quel que soit le nombre d'invités.
+  Lis l'état de la dernière release dans `store/APP-VERSIONS.md` (voir
+  `COMMUN.md` § 2) et fais-en l'indicateur de tête de chaque synthèse.
+  Aucun autre chantier ne raccourcit ce délai.
+- Le goulot d'étranglement produit reste l'OFFRE, pas la technique : le site
+  reçoit beaucoup plus de visiteurs qu'il n'a d'annonces à leur montrer. Mesure
+  l'écart du jour (`.claude/bureaux/COMMUN.md` § 1) et cite-le daté. Toute
+  proposition qui fait entrer des annonces passe DEVANT le reste.
 
 1) RASSEMBLE les rapports des bureaux
    - Lis .claude/bureaux/JOURNAL.md — les entrées des 7 derniers jours.

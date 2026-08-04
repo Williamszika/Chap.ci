@@ -1,5 +1,8 @@
 # 🔨 Routine « Livraison de l'application » — prompt de référence (hebdo)
 
+> **Avant de commencer :** lis [`COMMUN.md`](COMMUN.md) — le socle commun à tous les
+> bureaux (chiffres à mesurer, état Play, clé cron, routes interdites, remise du rapport).
+
 Bureau **Livraison — 🔨 Le Monteur**. Mission : dire, chaque semaine, **si le site a
 suffisamment avancé pour justifier une nouvelle version de l'application**, préparer tout
 ce qui précède le build, et remettre au Patron une marche à suivre qu'il n'a plus qu'à
