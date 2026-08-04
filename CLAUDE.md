@@ -120,6 +120,10 @@ taille, le quota — avant de construire ce signal. La leçon a un coût connu.
 Les fichiers de diagnostic déposés sur le serveur se retirent **dès la panne réglée**.
 Ils sont listés au Patron nommément.
 
+La méthode complète — six phases, les boucles qui marchent ici, les hypothèses déjà
+réalisées — est dans la skill **`diagnostic-panne`**, qui se déclenche toute seule dès
+qu'on signale quelque chose de cassé ou de lent.
+
 ---
 
 ## Les bureaux
