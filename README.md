@@ -21,8 +21,8 @@ installable sur **iPhone (iOS)** et **Android**.
   vendeur, contact direct par **appel** et **WhatsApp**, annonces similaires
 - ➕ **Publier une annonce** : envoi de photos, catégorie, prix, localisation,
   livraison, coordonnées
-- 🗄️ **Backend Supabase** : annonces **partagées entre tous les utilisateurs**
-  (avec repli local automatique si le backend n'est pas configuré)
+- 🗄️ **Backend PHP auto-hébergé** : annonces, comptes, messagerie et commandes
+  **partagés entre tous les utilisateurs**, sur votre propre hébergement
 - 👤 **Comptes utilisateurs** : création de compte et connexion (email / mot de passe)
 - 📍 **Géolocalisation** : position GPS des annonces (ou commune), distance
   « à X km de vous » sur chaque annonce, et tri **« Près de moi »**
@@ -39,13 +39,15 @@ installable sur **iPhone (iOS)** et **Android**.
 
 ---
 
-## 🔗 Application en ligne (test)
+## 🔗 Le site en ligne
 
-Une fois GitHub Pages activé (voir plus bas), l'application est accessible à :
+**https://chap.ci**
 
-**https://williamszika.github.io/Chap.ci/**
+C'est le site réel, en production. Ouvrez-le sur votre téléphone : il propose de
+s'installer comme une application (PWA), sans passer par un magasin.
 
-Ouvrez cette adresse sur votre téléphone pour tester et installer l'app.
+L'application Android est publiée séparément — voir [`store/APP-VERSIONS.md`](store/APP-VERSIONS.md)
+pour la version en cours.
 
 ---
 
@@ -100,62 +102,56 @@ sur le **Google Play Store** et l'**App Store**.
 
 ---
 
-## 🗄️ Backend & base de données (Supabase)
+## 🗄️ Backend & base de données
 
-Les annonces et les comptes sont gérés par **[Supabase](https://supabase.com)**.
-Sans configuration, l'application fonctionne en **mode local** (démo + appareil).
-Pour activer le **backend partagé** :
+Le backend est **auto-hébergé** : un seul fichier PHP 8, [`server/index.php`](server/index.php),
+qui sert toute l'API sous `/api/*` — comptes, annonces, messagerie, commandes, avis,
+photos, publicités et comptabilité. Aucun service tiers, aucune dépendance à installer :
+un hébergement mutualisé cPanel suffit.
 
-1. **Tout installer en une fois (recommandé)** : Supabase → **SQL Editor** →
-   *New query* → collez tout le fichier **[`supabase/setup.sql`](supabase/setup.sql)**
-   → **Run**. Ce fichier unique crée **toutes** les tables (profils, annonces,
-   messagerie, commandes, avis), les colonnes de profil et de géolocalisation,
-   les règles de sécurité (RLS) et la fonction de suppression de compte. Il est
-   idempotent (réexécutable sans danger).
+> Ce backend a **remplacé Supabase** en juillet 2026. Il n'en reste rien dans le code —
+> ni client, ni clé, ni table distante.
 
-   > Les fichiers séparés (`schema.sql`, `add-*.sql`) restent disponibles pour
-   > référence, mais `setup.sql` suffit et regroupe tout.
+**Base de données** — `mysql` ou `pgsql` en production, `sqlite` pour un essai local.
+Le pilote se choisit dans [`server/config.php`](server/config.php) (`db.driver`).
+**Les tables se créent toutes seules** au premier appel : il n'y a aucun script SQL à
+exécuter à la main.
 
-### Connexions avancées (à activer dans Supabase)
+**Configuration** — tout tient dans `server/config.php` : identifiants de base, secret de
+session, emails administrateurs, SMTP, identifiants OAuth. Ce fichier vit **uniquement sur
+le serveur** : il n'est jamais dans un zip de déploiement, et jamais dans ce dépôt.
 
-- **Google / Apple** : Authentication → *Sign In / Providers* → activer Google
-  et Apple (renseigner les identifiants OAuth du fournisseur). Puis Authentication
-  → *URL Configuration* : ajouter `https://williamszika.github.io/Chap.ci/` en
-  *Site URL* et *Redirect URLs*.
-- **Téléphone (SMS)** : Authentication → *Sign In / Providers* → **Phone**, puis
-  configurer un fournisseur SMS (Twilio, Vonage, MessageBird…). Sans cela, l'envoi
-  du code SMS échoue.
-- **Double authentification (2FA / TOTP)** : Authentication → *Multi-Factor* →
-  activer **TOTP** (application d'authentification). Fonctionne sans configuration
-  externe.
-2. **Comptes utilisateurs** : dans Supabase → **Authentication** → *Sign In / Providers*
-   → **Email**. Pour des inscriptions immédiates (recommandé au lancement),
-   désactivez **« Confirm email »**. Sinon, les utilisateurs devront confirmer
-   leur email avant de se connecter.
-3. **Clés d'API** : l'URL et la clé publique (`anon` / `publishable`) sont lues
-   depuis les variables d'environnement `VITE_SUPABASE_URL` et
-   `VITE_SUPABASE_ANON_KEY` (voir `.env.example`), avec des valeurs par défaut
-   dans `src/lib/supabaseClient.ts`.
+**Connexions** — mot de passe, Google, Facebook, téléphone par code SMS, et double
+authentification. Les identifiants OAuth publics sont servis par `/api/config` ; le front
+n'a rien à connaître à la compilation. Voir
+[`server/GUIDE-CONNEXION-GOOGLE-TELEPHONE.md`](server/GUIDE-CONNEXION-GOOGLE-TELEPHONE.md)
+pour le site, et [`store/CONNEXION-GOOGLE-APP.md`](store/CONNEXION-GOOGLE-APP.md) pour
+l'application Android.
 
-> 🔒 La clé « publishable » est **publique par conception** : la sécurité repose
-> sur les règles **RLS**. Les mots de passe / codes PIN ne transitent jamais par le site.
+**Photos** — envoyées en `data:` URI, converties, filigranées et écrites dans
+`public_html/uploads/`. Aucun stockage externe.
 
 ---
 
-## 🌍 Déploiement (URL de test)
+## 🌍 Déploiement
 
-Le dépôt contient un workflow GitHub Actions
-([`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)) qui
-construit et publie automatiquement l'application sur **GitHub Pages** à chaque
-push.
+Le site se déploie en extrayant **un zip** dans `public_html` sur cPanel. La procédure
+complète, pas à pas, est dans [`DEPLOIEMENT.md`](DEPLOIEMENT.md).
 
-**Activation (à faire une seule fois)** : dans GitHub → **Settings** → **Pages**
-→ *Build and deployment* → **Source : « GitHub Actions »**. Le prochain
-déploiement publiera le site sur **https://williamszika.github.io/Chap.ci/**.
+Trois fichiers vivent **uniquement** sur le serveur et ne sont jamais dans le zip :
+`api/config.php`, `uploads/` (toutes les photos des annonces) et `api/data/`. Le
+`api/.htaccess` qui les protège non plus.
 
-Pour utiliser des clés Supabase différentes en production, ajoutez-les dans
-**Settings → Secrets and variables → Actions → Variables** :
-`VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`.
+Après chaque déploiement, `https://chap.ci/api/health` donne les trois empreintes à
+comparer au dépôt :
+
+```bash
+md5sum server/index.php web/seo.php dist/index.html   # les 12 premiers caractères
+```
+
+Le workflow [`deploy-pages.yml`](.github/workflows/deploy-pages.yml) publie en plus une
+**prévisualisation** sur GitHub Pages à chaque push. C'est un aperçu de build, pas le
+site : la production est sur chap.ci.
 
 ---
 
@@ -163,16 +159,23 @@ Pour utiliser des clés Supabase différentes en production, ajoutez-les dans
 
 ```
 src/
-├── data/
-│   ├── locations.ts      # Districts, régions, villes et communes de Côte d'Ivoire
-│   ├── categories.ts     # Catégories & sous-catégories d'annonces
-│   └── seedListings.ts   # Annonces de démonstration
-├── components/           # Header, BottomNav, cartes, feuilles modales, sélecteur de lieu…
-├── pages/                # Home, Browse, ListingDetail, PostAd, Favorites, Profile
-├── store/AppContext.tsx  # État global + persistance localStorage
-├── lib/                  # Formatage, placeholders d'images, hooks
-└── types.ts              # Types partagés
+├── data/            # Données figées : catégories, 82 schémas de sous-catégories,
+│                    #   découpage district → région → ville → commune, Mobile Money
+├── pages/           # 26 pages, une par route (HashRouter)
+├── components/      # 40 composants partagés — ListingCard est le plus sollicité
+├── lib/             # 38 modules sans JSX : api.ts, backend.ts, marketing.ts, native.ts…
+├── store/           # État global
+└── types.ts         # Types partagés
+
+server/index.php     # TOUT le backend : 105 routes, 34 tables, PHP 8
+server/config.php    # Configuration — jamais déployée, jamais commitée
+web/seo.php          # Rendu serveur pour les robots (aperçus WhatsApp, Google)
+store/               # Ce qui part sur Google Play
+.claude/bureaux/     # Les onze bureaux d'agents et leur socle commun
 ```
+
+Deux fichiers à lire avant de toucher au code : [`CLAUDE.md`](CLAUDE.md) pour les règles,
+[`CONTEXT.md`](CONTEXT.md) pour la carte et le vocabulaire du domaine.
 
 ---
 
@@ -186,13 +189,13 @@ src/
 | Routage        | React Router 6                       |
 | Icônes         | lucide-react                         |
 | PWA            | vite-plugin-pwa (Workbox)            |
-| Apps natives   | Capacitor 6 (iOS + Android)          |
-| Données        | localStorage (démo, sans backend)    |
+| Apps natives   | Capacitor 6 (Android ; iOS configuré) |
+| Backend        | PHP 8 en un fichier (`server/`)      |
+| Base de données| MySQL / PostgreSQL (SQLite en local) |
+| Hébergement    | cPanel / LiteSpeed, derrière Cloudflare |
 
-> ℹ️ Cette version fonctionne **entièrement côté client** (données de démonstration
-> et annonces créées stockées sur l'appareil). Pour une mise en production réelle,
-> il suffit de brancher un backend (API + base de données + authentification +
-> upload d'images) au niveau de `src/store/AppContext.tsx`.
+> ℹ️ Le site est **en production** sur chap.ci, avec de vraies annonces et de vrais
+> comptes. Le front ne stocke plus rien d'important localement : tout passe par l'API.
 
 ---
 
@@ -210,20 +213,22 @@ node scripts/generate-icons.mjs
 ## 📌 Feuille de route
 
 Fait ✅
-- Backend Supabase + annonces partagées entre tous les utilisateurs
-- Comptes utilisateurs (email / mot de passe)
-- Messagerie acheteur ↔ vendeur en temps réel
+- Backend PHP auto-hébergé — annonces, comptes, messagerie et commandes partagés
+- Connexions : mot de passe, Google, Facebook, téléphone (code SMS), 2FA
+- Messagerie acheteur ↔ vendeur, contacts jamais exposés
 - Paiement Mobile Money manuel (numéro du vendeur + USSD Orange/MTN/Moov/Wave)
 - Géolocalisation : distance « à X km de vous » + tri « Près de moi »
-- Option de don par Mobile Money
-- Déploiement web (GitHub Pages)
+- Photos filigranées, envoyées et stockées sur le serveur
+- Publicités payantes, avis vérifiés, profils vendeurs, tableau de bord
+- Comptabilité complète pour les impôts (registres chronologiques, exports)
+- Site en production sur **chap.ci** · application Android sur Google Play
 
 À venir ⏳
 - 💳 Paiement mobile **automatisé** via une passerelle (CinetPay / PayDunya) —
   confirmation automatique, nécessite un compte marchand
-- 🖼️ Photos via Supabase Storage (au lieu de l'encodage base64)
 - 🔔 Notifications push (via Capacitor)
 - ⭐ Boost d'annonces & comptes professionnels
+- 🍎 Application iOS — nécessite un Mac et Xcode
 
 ---
 
