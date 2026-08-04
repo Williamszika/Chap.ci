@@ -1035,7 +1035,7 @@ export function PostAd() {
               placeholder={form.pricePlaceholder ?? 'Ex : 150000'}
               className="input pr-16 text-xl font-extrabold tabular-nums"
             />
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">
+            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500">
               FCFA
             </span>
           </div>
@@ -1141,7 +1141,7 @@ export function PostAd() {
           <div id="pa-location" className="flex items-center justify-between rounded-xl border border-line2 bg-cream-100 px-4 py-3">
             <span className="flex min-w-0 items-center gap-2">
               <MapPin size={18} className="shrink-0 text-primary-500" />
-              <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
+              <span className={`truncate text-sm ${loc.regionId ? 'font-medium text-gray-800' : 'text-gray-500'}`}>
                 {loc.regionId
                   ? locationLabel(loc.regionId, loc.cityId, loc.commune)
                   : locating
@@ -1164,7 +1164,7 @@ export function PostAd() {
             <button
               type="button"
               onClick={() => setLocOpen(true)}
-              className="mt-2 w-full text-center text-xs text-gray-400 underline"
+              className="mt-2 w-full text-center text-xs text-gray-500 underline"
             >
               La détection a échoué ? Choisir manuellement
             </button>

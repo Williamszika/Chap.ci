@@ -30,7 +30,11 @@ import {
 import * as php from '../lib/php'
 import { formatPrice } from '../lib/format'
 
-const F = (x: number) => `${formatPrice(x)} F`
+const NBSP = '\u00A0'
+/** « 125 000 F » — l'espace est INSÉCABLE : ce tableau part aux Impôts, un
+ *  montant coupé en fin de ligne (« 125 000 » puis « F » seul dessous) est
+ *  illisible sur un registre imprimé. Même règle que formatFCFA(). */
+const F = (x: number) => `${formatPrice(x)}${NBSP}F`
 const jourCourt = (iso: string) => {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })

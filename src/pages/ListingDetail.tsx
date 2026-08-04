@@ -690,7 +690,7 @@ export function ListingDetail() {
                   <Stars value={avg} size={13} /> {avg.toFixed(1)} · {count} avis
                 </span>
               ) : (
-                <p className="text-xs text-gray-400">Vendeur sur Chap.ci</p>
+                <p className="text-xs text-gray-500">Vendeur sur Chap.ci</p>
               )}
             </div>
             {sellerId && (

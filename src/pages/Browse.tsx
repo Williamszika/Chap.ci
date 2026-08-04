@@ -734,7 +734,7 @@ function FilterSheet({
                 placeholder="Min"
                 className="input pr-12 text-right"
               />
-              <span className="pointer-events-none absolute right-3 top-3.5 text-xs text-gray-400">FCFA</span>
+              <span className="pointer-events-none absolute right-3 top-3.5 text-xs text-gray-500">FCFA</span>
             </div>
             <span className="text-gray-400">—</span>
             <div className="relative flex-1">
@@ -745,7 +745,7 @@ function FilterSheet({
                 placeholder="Max"
                 className="input pr-12 text-right"
               />
-              <span className="pointer-events-none absolute right-3 top-3.5 text-xs text-gray-400">FCFA</span>
+              <span className="pointer-events-none absolute right-3 top-3.5 text-xs text-gray-500">FCFA</span>
             </div>
           </div>
         </div>

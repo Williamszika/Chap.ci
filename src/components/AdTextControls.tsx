@@ -46,7 +46,7 @@ export function AdTextControls({
                 key={a.key}
                 type="button"
                 onClick={() => setAnims(on ? anims.filter((k) => k !== a.key) : [...anims, a.key])}
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${on ? 'bg-[#F77F00] text-white shadow-sm' : 'bg-cream-100 text-ink hover:bg-cream-200'}`}
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${on ? 'bg-primary-500 text-white shadow-sm' : 'bg-cream-100 text-ink hover:bg-cream-200'}`}
               >
                 {a.label}
               </button>
