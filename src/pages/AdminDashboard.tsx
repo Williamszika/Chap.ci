@@ -707,7 +707,25 @@ function AreaChart({ values }: { values: number[] }) {
 // les trois chiffres exacts de CE jour-là.
 function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[]; range: VisitRange; mesureDepuis: string | null }) {
   const [actif, setActif] = useState<number | null>(null)
-  const W = 340, H = 150, padX = 10, padHaut = 12, padBas = 26
+
+  // LA COURBE PREND TOUTE LA LARGEUR DISPONIBLE.
+  // Un viewBox figé se centre en gardant ses proportions : sur un écran large,
+  // le dessin restait petit au milieu de deux marges vides. On mesure donc la
+  // largeur réelle du conteneur — une unité SVG vaut alors un pixel, les
+  // textes font la taille qu'on leur donne, et rien n'est déformé.
+  const boite = useRef<HTMLDivElement>(null)
+  const [W, setW] = useState(360)
+  useEffect(() => {
+    const el = boite.current
+    if (!el) return
+    const maj = () => setW(Math.max(280, Math.round(el.clientWidth)))
+    maj()
+    const ro = new ResizeObserver(maj)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const H = 260, padX = 16, padHaut = 20, padBas = 34
   const n = Math.max(1, points.length)
 
   const visiteurs = points.map((p) => p.visitors)
@@ -719,22 +737,33 @@ function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[];
   const yV = (v: number) => padHaut + (1 - v / maxV) * (H - padHaut - padBas)
   const hautBarre = (v: number) => (v / maxI) * (H - padHaut - padBas) * 0.55
 
-  /** Moyenne mobile centrée sur 7 tranches : le bruit s'annule, la pente reste. */
+  // CE QUI N'A PAS ÉTÉ MESURÉ N'EST PAS DESSINÉ.
+  // Les tranches antérieures à la première visite enregistrée ne valent pas
+  // zéro : on n'en sait rien. Les tracer au ras du sol se lit comme une audience
+  // nulle, puis comme un décollage spectaculaire — deux mensonges pour le prix
+  // d'un. La zone est grisée, et la courbe COMMENCE au premier jour mesuré.
+  const debutMesure = mesureDepuis ? mesureDepuis.slice(0, 10) : null
+  const avantMesure = (p: VisitPoint) => (debutMesure && range === 'day' ? p.key < debutMesure : false)
+  const i0 = Math.max(0, points.findIndex((p) => !avantMesure(p)))
+  const largeurGrise = i0 > 0 ? x(i0) - padX : 0
+
+  /**
+   * Moyenne mobile centrée sur 7 tranches : le bruit s'annule, la pente reste.
+   * Elle ne regarde QUE les tranches mesurées — inclure les jours d'avant le
+   * compteur, comptés zéro, écraserait la tendance de départ vers le bas.
+   */
   const tendance = visiteurs.map((_, i) => {
-    const a = Math.max(0, i - 3), b = Math.min(n - 1, i + 3)
+    if (i < i0) return 0
+    const a = Math.max(i0, i - 3), b = Math.min(n - 1, i + 3)
     let s = 0
     for (let k = a; k <= b; k++) s += visiteurs[k]
     return s / (b - a + 1)
   })
 
-  const ligne = (vals: number[]) => vals.map((v, i) => `${x(i).toFixed(1)},${yV(v).toFixed(1)}`).join(' ')
-  const aire = `${x(0)},${H - padBas} ${ligne(visiteurs)} ${x(n - 1)},${H - padBas}`
-
-  // Tranches antérieures à la pose du compteur : grisées, pas dessinées à zéro.
-  const debutMesure = mesureDepuis ? mesureDepuis.slice(0, 10) : null
-  const avantMesure = (p: VisitPoint) => (debutMesure && range === 'day' ? p.key < debutMesure : false)
-  const iPremierMesure = points.findIndex((p) => !avantMesure(p))
-  const largeurGrise = iPremierMesure > 0 ? x(iPremierMesure) - padX : 0
+  /** Ne trace que la partie mesurée de la série. */
+  const ligne = (vals: number[]) =>
+    vals.slice(i0).map((v, k) => `${x(i0 + k).toFixed(1)},${yV(v).toFixed(1)}`).join(' ')
+  const aire = `${x(i0)},${H - padBas} ${ligne(visiteurs)} ${x(n - 1)},${H - padBas}`
 
   const jourLong = (p: VisitPoint) => {
     if (range !== 'day') return p.label
@@ -755,9 +784,9 @@ function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[];
   const p = actif != null ? points[actif] : null
 
   return (
-    <div className="relative">
+    <div className="relative" ref={boite}>
       <svg
-        viewBox={`0 0 ${W} ${H}`} className="h-44 w-full touch-none"
+        viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="block touch-none"
         onMouseMove={surPointeur} onMouseLeave={() => setActif(null)}
         onTouchStart={surPointeur} onTouchMove={surPointeur} onTouchEnd={() => setActif(null)}
         role="img"
@@ -774,7 +803,7 @@ function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[];
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
             <line x1={padX} x2={W - padX} y1={yV(maxV * f)} y2={yV(maxV * f)} className="stroke-line" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-            <text x={padX} y={yV(maxV * f) - 3} fontSize="8" className="fill-gray-500">{Math.round(maxV * f)}</text>
+            <text x={padX} y={yV(maxV * f) - 5} fontSize="12" className="fill-gray-500">{Math.round(maxV * f)}</text>
           </g>
         ))}
 
@@ -785,36 +814,36 @@ function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[];
         {/* Inscriptions : barres vertes, échelle propre, ancrées en bas. */}
         {points.map((pt, i) => pt.signups > 0 && (
           <rect
-            key={`i${i}`} x={x(i) - 3} width="6"
+            key={`i${i}`} x={x(i) - 5} width="10"
             y={H - padBas - hautBarre(pt.signups)} height={hautBarre(pt.signups)}
-            rx="1.5" className="fill-ivoire-green" opacity={actif === i ? 1 : 0.75}
+            rx="2.5" className="fill-ivoire-green" opacity={actif === i ? 1 : 0.75}
           />
         ))}
 
         <polygon points={aire} fill="url(#audienceGrad)" />
-        <polyline points={ligne(visiteurs)} fill="none" className="stroke-primary-500" strokeWidth="1.5" strokeOpacity="0.55" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        <polyline points={ligne(tendance)} fill="none" className="stroke-ivoire-orange-dark" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <polyline points={ligne(visiteurs)} fill="none" className="stroke-primary-500" strokeWidth="2" strokeOpacity="0.55" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <polyline points={ligne(tendance)} fill="none" className="stroke-ivoire-orange-dark" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
 
         {actif != null && (
           <g>
             <line x1={x(actif)} x2={x(actif)} y1={padHaut} y2={H - padBas} className="stroke-accent-ocre-dark" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-            <circle cx={x(actif)} cy={yV(visiteurs[actif])} r="3.5" className="fill-primary-500 stroke-white" strokeWidth="1.5" />
+            <circle cx={x(actif)} cy={yV(visiteurs[actif])} r="6" className="fill-primary-500 stroke-white" strokeWidth="2.5" />
           </g>
         )}
 
         {/* Dates : première, milieu, dernière — lisibles, pas décoratives. */}
         {[0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i).map((i) => (
-          <text key={`d${i}`} x={x(i)} y={H - 8} fontSize="9" className="fill-gray-500" textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>
+          <text key={`d${i}`} x={x(i)} y={H - 10} fontSize="13" className="fill-gray-500" textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>
             {points[i]?.label}
           </text>
         ))}
       </svg>
 
       {/* Lecture d'une tranche : la date en toutes lettres et les chiffres exacts. */}
-      <div className="mt-2 min-h-[3.25rem] rounded-xl bg-cream-200 px-3 py-2 text-xs">
+      <div className="mt-3 min-h-[4rem] rounded-xl bg-cream-200 px-4 py-3 text-sm">
         {p ? (
           <>
-            <p className="font-semibold capitalize text-ink">{jourLong(p)}</p>
+            <p className="text-base font-semibold text-ink first-letter:uppercase">{jourLong(p)}</p>
             <p className="mt-0.5 text-gray-700">
               <b>{formatPrice(p.visitors)}</b> visiteur{p.visitors > 1 ? 's' : ''} ·{' '}
               <b>{formatPrice(p.views)}</b> page{p.views > 1 ? 's' : ''} vue{p.views > 1 ? 's' : ''} ·{' '}
@@ -829,10 +858,10 @@ function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[];
         )}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-600">
-        <span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-primary-500 opacity-60" /> Visiteurs</span>
-        <span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ivoire-orange-dark" /> Tendance (7 tranches)</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-1.5 rounded-sm bg-ivoire-green" /> Inscriptions</span>
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-600">
+        <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded-full bg-primary-500 opacity-60" /> Visiteurs</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded-full bg-ivoire-orange-dark" /> Tendance (7 tranches)</span>
+        <span className="flex items-center gap-1.5"><span className="h-4 w-2 rounded-sm bg-ivoire-green" /> Inscriptions</span>
       </div>
     </div>
   )
