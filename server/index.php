@@ -1920,6 +1920,86 @@ function seo_category_labels(): array {
 }
 
 /**
+ * LES DOUZE MESSAGES DU 7 AOÛT — un nouveau toutes les deux heures.
+ *
+ * La diffusion SEO est normalement écrite UNE FOIS par jour et rangée en base :
+ * le même bandeau tourne pendant vingt-six heures. Le 7 août, ça ne convient
+ * pas — c'est le jour où le site doit parler à ses visiteurs du matin au soir,
+ * et leur dire autre chose à chaque fois qu'ils reviennent.
+ *
+ * D'où ce découpage en douze créneaux de deux heures. Le texte n'est PAS
+ * enregistré : il est calculé au moment où le visiteur demande le bandeau
+ * (voir la route ads/active). Aucune tâche planifiée à ajouter, aucun risque
+ * qu'une diffusion reste figée si le cron saute.
+ *
+ * Les messages suivent la journée : on se réveille, on se met au travail, on
+ * mange, on souffle, on rentre, on veille. Chacun garde un lien vers une action
+ * du site — publier, s'inscrire, explorer — parce qu'un message qui n'appelle
+ * à rien ne sert qu'à décorer.
+ */
+function seo_independence_messages(string $site): array {
+  return [
+    // 0 h - 2 h
+    ['title' => 'Bonne fête, Côte d’Ivoire 🇨🇮',
+     'description' => 'Soixante-six ans d’indépendance. Que cette nuit vous porte de beaux rêves — et de belles idées.',
+     'link' => $site . '/#/'],
+    // 2 h - 4 h
+    ['title' => 'Le pays dort, les projets veillent 🌙',
+     'description' => 'Beaucoup de commerces ivoiriens sont nés une nuit comme celle-ci. Le vôtre attend peut-être son heure.',
+     'link' => $site . '/#/publier'],
+    // 4 h - 6 h
+    ['title' => 'Debout, la Côte d’Ivoire se lève 🌅',
+     'description' => 'Les marchés ouvrent, les taxis démarrent, le pays se met en route. Bonne fête à ceux qui commencent tôt.',
+     'link' => $site . '/#/explorer'],
+    // 6 h - 8 h
+    ['title' => 'Fiers d’être ivoiriens 🧡🤍💚',
+     'description' => 'Le 7 août 1960, la Côte d’Ivoire prenait son destin en main. Prenez le vôtre : ouvrez votre compte, vendez ce que vous avez.',
+     'link' => $site . '/#/inscription'],
+    // 8 h - 10 h
+    ['title' => 'L’indépendance, ça se travaille 💪',
+     'description' => 'Un pays libre, c’est des millions de gens qui gagnent leur vie eux-mêmes. Publier une annonce est gratuit.',
+     'link' => $site . '/#/publier'],
+    // 10 h - 12 h
+    ['title' => 'De Korhogo à San-Pédro, un seul pays 📍',
+     'description' => 'Quatorze districts, trente et une régions, une seule Côte d’Ivoire. Trouvez ce qu’il vous faut, près de chez vous.',
+     'link' => $site . '/#/explorer?tri=distance'],
+    // 12 h - 14 h
+    ['title' => 'Bon appétit, et bonne fête 🍲',
+     'description' => 'Attiéké, garba, kedjenou — aujourd’hui on partage. Chap.ci vous souhaite une belle journée en famille.',
+     'link' => $site . '/#/'],
+    // 14 h - 16 h
+    ['title' => 'Ce que vous n’utilisez plus vaut de l’argent 💰',
+     'description' => 'Un après-midi de fête, c’est le bon moment pour trier. Quelqu’un cherche aujourd’hui ce qui dort chez vous.',
+     'link' => $site . '/#/publier'],
+    // 16 h - 18 h
+    ['title' => 'Le commerce ivoirien, c’est vous 🛒',
+     'description' => 'Chaque vendeur qui se lance rend le pays un peu plus fort. Rejoignez-les — c’est gratuit, et sans commission.',
+     'link' => $site . '/#/inscription'],
+    // 18 h - 20 h
+    ['title' => 'Ce soir, on illumine le ciel ivoirien 🎆',
+     'description' => 'Soixante-six ans de Terre d’Espérance. Bonne fête à tous, où que vous soyez dans le pays.',
+     'link' => $site . '/#/'],
+    // 20 h - 22 h
+    ['title' => 'Un pays d’hospitalité 🤝',
+     'description' => 'On accueille, on échange, on fait confiance. C’est exactement ce qu’on essaie de faire ici, tous les jours.',
+     'link' => $site . '/#/explorer'],
+    // 22 h - 0 h
+    ['title' => 'Merci, Côte d’Ivoire 🧡',
+     'description' => 'La fête se termine, la fierté reste. Demain, on se remet au travail — et Chap.ci sera là.',
+     'link' => $site . '/#/publier'],
+  ];
+}
+
+/** Le message du créneau de deux heures en cours (0 → 11). */
+function seo_independence_now(string $site): array {
+  $m = seo_independence_messages($site);
+  $slot = intdiv((int) gmdate('G'), 2);           // 0 h-2 h -> 0, 2 h-4 h -> 1, …
+  $g = $m[max(0, min(count($m) - 1, $slot))];
+  $g['goal'] = 'message'; $g['style'] = 'ivoire'; $g['anim'] = 'pulse';
+  return $g;
+}
+
+/**
  * Compose la diffusion SEO du jour à partir de l'état RÉEL du site. Le « but »
  * tourne d'un jour à l'autre (déterministe via le jour de l'année) pour couvrir
  * tous les objectifs sans se répéter. Renvoie titre + texte + style + animation.
@@ -1966,11 +2046,7 @@ function seo_daily_broadcast(array $config, PDO $pdo): array {
 
   // Événements datés (prioritaires) : fête de l'indépendance ivoirienne (7 août).
   $md = gmdate('m-d');
-  if ($md === '08-07') {
-    return ['goal' => 'message', 'title' => 'Bonne fête de l’indépendance 🇨🇮',
-      'description' => 'Chap.ci célèbre la Côte d’Ivoire — achetez et vendez chap-chap, partout au pays.',
-      'link' => null, 'style' => 'ivoire', 'anim' => 'pulse'];
-  }
+  if ($md === '08-07') return seo_independence_now($site);
 
   // NEUF BUTS EN ROTATION, RÉPARTIS SUR LES TROIS MARCHES DU PARCOURS.
   //
@@ -5518,7 +5594,30 @@ try {
     $st = $pdo->prepare("SELECT id,title,description,link,images,kind,style,anim,anim_loop,anims,anim_gap,text_color FROM ads
       WHERE status = 'active' AND expires_at > ? ORDER BY created_at DESC LIMIT 50");
     $st->execute([now_iso()]);
-    jout(array_map(fn($r) => [
+
+    // LE 7 AOÛT, LE BANDEAU DU SITE CHANGE TOUTES LES DEUX HEURES.
+    //
+    // La diffusion SEO est écrite une fois par jour et rangée en base : sans
+    // ceci, le même texte tournerait pendant vingt-six heures. On le remplace
+    // donc À LA LECTURE — le visiteur reçoit le message du créneau en cours,
+    // sans qu'aucune tâche planifiée n'ait à s'exécuter et sans rien réécrire
+    // en base. Si le cron saute ce jour-là, le bandeau tourne quand même.
+    //
+    // Seules les diffusions maison (kind = 'seo') sont touchées. Les publicités
+    // payantes ne sont JAMAIS réécrites : un annonceur a payé pour son texte.
+    $fete = gmdate('m-d') === '08-07';
+    $motDuMoment = $fete ? seo_independence_now(rtrim($config['site_url'] ?? 'https://chap.ci', '/')) : null;
+
+    jout(array_map(function (array $r) use ($motDuMoment) {
+      if ($motDuMoment !== null && ($r['kind'] ?? '') === 'seo') {
+        $r['title'] = $motDuMoment['title'];
+        $r['description'] = $motDuMoment['description'];
+        $r['link'] = $motDuMoment['link'];
+        $r['style'] = $motDuMoment['style'];
+        $r['anim'] = $motDuMoment['anim'];
+        $r['anims'] = null; // une seule animation ce jour-là : la pulsation
+      }
+      return [
       'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
       'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
       'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
@@ -5526,7 +5625,8 @@ try {
       'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
       'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
       'textColor' => ($r['text_color'] ?? '') !== '' ? $r['text_color'] : null,
-    ], $st->fetchAll()));
+      ];
+    }, $st->fetchAll()));
   }
 
   // Page de détail d'une pub (clic sans lien externe) : uniquement les actives.

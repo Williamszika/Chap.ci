@@ -112,6 +112,38 @@ export function IndependenceBanner() {
   // (confettis / feux), le message suit la date : deux choses différentes.
   const leJourJ = useMemo(isFeteDay, [])
 
+  /**
+   * LE DÉCOMPTE SE DIT « J-2 », PAS « Plus que 2 jours ».
+   * C'est la forme que tout le monde reconnaît d'un coup d'œil, en Côte
+   * d'Ivoire comme ailleurs : trois caractères au lieu d'une phrase, et l'œil
+   * n'a rien à lire. Le jour même, on ne décompte plus : c'est le Jour J.
+   */
+  const compte = leJourJ ? 'Jour J 🎉' : days === 1 ? 'J-1 · demain !' : `J-${days}`
+
+  /**
+   * LES MOTS DU JOUR J.
+   *
+   * Le 7 août, le bandeau ne se contente pas de souhaiter : il encourage. Les
+   * quatre messages tournent au fil de la journée (heure de l'appareil), pour
+   * que celui qui rouvre le site à midi ne relise pas ce qu'il a lu au réveil.
+   * Ils sont ordonnés comme se vit une fête — le réveil, la journée, le repas,
+   * le soir — et ils parlent le langage de la maison : on célèbre, et on
+   * travaille.
+   */
+  const encouragement = useMemo(() => {
+    // Quatre créneaux de six heures, dans l'ordre où la journée se vit :
+    //   0 h-6 h   la nuit, on souhaite       · 6 h-12 h  le matin, on se lève
+    //   12 h-18 h l'après-midi, on travaille · 18 h-24 h le soir, on est fier
+    const mots = [
+      'Que cette 66ᵉ année vous apporte la santé, la paix et de belles affaires.',
+      'Levez-vous, entreprenez, vendez : la Côte d’Ivoire se construit par ceux qui osent.',
+      'Un pays, c’est des millions de petites mains qui travaillent. La vôtre en fait partie.',
+      'Fiers hier, fiers aujourd’hui, fiers demain. Bonne fête, chers compatriotes 🧡',
+    ]
+    const h = new Date().getHours()
+    return mots[Math.min(mots.length - 1, Math.floor(h / 6))]
+  }, [])
+
   const bg = isDay
     ? `radial-gradient(120% 90% at 12% 8%, rgba(255,255,255,.45), transparent 55%), linear-gradient(115deg, ${OR} 0%, ${OR2} 34%, ${WHITE} 50%, ${VERT2} 66%, ${VERT} 100%)`
     : `radial-gradient(120% 130% at 50% -10%, #232a66 0%, #141a4d 40%, #0A0E2A 100%)`
@@ -187,16 +219,28 @@ export function IndependenceBanner() {
               : <>Chap.ci célèbre la <b>Terre d’Espérance</b>. Fier d’être 100 % ivoirien.</>}
         </p>
 
+        {leJourJ && (
+          <p
+            className="mt-2 max-w-[42ch] text-[14px] font-bold italic sm:text-[15px]"
+            style={{ color: isDay ? '#0b6b45' : '#FFD34E' }}
+          >
+            « {encouragement} »
+          </p>
+        )}
+
         <div className="mt-2 flex items-center gap-3">
           <span className="text-lg tracking-[0.15em]">🧡 🤍 💚</span>
-          {isDay && leJourJ && (
-            <span className="rounded-full bg-black/25 px-3 py-1 text-xs font-bold text-white">
-              C’est aujourd’hui 🎉
-            </span>
-          )}
-          {isDay && !leJourJ && days > 0 && (
-            <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-bold text-black/75">
-              {days === 1 ? 'Demain, la fête !' : `Plus que ${days} jours`}
+          {(leJourJ || days > 0) && (
+            <span
+              className={`rounded-full px-3 py-1 text-sm font-black tabular-nums tracking-wide ${
+                leJourJ
+                  ? 'bg-black/30 text-white'
+                  : isDay
+                    ? 'bg-black/15 text-black/80'
+                    : 'bg-white/15 text-white'
+              }`}
+            >
+              {compte}
             </span>
           )}
         </div>
