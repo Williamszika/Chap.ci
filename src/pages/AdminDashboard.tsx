@@ -22,7 +22,7 @@ import {
   adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
-  type VisitStats, type VisitRange, type ResponseTime, type BackupFile, type ContactMessage,
+  type VisitStats, type VisitRange, type VisitPoint, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 import {
@@ -664,15 +664,14 @@ function formatDuration(sec: number | null): string {
 }
 
 /** Courbe (aire) générique à partir d'une série de valeurs. */
+/** Courbe simple, une seule série — pour les statistiques d'une annonce. */
 function AreaChart({ values }: { values: number[] }) {
   const W = 320, H = 120, pad = 8
-  const vals = values
-  const max = Math.max(1, ...vals)
-  const n = Math.max(1, vals.length)
+  const max = Math.max(1, ...values)
+  const n = Math.max(1, values.length)
   const x = (i: number) => pad + (n === 1 ? 0 : (i / (n - 1)) * (W - 2 * pad))
   const y = (v: number) => H - pad - (v / max) * (H - 2 * pad)
-  const line = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
-  const area = `${x(0)},${H - pad} ${line} ${x(n - 1)},${H - pad}`
+  const line = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-40 w-full" preserveAspectRatio="none">
       <defs>
@@ -681,9 +680,161 @@ function AreaChart({ values }: { values: number[] }) {
           <stop offset="1" stopColor="#F77F00" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={area} fill="url(#areaGrad)" />
+      <polygon points={`${x(0)},${H - pad} ${line} ${x(n - 1)},${H - pad}`} fill="url(#areaGrad)" />
       <polyline points={line} fill="none" stroke="#F77F00" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
+  )
+}
+
+// ---------- La courbe d'audience ----------
+//
+// POURQUOI ELLE A ÉTÉ REFAITE. L'ancienne montrait UNE série à la fois, sans
+// échelle, sans date lisible, avec trois étiquettes en bas. On y voyait une
+// forme, jamais un chiffre : impossible de dire ce qu'avait donné un mardi.
+// Et surtout, elle ne montrait pas les inscriptions — or le problème du site
+// n'est pas le trafic, c'est ce qu'il devient.
+//
+// CE QU'ELLE MONTRE MAINTENANT, ensemble et sur la même journée :
+//   · les VISITEURS uniques, en aire orange — le volume brut ;
+//   · la TENDANCE sur 7 tranches, en trait plein — parce qu'à ces volumes une
+//     variation d'un jour à l'autre est du bruit, pas un signal. C'est la seule
+//     ligne qu'on ait le droit de lire comme une tendance ;
+//   · les INSCRIPTIONS, en barres vertes, sur LEUR PROPRE ÉCHELLE. Mélanger
+//     des dizaines de visiteurs et deux inscrits sur un même axe écrase les
+//     seconds à hauteur de zéro : la courbe mentirait par construction.
+//
+// Et elle se lit : on touche ou on survole une tranche, on obtient la date et
+// les trois chiffres exacts de CE jour-là.
+function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[]; range: VisitRange; mesureDepuis: string | null }) {
+  const [actif, setActif] = useState<number | null>(null)
+  const W = 340, H = 150, padX = 10, padHaut = 12, padBas = 26
+  const n = Math.max(1, points.length)
+
+  const visiteurs = points.map((p) => p.visitors)
+  const inscrits = points.map((p) => p.signups)
+  const maxV = Math.max(1, ...visiteurs)
+  const maxI = Math.max(1, ...inscrits)
+
+  const x = (i: number) => padX + (n === 1 ? W / 2 : (i / (n - 1)) * (W - 2 * padX))
+  const yV = (v: number) => padHaut + (1 - v / maxV) * (H - padHaut - padBas)
+  const hautBarre = (v: number) => (v / maxI) * (H - padHaut - padBas) * 0.55
+
+  /** Moyenne mobile centrée sur 7 tranches : le bruit s'annule, la pente reste. */
+  const tendance = visiteurs.map((_, i) => {
+    const a = Math.max(0, i - 3), b = Math.min(n - 1, i + 3)
+    let s = 0
+    for (let k = a; k <= b; k++) s += visiteurs[k]
+    return s / (b - a + 1)
+  })
+
+  const ligne = (vals: number[]) => vals.map((v, i) => `${x(i).toFixed(1)},${yV(v).toFixed(1)}`).join(' ')
+  const aire = `${x(0)},${H - padBas} ${ligne(visiteurs)} ${x(n - 1)},${H - padBas}`
+
+  // Tranches antérieures à la pose du compteur : grisées, pas dessinées à zéro.
+  const debutMesure = mesureDepuis ? mesureDepuis.slice(0, 10) : null
+  const avantMesure = (p: VisitPoint) => (debutMesure && range === 'day' ? p.key < debutMesure : false)
+  const iPremierMesure = points.findIndex((p) => !avantMesure(p))
+  const largeurGrise = iPremierMesure > 0 ? x(iPremierMesure) - padX : 0
+
+  const jourLong = (p: VisitPoint) => {
+    if (range !== 'day') return p.label
+    const d = new Date(`${p.key}T12:00:00Z`)
+    return Number.isNaN(d.getTime()) ? p.label : d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+  }
+
+  const surPointeur = (e: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget
+    const r = svg.getBoundingClientRect()
+    const cx = 'touches' in e ? e.touches[0]?.clientX : e.clientX
+    if (cx == null || r.width === 0) return
+    const rel = ((cx - r.left) / r.width) * W
+    const i = Math.round(((rel - padX) / Math.max(1, W - 2 * padX)) * (n - 1))
+    setActif(Math.min(n - 1, Math.max(0, i)))
+  }
+
+  const p = actif != null ? points[actif] : null
+
+  return (
+    <div className="relative">
+      <svg
+        viewBox={`0 0 ${W} ${H}`} className="h-44 w-full touch-none"
+        onMouseMove={surPointeur} onMouseLeave={() => setActif(null)}
+        onTouchStart={surPointeur} onTouchMove={surPointeur} onTouchEnd={() => setActif(null)}
+        role="img"
+        aria-label={`Audience par ${range === 'day' ? 'jour' : range === 'week' ? 'semaine' : range === 'month' ? 'mois' : 'année'} : ${points.length} points, maximum ${maxV} visiteurs.`}
+      >
+        <defs>
+          <linearGradient id="audienceGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#F77F00" stopOpacity="0.28" />
+            <stop offset="1" stopColor="#F77F00" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Repères horizontaux : une courbe sans échelle ne se lit pas. */}
+        {[0, 0.5, 1].map((f) => (
+          <g key={f}>
+            <line x1={padX} x2={W - padX} y1={yV(maxV * f)} y2={yV(maxV * f)} className="stroke-line" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            <text x={padX} y={yV(maxV * f) - 3} fontSize="8" className="fill-gray-500">{Math.round(maxV * f)}</text>
+          </g>
+        ))}
+
+        {largeurGrise > 0 && (
+          <rect x={padX} y={padHaut} width={largeurGrise} height={H - padHaut - padBas} className="fill-line" opacity="0.5" />
+        )}
+
+        {/* Inscriptions : barres vertes, échelle propre, ancrées en bas. */}
+        {points.map((pt, i) => pt.signups > 0 && (
+          <rect
+            key={`i${i}`} x={x(i) - 3} width="6"
+            y={H - padBas - hautBarre(pt.signups)} height={hautBarre(pt.signups)}
+            rx="1.5" className="fill-ivoire-green" opacity={actif === i ? 1 : 0.75}
+          />
+        ))}
+
+        <polygon points={aire} fill="url(#audienceGrad)" />
+        <polyline points={ligne(visiteurs)} fill="none" className="stroke-primary-500" strokeWidth="1.5" strokeOpacity="0.55" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <polyline points={ligne(tendance)} fill="none" className="stroke-ivoire-orange-dark" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+
+        {actif != null && (
+          <g>
+            <line x1={x(actif)} x2={x(actif)} y1={padHaut} y2={H - padBas} className="stroke-accent-ocre-dark" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+            <circle cx={x(actif)} cy={yV(visiteurs[actif])} r="3.5" className="fill-primary-500 stroke-white" strokeWidth="1.5" />
+          </g>
+        )}
+
+        {/* Dates : première, milieu, dernière — lisibles, pas décoratives. */}
+        {[0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i).map((i) => (
+          <text key={`d${i}`} x={x(i)} y={H - 8} fontSize="9" className="fill-gray-500" textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>
+            {points[i]?.label}
+          </text>
+        ))}
+      </svg>
+
+      {/* Lecture d'une tranche : la date en toutes lettres et les chiffres exacts. */}
+      <div className="mt-2 min-h-[3.25rem] rounded-xl bg-cream-200 px-3 py-2 text-xs">
+        {p ? (
+          <>
+            <p className="font-semibold capitalize text-ink">{jourLong(p)}</p>
+            <p className="mt-0.5 text-gray-700">
+              <b>{formatPrice(p.visitors)}</b> visiteur{p.visitors > 1 ? 's' : ''} ·{' '}
+              <b>{formatPrice(p.views)}</b> page{p.views > 1 ? 's' : ''} vue{p.views > 1 ? 's' : ''} ·{' '}
+              <b className="text-ivoire-green-dark">{formatPrice(p.signups)}</b> inscrit{p.signups > 1 ? 's' : ''} ·{' '}
+              <b>{formatPrice(p.listings)}</b> annonce{p.listings > 1 ? 's' : ''}
+            </p>
+          </>
+        ) : (
+          <p className="text-gray-600">
+            Touchez la courbe pour lire une {range === 'day' ? 'journée' : range === 'week' ? 'semaine' : range === 'month' ? 'mois' : 'année'} précise.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-600">
+        <span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-primary-500 opacity-60" /> Visiteurs</span>
+        <span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-full bg-ivoire-orange-dark" /> Tendance (7 tranches)</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-1.5 rounded-sm bg-ivoire-green" /> Inscriptions</span>
+      </div>
+    </div>
   )
 }
 
@@ -696,7 +847,6 @@ const RANGES: { v: VisitRange; label: string }[] = [
 
 function VisitorsTab() {
   const [range, setRange] = useState<VisitRange>('day')
-  const [metric, setMetric] = useState<'visitors' | 'views'>('visitors')
   const [data, setData] = useState<VisitStats | null>(null)
   const [rt, setRt] = useState<ResponseTime | null>(null)
   const [err, setErr] = useState('')
@@ -705,7 +855,6 @@ function VisitorsTab() {
   useEffect(() => { fetchResponseTime().then(setRt).catch(() => {}) }, [])
 
   const s = data?.series ?? []
-  const labelAt = (i: number) => s[i]?.label ?? ''
 
   return (
     <div className="space-y-4">
@@ -724,6 +873,7 @@ function VisitorsTab() {
 
       {err ? <ErrRetry msg={err} onRetry={() => setRange((x) => x)} /> : !data ? <Center><Loader2 className="animate-spin" size={20} /></Center> : (
         <>
+          {/* L'ENTONNOIR, dans l'ordre où on le perd : voir → s'inscrire → publier. */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-white p-4 shadow-card">
               <p className="font-display text-2xl font-bold text-gray-900">{formatPrice(data.totalVisitors)}</p>
@@ -733,25 +883,53 @@ function VisitorsTab() {
               <p className="font-display text-2xl font-bold text-gray-900">{formatPrice(data.totalViews)}</p>
               <p className="text-xs text-gray-500">Pages vues</p>
             </div>
+            <div className="rounded-2xl bg-white p-4 shadow-card">
+              <p className="font-display text-2xl font-bold text-ivoire-green-dark">{formatPrice(data.totalSignups)}</p>
+              <p className="text-xs text-gray-500">Nouveaux inscrits</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 shadow-card">
+              <p className="font-display text-2xl font-bold text-gray-900">{formatPrice(data.totalListings)}</p>
+              <p className="text-xs text-gray-500">Annonces publiées</p>
+            </div>
           </div>
+
+          {/* LE TAUX QU'IL FAUT REGARDER. Il est calculé, pas estimé : sur la
+              période affichée, combien de visiteurs uniques ont fini par créer
+              un compte. À ces volumes on le donne en clair, jamais arrondi. */}
+          {data.totalVisitors > 0 && (
+            <div className="rounded-2xl border border-line2 bg-cream-200 px-4 py-3">
+              <p className="text-sm text-ink">
+                <b>{formatPrice(data.totalSignups)}</b> inscription{data.totalSignups > 1 ? 's' : ''} pour{' '}
+                <b>{formatPrice(data.totalVisitors)}</b> visiteur{data.totalVisitors > 1 ? 's' : ''} uniques
+                {data.totalSignups > 0 && (
+                  <> — soit 1 sur {Math.round(data.totalVisitors / data.totalSignups)}</>
+                )}.
+              </p>
+              <p className="mt-0.5 text-xs text-gray-600">
+                {data.totalSignups === 0
+                  ? 'Personne ne s’est inscrit sur cette période.'
+                  : data.totalListings === 0
+                    ? 'Des comptes se créent, mais aucune annonce n’est publiée : la marche à corriger est APRÈS l’inscription.'
+                    : `Et ${formatPrice(data.totalListings)} annonce${data.totalListings > 1 ? 's' : ''} publiée${data.totalListings > 1 ? 's' : ''} au bout.`}
+              </p>
+            </div>
+          )}
 
           {/* Courbe */}
           <div className="rounded-2xl bg-white p-4 shadow-card">
             <div className="mb-2 flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                <TrendingUp size={16} className="text-primary-500" /> Évolution des visites
+                <TrendingUp size={16} className="text-primary-500" /> Visiteurs et inscriptions
               </p>
-              <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold">
-                <button onClick={() => setMetric('visitors')} className={`rounded-md px-2.5 py-1 ${metric === 'visitors' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Visiteurs</button>
-                <button onClick={() => setMetric('views')} className={`rounded-md px-2.5 py-1 ${metric === 'views' ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-500'}`}>Pages vues</button>
-              </div>
             </div>
-            <AreaChart values={s.map((x) => x[metric])} />
-            <div className="mt-1 flex justify-between text-[10px] text-gray-400">
-              <span>{labelAt(0)}</span>
-              <span>{labelAt(Math.floor(s.length / 2))}</span>
-              <span>{labelAt(s.length - 1)}</span>
-            </div>
+            <CourbeAudience points={s} range={range} mesureDepuis={data.mesureDepuis} />
+            {data.mesureDepuis && (
+              <p className="mt-2 text-[11px] text-gray-600">
+                Mesure commencée le{' '}
+                {new Date(data.mesureDepuis).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}.
+                La zone grisée est antérieure : elle n’a pas été mesurée, elle n’est pas à zéro.
+              </p>
+            )}
           </div>
         </>
       )}

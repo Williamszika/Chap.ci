@@ -206,11 +206,24 @@ export async function deleteAdminReview(id: string): Promise<void> {
 }
 
 export type VisitRange = 'day' | 'week' | 'month' | 'year'
+export interface VisitPoint {
+  /** Clé exacte de la tranche : « 2026-08-05 » en jour, « 2026-08 » en mois. */
+  key: string
+  label: string
+  views: number
+  visitors: number
+  signups: number
+  listings: number
+}
 export interface VisitStats {
   range: VisitRange
-  series: { label: string; views: number; visitors: number }[]
+  series: VisitPoint[]
   totalViews: number
   totalVisitors: number
+  totalSignups: number
+  totalListings: number
+  /** Horodatage de la toute première visite enregistrée, ou null si la table est vide. */
+  mesureDepuis: string | null
 }
 export interface ResponseTime {
   count: number

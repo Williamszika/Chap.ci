@@ -3367,11 +3367,56 @@ function visit_series(PDO $pdo, string $range): array {
     $k = $keyOf($row['created_at']);
     if (isset($idx[$k])) { $i = $idx[$k]; $views[$i]++; $vsets[$i][$row['visitor_id']] = true; }
   }
-  $series = []; $totalViews = 0;
-  foreach ($buckets as $i => $b) { $series[] = ['label' => $b['label'], 'views' => $views[$i], 'visitors' => count($vsets[$i])]; $totalViews += $views[$i]; }
+
+  // INSCRIPTIONS ET ANNONCES, dans les MÊMES tranches que les visites.
+  //
+  // POURQUOI ELLES REJOIGNENT CETTE COURBE. Le point douloureux du site n'est
+  // pas le trafic : c'est ce que le trafic devient. Des dizaines de visiteurs
+  // par jour, une poignée d'inscrits, et moins encore d'annonces publiées. Tant
+  // que ces trois-là vivaient sur trois écrans différents, personne ne pouvait
+  // voir la marche où l'on perd le monde. Sur une seule journée, alignées, elles
+  // la montrent d'un coup d'œil.
+  $compter = function (string $table) use ($pdo, $since, $keyOf, $idx, $buckets): array {
+    $n = array_fill(0, count($buckets), 0);
+    $q = $pdo->prepare("SELECT created_at FROM $table WHERE created_at >= ? ORDER BY created_at ASC LIMIT 200000");
+    $q->execute([$since]);
+    while ($r = $q->fetch()) { $k = $keyOf($r['created_at']); if (isset($idx[$k])) $n[$idx[$k]]++; }
+    return $n;
+  };
+  $signups  = $compter('users');
+  $listings = $compter('listings');
+
+  $series = []; $totalViews = 0; $totalSignups = 0; $totalListings = 0;
+  foreach ($buckets as $i => $b) {
+    $series[] = [
+      'key'      => $b['key'],   // la date exacte : le front affiche le jour, pas un rang
+      'label'    => $b['label'],
+      'views'    => $views[$i],
+      'visitors' => count($vsets[$i]),
+      'signups'  => $signups[$i],
+      'listings' => $listings[$i],
+    ];
+    $totalViews += $views[$i]; $totalSignups += $signups[$i]; $totalListings += $listings[$i];
+  }
   $tv = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) AS c FROM visits WHERE created_at >= ?');
   $tv->execute([$since]);
-  return ['range' => $range, 'series' => $series, 'totalViews' => $totalViews, 'totalVisitors' => (int) $tv->fetch()['c']];
+
+  // DEPUIS QUAND MESURE-T-ON ? Un jour à zéro visite et un jour antérieur à la
+  // pose du compteur se ressemblent trait pour trait sur une courbe, et on lit
+  // le second comme une chute d'audience. Cette date permet au front de griser
+  // ce qu'il n'a pas mesuré au lieu de le dessiner à zéro.
+  $prem = $pdo->query('SELECT MIN(created_at) AS m FROM visits')->fetch();
+  $premiere = $prem && $prem['m'] ? (string) $prem['m'] : null;
+
+  return [
+    'range'         => $range,
+    'series'        => $series,
+    'totalViews'    => $totalViews,
+    'totalVisitors' => (int) $tv->fetch()['c'],
+    'totalSignups'  => $totalSignups,
+    'totalListings' => $totalListings,
+    'mesureDepuis'  => $premiere,
+  ];
 }
 
 /** Temps de réponse moyen/médian aux messages (à chaque changement d'expéditeur). */
