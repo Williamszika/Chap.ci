@@ -7572,8 +7572,22 @@ try {
     // qui rend /publier interprétable : beaucoup de visiteurs = le mur est la
     // création de compte ; beaucoup de connectés = le mur est le formulaire.
     // (`n` reste en tête pour ne rien casser chez les consommateurs existants.)
+    // DES VUES **ET** DES PERSONNES.
+    //
+    // Ces colonnes ne comptaient que des vues, et une vue ne décide de rien.
+    // Le 05/08, 📣 Le Crieur a rapporté « 68 vues connectées sur /publier » et a
+    // eu l'honnêteté d'ajouter qu'il ne pouvait pas trancher : soit 68 comptes
+    // différents butent sur le formulaire, soit les 2 vendeurs actifs y
+    // reviennent trente fois chacun. Les deux lectures mènent à des décisions
+    // opposées — refaire le formulaire, ou ne pas y toucher.
+    //
+    // `personnes` et `personnesConnectees` tranchent : ce sont des visiteurs
+    // DISTINCTS. Rapporté au nombre de comptes existants, on sait enfin si la
+    // page est un mur ou un passage.
     $topPaths = $pdo->prepare(
       'SELECT path, COUNT(*) AS n,
+              COUNT(DISTINCT visitor_id) AS personnes,
+              COUNT(DISTINCT CASE WHEN authed = 1 THEN visitor_id END) AS personnesConnectees,
               SUM(CASE WHEN authed = 1 THEN 1 ELSE 0 END) AS connectes,
               SUM(CASE WHEN authed = 0 THEN 1 ELSE 0 END) AS visiteurs,
               SUM(CASE WHEN authed IS NULL THEN 1 ELSE 0 END) AS inconnu

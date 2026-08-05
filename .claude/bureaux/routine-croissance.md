@@ -79,10 +79,14 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
 
 ÉTAT CONNU DU PROJET (surveille, ne re-découvre pas) :
 - Site chap.ci (React + HashRouter) ; rendu serveur crawlable via web/seo.php.
-- Sitemap = 349 URLs (mesuré le 27/07) : accueil + fiches annonces + 345 pages
-  « /vendre/... » (15 catégories × 22 communes + 15 pages catégorie seule).
-  La 15ᵉ catégorie, « Santé & Bien-être », a été ajoutée le 27/07 avec sa
-  bannière /og/sante.png. Bingerville incluse.
+- Sitemap : accueil + fiches annonces + les pages « /vendre/{catégorie}/{commune} ».
+  NE FIGE PAS SON NOMBRE ICI. Ce prompt a longtemps porté « 349 URLs, 15
+  catégories » ; les catégories ont été fusionnées à 13 le 01/08 et le sitemap
+  est descendu à 307 — un bureau qui compare au chiffre écrit ici conclurait à
+  une disparition de pages. Compte-le à chaque ronde :
+    curl -sS 'https://chap.ci/sitemap.xml' | grep -c '<loc>'
+  et rapporte la variation avec son explication (catégorie ajoutée ou fusionnée,
+  annonce publiée ou vendue). Bingerville est incluse dans les communes.
 - Fiches /annonce/{uuid} : JSON-LD Product/Offer (XOF), canonical, index,follow,
   og:image absolue — VÉRIFIÉ EN PRODUCTION, fonctionnel. Ne pas re-signaler.
 - Pages /vendre/... : og:image = bannière /og/{catégorie}.png (1200×630).
@@ -129,6 +133,21 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
    comme ton échantillon réel, et si elle est inférieure à 30 vues, écris
    explicitement « échantillon insuffisant, aucune conclusion » — n'en tire
    aucune déduction et n'en transmets aucune aux autres bureaux.
+
+   ⚠️ ET SURTOUT : COMPTE DES PERSONNES, PAS DES VUES.
+   `connectes` et `visiteurs` comptent des VUES. Une vue ne décide de rien.
+   Le 05/08, ce bureau a rapporté « 68 vues connectées sur /publier » et a eu
+   l'honnêteté d'ajouter qu'il ne pouvait pas trancher entre deux lectures
+   opposées : soixante-huit comptes différents qui butent sur le formulaire, ou
+   les deux vendeurs actifs qui y reviennent trente fois chacun. La première
+   commande une refonte, la seconde interdit d'y toucher.
+   Deux colonnes tranchent désormais, ajoutées le 05/08 :
+     personnes            = visiteurs DISTINCTS sur cette page
+     personnesConnectees  = visiteurs DISTINCTS qui étaient connectés
+   Rapporte `personnesConnectees` AU NOMBRE DE COMPTES EXISTANTS : c'est ce
+   rapport, et lui seul, qui dit si la page est un mur ou un passage. Deux
+   personnes sur onze comptes n'est pas un mur — c'est une page que personne
+   n'ouvre. Vingt sur onze est impossible, et signale une erreur de lecture.
 
 3) MOTS-CLÉS depuis les VRAIES annonces (skill seo-ivoirien)
    - Croise : catégorie + commune (« canapé Angré »), marque + modèle (titres
