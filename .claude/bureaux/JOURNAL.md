@@ -1125,3 +1125,94 @@ surveillance vivante et la modération. Frontière écrite dans les deux prompts
 **Pour le Patron** : rien n'est déployé (ni zip, ni AAB). La correction XSS vit
 sur GitHub ; elle atteindra chap.ci au prochain zip. Le Serrurier est prêt à
 coller dans claude.ai/code/routines quand vous voudrez l'activer.
+
+---
+
+### 2026-08-05 — [Direction] Rattrapage du journal : six jours et 43 commits
+
+Le Gardien a signalé cette nuit que `JOURNAL.md` s'arrêtait au 30/07 alors que le
+dépôt avait avancé jusqu'au 05/08. Il avait raison : **43 commits** manquaient.
+Le Secrétariat n'a pas l'accès écriture ; c'est le Développement qui rattrape.
+
+Ce bloc résume les six jours. Le détail de chaque changement est dans son message
+de commit — ils sont écrits pour être lus.
+
+**01/08 — Les formulaires d'annonce, et la première version qui atteint des testeurs.**
+Les 82 schémas de sous-catégories entrent dans l'application ; 15 catégories
+deviennent 13, et le sitemap perd les 46 URL des deux fusionnées (`15a0fe1`,
+`54f3a9e`, `691a375`). Un second point d'injection JSON-LD est fermé dans la
+foulée du premier (`fdd3251`). **v1.9 déployée en test fermé — la première à
+atteindre de vrais testeurs** (`ff56661`). Trois blocages trouvés AVANT eux, dont
+un qui aurait figé le compteur (`08643ee`). Trois photos deviennent le minimum
+pour publier, dans l'écran **et** dans la route serveur (`e1a07b7`).
+
+**02/08 — La journée la plus dense : l'app maigrit, la comptabilité naît.**
+v1.11 corrige un manifeste Android qui ajoutait « GPS obligatoire » tout seul et
+excluait 7 appareils (`a753aad`). Le démarrage passe de 221 à 133 Ko compressés
+(`9ac4d76`), R8 retire 83 % du code mort (`0911311`), et une page blanche sur lien
+d'annonce ouvert à froid — React #310 — est corrigée (`ccb4191`). **La
+comptabilité arrive : un grand livre complet, réservé au propriétaire**
+(`b7709d1`), suivi de la purge des annonces sans photo (`b93aa7a`). Côté
+sécurité, `cron_fail` apprend à dire POURQUOI une clé est refusée (`8432b01`,
+`6c4d011`) — puis le marqueur « externe » est retiré dans l'heure, parce qu'il
+mentait derrière Cloudflare (`7740b31`). **PHP 8.5 en production** : chantier
+classé, audit complet, deux obsolescences réelles corrigées et dix-sept colonnes
+fantômes déclarées (`8a8cb81`, `4781b96`). Et une seconde rendue à l'utilisateur
+au démarrage (`0d3e3ce`, `057db9d`).
+
+**03/08 — Onze heures d'API à terre, et ce qu'on en a tiré.**
+La matinée : trois empreintes sur `/api/health` au lieu d'une, parce qu'une seule
+mentait (`eb6fdb8`) ; les vignettes cessent d'être différées quand on les voit
+déjà (`99e9792`) ; six routines raisonnaient sur une app vieille de quinze builds
+(`5d9b169`) ; l'état Play est enfin lu dans la console, et il est pire que ce
+qu'on croyait (`d39cddd`). Puis `d034aa7` — la saisie de « Publier » ne se perd
+plus, et les champs obligatoires se voient.
+**Le déploiement de ce commit a coupé l'API pendant onze heures.** Cause :
+cPGuard, l'antivirus de l'hébergeur, mettait `api/index.php` en quarantaine à
+chaque installation sous la signature
+`{HEX}Malware.Expert.php.file.put.contents.php`. Le fichier était supprimé
+quelques secondes après chaque extraction de zip comme après chaque téléversement
+direct. La matinée est partie à deviner — l'endroit, les droits, le nom, la
+taille, le quota — et la panne n'a cédé qu'une fois construite une boucle serrée :
+un témoin de 5 octets déposé à côté du fichier suspect, puis un script écrivant
+462 004 octets de commentaires et regardant six secondes plus tard s'ils tenaient.
+Vingt minutes après cette boucle, la cause était nommée.
+Le code avait sa part : `admin/smtp` faisait écrire par PHP un fichier `.php`
+exécutable dans le dossier servi par le serveur — le geste type d'une porte
+dérobée. Les réglages SMTP sont devenus des données inertes dans
+`api/data/smtp.json` (`16df821`). Le site est remonté par le bouton **Disable**
+de cPGuard, pas par ce correctif : les deux sont vrais, il ne faut pas croire que
+le second aurait suffi.
+
+**04/08 — Le dépôt se documente, et l'Atelier passe.**
+`CLAUDE.md` et `CONTEXT.md` créés — le dépôt n'en avait aucun, chaque agent
+re-déduisait l'architecture et se trompait (`e400155`). Le même commit sort les
+blocs recopiés dans quatre à six routines vers `.claude/bureaux/COMMUN.md` et
+retire les chiffres figés : six routines portaient « 3 annonces actives,
+1 vendeur » depuis le 25/07 alors que le catalogue en comptait plus du double.
+Le README décrivait encore un site sur Supabase et GitHub Pages, avec cinquante
+lignes de mode d'emploi vers des fichiers qui n'existent plus ; et
+`GUIDE-CONNEXION-GOOGLE-APPLE.md` donnait des valeurs qui casseraient la
+connexion Google si on les suivait (`9b1946c`). Trois skills reprises de
+`mattpocock/skills` (MIT), dont `diagnostic-panne`, l'adaptation française de
+`diagnosing-bugs` — la boucle rouge/vert avant toute hypothèse (`3ed67ba`).
+Les sept propositions de 🎨 L'Atelier appliquées après vérification ligne à ligne :
+six textes passent de 2,54:1 à 4,83:1 de contraste, et l'écran Comptabilité cesse
+de couper ses montants en deux (`87fe6bb`, `57f2bf2`).
+
+**05/08 — Une vérification qui ne pouvait pas échouer, encore.**
+Le Gardien a déclaré « les trois empreintes sont cohérentes » alors qu'un
+déploiement entier manquait. Cause : `dist/` est dans `.gitignore` — sur un clone
+frais, la comparaison qu'on lui demandait était impossible, et rien ne l'en
+avertissait (`9135ef2`).
+
+**Ce qui reste ouvert, et qui n'est pas technique.**
+La release **18 (1.17)** est toujours en brouillon dans la Play Console. Dix-huit
+invités attendent un test jamais envoyé pour examen, et le compte à rebours des
+14 jours ne démarre qu'à ce clic. Aucun chantier de ce journal ne raccourcit ce
+délai.
+Le zip du front du 04/08 (`empreinteSite` attendue `ec6e7f1bfd1e`) n'est pas
+déployé : la production sert encore `e36b1578fcb7`, déposé le 03/08 à 09h24.
+Un ticket reste à ouvrir chez l'hébergeur pour l'exclusion permanente de
+`api/index.php` dans cPGuard — « Disable » est un réglage du panneau, pas une
+garantie.
