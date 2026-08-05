@@ -19,7 +19,9 @@ import {
   Flag,
   Maximize2,
   ChevronRight,
+  Timer,
 } from 'lucide-react'
+import { fetchSellerResponseTime } from '../lib/api'
 import { BrandBadge } from '../components/BrandLogo'
 import { PhotoViewer } from '../components/PhotoViewer'
 import { useApp } from '../store/AppContext'
@@ -86,6 +88,29 @@ export function ListingDetail() {
 
   const listingId = listing?.id
   const sellerId = listing?.sellerId
+
+  // TEMPS DE RÉPONSE HABITUEL DU VENDEUR.
+  // Ce que redoute un acheteur, ce n'est pas le prix : c'est d'écrire dans le
+  // vide. Un vendeur qui répond en une heure et un vendeur qui ne répond jamais
+  // présentaient jusqu'ici exactement la même fiche. On le charge à part de
+  // l'annonce : s'il manque, la fiche s'affiche quand même.
+  const [reponse, setReponse] = useState<number | null>(null)
+  useEffect(() => {
+    setReponse(null)
+    if (!sellerId) return
+    let vivant = true
+    fetchSellerResponseTime(sellerId).then((r) => { if (vivant) setReponse(r.medianSeconds) })
+    return () => { vivant = false }
+  }, [sellerId])
+
+  /** « 12 min », « 2 h », « 3 j » — court, parce que c'est une étiquette. */
+  const delaiCourt = (s: number): string => {
+    if (s < 60) return 'moins d’une minute'
+    if (s < 3600) return `${Math.round(s / 60)} min`
+    if (s < 86400) { const h = Math.round(s / 3600); return `${h} h` }
+    const j = Math.round(s / 86400)
+    return `${j} jour${j > 1 ? 's' : ''}`
+  }
 
   // Consulter une annonce = signal d'intérêt pour sa catégorie et sa sous-catégorie.
   useEffect(() => {
@@ -691,6 +716,11 @@ export function ListingDetail() {
                 </span>
               ) : (
                 <p className="text-xs text-gray-500">Vendeur sur Chap.ci</p>
+              )}
+              {reponse != null && (
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-ivoire-green/10 px-2 py-0.5 text-[11px] font-semibold text-ivoire-green-dark">
+                  <Timer size={12} /> Répond en {delaiCourt(reponse)} en général
+                </span>
               )}
             </div>
             {sellerId && (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check } from 'lucide-react'
+import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check, Timer } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { useApp } from '../store/AppContext'
@@ -12,6 +12,7 @@ import { getOrCreateConversation } from '../lib/messages'
 import { isPhp } from '../lib/backend'
 import { ListingCard } from '../components/ListingCard'
 import { Stars } from '../components/Stars'
+import { fetchSellerResponseTime } from '../lib/api'
 import { timeAgo } from '../lib/format'
 import type { Review } from '../types'
 
@@ -48,6 +49,25 @@ export function SellerProfile() {
       active = false
     }
   }, [id])
+
+  // Temps de réponse habituel — le même chiffre que sur la fiche annonce, ici
+  // juste au-dessus du bouton « Contacter », là où la question se pose.
+  const [reponse, setReponse] = useState<number | null>(null)
+  useEffect(() => {
+    setReponse(null)
+    if (!id) return
+    let vivant = true
+    fetchSellerResponseTime(id).then((r) => { if (vivant) setReponse(r.medianSeconds) })
+    return () => { vivant = false }
+  }, [id])
+
+  const delaiCourt = (s: number): string => {
+    if (s < 60) return 'moins d’une minute'
+    if (s < 3600) return `${Math.round(s / 60)} min`
+    if (s < 86400) { const h = Math.round(s / 3600); return `${h} h` }
+    const j = Math.round(s / 86400)
+    return `${j} jour${j > 1 ? 's' : ''}`
+  }
 
   // Contacter le vendeur : ouvre (ou crée) la conversation via l'une de ses annonces.
   async function contactSeller() {
@@ -140,6 +160,12 @@ export function SellerProfile() {
               <p className="text-xs text-gray-500">avis</p>
             </div>
           </div>
+
+          {reponse != null && (
+            <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-ivoire-green/10 px-3 py-1 text-xs font-semibold text-ivoire-green-dark">
+              <Timer size={13} /> Répond en {delaiCourt(reponse)} en général
+            </p>
+          )}
 
           {/* Actions */}
           <div className="mt-6 flex w-full max-w-xs items-center justify-center gap-3">

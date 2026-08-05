@@ -48,6 +48,19 @@ $config += [
   // panne sournoise en panne franche, et c'est tant mieux.
   'uploads_dir'          => getenv('CHAPCI_UPLOADS_DIR')  ?: __DIR__ . '/../uploads',
   'uploads_path'         => getenv('CHAPCI_UPLOADS_PATH') ?: '/uploads',
+  // SEUILS D'AFFICHAGE DES CHIFFRES PUBLICS.
+  //
+  // Un compteur n'attire que s'il impressionne. « Déjà 3 Ivoiriens sur Chap.ci »
+  // ne donne envie à personne de s'inscrire : il dit au visiteur qu'il arrive
+  // dans une salle vide, et il le dit sur la page d'accueil. Tant qu'un chiffre
+  // n'a pas franchi son seuil, la diffusion du jour utilise une formulation SANS
+  // chiffre — vraie elle aussi, mais qui ne se retourne pas contre le site.
+  //
+  // Ces seuils se règlent sans redéployer : trois variables d'environnement, ou
+  // le bloc 'seuils' de config.php.
+  'seuil_annonces'       => (int) (getenv('CHAPCI_SEUIL_ANNONCES')  ?: 500),
+  'seuil_vendeurs'       => (int) (getenv('CHAPCI_SEUIL_VENDEURS')  ?: 200),
+  'seuil_visiteurs_jour' => (int) (getenv('CHAPCI_SEUIL_VISITEURS') ?: 200000),
   // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
   // explicitement. En production (défaut), les erreurs restent génériques côté
   // client et les détails sont journalisés (error_log) côté serveur.
@@ -1918,7 +1931,20 @@ function seo_daily_broadcast(array $config, PDO $pdo): array {
     catch (Throwable $e) { return 0; }
   };
   $listings = $count("SELECT COUNT(*) FROM listings WHERE hidden IS NULL OR hidden = 0");
-  $users    = $count("SELECT COUNT(*) FROM users");
+  // VENDEURS, pas inscrits : un compte sans annonce ne prouve rien à un acheteur.
+  $vendeurs = $count("SELECT COUNT(DISTINCT user_id) FROM listings
+    WHERE user_id IS NOT NULL AND user_id <> '' AND (hidden IS NULL OR hidden = 0)");
+  $visiteursJour = $count("SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?",
+    [gmdate('Y-m-d') . 'T00:00:00Z']);
+
+  // LES CHIFFRES NE SORTENT QU'AU-DESSUS DE LEUR SEUIL.
+  // Voir le bloc 'seuil_*' de la configuration : un compteur trop maigre
+  // décourage au lieu d'attirer. En dessous, on garde la même promesse, dite
+  // sans nombre — elle reste vraie, elle ne se retourne pas contre le site.
+  $assezAnnonces  = $listings      >= (int) $config['seuil_annonces'];
+  $assezVendeurs  = $vendeurs      >= (int) $config['seuil_vendeurs'];
+  $assezVisiteurs = $visiteursJour >= (int) $config['seuil_visiteurs_jour'];
+
   // Catégorie la plus fournie (mise en avant SEO).
   $topCat = null; $topCatN = 0;
   try {
@@ -1928,6 +1954,8 @@ function seo_daily_broadcast(array $config, PDO $pdo): array {
   } catch (Throwable $e) { /* base vide */ }
   $labels = seo_category_labels();
   $catLabel = $topCat && isset($labels[$topCat]) ? $labels[$topCat] : 'bonnes affaires';
+  // La catégorie ne se chiffre que si le catalogue entier le mérite.
+  $assezCat = $assezAnnonces && $topCatN >= 50;
 
   $styles = ['ivoire', 'impact', 'neon', 'classique', 'script'];
   $anims  = ['fondu', 'glissement', 'pulse', 'defilement', 'machine'];
@@ -1944,38 +1972,73 @@ function seo_daily_broadcast(array $config, PDO $pdo): array {
       'link' => null, 'style' => 'ivoire', 'anim' => 'pulse'];
   }
 
-  // 6 buts en rotation (annonce · publication · message).
+  // NEUF BUTS EN ROTATION, RÉPARTIS SUR LES TROIS MARCHES DU PARCOURS.
+  //
+  // Chaque message a UNE cible et UN bouton. Un message qui invite à la fois à
+  // acheter, à vendre et à s'abonner n'obtient rien : le visiteur ne sait pas
+  // ce qu'on attend de lui. La rotation couvre donc, dans l'ordre où l'on perd
+  // les gens :
+  //
+  //   · VISITEUR -> COMPTE      (4 messages) — la marche la plus haute
+  //   · INSCRIT  -> ANNONCE     (3 messages) — huit comptes sur onze n'ont
+  //                                            jamais rien publié
+  //   · COMMERÇANT -> PUBLICITÉ (2 messages) — la seule recette du site
   $goals = [
-    // 0 · Annonce : met en avant la catégorie la plus fournie (SEO catégorie).
-    ['goal' => 'annonce',
-     'title' => $topCatN > 0 ? $fmt($topCatN) . ' ' . $catLabel . ' à saisir 🔥' : 'Des milliers d’annonces à saisir 🔥',
-     'description' => 'Trouvez les meilleures offres près de chez vous, à Abidjan et partout en Côte d’Ivoire.',
-     'link' => $site . '/#/explorer' . ($topCat ? '?cat=' . rawurlencode($topCat) : '')],
-    // 1 · Message : croissance — inciter à publier (gratuit).
+    // 0 · VISITEUR -> COMPTE. Le catalogue comme appât, le compte comme porte.
+    ['goal' => 'publication',
+     'title' => $assezCat ? $fmt($topCatN) . ' ' . $catLabel . ' vous attendent 🔥' : 'Trouvez votre bonheur près de chez vous 🔥',
+     'description' => 'Créez votre compte gratuit pour contacter les vendeurs et sauver vos coups de cœur.',
+     'link' => $site . '/#/inscription'],
+
+    // 1 · INSCRIT -> ANNONCE. Gratuité + effort réel (2 minutes), pas une promesse vague.
     ['goal' => 'message',
      'title' => 'Vendez chap-chap — c’est gratuit ! 🧡',
-     'description' => 'Publiez votre annonce en 2 minutes et touchez des milliers d’acheteurs ivoiriens.',
+     'description' => 'Une photo, un prix, deux minutes : votre annonce est en ligne et visible partout en Côte d’Ivoire.',
      'link' => $site . '/#/publier'],
-    // 2 · Publication : preuve sociale (confiance + croissance).
-    ['goal' => 'publication',
-     'title' => $users > 0 ? 'Déjà ' . $fmt($users) . ' Ivoiriens sur Chap.ci' : 'Rejoignez la communauté Chap.ci',
-     'description' => 'La marketplace 100 % ivoirienne où l’on achète et vend en toute confiance.',
-     'link' => $site . '/#/inscription'],
-    // 3 · Message : SEO local (près de moi / communes).
-    ['goal' => 'message',
-     'title' => 'Les bonnes affaires près de chez vous 📍',
-     'description' => 'De Cocody à Yopougon, d’Abidjan à Bouaké — trouvez et vendez dans votre commune.',
-     'link' => $site . '/#/explorer?tri=distance'],
-    // 4 · Publication : Mobile Money / sécurité (confiance).
-    ['goal' => 'publication',
-     'title' => 'Payez en toute sécurité, chap-chap 🔒',
-     'description' => 'Orange Money, MTN, Wave, Moov ou en main propre : échangez sereinement sur Chap.ci.',
-     'link' => $site . '/#/aide?rubrique=securite'],
-    // 5 · Annonce : catalogue global (SEO généraliste).
+
+    // 2 · COMMERÇANT -> PUBLICITÉ. Le prix EN CLAIR : c'est lui qui décide.
     ['goal' => 'annonce',
-     'title' => $listings > 0 ? $fmt($listings) . ' annonces en ligne aujourd’hui' : 'De nouvelles annonces chaque jour',
-     'description' => 'Voitures, téléphones, immobilier, mode… tout se trouve sur Chap.ci.',
-     'link' => $site . '/#/explorer'],
+     'title' => 'Votre boutique à l’écran, dès 400 FCFA 📣',
+     'description' => 'Faites voir votre commerce à tous les visiteurs de Chap.ci — 400 F la journée, 2 000 F la semaine.',
+     'link' => $site . '/#/publicite'],
+
+    // 3 · VISITEUR -> COMPTE, angle preuve sociale. Le chiffre ne sort qu'au seuil.
+    ['goal' => 'publication',
+     'title' => $assezVendeurs ? $fmt($vendeurs) . ' vendeurs ivoiriens vous attendent' : 'La marketplace 100 % ivoirienne',
+     'description' => 'Rejoignez-les : compte gratuit, contact direct, aucune commission sur vos ventes.',
+     'link' => $site . '/#/inscription'],
+
+    // 4 · INSCRIT -> ANNONCE, angle local (et bon pour le SEO des communes).
+    ['goal' => 'message',
+     'title' => 'Vendez dans votre commune 📍',
+     'description' => 'De Cocody à Yopougon, de Bouaké à San-Pédro : vos acheteurs sont à côté de vous. Publiez, ils vous trouvent.',
+     'link' => $site . '/#/publier'],
+
+    // 5 · VISITEUR -> COMPTE, angle confiance (Mobile Money + contacts protégés).
+    ['goal' => 'publication',
+     'title' => 'Achetez en confiance, chap-chap 🔒',
+     'description' => 'Orange Money, MTN, Wave, Moov ou en main propre. Votre numéro reste caché tant que vous ne l’avez pas donné — créez votre compte.',
+     'link' => $site . '/#/inscription'],
+
+    // 6 · COMMERÇANT -> PUBLICITÉ, angle remise membre (récompense l'ancienneté).
+    ['goal' => 'annonce',
+     'title' => 'Moitié prix pour les membres actifs 📣',
+     'description' => 'Un compte de plus de 30 jours et une annonce en ligne ? Votre écran publicitaire est à 200 FCFA la journée.',
+     'link' => $site . '/#/publicite'],
+
+    // 7 · INSCRIT -> ANNONCE, angle « ça ne coûte rien d'essayer ».
+    ['goal' => 'message',
+     'title' => 'Ce que vous n’utilisez plus vaut de l’argent 💰',
+     'description' => 'Téléphone, meuble, voiture, vêtement : quelqu’un le cherche aujourd’hui. Publier est gratuit et sans engagement.',
+     'link' => $site . '/#/publier'],
+
+    // 8 · VISITEUR -> COMPTE, angle catalogue global. Chiffres sous double seuil.
+    ['goal' => 'publication',
+     'title' => $assezAnnonces ? $fmt($listings) . ' annonces en ligne aujourd’hui' : 'De nouvelles annonces chaque jour',
+     'description' => $assezVisiteurs
+       ? $fmt($visiteursJour) . ' Ivoiriens sont passés sur Chap.ci aujourd’hui. Créez votre compte pour ne rien manquer.'
+       : 'Voitures, téléphones, immobilier, mode… Créez votre compte pour suivre ce qui vous intéresse.',
+     'link' => $site . '/#/inscription'],
   ];
   $g = $goals[$day % count($goals)];
   $g['style'] = $style;
@@ -3417,6 +3480,57 @@ function visit_series(PDO $pdo, string $range): array {
     'totalListings' => $totalListings,
     'mesureDepuis'  => $premiere,
   ];
+}
+
+/**
+ * Temps de réponse D'UN VENDEUR à ses acheteurs.
+ *
+ * POURQUOI CE CHIFFRE EST MONTRÉ AVANT DE CONTACTER. Ce que redoute un acheteur
+ * sur une marketplace, ce n'est pas le prix : c'est d'écrire dans le vide. Un
+ * vendeur qui répond en une heure et un vendeur qui ne répond jamais présentent
+ * aujourd'hui exactement la même fiche. Ce chiffre les sépare, et il récompense
+ * le vendeur sérieux sans qu'il ait rien à faire pour le mériter.
+ *
+ * ON MESURE LA MÉDIANE, PAS LA MOYENNE. Une seule réponse oubliée trois jours
+ * suffit à faire mentir une moyenne sur vingt réponses rapides. La médiane dit
+ * ce qui arrive d'habitude, et c'est la question que l'acheteur se pose.
+ *
+ * NE COMPTE QUE LES RÉPONSES DU VENDEUR : le délai part du dernier message de
+ * l'acheteur et s'arrête à la première réponse du vendeur. Les messages que le
+ * vendeur enchaîne tout seul ne comptent pas, ceux de l'acheteur non plus.
+ *
+ * Renvoie null tant qu'il y a moins de $mini réponses : trois points ne font pas
+ * une habitude, et afficher « répond en 2 minutes » sur un coup de chance est un
+ * mensonge que l'acheteur paiera.
+ */
+function seller_response_time(PDO $pdo, string $sellerId, int $mini = 3): ?array {
+  if ($sellerId === '') return null;
+  try {
+    $st = $pdo->prepare('SELECT m.conversation_id, m.sender_id, m.created_at
+      FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.seller_id = ? ORDER BY m.conversation_id, m.created_at ASC');
+    $st->execute([$sellerId]);
+    $rows = $st->fetchAll();
+  } catch (Throwable $e) { return null; }
+
+  $deltas = []; $conv = null; $attenteDepuis = null;
+  foreach ($rows as $r) {
+    if ($r['conversation_id'] !== $conv) { $conv = $r['conversation_id']; $attenteDepuis = null; }
+    $duVendeur = ((string) $r['sender_id']) === $sellerId;
+    if (!$duVendeur) {
+      // Premier message d'acheteur d'une salve : c'est LUI qui démarre l'attente.
+      if ($attenteDepuis === null) $attenteDepuis = strtotime((string) $r['created_at']) ?: null;
+    } elseif ($attenteDepuis !== null) {
+      $d = (strtotime((string) $r['created_at']) ?: 0) - $attenteDepuis;
+      // Au-delà de 30 jours, ce n'est plus une réponse : c'est une autre histoire.
+      if ($d >= 0 && $d < 30 * 86400) $deltas[] = $d;
+      $attenteDepuis = null;
+    }
+  }
+  if (count($deltas) < $mini) return null;
+  sort($deltas); $n = count($deltas);
+  $median = $n % 2 ? $deltas[intdiv($n, 2)] : (int) round(($deltas[$n / 2 - 1] + $deltas[$n / 2]) / 2);
+  return ['count' => $n, 'medianSeconds' => (int) $median];
 }
 
 /** Temps de réponse moyen/médian aux messages (à chaque changement d'expéditeur). */
@@ -4952,6 +5066,14 @@ try {
   }
 
   // ---------- REVIEWS (à double sens : acheteur ↔ vendeur) ----------
+  // Temps de réponse habituel d'un vendeur — PUBLIC, lu avant de le contacter.
+  // Route séparée et volontairement légère : la calculer dans /api/listings la
+  // referait pour chacune des cent annonces d'une page de résultats.
+  if ($path === 'seller/response-time' && $method === 'GET') {
+    $rt = seller_response_time($pdo, (string) ($_GET['seller_id'] ?? ''));
+    jout($rt ?? ['count' => 0, 'medianSeconds' => null]);
+  }
+
   if ($path === 'reviews' && $method === 'GET') {
     $sellerId = $_GET['seller_id'] ?? null; $listingId = $_GET['listing_id'] ?? null;
     $targetId = $_GET['target_id'] ?? null;

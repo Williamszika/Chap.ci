@@ -334,6 +334,17 @@ export interface SellerAnalytics {
   sales: { value: number; trend: number | null }
   series: { day: string; dow: number; n: number }[]
 }
+export interface SellerResponseTime {
+  /** Nombre de réponses mesurées. 0 = pas assez de données pour dire quoi que ce soit. */
+  count: number
+  /** Médiane en secondes, ou null tant qu'on n'a pas au moins trois réponses. */
+  medianSeconds: number | null
+}
+/** Temps de réponse habituel d'un vendeur (public, lu avant de le contacter). */
+export async function phpSellerResponseTime(sellerId: string): Promise<SellerResponseTime> {
+  return req(`/seller/response-time?seller_id=${encodeURIComponent(sellerId)}`)
+}
+
 export async function phpSellerAnalytics(period: string): Promise<SellerAnalytics> {
   return req<SellerAnalytics>(`/seller/analytics?period=${encodeURIComponent(period)}`)
 }

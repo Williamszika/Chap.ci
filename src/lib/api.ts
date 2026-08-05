@@ -33,6 +33,16 @@ export async function fetchSellerAnalytics(period: string) {
 }
 export type { SellerAnalytics } from './php'
 
+/**
+ * Temps de réponse habituel d'un vendeur. Ne lève jamais : ce chiffre est un
+ * bonus, une fiche annonce ne doit pas se casser parce qu'il manque.
+ */
+export async function fetchSellerResponseTime(sellerId: string) {
+  try { return await php.phpSellerResponseTime(sellerId) }
+  catch { return { count: 0, medianSeconds: null } }
+}
+export type { SellerResponseTime } from './php'
+
 /** Modifier une annonce. */
 export async function updateListingRemote(id: string, input: Omit<Listing, 'id' | 'createdAt' | 'currency'>): Promise<Listing> {
   return php.phpUpdateListing(id, input)
