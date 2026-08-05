@@ -172,6 +172,37 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
        rapport le déclarait vert. C'est la même faute que la sonde à liste de
        noms — une vérification qui ne peut pas échouer.
 
+   QUAND UNE EMPREINTE DIFFÈRE, NE DEVINE PAS LA FENÊTRE DU DIFF.
+   Le 05/08 à 15h47, une ronde a bien détecté l'écart, puis a décrit le
+   changement en attente comme « le texte du bandeau et des seuils » — alors que
+   ces deux-là étaient DÉJÀ en production. Le vrai écart tenait en quatorze
+   lignes sur une requête SQL. La cause : un `git diff cff0a95~3 cff0a95`, une
+   fenêtre de trois commits choisie à vue, qui comptait comme « à venir » ce qui
+   était déjà déployé. La conclusion sécurité tenait par chance ce jour-là ; une
+   fenêtre mal choisie peut aussi bien cacher ce qu'on cherche.
+
+   L'empreinte servie DÉSIGNE le commit déployé. Retrouve-le, ne le suppose pas :
+
+       SERVIE=$(curl -sS https://chap.ci/api/health | grep -o '"empreinte":"[^"]*"' | cut -d'"' -f4)
+       for c in $(git log --format=%H -30 -- server/index.php); do
+         [ "$(git show $c:server/index.php | md5sum | cut -c1-12)" = "$SERVIE" ] \
+           && { echo "déployé : $c"; break; }
+       done
+
+   Puis `git diff <ce commit> HEAD -- server/index.php`, et rien d'autre. Même
+   méthode pour `web/seo.php` avec `empreinteSeo`.
+
+   ET N'INVENTE JAMAIS UNE DATE. La même ronde a écrit que la route
+   `/api/seller/response-time` « existe depuis le 29/07 » : elle est née le
+   05/08. Elle avait testé la route en production — 200, mesure exacte — puis
+   ajouté une date qu'aucune de ses commandes ne pouvait connaître. `git log -S`
+   la donne en une seconde :
+
+       git log --format='%ad %h %s' --date=short -S 'seller/response-time' -- server/index.php
+
+   Une mesure vraie suivie d'une date inventée est plus dangereuse qu'une
+   absence de mesure : elle est crédible.
+
    `depose` et `deposeSite` sont ton garde-fou : ce sont les dates d'écriture
    RÉELLES sur le disque. Un `deposeSite` qui n'a pas bougé depuis des jours,
    alors que des commits touchant `src/` sont arrivés entre-temps, signale un
