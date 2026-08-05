@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import {
-  festiveMode, daysToFete, isFestiveDismissed, dismissFestive, onFestiveHide, FESTIVE_COLORS,
+  festiveMode, daysToFete, isFeteDay, isFestiveDismissed, dismissFestive, onFestiveHide, FESTIVE_COLORS,
 } from '../lib/festive'
 
 /**
@@ -108,6 +108,9 @@ export function IndependenceBanner() {
   }
   const days = daysToFete()
   const isDay = mode === 'day'
+  // LE 7 AOÛT, ON SOUHAITE — on ne décompte plus. L'ambiance suit l'heure
+  // (confettis / feux), le message suit la date : deux choses différentes.
+  const leJourJ = useMemo(isFeteDay, [])
 
   const bg = isDay
     ? `radial-gradient(120% 90% at 12% 8%, rgba(255,255,255,.45), transparent 55%), linear-gradient(115deg, ${OR} 0%, ${OR2} 34%, ${WHITE} 50%, ${VERT2} 66%, ${VERT} 100%)`
@@ -118,7 +121,7 @@ export function IndependenceBanner() {
       className="relative mt-3 overflow-hidden rounded-3xl shadow-card lg:mt-4"
       style={{ background: bg }}
       role="img"
-      aria-label={isDay ? 'Bonne fête de l’indépendance de la Côte d’Ivoire' : 'Feux d’artifice pour la fête nationale de la Côte d’Ivoire'}
+      aria-label={!isDay ? 'Feux d’artifice pour la fête nationale de la Côte d’Ivoire' : leJourJ ? 'Bonne fête à tous les Ivoiriens — 66 ans d’indépendance' : 'Compte à rebours vers la fête de l’indépendance de la Côte d’Ivoire'}
     >
       {isDay && (
         <div
@@ -143,7 +146,11 @@ export function IndependenceBanner() {
           className="text-[11px] font-extrabold uppercase tracking-[0.16em]"
           style={{ color: isDay ? '#0b6b45' : GOLD2 }}
         >
-          {isDay ? '🇨🇮 7 août 1960 — 2026 · Fête nationale' : '✨ Bonne fête, Côte d’Ivoire'}
+          {!isDay
+            ? '✨ Bonne fête, Côte d’Ivoire'
+            : leJourJ
+              ? '🇨🇮 Aujourd’hui · 7 août 1960 — 2026'
+              : '🇨🇮 7 août 1960 — 2026 · Fête nationale'}
         </span>
 
         <p className="mt-1.5 font-black leading-[0.92] tracking-tight">
@@ -173,14 +180,21 @@ export function IndependenceBanner() {
           className="mt-2 max-w-[42ch] text-[15px] font-semibold sm:text-base"
           style={{ color: isDay ? '#2a2110' : '#c9d0f5' }}
         >
-          {isDay
-            ? <>Chap.ci célèbre la <b>Terre d’Espérance</b>. Fier d’être 100 % ivoirien.</>
-            : <>« Terre d’espérance, pays de l’hospitalité. » Ce soir, on illumine le ciel ivoirien 🎆</>}
+          {!isDay
+            ? <>« Terre d’espérance, pays de l’hospitalité. » Ce soir, on illumine le ciel ivoirien 🎆</>
+            : leJourJ
+              ? <><b>Bonne fête à tous les Ivoiriens 🧡</b> Chap.ci célèbre avec vous les 66 ans de la <b>Terre d’Espérance</b>.</>
+              : <>Chap.ci célèbre la <b>Terre d’Espérance</b>. Fier d’être 100 % ivoirien.</>}
         </p>
 
         <div className="mt-2 flex items-center gap-3">
           <span className="text-lg tracking-[0.15em]">🧡 🤍 💚</span>
-          {isDay && days > 0 && (
+          {isDay && leJourJ && (
+            <span className="rounded-full bg-black/25 px-3 py-1 text-xs font-bold text-white">
+              C’est aujourd’hui 🎉
+            </span>
+          )}
+          {isDay && !leJourJ && days > 0 && (
             <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-bold text-black/75">
               {days === 1 ? 'Demain, la fête !' : `Plus que ${days} jours`}
             </span>

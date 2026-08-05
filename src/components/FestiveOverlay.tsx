@@ -36,12 +36,20 @@ export function FestiveOverlay() {
     window.addEventListener('resize', fit)
 
     if (mode === 'day') {
-      // Confettis clairsemés qui flottent doucement sur tout l'écran.
-      const N = Math.min(70, Math.max(20, Math.round((w * h) / 26000)))
+      // Confettis qui flottent doucement sur tout l'écran.
+      //
+      // DENSITÉ RELEVÉE LE 05/08. Mesuré sur un téléphone de 390 px : les
+      // confettis ne peignaient que 5 ‰ de l'écran, contre 26,8 ‰ pour les feux
+      // d'artifice du soir. Cinq fois moins — d'où « l'animation ne se fait pas
+      // sur téléphone » : elle tournait, on ne la voyait pas. Un écran de
+      // téléphone reçoit maintenant une trentaine de confettis au lieu d'une
+      // douzaine, un peu plus grands ; un grand écran reste plafonné pour ne
+      // pas transformer la fête en tempête.
+      const N = Math.min(110, Math.max(34, Math.round((w * h) / 11000)))
       const spawn = (init: boolean) => ({
         x: Math.random() * w, y: init ? Math.random() * h : -14,
         vx: (Math.random() - 0.5) * 0.4, vy: 0.5 + Math.random() * 1.1,
-        wd: 5 + Math.random() * 6, ht: 7 + Math.random() * 7,
+        wd: 7 + Math.random() * 7, ht: 9 + Math.random() * 8,
         rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.12,
         sway: Math.random() * 6.28,
         c: FESTIVE_COLORS[(Math.random() * FESTIVE_COLORS.length) | 0],

@@ -23,17 +23,50 @@ function param(name: string): string | null {
   return null
 }
 
+/**
+ * L'AMBIANCE SUIT L'HEURE, PAS LA DATE.
+ *
+ * Jusqu'au 05/08/2026, « nuit » désignait un intervalle de dates — du 7 au
+ * 10 août — et « jour » les six jours d'avant. Résultat : les feux d'artifice
+ * ne se déclenchaient jamais le soir, et les confettis tombaient à minuit.
+ * Le Patron l'a dit en une phrase : « normalement les nuits, c'est les feux
+ * d'artifice ». Il a raison — un feu d'artifice, c'est le soir.
+ *
+ * Fenêtre de fête : du 1ᵉʳ au 10 août. Dedans :
+ *   · de 18 h à 6 h (heure du téléphone) -> NUIT, feux d'artifice ;
+ *   · le reste de la journée             -> JOUR, confettis.
+ *
+ * On lit l'heure LOCALE de l'appareil, pas celle du serveur : c'est la nuit de
+ * celui qui regarde qui compte, pas celle d'Abidjan.
+ *
+ * Essais à tout moment : ?fete=a (jour) · ?fete=b (nuit) · ?fete=j (le 7 août)
+ * · ?fete=0 (éteint).
+ */
 export function festiveMode(): FestiveMode | null {
   const f = param('fete')
   if (f === '0') return null
   if (f === 'a') return 'day'
   if (f === 'b') return 'night'
+  if (f === 'j') return 'day' // le jour de la fête : confettis + message de vœux
   const d = new Date()
   if (d.getMonth() !== 7) return null // août = mois 7
   const day = d.getDate()
-  if (day >= 1 && day <= 6) return 'day'
-  if (day >= 7 && day <= 10) return 'night'
-  return null
+  if (day < 1 || day > 10) return null
+  const h = d.getHours()
+  return h >= 18 || h < 6 ? 'night' : 'day'
+}
+
+/**
+ * LE 7 AOÛT, ON SOUHAITE LA FÊTE — on ne décompte plus.
+ *
+ * L'ambiance (confettis ou feux) répond à l'heure ; le MESSAGE répond à la
+ * date. Ce sont deux choses différentes, et les confondre donnait « Plus que
+ * 0 jours » le jour même de l'indépendance.
+ */
+export function isFeteDay(): boolean {
+  if (param('fete') === 'j') return true
+  const d = new Date()
+  return d.getMonth() === 7 && d.getDate() === 7
 }
 
 export function daysToFete(): number {
