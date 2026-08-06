@@ -5,6 +5,7 @@ import {
   ArrowLeft, MessageSquare, Star, Mail,
   Loader2, Lock, Download, Trash2, TrendingUp, RefreshCw,
   Flag, Ban, ShieldOff, ShieldCheck as ShieldOk, Eye, EyeOff, ChevronRight, UserX, AlertTriangle, X,
+  Plus, LifeBuoy,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { formatPrice, formatFCFA, timeAgo } from '../lib/format'
@@ -21,7 +22,7 @@ import {
   modTokens, createModToken, revokeModToken, modAudit, type ServiceToken, type ModAuditEntry,
   adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
-  type AdminUserDetail, type Report, type UserStatus, type AdminConversation, type AdminReview,
+  type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview,
   type VisitStats, type VisitRange, type VisitPoint, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
@@ -111,9 +112,19 @@ export function AdminDashboard() {
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white ${role.owner ? 'bg-ink' : 'bg-ivoire-green'}`}>
             {role.owner ? 'Propriétaire' : 'Modérateur'}
           </span>
+          {/* L'assistance n'est pas un onglet : c'est un écran à part, le même
+              que celui des membres. En faire un onglet aurait obligé à écrire
+              deux fois la conversation — et les deux auraient divergé. */}
+          <button
+            onClick={() => navigate('/assistance')}
+            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-line2 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-cream-100 active:scale-95"
+            title="Demandes des membres, et fils entre modérateurs"
+          >
+            <LifeBuoy size={14} /> Assistance
+          </button>
           <button
             onClick={() => { adminLock(); setReload((n) => n + 1) }}
-            className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-ivoire-green/10 px-3.5 py-1.5 text-xs font-bold text-ivoire-green-dark transition hover:bg-ivoire-green/15 active:scale-95"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-ivoire-green/10 px-3.5 py-1.5 text-xs font-bold text-ivoire-green-dark transition hover:bg-ivoire-green/15 active:scale-95"
             title="Cliquer pour verrouiller le tableau de bord"
           >
             🔓 {role.owner ? 'Déverrouillé' : 'Accès permanent'}
@@ -1059,9 +1070,49 @@ function ReviewsTab() {
 }
 
 // ---------- Annonces (modération) ----------
+/**
+ * Le motif d'un masquage ou d'un retrait — et pourquoi on ne peut pas s'en passer.
+ *
+ * Une annonce qui disparaît sans un mot, le vendeur la republie à l'identique le
+ * lendemain, et on recommence indéfiniment. Le motif est ce qui transforme une
+ * suppression en correction. Le serveur l'exige au masquage ; ici on le demande,
+ * et on propose les formulations courantes pour qu'un modérateur pressé n'ait
+ * pas à les réécrire.
+ *
+ * Rend `null` si l'on annule, `''` jamais : au masquage, un motif vide est
+ * refusé plus haut, et on préfère le dire tout de suite.
+ */
+const MOTIFS = [
+  'photo absente ou trompeuse',
+  'prix manifestement faux',
+  'produit interdit à la vente',
+  'annonce en double',
+  'coordonnées d’un tiers publiées',
+  'contenu inapproprié',
+]
+function demanderMotif(action: 'masquer' | 'retirer', titre: string): string | null {
+  const m = prompt(
+    `Pourquoi ${action} « ${titre} » ?\n\n`
+    + 'Ce texte part au vendeur : écrivez-le comme vous le lui diriez.\n'
+    + 'Formulations courantes — ' + MOTIFS.join(' · '),
+    '',
+  )
+  if (m === null) return null
+  const t = m.trim()
+  if (!t && action === 'masquer') {
+    alert('Le motif est obligatoire : c’est lui que le vendeur reçoit, et sans lui il republiera la même annonce.')
+    return null
+  }
+  return t
+}
+
+type FiltreAnnonces = 'toutes' | 'visibles' | 'masquees'
+
 function ListingsTab() {
   const [items, setItems] = useState<AdminListing[] | null>(null)
   const [err, setErr] = useState('')
+  const [filtre, setFiltre] = useState<FiltreAnnonces>('toutes')
+  const [q, setQ] = useState('')
   const load = () => {
     setItems(null); setErr('')
     fetchAdminListings().then(setItems).catch((e) => setErr((e as Error).message))
@@ -1069,30 +1120,87 @@ function ListingsTab() {
   useEffect(load, [])
 
   const remove = async (l: AdminListing) => {
-    if (!confirm(`Supprimer définitivement « ${l.title} » ?`)) return
-    try { await deleteAdminListing(l.id); setItems((p) => (p ?? []).filter((x) => x.id !== l.id)) }
+    if (!confirm(`Retirer définitivement « ${l.title} » ? Cette action ne s’annule pas.`)) return
+    const motif = demanderMotif('retirer', l.title)
+    if (motif === null) return
+    try { await deleteAdminListing(l.id, motif); setItems((p) => (p ?? []).filter((x) => x.id !== l.id)) }
+    catch (e) { alert((e as Error).message) }
+  }
+
+  const basculer = async (l: AdminListing) => {
+    const versMasque = !l.hidden
+    const motif = versMasque ? demanderMotif('masquer', l.title) : ''
+    if (motif === null) return
+    try { await setAdminListingHidden(l.id, versMasque, motif); load() }
     catch (e) { alert((e as Error).message) }
   }
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const masquees = items.filter((l) => l.hidden).length
+  const terme = q.trim().toLowerCase()
+  const vus = items.filter((l) => {
+    if (filtre === 'visibles' && l.hidden) return false
+    if (filtre === 'masquees' && !l.hidden) return false
+    if (!terme) return true
+    return (l.title + ' ' + (l.sellerEmail ?? '') + ' ' + (l.sellerName ?? '')).toLowerCase().includes(terme)
+  })
+
   return (
     <div className="space-y-2">
-      <RowHead count={items.length} label="annonce" />
-      {items.map((l) => (
-        <div key={l.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card">
+      {/* Chercher, filtrer, ajouter — les trois gestes du contrôle complet.
+          « Ajouter » ouvre le formulaire ordinaire : une annonce publiée par
+          l'équipe reste une annonce, avec ses photos et ses règles. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 shadow-card">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Chercher un titre, un vendeur…"
+          aria-label="Chercher une annonce"
+          className="input h-10 min-w-[180px] flex-1 py-0 text-sm"
+        />
+        <div className="flex gap-1">
+          {([['toutes', `Toutes (${items.length})`], ['visibles', `En ligne (${items.length - masquees})`], ['masquees', `Masquées (${masquees})`]] as [FiltreAnnonces, string][]).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setFiltre(id)}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+                filtre === id ? 'bg-primary-500 text-white' : 'border border-line2 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <a href="#/publier" className="flex items-center gap-1 rounded-lg bg-ivoire-green px-2.5 py-1.5 text-xs font-bold text-white">
+          <Plus size={13} /> Ajouter
+        </a>
+      </div>
+
+      <RowHead count={vus.length} label="annonce" />
+      {vus.map((l) => (
+        <div key={l.id} className={`flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card ${l.hidden ? 'opacity-70 ring-1 ring-amber-100' : ''}`}>
           <Thumb listing={l} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-gray-800">{l.title}</p>
-            <p className="tnum text-sm font-bold text-primary-600">{formatFCFA(l.price)}</p>
-            <p className="truncate text-xs text-gray-400">{l.sellerEmail || l.sellerName || '—'} · {timeAgo(l.createdAt)}</p>
+            <p className="flex items-center gap-2 truncate text-sm font-semibold text-gray-800">
+              <a href={`#/annonce/${l.id}`} className="truncate hover:underline">{l.title}</a>
+              {l.hidden && <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">Masquée</span>}
+            </p>
+            <p className="tnum text-sm font-bold text-primary-600">{l.price === 0 ? 'Gratuit' : formatFCFA(l.price)}</p>
+            <p className="truncate text-xs text-gray-500">{l.sellerEmail || l.sellerName || '—'} · {timeAgo(l.createdAt)}</p>
           </div>
-          <button onClick={() => remove(l)} aria-label="Supprimer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
+          <button onClick={() => basculer(l)} aria-label={l.hidden ? 'Réafficher' : 'Masquer'} className="shrink-0 rounded-xl p-2 text-gray-600 transition hover:bg-gray-100">
+            {l.hidden ? <Eye size={18} /> : <EyeOff size={18} />}
+          </button>
+          <button onClick={() => remove(l)} aria-label="Retirer" className="shrink-0 rounded-xl p-2 text-red-500 transition hover:bg-red-50">
             <Trash2 size={18} />
           </button>
         </div>
       ))}
-      {items.length === 0 && <Empty>Aucune annonce publiée.</Empty>}
+      {vus.length === 0 && (
+        <Empty>{items.length === 0 ? 'Aucune annonce publiée.' : 'Aucune annonce ne correspond à ce filtre.'}</Empty>
+      )}
     </div>
   )
 }
@@ -1159,12 +1267,16 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
     try { await deleteUser(id); onBack() }
     catch (e) { alert((e as Error).message); setBusy(false) }
   }
-  const toggleListing = async (lid: string, hidden: boolean) => {
-    try { await setAdminListingHidden(lid, hidden); load() } catch (e) { alert((e as Error).message) }
+  const toggleListing = async (lid: string, hidden: boolean, title: string) => {
+    const motif = hidden ? demanderMotif('masquer', title) : ''
+    if (motif === null) return
+    try { await setAdminListingHidden(lid, hidden, motif); load() } catch (e) { alert((e as Error).message) }
   }
   const removeListing = async (lid: string, title: string) => {
-    if (!confirm(`Supprimer « ${title} » ?`)) return
-    try { await deleteAdminListing(lid); load() } catch (e) { alert((e as Error).message) }
+    if (!confirm(`Retirer définitivement « ${title} » ? Cette action ne s’annule pas.`)) return
+    const motif = demanderMotif('retirer', title)
+    if (motif === null) return
+    try { await deleteAdminListing(lid, motif); load() } catch (e) { alert((e as Error).message) }
   }
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
@@ -1189,17 +1301,94 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </div>
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          {u.phone && <Info label="Téléphone" value={u.phone} />}
+          {/* ⚠️ Téléphone et e-mail : ils ne sortent QUE sur cet écran, derrière
+              la fonctionnalité « Utilisateurs ». Le profil public d'un vendeur
+              (/vendeur/{id}) n'en montre aucun des deux. */}
+          <Info label="Téléphone" value={u.phone || 'non renseigné'} />
           {(u.commune || u.cityId) && <Info label="Localisation" value={locationLabel(u.regionId ?? '', u.cityId ?? '', u.commune ?? undefined)} />}
           <Info label="Inscrit" value={timeAgo(u.createdAt)} />
-          <Info label="Annonces" value={String(u.listings.length)} />
+          <Info
+            label="Compte"
+            value={
+              (u.provider && u.provider !== 'email' ? u.provider.charAt(0).toUpperCase() + u.provider.slice(1) : 'E-mail')
+              + (u.emailVerifie ? ' · vérifié' : ' · non vérifié')
+            }
+          />
         </dl>
         {u.bio && <p className="mt-2 rounded-xl bg-gray-50 p-2 text-sm text-gray-600">{u.bio}</p>}
       </div>
 
+      {/* ---- Ce qui fait la décision -------------------------------------- *
+        * Un compte inscrit hier avec quatre annonces signalées et un compte de
+        * huit mois avec un seul signalement se ressemblent dans une liste. Ils
+        * n'appellent pas la même décision. Ces chiffres-là sont la différence. */}
+      {u.chiffres && (
+        <div className="rounded-2xl bg-white p-4 shadow-card">
+          <p className="mb-2.5 flex flex-wrap items-center gap-2 text-sm font-bold text-gray-800">
+            Son activité
+            {u.chiffres.signalementsSubisOuverts > 0 && (
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-700">
+                {u.chiffres.signalementsSubisOuverts} signalement{u.chiffres.signalementsSubisOuverts > 1 ? 's' : ''} ouvert{u.chiffres.signalementsSubisOuverts > 1 ? 's' : ''}
+              </span>
+            )}
+            {u.note && (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                ★ {String(u.note.moyenne).replace('.', ',')} sur {u.note.nombre} avis
+              </span>
+            )}
+          </p>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {([
+              ['Annonces', u.chiffres.annonces],
+              ['Masquées', u.chiffres.annoncesMasquees, u.chiffres.annoncesMasquees > 0],
+              ['Vendues', u.chiffres.annoncesVendues],
+              ['Signalé', u.chiffres.signalementsSubis, u.chiffres.signalementsSubis > 0],
+              ['A signalé', u.chiffres.signalementsEmis],
+              ['Conversations', u.chiffres.conversations],
+              ['Achats', u.chiffres.commandesPassees],
+              ['Ventes', u.chiffres.commandesRecues],
+              ['Avis reçus', u.chiffres.avisRecus],
+              ['Publicités', u.chiffres.publicites, u.chiffres.publicites > 0],
+            ] as [string, number, boolean?][]).map(([label, valeur, alerte]) => (
+              <div key={label} className={`rounded-xl px-2 py-2.5 text-center ${alerte ? 'bg-red-50' : 'bg-cream-100'}`}>
+                <p className={`tnum font-display text-lg font-extrabold leading-none ${alerte ? 'text-red-700' : 'text-ink'}`}>{valeur}</p>
+                <p className="mt-1 text-[11px] text-gray-500">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Ce qu'on lui reproche, du plus fréquent au moins fréquent. Un même
+              motif répété dit autre chose qu'une plainte isolée. */}
+          {!!u.motifsSignales?.length && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-xs font-semibold text-gray-600">Motifs des signalements reçus</p>
+              <div className="flex flex-wrap gap-1.5">
+                {u.motifsSignales.map((m) => (
+                  <span key={m.motif} className="rounded-full bg-gray-100 px-2.5 py-1 text-[11.5px] font-medium text-gray-700">
+                    {m.motif} · {m.n}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Actions de modération */}
       <div className="rounded-2xl bg-white p-4 shadow-card">
         <p className="mb-2 text-sm font-bold text-gray-800">Modération du compte</p>
+        {/* Un modérateur ne doit pas découvrir en bloquant un compte qu'il vient
+            de bloquer un collègue. Le serveur refuse déjà de toucher au
+            propriétaire ; l'avertissement, lui, évite le geste. */}
+        {u.equipe && (
+          <p className="mb-2.5 flex items-start gap-2 rounded-xl bg-amber-50 p-2.5 text-[13px] leading-relaxed text-amber-800">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <span>
+              Ce compte fait partie de l’équipe
+              {u.equipe === 'proprietaire' ? ' — c’est le propriétaire du site, il ne peut être ni bloqué ni supprimé.' : ' (modérateur).'}
+            </span>
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2">
           <ModBtn active={u.status === 'active'} onClick={() => changeStatus('active')} disabled={busy} icon={<ShieldOk size={15} />} label="Actif" tone="emerald" />
           <ModBtn active={u.status === 'restricted'} onClick={() => changeStatus('restricted')} disabled={busy} icon={<ShieldOff size={15} />} label="Restreindre" tone="amber" />
@@ -1227,7 +1416,7 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 </p>
                 <p className="tnum text-sm font-bold text-primary-600">{formatFCFA(l.price)}</p>
               </div>
-              <button onClick={() => toggleListing(l.id, !l.hidden)} aria-label={l.hidden ? 'Afficher' : 'Masquer'} className="shrink-0 rounded-xl p-2 text-gray-500 hover:bg-gray-100">
+              <button onClick={() => toggleListing(l.id, !l.hidden, l.title)} aria-label={l.hidden ? 'Afficher' : 'Masquer'} className="shrink-0 rounded-xl p-2 text-gray-500 hover:bg-gray-100">
                 {l.hidden ? <Eye size={17} /> : <EyeOff size={17} />}
               </button>
               <button onClick={() => removeListing(l.id, l.title)} aria-label="Supprimer" className="shrink-0 rounded-xl p-2 text-red-500 hover:bg-red-50">
@@ -1275,11 +1464,38 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
   const load = () => { setItems(null); setErr(''); fetchReports().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
-  const hide = async (r: Report) => {
-    try { await setAdminListingHidden(r.listingId, !r.listingHidden); load() } catch (e) { alert((e as Error).message) }
+  /**
+   * Une décision, un seul appel.
+   *
+   * Auparavant « Marquer traité » ne faisait que ranger la ligne : pour agir sur
+   * l'annonce il fallait la retrouver dans l'onglet Annonces, et la moitié du
+   * temps ce second geste n'était pas fait — signalement classé, annonce
+   * toujours en ligne. C'est exactement ce qu'un signalement est censé empêcher.
+   * Masquer et supprimer closent donc le signalement avec eux, ainsi que les
+   * autres signalements visant la même annonce : trois personnes signalent
+   * souvent la même chose, et on ne retraite pas une décision prise.
+   */
+  const traiter = async (r: Report, action: ReportAction) => {
+    if (action === 'supprimer' && !confirm(`Retirer définitivement « ${r.listingTitle} » ? Cette action ne s’annule pas.`)) return
+    // Le motif par défaut reprend la raison du signalement — c'est déjà le bon
+    // mot dans la grande majorité des cas. Vide = le serveur le compose.
+    let motif = ''
+    if (action !== 'classer') {
+      const saisi = prompt(
+        `Message envoyé au vendeur — ${action === 'masquer' ? 'masquage' : 'retrait'} de « ${r.listingTitle} »\n\n`
+        + 'Laissez vide pour reprendre la raison du signalement.',
+        '',
+      )
+      if (saisi === null) return
+      motif = saisi.trim()
+    }
+    try { await resolveReport(r.id, action, motif); load(); onChanged?.() }
+    catch (e) { alert((e as Error).message) }
   }
-  const resolve = async (r: Report) => {
-    try { await resolveReport(r.id); load(); onChanged?.() } catch (e) { alert((e as Error).message) }
+
+  /** Réafficher une annonce masquée : le seul cas où l'on ne clôt rien. */
+  const reafficher = async (r: Report) => {
+    try { await setAdminListingHidden(r.listingId, false); load() } catch (e) { alert((e as Error).message) }
   }
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
@@ -1302,13 +1518,25 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
               <a href={`#/annonce/${r.listingId}`} className="block truncate text-sm text-primary-600 hover:underline">{r.listingTitle}</a>
               {r.details && <p className="mt-1 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">{r.details}</p>}
               <p className="mt-1 text-[11px] text-gray-400">Signalé par {r.reporterEmail || '—'} · {timeAgo(r.createdAt)}</p>
-              <div className="mt-2 flex gap-1.5">
-                <button onClick={() => hide(r)} className="flex items-center gap-1 rounded-lg border border-line2 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
-                  {r.listingHidden ? <><Eye size={13} /> Réafficher</> : <><EyeOff size={13} /> Masquer l’annonce</>}
+              {/* Trois issues, et elles closent le signalement avec elles :
+                  rien à reprocher, l'annonce est corrigeable, l'annonce n'a
+                  rien à faire ici. */}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {r.listingHidden ? (
+                  <button onClick={() => reafficher(r)} className="flex items-center gap-1 rounded-lg border border-line2 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    <Eye size={13} /> Réafficher
+                  </button>
+                ) : (
+                  <button onClick={() => traiter(r, 'masquer')} className="flex items-center gap-1 rounded-lg border border-line2 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                    <EyeOff size={13} /> Masquer l’annonce
+                  </button>
+                )}
+                <button onClick={() => traiter(r, 'supprimer')} className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
+                  <Trash2 size={13} /> Supprimer l’annonce
                 </button>
                 {r.status === 'open' && (
-                  <button onClick={() => resolve(r)} className="flex items-center gap-1 rounded-lg bg-ivoire-green px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-ivoire-green">
-                    <CheckCircle2 size={13} /> Marquer traité
+                  <button onClick={() => traiter(r, 'classer')} className="flex items-center gap-1 rounded-lg bg-ivoire-green px-2.5 py-1.5 text-xs font-semibold text-white">
+                    <CheckCircle2 size={13} /> Rien à reprocher
                   </button>
                 )}
               </div>

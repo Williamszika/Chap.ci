@@ -5094,6 +5094,9 @@ try {
       // Lire, c'est avoir lu : on remet à zéro le compteur de CELUI qui lit.
       $pdo->prepare('UPDATE team_threads SET ' . ($staff ? 'unread_staff' : 'unread_user') . ' = 0 WHERE id = ?')
           ->execute([$seg[2]]);
+      // …et dans la réponse aussi : `$fil` a été lu AVANT la remise à zéro, et
+      // renvoyer l'ancien compte ferait clignoter une pastille déjà éteinte.
+      $fil[$staff ? 'unread_staff' : 'unread_user'] = 0;
       jout([
         'fil' => $filOut($fil, $staff),
         'messages' => array_map(fn($m) => [

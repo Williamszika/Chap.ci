@@ -32,6 +32,7 @@ import {
   BellOff,
   Package,
   HelpCircle,
+  LifeBuoy,
   Megaphone,
   MailCheck,
 } from 'lucide-react'
@@ -258,6 +259,10 @@ export function Profile() {
             <AccountRow tint="green" icon={<ShieldCheck size={20} />} label="Sécurité" sub="Mot de passe · double authentification" onClick={() => setTab('params')} />
             <AccountRow tint="sky" icon={<MapPin size={20} />} label="Adresse & localisation" onClick={() => setTab('params')} />
             <AccountRow tint="primary" icon={<HelpCircle size={20} />} label="Aide & support" onClick={() => navigate('/aide')} />
+            {/* Écrire à une vraie personne, et suivre la réponse au même
+                endroit. Le formulaire de /contact reste pour ceux qui n'ont pas
+                de compte — ici, l'équipe voit les annonces de qui écrit. */}
+            <AccountRow tint="green" icon={<LifeBuoy size={20} />} label="Contacter l’équipe" sub="Une question, une annonce masquée, un doute" onClick={() => navigate('/assistance')} />
             <button onClick={logout} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-red-50">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600"><LogOut size={20} /></span>
               <span className="flex-1 font-semibold text-red-600">Se déconnecter</span>
