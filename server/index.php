@@ -61,6 +61,10 @@ $config += [
   'seuil_annonces'       => (int) (getenv('CHAPCI_SEUIL_ANNONCES')  ?: 500),
   'seuil_vendeurs'       => (int) (getenv('CHAPCI_SEUIL_VENDEURS')  ?: 200),
   'seuil_visiteurs_jour' => (int) (getenv('CHAPCI_SEUIL_VISITEURS') ?: 200000),
+  // Identifiant de l'application Android. Il ne sert qu'à composer le lien
+  // d'adhésion au test fermé : https://play.google.com/apps/testing/{app_id}.
+  // Il n'est pas secret — il est écrit sur la fiche Play, visible de tous.
+  'app_id'               => getenv('CHAPCI_APP_ID') ?: 'ci.chap.app',
   // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
   // explicitement. En production (défaut), les erreurs restent génériques côté
   // client et les détails sont journalisés (error_log) côté serveur.
@@ -1236,6 +1240,23 @@ function migrate(PDO $pdo): void {
     //  Les deux compteurs de non-lus évitent une requête d'agrégat à chaque
     //  affichage de badge — un badge se regarde vingt fois par jour.
     // ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  LES INVITATIONS AU TEST FERMÉ (Play Store).
+    //
+    //  Elle existe pour UNE raison : savoir à qui on a déjà écrit. Un compte
+    //  développeur personnel exige douze testeurs inscrits en continu pendant
+    //  quatorze jours, et le compteur repart de zéro si l'un se désinscrit — on
+    //  relance donc, et on relance encore. Sans trace, on relance aussi ceux qui
+    //  ont déjà accepté, ce qui est le meilleur moyen de les faire partir.
+    //
+    //  ⚠️ LES ADRESSES NE SONT PAS DANS LE DÉPÔT, et ne doivent jamais y entrer :
+    //  ce sont dix-huit personnes réelles. Elles se collent dans l'écran, elles
+    //  vivent ici, et elles partent avec la base si on la purge.
+    // ------------------------------------------------------------------------
+    "CREATE TABLE IF NOT EXISTS invitations (
+      email VARCHAR(190) PRIMARY KEY, envois $intT, dernier_envoi $ts,
+      dernier_statut $txt, cree_le $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS team_threads (
       id $id PRIMARY KEY, kind $txt, user_id $id, subject $txt, status $txt,
       created_at $ts, last_at $ts, last_by $txt, unread_user $intT, unread_staff $intT
@@ -1606,7 +1627,10 @@ function admin_grantable_features(): array {
 }
 /** Fonctionnalités RÉSERVÉES au propriétaire (jamais délégables à un modérateur). */
 function admin_owner_only_features(): array {
-  return ['moderators','emails','backup','automation'];
+  // « invitations » : écrire à des personnes nommées, à leur adresse
+  // personnelle, au nom du site. Ce n'est pas de la modération, et un
+  // modérateur n'a pas non plus à voir la liste.
+  return ['moderators','emails','backup','automation','invitations'];
 }
 /** Libellés FR (pour les cases à cocher de l'UI). */
 function admin_feature_labels(): array {
@@ -1631,6 +1655,7 @@ function admin_feature_for_path(string $path): string {
   if ($path === 'admin/conversations') return 'conversations';
   if (str_starts_with($path, 'admin/reviews')) return 'reviews';
   if (str_starts_with($path, 'admin/campaign')) return 'campaigns';
+  if (str_starts_with($path, 'admin/invitations')) return 'invitations';
   if ($path === 'admin/newsletter') return 'newsletter';
   if (str_starts_with($path, 'admin/moderators')) return 'moderators';
   if ($path === 'admin/smtp' || $path === 'admin/test-email') return 'emails';
@@ -3174,6 +3199,60 @@ function send_order_buyer_email(array $config, string $to, array $items): bool {
     email_layout($config, $inner, 'Votre demande d’achat a été transmise au vendeur.'));
 }
 /** Construit l'email HTML d'une campagne à partir d'un message texte libre. */
+/**
+ * L'e-mail d'invitation au test fermé du Play Store.
+ *
+ * CE QU'IL DOIT FAIRE COMPRENDRE EN TRENTE SECONDES : accepter l'invitation ne
+ * suffit pas — il faut ouvrir le lien, rejoindre le programme, PUIS installer
+ * l'application, et la garder installée. Un testeur qui se désinscrit remet le
+ * compteur des quatorze jours à zéro pour tout le monde.
+ *
+ * Le lien d'adhésion est celui que Google construit à partir de l'identifiant
+ * de l'application : https://play.google.com/apps/testing/{appId}. Il ne
+ * fonctionne QUE si le test fermé a été publié — d'où l'avertissement rendu
+ * par la route quand ce n'est pas encore le cas.
+ */
+function invitation_html(array $config, string $message, string $lienTest): string {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  // Texte libre du Patron -> paragraphes sûrs. Les sauts de ligne comptent.
+  $paras = array_values(array_filter(array_map('trim', preg_split('/\n\s*\n/', $message) ?: [])));
+  $corps = '';
+  foreach ($paras as $p) {
+    $corps .= '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+           . nl2br(htmlspecialchars($p)) . '</p>';
+  }
+  $inner =
+      '<h2 style="margin:0 0 6px;color:#111827;font-size:22px">Vous êtes invité à tester Chap.ci 🇨🇮</h2>'
+    . '<p style="margin:0 0 18px;font-size:13px;color:#6b7280">'
+    . 'L’application Android, avant tout le monde.</p>'
+    . $corps
+    . '<div style="margin:22px 0;padding:16px 18px;border-radius:12px;background:#FFF6EA;border:1px solid #E6DAC6">'
+    . '<p style="margin:0 0 10px;font-size:15px;font-weight:bold;color:#111827">Trois étapes, deux minutes</p>'
+    . '<p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#374151">'
+    . '<b>1.</b> Appuyez sur le bouton ci-dessous <b>depuis le téléphone Android</b> où vous voulez '
+    . 'l’application, et avec le compte Google de cette adresse e-mail.</p>'
+    . '<p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#374151">'
+    . '<b>2.</b> Sur la page qui s’ouvre, appuyez sur <b>« Devenir testeur »</b>.</p>'
+    . '<p style="margin:0;font-size:15px;line-height:1.6;color:#374151">'
+    . '<b>3.</b> Suivez le lien <b>« Télécharger sur Google Play »</b> et installez Chap.ci.</p>'
+    . '</div>'
+    . email_button($lienTest, 'Devenir testeur')
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+    . '<b>Gardez l’application installée.</b> Google demande que les testeurs restent inscrits '
+    . '<b>quatorze jours d’affilée</b> avant d’autoriser la publication au grand public. '
+    . 'Si quelqu’un se désinscrit, le compte à rebours repart de zéro — pour tout le monde. '
+    . 'C’est le seul délai que personne ne peut raccourcir.</p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+    . 'Le bouton ne s’ouvre pas ? Copiez ce lien dans le navigateur de votre téléphone :<br>'
+    . '<span style="font-size:13px;color:#6b7280;word-break:break-all">' . htmlspecialchars($lienTest) . '</span></p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+    . 'Un souci, une question, une idée ? Répondez simplement à ce message, ou écrivez-nous '
+    . 'depuis <a href="' . htmlspecialchars($site) . '/#/assistance" style="color:#D95F00">l’assistance</a> '
+    . 'une fois votre compte créé. C’est une vraie personne qui répond.</p>'
+    . '<p style="margin:0;font-size:15px;line-height:1.65;color:#374151">Merci — vraiment.</p>';
+  return email_layout($config, $inner, 'Deux minutes pour devenir testeur de Chap.ci.');
+}
+
 function campaign_html(array $config, string $message): string {
   $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
   $name = $config['mail_from_name'] ?? 'Chap.ci';
@@ -7736,6 +7815,117 @@ try {
       foreach ($rows as $r) { if (send_mail($config, $r['email'], $subject, $html, $from, $from)) $sent++; }
       $processed = $offset + count($rows);
       jout(['sent' => $sent, 'processed' => $processed, 'total' => $total, 'done' => (count($rows) < $limit || $processed >= $total)]);
+    }
+
+    // ------------------------------------------------------------------------
+    //  INVITATIONS AU TEST FERMÉ — réservé au PROPRIÉTAIRE.
+    //
+    //  Ce n'est pas de la modération : c'est écrire à des personnes nommées, à
+    //  leur adresse personnelle, au nom du site. Un modérateur n'a pas à le
+    //  faire, et surtout pas à voir la liste.
+    //
+    //  ⚠️ LES ADRESSES NE SONT PAS DANS LE CODE. Elles arrivent par cet appel,
+    //  se rangent en base, et n'apparaissent nulle part ailleurs. Écrire dix-huit
+    //  adresses personnelles dans un dépôt Git, c'est les y laisser pour
+    //  toujours, dans chaque copie, chez chaque personne qui le clone.
+    // ------------------------------------------------------------------------
+    if (str_starts_with($path, 'admin/invitations')) {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('Les invitations sont réservées au propriétaire du site.', 403);
+      }
+    }
+
+    // Qui a déjà été invité, et combien de fois.
+    if ($path === 'admin/invitations' && $method === 'GET') {
+      $rows = [];
+      try {
+        $rows = $pdo->query('SELECT email, envois, dernier_envoi, dernier_statut FROM invitations
+                             ORDER BY dernier_envoi DESC LIMIT 300')->fetchAll();
+      } catch (Throwable $e) { $rows = []; }
+      jout([
+        'lien' => 'https://play.google.com/apps/testing/' . ($config['app_id'] ?? 'ci.chap.app'),
+        'invites' => array_map(fn($r) => [
+          'email' => $r['email'],
+          'envois' => (int) $r['envois'],
+          'dernierEnvoi' => iso_to_ms($r['dernier_envoi']),
+          'statut' => $r['dernier_statut'] ?: 'inconnu',
+        ], $rows),
+      ]);
+    }
+
+    // Envoi. Un lot par appel : dix-huit e-mails SMTP peuvent dépasser le temps
+    // d'exécution d'une requête web, et un envoi coupé au milieu ne se rattrape
+    // pas — on ne saurait plus qui a reçu quoi.
+    if ($path === 'admin/invitations' && $method === 'POST') {
+      $b = body();
+      $sujet   = trim((string) ($b['sujet'] ?? ''));
+      $message = trim((string) ($b['message'] ?? ''));
+      if ($sujet === '' || $message === '') jerr('Objet et message obligatoires.');
+
+      // On accepte du texte collé tel quel : une adresse par ligne, séparées par
+      // des virgules, des points-virgules ou des espaces. Le Patron colle depuis
+      // la Play Console, il ne met pas la liste en forme.
+      $brut = (string) ($b['destinataires'] ?? '');
+      $morceaux = preg_split('/[\s,;]+/', $brut) ?: [];
+      $emails = [];
+      $rejetes = [];
+      foreach ($morceaux as $m) {
+        $m = strtolower(trim($m));
+        if ($m === '') continue;
+        if (filter_var($m, FILTER_VALIDATE_EMAIL)) { $emails[$m] = true; }
+        else { $rejetes[] = $m; }
+      }
+      $emails = array_keys($emails);
+      if (!$emails) jerr('Aucune adresse valable dans la liste.' . ($rejetes ? ' Refusées : ' . implode(', ', array_slice($rejetes, 0, 5)) : ''));
+      if (count($emails) > 200) jerr('200 adresses au maximum par envoi.');
+
+      $relancer = !empty($b['relancer']);
+      $offset = max(0, (int) ($b['offset'] ?? 0));
+      $limit  = min(20, max(1, (int) ($b['limit'] ?? 10)));
+
+      $lien = 'https://play.google.com/apps/testing/' . ($config['app_id'] ?? 'ci.chap.app');
+      $html = invitation_html($config, $message, $lien);
+      // « no-reply » comme demandé — mais une réponse doit rester possible :
+      // un testeur bloqué qui répond dans le vide ne réessaie pas. L'expéditeur
+      // est no-reply@, l'adresse de réponse est celle du contact.
+      $from = $config['mail_from'] ?? 'no-reply@chap.ci';
+
+      $lot = array_slice($emails, $offset, $limit);
+      $envoyes = 0; $echecs = 0; $ignores = 0;
+      foreach ($lot as $email) {
+        @set_time_limit(30); // le budget se réarme à chaque envoi
+        // Déjà invité ? On ne renvoie pas, sauf demande explicite : relancer
+        // quelqu'un qui a déjà accepté est le meilleur moyen de le faire partir.
+        $deja = 0;
+        try {
+          $q = $pdo->prepare('SELECT envois FROM invitations WHERE email = ?');
+          $q->execute([$email]); $deja = (int) ($q->fetchColumn() ?: 0);
+        } catch (Throwable $e) { $deja = 0; }
+        if ($deja > 0 && !$relancer) { $ignores++; continue; }
+
+        $ok = send_mail($config, $email, $sujet, $html, $from, $config['mail_reply_to'] ?? 'contact@chap.ci');
+        $ok ? $envoyes++ : $echecs++;
+        try {
+          if ($deja > 0) {
+            $pdo->prepare('UPDATE invitations SET envois = envois + 1, dernier_envoi = ?, dernier_statut = ? WHERE email = ?')
+                ->execute([now_iso(), $ok ? 'envoye' : 'echec', $email]);
+          } else {
+            $pdo->prepare('INSERT INTO invitations (email, envois, dernier_envoi, dernier_statut, cree_le) VALUES (?,?,?,?,?)')
+                ->execute([$email, 1, now_iso(), $ok ? 'envoye' : 'echec', now_iso()]);
+          }
+        } catch (Throwable $e) { /* la trace ne doit jamais empêcher l'envoi */ }
+      }
+
+      $traites = $offset + count($lot);
+      log_security_event($pdo, 'invitations_envoyees', $u['email'] ?? null,
+        $envoyes . ' envoyée(s), ' . $echecs . ' échec(s), ' . $ignores . ' déjà invitée(s)');
+      jout([
+        'envoyes' => $envoyes, 'echecs' => $echecs, 'ignores' => $ignores,
+        'traites' => $traites, 'total' => count($emails),
+        'rejetes' => $rejetes,
+        'fini' => $traites >= count($emails),
+        'lien' => $lien,
+      ]);
     }
 
     // Offres automatiques : infos pour la commande cron.

@@ -388,3 +388,53 @@ export async function resetData(accounts: boolean): Promise<ResetResult> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpResetData(accounts)
 }
+
+// ---- Invitations au test fermé du Play Store --------------------------------
+//
+// ⚠️ LES ADRESSES NE SONT PAS DANS LE CODE, et ne doivent jamais y entrer : ce
+// sont des personnes réelles. Elles se collent dans l'écran, partent au serveur
+// qui les range en base, et n'apparaissent nulle part dans le dépôt.
+
+export interface Invite {
+  email: string
+  envois: number
+  dernierEnvoi: number
+  statut: string
+}
+export interface ListeInvites {
+  /** Le lien d'adhésion, composé par le serveur depuis l'identifiant de l'app. */
+  lien: string
+  invites: Invite[]
+}
+export interface ResultatEnvoi {
+  envoyes: number
+  echecs: number
+  /** Déjà invitées, et non relancées : c'est le comportement par défaut. */
+  ignores: number
+  traites: number
+  total: number
+  rejetes: string[]
+  fini: boolean
+  lien: string
+}
+
+export async function fetchInvites(): Promise<ListeInvites> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpInvitations<ListeInvites>()
+}
+
+/**
+ * Envoie UN LOT. L'écran boucle avec un `offset` croissant tant que `fini` est
+ * faux : dix-huit e-mails SMTP dépassent volontiers le temps d'une requête web,
+ * et un envoi coupé au milieu ne se rattrape pas — on ne saurait plus qui a
+ * reçu quoi.
+ */
+export async function envoyerInvitations(
+  destinataires: string,
+  sujet: string,
+  message: string,
+  opts: { relancer?: boolean; offset?: number; limit?: number } = {},
+): Promise<ResultatEnvoi> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpSendInvitations<ResultatEnvoi>({ destinataires, sujet, message, ...opts })
+}

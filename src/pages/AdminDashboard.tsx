@@ -23,6 +23,7 @@ import {
   adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview,
+  fetchInvites, envoyerInvitations, type ListeInvites,
   type VisitStats, type VisitRange, type VisitPoint, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
@@ -2637,8 +2638,184 @@ function CampaignsTab() {
         Envoyez du contenu utile pour ne pas lasser.
       </p>
 
+      <InvitationsTesteurs />
       <AutoOffers />
       <SmartAgents />
+    </div>
+  )
+}
+
+// ---------- Invitations au test fermé du Play Store ----------
+//
+// Réservé au propriétaire (le serveur le vérifie deux fois : périmètre
+// « invitations », réservé propriétaire, ET contrôle explicite de l'e-mail).
+//
+// ⚠️ LES ADRESSES NE SONT PAS DANS LE CODE. Elles se collent ici, partent au
+// serveur, et se rangent en base. Écrire dix-huit adresses personnelles dans un
+// dépôt Git, c'est les y laisser pour toujours — dans chaque copie, chez chaque
+// personne qui le clone.
+
+const MESSAGE_INVITATION_DEFAUT = `Bonjour,
+
+Chap.ci ouvre ses portes, et j’aimerais que vous soyez parmi les premiers à l’essayer.
+
+C’est une place de marché 100 % ivoirienne : on y publie une annonce en deux minutes, gratuitement, et on trouve ce qu’on cherche près de chez soi — à Cocody, à Yopougon, à Bouaké, partout.
+
+Ce que j’attends de vous est simple : installez l’application, servez-vous-en normalement pendant quelques jours, et dites-moi franchement ce qui ne va pas. C’est exactement ce dont j’ai besoin avant l’ouverture au public.
+
+Merci du temps que vous y mettrez.`
+
+function InvitationsTesteurs() {
+  const [liste, setListe] = useState<ListeInvites | null>(null)
+  const [adresses, setAdresses] = useState('')
+  const [sujet, setSujet] = useState('Vous êtes invité à tester Chap.ci 🇨🇮')
+  const [message, setMessage] = useState(MESSAGE_INVITATION_DEFAUT)
+  const [relancer, setRelancer] = useState(false)
+  const [envoi, setEnvoi] = useState(false)
+  const [avancement, setAvancement] = useState(0)
+  const [resultat, setResultat] = useState('')
+  const [deplie, setDeplie] = useState(false)
+
+  const recharger = () => { fetchInvites().then(setListe).catch(() => setListe(null)) }
+  useEffect(recharger, [])
+
+  // Combien d'adresses sont dans le champ, sans attendre le serveur.
+  const compte = adresses.split(/[\s,;]+/).filter((a) => a.includes('@')).length
+
+  const envoyer = async () => {
+    if (!compte) { setResultat('⚠️ Collez au moins une adresse.'); return }
+    if (!confirm(
+      `Envoyer l’invitation à ${compte} adresse${compte > 1 ? 's' : ''} ?\n\n`
+      + 'Vérifiez d’abord que le test fermé est PUBLIÉ dans la Play Console : '
+      + 'sans cela, le lien « Devenir testeur » ne mène nulle part, et il faudra tout renvoyer.',
+    )) return
+
+    setEnvoi(true); setAvancement(0); setResultat('')
+    let envoyes = 0, echecs = 0, ignores = 0, offset = 0, total = compte
+    const rejetes: string[] = []
+    try {
+      // Envoi par lots, curseur croissant — comme les campagnes. Un envoi coupé
+      // au milieu ne se rattrape pas : on ne saurait plus qui a reçu quoi.
+      for (;;) {
+        const precedent = offset
+        const r = await envoyerInvitations(adresses, sujet.trim(), message.trim(), { relancer, offset, limit: 10 })
+        envoyes += r.envoyes; echecs += r.echecs; ignores += r.ignores
+        total = r.total; offset = r.traites
+        if (r.rejetes?.length) rejetes.push(...r.rejetes)
+        setAvancement(total ? Math.min(100, Math.round((offset / total) * 100)) : 100)
+        if (r.fini) break
+        if (offset <= precedent) break // garde anti-boucle
+      }
+      const bouts = [`✓ ${envoyes} invitation${envoyes > 1 ? 's' : ''} envoyée${envoyes > 1 ? 's' : ''}`]
+      if (ignores) bouts.push(`${ignores} déjà invitée${ignores > 1 ? 's' : ''} (non relancée${ignores > 1 ? 's' : ''})`)
+      if (echecs) bouts.push(`${echecs} échec${echecs > 1 ? 's' : ''} d’envoi`)
+      if (rejetes.length) bouts.push(`adresses refusées : ${Array.from(new Set(rejetes)).join(', ')}`)
+      setResultat(bouts.join(' · '))
+      recharger()
+    } catch (e) { setResultat('⚠️ ' + (e as Error).message) }
+    finally { setEnvoi(false) }
+  }
+
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-card">
+      <button onClick={() => setDeplie((v) => !v)} className="flex w-full items-center gap-2 text-left">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ivoire-green/10 text-ivoire-green-dark">
+          <UserPlus size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold text-gray-800">Inviter des testeurs (Play Store)</span>
+          <span className="block text-xs text-gray-500">
+            {liste ? `${liste.invites.length} personne${liste.invites.length > 1 ? 's' : ''} déjà invitée${liste.invites.length > 1 ? 's' : ''}` : 'Test fermé — 12 testeurs, 14 jours'}
+          </span>
+        </span>
+        <ChevronDown size={18} className={`shrink-0 text-gray-400 transition ${deplie ? 'rotate-180' : ''}`} />
+      </button>
+
+      {deplie && (
+        <div className="mt-3 space-y-3 border-t border-line pt-3">
+          {/* L'ordre compte, et c'est tout l'enjeu : un lien envoyé avant la
+              publication du test ne mène nulle part. */}
+          <div className="rounded-xl bg-amber-50 p-3 text-[13px] leading-relaxed text-amber-900">
+            <p className="font-bold">⚠️ Publiez le test fermé AVANT d’envoyer</p>
+            <p className="mt-1">
+              Play Console → <b>Tests → Test fermé</b> → la version doit être <b>envoyée pour examen</b>, puis
+              disponible. Tant qu’elle est en <b>brouillon</b>, le lien « Devenir testeur » ne mène nulle part,
+              et il faudra tout renvoyer.
+            </p>
+            {liste?.lien && (
+              <p className="mt-1.5 break-all text-[12px] text-amber-800">
+                Lien envoyé : <b>{liste.lien}</b>
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-gray-500">
+              Adresses e-mail · une par ligne (ou séparées par des virgules)
+            </label>
+            <textarea
+              value={adresses}
+              onChange={(e) => setAdresses(e.target.value)}
+              disabled={envoi}
+              rows={6}
+              className="input resize-y font-mono text-[13px]"
+              placeholder={'exemple1@gmail.com\nexemple2@gmail.com'}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {compte > 0 ? `${compte} adresse${compte > 1 ? 's' : ''} détectée${compte > 1 ? 's' : ''}.` : 'Collez la liste telle quelle depuis la Play Console.'}
+              {' '}Ces adresses ne sont écrites nulle part dans le code du site.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-gray-500">Objet</label>
+            <input value={sujet} onChange={(e) => setSujet(e.target.value)} disabled={envoi} className="input" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-gray-500">Votre mot</label>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} disabled={envoi} rows={8} className="input resize-y" />
+            <p className="mt-1 text-xs text-gray-500">
+              Les trois étapes, le bouton « Devenir testeur » et le rappel des 14 jours sont ajoutés
+              automatiquement sous votre texte. Envoyé depuis <b>no-reply@chap.ci</b> ; les réponses
+              arrivent sur <b>contact@chap.ci</b>.
+            </p>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={relancer} onChange={(e) => setRelancer(e.target.checked)} disabled={envoi} className="h-4 w-4 accent-primary-500" />
+            Relancer aussi celles qui ont déjà reçu l’invitation
+          </label>
+
+          <button onClick={envoyer} disabled={envoi || !compte} className="btn-primary w-full py-3 disabled:opacity-50">
+            {envoi
+              ? <><Loader2 size={18} className="animate-spin" /> Envoi… {avancement}%</>
+              : <><Send size={18} /> Envoyer à {compte} adresse{compte > 1 ? 's' : ''}</>}
+          </button>
+          {envoi && (
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+              <div className="h-full rounded-full bg-primary-500 transition-[width] duration-300" style={{ width: `${avancement}%` }} />
+            </div>
+          )}
+          {resultat && <p className={`text-sm ${resultat.startsWith('✓') ? 'text-ivoire-green-dark' : 'text-red-600'}`}>{resultat}</p>}
+
+          {!!liste?.invites.length && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-gray-500">Déjà invitées</p>
+              <div className="max-h-48 space-y-1 overflow-y-auto">
+                {liste.invites.map((i) => (
+                  <div key={i.email} className="flex items-center gap-2 rounded-lg bg-cream-100 px-2.5 py-1.5 text-[12.5px]">
+                    <span className="min-w-0 flex-1 truncate text-gray-700">{i.email}</span>
+                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${i.statut === 'envoye' ? 'bg-ivoire-green/10 text-ivoire-green-dark' : 'bg-red-50 text-red-700'}`}>
+                      {i.statut === 'envoye' ? 'envoyée' : 'échec'}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-gray-500">{timeAgo(i.dernierEnvoi)}{i.envois > 1 ? ` · ${i.envois}×` : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

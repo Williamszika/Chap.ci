@@ -631,6 +631,21 @@ export async function phpAdminResolveReport(
 }
 
 // ---- Messagerie de l'équipe -------------------------------------------------
+// ---- Invitations au test fermé (Play Store) ---------------------------------
+export async function phpInvitations<T>(): Promise<T> {
+  return req<T>('/admin/invitations')
+}
+export async function phpSendInvitations<T>(body: {
+  destinataires: string
+  sujet: string
+  message: string
+  relancer?: boolean
+  offset?: number
+  limit?: number
+}): Promise<T> {
+  return req<T>('/admin/invitations', { method: 'POST', body })
+}
+
 export async function phpTeamThreads<T>(): Promise<T> {
   return req<T>('/team/threads')
 }
