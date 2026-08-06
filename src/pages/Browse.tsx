@@ -181,12 +181,12 @@ export function Browse() {
             }}
             className="flex flex-1 items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400"
           >
-            <Search size={18} className="text-gray-400" />
+            <Search size={18} className="text-gray-500" />
             <input
               value={qInput}
               onChange={(e) => setQInput(e.target.value)}
               placeholder="Rechercher…"
-              className="w-full bg-transparent text-[15px] outline-none placeholder:text-gray-400"
+              className="w-full bg-transparent text-[15px] outline-none placeholder:text-gray-500"
             />
             {qInput && (
               <button
@@ -198,7 +198,7 @@ export function Browse() {
                 aria-label="Effacer"
                 className="grid h-11 w-11 place-items-center"
               >
-                <X size={16} className="text-gray-400" />
+                <X size={16} className="text-gray-500" />
               </button>
             )}
           </form>

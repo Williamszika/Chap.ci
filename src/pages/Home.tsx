@@ -190,8 +190,8 @@ export function Home() {
 
         {/* Barre de recherche (plus grande sur desktop) */}
         <form onSubmit={submitSearch} className="relative mt-2.5 md:mt-3.5 md:max-w-2xl">
-          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400 md:rounded-2xl md:px-5 md:py-3">
-            <Search size={20} className="text-gray-400" />
+          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400 md:rounded-2xl md:px-5 md:py-3">
+            <Search size={20} className="text-gray-500" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -199,10 +199,10 @@ export function Home() {
               onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
               placeholder="Rechercher une voiture, un téléphone…"
               aria-label="Rechercher"
-              className="w-full bg-transparent text-[16px] text-gray-800 outline-none placeholder:text-gray-400 md:text-lg"
+              className="w-full bg-transparent text-[16px] text-gray-800 outline-none placeholder:text-gray-500 md:text-lg"
             />
             {q && (
-              <button type="button" onClick={() => setQ('')} aria-label="Effacer" className="grid h-11 w-11 shrink-0 place-items-center text-gray-400">
+              <button type="button" onClick={() => setQ('')} aria-label="Effacer" className="grid h-11 w-11 shrink-0 place-items-center text-gray-500">
                 <X size={18} />
               </button>
             )}
@@ -226,7 +226,7 @@ export function Home() {
                     }}
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left hover:bg-gray-50"
                   >
-                    <Search size={16} className="shrink-0 text-gray-400" />
+                    <Search size={16} className="shrink-0 text-gray-500" />
                     <span className="flex-1 truncate text-[15px]">{s.label}</span>
                     {s.kind === 'cat' && (
                       <span className="shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-600">
@@ -234,7 +234,7 @@ export function Home() {
                       </span>
                     )}
                     {s.kind === 'sub' && (
-                      <span className="shrink-0 text-[11px] text-gray-400">Sous-catégorie</span>
+                      <span className="shrink-0 text-[11px] text-gray-500">Sous-catégorie</span>
                     )}
                   </button>
                 </li>

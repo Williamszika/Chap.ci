@@ -72,15 +72,15 @@ export function TopNav() {
 
         <form
           onSubmit={submitSearch}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-line2 bg-white px-3 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400"
         >
-          <Search size={18} className="shrink-0 text-gray-400" />
+          <Search size={18} className="shrink-0 text-gray-500" />
           <input
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
             placeholder="Rechercher un produit, une marque…"
             aria-label="Rechercher"
-            className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+            className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-500"
           />
         </form>
 
