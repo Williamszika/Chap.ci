@@ -2373,12 +2373,13 @@ function foncier_manques(array $attrs): array {
     fn($d) => $d !== '' && array_key_exists($d, FONCIER_DOCS),
   ));
   if (!$docs) $out[] = 'le ou les documents de propriété que vous détenez';
-  foreach ($docs as $d) {
-    if (FONCIER_DOCS[$d] !== '' && trim((string) ($attrs['num_' . $d] ?? '')) === '') {
-      $out[] = 'le numéro ' . FONCIER_DOCS[$d];
-    }
-  }
-  if (trim((string) ($attrs['idufci'] ?? '')) === '') $out[] = 'l’identifiant IDUFCI de la parcelle';
+  // Le NUMÉRO des documents et l'identifiant IDUFCI sont FACULTATIFS depuis le
+  // 6 août 2026. L'IDUFCI n'est délivré qu'à un notaire ou à un géomètre agréé :
+  // l'exiger pour publier obligeait le vendeur à payer un professionnel avant
+  // même d'avoir un acheteur, et l'acheteur ne pouvait de toute façon pas le
+  // vérifier lui-même. Ce qui reste exigé, c'est de dire QUELLE pièce on
+  // détient — c'est cela qui distingue un titre foncier d'une attestation
+  // villageoise, et c'est cela qui protège l'acheteur.
   if (trim((string) ($attrs['titulaire'] ?? '')) === '') $out[] = 'le nom porté sur vos documents';
   if (trim((string) ($attrs['bornage'] ?? '')) === '') $out[] = 'le bornage du terrain';
   if (trim((string) ($attrs['juridique'] ?? '')) === '') $out[] = 'la situation juridique';
@@ -2692,8 +2693,8 @@ function compta_reprise(PDO $pdo, string $par = 'reprise automatique'): int {
 
 /** Motif inscrit sur les annonces masquées par la campagne de mise à jour. */
 const FONCIER_MOTIF = 'Nouvelle règle sur les ventes immobilières : votre annonce doit indiquer '
-  . 'le ou les documents de propriété que vous détenez, leur numéro et l’identifiant IDUFCI de la parcelle. '
-  . 'Modifiez-la avec le nouveau formulaire, elle repartira en ligne aussitôt.';
+  . 'le ou les documents de propriété que vous détenez, le nom porté dessus, le bornage, la situation '
+  . 'juridique et l’occupation du bien. Modifiez-la avec le nouveau formulaire, elle repartira en ligne aussitôt.';
 
 /** Gabarit HTML commun (logo + contenu + pied de page contact/réseaux/légal). */
 function email_layout(array $config, string $inner, string $preheader = ''): string {
@@ -2757,10 +2758,12 @@ function send_foncier_update_email(array $config, string $to, array $listing): b
     . '<p style="margin:0 0 6px;font-size:15px;line-height:1.6">Le formulaire vous demande maintenant :</p>'
     . '<ul style="margin:0 0 14px;padding-left:20px;font-size:15px;line-height:1.7;color:#374151">'
     . '<li>le ou les documents que vous détenez — vous pouvez en cocher plusieurs ;</li>'
-    . '<li>leur numéro ;</li>'
-    . '<li>l’identifiant IDUFCI de la parcelle ;</li>'
+    . '<li>le nom porté sur ces documents, et votre qualité ;</li>'
     . '<li>le bornage, la situation juridique et l’occupation du bien.</li>'
     . '</ul>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Le numéro de vos documents et '
+    . 'l’identifiant IDUFCI de la parcelle restent <b>facultatifs</b> : renseignez-les si vous les avez '
+    . 'sous la main, ils rassurent l’acheteur — mais ils n’empêchent pas votre annonce de partir.</p>'
     . '<p style="margin:0 0 4px;font-size:15px;line-height:1.6">Cela prend deux minutes. '
     . 'Dès que c’est enregistré, votre annonce <b>repart en ligne automatiquement</b> — et elle affichera '
     . 'votre dossier en clair, ce qui rassure les acheteurs sérieux.</p>'
@@ -2854,6 +2857,56 @@ function foncier_campagne(array $config, PDO $pdo, int $max = 200, bool $simulat
  * précisément parce qu'elle peut envoyer deux fois le même message qu'elle
  * doit rester une décision.
  */
+/**
+ * La contrepartie de la campagne : ce qu'elle a masqué et qui est redevenu
+ * conforme repart en ligne tout seul.
+ *
+ * Le 6 août 2026, le numéro des documents et l'identifiant IDUFCI sont passés
+ * facultatifs. Des annonces masquées pour ce seul motif étaient donc, du jour
+ * au lendemain, parfaitement en règle — et personne ne l'aurait dit à leur
+ * propriétaire : la campagne, elle, considère une annonce déjà masquée comme
+ * traitée et se tait. Une règle qu'on assouplit doit rendre ce qu'elle a pris.
+ *
+ * Idempotente par construction : une annonce rendue visible perd son
+ * `hidden_reason`, elle n'est donc plus sélectionnée au passage suivant.
+ */
+function foncier_reouvrir(PDO $pdo): array {
+  $st = $pdo->prepare('SELECT id, user_id, title, attributes FROM listings WHERE hidden = 1 AND hidden_reason = ?');
+  $st->execute([FONCIER_MOTIF]);
+  $rendues = 0; $encoreIncompletes = 0;
+  foreach ($st->fetchAll() as $l) {
+    $attrs = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+    if (foncier_manques($attrs)) { $encoreIncompletes++; continue; }
+    $pdo->prepare('UPDATE listings SET hidden = 0, hidden_reason = NULL WHERE id = ?')->execute([$l['id']]);
+    $rendues++;
+    if (!empty($l['user_id'])) {
+      notify($pdo, (string) $l['user_id'], 'listing', 'Annonce de nouveau en ligne ✅',
+        'La règle a été assouplie : le numéro de vos documents et l’identifiant IDUFCI ne sont plus obligatoires. '
+        . '« ' . mb_substr(trim((string) $l['title']), 0, 60) . ' » est de nouveau visible.',
+        '#/annonce/' . $l['id']);
+    }
+  }
+  return ['rendues' => $rendues, 'encoreIncompletes' => $encoreIncompletes];
+}
+
+/**
+ * Réouverture automatique, UNE SEULE FOIS, au premier passage après le
+ * déploiement qui assouplit la règle. Même mécanique de marqueur que la
+ * campagne : `migrate()` tourne à chaque requête.
+ */
+function foncier_reouverture_initiale(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.foncier_reouverture_v1';
+  if (@is_file($marque)) return;
+  @file_put_contents($marque, gmdate('c'));
+  @chmod($marque, 0600);
+  try {
+    $r = foncier_reouvrir($pdo);
+    $ligne = gmdate('c') . ' ' . json_encode($r, JSON_UNESCAPED_UNICODE);
+    error_log('[chapci] foncier reouverture: ' . $ligne);
+    @file_put_contents($marque, $ligne);
+  } catch (Throwable $e) { error_log('[chapci] foncier reouverture: ' . $e->getMessage()); }
+}
+
 function foncier_relance(array $config, PDO $pdo): array {
   $st = $pdo->prepare('SELECT id, user_id, title FROM listings WHERE hidden = 1 AND hidden_reason = ?');
   $st->execute([FONCIER_MOTIF]);
@@ -3846,6 +3899,7 @@ function foncier_campagne_initiale(array $config, PDO $pdo): void {
   } catch (Throwable $e) { error_log('[chapci] foncier: ' . $e->getMessage()); }
 }
 foncier_campagne_initiale($config, $pdo);
+foncier_reouverture_initiale($config, $pdo);
 
 /**
  * Reclassement des annonces après la fusion des catégories — UNE SEULE FOIS.
@@ -6213,6 +6267,13 @@ try {
     // deux fois, ce qui est moins grave qu'une annonce masquée sans explication.
     if ($path === 'admin/foncier/relance' && $method === 'POST') {
       jout(foncier_relance($config, $pdo));
+    }
+    // Rend visibles les annonces que la campagne avait masquées et qui sont
+    // redevenues conformes — après un assouplissement de la règle, ou après une
+    // correction faite en base. S'exécute déjà toute seule une fois au
+    // déploiement ; cette route est là pour la rejouer.
+    if ($path === 'admin/foncier/reouvrir' && $method === 'POST') {
+      jout(foncier_reouvrir($pdo));
     }
 
     // ========================================================================

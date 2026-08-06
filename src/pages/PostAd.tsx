@@ -17,7 +17,7 @@ import { categories, categoryById } from '../data/categories'
 import { formFor, type AttrField } from '../data/categoryForms'
 import { useFormSous } from '../data/sous'
 import { FoncierDocs } from '../components/FoncierDocs'
-import { DOC_PAR_ID, cleNumero, lireDocs } from '../data/foncier'
+import { lireDocs } from '../data/foncier'
 import { lireCouleurs } from '../data/couleurs'
 import { CouleursVariantes } from '../components/CouleursVariantes'
 import { PromoTag } from '../components/PromoTag'
@@ -464,10 +464,10 @@ export function PostAd() {
         if (!lireDocs(attrs.docs).length) {
           return fail('Cochez le ou les documents de propriété que vous détenez.', `pa-attr-${f.key}`)
         }
-        const sansNumero = lireDocs(attrs.docs).filter((id) => DOC_PAR_ID[id].numLabel && !attrs[cleNumero(id)]?.trim())
-        if (sansNumero.length) {
-          return fail(`Indiquez le numéro : ${DOC_PAR_ID[sansNumero[0]].numLabel.toLowerCase()}.`, `fonc-${sansNumero[0]}`)
-        }
+        // Le NUMÉRO du document, lui, reste facultatif. Ce qui compte est de
+        // savoir QUELLE pièce le vendeur détient — le numéro se donne à
+        // l'acheteur sérieux, et l'exiger ici bloquait des vendeurs qui
+        // n'avaient pas le papier sous les yeux au moment de publier.
         continue
       }
       if (!(attrs[f.key] ?? '').trim()) {

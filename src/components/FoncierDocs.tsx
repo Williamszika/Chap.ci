@@ -3,8 +3,10 @@
 //
 //  Cases à cocher, pas boutons radio : un vendeur détient rarement une seule
 //  pièce — une ADU et la lettre d'attribution vont souvent ensemble. Chaque
-//  document coché ouvre son propre champ « numéro », obligatoire, parce qu'un
-//  numéro affiché sur l'annonce se vérifie.
+//  document coché ouvre son propre champ « numéro », FACULTATIF : un numéro
+//  affiché sur l'annonce rassure parce qu'il se vérifie, mais l'exiger pour
+//  publier bloquait le vendeur qui n'avait pas le papier sous les yeux. Ce qui
+//  reste obligatoire, c'est de dire QUELLE pièce on détient.
 //
 //  « Aucun document » est exclusif dans les deux sens : le cocher décoche le
 //  reste, cocher un vrai document le fait sauter.
@@ -117,7 +119,7 @@ export function FoncierDocs({
         return (
           <div key={id} className="space-y-1.5">
             <label htmlFor={`fonc-${id}`} className="block text-[13.5px] font-semibold text-gray-700">
-              {d.numLabel} <span className="font-bold text-primary-600">· obligatoire</span>
+              {d.numLabel} <span className="font-semibold text-gray-500">· facultatif</span>
             </label>
             <input
               id={`fonc-${id}`}

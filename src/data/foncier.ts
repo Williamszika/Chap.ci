@@ -199,13 +199,9 @@ export function champsFonciersManquants(attrs: Record<string, string>): string[]
   const out: string[] = []
   const ids = lireDocs(attrs.docs)
   if (!ids.length) out.push('les documents que vous détenez')
-  const sansNumero = ids.filter((id) => DOC_PAR_ID[id].numLabel && !attrs[cleNumero(id)])
-  if (sansNumero.length) {
-    out.push(sansNumero.length > 1
-      ? 'le numéro de vos documents'
-      : `le numéro du ${DOC_PAR_ID[sansNumero[0]].court}`)
-  }
-  if (!attrs.idufci) out.push('l’identifiant IDUFCI')
+  // Le numéro des documents et l'identifiant IDUFCI ne figurent PLUS ici : ils
+  // sont facultatifs. Ce qui est exigé, c'est de dire quelle pièce on détient —
+  // le numéro et l'IDUFCI se donnent ensuite à l'acheteur sérieux.
   if (!attrs.titulaire) out.push('le nom porté sur vos documents')
   if (!attrs.bornage) out.push('le bornage')
   if (!attrs.juridique) out.push('la situation juridique')

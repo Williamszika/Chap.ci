@@ -145,9 +145,14 @@ export const categoryForms: Record<string, CategoryForm> = {
         when: (a) => a.transaction === 'Vente' && urbain(a.zone) },
       { key: 'lot', label: 'N° de lot et d’îlot', type: 'text', placeholder: 'Ex : lot 214, îlot 12',
         when: (a) => a.transaction === 'Vente' && urbain(a.zone) },
-      { key: 'idufci', label: 'Identifiant IDUFCI de la parcelle', type: 'text', required: true,
+      // FACULTATIF, et c'est voulu : seuls un notaire et un géomètre agréé ont
+      // accès à la plateforme qui délivre cet identifiant. L'exiger pour
+      // publier revenait à demander au vendeur de payer un professionnel avant
+      // même d'avoir un acheteur — et cela n'a jamais protégé personne, puisque
+      // l'acheteur ne peut pas le vérifier lui-même non plus.
+      { key: 'idufci', label: 'Identifiant IDUFCI de la parcelle', type: 'text',
         placeholder: 'Communiqué par votre géomètre',
-        help: 'Numéro unique attribué à chaque parcelle du pays depuis 2019. Il figure sur les documents récents ; sinon votre notaire ou votre géomètre agréé peut vous le donner — eux seuls ont accès à la plateforme.',
+        help: 'Numéro unique attribué à chaque parcelle du pays depuis 2019. Il figure sur les documents récents ; sinon votre notaire ou votre géomètre agréé peut vous le donner — eux seuls ont accès à la plateforme. Laissez vide si vous ne l’avez pas : votre annonce partira quand même.',
         when: (a) => a.transaction === 'Vente' },
       { key: 'titulaire', label: 'Vos documents sont établis au nom de', type: 'chips', required: true,
         options: ['Moi-même', 'Un parent (succession)', 'Ma société', 'Un tiers (procuration)'],
