@@ -55,6 +55,7 @@ const Favorites = L('Favorites', () => import('./pages/Favorites'))
 const Donate = L('Donate', () => import('./pages/Donate'))
 const Advertise = L('Advertise', () => import('./pages/Advertise'))
 const AdDetail = L('AdDetail', () => import('./pages/AdDetail'))
+const Assistance = L('Assistance', () => import('./pages/Assistance'))
 const Welcome = L('Welcome', () => import('./pages/Welcome'))
 const ForgotPassword = L('ForgotPassword', () => import('./pages/ForgotPassword'))
 const ResetPassword = L('ResetPassword', () => import('./pages/ResetPassword'))
@@ -146,6 +147,11 @@ export default function App() {
           <Route path="/messages/:id" element={<Conversation />} />
           <Route path="/vendeur/:id" element={<SellerProfile />} />
           <Route path="/notifications" element={<Notifications />} />
+          {/* La messagerie de l'équipe. Un seul écran pour les trois usages :
+              un membre écrit à l'équipe, l'équipe répond, les modérateurs se
+              parlent entre eux. Le serveur décide de ce que chacun voit. */}
+          <Route path="/assistance" element={<Assistance />} />
+          <Route path="/assistance/:id" element={<Assistance />} />
           <Route path="*" element={<Home />} />
           </Routes>
           </Suspense>

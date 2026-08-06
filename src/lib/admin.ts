@@ -51,6 +51,13 @@ export interface AdminUser {
   createdAt: number
 }
 
+/**
+ * La fiche complète d'un compte — pour les administrateurs ET les modérateurs.
+ *
+ * ⚠️ Elle porte le TÉLÉPHONE et l'E-MAIL. Rien de ce type ne doit atterrir sur
+ * un écran public : le profil public d'un vendeur, c'est `SellerProfile`, et il
+ * n'affiche ni l'un ni l'autre.
+ */
 export interface AdminUserDetail {
   id: string
   email: string
@@ -63,6 +70,27 @@ export interface AdminUserDetail {
   avatarUrl?: string | null
   status: UserStatus
   createdAt: number
+  /** Comment il s'est inscrit : 'email', 'google', 'facebook'… */
+  provider?: string
+  emailVerifie?: boolean
+  /** Membre de l'équipe ? On ne bloque pas un collègue par mégarde. */
+  equipe?: 'proprietaire' | 'moderateur' | null
+  chiffres?: {
+    annonces: number
+    annoncesMasquees: number
+    annoncesVendues: number
+    signalementsSubis: number
+    signalementsSubisOuverts: number
+    signalementsEmis: number
+    conversations: number
+    messages: number
+    commandesPassees: number
+    commandesRecues: number
+    avisRecus: number
+    publicites: number
+  }
+  note?: { moyenne: number; nombre: number } | null
+  motifsSignales?: { motif: string; n: number }[]
   listings: Listing[]
 }
 
@@ -102,14 +130,17 @@ export async function fetchAdminListings(): Promise<AdminListing[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminListings<AdminListing[]>()
 }
-export async function deleteAdminListing(id: string): Promise<void> {
+export async function deleteAdminListing(id: string, motif = ''): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
-  return php.phpAdminDeleteListing(id)
+  return php.phpAdminDeleteListing(id, motif)
 }
-/** Masquer / réafficher une annonce (modération). */
-export async function setAdminListingHidden(id: string, hidden: boolean): Promise<void> {
+/**
+ * Masquer / démasquer une annonce. Le motif est EXIGÉ au masquage — c'est lui
+ * que le vendeur reçoit, et sans lui il republie la même annonce demain.
+ */
+export async function setAdminListingHidden(id: string, hidden: boolean, motif = ''): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
-  return php.phpAdminSetListingHidden(id, hidden)
+  return php.phpAdminSetListingHidden(id, hidden, motif)
 }
 export async function fetchAdminUserDetail(id: string): Promise<AdminUserDetail> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
@@ -127,9 +158,11 @@ export async function fetchReports(): Promise<Report[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminReports<Report[]>()
 }
-export async function resolveReport(id: string): Promise<void> {
+/** Ce qu'on fait d'un signalement : le classer, ou agir sur l'annonce avec lui. */
+export type ReportAction = 'classer' | 'masquer' | 'supprimer'
+export async function resolveReport(id: string, action: ReportAction = 'classer', motif = ''): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
-  return php.phpAdminResolveReport(id)
+  return php.phpAdminResolveReport(id, action, motif)
 }
 
 // ---- Messages du formulaire de contact --------------------------------------

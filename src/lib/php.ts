@@ -596,8 +596,8 @@ export async function phpAdminUsers<T>(): Promise<T> {
 export async function phpAdminListings<T>(): Promise<T> {
   return req<T>('/admin/listings')
 }
-export async function phpAdminDeleteListing(id: string): Promise<void> {
-  await req(`/admin/listings/${id}`, { method: 'DELETE' })
+export async function phpAdminDeleteListing(id: string, motif = ''): Promise<void> {
+  await req(`/admin/listings/${id}`, { method: 'DELETE', body: { motif } })
 }
 export async function phpAdminUserDetail<T>(id: string): Promise<T> {
   return req<T>(`/admin/users/${id}`)
@@ -608,14 +608,43 @@ export async function phpAdminSetUserStatus(id: string, status: string): Promise
 export async function phpAdminDeleteUser(id: string): Promise<void> {
   await req(`/admin/users/${id}`, { method: 'DELETE' })
 }
-export async function phpAdminSetListingHidden(id: string, hidden: boolean): Promise<void> {
-  await req(`/listings/${id}/visibility`, { method: 'POST', body: { hidden } })
+/**
+ * Masquer / démasquer une annonce EN TANT QU'ADMINISTRATEUR.
+ *
+ * Ce n'est plus `/listings/{id}/visibility`, qui est la route du vendeur sur sa
+ * propre annonce : celle-ci exige un motif au masquage et l'envoie au vendeur.
+ * Une annonce qui disparaît sans un mot se republie à l'identique le lendemain.
+ */
+export async function phpAdminSetListingHidden(id: string, hidden: boolean, motif = ''): Promise<void> {
+  await req(`/admin/listings/${id}/visibility`, { method: 'POST', body: { hidden, motif } })
 }
 export async function phpAdminReports<T>(): Promise<T> {
   return req<T>('/admin/reports')
 }
-export async function phpAdminResolveReport(id: string): Promise<void> {
-  await req(`/admin/reports/${id}`, { method: 'POST', body: {} })
+/** Traiter un signalement : le classer, ou masquer / supprimer l'annonce avec lui. */
+export async function phpAdminResolveReport(
+  id: string,
+  action: 'classer' | 'masquer' | 'supprimer' = 'classer',
+  motif = '',
+): Promise<void> {
+  await req(`/admin/reports/${id}`, { method: 'POST', body: { action, motif } })
+}
+
+// ---- Messagerie de l'équipe -------------------------------------------------
+export async function phpTeamThreads<T>(): Promise<T> {
+  return req<T>('/team/threads')
+}
+export async function phpTeamOpenThread(sujet: string, body: string, kind: 'user' | 'staff' = 'user'): Promise<{ id: string }> {
+  return req<{ id: string }>('/team/threads', { method: 'POST', body: { sujet, body, kind } })
+}
+export async function phpTeamThread<T>(id: string): Promise<T> {
+  return req<T>(`/team/threads/${id}/messages`)
+}
+export async function phpTeamReply<T>(id: string, body: string): Promise<T> {
+  return req<T>(`/team/threads/${id}/messages`, { method: 'POST', body: { body } })
+}
+export async function phpTeamSetStatus(id: string, statut: 'open' | 'closed'): Promise<void> {
+  await req(`/team/threads/${id}/statut`, { method: 'POST', body: { statut } })
 }
 export async function phpAdminOrders<T>(): Promise<T> {
   return req<T>('/admin/orders')

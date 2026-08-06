@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { BrandLogo } from '../components/BrandLogo'
-import { useLocation } from 'react-router-dom'
-import { User, Mail, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { User, Mail, ChevronDown, Loader2, CheckCircle2, LifeBuoy } from 'lucide-react'
 import { phpContact } from '../lib/php'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
@@ -69,6 +69,22 @@ export function Contact() {
           Une question, un souci ? On gère ça pour vous.
         </p>
       </section>
+
+      {/* Un membre connecté a mieux que ce formulaire : un fil suivi, attaché à
+          son compte, où l'équipe voit ses annonces. Le formulaire reste pour
+          ceux qui n'ont pas de compte — c'est le seul cas où il sert vraiment. */}
+      <div className="px-4 pt-6 md:px-6">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 rounded-2xl border border-primary-200 bg-primary-50/60 p-4 sm:flex-row sm:items-center">
+          <LifeBuoy size={22} className="shrink-0 text-primary-600" />
+          <p className="flex-1 text-[14px] leading-relaxed text-gray-700">
+            <b className="font-bold text-ink">Vous avez un compte&nbsp;?</b> Écrivez-nous depuis l’assistance :
+            nous voyons vos annonces, l’échange reste au même endroit, et vous recevez la réponse dans vos notifications.
+          </p>
+          <Link to="/assistance" className="btn-primary shrink-0 text-center">
+            Contacter l’équipe
+          </Link>
+        </div>
+      </div>
 
       <div className="px-4 py-8 md:px-6 md:py-10">
         {sent ? (

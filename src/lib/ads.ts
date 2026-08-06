@@ -32,6 +32,21 @@ export interface Ad {
   animLoop?: boolean
   /** Couleur du texte (ex. « #FFFFFF ») pour rester lisible sur l'image. */
   textColor?: string | null
+  /**
+   * Le compte qui a payé cette bannière — servi sur la page de détail seulement.
+   *
+   * `null` dans trois cas : la pub a été achetée sans compte, le compte a
+   * disparu, ou il est bloqué. Ne porte QUE ce qui est déjà public sur
+   * /vendeur/{id} : jamais le téléphone, jamais l'e-mail.
+   */
+  annonceur?: {
+    id: string
+    nom: string
+    avatarUrl?: string | null
+    commune?: string | null
+    annonces: number
+    inscritLe: number
+  } | null
 }
 
 export interface SeoState {

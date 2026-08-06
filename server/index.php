@@ -1216,6 +1216,34 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS saved_searches (
       id $id PRIMARY KEY, user_id $id, label $txt, params $txt, last_notified_at $ts, created_at $ts
     )$eng",
+    // ------------------------------------------------------------------------
+    //  LA MESSAGERIE DE L'ÉQUIPE — et pourquoi ce n'est PAS `conversations`.
+    //
+    //  `conversations` porte une relation acheteur → vendeur, adossée à une
+    //  annonce réelle dont le vendeur est propriétaire : la route de création
+    //  le vérifie, et c'est ce qui empêche de fabriquer une fausse relation
+    //  pour spammer. Un utilisateur qui écrit à l'équipe n'a ni annonce, ni
+    //  vendeur en face — il a l'ÉQUIPE, qui est plusieurs personnes. Y faire
+    //  entrer ce cas obligeait à percer ce contrôle, et à inventer un
+    //  « vendeur » qui n'existe pas.
+    //
+    //  Deux natures de fil, un seul mécanisme :
+    //    · kind 'user'  — un membre écrit à l'équipe ; tout l'équipe le lit.
+    //    · kind 'staff' — entre administrateurs et modérateurs. INVISIBLE des
+    //                     utilisateurs, sans exception : c'est là qu'on écrit
+    //                     « ce compte est louche », et cela ne se lit pas.
+    //
+    //  Les deux compteurs de non-lus évitent une requête d'agrégat à chaque
+    //  affichage de badge — un badge se regarde vingt fois par jour.
+    // ------------------------------------------------------------------------
+    "CREATE TABLE IF NOT EXISTS team_threads (
+      id $id PRIMARY KEY, kind $txt, user_id $id, subject $txt, status $txt,
+      created_at $ts, last_at $ts, last_by $txt, unread_user $intT, unread_staff $intT
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS team_messages (
+      id $id PRIMARY KEY, thread_id $id, sender_id $id, sender_role $txt,
+      sender_name $txt, body $txt, created_at $ts
+    )$eng",
     // Journal d'audit de sécurité : connexions, inscriptions, blocages… (Le Greffier).
     "CREATE TABLE IF NOT EXISTS security_events (
       id $id PRIMARY KEY, kind $txt, email $txt, ip $txt, ua $txt, detail $txt, created_at $ts
@@ -3464,7 +3492,10 @@ function send_search_alert(array $config, array $user, string $label, array $row
 function export_all(PDO $pdo): array {
   $tables = ['users', 'profiles', 'listings', 'conversations', 'messages', 'orders',
              'order_items', 'reviews', 'newsletter', 'admins', 'user_interests',
-             'reports', 'visits', 'saved_searches', 'contact_messages', 'ads'];
+             'reports', 'visits', 'saved_searches', 'contact_messages', 'ads',
+             // La messagerie de l'équipe : une sauvegarde qui l'oublierait
+             // perdrait la trace des décisions de modération, qui s'écrivent là.
+             'team_threads', 'team_messages'];
   $data = [];
   foreach ($tables as $t) {
     try { $data[$t] = $pdo->query("SELECT * FROM $t")->fetchAll(PDO::FETCH_ASSOC); }
@@ -4252,6 +4283,13 @@ try {
     if ($hash !== '' && $hash !== null && !password_verify((string) ($b['password'] ?? ''), $hash))
       jerr('Mot de passe incorrect. Suppression annulée.', 403);
     $pdo->prepare('DELETE FROM reports WHERE reporter_id = ?')->execute([$id]);
+    // Ses demandes à l'équipe partent avec lui. Les fils d'équipe (kind
+    // 'staff'), eux, ne lui appartiennent pas : ils ne portent pas son
+    // identifiant et restent en place.
+    try {
+      $pdo->prepare("DELETE FROM team_messages WHERE thread_id IN (SELECT id FROM team_threads WHERE kind = 'user' AND user_id = ?)")->execute([$id]);
+      $pdo->prepare("DELETE FROM team_threads WHERE kind = 'user' AND user_id = ?")->execute([$id]);
+    } catch (Throwable $e) {}
     $pdo->prepare('DELETE FROM messages WHERE sender_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
     $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
@@ -4917,6 +4955,203 @@ try {
         $senderName . ' vous a envoyé un message.', '#/messages/' . $convId);
       jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'], 'body' => $bodyTxt, 'createdAt' => iso_to_ms($ts)]);
     }
+  }
+
+  // ==========================================================================
+  //  MESSAGERIE DE L'ÉQUIPE
+  //
+  //  Trois besoins, un seul mécanisme (voir le commentaire des tables) :
+  //    · un utilisateur écrit à l'équipe — bouton « Contacter l'équipe » ;
+  //    · un administrateur ou un modérateur lui répond ;
+  //    · les modérateurs se parlent entre eux, hors de vue.
+  //
+  //  RÈGLE QUI NE SE NÉGOCIE PAS : un fil `staff` n'est JAMAIS servi à un
+  //  non-membre de l'équipe, ni en liste, ni en détail, ni par identifiant
+  //  deviné. Le contrôle est fait à chaque route, pas une seule fois en amont :
+  //  une route ajoutée demain sans le contrôle ne doit pas ouvrir la porte.
+  // ==========================================================================
+
+  /** Nom affichable d'un compte, pour signer un message. */
+  $nomDe = function (string $userId) use ($pdo): string {
+    $st = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
+    $st->execute([$userId]);
+    return trim((string) ($st->fetchColumn() ?: '')) ?: 'Utilisateur';
+  };
+
+  /**
+   * Un fil, mis en forme pour CELUI qui le lit.
+   *
+   * Un utilisateur ne voit jamais quel modérateur lui a répondu : il voit
+   * « L'équipe Chap.ci ». Ce n'est pas de la coquetterie — nommer la personne
+   * qui vient de masquer une annonce, c'est lui livrer celui qui la cherche.
+   */
+  $filOut = function (array $t, bool $staff): array {
+    return [
+      'id' => $t['id'], 'kind' => $t['kind'] ?: 'user',
+      'sujet' => $t['subject'] ?: '(sans objet)',
+      'statut' => $t['status'] ?: 'open',
+      'userId' => $staff ? ($t['user_id'] ?: null) : null,
+      'userNom' => $staff ? ($t['user_nom'] ?? null) : null,
+      'userEmail' => $staff ? ($t['user_email'] ?? null) : null,
+      'creeLe' => iso_to_ms($t['created_at']),
+      'dernierLe' => iso_to_ms($t['last_at'] ?: $t['created_at']),
+      'dernierPar' => ($t['last_by'] ?? '') === 'equipe' ? 'equipe' : 'utilisateur',
+      'nonLus' => (int) ($staff ? ($t['unread_staff'] ?? 0) : ($t['unread_user'] ?? 0)),
+    ];
+  };
+
+  // ---- Liste des fils --------------------------------------------------------
+  if ($path === 'team/threads' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $staff = is_admin($config, $pdo, $u);
+    if ($staff) {
+      // L'équipe voit tout : les demandes des membres ET ses propres fils.
+      $st = $pdo->query("SELECT t.*, p.full_name AS user_nom, us.email AS user_email
+                         FROM team_threads t
+                         LEFT JOIN profiles p ON p.id = t.user_id
+                         LEFT JOIN users us ON us.id = t.user_id
+                         ORDER BY (CASE WHEN t.status = 'open' THEN 0 ELSE 1 END), t.last_at DESC LIMIT 300");
+      $rows = $st->fetchAll();
+    } else {
+      // Un membre ne voit QUE ses propres fils, et jamais un fil d'équipe.
+      $st = $pdo->prepare("SELECT * FROM team_threads WHERE kind = 'user' AND user_id = ? ORDER BY last_at DESC LIMIT 100");
+      $st->execute([$u['id']]);
+      $rows = $st->fetchAll();
+    }
+    jout(['equipe' => $staff, 'fils' => array_map(fn($t) => $filOut($t, $staff), $rows)]);
+  }
+
+  // ---- Ouvrir un fil ---------------------------------------------------------
+  if ($path === 'team/threads' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $staff = is_admin($config, $pdo, $u);
+    $b = body();
+    $kind = ($b['kind'] ?? 'user') === 'staff' ? 'staff' : 'user';
+    if ($kind === 'staff' && !$staff) jerr('Non autorisé.', 403);
+
+    $sujet = mb_substr(trim((string) ($b['sujet'] ?? '')), 0, 120);
+    $texte = trim((string) ($b['body'] ?? ''));
+    if ($sujet === '') jerr('Indiquez l’objet de votre demande.');
+    if ($texte === '') jerr('Écrivez votre message.');
+    if (mb_strlen($texte) > 4000) jerr('Message trop long (4 000 caractères maximum).');
+
+    // Anti-spam : cinq fils par heure et par compte. Un membre honnête n'en
+    // ouvre pas six ; un robot, si.
+    if (!$staff) rate_limit($pdo, 'team_thread', $u['email'] ?? null, 5, 3600);
+
+    // Même modération que la messagerie acheteur-vendeur : on ne veut pas d'un
+    // canal propre pour ce qu'on refuse ailleurs.
+    $mod = moderate_text($texte);
+    $illegal = array_values(array_filter($mod['reasons'], fn($r) =>
+      in_array($r['code'], ['drogue','arme','faux','sexuel_service','contenu_sexuel','especes','medicament'], true)));
+    if ($illegal) {
+      log_security_event($pdo, 'message_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $illegal)));
+      jout(['error' => 'Message bloqué : il contient du contenu interdit.', 'moderation' => true, 'reasons' => $illegal], 422);
+    }
+
+    $id = uuid(); $mid = uuid(); $ts = now_iso();
+    $role = $kind === 'staff' ? 'equipe' : ($staff ? 'equipe' : 'utilisateur');
+    $pdo->prepare('INSERT INTO team_threads (id,kind,user_id,subject,status,created_at,last_at,last_by,unread_user,unread_staff)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$id, $kind, $kind === 'staff' ? '' : $u['id'], $sujet, 'open', $ts, $ts, $role,
+                   $role === 'equipe' && $kind === 'user' ? 1 : 0, $role === 'utilisateur' ? 1 : 0]);
+    $pdo->prepare('INSERT INTO team_messages (id,thread_id,sender_id,sender_role,sender_name,body,created_at)
+                   VALUES (?,?,?,?,?,?,?)')
+        ->execute([$mid, $id, $u['id'], $role, $nomDe($u['id']), $texte, $ts]);
+
+    // Prévenir l'équipe : sans cela, une demande peut attendre trois jours.
+    if ($kind === 'user' && $role === 'utilisateur') {
+      try {
+        foreach ($pdo->query('SELECT email FROM admins')->fetchAll(PDO::FETCH_COLUMN) as $mail) {
+          $q = $pdo->prepare('SELECT id FROM users WHERE email = ?'); $q->execute([strtolower((string) $mail)]);
+          if ($aid = $q->fetchColumn()) {
+            notify($pdo, (string) $aid, 'message', 'Nouvelle demande d’un membre',
+              $sujet, '#/assistance');
+          }
+        }
+      } catch (Throwable $e) { /* la notification n'est pas le message : on ne bloque pas */ }
+    }
+    jout(['id' => $id]);
+  }
+
+  // ---- Lire et répondre ------------------------------------------------------
+  if (count($seg) === 4 && $seg[0] === 'team' && $seg[1] === 'threads' && $seg[3] === 'messages') {
+    $u = require_user($pdo, $secret);
+    $staff = is_admin($config, $pdo, $u);
+    $ts_ = $pdo->prepare('SELECT * FROM team_threads WHERE id = ?');
+    $ts_->execute([$seg[2]]);
+    $fil = $ts_->fetch();
+    if (!$fil) jerr('Conversation introuvable.', 404);
+    // La garde, répétée volontairement : un fil d'équipe ne sort jamais, et un
+    // membre ne lit que le sien.
+    if (!$staff && (($fil['kind'] ?: 'user') !== 'user' || (string) $fil['user_id'] !== (string) $u['id'])) {
+      jerr('Non autorisé.', 403);
+    }
+
+    if ($method === 'GET') {
+      $ms = $pdo->prepare('SELECT * FROM team_messages WHERE thread_id = ? ORDER BY created_at ASC');
+      $ms->execute([$seg[2]]);
+      // Lire, c'est avoir lu : on remet à zéro le compteur de CELUI qui lit.
+      $pdo->prepare('UPDATE team_threads SET ' . ($staff ? 'unread_staff' : 'unread_user') . ' = 0 WHERE id = ?')
+          ->execute([$seg[2]]);
+      jout([
+        'fil' => $filOut($fil, $staff),
+        'messages' => array_map(fn($m) => [
+          'id' => $m['id'],
+          'role' => $m['sender_role'] ?: 'utilisateur',
+          // L'équipe est anonyme vue d'un membre — jamais l'inverse.
+          'nom' => ($m['sender_role'] ?? '') === 'equipe' && !$staff
+                     ? 'L’équipe Chap.ci' : ($m['sender_name'] ?: 'Utilisateur'),
+          'body' => $m['body'], 'createdAt' => iso_to_ms($m['created_at']),
+        ], $ms->fetchAll()),
+      ]);
+    }
+
+    if ($method === 'POST') {
+      if (($fil['status'] ?: 'open') !== 'open') jerr('Cette conversation est close.', 409);
+      $texte = trim((string) (body()['body'] ?? ''));
+      if ($texte === '') jerr('Message vide.');
+      if (mb_strlen($texte) > 4000) jerr('Message trop long (4 000 caractères maximum).');
+      if (!$staff) rate_limit($pdo, 'team_message', $u['email'] ?? null, 30, 3600);
+
+      $mod = moderate_text($texte);
+      $illegal = array_values(array_filter($mod['reasons'], fn($r) =>
+        in_array($r['code'], ['drogue','arme','faux','sexuel_service','contenu_sexuel','especes','medicament'], true)));
+      if ($illegal) {
+        log_security_event($pdo, 'message_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $illegal)));
+        jout(['error' => 'Message bloqué : il contient du contenu interdit.', 'moderation' => true, 'reasons' => $illegal], 422);
+      }
+
+      $role = $staff ? 'equipe' : 'utilisateur';
+      $mid = uuid(); $now = now_iso();
+      $pdo->prepare('INSERT INTO team_messages (id,thread_id,sender_id,sender_role,sender_name,body,created_at)
+                     VALUES (?,?,?,?,?,?,?)')
+          ->execute([$mid, $seg[2], $u['id'], $role, $nomDe($u['id']), $texte, $now]);
+      // Le non-lu monte chez l'AUTRE côté, et se remet à zéro chez celui qui écrit.
+      if ($role === 'equipe') {
+        $pdo->prepare('UPDATE team_threads SET last_at = ?, last_by = ?, unread_staff = 0,
+                       unread_user = unread_user + ? WHERE id = ?')
+            ->execute([$now, $role, ($fil['kind'] ?: 'user') === 'user' ? 1 : 0, $seg[2]]);
+        if (($fil['kind'] ?: 'user') === 'user' && !empty($fil['user_id'])) {
+          notify($pdo, (string) $fil['user_id'], 'message', 'Réponse de l’équipe Chap.ci',
+            (string) ($fil['subject'] ?: 'Votre demande'), '#/assistance/' . $seg[2]);
+        }
+      } else {
+        $pdo->prepare('UPDATE team_threads SET last_at = ?, last_by = ?, unread_user = 0,
+                       unread_staff = unread_staff + 1 WHERE id = ?')
+            ->execute([$now, $role, $seg[2]]);
+      }
+      jout(['id' => $mid, 'role' => $role, 'body' => $texte, 'createdAt' => iso_to_ms($now)]);
+    }
+  }
+
+  // ---- Clore ou rouvrir un fil — l'équipe seulement ---------------------------
+  if (count($seg) === 4 && $seg[0] === 'team' && $seg[1] === 'threads' && $seg[3] === 'statut' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if (!is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    $statut = (body()['statut'] ?? '') === 'closed' ? 'closed' : 'open';
+    $pdo->prepare('UPDATE team_threads SET status = ? WHERE id = ?')->execute([$statut, $seg[2]]);
+    jout(['ok' => true, 'statut' => $statut]);
   }
 
   // ---------- FAVORIS (côté serveur) ----------
@@ -5685,6 +5920,43 @@ try {
     }, $st->fetchAll()));
   }
 
+  // ------------------------------------------------------------------------
+  //  QUI A PAYÉ CETTE PUBLICITÉ — ce que le visiteur a le droit de savoir.
+  //
+  //  Une bannière sans visage ne vend qu'une fois. Le commerçant qui achète de
+  //  la publicité chez nous a presque toujours des annonces sur le site : lui
+  //  ouvrir son profil, c'est transformer un clic en boutique.
+  //
+  //  On ne renvoie que ce qui est DÉJÀ public sur /vendeur/{id} : le nom
+  //  d'affichage, la photo de profil, le nombre d'annonces visibles et la date
+  //  d'inscription. Jamais le téléphone, jamais l'e-mail — ils ne sortent que
+  //  quand un vendeur répond, et une publicité n'est pas une réponse.
+  //
+  //  Rend `null` dans trois cas, et c'est voulu : la pub a été achetée sans
+  //  compte, le compte a disparu, ou il est bloqué. Un compte bloqué ne
+  //  regagne pas une vitrine parce qu'il avait payé d'avance.
+  // ------------------------------------------------------------------------
+  $annonceurPublic = function (?string $userId) use ($pdo): ?array {
+    $userId = trim((string) $userId);
+    if ($userId === '') return null;
+    $st = $pdo->prepare('SELECT u.id, u.created_at, u.status, p.full_name, p.avatar_url, p.commune
+                         FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?');
+    $st->execute([$userId]);
+    $r = $st->fetch();
+    if (!$r) return null;
+    if (($r['status'] ?? 'active') === 'blocked') return null;
+    $c = $pdo->prepare('SELECT COUNT(*) FROM listings WHERE user_id = ? AND (hidden IS NULL OR hidden = 0)');
+    $c->execute([$userId]);
+    return [
+      'id' => $r['id'],
+      'nom' => trim((string) ($r['full_name'] ?? '')) ?: 'Vendeur sur Chap.ci',
+      'avatarUrl' => $r['avatar_url'] ?: null,
+      'commune' => $r['commune'] ?: null,
+      'annonces' => (int) $c->fetchColumn(),
+      'inscritLe' => iso_to_ms($r['created_at']),
+    ];
+  };
+
   // Page de détail d'une pub (clic sans lien externe) : uniquement les actives.
   if (count($seg) === 2 && $seg[0] === 'ads' && $method === 'GET' && !in_array($seg[1], ['tarif', 'active'], true)) {
     $st = $pdo->prepare("SELECT * FROM ads WHERE id = ? AND status = 'active' AND expires_at > ?");
@@ -5703,6 +5975,10 @@ try {
       'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
       'textColor' => ($r['text_color'] ?? '') !== '' ? $r['text_color'] : null,
       'expiresAt' => iso_to_ms($r['expires_at']),
+      // Le compte derrière la bannière — `null` si la pub a été achetée sans
+      // compte, ou si ce compte est bloqué. Les diffusions maison (kind 'seo')
+      // n'ont pas d'annonceur : c'est le site qui se parle à lui-même.
+      'annonceur' => ($r['kind'] ?? 'paid') === 'seo' ? null : $annonceurPublic($r['user_id'] ?? null),
     ]);
   }
 
@@ -5959,7 +6235,8 @@ try {
       }
       // 2) Purge du catalogue + transactions + analytics (toujours).
       $wipe = ['order_items', 'orders', 'messages', 'conversations', 'reviews', 'reports',
-               'user_interests', 'saved_searches', 'visits', 'listings'];
+               'user_interests', 'saved_searches', 'visits', 'listings',
+               'team_messages', 'team_threads'];
       $deleted = [];
       foreach ($wipe as $t) {
         try { $before = (int) $pdo->query("SELECT COUNT(*) AS c FROM $t")->fetch()['c']; $pdo->exec("DELETE FROM $t"); $deleted[$t] = $before; }
@@ -6095,22 +6372,122 @@ try {
       ], $rows));
     }
 
-    // Détail d'un utilisateur : profil complet + ses annonces (toutes, même masquées).
+    // ------------------------------------------------------------------------
+    //  LA FICHE D'UN UTILISATEUR — pour les administrateurs ET les modérateurs,
+    //  jamais pour le public.
+    //
+    //  Un modérateur qui doit décider du sort d'un compte ne peut pas le faire
+    //  sur un nom et une adresse e-mail. Ce qui fait la décision, c'est
+    //  l'ensemble : depuis quand il est là, combien d'annonces il a mises en
+    //  ligne et combien sont masquées, combien de fois il a été signalé, ce
+    //  qu'il a acheté, ce qu'on a écrit de lui.
+    //
+    //  Un compte inscrit hier avec quatre annonces signalées, et un compte de
+    //  huit mois avec un seul signalement, se ressemblent dans une liste. Ils
+    //  n'appellent pas la même décision.
+    //
+    //  ⚠️ CETTE ROUTE PORTE LE TÉLÉPHONE ET L'E-MAIL. Elle est derrière la
+    //  fonctionnalité « users », qui se coche modérateur par modérateur, et
+    //  rien de ce qu'elle renvoie ne doit jamais atterrir sur une page
+    //  publique. Le profil public d'un vendeur, c'est /vendeur/{id}, et il ne
+    //  montre ni l'un ni l'autre.
+    // ------------------------------------------------------------------------
     if (count($seg) === 3 && $seg[1] === 'users' && $method === 'GET') {
-      $st = $pdo->prepare('SELECT u.id, u.email, u.created_at, u.status, p.full_name, p.phone,
-          p.commune, p.city_id, p.region_id, p.bio, p.avatar_url
-        FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?');
+      // `auth_provider` et `email_verified_at` sont ajoutés par migration : sur
+      // une base qui n'a pas encore migré, la requête échouerait en entier et
+      // la fiche ne s'afficherait plus du tout. On la rejoue donc sans elles.
+      $colonnes = 'u.id, u.email, u.created_at, u.status, u.auth_provider, u.email_verified_at,
+          p.full_name, p.phone, p.commune, p.city_id, p.region_id, p.bio, p.avatar_url';
+      try {
+        $st = $pdo->prepare("SELECT $colonnes FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?");
+        $st->execute([$seg[2]]);
+      } catch (Throwable $e) {
+        $st = $pdo->prepare('SELECT u.id, u.email, u.created_at, u.status,
+            p.full_name, p.phone, p.commune, p.city_id, p.region_id, p.bio, p.avatar_url
+          FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?');
+      }
       $st->execute([$seg[2]]); $r = $st->fetch();
       if (!$r) jerr('Utilisateur introuvable.', 404);
+      $uid = $seg[2];
+
       $ls = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
-      $ls->execute([$seg[2]]);
+      $ls->execute([$uid]);
+      $annonces = $ls->fetchAll();
+
+      /** Un compteur qui ne fait jamais échouer la fiche : une table absente
+       *  (base ancienne, migration en cours) rend 0, pas une erreur 500. */
+      $compte = function (string $sql, array $args) use ($pdo): int {
+        try { $q = $pdo->prepare($sql); $q->execute($args); return (int) $q->fetchColumn(); }
+        catch (Throwable $e) { return 0; }
+      };
+
+      // Les signalements SUBIS — ceux qui visent ses annonces — et les
+      // signalements ÉMIS. Les deux comptent : le premier dit ce qu'on lui
+      // reproche, le second si c'est quelqu'un qui aide, ou qui dénonce à tort.
+      $subisOuverts = $compte("SELECT COUNT(*) FROM reports r JOIN listings l ON l.id = r.listing_id
+                               WHERE l.user_id = ? AND r.status = 'open'", [$uid]);
+      $subisTotal   = $compte('SELECT COUNT(*) FROM reports r JOIN listings l ON l.id = r.listing_id
+                               WHERE l.user_id = ?', [$uid]);
+
+      // Les motifs qu'on lui reproche, du plus fréquent au moins fréquent.
+      $motifs = [];
+      try {
+        $ms = $pdo->prepare('SELECT r.reason, COUNT(*) AS n FROM reports r JOIN listings l ON l.id = r.listing_id
+                             WHERE l.user_id = ? GROUP BY r.reason ORDER BY n DESC LIMIT 6');
+        $ms->execute([$uid]);
+        $motifs = array_map(fn($m) => ['motif' => $m['reason'], 'n' => (int) $m['n']], $ms->fetchAll());
+      } catch (Throwable $e) { $motifs = []; }
+
+      $note = null;
+      try {
+        $nq = $pdo->prepare('SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews WHERE seller_id = ?');
+        $nq->execute([$uid]);
+        if (($nr = $nq->fetch()) && (int) $nr['n'] > 0) {
+          $note = ['moyenne' => round((float) $nr['moy'], 1), 'nombre' => (int) $nr['n']];
+        }
+      } catch (Throwable $e) { $note = null; }
+
+      $masquees = count(array_filter($annonces, fn($a) => !empty($a['hidden'])));
+      $vendues  = count(array_filter($annonces, fn($a) => !empty($a['sold'])));
+
+      // Est-il de l'équipe ? Un modérateur ne doit pas découvrir en bloquant un
+      // compte qu'il vient de bloquer un collègue.
+      $email = strtolower((string) ($r['email'] ?? ''));
+      $estProprio = in_array($email, owner_emails($config), true);
+      $estModo = false;
+      try {
+        $mq = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?');
+        $mq->execute([$email]); $estModo = (bool) $mq->fetchColumn();
+      } catch (Throwable $e) { $estModo = false; }
+
       jout([
         'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
         'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
         'cityId' => $r['city_id'] ?: null, 'regionId' => $r['region_id'] ?: null,
         'bio' => $r['bio'] ?: null, 'avatarUrl' => $r['avatar_url'] ?: null,
         'status' => $r['status'] ?: 'active', 'createdAt' => iso_to_ms($r['created_at']),
-        'listings' => array_map('listing_out', $ls->fetchAll()),
+        // Comment il s'est inscrit, et ce qu'il a confirmé. Un compte Google a
+        // une adresse vérifiée par Google ; un compte e-mail non confirmé, non.
+        'provider' => ($r['auth_provider'] ?? '') ?: 'email',
+        'emailVerifie' => !empty($r['email_verified_at']),
+        'equipe' => $estProprio ? 'proprietaire' : ($estModo ? 'moderateur' : null),
+        'chiffres' => [
+          'annonces' => count($annonces),
+          'annoncesMasquees' => $masquees,
+          'annoncesVendues' => $vendues,
+          'signalementsSubis' => $subisTotal,
+          'signalementsSubisOuverts' => $subisOuverts,
+          'signalementsEmis' => $compte('SELECT COUNT(*) FROM reports WHERE reporter_id = ?', [$uid]),
+          'conversations' => $compte('SELECT COUNT(*) FROM conversations WHERE buyer_id = ? OR seller_id = ?', [$uid, $uid]),
+          'messages' => $compte('SELECT COUNT(*) FROM messages WHERE sender_id = ?', [$uid]),
+          'commandesPassees' => $compte('SELECT COUNT(*) FROM orders WHERE buyer_id = ?', [$uid]),
+          'commandesRecues' => $compte('SELECT COUNT(*) FROM orders WHERE seller_id = ?', [$uid]),
+          'avisRecus' => $compte('SELECT COUNT(*) FROM reviews WHERE seller_id = ?', [$uid]),
+          'publicites' => $compte('SELECT COUNT(*) FROM ads WHERE user_id = ?', [$uid]),
+        ],
+        'note' => $note,
+        'motifsSignales' => $motifs,
+        'listings' => array_map('listing_out', $annonces),
       ]);
     }
 
@@ -6141,6 +6518,13 @@ try {
         jerr('Ce compte administrateur ne peut pas être supprimé.', 403);
       $id = $seg[2];
       $pdo->prepare('DELETE FROM reports WHERE reporter_id = ?')->execute([$id]);
+    // Ses demandes à l'équipe partent avec lui. Les fils d'équipe (kind
+    // 'staff'), eux, ne lui appartiennent pas : ils ne portent pas son
+    // identifiant et restent en place.
+    try {
+      $pdo->prepare("DELETE FROM team_messages WHERE thread_id IN (SELECT id FROM team_threads WHERE kind = 'user' AND user_id = ?)")->execute([$id]);
+      $pdo->prepare("DELETE FROM team_threads WHERE kind = 'user' AND user_id = ?")->execute([$id]);
+    } catch (Throwable $e) {}
       $pdo->prepare('DELETE FROM messages WHERE sender_id = ?')->execute([$id]);
       $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
       $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
@@ -6168,9 +6552,81 @@ try {
       }, $rows));
     }
 
+    // ------------------------------------------------------------------------
+    //  MASQUER, DÉMASQUER, RETIRER — et toujours DIRE POURQUOI.
+    //
+    //  Un vendeur dont l'annonce disparaît sans un mot ne comprend pas : il la
+    //  republie à l'identique, et on recommence. Le motif n'est donc pas une
+    //  option de confort, c'est ce qui fait que la modération sert à quelque
+    //  chose. Il est exigé au masquage comme au retrait, et il part au vendeur.
+    //
+    //  Le retour en ligne d'une annonce masquée par la campagne foncière reste
+    //  interdit ici : le seul chemin est le formulaire, qui la remet en ligne
+    //  dès qu'il est rempli. Un administrateur ne contourne pas cette règle
+    //  d'un clic — sinon elle ne veut plus rien dire.
+    // ------------------------------------------------------------------------
+    if (count($seg) === 4 && $seg[1] === 'listings' && $seg[3] === 'visibility' && $method === 'POST') {
+      $b = body();
+      $st = $pdo->prepare('SELECT user_id, title, hidden, hidden_reason, attributes FROM listings WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $row = $st->fetch();
+      if (!$row) jerr('Annonce introuvable.', 404);
+      $hidden = !empty($b['hidden']) ? 1 : 0;
+      $motif  = mb_substr(trim((string) ($b['motif'] ?? '')), 0, 400);
+
+      if ($hidden) {
+        if ($motif === '') jerr('Indiquez le motif : c’est lui qui part au vendeur.');
+        $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')->execute([$motif, $seg[2]]);
+        if (!empty($row['user_id'])) {
+          notify($pdo, (string) $row['user_id'], 'listing', 'Annonce masquée',
+            '« ' . mb_substr(trim((string) $row['title']), 0, 60) . ' » a été masquée : ' . $motif
+            . ' Corrigez-la et elle repartira en ligne.',
+            '#/modifier/' . $seg[2]);
+        }
+      } else {
+        if ((string) ($row['hidden_reason'] ?? '') === FONCIER_MOTIF) {
+          $attrs = !empty($row['attributes']) ? (json_decode((string) $row['attributes'], true) ?: []) : [];
+          $m = foncier_manques($attrs);
+          if ($m) {
+            jout(['error' => 'Cette annonce est masquée pour dossier foncier incomplet : il manque '
+                  . implode(', ', $m) . '. Seul le vendeur peut la remettre en ligne, en complétant le formulaire.',
+                  'foncier' => true, 'manques' => $m], 422);
+          }
+        }
+        $pdo->prepare('UPDATE listings SET hidden = 0, hidden_reason = NULL WHERE id = ?')->execute([$seg[2]]);
+        if (!empty($row['user_id'])) {
+          notify($pdo, (string) $row['user_id'], 'listing', 'Annonce de nouveau en ligne ✅',
+            '« ' . mb_substr(trim((string) $row['title']), 0, 60) . ' » est de nouveau visible.',
+            '#/annonce/' . $seg[2]);
+        }
+      }
+      log_security_event($pdo, $hidden ? 'admin_listing_hidden' : 'admin_listing_shown',
+        $u['email'] ?? null, $seg[2] . ($motif !== '' ? ' · ' . $motif : ''));
+      jout(['ok' => true, 'hidden' => (bool) $hidden]);
+    }
+
     // Modération : suppression d'une annonce par l'administrateur.
+    //
+    // Le motif est facultatif ici, et seulement ici : on retire aussi des
+    // annonces dont le vendeur n'existe plus, ou du contenu qu'on ne veut pas
+    // recopier dans une notification. Quand il est donné, il part au vendeur —
+    // c'est sa dernière chance de comprendre avant que l'annonce disparaisse.
     if (count($seg) === 3 && $seg[1] === 'listings' && $method === 'DELETE') {
+      $st = $pdo->prepare('SELECT user_id, title FROM listings WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $row = $st->fetch();
+      $motif = mb_substr(trim((string) (body()['motif'] ?? '')), 0, 400);
       $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[2]]);
+      // Les signalements qui la visaient n'ont plus d'objet : on les clôt, sans
+      // quoi la file de modération garderait des lignes pointant vers le vide.
+      $pdo->prepare("UPDATE reports SET status = 'resolved' WHERE listing_id = ?")->execute([$seg[2]]);
+      if ($row && !empty($row['user_id'])) {
+        notify($pdo, (string) $row['user_id'], 'listing', 'Annonce retirée',
+          '« ' . mb_substr(trim((string) $row['title']), 0, 60) . ' » a été retirée de Chap.ci'
+          . ($motif !== '' ? ' : ' . $motif : '.'), '#/compte');
+      }
+      log_security_event($pdo, 'admin_listing_deleted', $u['email'] ?? null,
+        $seg[2] . ($motif !== '' ? ' · ' . $motif : ''));
       jout(['ok' => true]);
     }
 
@@ -6192,10 +6648,74 @@ try {
       ], $rows));
     }
 
-    // Marquer un signalement comme traité.
+    // ------------------------------------------------------------------------
+    //  TRAITER UN SIGNALEMENT — et agir sur l'annonce dans le même geste.
+    //
+    //  Jusqu'ici, « traiter » ne faisait que ranger la ligne : il fallait
+    //  ensuite retrouver l'annonce dans un autre onglet pour la masquer ou la
+    //  retirer. Deux écrans pour une décision, et la moitié du temps le second
+    //  n'était pas fait — le signalement était classé, l'annonce toujours en
+    //  ligne. C'est exactement ce qu'un signalement est censé empêcher.
+    //
+    //  Trois actions, un seul appel :
+    //    · `classer`   — rien à reprocher, la ligne est rangée ;
+    //    · `masquer`   — l'annonce sort de la vue, le vendeur reçoit le motif
+    //                    et peut corriger ;
+    //    · `supprimer` — elle disparaît, définitivement.
+    //
+    //  Le motif par défaut reprend la raison du signalement : dans la grande
+    //  majorité des cas c'est déjà le bon mot, et un modérateur pressé ne doit
+    //  pas avoir à le réécrire pour bien faire.
+    // ------------------------------------------------------------------------
     if (count($seg) === 3 && $seg[1] === 'reports' && $method === 'POST') {
+      $b = body();
+      $action = (string) ($b['action'] ?? 'classer');
+      if (!in_array($action, ['classer', 'masquer', 'supprimer'], true)) jerr('Action inconnue.');
+
+      $rs = $pdo->prepare('SELECT listing_id, reason FROM reports WHERE id = ?');
+      $rs->execute([$seg[2]]);
+      $rep = $rs->fetch();
+      if (!$rep) jerr('Signalement introuvable.', 404);
+
+      $motif = mb_substr(trim((string) ($b['motif'] ?? '')), 0, 400);
+      if ($motif === '') $motif = 'signalée par un utilisateur — ' . (string) $rep['reason'];
+
+      $agi = 'classer';
+      if ($action !== 'classer' && !empty($rep['listing_id'])) {
+        $ls = $pdo->prepare('SELECT user_id, title FROM listings WHERE id = ?');
+        $ls->execute([$rep['listing_id']]);
+        if ($l = $ls->fetch()) {
+          $titre = mb_substr(trim((string) $l['title']), 0, 60);
+          if ($action === 'supprimer') {
+            $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$rep['listing_id']]);
+            if (!empty($l['user_id'])) {
+              notify($pdo, (string) $l['user_id'], 'listing', 'Annonce retirée',
+                '« ' . $titre . ' » a été retirée de Chap.ci : ' . $motif, '#/compte');
+            }
+          } else {
+            $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')
+                ->execute([$motif, $rep['listing_id']]);
+            if (!empty($l['user_id'])) {
+              notify($pdo, (string) $l['user_id'], 'listing', 'Annonce masquée',
+                '« ' . $titre . ' » a été masquée : ' . $motif . ' Corrigez-la et elle repartira en ligne.',
+                '#/modifier/' . $rep['listing_id']);
+            }
+          }
+          $agi = $action;
+          log_security_event($pdo, 'admin_report_' . $action, $u['email'] ?? null,
+            (string) $rep['listing_id'] . ' · ' . $motif);
+        }
+      }
+
+      // Le signalement est clos dans tous les cas — et TOUS ceux qui visaient la
+      // même annonce avec lui : trois personnes signalent souvent la même chose,
+      // et laisser les deux autres ouverts ferait retraiter une décision prise.
       $pdo->prepare('UPDATE reports SET status = ? WHERE id = ?')->execute(['resolved', $seg[2]]);
-      jout(['ok' => true]);
+      if ($agi !== 'classer' && !empty($rep['listing_id'])) {
+        $pdo->prepare("UPDATE reports SET status = 'resolved' WHERE listing_id = ? AND status = 'open'")
+            ->execute([$rep['listing_id']]);
+      }
+      jout(['ok' => true, 'action' => $agi]);
     }
 
     // ------------------------------------------------------------------------

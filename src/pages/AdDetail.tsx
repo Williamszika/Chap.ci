@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { mediaUrl } from '../lib/native'
 import { Link, useParams } from 'react-router-dom'
-import { Megaphone, ArrowRight, Loader2, RefreshCw } from 'lucide-react'
+import { Megaphone, ArrowRight, Loader2, RefreshCw, Store } from 'lucide-react'
 import { fetchAd, fetchAdStats, type Ad, type AdStats } from '../lib/ads'
 import { AdImageFill } from '../components/AdImageFill'
 import { AdStatsChart } from '../components/AdStatsChart'
@@ -88,6 +88,48 @@ export function AdDetail() {
         >
           Visiter le site <ArrowRight size={18} />
         </a>
+      )}
+
+      {/* ---- Qui a payé cette bannière ------------------------------------- *
+        * Une publicité sans visage ne vend qu'une fois. Le commerçant qui
+        * achète chez nous a presque toujours des annonces sur le site : lui
+        * ouvrir sa boutique, c'est transformer un clic en visite.
+        *
+        * Absent quand la pub a été achetée sans compte, quand le compte a
+        * disparu, ou quand il est bloqué — un compte bloqué ne regagne pas une
+        * vitrine parce qu'il avait payé d'avance.                             */}
+      {ad.annonceur && (
+        <Link
+          to={`/vendeur/${ad.annonceur.id}`}
+          className="mt-4 flex items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-card transition active:scale-[0.99] md:hover:border-primary-300"
+        >
+          {ad.annonceur.avatarUrl ? (
+            <img
+              src={mediaUrl(ad.annonceur.avatarUrl)}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-600">
+              <Store size={20} />
+            </span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
+              Publiée par
+            </span>
+            <span className="block truncate font-display text-[16px] font-extrabold text-ink">
+              {ad.annonceur.nom}
+            </span>
+            <span className="block truncate text-[13px] text-gray-600">
+              {ad.annonceur.annonces > 0
+                ? `${nb(ad.annonceur.annonces)} annonce${ad.annonceur.annonces > 1 ? 's' : ''} en ligne`
+                : 'Pas encore d’annonce en ligne'}
+              {ad.annonceur.commune ? ` · ${ad.annonceur.commune}` : ''}
+            </span>
+          </span>
+          <ArrowRight size={18} className="shrink-0 text-gray-500" />
+        </Link>
       )}
 
       {/* ---- Espace annonceur : visible UNIQUEMENT par le propriétaire ------ */}
