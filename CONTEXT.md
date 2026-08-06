@@ -84,7 +84,7 @@ pannes.
 | `src/pages/` | 26 pages, une par route. `HashRouter` — les URL portent un `#`. |
 | `src/components/` | 40 composants partagés. `ListingCard` est le plus chaud : il est rendu des dizaines de fois par écran. |
 | `src/lib/` | 38 modules sans JSX. `api.ts` et `backend.ts` parlent au serveur ; `marketing.ts` porte la garde `isNative` ; `native.ts` isole Capacitor. |
-| `src/data/` | Les données figées : catégories, 95 schémas de sous-catégories, découpage district → région → ville → commune. |
+| `src/data/` | Les données figées : catégories, 101 schémas de sous-catégories, découpage district → région → ville → commune. |
 | `src/store/` | L'état global. |
 
 Le build produit `dist/`, qui devient la racine du site.

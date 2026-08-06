@@ -56,6 +56,12 @@ const BANNIERES = {
     sous: 'Billets, séjours, agences —\ngratuit, en 2 minutes.',
     emoji: '✈️',
   },
+  scolaire: {
+    verbe: 'Vendez',
+    titre: 'pour la rentrée',
+    sous: 'Cahiers, cartables, manuels —\ngratuit, en 2 minutes.',
+    emoji: '🎒',
+  },
   'a-donner': {
     verbe: 'Donnez',
     titre: 'ce qui ne sert plus',

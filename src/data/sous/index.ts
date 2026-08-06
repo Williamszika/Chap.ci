@@ -1,7 +1,7 @@
 // =============================================================================
 //  Le registre des formulaires par sous-catégorie, et leur traduction.
 //
-//  Quatorze catégories, quatre-vingt-quinze sous-catégories. L'immobilier n'est
+//  Quinze catégories, cent une sous-catégories. L'immobilier n'est
 //  pas ici : il a son propre dossier foncier (`foncier.ts`, `FoncierDocs`),
 //  écrit avant les autres et plus riche que ce contrat.
 //
@@ -44,6 +44,7 @@ const CHARGEURS: Record<string, () => Promise<Record<string, DonneesCat>>> = {
   loisirs: () => import('./loisirs'),
   bebe: () => import('./bebe'),
   sante: () => import('./sante'),
+  scolaire: () => import('./scolaire'),
   voyage: () => import('./voyage'),
   'a-donner': () => import('./donner'),
 }

@@ -1970,6 +1970,7 @@ function seo_category_labels(): array {
     'agriculture' => 'produits agricoles', 'animaux' => 'animaux', 'loisirs' => 'articles loisirs & sport',
     'bebe' => 'articles bébé & enfant', 'sante' => 'produits santé & bien-être',
     'voyage' => 'offres de voyage', 'a-donner' => 'objets à donner',
+    'scolaire' => 'fournitures scolaires',
   ];
 }
 
@@ -3363,6 +3364,7 @@ function category_label(?string $id): string {
     'alimentation' => 'Alimentation & Boissons', 'agriculture' => 'Agriculture',
     'animaux' => 'Animaux', 'loisirs' => 'Loisirs & Sport', 'bebe' => 'Bébé & Enfant',
     'sante' => 'Santé & Bien-être', 'voyage' => 'Voyage', 'a-donner' => 'À donner',
+    'scolaire' => 'École & Fournitures',
   ];
   return $labels[$id] ?? '';
 }

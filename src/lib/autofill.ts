@@ -27,6 +27,20 @@ const KEYWORDS: [string[], Guess][] = [
   [['travailler a l etranger','travail a l etranger','contrat a l etranger','emploi canada','emploi europe'], { cat: 'voyage', sub: 'Travail à l’étranger' }],
   [['agence de voyage','agence voyage','billetterie'], { cat: 'voyage', sub: 'Agences de voyage' }],
   [['sejour','circuit touristique','pelerinage','omra','hadj','croisiere','voyage organise'], { cat: 'voyage', sub: 'Séjours & circuits' }],
+  // École & Fournitures — HAUT dans la liste, et pour trois raisons précises :
+  //   · « cartable » contient « table », qui est un mot-clé de Maison › Meubles ;
+  //   · « sac à dos » contient « sac », qui est un mot-clé de Mode › Sacs ;
+  //   · « livre scolaire » contient « livre », qui est un mot-clé de Loisirs.
+  // Les trois catégories concernées viennent plus bas, donc l'école gagne.
+  // ⚠️ Deux mots-clés évités volontairement : « bac » (qui vit dans « tabac »)
+  // et « élève » (qui vit dans « élevage » — les poulets partaient à l'école).
+  [['fourniture scolaire','fournitures scolaires','kit scolaire','rentree scolaire','rentree des classes',
+    'cahier','cahiers','stylo','ardoise','craie','classeur','protege-cahier'], { cat: 'scolaire', sub: 'Fournitures & papeterie' }],
+  [['cartable','sac a dos ecole','sac d ecole','trousse'], { cat: 'scolaire', sub: 'Cartables & trousses' }],
+  [['manuel scolaire','livre scolaire','livre de classe','ciam','nei-ceda','livre au programme','lecture suivie'], { cat: 'scolaire', sub: 'Manuels & livres scolaires' }],
+  [['annales','sujets corriges','sujet corrige','bepc','cepe','sujets bac','annales bac','cahier de vacances','fiches de revision'], { cat: 'scolaire', sub: 'Annales & parascolaire' }],
+  [['uniforme','tenue scolaire','tenue kaki','blouse ecole'], { cat: 'scolaire', sub: 'Uniformes & tenues' }],
+  [['calculatrice','casio fx','compas','rapporteur','equerre','kit de geometrie'], { cat: 'scolaire', sub: 'Calculatrices & matériel de classe' }],
   // Téléphones — dans Électronique depuis la fusion : un téléphone EST un
   // appareil électronique, et l'acheteur qui compare un smartphone à une
   // tablette n'a aucune raison de changer de rayon.

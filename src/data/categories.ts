@@ -5,7 +5,7 @@ import { sousDe } from './sous/noms'
  * Les catégories de Chap.ci, adaptées au marché ivoirien.
  * Les icônes correspondent à des composants de `lucide-react`.
  *
- * QUINZE CATÉGORIES.
+ * SEIZE CATÉGORIES.
  * Deux ont été fondues dans une autre, parce qu'elles racontaient la même
  * chose deux fois et forçaient le vendeur à deviner où poster :
  *
@@ -63,6 +63,21 @@ export const categories: Category[] = [
     icon: 'Sofa',
     color: 'bg-orange-100 text-orange-700',
     subcategories: sousDe('maison'),
+  },
+  // ⚠️ École & Fournitures : deux réponses REFUSENT la publication, et elles ne
+  // sont pas théoriques. Le kit scolaire distribué gratuitement par l'État aux
+  // élèves du primaire public — 4,3 millions par an, une dizaine de milliards
+  // de FCFA d'argent public — ne se revend pas : un enfant se retrouve sans
+  // cahiers pour qu'un autre encaisse. Et le manuel photocopié est une
+  // contrefaçon : le piratage est une pratique installée de la chaîne du livre
+  // scolaire ivoirienne, et l'exemplaire arrive amputé chez l'élève.
+  // N'assouplissez ni l'un ni l'autre sans avoir lu `sous/scolaire.ts`.
+  {
+    id: 'scolaire',
+    name: 'École & Fournitures',
+    icon: 'Backpack',
+    color: 'bg-blue-100 text-blue-700',
+    subcategories: sousDe('scolaire'),
   },
   {
     id: 'emploi',

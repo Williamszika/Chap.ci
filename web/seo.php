@@ -224,7 +224,7 @@ function render_page(string $title, string $desc, string $img, string $canon, st
 function chapci_seo_cats(): array {
   // slug (= id de catégorie de l'app) => [libellé, tournure « vendez … »]
   //
-  // QUINZE, comme dans l'application. « Téléphones » et « Agriculture » ont été
+  // SEIZE, comme dans l'application. « Téléphones » et « Agriculture » ont été
   // fondues le 01/08 ; les laisser ici faisait publier au sitemap 46 URL vers
   // des pages désormais vides — 2 catégories × 23 déclinaisons de ville. Google
   // les aurait explorées, trouvées sans annonce, et aurait baissé sa confiance
@@ -251,6 +251,9 @@ function chapci_seo_cats(): array {
     // vente réservée aux pharmaciens, et interdite par les règles Google Play.
     'sante'        => ['Santé & Bien-être', 'vos produits de santé et bien-être'],
     'voyage'       => ['Voyage', 'vos billets et vos séjours'],
+    // La rentrée ivoirienne tombe le 14 septembre, et les inscriptions courent
+    // du 1er au 31 août : cette page-là a six semaines par an pour exister.
+    'scolaire'     => ['École & Fournitures', 'vos fournitures scolaires'],
     // « À donner » n'est pas une catégorie de vente : la page qui la sert dit
     // « Donnez » et non « Vendez », et affiche « Gratuit » là où les autres
     // affichent un prix (voir $don dans render_sell_page).

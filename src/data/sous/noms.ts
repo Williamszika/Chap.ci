@@ -131,6 +131,14 @@ export const NOMS_SOUS: Record<string, string[]> = {
     "Bien-être & Massage",
     "Nutrition sportive",
   ],
+  scolaire: [
+    "Fournitures & papeterie",
+    "Cartables & trousses",
+    "Manuels & livres scolaires",
+    "Annales & parascolaire",
+    "Uniformes & tenues",
+    "Calculatrices & matériel de classe",
+  ],
   voyage: [
     "Billets d’avion",
     "Agences de voyage",
