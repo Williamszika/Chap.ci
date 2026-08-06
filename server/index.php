@@ -5064,19 +5064,38 @@ try {
    * « L'équipe Chap.ci ». Ce n'est pas de la coquetterie — nommer la personne
    * qui vient de masquer une annonce, c'est lui livrer celui qui la cherche.
    */
-  $filOut = function (array $t, bool $staff): array {
+  $filOut = function (array $t, bool $staff, bool $voitIdentite): array {
     return [
       'id' => $t['id'], 'kind' => $t['kind'] ?: 'user',
       'sujet' => $t['subject'] ?: '(sans objet)',
       'statut' => $t['status'] ?: 'open',
-      'userId' => $staff ? ($t['user_id'] ?: null) : null,
-      'userNom' => $staff ? ($t['user_nom'] ?? null) : null,
-      'userEmail' => $staff ? ($t['user_email'] ?? null) : null,
+      // QUI a écrit ne sort que pour l'équipe QUI A LE DROIT DE LE SAVOIR.
+      // Répondre à une demande n'exige pas de connaître l'e-mail de qui la
+      // pose : le fil suffit. Partout ailleurs dans le tableau de bord,
+      // l'e-mail et le téléphone sont derrière la fonctionnalité
+      // « Utilisateurs » ; ces trois champs-là n'avaient aucune raison d'y
+      // échapper, et un modérateur sans cette case les lisait quand même.
+      // Signalé par la ronde du Gardien du 6 août, vérifié, corrigé.
+      'userId' => $voitIdentite ? ($t['user_id'] ?: null) : null,
+      'userNom' => $voitIdentite ? ($t['user_nom'] ?? null) : null,
+      'userEmail' => $voitIdentite ? ($t['user_email'] ?? null) : null,
       'creeLe' => iso_to_ms($t['created_at']),
       'dernierLe' => iso_to_ms($t['last_at'] ?: $t['created_at']),
       'dernierPar' => ($t['last_by'] ?? '') === 'equipe' ? 'equipe' : 'utilisateur',
       'nonLus' => (int) ($staff ? ($t['unread_staff'] ?? 0) : ($t['unread_user'] ?? 0)),
     ];
+  };
+
+  /**
+   * Ce modérateur a-t-il le droit de savoir QUI a ouvert le fil ?
+   *
+   * On ne restreint PAS l'accès à l'assistance elle-même : c'est une boîte
+   * partagée, et un modérateur dont le métier est de répondre aux gens doit
+   * pouvoir y répondre. Ce qu'on restreint, c'est l'identité — nom et adresse
+   * e-mail — exactement comme sur la fiche d'un compte.
+   */
+  $voitIdentite = function (array $u) use ($config, $pdo): bool {
+    return is_admin($config, $pdo, $u) && admin_can($config, $pdo, $u, 'users');
   };
 
   // ---- Liste des fils --------------------------------------------------------
@@ -5097,7 +5116,9 @@ try {
       $st->execute([$u['id']]);
       $rows = $st->fetchAll();
     }
-    jout(['equipe' => $staff, 'fils' => array_map(fn($t) => $filOut($t, $staff), $rows)]);
+    $idOK = $voitIdentite($u);
+    jout(['equipe' => $staff, 'identites' => $idOK,
+          'fils' => array_map(fn($t) => $filOut($t, $staff, $idOK), $rows)]);
   }
 
   // ---- Ouvrir un fil ---------------------------------------------------------
@@ -5177,7 +5198,7 @@ try {
       // renvoyer l'ancien compte ferait clignoter une pastille déjà éteinte.
       $fil[$staff ? 'unread_staff' : 'unread_user'] = 0;
       jout([
-        'fil' => $filOut($fil, $staff),
+        'fil' => $filOut($fil, $staff, $voitIdentite($u)),
         'messages' => array_map(fn($m) => [
           'id' => $m['id'],
           'role' => $m['sender_role'] ?: 'utilisateur',

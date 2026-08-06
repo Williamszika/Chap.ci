@@ -27,7 +27,10 @@ export interface Fil {
   kind: 'user' | 'staff'
   sujet: string
   statut: 'open' | 'closed'
-  /** Renseignés seulement pour l'équipe — un membre ne voit pas les autres. */
+  /**
+   * Renseignés seulement pour l'équipe QUI A LE DROIT de les voir (voir
+   * `identites`). Un membre ne voit jamais les autres.
+   */
   userId?: string | null
   userNom?: string | null
   userEmail?: string | null
@@ -49,6 +52,15 @@ export interface MessageFil {
 export interface ListeFils {
   /** Vrai si celui qui demande est administrateur ou modérateur. */
   equipe: boolean
+  /**
+   * Vrai si ce membre de l'équipe a le droit de voir QUI a ouvert le fil.
+   *
+   * Répondre à une demande n'exige pas de connaître l'e-mail de qui la pose.
+   * Le nom et l'adresse sont derrière la fonctionnalité « Utilisateurs »,
+   * comme sur la fiche d'un compte ; sans elle, `userNom` et `userEmail`
+   * arrivent vides et l'écran affiche simplement « Membre ».
+   */
+  identites?: boolean
   fils: Fil[]
 }
 
