@@ -159,7 +159,7 @@ site : la production est sur chap.ci.
 
 ```
 src/
-├── data/            # Données figées : catégories, 82 schémas de sous-catégories,
+├── data/            # Données figées : catégories, 95 schémas de sous-catégories,
 │                    #   découpage district → région → ville → commune, Mobile Money
 ├── pages/           # 26 pages, une par route (HashRouter)
 ├── components/      # 40 composants partagés — ListingCard est le plus sollicité

@@ -5,7 +5,7 @@ import { sousDe } from './sous/noms'
  * Les catégories de Chap.ci, adaptées au marché ivoirien.
  * Les icônes correspondent à des composants de `lucide-react`.
  *
- * TREIZE CATÉGORIES, ET NON QUINZE.
+ * QUINZE CATÉGORIES.
  * Deux ont été fondues dans une autre, parce qu'elles racontaient la même
  * chose deux fois et forçaient le vendeur à deviner où poster :
  *
@@ -127,6 +127,31 @@ export const categories: Category[] = [
     icon: 'HeartPulse',
     color: 'bg-teal-100 text-teal-700',
     subcategories: sousDe('sante'),
+  },
+  // ⚠️ Voyage : c'est, après la Santé, la catégorie où une annonce de trop coûte
+  // le plus cher — la victime paie d'avance, part, et n'a plus aucun recours à
+  // trois mille kilomètres. Quatre garde-fous sont posés dans les schémas et
+  // refusent la publication : « visa garanti » (seul un consulat délivre un
+  // visa), l'argent réclamé avant tout contrat écrit, les frais de placement
+  // mis à la charge d'un candidat au travail à l'étranger (convention n° 181
+  // de l'OIT), et le passage sans visa par la route ou par la mer.
+  // N'assouplissez aucun de ces quatre points sans avoir lu `sous/voyage.ts`.
+  {
+    id: 'voyage',
+    name: 'Voyage',
+    icon: 'Plane',
+    color: 'bg-indigo-100 text-indigo-700',
+    subcategories: sousDe('voyage'),
+  },
+  // « À donner » est la seule rubrique sans prix : il y est forcé à zéro, et
+  // l'annonce s'affiche « Gratuit ». Elle vient en dernier volontairement — mise
+  // en tête, elle noierait la place de marché sous les objets gratuits.
+  {
+    id: 'a-donner',
+    name: 'À donner',
+    icon: 'Gift',
+    color: 'bg-ivoire-green/15 text-ivoire-green-dark',
+    subcategories: sousDe('a-donner'),
   },
 ]
 

@@ -15,6 +15,18 @@ function norm(s: string): string {
 // gagne (on parcourt du plus spécifique au plus générique).
 interface Guess { cat: string; sub?: string }
 const KEYWORDS: [string[], Guess][] = [
+  // ⚠️ « À donner » EN PREMIER, et ce n'est pas un détail : le premier mot-clé
+  // trouvé gagne. « Vêtements à donner » tomberait sinon dans Mode & Beauté,
+  // et le vendeur se verrait réclamer un prix pour un don.
+  [['a donner','je donne','don gratuit','je offre gratuitement','cadeau gratuit','recuperer gratuitement'], { cat: 'a-donner' }],
+  // Voyage — avant l'immobilier, dont « location » et « chambre » attraperaient
+  // « location de voiture à Dubaï » ou « chambre d'hôtel Marrakech ».
+  [['billet avion','billet d avion','vol abidjan','vol paris','aller retour paris','compagnie aerienne'], { cat: 'voyage', sub: 'Billets d’avion' }],
+  [['visa','ambassade','consulat','passeport','formalite voyage'], { cat: 'voyage', sub: 'Visas & formalités' }],
+  [['etudier a l etranger','etude a l etranger','bourse etude','campus france','inscription universite etranger'], { cat: 'voyage', sub: 'Études à l’étranger' }],
+  [['travailler a l etranger','travail a l etranger','contrat a l etranger','emploi canada','emploi europe'], { cat: 'voyage', sub: 'Travail à l’étranger' }],
+  [['agence de voyage','agence voyage','billetterie'], { cat: 'voyage', sub: 'Agences de voyage' }],
+  [['sejour','circuit touristique','pelerinage','omra','hadj','croisiere','voyage organise'], { cat: 'voyage', sub: 'Séjours & circuits' }],
   // Téléphones — dans Électronique depuis la fusion : un téléphone EST un
   // appareil électronique, et l'acheteur qui compare un smartphone à une
   // tablette n'a aucune raison de changer de rayon.
@@ -91,8 +103,15 @@ export function guessFromTitle(title: string): { categoryId?: string; subcategor
     }
   }
   // 3) Nom de catégorie présent dans le titre.
+  //
+  // Le garde-fou des quatre lettres n'est pas décoratif : le premier mot de
+  // « À donner » est « À », qui devient « a » une fois normalisé. Sans lui,
+  // toute annonce contenant la lettre « a » et n'ayant rien déclenché plus haut
+  // — c'est-à-dire presque toutes — atterrirait dans « À donner », prix forcé à
+  // zéro. Aucun autre nom de catégorie ne descend sous quatre lettres.
   for (const c of categories) {
-    if (t.includes(norm(c.name.split(' ')[0]))) return { categoryId: c.id }
+    const premier = norm(c.name.split(' ')[0])
+    if (premier.length >= 4 && t.includes(premier)) return { categoryId: c.id }
   }
   return {}
 }

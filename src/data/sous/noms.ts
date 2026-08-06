@@ -131,6 +131,23 @@ export const NOMS_SOUS: Record<string, string[]> = {
     "Bien-être & Massage",
     "Nutrition sportive",
   ],
+  voyage: [
+    "Billets d’avion",
+    "Agences de voyage",
+    "Visas & formalités",
+    "Études à l’étranger",
+    "Travail à l’étranger",
+    "Séjours & circuits",
+  ],
+  "a-donner": [
+    "Vêtements & chaussures",
+    "Meubles & électroménager",
+    "Fournitures & matériel scolaire",
+    "Bébé & enfant",
+    "Nourriture & hygiène",
+    "Coup de main & services",
+    "Autres objets",
+  ],
 }
 
 /** Les sous-catégories d'une catégorie, ou une liste vide si elle n'en a pas. */

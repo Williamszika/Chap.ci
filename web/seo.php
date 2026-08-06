@@ -224,7 +224,7 @@ function render_page(string $title, string $desc, string $img, string $canon, st
 function chapci_seo_cats(): array {
   // slug (= id de catégorie de l'app) => [libellé, tournure « vendez … »]
   //
-  // TREIZE, comme dans l'application. « Téléphones » et « Agriculture » ont été
+  // QUINZE, comme dans l'application. « Téléphones » et « Agriculture » ont été
   // fondues le 01/08 ; les laisser ici faisait publier au sitemap 46 URL vers
   // des pages désormais vides — 2 catégories × 23 déclinaisons de ville. Google
   // les aurait explorées, trouvées sans annonce, et aurait baissé sa confiance
@@ -250,6 +250,11 @@ function chapci_seo_cats(): array {
     // Santé : compléments, soins, matériel paramédical. SANS médicaments —
     // vente réservée aux pharmaciens, et interdite par les règles Google Play.
     'sante'        => ['Santé & Bien-être', 'vos produits de santé et bien-être'],
+    'voyage'       => ['Voyage', 'vos billets et vos séjours'],
+    // « À donner » n'est pas une catégorie de vente : la page qui la sert dit
+    // « Donnez » et non « Vendez », et affiche « Gratuit » là où les autres
+    // affichent un prix (voir $don dans render_sell_page).
+    'a-donner'     => ['À donner', 'ce dont vous ne vous servez plus'],
   ];
 }
 function chapci_seo_cities(): array {
@@ -270,11 +275,19 @@ function chapci_seo_cities(): array {
  */
 function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug, string $catLabel, string $sell, string $citySlug, string $cityName, array $cities): void {
   header('Content-Type: text/html; charset=utf-8');
+  // La rubrique « À donner » n'a rien à vendre : sa page doit dire « Donnez ».
+  // Servir « Vendez ce dont vous ne vous servez plus » serait un contresens que
+  // Google indexerait, et qui ferait fuir exactement les gens qu'on cherche.
+  $don    = $catSlug === 'a-donner';
   $place  = $cityName !== '' ? ('à ' . $cityName) : 'en Côte d’Ivoire';
-  $h1     = 'Vendez ' . $sell . ' ' . $place;
+  $h1     = ($don ? 'Donnez ' : 'Vendez ') . $sell . ' ' . $place;
   $title  = $h1 . ' — gratuit | Chap.ci';
-  $desc   = 'Publiez gratuitement votre annonce ' . mb_strtolower($catLabel) . ' ' . $place
-          . ' sur Chap.ci et vendez vite à des acheteurs proches de vous. 100 % ivoirien, en ligne en 2 minutes.';
+  $desc   = $don
+          ? 'Publiez gratuitement votre don ' . $place . ' sur Chap.ci : vêtements, meubles, '
+            . 'fournitures scolaires, coup de main. Rien ne se paie, rien ne se demande en échange. '
+            . '100 % ivoirien, en ligne en 2 minutes.'
+          : 'Publiez gratuitement votre annonce ' . mb_strtolower($catLabel) . ' ' . $place
+            . ' sur Chap.ci et vendez vite à des acheteurs proches de vous. 100 % ivoirien, en ligne en 2 minutes.';
   $canon  = $site . '/vendre/' . $catSlug . ($citySlug !== '' ? '/' . $citySlug : '');
   $publish = $site . '/#/publier';
   $explore = $site . '/#/explorer?cat=' . $catSlug;
@@ -334,36 +347,53 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
     . "</style>\n</head>\n<body>\n<div class=\"w\">\n";
   echo "<header>Chap<span class=\"ci\">.ci</span></header>\n";
   echo "<h1>" . h($h1) . " 🇨🇮</h1>\n";
-  echo "<p class=\"lead\">Vous avez " . h($sell) . " à vendre " . h($place) . " ? Sur <strong>Chap.ci</strong>, "
-     . "publier une annonce est <strong>100 % gratuit</strong> et prend moins de 2 minutes. Vos acheteurs "
-     . "vous trouvent " . ($cityName !== '' ? 'à ' . h($cityName) . ' et partout en Côte d’Ivoire' : 'partout en Côte d’Ivoire') . ".</p>\n";
+  echo "<p class=\"lead\">Vous avez " . h($sell) . ($don ? ' à donner ' : ' à vendre ') . h($place) . " ? Sur <strong>Chap.ci</strong>, "
+     . "publier une annonce est <strong>100 % gratuit</strong> et prend moins de 2 minutes. "
+     . ($don ? 'Ceux à qui cela servira' : 'Vos acheteurs')
+     . " vous trouvent " . ($cityName !== '' ? 'à ' . h($cityName) . ' et partout en Côte d’Ivoire' : 'partout en Côte d’Ivoire') . ".</p>\n";
   echo "<a class=\"cta\" href=\"" . h($publish) . "\">➕ Publier une annonce gratuitement</a>\n";
 
-  echo "<h2>Pourquoi vendre sur Chap.ci ?</h2>\n<ul class=\"why\">\n"
-     . "<li>✅ <strong>Gratuit</strong> — aucune commission sur vos ventes.</li>\n"
-     . "<li>⚡ <strong>Rapide</strong> — en ligne en moins de 2 minutes.</li>\n"
-     . "<li>📍 <strong>Local</strong> — des acheteurs proches de vous" . ($cityName !== '' ? ' à ' . h($cityName) : '') . ".</li>\n"
-     . "<li>🇨🇮 <strong>100 % ivoirien</strong> — paiement Mobile Money (Orange, Wave…).</li>\n"
-     . "</ul>\n";
+  if ($don) {
+    echo "<h2>Pourquoi donner sur Chap.ci ?</h2>\n<ul class=\"why\">\n"
+       . "<li>✅ <strong>Gratuit</strong> — publier ne coûte rien, et le don ne rapporte rien.</li>\n"
+       . "<li>🚫 <strong>Rien à payer, jamais</strong> — pas même « les frais de transport ». Une annonce qui réclame de l’argent est refusée.</li>\n"
+       . "<li>📍 <strong>Près de chez vous</strong> — la remise se fait en main propre" . ($cityName !== '' ? ' à ' . h($cityName) : '') . ".</li>\n"
+       . "<li>🇨🇮 <strong>100 % ivoirien</strong> — entre voisins, entre Ivoiriens.</li>\n"
+       . "</ul>\n";
+  } else {
+    echo "<h2>Pourquoi vendre sur Chap.ci ?</h2>\n<ul class=\"why\">\n"
+       . "<li>✅ <strong>Gratuit</strong> — aucune commission sur vos ventes.</li>\n"
+       . "<li>⚡ <strong>Rapide</strong> — en ligne en moins de 2 minutes.</li>\n"
+       . "<li>📍 <strong>Local</strong> — des acheteurs proches de vous" . ($cityName !== '' ? ' à ' . h($cityName) : '') . ".</li>\n"
+       . "<li>🇨🇮 <strong>100 % ivoirien</strong> — paiement Mobile Money (Orange, Wave…).</li>\n"
+       . "</ul>\n";
+  }
 
   if ($items) {
-    echo "<h2>Annonces récentes en " . h($catLabel) . "</h2>\n<div class=\"grid\">\n";
+    echo "<h2>" . ($don ? 'Ce qui est à donner en ce moment' : 'Annonces récentes en ' . h($catLabel)) . "</h2>\n<div class=\"grid\">\n";
     foreach ($items as $it) {
       $imgs = $it['images'] ? (json_decode($it['images'], true) ?: []) : [];
       $img  = abs_img((string) ($imgs[0] ?? ''), $site, $upub);
-      $pr   = number_format((int) ($it['promo_price'] ?: $it['price']), 0, ',', ' ');
+      // Un prix à zéro s'écrit « Gratuit », jamais « 0 FCFA » : c'est ce que
+      // l'application affiche déjà, et c'est la seule forme juste dans « À donner ».
+      $montant = (int) ($it['promo_price'] ?: $it['price']);
+      $pr   = $montant === 0 ? 'Gratuit' : number_format($montant, 0, ',', ' ') . ' FCFA';
       $url  = $site . '/annonce/' . $it['id'];
       echo "<a class=\"card\" href=\"" . h($url) . "\">"
          . ($img !== '' ? "<img src=\"" . h($img) . "\" alt=\"" . h((string) $it['title']) . "\" loading=\"lazy\">" : "")
-         . "<div class=\"b\"><div class=\"pr\">" . h($pr) . " FCFA</div><div class=\"ti\">" . h((string) $it['title']) . "</div></div></a>\n";
+         . "<div class=\"b\"><div class=\"pr\">" . h($pr) . "</div><div class=\"ti\">" . h((string) $it['title']) . "</div></div></a>\n";
     }
     echo "</div>\n";
   }
 
-  echo "<h2>Explorer</h2>\n<p><a href=\"" . h($explore) . "\">Voir toutes les annonces " . h($catLabel) . " sur Chap.ci →</a></p>\n";
+  echo "<h2>Explorer</h2>\n<p><a href=\"" . h($explore) . "\">"
+     . ($don ? 'Voir tout ce qui est à donner sur Chap.ci' : 'Voir toutes les annonces ' . h($catLabel) . ' sur Chap.ci')
+     . " →</a></p>\n";
 
   // Maillage interne : la même catégorie dans d'autres villes.
-  echo "<h2>Vendre " . h($catLabel) . " dans d'autres villes</h2>\n<div class=\"links\">\n";
+  // « Donner À donner dans d'autres villes » ne se dit pas : sur cette rubrique
+  // le nom de la catégorie EST déjà le verbe.
+  echo "<h2>" . ($don ? 'Donner' : 'Vendre ' . h($catLabel)) . " dans d'autres villes</h2>\n<div class=\"links\">\n";
   $shown = 0;
   foreach ($cities as $vSlug => $vName) {
     if ($vSlug === $citySlug) continue;

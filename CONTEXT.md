@@ -26,6 +26,13 @@ Un encart **payant** acheté par un annonceur, affiché en rotation sur le site.
 ⚠️ **`listings` et `ads` sont deux choses différentes.** Les confondre est l'erreur la
 plus fréquente dans ce dépôt : `ads` n'a jamais désigné les annonces.
 
+**Don**
+Une annonce de la catégorie `a-donner`, et rien d'autre : c'est une `listing` ordinaire
+dont le prix vaut **zéro**, forcé par le formulaire et affiché « Gratuit ». Aucune
+contrepartie n'y est admise, **pas même « les frais de transport »** — c'est l'arnaque du
+rayon, et le schéma refuse la publication. L'argent, donné ou demandé, n'y a pas sa place
+non plus : Chap.ci n'est pas une plateforme de collecte.
+
 **Vendeur / Acheteur**
 Deux rôles du même compte (`users`), jamais deux types de compte. Un vendeur est un
 utilisateur qui a publié au moins une annonce.
@@ -77,7 +84,7 @@ pannes.
 | `src/pages/` | 26 pages, une par route. `HashRouter` — les URL portent un `#`. |
 | `src/components/` | 40 composants partagés. `ListingCard` est le plus chaud : il est rendu des dizaines de fois par écran. |
 | `src/lib/` | 38 modules sans JSX. `api.ts` et `backend.ts` parlent au serveur ; `marketing.ts` porte la garde `isNative` ; `native.ts` isole Capacitor. |
-| `src/data/` | Les données figées : catégories, 82 schémas de sous-catégories, découpage district → région → ville → commune. |
+| `src/data/` | Les données figées : catégories, 95 schémas de sous-catégories, découpage district → région → ville → commune. |
 | `src/store/` | L'état global. |
 
 Le build produit `dist/`, qui devient la racine du site.
@@ -158,3 +165,18 @@ Le code n'écrit plus jamais de fichier exécutable à l'exécution — voir `CL
 
 **Les administrateurs ne s'ajoutent pas en base.** Une insertion directe dans `admins`
 déclenche l'alerte d'intégrité `admins_tampered`. Ils se créent par l'interface.
+
+**Une catégorie se déclare à cinq endroits, et il n'y a pas de raccourci.** En oublier un
+donne une catégorie qui s'affiche mais dont le formulaire est générique, ou dont l'aperçu
+WhatsApp est un rectangle gris :
+
+| | |
+|---|---|
+| `src/data/categories.ts` | l'entrée : identifiant, nom, icône *(qui doit exister dans `CategoryIcon.tsx`)*, couleur |
+| `src/data/sous/noms.ts` | les noms des sous-catégories — c'est tout ce que l'accueil télécharge |
+| `src/data/sous/<fichier>.ts` + `sous/index.ts` | le schéma des formulaires, chargé à la demande |
+| `server/index.php` | `seo_category_labels()` **et** `category_label()` |
+| `web/seo.php` + `public/og/<id>.png` | les pages `/vendre/…` (23 URL de plus au sitemap) et la bannière de partage, que `scripts/generate-og.mjs` compose |
+
+`npm run banc` refuse de passer si `noms.ts` et les schémas divergent. Il ne voit rien des
+trois derniers points — c'est à vous de les faire.

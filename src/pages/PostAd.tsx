@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { ecrireBrouillon, lireBrouillon, effacerBrouillon, ilYA } from '../lib/brouillon'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown, Gift } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -279,6 +279,24 @@ export function PostAd() {
   const ctxAttrs: Record<string, string> = { ...attrs, _sub: subcategory }
   const champsVisibles = form.fields.filter((f) => !f.when || f.when(ctxAttrs))
   const venteFonciere = categoryId === 'immobilier' && attrs.transaction === 'Vente'
+
+  /**
+   * « À donner » : le prix vaut zéro, et il n'est pas saisissable.
+   *
+   * Un don qui porte un prix n'est pas un don. Laisser le champ ouvert
+   * garantissait qu'un vendeur y écrirait « 2 000 » un jour — et l'arnaque de
+   * ce rayon tient justement dans le « c'est gratuit, payez juste le
+   * transport ». On ferme donc la porte plutôt que de la surveiller : ni prix,
+   * ni promotion, ni « à débattre ».
+   */
+  const estDon = categoryId === 'a-donner'
+
+  useEffect(() => {
+    if (!estDon) return
+    setPrice('0')
+    setNegotiable(false)
+    setPromoOn(false)
+  }, [estDon])
 
   /**
    * En immobilier, la sous-catégorie dit déjà s'il s'agit d'une vente ou d'une
@@ -1024,7 +1042,23 @@ export function PostAd() {
 
         {/* ---- Prix, promo, localisation, livraison, description ---- */}
         <div className="space-y-6">
-        {/* Prix — libellé adapté (Salaire, Loyer, Tarif…) */}
+        {/* « À donner » : pas de champ prix du tout. Le prix vaut zéro, et
+            l'annonce s'affichera « Gratuit ». */}
+        {estDon ? (
+          <div className="rounded-xl border border-ivoire-green/30 bg-ivoire-green/5 p-4">
+            <p className="flex items-center gap-2 text-sm font-bold text-ivoire-green-dark">
+              <Gift size={18} /> Cette annonce est un don : elle s’affichera « Gratuit ».
+            </p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-gray-700">
+              Il n’y a pas de prix à indiquer, et il ne faut rien demander en échange — pas même une
+              participation au transport. « C’est gratuit, payez juste le transport » est l’arnaque
+              la plus courante de ce rayon, et un transfert Mobile Money ne se récupère jamais.
+              Si votre objet vaut quelque chose, publiez-le dans sa rubrique habituelle, avec son prix
+              affiché : c’est plus honnête, et cela vous protège aussi.
+            </p>
+          </div>
+        ) : (
+        /* Prix — libellé adapté (Salaire, Loyer, Tarif…) */
         <Field label={form.priceLabel ?? 'Prix'} htmlFor="pa-price" requis>
           <div className="relative">
             <input
@@ -1049,8 +1083,10 @@ export function PostAd() {
             Prix négociable / à débattre
           </label>
         </Field>
+        )}
 
-        {/* Promotion (facultatif) */}
+        {/* Promotion (facultatif) — sans objet sur un don. */}
+        {!estDon && (
         <div>
           <label className="flex items-center justify-between rounded-xl border border-line2 px-4 py-3">
             <span className="flex items-center gap-2 text-sm font-bold text-gray-800">
@@ -1133,6 +1169,7 @@ export function PostAd() {
             </div>
           )}
         </div>
+        )}
 
         {/* Localisation — géolocalisée (GPS) et verrouillée */}
         {/* Pas de htmlFor : la localisation se choisit dans un sélecteur, pas dans

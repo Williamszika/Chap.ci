@@ -1,9 +1,9 @@
 // =============================================================================
 //  Le registre des formulaires par sous-catégorie, et leur traduction.
 //
-//  Douze catégories, quatre-vingt-deux sous-catégories. L'immobilier n'est pas
-//  ici : il a son propre dossier foncier (`foncier.ts`, `FoncierDocs`), écrit
-//  avant les autres et plus riche que ce contrat.
+//  Quatorze catégories, quatre-vingt-quinze sous-catégories. L'immobilier n'est
+//  pas ici : il a son propre dossier foncier (`foncier.ts`, `FoncierDocs`),
+//  écrit avant les autres et plus riche que ce contrat.
 //
 //  Ce fichier fait UNE chose : traduire le contrat court des schémas vers le
 //  vocabulaire du reste de l'application, et résoudre tout ce qui dépend de ce
@@ -44,6 +44,8 @@ const CHARGEURS: Record<string, () => Promise<Record<string, DonneesCat>>> = {
   loisirs: () => import('./loisirs'),
   bebe: () => import('./bebe'),
   sante: () => import('./sante'),
+  voyage: () => import('./voyage'),
+  'a-donner': () => import('./donner'),
 }
 
 /** Les catégories qui possèdent un formulaire détaillé. */

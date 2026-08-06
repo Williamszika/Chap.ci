@@ -14,6 +14,8 @@ import {
   Apple,
   PawPrint,
   HeartPulse,
+  Plane,
+  Gift,
   Package,
   type LucideProps,
 } from 'lucide-react'
@@ -34,6 +36,8 @@ const map: Record<string, React.ComponentType<LucideProps>> = {
   Baby,
   Apple,
   PawPrint,
+  Plane,
+  Gift,
 }
 
 export function CategoryIcon({ name, ...props }: { name: string } & LucideProps) {
