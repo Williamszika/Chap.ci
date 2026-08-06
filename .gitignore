@@ -68,3 +68,10 @@ android/key.properties
 
 # Remotion — sorties de rendu vidéo (projet autonome, hors build du site)
 remotion/out/
+
+# Les AAB signés ne se versionnent pas.
+# Dix l'ont été entre v1.6 et v1.15 — environ 70 Mo de binaires dans l'historique,
+# que personne ne relira jamais : un AAB se reconstruit depuis son commit, et le
+# journal (store/APP-VERSIONS.md) dit lequel. Les dix déjà présents sont laissés
+# en place ; les purger réécrirait l'historique, ce qui est une décision du Patron.
+*.aab

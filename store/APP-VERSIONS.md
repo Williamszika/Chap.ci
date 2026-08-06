@@ -96,6 +96,41 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.18 — versionCode 19
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `00f105b` |
+| Date du build | 6 août 2026 |
+| Poids de l'AAB | 5,40 Mo (5 404 994 octets) — v1.17 en faisait 5,38 |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:70:92:F2:C0:19:A1:41:D1:35:DC:81:6A:73:28:FE:33`, valide jusqu'au 6 décembre 2053 |
+| État Play | **à téléverser** — NON VÉRIFIÉ, aucune confirmation du Patron |
+
+**Le code 18 est brûlé.** La v1.17 a bien été reçue par Google le 02/08, même
+restée en brouillon : un `versionCode` déjà téléversé ne se réutilise jamais.
+D'où le saut à 19.
+
+**Ce que cette version apporte par rapport à la v1.17 :**
+
+- deux rubriques neuves, **Voyage** et **À donner**, avec leurs treize schémas de
+  sous-catégories — c'est l'essentiel du poids ajouté, et il est découpé : le
+  paquet de démarrage ne les porte pas, chaque catégorie se charge à l'ouverture ;
+- l'animation d'indépendance : feux d'artifice la nuit, décompte « J-… » puis
+  « Jour J », et le message d'encouragement qui change avec l'heure. **La v1.17
+  ne l'avait pas** — c'est la version installée sur les téléphones qui expliquait
+  que l'animation ne se faisait pas dans l'application ;
+- le temps de réponse habituel du vendeur, sur la fiche et sur le profil ;
+- la barre de recherche sans contours, et six gris remontés à la norme
+  d'accessibilité ;
+- le dossier foncier : numéro du document et IDUFCI devenus facultatifs.
+
+> ⚠️ **`targetSdk 35` est accepté jusqu'au 30 août 2026.** À partir du 31, Google
+> exigera l'API 36 pour tout nouveau téléversement. Ce build passe ; le suivant,
+> non — il faudra monter `targetSdkVersion` dans `variables.gradle` et rebâtir.
+> C'est dans **24 jours**.
+
+---
+
 ## v1.17 — versionCode 18
 
 | Champ | Valeur |
