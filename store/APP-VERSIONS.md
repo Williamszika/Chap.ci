@@ -96,6 +96,50 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.19 — versionCode 20
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `INSCRIRE_APRES_COMMIT` |
+| Date du build | 7 août 2026 |
+| Poids de l'AAB | 5,42 Mo (5 422 602 octets) |
+| **minSdk 22 · targetSdk 36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:70:92:F2:C0:19:A1:41:D1:35:DC:81:6A:73:28:FE:33` |
+| État Play | **PRÊTE, PAS ENCORE TÉLÉVERSÉE** — à ne pousser QU'APRÈS la mise en ligne de la v1.18. NON VÉRIFIÉ. |
+
+**C'est le build de l'API 36.** Google a écrit au Patron le 7 août à 03 h 39
+(« [Action requise] Votre appli est concernée par les exigences liées au niveau
+d'API cible »). La règle : **à partir du 31 août 2026**, toute nouvelle appli et
+toute mise à jour doivent cibler **Android 16 (API 36)**. Une prolongation est
+possible jusqu'au 1<sup>er</sup> novembre — elle n'a pas lieu d'être, ce build
+existe.
+
+`android/variables.gradle` passe de 35 à 36, en `compileSdk` comme en
+`targetSdk`. **Ce fichier est désormais SUIVI PAR GIT** (`git add -f`, le dossier
+`android/` étant ignoré) : sans cela, la montée d'API disparaissait au premier
+clone, exactement comme le `versionCode` avant que `app/build.gradle` ne soit
+suivi.
+
+> ⚠️ **Compilé avec un avertissement, et il est assumé.** L'AGP 8.2.1 de ce
+> projet n'a été testé par Google que jusqu'à `compileSdk = 34` ; il accepte 36
+> et produit un bundle valide — vérifié sur le fichier — mais l'avertissement
+> reste. Il n'est **pas** supprimé volontairement : le jour où l'application
+> sera stable en test fermé, il faudra monter AGP et Gradle. Masquer
+> l'avertissement maintenant reviendrait à s'assurer de l'oublier.
+
+**Ce qu'elle apporte en plus de la v1.19 côté API :** la rubrique
+**École & Fournitures** (six sous-catégories, 101 schémas au total), livrée sur
+le site le 6 août au soir. La rentrée ivoirienne tombe le 14 septembre — cette
+version doit être en ligne avant.
+
+**ORDRE À RESPECTER, et il n'est pas négociable :**
+1. la v1.18 (code 19) termine son examen et passe en ligne ;
+2. les testeurs s'inscrivent et installent — le compte à rebours des 14 jours
+   démarre ;
+3. **seulement ensuite**, la v1.19 est téléversée sur le même canal fermé.
+Remplacer une version en cours d'examen relance l'examen à zéro et retarde tout.
+
+---
+
 ## v1.18 — versionCode 19
 
 | Champ | Valeur |
