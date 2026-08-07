@@ -1216,3 +1216,50 @@ déployé : la production sert encore `e36b1578fcb7`, déposé le 03/08 à 09h24
 Un ticket reste à ouvrir chez l'hébergeur pour l'exclusion permanente de
 `api/index.php` dans cPGuard — « Disable » est un réglage du panneau, pas une
 garantie.
+
+### 2026-08-07 — [Direction] Trois rondes du Gardien, une seule question restée
+
+**Les rondes du 6 et du 7 août sont vertes.** Santé 200, PHP 8.5.7, aucun écart
+dépôt/production sur les trois empreintes, 0 IP suspecte, `failRatio` 0, intégrité
+des comptes admin intacte, CSP sans nouvelle origine, file de modération vide, les
+treize tâches planifiées avec un passage récent cohérent. Le cloisonnement des
+secrets a été re-testé de bout en bout : clé cron sur `/mod/queue` → 401, jeton de
+modération sur `/cron/stats` → 403.
+
+**Ce qui a été trouvé, et corrigé le jour même.** La ronde de 15 h 48 a relevé que
+les routes `team/threads`, livrées le matin, gardaient l'accès avec `is_admin()`
+seul — un modérateur sans la case « Utilisateurs » y lisait le nom et l'adresse
+e-mail de tout membre ayant écrit à l'assistance, alors que la fiche d'un compte
+les réserve à cette case. Le Gardien avait raison. Corrigé par `bb1ee81` :
+l'identité passe derrière `admin_can(…, 'users')`, l'accès au fil et la réponse
+restent ouverts à toute l'équipe — c'est une boîte partagée, et un modérateur dont
+le métier est de répondre doit pouvoir répondre. Vérifié sur trois rôles réels
+avant d'être annoncé.
+
+**Ce qui est allé au-delà du signalement.** Le correctif est parti dans le zip de
+la rubrique scolaire, déployé le 6 au soir : la ronde de 00 h 46 l'a retrouvé en
+production sans qu'on ait eu à le lui dire. C'est exactement ce qu'une empreinte
+sert à prouver.
+
+**LA QUESTION QUI EST REVENUE TROIS FOIS : `admin_unlock_fail`.** Quatre échecs de
+déverrouillage en 24 h, au-dessus du seuil de 3, remontés le matin, l'après-midi
+ET la nuit — pour le même événement. Le Patron avait confirmé dès la première :
+« c'est moi qui fais les tentatives ». Aucune IP suspecte, aucun `rate_limited`,
+comptes intègres, et des déverrouillages réussis le même jour.
+
+Ce n'est pas la faute du Gardien : rien dans sa routine ne lui disait quoi faire
+d'une alerte déjà expliquée. Une consigne a donc été ajoutée à
+`routine-securite.md` — trois vérifications (IP suspectes vides, rate-limited à
+zéro, déverrouillage réussi le même jour), et si les trois passent, une ligne au
+lieu d'un point ouvert. Le seuil reste bas exprès : le code du propriétaire expire
+en soixante secondes, le manquer deux fois est le comportement normal d'une
+journée de travail.
+
+**Une question déjà répondue qui revient est du bruit, et le bruit finit par
+masquer le vrai signal.** C'est le seul enseignement de ces trois rondes.
+
+**Pour 📣 Le Crieur** — la rubrique « École & Fournitures » est en ligne depuis le
+6 août au soir. Le plan du site la porte déjà : 379 adresses au total, dont 23
+pages « Vendez vos fournitures scolaires à … », une par ville, vérifiées servies
+en production. Rien à ajouter côté sitemap ; les mots-clés de la rentrée
+(cahiers, cartable, uniforme kaki, annales CEPE/BEPC/BAC) sont dans les schémas.

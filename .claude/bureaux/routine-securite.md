@@ -347,6 +347,28 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
 
    Signale par ailleurs toute tendance qui monte, même sans alerte franche.
 
+   ── admin_unlock_fail : NE LE REMONTE PAS TROIS FOIS ──────────────────────
+   Le seuil est à 3 échecs sur 24 h, et il est BAS EXPRÈS : le code du
+   propriétaire expire en 60 secondes, et il arrive au Patron par e-mail. Le
+   manquer deux ou trois fois d'affilée est le comportement NORMAL d'une
+   journée où il travaille sur le tableau de bord.
+
+   Le 6 août, ce point a été remonté à trois rondes successives — matin,
+   après-midi et nuit — pour le MÊME événement. Le Patron avait confirmé dès la
+   première : « c'est moi qui fais les tentatives ». Une question déjà répondue
+   qui revient est du bruit, et le bruit finit par masquer le vrai signal.
+
+   Avant de le remonter, vérifie les trois choses qui distinguent une friction
+   d'une attaque :
+     · `suspiciousIps` est-il vide ? · `rateLimited` est-il à zéro ?
+     · `adminUnlockOk` est-il > 0 le même jour — quelqu'un a fini par entrer ?
+   Si les trois répondent oui, écris UNE ligne : « friction OTP, cohérent avec
+   une session de travail, confirmé par le Patron le 06/08 » — et passe.
+
+   Ne le rouvre que si l'un des trois change, ou si le Patron dit que ce n'est
+   pas lui. Là, ce n'est plus la même question, et elle est urgente.
+   ──────────────────────────────────────────────────────────────────────────
+
 4) MÉNAGE
    curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' 'https://chap.ci/api/cron/cleanup'
    → visites purgées, événements sécurité purgés, annonces expirées.
