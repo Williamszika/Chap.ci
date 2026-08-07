@@ -100,7 +100,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `INSCRIRE_APRES_COMMIT` |
+| **Commit** | `5ae60ed` |
 | Date du build | 7 août 2026 |
 | Poids de l'AAB | 5,42 Mo (5 422 602 octets) |
 | **minSdk 22 · targetSdk 36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:70:92:F2:C0:19:A1:41:D1:35:DC:81:6A:73:28:FE:33` |
