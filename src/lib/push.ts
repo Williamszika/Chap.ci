@@ -27,6 +27,14 @@ export type EtatPush =
   | 'ios-a-installer'
   /** La personne a refusé. Seuls les réglages du navigateur peuvent revenir dessus. */
   | 'refuse'
+  /**
+   * Le navigateur annonce savoir faire, mais n'active jamais le composant.
+   *
+   * C'est le cas des navigateurs INTÉGRÉS à une autre application — le lien
+   * ouvert depuis WhatsApp, Facebook ou Messenger. `navigator.serviceWorker`
+   * y existe, `register()` ne mène nulle part, et rien ne le signale.
+   */
+  | 'sw-absent'
   /** Possible, mais pas encore activé sur cet appareil. */
   | 'inactif'
   | 'actif'
@@ -65,17 +73,73 @@ export function pushPossible(): boolean {
     && typeof window !== 'undefined' && 'PushManager' in window && 'Notification' in window
 }
 
-/** Où en est cet appareil ? Ne demande rien à personne : lit, c'est tout. */
-export async function etatPush(): Promise<EtatPush> {
-  if (isNative) return 'app-native'
-  if (!isPhp) return 'indisponible'
-  if (!pushPossible()) return estIOS() && !estInstallee() ? 'ios-a-installer' : 'indisponible'
-  if (Notification.permission === 'denied') return 'refuse'
+/** Au-delà, on cesse d'attendre le service worker et on le dit. */
+const DELAI_SW = 6000
+
+/**
+ * La registration du service worker — ou `null`, mais JAMAIS une attente sans fin.
+ *
+ * ⚠️ `navigator.serviceWorker.ready` ne rejette jamais **et ne se résout jamais**
+ * tant qu'aucun worker n'est actif. Une page qui l'attend sans filet reste sur
+ * son « Chargement… » pour l'éternité, sans erreur, sans trace dans la console,
+ * sans rien à quoi se raccrocher. C'est exactement ce qui est arrivé le 7 août :
+ * l'écran des réglages affichait « Vérification… » indéfiniment.
+ *
+ * Le cas se produit vraiment, et souvent ici : un lien chap.ci ouvert depuis
+ * WhatsApp ou Facebook s'affiche dans le navigateur intégré de l'application.
+ * `navigator.serviceWorker` y existe — donc toutes les détections de capacité
+ * répondent « oui » — mais l'enregistrement n'aboutit pas.
+ *
+ * On interroge donc `getRegistration()`, qui se règle toujours, on tente un
+ * enregistrement de secours si rien n'est là, et on borne l'attente.
+ */
+async function registrationPush(): Promise<ServiceWorkerRegistration | null> {
+  // UNE seule échéance pour tout le parcours, partagée par les trois courses.
+  // Borner chaque appel séparément ne suffirait pas : trois attentes de six
+  // secondes en font dix-huit, et l'écran resterait muet presque aussi
+  // longtemps. Ici, quoi qu'il arrive, on répond avant `DELAI_SW`.
+  //
+  // Et il faut border les TROIS. `register()` aussi peut rester suspendu — le
+  // banc d'écran l'a montré : un premier correctif ne bornait que `ready`, et
+  // l'écran continuait d'afficher « Vérification… ». C'est exactement le genre
+  // de détail qu'une relecture ne voit pas et qu'une boucle rouge/vert voit.
+  const echeance = new Promise<null>((r) => { setTimeout(() => r(null), DELAI_SW) })
+  const borner = <T>(p: Promise<T>): Promise<T | null> =>
+    Promise.race([Promise.resolve(p).catch(() => null), echeance])
+
   try {
-    const reg = await navigator.serviceWorker.ready
+    const existante = await borner(navigator.serviceWorker.getRegistration())
+    if (existante?.active) return existante
+    if (!existante) {
+      // Le site enregistre son worker au chargement (registerSW.js). S'il n'y
+      // est pas, on essaie une fois nous-mêmes : mieux vaut réparer que rendre
+      // compte d'une panne.
+      await borner(navigator.serviceWorker.register('/sw.js', { scope: '/' }))
+    }
+    return await borner(navigator.serviceWorker.ready)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Où en est cet appareil ? Ne demande rien à personne : lit, c'est tout.
+ *
+ * Ne lève jamais et ne reste jamais en attente : tout chemin rend un état, et
+ * chaque état a sa phrase à l'écran. Une fonction de diagnostic qui peut se
+ * taire ne diagnostique rien.
+ */
+export async function etatPush(): Promise<EtatPush> {
+  try {
+    if (isNative) return 'app-native'
+    if (!isPhp) return 'indisponible'
+    if (!pushPossible()) return estIOS() && !estInstallee() ? 'ios-a-installer' : 'indisponible'
+    if (Notification.permission === 'denied') return 'refuse'
+    const reg = await registrationPush()
+    if (!reg) return 'sw-absent'
     return (await reg.pushManager.getSubscription()) ? 'actif' : 'inactif'
   } catch {
-    return 'inactif'
+    return 'sw-absent'
   }
 }
 
@@ -96,7 +160,8 @@ export async function activerPush(): Promise<EtatPush> {
   const { cle, actif } = await phpPushKey()
   if (!actif || !cle) throw new Error('Les notifications ne sont pas configurées sur le serveur.')
 
-  const reg = await navigator.serviceWorker.ready
+  const reg = await registrationPush()
+  if (!reg) return 'sw-absent'
   // Un abonnement peut déjà exister avec une AUTRE clé du site (clé VAPID
   // changée, ou navigateur restauré) : il ne serait plus déchiffrable. On
   // repart de zéro plutôt que de garder un abonnement muet.
@@ -116,7 +181,8 @@ export async function activerPush(): Promise<EtatPush> {
 /** Coupe les notifications sur cet appareil, des deux côtés. */
 export async function desactiverPush(): Promise<void> {
   if (!pushPossible()) return
-  const reg = await navigator.serviceWorker.ready
+  const reg = await registrationPush()
+  if (!reg) return
   const sub = await reg.pushManager.getSubscription()
   if (!sub) return
   await phpPushUnsubscribe({ endpoint: sub.endpoint })
@@ -137,8 +203,8 @@ export async function desactiverPush(): Promise<void> {
 export async function synchroniserPush(): Promise<void> {
   if (!pushPossible() || Notification.permission !== 'granted') return
   try {
-    const reg = await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.getSubscription()
+    const reg = await registrationPush()
+    const sub = await reg?.pushManager.getSubscription()
     if (sub) await phpPushSubscribe(sub.toJSON())
   } catch { /* la synchronisation n'est jamais urgente */ }
 }

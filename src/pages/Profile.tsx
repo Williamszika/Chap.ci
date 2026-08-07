@@ -767,9 +767,16 @@ function NotificationSettings() {
   useEffect(() => {
     let alive = true
     phpNotifPrefs().then((p) => { if (alive) { setPrefs(p); setLoaded(true) } })
-    etatPush().then((e) => { if (alive) setEtat(e) })
+    // `.catch` obligatoire : sans lui, un rejet laisserait l'écran sur
+    // « Vérification… » pour toujours, sans erreur visible nulle part.
+    etatPush().then((e) => { if (alive) setEtat(e) }).catch(() => { if (alive) setEtat('sw-absent') })
     return () => { alive = false }
   }, [])
+
+  async function reverifier() {
+    setEtat(null)
+    setEtat(await etatPush().catch(() => 'sw-absent' as EtatPush))
+  }
 
   const rafraichirAppareils = () => { phpPushDevices().then(setAppareils).catch(() => {}) }
   useEffect(() => { if (etat === 'actif') rafraichirAppareils() }, [etat])
@@ -854,6 +861,26 @@ function NotificationSettings() {
                 Désactiver ici
               </button>
             </div>
+          </>
+        )}
+
+        {etat === 'sw-absent' && (
+          <>
+            <p className="mb-2 text-xs leading-snug text-gray-600">
+              Ce navigateur n’a pas activé le composant nécessaire aux notifications.
+              La cause la plus fréquente : <b>la page a été ouverte depuis une autre
+              application</b> (WhatsApp, Facebook, Messenger), dans son navigateur interne,
+              qui ne le permet pas.
+            </p>
+            <p className="mb-2 text-xs leading-snug text-gray-600">
+              Ouvrez <b>chap.ci dans Chrome</b> — menu ⋮ en haut à droite →
+              « Ouvrir dans Chrome » — puis revenez ici. Si vous êtes déjà dans Chrome,
+              <b> rechargez la page une fois</b> : au tout premier passage, le composant
+              met quelques secondes à s’installer.
+            </p>
+            <button onClick={reverifier} disabled={occupe} className="w-full rounded-lg border border-gray-200 bg-white py-2 text-xs font-semibold text-gray-700 active:bg-gray-100">
+              Revérifier
+            </button>
           </>
         )}
 

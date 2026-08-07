@@ -1384,3 +1384,44 @@ rien.
 le plus), le filtre **« Sans annonce »** dans Utilisateurs, et sept **modèles de
 message** dans « Écrire à ce membre ». Les trois se répondent : le Parcours
 désigne la fuite, le filtre donne la liste, le modèle écrit la première phrase.
+
+### 2026-08-07 (soir) — « Vérification… », et ce que le banc a rattrapé
+
+**La panne.** Le bloc « Sur cet appareil » restait sur « Vérification… », sans
+fin, chez le Patron. Aucune erreur, aucune trace, rien dans la console.
+
+**La cause, et elle était chez moi.** `navigator.serviceWorker.ready` ne rejette
+jamais **et ne se résout jamais** tant qu'aucun worker n'est actif. Mon écran
+l'attendait sans filet. Le cas se produit vraiment ici : un lien chap.ci ouvert
+depuis WhatsApp ou Facebook s'affiche dans le navigateur intégré de
+l'application, où `navigator.serviceWorker` existe — donc toutes les détections
+de capacité répondent « oui » — mais l'enregistrement n'aboutit pas.
+
+**La boucle d'abord, comme le 3 août l'a appris.** Aucune relecture de code : un
+vrai Chromium, le vrai `dist/` servi en local, et un navigateur volontairement
+sabordé (`ready` suspendu, `getRegistration` vide, `register` suspendu).
+L'écran est resté sur « Vérification… » — rouge, sur exactement la panne
+signalée.
+
+**Et le banc a rattrapé mon premier correctif.** Il bornait `ready`… mais pas
+`register()`, que le banc suspendait aussi. Deuxième passage : **toujours
+rouge**. Sans ce banc, le Patron aurait reçu un correctif qui ne corrigeait
+rien, et aurait revu « Vérification… » — la pire des livraisons, celle qui use
+la confiance sans rien réparer. La version finale pose **une seule échéance
+partagée** par les trois attentes : quoi qu'il arrive, l'écran répond avant six
+secondes.
+
+**Le vrai correctif n'est pas le délai, c'est la parole.** Un nouvel état
+`sw-absent` nomme la cause, donne la marche à suivre (⋮ → « Ouvrir dans
+Chrome »), rappelle qu'un premier passage demande parfois un rechargement, et
+offre un bouton « Revérifier ». La prochaine fois, l'écran dira lui-même où ça
+coince au lieu de tourner.
+
+**À retenir pour tout le dépôt** : toute promesse du navigateur qui peut rester
+suspendue doit être bornée, et tout écran de diagnostic doit avoir un état
+« je n'ai pas pu savoir ». Un `.then()` sans `.catch()` sur une promesse qui ne
+se règle pas est un écran muet, pas une erreur.
+
+Le banc d'écran vit dans le bac à sable (`pushe2e/banc-ecran.mjs`) : il demande
+un serveur PHP local, une base SQLite et Playwright. Il n'entre pas au dépôt —
+un banc qui ne peut pas tourner tout seul finit par mentir.
