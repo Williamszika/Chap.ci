@@ -27,6 +27,7 @@ npm run dev        # serveur de développement
 npm run build      # tsc -b && vite build  ->  dist/
 npm run lint       # tsc -b --noEmit
 npm run banc       # banc de test des 101 schémas de sous-catégories
+npm run banc:push  # notifications push : vecteur RFC 8291 + contrat serveur ↔ service worker
 npm run cap:sync   # build + cap sync + android-slim.mjs
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
@@ -47,7 +48,7 @@ présents ; téléverser un fichier seul n'écrase que lui.
 | `.htaccess` (aucun, à aucun niveau) | le 2 août 2026, le `.htaccess` racine du zip a écrasé `api/.htaccess` et coupé l'API |
 | `api/config.php` | identifiants de base et secret de session |
 | `api/uploads/` … en fait `uploads/` à la racine | **toutes les photos des annonces** |
-| `api/data/` | secrets persistants et sauvegardes |
+| `api/data/` | secrets persistants et sauvegardes — dont `push.json`, la clé des notifications : la perdre coupe **tous** les abonnements d'un coup |
 
 Ces quatre-là vivent sur le serveur et nulle part ailleurs. Un zip qui en contient un
 seul est un zip à refaire.

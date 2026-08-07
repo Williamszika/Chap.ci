@@ -390,12 +390,41 @@ export async function phpNotifMarkRead(id?: string): Promise<void> {
 export async function phpNotifDelete(ids?: string[]): Promise<void> {
   try { await req('/notifications', { method: 'DELETE', body: ids && ids.length ? { ids } : {} }) } catch { /* silencieux */ }
 }
-export interface NotifPrefs { favorite: boolean; message: boolean }
+export interface NotifPrefs {
+  favorite: boolean
+  message: boolean
+  /** Repli par e-mail quand la personne n'est ni sur le site, ni joignable en push. */
+  email: boolean
+}
 export async function phpNotifPrefs(): Promise<NotifPrefs> {
-  try { return await req<NotifPrefs>('/notifications/prefs') } catch { return { favorite: true, message: true } }
+  try { return await req<NotifPrefs>('/notifications/prefs') }
+  catch { return { favorite: true, message: true, email: true } }
 }
 export async function phpSaveNotifPrefs(p: NotifPrefs): Promise<void> {
   await req('/notifications/prefs', { method: 'PUT', body: p })
+}
+
+// ---- Notifications push ------------------------------------------------------
+/** La clé publique VAPID du site — le navigateur en a besoin AVANT de s'abonner. */
+export async function phpPushKey(): Promise<{ cle: string; actif: boolean }> {
+  try { return await req<{ cle: string; actif: boolean }>('/push/key') }
+  catch { return { cle: '', actif: false } }
+}
+export async function phpPushSubscribe(sub: PushSubscriptionJSON): Promise<void> {
+  await req('/push/subscribe', { method: 'POST', body: sub as unknown as Record<string, unknown> })
+}
+export async function phpPushUnsubscribe(x: { endpoint?: string; id?: string }): Promise<void> {
+  try { await req('/push/unsubscribe', { method: 'POST', body: x }) } catch { /* silencieux */ }
+}
+export interface PushAppareil {
+  id: string; appareil: string; repere: string; depuis: number; dernier: number | null
+}
+export async function phpPushDevices(): Promise<PushAppareil[]> {
+  try { return await req<PushAppareil[]>('/push/devices') } catch { return [] }
+}
+/** Envoie une notification d'essai à tous les appareils du compte. */
+export async function phpPushTest(): Promise<{ appareils: number; envoyes: number }> {
+  return req<{ appareils: number; envoyes: number }>('/push/test', { method: 'POST', body: {} })
 }
 
 // ---- Conversations & messages ----------------------------------------------

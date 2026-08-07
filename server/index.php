@@ -519,19 +519,434 @@ function moderate_text(string $text): array {
 }
 
 // ---- Notifications in-app ----------------------------------------------------
-/** Crée une notification pour un utilisateur, en respectant ses préférences. */
+/**
+ * Crée une notification pour un utilisateur, en respectant ses préférences.
+ *
+ * Elle atterrit dans la cloche du site, et — si la personne a autorisé les
+ * notifications sur un appareil — sur cet appareil même application fermée.
+ * L'envoi réel n'a PAS lieu ici : on empile dans `$GLOBALS['CHAPCI_PUSH']`, et
+ * `push_vider()` s'en occupe une fois la réponse rendue. Un utilisateur qui
+ * envoie un message n'a pas à attendre le serveur de Google pour voir sa page.
+ *
+ * `mb_substr` et non `substr` : « Réfrigérateur » coupé à 120 OCTETS peut se
+ * terminer au milieu d'un « é ». La chaîne devient de l'UTF-8 invalide,
+ * json_encode rend `false`, et la notification part vide — sans la moindre
+ * erreur nulle part.
+ */
 function notify(PDO $pdo, string $userId, string $type, string $title, string $body, string $link = ''): void {
   if ($userId === '') return;
   try {
     $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$userId]);
     $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
     if (isset($prefs[$type]) && !$prefs[$type]) return; // ce type est désactivé par l'utilisateur
+    $id = uuid();
+    $title = mb_substr($title, 0, 120); $body = mb_substr($body, 0, 240); $link = mb_substr($link, 0, 200);
     $pdo->prepare('INSERT INTO notifications (id,user_id,type,title,body,link,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)')
-        ->execute([uuid(), $userId, $type, substr($title, 0, 120), substr($body, 0, 240), substr($link, 0, 200), now_iso()]);
+        ->execute([$id, $userId, $type, $title, $body, $link, now_iso()]);
+    // Pas de réglage « push » ici : le vrai interrupteur est l'abonnement du
+    // navigateur lui-même. Refuser l'autorisation, ou l'éteindre depuis le
+    // compte, efface la ligne de `push_subs` — il n'y a alors rien à joindre,
+    // et le repli par e-mail prend le relais (réglage « email »).
+    $GLOBALS['CHAPCI_PUSH'][] = [
+      'id' => $id, 'user' => $userId, 'type' => $type, 'title' => $title, 'body' => $body, 'link' => $link,
+    ];
   } catch (Throwable $e) { /* une notification ne doit jamais casser l'action */ }
 }
 function b64url(string $s): string { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
 function b64url_dec(string $s): string { return base64_decode(strtr($s, '-_', '+/')); }
+
+// ---- Notifications push : le chiffrement et la signature --------------------
+//
+//  Une notification push traverse un serveur qui n'est pas le nôtre : celui de
+//  Google (Chrome), de Mozilla (Firefox) ou d'Apple (Safari). Ce relais
+//  transmet sans jamais pouvoir lire — c'est la RFC 8291 qui l'impose, et c'est
+//  pour cela que le contenu est chiffré ICI, avec une clé que seul le
+//  navigateur du destinataire possède.
+//
+//  Deux mécanismes distincts, souvent confondus :
+//    · VAPID (RFC 8292) — nous IDENTIFIE auprès du relais. Un jeton signé
+//      ES256 avec une paire de clés qui appartient au site, la même pour tous.
+//    · aes128gcm (RFC 8291 + RFC 8188) — CHIFFRE le message pour UN abonnement
+//      précis, avec les deux clés que le navigateur nous a données (`p256dh` et
+//      `auth`) et une paire éphémère régénérée à chaque envoi.
+//
+//  Rien de tout cela ne se vérifie à l'œil : une erreur d'un seul bit donne un
+//  message que le navigateur rejette en silence, et l'on ne saurait jamais
+//  pourquoi. La RFC 8291 §5 publie donc un vecteur d'essai complet — clés, sel,
+//  texte clair, résultat attendu octet pour octet. `php8.5 scripts/push-vecteur.php`
+//  le rejoue contre ce bloc. À relancer après toute retouche ici.
+
+/**
+ * Une clé publique P-256 « brute » (65 octets, commençant par 0x04) → PEM.
+ *
+ * Le navigateur nous donne `p256dh` sous cette forme brute ; OpenSSL ne sait
+ * lire qu'un SubjectPublicKeyInfo. Le préambule ASN.1 est constant pour la
+ * courbe prime256v1 : on le colle devant.
+ */
+function push_pem_publique(string $brute65): string {
+  if (strlen($brute65) !== 65 || $brute65[0] !== "\x04") {
+    throw new RuntimeException('Clé publique P-256 invalide (65 octets non compressés attendus).');
+  }
+  $der = (string) hex2bin('3059301306072a8648ce3d020106082a8648ce3d030107034200') . $brute65;
+  return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END PUBLIC KEY-----\n";
+}
+
+/**
+ * Une clé privée P-256 brute (scalaire de 32 octets) + sa publique → PEM SEC1.
+ *
+ * Sert au banc d'essai — qui doit imposer la clé éphémère de la RFC, sans quoi
+ * le résultat ne serait comparable à rien — et à relire une clé VAPID rangée
+ * sous forme compacte.
+ */
+function push_pem_privee(string $d32, string $pub65): string {
+  if (strlen($d32) !== 32) throw new RuntimeException('Scalaire privé P-256 invalide (32 octets attendus).');
+  $corps = "\x02\x01\x01"                                          // version = 1
+         . "\x04\x20" . $d32                                        // privateKey (OCTET STRING)
+         . (string) hex2bin('a00a06082a8648ce3d030107')             // [0] namedCurve prime256v1
+         . "\xa1\x44\x03\x42\x00" . $pub65;                         // [1] publicKey (BIT STRING)
+  $der = "\x30" . chr(strlen($corps)) . $corps;
+  return "-----BEGIN EC PRIVATE KEY-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END EC PRIVATE KEY-----\n";
+}
+
+/** D'une clé OpenSSL P-256 : sa publique brute (65 octets) et son scalaire. */
+function push_details(OpenSSLAsymmetricKey $cle): array {
+  $d = openssl_pkey_get_details($cle);
+  if (!$d || !isset($d['ec']['x'], $d['ec']['y'])) throw new RuntimeException('Clé EC illisible.');
+  return [
+    'pub' => "\x04" . str_pad($d['ec']['x'], 32, "\x00", STR_PAD_LEFT) . str_pad($d['ec']['y'], 32, "\x00", STR_PAD_LEFT),
+    'd'   => isset($d['ec']['d']) ? str_pad($d['ec']['d'], 32, "\x00", STR_PAD_LEFT) : '',
+  ];
+}
+
+/** Fabrique une paire P-256 neuve. */
+function push_paire(): array {
+  $k = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+  if (!$k) throw new RuntimeException('Impossible de générer une paire P-256 (OpenSSL).');
+  return ['cle' => $k] + push_details($k);
+}
+
+/**
+ * Chiffre `$charge` pour l'abonnement décrit par `$p256dh` et `$auth`.
+ *
+ * Rend le corps binaire complet, à poster tel quel avec l'en-tête
+ * `Content-Encoding: aes128gcm`.
+ *
+ * `$impose` n'existe que pour le banc d'essai : la RFC fournit une clé éphémère
+ * et un sel précis. Chaque envoi réel en tire de nouveaux — c'est le principe.
+ */
+function push_chiffrer(string $p256dh, string $auth, string $charge, ?array $impose = null): string {
+  $uaPub  = b64url_dec($p256dh);
+  $secret = b64url_dec($auth);
+  if (strlen($uaPub) !== 65)  throw new RuntimeException('p256dh invalide.');
+  if (strlen($secret) !== 16) throw new RuntimeException('auth invalide (16 octets attendus).');
+
+  if ($impose) {
+    $asPriv = $impose['priv']; $asPub = $impose['pub']; $sel = $impose['sel'];
+  } else {
+    $p = push_paire();
+    $asPriv = $p['cle']; $asPub = $p['pub']; $sel = random_bytes(16);
+  }
+
+  // 1. Secret partagé ECDH entre notre clé éphémère et celle du navigateur.
+  $partage = openssl_pkey_derive(push_pem_publique($uaPub), $asPriv, 0);
+  if ($partage === false) throw new RuntimeException('ECDH impossible.');
+
+  // 2. La matière première (IKM), liée à CET abonnement par son secret `auth`.
+  $ikm = hash_hkdf('sha256', $partage, 32, "WebPush: info\x00" . $uaPub . $asPub, $secret);
+
+  // 3. Clé et nonce du chiffrement, dérivés du sel (RFC 8188 §2.1 et §2.2).
+  $cek   = hash_hkdf('sha256', $ikm, 16, "Content-Encoding: aes128gcm\x00", $sel);
+  $nonce = hash_hkdf('sha256', $ikm, 12, "Content-Encoding: nonce\x00", $sel);
+
+  // 4. Un seul enregistrement : le texte, puis le délimiteur 0x02 (« dernier »).
+  $tag = '';
+  $chiffre = openssl_encrypt($charge . "\x02", 'aes-128-gcm', $cek, OPENSSL_RAW_DATA, $nonce, $tag);
+  if ($chiffre === false) throw new RuntimeException('Chiffrement AES-128-GCM impossible.');
+
+  // 5. L'en-tête binaire : sel(16) | taille(4) | longueur de l'id(1) | clé(65).
+  return $sel . pack('N', 4096) . chr(65) . $asPub . $chiffre . $tag;
+}
+
+/** Signature ECDSA d'OpenSSL (DER) → les 64 octets bruts R‖S attendus par ES256. */
+function push_sig_brute(string $der): string {
+  if (($der[0] ?? '') !== "\x30") throw new RuntimeException('Signature DER inattendue.');
+  $i = 2; // la séquence P-256 fait toujours moins de 128 octets : longueur courte
+  $lire = function () use ($der, &$i): string {
+    if (($der[$i] ?? '') !== "\x02") throw new RuntimeException('Signature DER inattendue.');
+    $i++;
+    $n = ord($der[$i]); $i++;
+    $v = substr($der, $i, $n); $i += $n;
+    return str_pad(ltrim($v, "\x00"), 32, "\x00", STR_PAD_LEFT);
+  };
+  return $lire() . $lire();
+}
+
+/**
+ * L'en-tête `Authorization` à joindre à l'envoi.
+ *
+ * `$endpoint` ne sert qu'à en extraire l'origine : le jeton vaut pour un relais
+ * (`https://fcm.googleapis.com`), jamais pour un abonné en particulier.
+ */
+function push_entete_vapid(string $endpoint, string $sujet, OpenSSLAsymmetricKey $priv, string $pub65): string {
+  $p = parse_url($endpoint);
+  if (empty($p['scheme']) || empty($p['host'])) throw new RuntimeException('Adresse push invalide.');
+  // L'auditoire est l'ORIGINE du relais — donc avec le port s'il n'est pas
+  // celui par défaut. En production les relais sont tous en 443 et le port
+  // n'apparaît jamais ; c'est justement pour cela qu'il faut l'écrire ici,
+  // sinon rien ne l'aurait jamais signalé.
+  $aud = $p['scheme'] . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+
+  $entete = b64url((string) json_encode(['typ' => 'JWT', 'alg' => 'ES256']));
+  // 12 h : la RFC 8292 plafonne à 24 h, et un jeton court limite le rejeu.
+  $corps  = b64url((string) json_encode(['aud' => $aud, 'exp' => time() + 43200, 'sub' => $sujet]));
+  $der = '';
+  if (!openssl_sign("$entete.$corps", $der, $priv, OPENSSL_ALGO_SHA256)) {
+    throw new RuntimeException('Signature VAPID impossible.');
+  }
+  return 'vapid t=' . "$entete.$corps." . b64url(push_sig_brute($der)) . ', k=' . b64url($pub65);
+}
+// ---- FIN du chiffrement push (repère du banc d'essai) -----------------------
+
+// ---- Notifications push : les clés du site, les abonnés, l'envoi ------------
+
+/**
+ * La paire VAPID du site — créée au premier besoin, puis JAMAIS remplacée.
+ *
+ * Elle identifie Chap.ci auprès de Google, Mozilla et Apple. La changer
+ * invaliderait d'un coup TOUS les abonnements déjà pris : chaque téléphone
+ * devrait réactiver ses notifications à la main, et personne ne le ferait.
+ * Elle vit donc dans `api/data/push.json`, en 0600, dans le dossier refusé au
+ * web — le même endroit que `smtp.json`, et pour la même raison. Ce dossier
+ * n'est jamais dans le zip de déploiement : un déploiement ne peut pas
+ * l'écraser.
+ *
+ * Rend `null` si OpenSSL n'a pas les courbes elliptiques : le site continue de
+ * fonctionner, la cloche aussi, seul le push se tait.
+ */
+function push_cles(array $config): ?array {
+  static $cache = null;
+  if ($cache !== null) return $cache ?: null;
+
+  $fichier = chapci_secret_dir($config) . '/push.json';
+  $d = is_file($fichier) ? json_decode((string) @file_get_contents($fichier), true) : null;
+
+  if (!is_array($d) || empty($d['publique']) || empty($d['privee'])) {
+    try { $p = push_paire(); }
+    catch (Throwable $e) { error_log('[chapci] push · génération VAPID : ' . $e->getMessage()); $cache = false; return null; }
+    $d = ['publique' => b64url($p['pub']), 'privee' => b64url($p['d']), 'cree' => now_iso()];
+    // JSON inerte, jamais du code : voir le commentaire de smtp.json plus haut.
+    @file_put_contents($fichier, (string) json_encode($d, JSON_PRETTY_PRINT), LOCK_EX);
+    @chmod($fichier, 0600);
+  }
+
+  try {
+    $priv = openssl_pkey_get_private(push_pem_privee(b64url_dec($d['privee']), b64url_dec($d['publique'])));
+    if (!$priv) throw new RuntimeException('clé privée VAPID illisible');
+  } catch (Throwable $e) {
+    error_log('[chapci] push · lecture VAPID : ' . $e->getMessage());
+    $cache = false; return null;
+  }
+
+  $contacts = $config['report_email'] ?? [];
+  $sujet = 'mailto:' . (is_array($contacts) ? ($contacts[0] ?? 'contact@chap.ci') : (string) $contacts);
+  $cache = ['priv' => $priv, 'pub' => b64url_dec($d['publique']), 'pubB64' => (string) $d['publique'], 'sujet' => $sujet];
+  return $cache;
+}
+
+/**
+ * Un nom d'appareil lisible, tiré de l'en-tête User-Agent.
+ *
+ * On ne garde PAS l'en-tête brut : c'est une empreinte fine (version exacte du
+ * système, du navigateur, parfois du modèle) qui ne sert à rien ici. « Chrome
+ * sur Android » suffit à ce que quelqu'un reconnaisse son téléphone dans la
+ * liste de ses appareils, et c'est tout ce que la liste doit permettre.
+ */
+function push_appareil(string $ua): string {
+  $sys = 'un appareil';
+  foreach (['Android' => 'Android', 'iPhone' => 'iPhone', 'iPad' => 'iPad',
+            'Windows' => 'Windows', 'Mac OS X' => 'Mac', 'Linux' => 'Linux'] as $motif => $nom) {
+    if (stripos($ua, $motif) !== false) { $sys = $nom; break; }
+  }
+  // L'ordre compte : Chrome et Edge annoncent « Safari » dans leur User-Agent,
+  // et Edge annonce « Chrome ». On teste donc du plus spécifique au plus large.
+  $nav = 'Navigateur';
+  foreach (['Edg' => 'Edge', 'OPR' => 'Opera', 'SamsungBrowser' => 'Samsung Internet',
+            'Firefox' => 'Firefox', 'Chrome' => 'Chrome', 'Safari' => 'Safari'] as $motif => $nom) {
+    if (stripos($ua, $motif) !== false) { $nav = $nom; break; }
+  }
+  return $nav . ' sur ' . $sys;
+}
+
+/**
+ * Pousse une notification vers UN abonnement.
+ *
+ * Rend le code HTTP du relais. 201 = accepté. 404 et 410 veulent dire que
+ * l'abonnement est mort — application désinstallée, navigateur réinitialisé,
+ * autorisation retirée : on l'efface, sinon la table se remplit de fantômes et
+ * chaque notification paie leur silence.
+ */
+function push_envoyer(array $config, PDO $pdo, array $abo, string $charge): int {
+  $cles = push_cles($config);
+  if (!$cles) return 0;
+  try {
+    $corps  = push_chiffrer((string) $abo['p256dh'], (string) $abo['auth_secret'], $charge);
+    $entete = push_entete_vapid((string) $abo['endpoint'], $cles['sujet'], $cles['priv'], $cles['pub']);
+  } catch (Throwable $e) {
+    error_log('[chapci] push · chiffrement : ' . $e->getMessage());
+    return 0;
+  }
+  $r = http_fetch((string) $abo['endpoint'], [
+    'method'  => 'POST',
+    'headers' => [
+      'Authorization: ' . $entete,
+      'Content-Encoding: aes128gcm',
+      'Content-Type: application/octet-stream',
+      // Le relais garde le message 24 h si le téléphone est éteint. Au-delà,
+      // une notification d'hier ne vaut plus la peine d'être montrée.
+      'TTL: 86400',
+      'Urgency: normal',
+    ],
+    'body' => $corps,
+  ]);
+  $code = (int) $r['status'];
+  if ($code === 404 || $code === 410) {
+    $pdo->prepare('DELETE FROM push_subs WHERE id = ?')->execute([$abo['id']]);
+    return $code;
+  }
+  try {
+    if ($code >= 200 && $code < 300) {
+      $pdo->prepare('UPDATE push_subs SET last_ok_at = ?, fails = 0 WHERE id = ?')->execute([now_iso(), $abo['id']]);
+    } else {
+      // Dix échecs d'affilée : le relais ne dit pas « mort », mais il ne délivre
+      // plus. On arrête d'y consacrer une requête réseau à chaque notification.
+      $pdo->prepare('UPDATE push_subs SET fails = fails + 1 WHERE id = ?')->execute([$abo['id']]);
+      $pdo->prepare('DELETE FROM push_subs WHERE id = ? AND fails >= 10')->execute([$abo['id']]);
+    }
+  } catch (Throwable $e) { /* le suivi ne doit jamais empêcher l'envoi suivant */ }
+  return $code;
+}
+
+/**
+ * Pousse vers TOUS les appareils d'une personne. Rend le nombre d'envois reçus.
+ *
+ * Zéro veut dire quelque chose de précis : personne n'a été touché sur cet
+ * appareil-là. C'est ce zéro qui déclenche le repli par e-mail.
+ */
+function push_utilisateur(array $config, PDO $pdo, string $userId, array $charge): int {
+  if ($userId === '' || !push_cles($config)) return 0;
+  try {
+    $st = $pdo->prepare('SELECT * FROM push_subs WHERE user_id = ? LIMIT 20');
+    $st->execute([$userId]);
+    $abos = $st->fetchAll();
+  } catch (Throwable $e) { return 0; }
+  if (!$abos) return 0;
+  $json = (string) json_encode($charge, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  $ok = 0;
+  foreach ($abos as $a) {
+    $c = push_envoyer($config, $pdo, $a, $json);
+    if ($c >= 200 && $c < 300) $ok++;
+  }
+  return $ok;
+}
+
+/**
+ * Le repli : un e-mail à qui n'a pas d'appareil abonné ET n'est pas là.
+ *
+ * Le push ne couvre pas tout le monde — un iPhone qui n'a pas ajouté le site à
+ * son écran d'accueil n'en reçoit pas, un vieil Android non plus, et beaucoup
+ * de gens refusent l'autorisation. Sans ce repli, « prévenir même hors
+ * connexion » ne vaudrait que pour une partie des inscrits.
+ *
+ * Trois garde-fous, parce qu'un e-mail de trop se paie en désabonnement :
+ *   · seuls les messages et les changements d'annonce en méritent un ;
+ *   · rien si la personne a été vue sur le site depuis moins de 15 minutes —
+ *     elle a la cloche sous les yeux ;
+ *   · un seul e-mail par demi-heure et par personne, tous types confondus.
+ */
+function push_repli_email(array $config, PDO $pdo, array $n): void {
+  if (!in_array($n['type'], ['message', 'listing'], true)) return;
+  try {
+    $st = $pdo->prepare(
+      'SELECT u.email, u.status, u.last_seen_at, p.full_name, p.notif_prefs
+         FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?'
+    );
+    $st->execute([$n['user']]);
+    $row = $st->fetch();
+    if (!$row || empty($row['email']) || ($row['status'] ?? '') === 'blocked') return;
+
+    $prefs = json_decode((string) ($row['notif_prefs'] ?? ''), true) ?: [];
+    if (isset($prefs['email']) && !$prefs['email']) return;
+
+    $vu = $row['last_seen_at'] ?? null;
+    if ($vu && (time() - strtotime((string) $vu)) < 900) return; // elle est là
+
+    $st = $pdo->prepare('SELECT MAX(mailed_at) FROM notifications WHERE user_id = ?');
+    $st->execute([$n['user']]);
+    $dernier = (string) ($st->fetchColumn() ?: '');
+    if ($dernier !== '' && (time() - strtotime($dernier)) < 1800) return; // déjà écrit
+
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    $lien = $site . '/' . ltrim((string) $n['link'], '/');
+    $prenom = trim((string) ($row['full_name'] ?? ''));
+    $prenom = $prenom !== '' ? explode(' ', $prenom)[0] : '';
+
+    $inner =
+        '<h2 style="margin:0 0 14px;color:#111827;font-size:21px">' . htmlspecialchars((string) $n['title']) . '</h2>'
+      . '<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#374151">'
+      . ($prenom !== '' ? 'Bonjour ' . htmlspecialchars($prenom) . ',<br><br>' : '')
+      . htmlspecialchars((string) $n['body']) . '</p>'
+      . email_button($lien, 'Voir sur Chap.ci')
+      . '<p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280">'
+      . 'Vous recevez ce message parce que vous n’étiez pas connecté. Pour être prévenu '
+      . 'tout de suite sur votre téléphone, activez les notifications dans '
+      . '<a href="' . htmlspecialchars($site) . '/#/compte" style="color:#D95F00">votre compte</a> — '
+      . 'vous pouvez aussi y couper ces e-mails.</p>';
+
+    if (send_mail($config, (string) $row['email'], (string) $n['title'], email_layout($config, $inner, (string) $n['body']))) {
+      $pdo->prepare('UPDATE notifications SET mailed_at = ? WHERE id = ?')->execute([now_iso(), $n['id']]);
+    }
+  } catch (Throwable $e) {
+    error_log('[chapci] push · repli e-mail : ' . $e->getMessage());
+  }
+}
+
+/**
+ * Vide la file accumulée par notify() pendant la requête.
+ *
+ * Pourquoi une file, et pas un envoi immédiat : joindre trois relais différents
+ * prend de une à quatre secondes, et notify() est appelée AU MILIEU d'une action
+ * de l'utilisateur — envoyer un message, publier une annonce. Personne ne doit
+ * attendre le réseau de Google pour voir sa page revenir.
+ *
+ * On envoie donc APRÈS avoir rendu la réponse : `litespeed_finish_request()`
+ * (c'est LiteSpeed qui sert chap.ci) rend la main au navigateur, et le reste se
+ * fait pendant qu'il affiche déjà le résultat.
+ */
+function push_vider(array $config): void {
+  $file = $GLOBALS['CHAPCI_PUSH'] ?? [];
+  $GLOBALS['CHAPCI_PUSH'] = [];
+  if (!$file) return;
+  try {
+    $pdo = db($config);
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    foreach ($file as $n) {
+      $touche = push_utilisateur($config, $pdo, (string) $n['user'], [
+        'titre' => (string) $n['title'],
+        'corps' => (string) $n['body'],
+        // Le service worker ouvre cette adresse au clic. Absolue : dans une
+        // notification, il n'y a pas de « page courante » à laquelle se référer.
+        'lien'  => $site . '/' . ltrim((string) $n['link'], '/'),
+        'type'  => (string) $n['type'],
+        // Deux notifications de même étiquette se remplacent au lieu de
+        // s'empiler : dix messages du même acheteur font une seule ligne.
+        'tag'   => (string) $n['type'],
+      ]);
+      if ($touche === 0) push_repli_email($config, $pdo, $n);
+    }
+  } catch (Throwable $e) {
+    error_log('[chapci] push · envoi différé : ' . $e->getMessage());
+  }
+}
 
 // ---- JWT (HS256) ------------------------------------------------------------
 function jwt_sign(array $payload, string $secret): string {
@@ -1312,6 +1727,19 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS mod_seen (
       listing_id $id PRIMARY KEY, created_at $ts
     )$eng",
+    // Appareils abonnés aux notifications push. UNE ligne par navigateur et par
+    // appareil — le même compte sur un téléphone et un ordinateur en a deux, et
+    // c'est voulu : la notification doit arriver là où la personne se trouve.
+    //
+    // `endpoint` est l'adresse chez le relais (Google, Mozilla, Apple) ; elle
+    // est unique et sert de clé de rapprochement, car le navigateur la
+    // renouvelle parfois sans nous prévenir. `p256dh` et `auth_secret` sont les
+    // deux clés de chiffrement fournies par le navigateur : sans elles, un
+    // message ne peut être ouvert par personne — pas même par le relais.
+    "CREATE TABLE IF NOT EXISTS push_subs (
+      id $id PRIMARY KEY, user_id $id, endpoint VARCHAR(500), p256dh $txt, auth_secret $txt,
+      agent $txt, created_at $ts, last_ok_at $ts, fails $intT
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -1319,6 +1747,15 @@ function migrate(PDO $pdo): void {
   // traitées via mod_actions.listing_id. Idempotent (try/catch : MySQL ne connaît
   // pas « CREATE INDEX IF NOT EXISTS »).
   try { $pdo->exec("CREATE INDEX idx_mod_actions_listing ON mod_actions (listing_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+
+  // Abonnements push : l'adresse chez le relais est la clé de rapprochement, et
+  // deux comptes ne peuvent pas se partager le même appareil sans que l'un
+  // reçoive les notifications de l'autre. L'unicité l'interdit au niveau de la
+  // base — pas seulement dans le code de la route.
+  try { $pdo->exec("CREATE UNIQUE INDEX idx_push_endpoint ON push_subs (endpoint)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+  try { $pdo->exec("CREATE INDEX idx_push_user ON push_subs (user_id)"); }
   catch (Throwable $e) { /* index déjà présent : on ignore */ }
 
   // Colonnes ajoutées après coup : on les crée sur les bases déjà existantes.
@@ -1331,6 +1768,11 @@ function migrate(PDO $pdo): void {
   // l'action ») et AUCUNE notification interne n'arrivait — ni « Annonce
   // publiée », ni les statuts de publicité. Une panne muette, par construction.
   try { $pdo->exec("ALTER TABLE profiles ADD COLUMN notif_prefs $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Date d'envoi de l'e-mail de repli. Sert de compteur : une notification déjà
+  // envoyée par e-mail ne l'est pas deux fois, et l'on ne dépasse pas un
+  // message par demi-heure et par personne.
+  try { $pdo->exec("ALTER TABLE notifications ADD COLUMN mailed_at $ts"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN attributes $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
@@ -3613,6 +4055,12 @@ function export_all(PDO $pdo): array {
              // La messagerie de l'équipe : une sauvegarde qui l'oublierait
              // perdrait la trace des décisions de modération, qui s'écrivent là.
              'team_threads', 'team_messages'];
+  // `push_subs` est délibérément ABSENTE de cette liste. Chaque ligne contient
+  // les deux clés qui permettent de faire apparaître une notification sur un
+  // téléphone précis : les mettre dans un fichier téléchargeable donnerait à qui
+  // l'obtient le pouvoir d'écrire au nom de Chap.ci sur l'écran des inscrits.
+  // Et rien ne se perd : au premier passage sur le site, le navigateur se
+  // réabonne tout seul.
   $data = [];
   foreach ($tables as $t) {
     try { $data[$t] = $pdo->query("SELECT * FROM $t")->fetchAll(PDO::FETCH_ASSOC); }
@@ -3987,6 +4435,26 @@ try {
   jerr('Connexion à la base de données impossible. Vérifiez les identifiants dans api/config.php (driver mysql/pgsql, host, name, user, pass).'
     . (!empty($config['debug']) ? ' Détail : ' . $e->getMessage() : ''), 500);
 }
+
+/**
+ * Les notifications push partent APRÈS la réponse.
+ *
+ * `notify()` empile ; ici on vide, une fois que le navigateur a déjà tout reçu.
+ * `litespeed_finish_request()` (chap.ci tourne sous LiteSpeed) coupe la
+ * connexion et laisse le script continuer seul : joindre trois relais peut
+ * prendre plusieurs secondes, et personne ne doit les attendre pour voir sa
+ * page revenir. Sur un hébergeur qui ne l'a pas, l'envoi se fait quand même —
+ * simplement avant que la connexion ne se ferme.
+ *
+ * Rien de tout cela ne peut faire échouer une requête : `push_vider()` attrape
+ * tout, et une fonction d'arrêt s'exécute même après `exit`.
+ */
+register_shutdown_function(static function () use ($config): void {
+  if (empty($GLOBALS['CHAPCI_PUSH'])) return;
+  if (function_exists('litespeed_finish_request')) litespeed_finish_request();
+  elseif (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+  push_vider($config);
+});
 
 // Réinitialisation UNIQUE (post-déploiement) des rôles : on vide la table admins
 // une seule fois. Le PROPRIÉTAIRE (email de config) reste admin (il ne dépend pas
@@ -4415,7 +4883,10 @@ try {
     // Nettoyage RGPD complet : aucune donnée liée ne doit survivre au compte
     // (loi 2013-450, droit à l'effacement). Robuste si une table est absente.
     foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
-              'saved_searches' => 'user_id', 'user_interests' => 'user_id'] as $tbl => $col) {
+              'saved_searches' => 'user_id', 'user_interests' => 'user_id',
+              // Sans cette ligne, le téléphone d'un compte supprimé continuerait
+              // de recevoir les notifications du compte qui reprendrait son id.
+              'push_subs' => 'user_id'] as $tbl => $col) {
       try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
     }
     $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
@@ -5401,13 +5872,118 @@ try {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$u['id']]);
     $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
-    jout(['favorite' => $prefs['favorite'] ?? true, 'message' => $prefs['message'] ?? true]);
+    jout([
+      'favorite' => $prefs['favorite'] ?? true,
+      'message'  => $prefs['message']  ?? true,
+      'email'    => $prefs['email']    ?? true,
+    ]);
   }
   if ($path === 'notifications/prefs' && $method === 'PUT') {
     $u = require_user($pdo, $secret); $b = body();
-    $prefs = ['favorite' => !empty($b['favorite']), 'message' => !empty($b['message'])];
+    $prefs = [
+      'favorite' => !empty($b['favorite']),
+      'message'  => !empty($b['message']),
+      // Repli par e-mail quand la personne n'est ni sur le site ni joignable en
+      // push. Défaut à vrai : c'est la seule voie qui atteint tout le monde.
+      'email'    => !isset($b['email']) || !empty($b['email']),
+    ];
     $pdo->prepare('UPDATE profiles SET notif_prefs = ? WHERE id = ?')->execute([json_encode($prefs), $u['id']]);
     jout(['ok' => true]);
+  }
+
+  // ---------- NOTIFICATIONS PUSH ----------
+  //
+  // Le navigateur s'abonne auprès de son propre relais (Google pour Chrome,
+  // Mozilla pour Firefox, Apple pour Safari) et nous rapporte trois choses :
+  // une adresse, et deux clés. On les range, et à chaque notification on
+  // chiffre POUR ces clés-là. Le relais transporte sans pouvoir lire.
+
+  /** La clé publique du site : le navigateur en a besoin AVANT de s'abonner. */
+  if ($path === 'push/key' && $method === 'GET') {
+    $cles = push_cles($config);
+    jout(['cle' => $cles['pubB64'] ?? '', 'actif' => (bool) $cles]);
+  }
+
+  /** Enregistre l'appareil courant. Rejouable : le navigateur ré-appelle à chaque
+   *  démarrage, car il renouvelle parfois l'adresse sans prévenir. */
+  if ($path === 'push/subscribe' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $endpoint = trim((string) ($b['endpoint'] ?? ''));
+    $p256dh   = trim((string) ($b['keys']['p256dh'] ?? $b['p256dh'] ?? ''));
+    $auth     = trim((string) ($b['keys']['auth']   ?? $b['auth']   ?? ''));
+    if ($endpoint === '' || $p256dh === '' || $auth === '') jerr('Abonnement incomplet.');
+    if (!str_starts_with($endpoint, 'https://') || mb_strlen($endpoint) > 500) jerr('Adresse d’abonnement invalide.');
+    // Les longueurs sont imposées par la RFC 8291. Une clé mal formée ne
+    // provoquerait aucune erreur ici — juste des notifications qui n'arrivent
+    // jamais, et personne pour s'en apercevoir. On refuse tout de suite.
+    if (strlen(b64url_dec($p256dh)) !== 65 || strlen(b64url_dec($auth)) !== 16) {
+      jerr('Clés d’abonnement invalides.');
+    }
+    // Le même appareil peut avoir servi à un autre compte : l'adresse change de
+    // propriétaire, elle ne se dédouble pas.
+    $pdo->prepare('DELETE FROM push_subs WHERE endpoint = ?')->execute([$endpoint]);
+    $pdo->prepare(
+      'INSERT INTO push_subs (id,user_id,endpoint,p256dh,auth_secret,agent,created_at,fails)
+       VALUES (?,?,?,?,?,?,?,0)'
+    )->execute([uuid(), $u['id'], $endpoint, $p256dh, $auth, push_appareil((string) ($_SERVER['HTTP_USER_AGENT'] ?? '')), now_iso()]);
+    // Plafond volontaire : au-delà de dix appareils, les plus anciens sont des
+    // téléphones changés ou des navigateurs réinstallés. Les garder ne fait
+    // qu'ajouter des requêtes réseau à chaque notification.
+    $st = $pdo->prepare('SELECT id FROM push_subs WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    foreach (array_slice($st->fetchAll(PDO::FETCH_COLUMN), 10) as $vieux) {
+      $pdo->prepare('DELETE FROM push_subs WHERE id = ?')->execute([$vieux]);
+    }
+    jout(['ok' => true]);
+  }
+
+  /** Coupe les notifications sur un appareil : par son adresse, ou par son id
+   *  depuis la liste des appareils du compte. */
+  if ($path === 'push/unsubscribe' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $endpoint = trim((string) ($b['endpoint'] ?? ''));
+    $id       = trim((string) ($b['id'] ?? ''));
+    if ($endpoint !== '') $pdo->prepare('DELETE FROM push_subs WHERE user_id = ? AND endpoint = ?')->execute([$u['id'], $endpoint]);
+    elseif ($id !== '')   $pdo->prepare('DELETE FROM push_subs WHERE user_id = ? AND id = ?')->execute([$u['id'], $id]);
+    else jerr('Aucun appareil indiqué.');
+    jout(['ok' => true]);
+  }
+
+  /** Les appareils abonnés de ce compte — pour que la personne voie ce qu'elle
+   *  a autorisé, et puisse le retirer depuis n'importe où. */
+  if ($path === 'push/devices' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT id, agent, endpoint, created_at, last_ok_at FROM push_subs WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => [
+      'id'      => $r['id'],
+      'appareil'=> $r['agent'] ?: 'Appareil inconnu',
+      // L'adresse complète est un identifiant de suivi : on n'en rend que la
+      // fin, assez pour distinguer deux appareils, pas assez pour en faire quoi
+      // que ce soit.
+      'repere'  => substr((string) $r['endpoint'], -8),
+      'depuis'  => iso_to_ms($r['created_at']),
+      'dernier' => iso_to_ms($r['last_ok_at'] ?? null),
+    ], $st->fetchAll()));
+  }
+
+  /** L'essai. Une notification part tout de suite vers tous les appareils du
+   *  compte, et la réponse dit combien de relais l'ont acceptée. C'est la seule
+   *  façon de savoir si ça marche sans attendre qu'un acheteur écrive. */
+  if ($path === 'push/test' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    $st = $pdo->prepare('SELECT COUNT(*) FROM push_subs WHERE user_id = ?');
+    $st->execute([$u['id']]);
+    $appareils = (int) $st->fetchColumn();
+    $envoyes = push_utilisateur($config, $pdo, $u['id'], [
+      'titre' => 'Chap.ci — essai ✅',
+      'corps' => 'Vous lisez ceci : les notifications marchent sur cet appareil.',
+      'lien'  => $site . '/#/notifications',
+      'type'  => 'test',
+      'tag'   => 'test',
+    ]);
+    jout(['appareils' => $appareils, 'envoyes' => $envoyes]);
   }
 
   // ---------- ORDERS ----------
@@ -6435,6 +7011,9 @@ try {
           $cntU = 0;
           foreach ($delIds as $did) {
             $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$did]);
+            // L'abonnement push survit au compte s'il n'est pas effacé ici : le
+            // téléphone resterait joignable au nom d'un compte qui n'existe plus.
+            try { $pdo->prepare('DELETE FROM push_subs WHERE user_id = ?')->execute([$did]); } catch (Throwable $e) {}
             $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$did]); $cntU++;
           }
           $deleted['users'] = $cntU;
@@ -6502,6 +7081,39 @@ try {
           ? (int) ($pdo->query("SELECT COUNT(*) AS c FROM ads WHERE status = 'pending'")->fetch()['c'])
           : null,
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
+        // LE PARCOURS. Quatre marches, dans l'ordre où une personne les monte :
+        // elle arrive, elle crée un compte, elle publie, elle vend. Chaque
+        // marche est un SOUS-ENSEMBLE de la précédente (sauf la première), donc
+        // l'écart entre deux chiffres est une PERTE, pas une comparaison.
+        //
+        // C'est le seul tableau qui dise OÙ ça fuit. « 148 visiteurs et 12
+        // comptes » ne se lit pas : « 148 arrivés, 12 inscrits, 5 ont publié,
+        // 0 ont vendu » se lit, et désigne la marche à réparer.
+        //
+        // Les trois dernières marches suivent la COHORTE des comptes créés dans
+        // la fenêtre — pas l'activité de la fenêtre. Sinon un vendeur inscrit
+        // l'an dernier gonflerait le « ont publié » des sept derniers jours, et
+        // le taux ne voudrait plus rien dire.
+        'parcours' => (function () use ($pdo, $cut): array {
+          $un = function (string $sql, array $args = []) use ($pdo): int {
+            try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+            catch (Throwable $e) { return 0; }
+          };
+          $fenetre = function (?string $depuis) use ($un): array {
+            $ouTemps = $depuis === null ? '' : ' WHERE created_at >= ?';
+            $a = $depuis === null ? [] : [$depuis];
+            $ouU = $depuis === null ? '' : ' AND u.created_at >= ?';
+            return [
+              'visiteurs' => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits' . $ouTemps, $a),
+              'comptes'   => $un('SELECT COUNT(*) FROM users' . $ouTemps, $a),
+              'publie'    => $un('SELECT COUNT(DISTINCT l.user_id) FROM listings l
+                                    JOIN users u ON u.id = l.user_id WHERE 1=1' . $ouU, $a),
+              'vendu'     => $un('SELECT COUNT(DISTINCT l.user_id) FROM listings l
+                                    JOIN users u ON u.id = l.user_id WHERE l.sold = 1' . $ouU, $a),
+            ];
+          };
+          return ['j7' => $fenetre($cut(7)), 'j30' => $fenetre($cut(30)), 'tout' => $fenetre(null)];
+        })(),
         'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
         'series' => $series,
         'recentListings' => $recentListings,
@@ -6732,7 +7344,8 @@ try {
       $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ? OR target_id = ?')->execute([$id, $id, $id]);
       // Nettoyage RGPD complet (idem suppression par l'utilisateur).
       foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
-                'saved_searches' => 'user_id', 'user_interests' => 'user_id'] as $tbl => $col) {
+                'saved_searches' => 'user_id', 'user_interests' => 'user_id',
+                'push_subs' => 'user_id'] as $tbl => $col) {
         try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
       }
       $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);

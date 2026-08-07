@@ -1327,3 +1327,60 @@ fermé n'a pas de page publique. Le Crieur l'a correctement classé « comportem
 attendu » au lieu d'en faire une panne — en s'appuyant sur `APP-VERSIONS.md`, qui
 disait déjà que la publication concernait le canal de test et pas la production.
 Le journal a servi à ça.
+
+### 2026-08-07 — Les notifications sortent du site
+
+**Ce qui manquait.** La cloche existait depuis longtemps, et elle ne prévenait
+personne : elle ne s'anime que pendant qu'on regarde le site. Un vendeur qui
+ferme son navigateur ne savait qu'un acheteur l'avait contacté qu'à sa visite
+suivante — un jour plus tard, deux jours plus tard, jamais.
+
+**Ce qui est posé.** Trois voies, et il faut les distinguer :
+
+| Voie | Atteint qui | Quand |
+|---|---|---|
+| la cloche | ceux qui sont sur le site | tout de suite |
+| le push | les appareils abonnés | téléphone verrouillé, navigateur fermé |
+| l'e-mail de repli | tout le monde | si ni l'un ni l'autre n'a marché |
+
+`notify()` écrit la cloche puis **empile** ; le vidage a lieu après la réponse
+(`register_shutdown_function` + `litespeed_finish_request`). Personne n'attend
+les serveurs de Google au milieu d'une action. Si aucun appareil n'a été touché,
+l'e-mail part — pour `message` et `listing` seulement, si la personne n'a pas été
+vue depuis quinze minutes, et au plus une fois par demi-heure.
+
+**La boucle rouge/vert a été construite AVANT le code, comme le veut la maison.**
+Le chiffrement d'une notification produit des octets illisibles : une erreur d'un
+seul bit donne un message que le navigateur rejette en silence, et l'on ne
+saurait jamais pourquoi. La RFC 8291 §5 publie un vecteur d'essai complet — clés,
+sel, texte clair, résultat attendu octet pour octet. `npm run banc:push` le
+rejoue, puis charge le vrai `push-sw.js` dans un faux service worker pour vérifier
+que le PHP et le JavaScript nomment les mêmes champs. Les deux bancs sont verts,
+et le premier l'a été du premier coup.
+
+Par-dessus, un banc de bout en bout (hors dépôt) : un vrai serveur Chap.ci local,
+un faux relais qui joue `fcm.googleapis.com`, un faux navigateur qui déchiffre.
+Trente-neuf vérifications, dont le vrai cas — un acheteur écrit, le vendeur reçoit
+la notification chiffrée sur son appareil. C'est là qu'ont été trouvés deux
+défauts que la relecture n'aurait pas vus : le jeton VAPID oubliait le port dans
+son auditoire (invisible en production, où tout est en 443), et l'abonnement d'un
+compte supprimé survivait au compte.
+
+**Une décision à retenir.** `push_subs` est **délibérément absente** de
+`export_all()`. Chaque ligne contient les deux clés qui permettent de faire
+apparaître une notification sur un téléphone précis : les mettre dans un fichier
+téléchargeable donnerait à qui l'obtient le pouvoir d'écrire au nom de Chap.ci
+sur l'écran des inscrits. Et rien ne se perd — au premier passage, le navigateur
+se réabonne tout seul.
+
+**Ce qui n'est pas fait, et pourquoi.** L'application Android ne reçoit pas ces
+notifications : la WebView d'Android n'implémente pas l'API Push. L'y amener
+demande Firebase et une nouvelle version sur le Play Store. L'écran de réglage le
+dit aux gens en toutes lettres, au lieu de leur montrer un bouton qui ne ferait
+rien.
+
+**Et trois choses au tableau de bord**, celles que le Patron avait retenues : le
+**Parcours** (venus → inscrits → ont publié → ont vendu, avec la marche qui coûte
+le plus), le filtre **« Sans annonce »** dans Utilisateurs, et sept **modèles de
+message** dans « Écrire à ce membre ». Les trois se répondent : le Parcours
+désigne la fuite, le filtre donne la liste, le modèle écrit la première phrase.

@@ -89,6 +89,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Les notifications push. Workbox régénère `sw.js` à chaque build et
+        // écraserait tout écouteur écrit à la main ; `importScripts` ajoute le
+        // nôtre par-dessus, sans qu'il ait à connaître Workbox ni l'inverse.
+        // Le fichier est dans `public/` : il arrive tel quel à la racine de dist.
+        importScripts: ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Inutile de précharger les alphabets non-latins (cyrillique, grec,
         // vietnamien) : l'app est en français. Économise ~75 Ko de données.
@@ -103,6 +108,9 @@ export default defineConfig({
           // Bannières d'aperçu social (og/*.png, ~3,8 Mo) : servies aux robots
           // WhatsApp/Facebook uniquement, jamais affichées dans l'app → hors précache.
           'og/**',
+          // Le service worker s'importe lui-même ce fichier : le précacher en
+          // plus lui ferait servir une version figée de son propre code.
+          'push-sw.js',
         ],
         // Le gros bundle IA dépasse la limite par défaut : on garde une marge
         // sans forcer sa mise en cache (il est ignoré ci-dessus de toute façon).

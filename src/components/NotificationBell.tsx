@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Heart, MessageSquare, CheckCheck } from 'lucide-react'
+import { Bell, Heart, MessageSquare, CheckCheck, X } from 'lucide-react'
+import { etatPush, activerPush, type EtatPush } from '../lib/push'
 import {
   phpNotifications,
   phpNotifCount,
@@ -46,6 +47,11 @@ export function NotificationBell({
   const [items, setItems] = useState<PhpNotification[]>([])
   const [count, setCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [etatPousse, setEtatPousse] = useState<EtatPush | null>(null)
+  const [ecarte, setEcarte] = useState(() => {
+    try { return localStorage.getItem('chapci_push_ecarte') === '1' } catch { return false }
+  })
+  const [occupe, setOccupe] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   // Compteur des non-lues (rafraîchi périodiquement).
@@ -69,6 +75,15 @@ export function NotificationBell({
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [open, user])
+
+  // L'état du push n'est lu qu'à l'ouverture du menu : inutile d'interroger le
+  // service worker à chaque affichage d'en-tête.
+  useEffect(() => {
+    if (!open || ecarte) return
+    let alive = true
+    etatPush().then((e) => { if (alive) setEtatPousse(e) })
+    return () => { alive = false }
+  }, [open, ecarte])
 
   // Ferme le menu au clic à l'extérieur ou avec Échap.
   useEffect(() => {
@@ -95,6 +110,13 @@ export function NotificationBell({
     }
     setOpen(false)
     if (n.link) navigate(n.link.replace(/^#/, ''))
+  }
+
+  async function activer() {
+    setOccupe(true)
+    try { setEtatPousse(await activerPush()) }
+    catch { setEtatPousse('indisponible') }
+    finally { setOccupe(false) }
   }
 
   function markAll() {
@@ -140,6 +162,32 @@ export function NotificationBell({
               </button>
             )}
           </div>
+
+          {/* L'endroit où proposer les notifications est celui où la personne
+              vient chercher ses nouvelles — pas un bandeau qui la suit partout.
+              Une seule ligne, et elle disparaît dès qu'on l'accepte ou qu'on
+              l'écarte (l'écart est retenu, on ne redemande pas). */}
+          {etatPousse === 'inactif' && !ecarte && (
+            <div className="flex items-center gap-2 border-b border-primary-100 bg-primary-50/70 px-4 py-2.5">
+              <p className="min-w-0 flex-1 text-[12px] leading-snug text-gray-700">
+                Être prévenu <b>même quand Chap.ci est fermé</b>.
+              </p>
+              <button
+                onClick={activer}
+                disabled={occupe}
+                className="shrink-0 rounded-lg bg-primary-500 px-2.5 py-1 text-[11px] font-bold text-white active:scale-95 disabled:opacity-60"
+              >
+                {occupe ? '…' : 'Activer'}
+              </button>
+              <button
+                onClick={() => { setEcarte(true); try { localStorage.setItem('chapci_push_ecarte', '1') } catch { /* mode privé */ } }}
+                className="shrink-0 rounded p-0.5 text-gray-500 active:text-gray-700"
+                aria-label="Ne plus proposer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
 
           <div className="max-h-[min(70vh,26rem)] overflow-y-auto">
             {loading ? (

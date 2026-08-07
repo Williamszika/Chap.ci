@@ -129,6 +129,43 @@ md5sum server/index.php web/seo.php dist/index.html   # les 12 premiers caractè
 `seo.php` confirmé déployé grâce à l'empreinte » en lisant `empreinte`, qui ne couvre que
 l'API. Une vérification qui ne peut pas échouer ne vérifie rien.
 
+### Les notifications
+
+Trois voies, et il faut les distinguer avant de toucher à l'une d'elles :
+
+| Voie | Où elle vit | Qui elle atteint |
+|---|---|---|
+| **La cloche** | table `notifications`, `NotificationBell.tsx` | seulement pendant qu'on regarde le site |
+| **Le push** | table `push_subs`, `public/push-sw.js`, `src/lib/push.ts` | téléphone verrouillé, navigateur fermé — mais seulement les appareils abonnés |
+| **L'e-mail de repli** | `push_repli_email()` dans `server/index.php` | tout le monde, avec le délai d'une boîte mail |
+
+`notify()` écrit la cloche et **empile** dans `$GLOBALS['CHAPCI_PUSH']` ; le vidage a lieu
+après la réponse (`register_shutdown_function` + `litespeed_finish_request`), pour que
+personne n'attende les serveurs de Google au milieu d'une action. Si aucun appareil n'a
+été touché, l'e-mail prend le relais — mais seulement pour `message` et `listing`, seulement
+si la personne n'a pas été vue depuis 15 minutes, et au plus une fois par demi-heure.
+
+La paire VAPID du site vit dans `api/data/push.json` (0600), **créée toute seule au premier
+besoin**. Il n'y a rien à configurer, et rien à mettre dans `config.php`. En revanche
+**perdre ce fichier casse tous les abonnements d'un coup** : chaque téléphone devrait
+réactiver ses notifications à la main, et personne ne le ferait.
+
+Deux bancs, à relancer après toute retouche :
+
+```bash
+npm run banc:push   # vecteur d'essai RFC 8291 §5 + contrat serveur ↔ service worker
+```
+
+Le premier compare octet pour octet au vecteur publié par la RFC ; le second charge le vrai
+`push-sw.js` dans un faux service worker et lui envoie un vrai événement `push`. Sans eux,
+une erreur d'un seul bit donne une notification que le navigateur rejette **en silence**.
+
+**L'application Android n'a pas le push.** La WebView d'Android n'implémente pas l'API
+Push : le push marche sur chap.ci dans Chrome, pas dans l'application empaquetée. L'y
+amener demande Firebase (`google-services.json`, `@capacitor/push-notifications`, une clé
+de service dans `api/data/`) et une nouvelle version sur le Play Store. L'écran de réglage
+le dit à la personne au lieu de lui montrer un bouton qui ne ferait rien.
+
 ### L'application
 
 `capacitor.config.ts` (appId `ci.chap.app`), `android/`, et `scripts/android-slim.mjs`

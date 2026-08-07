@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import * as php from '../lib/php'
+import { synchroniserPush } from '../lib/push'
 
 /**
  * Utilisateur connecté. Le site est 100 % auto-hébergé sur la base TPE Cloud
@@ -110,7 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Affichage instantané depuis le cache, puis confirmation par le serveur
     // (session portée par le cookie HttpOnly).
     setUser(php.phpGetStoredUser() ?? null)
-    php.phpMe().then((u) => setUser(u ?? null)).finally(() => setLoading(false))
+    php.phpMe()
+      .then((u) => {
+        setUser(u ?? null)
+        // Rattache l'abonnement push de cet appareil au compte qui vient d'être
+        // confirmé. Ne demande aucune permission et n'affiche rien : elle répare
+        // seulement deux pannes muettes — l'adresse que le navigateur renouvelle
+        // tout seul, et l'appareil passé d'un compte à un autre. Sans elle, les
+        // notifications s'arrêtent un jour sans que rien ne le dise.
+        if (u) void synchroniserPush()
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   const signUp = useCallback(async (email: string, password: string, fullName: string): Promise<AuthResult> => {

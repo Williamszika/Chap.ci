@@ -329,6 +329,127 @@ const PERM_LABELS: Record<string, string> = {
   reviews: 'Avis', newsletter: 'Abonnés', campaigns: 'Campagnes',
 }
 
+/**
+ * LE PARCOURS — quatre marches, et l'endroit où les gens s'arrêtent.
+ *
+ * Un tableau de bord qui affiche « 148 visiteurs · 12 comptes · 24 annonces »
+ * ne dit rien : trois chiffres sans rapport entre eux. Mis bout à bout dans
+ * l'ordre où une personne les traverse, les mêmes chiffres désignent une
+ * marche précise — celle qu'il faut réparer cette semaine.
+ *
+ * Les trois dernières marches suivent la COHORTE des comptes créés dans la
+ * fenêtre choisie, pas l'activité de la fenêtre : sinon un vendeur inscrit
+ * l'an dernier gonflerait le « ont publié » des sept derniers jours.
+ */
+type FenetreParcours = 'j7' | 'j30' | 'tout'
+const FENETRES: [FenetreParcours, string][] = [
+  ['j7', '7 jours'], ['j30', '30 jours'], ['tout', 'Depuis le début'],
+]
+
+function Parcours({ p }: { p: NonNullable<AdminStats['parcours']> }) {
+  const [fenetre, setFenetre] = useState<FenetreParcours>('j30')
+  const d = p[fenetre]
+
+  const marches = [
+    { e: '🚶', label: 'Sont venus sur le site', n: d.visiteurs, de: null as number | null, quoi: 'visiteurs uniques' },
+    { e: '👤', label: 'Ont créé un compte', n: d.comptes, de: d.visiteurs, quoi: 'des visiteurs' },
+    { e: '📦', label: 'Ont publié une annonce', n: d.publie, de: d.comptes, quoi: 'des inscrits' },
+    { e: '🤝', label: 'Ont vendu', n: d.vendu, de: d.publie, quoi: 'de ceux qui publient' },
+  ]
+  const plafond = Math.max(1, d.visiteurs, d.comptes)
+
+  // La marche la plus coûteuse : celle qui perd le plus de MONDE, pas le plus
+  // gros pourcentage. Perdre 136 personnes sur 148 compte plus que perdre 5
+  // vendeurs sur 5, même si le second fait 100 %.
+  let pire: { i: number; perdus: number } | null = null
+  marches.forEach((m, i) => {
+    if (m.de === null || m.de === 0) return
+    const perdus = m.de - m.n
+    if (perdus > 0 && (!pire || perdus > pire.perdus)) pire = { i, perdus }
+  })
+  const goulot = pire as { i: number; perdus: number } | null
+
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-card">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-display text-base font-bold text-ink">Le parcours</p>
+          <p className="text-xs text-gray-500">De la première visite à la première vente.</p>
+        </div>
+        <div className="flex gap-1 rounded-xl bg-gray-100 p-0.5">
+          {FENETRES.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setFenetre(id)}
+              className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold transition ${
+                fenetre === id ? 'bg-white text-ink shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ol className="mt-3">
+        {marches.map((m, i) => {
+          const taux = m.de && m.de > 0 ? Math.round((m.n / m.de) * 100) : null
+          const perdus = m.de !== null ? Math.max(0, m.de - m.n) : 0
+          return (
+            <li key={m.label}>
+              {/* La perte se lit ENTRE deux marches : c'est là qu'elle se produit. */}
+              {i > 0 && m.de !== null && (
+                <p className={`ml-1 border-l-2 py-1 pl-3 text-[12px] ${
+                  goulot?.i === i ? 'border-red-300 font-semibold text-red-600' : 'border-gray-200 text-gray-500'
+                }`}>
+                  {m.de === 0
+                    ? 'Personne à cette marche.'
+                    : perdus === 0
+                      ? 'Personne ne s’arrête ici.'
+                      : `↓ ${formatPrice(perdus)} s’arrêtent ici (${100 - (taux ?? 0)} %)`}
+                </p>
+              )}
+              <div className="flex items-center gap-3 py-1">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gray-100 text-[15px]" aria-hidden>{m.e}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    <b className="font-display text-[19px] leading-none text-ink">{formatPrice(m.n)}</b>
+                    <span className="truncate text-[13px] text-gray-600">{m.label}</span>
+                    {taux !== null && <span className="shrink-0 text-[12px] text-gray-400">{taux} % {m.quoi}</span>}
+                  </span>
+                  <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <span
+                      className={`block h-full rounded-full ${i === 3 ? 'bg-ivoire-green' : 'bg-primary-500'}`}
+                      style={{ width: `${Math.max(m.n > 0 ? 2 : 0, (m.n / plafond) * 100)}%` }}
+                    />
+                  </span>
+                </span>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+
+      <p className="mt-3 rounded-xl bg-cream-100/70 px-3 py-2 text-[12.5px] leading-snug text-gray-700">
+        {d.visiteurs === 0 && d.comptes === 0 ? (
+          <>Aucune donnée sur cette période. Choisissez une fenêtre plus large.</>
+        ) : goulot === null ? (
+          <>Aucune perte mesurable sur cette période.</>
+        ) : (
+          <>
+            <b>La marche qui coûte le plus</b> : « {marches[goulot.i - 1].label} » → « {marches[goulot.i].label} ».
+            {' '}{formatPrice(goulot.perdus)} personne{goulot.perdus > 1 ? 's' : ''} s’arrête{goulot.perdus > 1 ? 'nt' : ''} là.
+            {goulot.i === 1 && ' Le site ne convainc pas de s’inscrire — ou l’inscription arrive trop tôt.'}
+            {goulot.i === 2 && ' Des gens s’inscrivent puis ne publient rien : écrivez-leur depuis l’onglet Utilisateurs, filtre « Sans annonce ».'}
+            {goulot.i === 3 && ' Des annonces existent mais ne se vendent pas : prix, photos, ou pas assez d’acheteurs.'}
+          </>
+        )}
+      </p>
+    </div>
+  )
+}
+
 function Overview({ stats, onGo, canSee, owner, email }: {
   stats: AdminStats
   onGo: (t: Tab) => void
@@ -404,6 +525,9 @@ function Overview({ stats, onGo, canSee, owner, email }: {
           </button>
         ))}
       </div>
+
+      {/* Le Parcours : la seule vue qui dise OÙ ça fuit. */}
+      {owner && stats.parcours && <Parcours p={stats.parcours} />}
 
       {/* Graphique en barres + carte Sécurité — propriétaire uniquement (artifact) */}
       {owner && (
@@ -1261,6 +1385,7 @@ function UsersTab() {
   const [selected, setSelected] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [enLigneSeuls, setEnLigneSeuls] = useState(false)
+  const [muetsSeuls, setMuetsSeuls] = useState(false)
   const load = () => { setItems(null); setErr(''); fetchAdminUsers().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
@@ -1269,9 +1394,14 @@ function UsersTab() {
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
 
   const enLigne = items.filter((u) => u.enLigne).length
+  // Les comptes muets : inscrits, puis plus rien. Ce sont eux la deuxième
+  // marche du Parcours, et ce sont les seuls à qui écrire change quelque chose
+  // — ils ont déjà dit oui une fois.
+  const muets = items.filter((u) => u.listings === 0).length
   const terme = q.trim().toLowerCase()
   const vus = items.filter((u) => {
     if (enLigneSeuls && !u.enLigne) return false
+    if (muetsSeuls && u.listings > 0) return false
     if (!terme) return true
     return `${u.fullName} ${u.email} ${u.phone ?? ''} ${u.commune ?? ''}`.toLowerCase().includes(terme)
   })
@@ -1296,6 +1426,14 @@ function UsersTab() {
         >
           <span className={`h-2 w-2 rounded-full ${enLigneSeuls ? 'bg-white' : 'bg-ivoire-green'}`} />
           En ligne ({enLigne})
+        </button>
+        <button
+          onClick={() => setMuetsSeuls((v) => !v)}
+          className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+            muetsSeuls ? 'bg-primary-500 text-white' : 'border border-line2 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          Sans annonce ({muets})
         </button>
       </div>
 
@@ -1524,6 +1662,130 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
  * une notification, et peut répondre. Vu de lui, l'équipe signe « L'équipe
  * Chap.ci » — jamais le nom du modérateur.
  */
+/**
+ * Les modèles de message.
+ *
+ * Écrire à quelqu'un coûte cinq minutes de rédaction — et c'est exactement ce
+ * qui fait qu'on ne le fait pas. Ces sept-là sont les situations réellement
+ * rencontrées sur Chap.ci : un inscrit qui ne publie jamais, une photo floue,
+ * un prix invraisemblable, une annonce faite avec un ancien formulaire, une
+ * annonce postée dans la mauvaise rubrique, le recrutement de testeurs, et le
+ * merci après une première vente.
+ *
+ * Ce sont des POINTS DE DÉPART, pas des envois automatiques : le texte se
+ * relit et se corrige avant de partir. Un message qui sent le modèle fait plus
+ * de mal que pas de message du tout.
+ */
+const MODELES_MESSAGE: { id: string; nom: string; sujet: string; texte: (prenom: string) => string }[] = [
+  {
+    id: 'sans-annonce',
+    nom: 'Inscrit, mais n’a rien publié',
+    sujet: 'Un coup de main pour votre première annonce ?',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Vous avez créé votre compte sur Chap.ci, et nous en sommes contents — mais vous n’avez pas encore mis d’annonce en ligne.
+
+Est-ce qu’il y a quelque chose qui bloque ? Le formulaire, les photos, le prix ? Dites-le-nous en répondant à ce message : c’est une vraie personne qui lit, et si c’est notre site qui complique les choses, nous le corrigerons.
+
+Et si vous n’avez simplement rien à vendre pour l’instant, aucun souci — gardez-nous dans un coin de la tête.
+
+À bientôt.`,
+  },
+  {
+    id: 'photo',
+    nom: 'Photos floues ou insuffisantes',
+    sujet: 'Vos photos méritent mieux',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Votre annonce est bien en ligne. Un point cependant : les photos ne rendent pas justice à ce que vous vendez — on distingue mal le produit.
+
+Sur Chap.ci, les annonces avec des photos nettes reçoivent nettement plus de messages. Trois conseils qui changent tout :
+
+1. En plein jour, près d’une fenêtre — jamais au flash.
+2. Le produit seul, sur un fond uni (un drap, un mur).
+3. Trois angles : l’ensemble, un détail, et l’étiquette ou le numéro de série s’il y en a.
+
+Pour remplacer une photo : Mon compte → Mes annonces → Modifier.
+
+Merci — et bonne vente.`,
+  },
+  {
+    id: 'prix',
+    nom: 'Prix qui paraît faux',
+    sujet: 'Une question sur le prix de votre annonce',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Le prix affiché sur votre annonce s’écarte beaucoup de ce qui se pratique pour ce type de produit. Cela arrive souvent pour une raison simple : un zéro en trop, ou un zéro en moins.
+
+Pouvez-vous vérifier ? Un prix qui paraît trop beau fait fuir les acheteurs sérieux — ils supposent une arnaque et passent leur chemin.
+
+Si le prix est juste et que quelque chose l’explique (état, urgence, lot), précisez-le dans la description : cela rassure.
+
+Pour le modifier : Mon compte → Mes annonces → Modifier.
+
+Merci.`,
+  },
+  {
+    id: 'formulaire',
+    nom: 'Annonce à reprendre avec le formulaire actuel',
+    sujet: 'Votre annonce : quelques champs à compléter',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Votre annonce a été publiée avec une version antérieure de notre formulaire. Depuis, nous en avons ajouté quelques champs — ceux que les acheteurs réclament le plus.
+
+Il n’y a rien à supprimer, et surtout ne le faites pas : votre annonce a une adresse que Google connaît déjà, et la supprimer effacerait ce travail. Ouvrez simplement Mon compte → Mes annonces → Modifier. Le formulaire actuel s’ouvre avec tout ce que vous aviez saisi, et vous n’avez qu’à compléter ce qui manque.
+
+Cinq minutes, et votre annonce ressort mieux dans les recherches.
+
+Merci.`,
+  },
+  {
+    id: 'rubrique',
+    nom: 'Annonce dans la mauvaise rubrique',
+    sujet: 'Votre annonce serait mieux ailleurs',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Votre annonce est publiée dans une rubrique où les acheteurs qu’elle intéresse ne vont pas la chercher. Elle existe, elle est visible — mais presque personne ne la croisera.
+
+Ouvrez Mon compte → Mes annonces → Modifier, et changez la catégorie. Le formulaire s’adaptera tout seul et vous demandera les informations propres à la bonne rubrique.
+
+Si vous hésitez sur la rubrique à choisir, répondez à ce message en décrivant ce que vous vendez : nous vous dirons laquelle.
+
+Merci.`,
+  },
+  {
+    id: 'testeur',
+    nom: 'Inviter à tester l’application',
+    sujet: 'Voulez-vous essayer l’application Chap.ci ?',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Nous préparons l’application Android de Chap.ci, et nous cherchons quelques personnes pour l’installer avant tout le monde.
+
+Ce que cela demande : installer l’application sur votre téléphone Android, et la garder installée quatorze jours. Rien d’autre. Vous pouvez l’utiliser normalement — c’est même le but.
+
+Si vous êtes d’accord, répondez simplement « oui » à ce message avec l’adresse Gmail de votre téléphone, et nous vous envoyons le lien d’installation.
+
+Merci beaucoup.`,
+  },
+  {
+    id: 'merci',
+    nom: 'Merci après une première vente',
+    sujet: 'Bravo pour votre première vente 🎉',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Votre première vente sur Chap.ci est passée — bravo, et merci de nous avoir fait confiance.
+
+Deux choses qui aident beaucoup, si le cœur vous en dit :
+
+1. Remettez une annonce. Les vendeurs qui en ont plusieurs vendent bien plus vite : les acheteurs regardent leur profil entier.
+2. Parlez de nous autour de vous. Chap.ci est un site ivoirien, tenu par des Ivoiriens, et il grandit par le bouche-à-oreille.
+
+Et si quelque chose vous a gêné pendant la vente, dites-le en répondant ici. C’est comme ça que le site s’améliore.
+
+Encore bravo.`,
+  },
+]
+
 function EcrireAuMembre({ id, nom }: { id: string; nom: string }) {
   const navigate = useNavigate()
   const [ouvert, setOuvert] = useState(false)
@@ -1563,6 +1825,28 @@ function EcrireAuMembre({ id, nom }: { id: string; nom: string }) {
         Le message arrive dans son assistance, avec une notification. Il pourra répondre, et
         l’échange restera au même endroit. Il verra « L’équipe Chap.ci » — jamais votre nom.
       </p>
+      <div>
+        <label className="mb-1 block text-xs font-semibold text-gray-500">Partir d’un modèle</label>
+        <select
+          value=""
+          disabled={envoi}
+          onChange={(e) => {
+            const m = MODELES_MESSAGE.find((x) => x.id === e.target.value)
+            if (!m) return
+            const prenom = nom === '—' ? '' : nom.split(' ')[0]
+            setSujet(m.sujet)
+            setMessage(m.texte(prenom))
+          }}
+          className="input"
+        >
+          <option value="">— Écrire de zéro —</option>
+          {MODELES_MESSAGE.map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
+        </select>
+        <p className="mt-1 text-[11px] leading-snug text-gray-500">
+          Un modèle remplit l’objet et le message. <b>Relisez avant d’envoyer</b> : un texte qui
+          sent le modèle fait plus de mal que pas de message du tout.
+        </p>
+      </div>
       <div>
         <label className="mb-1 block text-xs font-semibold text-gray-500">Objet</label>
         <input value={sujet} onChange={(e) => setSujet(e.target.value)} disabled={envoi} maxLength={120}

@@ -35,6 +35,7 @@ import {
   LifeBuoy,
   Megaphone,
   MailCheck,
+  Smartphone,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { VerifiedBadge } from '../components/VerifiedBadge'
@@ -57,7 +58,11 @@ import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
 import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
 import { isPhp } from '../lib/backend'
-import { phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs } from '../lib/php'
+import {
+  phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs,
+  phpPushDevices, phpPushUnsubscribe, phpPushTest, type PushAppareil,
+} from '../lib/php'
+import { etatPush, activerPush, desactiverPush, type EtatPush } from '../lib/push'
 import { downscaleImage } from '../lib/image'
 import type { Listing, Order, Review } from '../types'
 
@@ -739,28 +744,170 @@ export function Profile() {
   )
 }
 
-/** Réglages des notifications : activer/désactiver par type. */
+/**
+ * Réglages des notifications.
+ *
+ * Trois voies, de la plus immédiate à la plus sûre :
+ *   · la cloche du site — ne prévient que pendant qu'on regarde le site ;
+ *   · le push — arrive téléphone verrouillé, mais demande une autorisation et
+ *     n'existe pas partout (iPhone hors écran d'accueil, vieux navigateurs) ;
+ *   · l'e-mail — atteint tout le monde, mais avec le délai d'une boîte mail.
+ *
+ * D'où cet écran : on active le push là où c'est possible, et l'e-mail reste
+ * derrière comme filet.
+ */
 function NotificationSettings() {
-  const [prefs, setPrefs] = useState<NotifPrefs>({ favorite: true, message: true })
+  const toast = useToast()
+  const [prefs, setPrefs] = useState<NotifPrefs>({ favorite: true, message: true, email: true })
   const [loaded, setLoaded] = useState(false)
+  const [etat, setEtat] = useState<EtatPush | null>(null)
+  const [appareils, setAppareils] = useState<PushAppareil[]>([])
+  const [occupe, setOccupe] = useState(false)
+
   useEffect(() => {
     let alive = true
     phpNotifPrefs().then((p) => { if (alive) { setPrefs(p); setLoaded(true) } })
+    etatPush().then((e) => { if (alive) setEtat(e) })
     return () => { alive = false }
   }, [])
+
+  const rafraichirAppareils = () => { phpPushDevices().then(setAppareils).catch(() => {}) }
+  useEffect(() => { if (etat === 'actif') rafraichirAppareils() }, [etat])
+
   function toggle(key: keyof NotifPrefs) {
     const next = { ...prefs, [key]: !prefs[key] }
     setPrefs(next)
     phpSaveNotifPrefs(next).catch(() => {})
   }
+
+  async function activer() {
+    setOccupe(true)
+    try {
+      const e = await activerPush()
+      setEtat(e)
+      if (e === 'actif') toast.success('Notifications activées sur cet appareil.')
+      else if (e === 'refuse') toast.error('Vous avez refusé les notifications pour chap.ci.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Activation impossible.')
+    } finally { setOccupe(false) }
+  }
+
+  async function desactiver() {
+    setOccupe(true)
+    try { await desactiverPush(); setEtat('inactif'); setAppareils([]) }
+    finally { setOccupe(false) }
+  }
+
+  async function essai() {
+    setOccupe(true)
+    try {
+      const r = await phpPushTest()
+      if (r.envoyes > 0) toast.success('Notification envoyée — elle arrive dans un instant.')
+      else if (r.appareils === 0) toast.error('Aucun appareil abonné à ce compte.')
+      else toast.error('Le relais n’a pas accepté l’envoi. Réactivez les notifications.')
+    } catch { toast.error('Essai impossible.') }
+    finally { setOccupe(false) }
+  }
+
+  async function retirer(id: string) {
+    await phpPushUnsubscribe({ id })
+    setAppareils((a) => a.filter((x) => x.id !== id))
+    setEtat(await etatPush())
+  }
+
   return (
     <section className="card p-4">
       <p className="mb-3 flex items-center gap-2 text-sm font-bold text-gray-800">
         <Bell size={16} className="text-primary-500" /> Notifications
       </p>
+
+      {/* ---- Sur cet appareil ------------------------------------------- */}
+      <div className="mb-4 rounded-xl bg-gray-50 p-3">
+        <p className="mb-1 flex items-center gap-2 text-[13px] font-bold text-gray-800">
+          <Smartphone size={14} className="text-gray-500" /> Sur cet appareil
+        </p>
+
+        {etat === null && <p className="text-xs text-gray-500">Vérification…</p>}
+
+        {etat === 'inactif' && (
+          <>
+            <p className="mb-2 text-xs leading-snug text-gray-600">
+              Soyez prévenu d’un message ou d’une vente <b>même quand Chap.ci est fermé</b>,
+              téléphone verrouillé.
+            </p>
+            <button onClick={activer} disabled={occupe} className="btn-primary w-full py-2 text-sm disabled:opacity-60">
+              {occupe ? 'Un instant…' : 'Activer les notifications'}
+            </button>
+          </>
+        )}
+
+        {etat === 'actif' && (
+          <>
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+              <CheckCircle2 size={14} /> Activées sur cet appareil
+            </p>
+            <div className="flex gap-2">
+              <button onClick={essai} disabled={occupe} className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-xs font-semibold text-gray-700 active:bg-gray-100 disabled:opacity-60">
+                Envoyer un essai
+              </button>
+              <button onClick={desactiver} disabled={occupe} className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-xs font-semibold text-gray-500 active:bg-gray-100 disabled:opacity-60">
+                Désactiver ici
+              </button>
+            </div>
+          </>
+        )}
+
+        {etat === 'refuse' && (
+          <p className="text-xs leading-snug text-gray-600">
+            Les notifications sont <b>bloquées pour chap.ci</b> dans ce navigateur. Pour revenir
+            dessus : touchez le cadenas (ou l’icône à gauche de l’adresse) →
+            <b> Notifications</b> → <b>Autoriser</b>, puis rechargez la page.
+          </p>
+        )}
+
+        {etat === 'ios-a-installer' && (
+          <p className="text-xs leading-snug text-gray-600">
+            Sur iPhone, Apple réserve les notifications aux sites ajoutés à l’écran d’accueil.
+            Dans Safari : bouton <b>Partager</b> → <b>Sur l’écran d’accueil</b>. Rouvrez ensuite
+            Chap.ci depuis l’icône, et le bouton apparaîtra ici.
+          </p>
+        )}
+
+        {etat === 'app-native' && (
+          <p className="text-xs leading-snug text-gray-600">
+            L’application ne reçoit pas encore ces notifications : elles fonctionnent sur
+            <b> chap.ci dans votre navigateur</b>. Ouvrez chap.ci depuis Chrome pour les activer
+            en attendant.
+          </p>
+        )}
+
+        {etat === 'indisponible' && (
+          <p className="text-xs leading-snug text-gray-600">
+            Ce navigateur ne sait pas recevoir de notifications. L’e-mail ci-dessous prend le relais.
+          </p>
+        )}
+
+        {appareils.length > 0 && (
+          <ul className="mt-3 space-y-1 border-t border-gray-200 pt-2">
+            {appareils.map((a) => (
+              <li key={a.id} className="flex items-center gap-2 text-xs">
+                <span className="min-w-0 flex-1 truncate text-gray-700">
+                  {a.appareil} <span className="text-gray-500">· depuis {timeAgo(a.depuis)}</span>
+                </span>
+                <button onClick={() => retirer(a.id)} className="shrink-0 text-gray-500 active:text-red-600" aria-label={`Retirer ${a.appareil}`}>
+                  <Trash2 size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* ---- Ce dont on vous prévient ----------------------------------- */}
       <div className="space-y-1">
-        <ToggleRow label="Favoris" desc="Quand une personne ajoute votre annonce à ses favoris" on={prefs.favorite} onToggle={() => toggle('favorite')} disabled={!loaded} />
         <ToggleRow label="Messages" desc="Quand vous recevez un nouveau message" on={prefs.message} onToggle={() => toggle('message')} disabled={!loaded} />
+        <ToggleRow label="Favoris" desc="Quand une personne ajoute votre annonce à ses favoris" on={prefs.favorite} onToggle={() => toggle('favorite')} disabled={!loaded} />
+        <ToggleRow label="E-mail de secours" desc="Un e-mail seulement si vous n’êtes ni sur le site, ni joignable sur un appareil" on={prefs.email} onToggle={() => toggle('email')} disabled={!loaded} />
       </div>
     </section>
   )

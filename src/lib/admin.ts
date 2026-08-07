@@ -25,6 +25,18 @@ export interface AdminStats {
     listings: { day: number; week: number; month: number; year: number }
   }
   series?: { date: string; users: number; listings: number }[]
+  /**
+   * Le Parcours : quatre marches, dans l'ordre où une personne les monte.
+   * Les trois dernières suivent la COHORTE des comptes créés dans la fenêtre,
+   * pas l'activité de la fenêtre — sinon un vendeur inscrit l'an dernier
+   * gonflerait le « ont publié » des sept derniers jours.
+   */
+  parcours?: Record<'j7' | 'j30' | 'tout', {
+    visiteurs: number
+    comptes: number
+    publie: number
+    vendu: number
+  }>
   ordersByStatus: Record<string, number>
   ordersValue: number
   recentListings: Listing[]
