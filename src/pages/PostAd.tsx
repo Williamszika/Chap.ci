@@ -670,7 +670,7 @@ export function PostAd() {
   return (
     <div className="min-h-screen pb-28">
       {/* En-tête / hero — grand titre display + sous-titre, comme la maquette. */}
-      <header className="mx-auto w-full max-w-2xl px-4 pt-5 lg:px-8">
+      <header className="safe-top mx-auto w-full max-w-2xl px-4 pt-5 lg:px-8">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -768,7 +768,7 @@ export function PostAd() {
         <div id="pa-photos">
           <label className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-gray-800">
             Photos
-            <span className="font-normal text-gray-400">({images.length}/{MAX_PHOTOS})</span>
+            <span className="font-normal text-gray-500">({images.length}/{MAX_PHOTOS})</span>
             {/* Le compte à rebours plutôt que la règle : « encore 2 photos »
                 se lit et s'exécute ; « minimum 3 » se lit et se discute. */}
             {images.length < planchePhotos ? (
@@ -1535,7 +1535,7 @@ function EmailGate({ email, onDone, onCancel }: { email: string; onDone: () => P
           </>
         )}
       </div>
-      <p className="max-w-xs text-[12px] leading-relaxed text-gray-400">
+      <p className="max-w-xs text-[12px] leading-relaxed text-gray-500">
         Le code est valable 15 minutes. Pensez à regarder vos indésirables.
       </p>
       <button onClick={onCancel} className="text-sm font-medium text-gray-500">Retour</button>

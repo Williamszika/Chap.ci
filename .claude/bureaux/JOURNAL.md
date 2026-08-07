@@ -1263,3 +1263,67 @@ masquer le vrai signal.** C'est le seul enseignement de ces trois rondes.
 pages « Vendez vos fournitures scolaires à … », une par ville, vérifiées servies
 en production. Rien à ajouter côté sitemap ; les mots-clés de la rentrée
 (cahiers, cartable, uniforme kaki, annales CEPE/BEPC/BAC) sont dans les schémas.
+
+### 2026-08-07 — [Design & Typographie] 🎨 L'Atelier, ronde appliquée en entier
+
+**Les cinq propositions sont reprises, après vérification de chacune dans le code.**
+Rien n'a été appliqué sur la foi du rapport : les cinq lignes citées ont été
+relues, et les cinq étaient exactes.
+
+**Le bandeau de la fête touchait `y=0`.** Avant le 5 août, l'en-tête orange était
+le premier élément de l'accueil, et c'est lui qui portait `safe-top`. Le bandeau
+« Fête de l'Indépendance » a été inséré au-dessus sans reprendre la classe : sur
+un téléphone à encoche, il passait sous la barre d'état, le jour de l'année où il
+est le plus regardé.
+
+L'Atelier a annoncé un correctif « borné dans le temps, la fête se termine à
+minuit ». **C'est plus large que ça, et c'est ce qui justifie de le corriger
+calmement plutôt que dans l'urgence :** `festiveMode()` ouvre la fenêtre du
+1ᵉʳ au 10 août — le bandeau vit encore trois jours. Et le défaut n'est pas
+festif : il appartient au PREMIER élément de la page, quel qu'il soit. Un
+commentaire le dit désormais à l'endroit exact où quelqu'un insérera la prochaine
+chose au-dessus de cet en-tête.
+
+**L'écran Publier n'avait pas `safe-top` non plus** — et celui-là est permanent.
+C'est l'écran qui fabrique les annonces ; `Favorites.tsx` avait déjà été corrigé
+pour exactement la même raison. Le vrai P1 de cette ronde, c'était lui.
+
+**Six textes remontés de `gray-400` à `gray-500`** — de 2,5:1 à 4,8:1, la même
+teinte que les six textes corrigés le 4 août. Ce ne sont pas des ornements : le
+message « annonce de démonstration » qui pousse à publier, le compteur de photos
+qui dit si le seuil des trois est atteint, et le rappel « regardez vos
+indésirables » — la seule aide de quelqu'un dont le code n'arrive pas.
+
+**Sept espaces insécables** posées avant `?` et `!`, dont celle du bandeau du
+jour. Vérifiées à l'octet (`U+00A0`), pas à l'œil : une espace ordinaire y
+ressemble exactement.
+
+**Ce qui n'est PAS fait, et pourquoi.** Cinq `text-gray-400` subsistent dans ces
+deux fichiers : ce sont des icônes — chevrons, cadenas, bordures — hors du lot de
+texte que ce bureau s'était fixé. Le chantier reste ouvert, comme il le dit
+lui-même.
+
+**Une note de méthode, pour ce bureau.** L'audit visuel vient d'un rendu local :
+Chromium ne peut pas atteindre `chap.ci` depuis ces sessions (le proxy coupe).
+L'Atelier l'a écrit noir sur blanc au lieu de laisser croire à une capture de
+production — c'est exactement la bonne façon de rendre une vérification partielle,
+et cela vaut d'être imité.
+
+### 2026-08-07 — [Croissance] 📣 Le Crieur : le catalogue bouge enfin
+
+**Neuf annonces, cinq vendeurs, cinq communes, cinq catégories** — contre 7 / 3 /
+2 / 2 le 29 juillet. Premier mouvement soutenu depuis dix jours. La rubrique
+« École & Fournitures », ouverte la veille au soir, a déjà son premier signe de
+vie : un don de fournitures scolaires à Koumassi.
+
+**Un point marchandise, pas un point SEO, et il mérite un œil.** Un terrain à
+Treichville affiché à **2 000 000 FCFA**, quand le marché local va de 40 à 600
+millions. Trois lectures possibles : une toute petite parcelle — mais aucune
+superficie n'est renseignée —, une erreur de saisie, ou l'appât classique de
+l'arnaque foncière. À vérifier avant qu'un acheteur ne se déplace.
+
+**La fiche Play publique répond 404, et c'est normal** : une application en test
+fermé n'a pas de page publique. Le Crieur l'a correctement classé « comportement
+attendu » au lieu d'en faire une panne — en s'appuyant sur `APP-VERSIONS.md`, qui
+disait déjà que la publication concernait le canal de test et pas la production.
+Le journal a servi à ça.

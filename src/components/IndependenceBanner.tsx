@@ -118,7 +118,7 @@ export function IndependenceBanner() {
    * d'Ivoire comme ailleurs : trois caractères au lieu d'une phrase, et l'œil
    * n'a rien à lire. Le jour même, on ne décompte plus : c'est le Jour J.
    */
-  const compte = leJourJ ? 'Jour J 🎉' : days === 1 ? 'J-1 · demain !' : `J-${days}`
+  const compte = leJourJ ? 'Jour J 🎉' : days === 1 ? 'J-1 · demain !' : `J-${days}`
 
   /**
    * LES MOTS DU JOUR J.

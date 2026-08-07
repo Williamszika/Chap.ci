@@ -677,7 +677,7 @@ export function ListingDetail() {
                 })}
               </div>
               {variantes.some((v) => v.photo !== null) && (
-                <p className="px-4 pb-3 pt-1.5 text-[11px] text-gray-400">Touchez une couleur pour voir sa photo.</p>
+                <p className="px-4 pb-3 pt-1.5 text-[11px] text-gray-500">Touchez une couleur pour voir sa photo.</p>
               )}
             </div>
           )}
@@ -754,7 +754,7 @@ export function ListingDetail() {
                   </button>
                 </div>
                 {isDemo && (
-                  <p className="mt-1.5 text-[11px] text-gray-400">
+                  <p className="mt-1.5 text-[11px] text-gray-500">
                     Exemple de démonstration — publiez votre annonce pour recevoir de vrais messages.
                   </p>
                 )}
@@ -802,7 +802,7 @@ export function ListingDetail() {
             )}
 
             {reviews.length === 0 ? (
-              <p className="text-sm text-gray-400">Aucun avis pour le moment.</p>
+              <p className="text-sm text-gray-500">Aucun avis pour le moment.</p>
             ) : (
               <div className="space-y-3">
                 {reviews.slice(0, 4).map((r) => (
@@ -861,7 +861,7 @@ export function ListingDetail() {
               </button>
             </div>
             {isDemo && (
-              <p className="mt-1.5 text-center text-[11px] text-gray-400">
+              <p className="mt-1.5 text-center text-[11px] text-gray-500">
                 Exemple de démonstration — publiez votre annonce pour recevoir de vrais messages.
               </p>
             )}

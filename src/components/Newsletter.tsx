@@ -35,7 +35,7 @@ export function Newsletter({ className = '' }: { className?: string }) {
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
             <Check size={26} />
           </span>
-          <p className="mt-3 font-display text-lg font-bold">Merci, c’est noté ! 🎉</p>
+          <p className="mt-3 font-display text-lg font-bold">Merci, c’est noté ! 🎉</p>
           <p className="mt-1 text-sm text-white/90">
             Vous recevrez nos meilleures offres et nouveautés par email.
           </p>

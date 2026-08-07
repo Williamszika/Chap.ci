@@ -130,8 +130,16 @@ export function Home() {
       <h1 className="sr-only md:hidden">
         Chap.ci — petites annonces et bonnes affaires en Côte d’Ivoire
       </h1>
-      {/* Habillage festif « Fête de l'Indépendance » (auto : 1ᵉʳ→10 août, ou ?fete=a/b) */}
-      <div className="px-4">
+      {/* Habillage festif « Fête de l'Indépendance » (auto : 1ᵉʳ→10 août, ou ?fete=a/b)
+          ⚠️ `safe-top` EST OBLIGATOIRE ICI, et pas par décoration : c'est le PREMIER
+          élément de la page, donc celui qui touche l'encoche et la barre d'état.
+          L'en-tête orange juste en dessous la porte depuis toujours — le bandeau est
+          passé devant lui le 5 août sans la reprendre, et s'est retrouvé collé à
+          y=0 (relevé par 🎨 L'Atelier le 7 août, capture à l'appui).
+          QUI QUE CE SOIT qui insère un jour quelque chose au-dessus de cet en-tête
+          doit reprendre cette classe. Sur un appareil sans encoche,
+          `env(safe-area-inset-top)` vaut 0 : elle ne coûte rien. */}
+      <div className="safe-top px-4">
         <IndependenceBanner />
       </div>
 

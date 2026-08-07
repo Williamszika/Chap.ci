@@ -189,7 +189,7 @@ export function Donate() {
           {/* Pourquoi faire un don / Sécurité — côte à côte sur grand écran */}
           <div className="grid gap-3 lg:grid-cols-2">
             <section className="card p-5">
-              <h2 className="font-display text-base font-bold text-gray-900">Pourquoi faire un don ?</h2>
+              <h2 className="font-display text-base font-bold text-gray-900">Pourquoi faire un don ?</h2>
               <ul className="mt-3 space-y-2.5">
                 {donationCopy.why.map((w) => (
                   <li key={w} className="flex items-start gap-2.5 text-sm text-gray-600">

@@ -47,7 +47,7 @@ export function ForgotPassword() {
         {sent ? (
           <div className="rounded-2xl border border-ivoire-green/20 bg-ivoire-green/10 p-5 text-center">
             <CheckCircle2 size={40} className="mx-auto text-ivoire-green" />
-            <p className="mt-2 font-bold text-ivoire-green-dark">Email envoyé !</p>
+            <p className="mt-2 font-bold text-ivoire-green-dark">Email envoyé !</p>
             <p className="mt-1 text-sm text-ivoire-green-dark">
               Un lien de réinitialisation a été envoyé à <strong>{email}</strong>. Ouvrez-le pour
               choisir un nouveau mot de passe.

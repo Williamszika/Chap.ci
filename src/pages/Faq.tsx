@@ -67,7 +67,7 @@ const sections: Section[] = [
         q: 'J’ai oublié mon mot de passe, que faire ?',
         a: (
           <>
-            Sur la page de connexion, cliquez sur <b>« Mot de passe oublié ? »</b> et suivez les instructions
+            Sur la page de connexion, cliquez sur <b>« Mot de passe oublié ? »</b> et suivez les instructions
             reçues par email pour en choisir un nouveau.
           </>
         ),
@@ -375,7 +375,7 @@ export function Faq() {
 
         {/* Bloc contact */}
         <div className="mx-auto mt-10 max-w-5xl rounded-2xl border border-primary-100 bg-primary-50 p-6 text-center">
-          <p className="font-display text-lg font-bold text-primary-900">Vous n’avez pas trouvé votre réponse ?</p>
+          <p className="font-display text-lg font-bold text-primary-900">Vous n’avez pas trouvé votre réponse ?</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-primary-800/80">
             Notre équipe est là pour vous aider. Écrivez-nous, on revient vers vous rapidement.
           </p>
