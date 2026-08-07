@@ -649,8 +649,13 @@ export async function phpSendInvitations<T>(body: {
 export async function phpTeamThreads<T>(): Promise<T> {
   return req<T>('/team/threads')
 }
-export async function phpTeamOpenThread(sujet: string, body: string, kind: 'user' | 'staff' = 'user'): Promise<{ id: string }> {
-  return req<{ id: string }>('/team/threads', { method: 'POST', body: { sujet, body, kind } })
+export async function phpTeamOpenThread(
+  sujet: string,
+  body: string,
+  kind: 'user' | 'staff' = 'user',
+  destinataire = '',
+): Promise<{ id: string }> {
+  return req<{ id: string }>('/team/threads', { method: 'POST', body: { sujet, body, kind, destinataire } })
 }
 export async function phpTeamThread<T>(id: string): Promise<T> {
   return req<T>(`/team/threads/${id}/messages`)

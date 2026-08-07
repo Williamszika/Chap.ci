@@ -49,6 +49,12 @@ export interface AdminUser {
   status: UserStatus
   listings: number
   createdAt: number
+  /** Dernière activité constatée (ms), `null` si jamais vue. */
+  derniereActivite?: number | null
+  /** Ancienneté de cette activité, en secondes. */
+  vuIlYA?: number | null
+  /** Vu il y a moins de cinq minutes — la même fenêtre que celle d'écriture. */
+  enLigne?: boolean
 }
 
 /**
@@ -75,6 +81,13 @@ export interface AdminUserDetail {
   emailVerifie?: boolean
   /** Membre de l'équipe ? On ne bloque pas un collègue par mégarde. */
   equipe?: 'proprietaire' | 'moderateur' | null
+  /** Dernière activité constatée (ms), `null` si jamais vue. */
+  derniereActivite?: number | null
+  /** Ancienneté de cette activité, en secondes. */
+  vuIlYA?: number | null
+  /** Vu il y a moins de cinq minutes — la même fenêtre que celle d'écriture. */
+  enLigne?: boolean
+
   chiffres?: {
     annonces: number
     annoncesMasquees: number

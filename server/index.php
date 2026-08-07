@@ -1444,6 +1444,10 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE users ADD COLUMN activation_emailed $ts"); } catch (Throwable $e) {}
   // Verification de l'adresse e-mail : date de confirmation du code a 6 chiffres.
   try { $pdo->exec("ALTER TABLE users ADD COLUMN email_verified_at $ts"); } catch (Throwable $e) {}
+  // Dernière activité constatée. Écrite au plus une fois par cinq minutes et par
+  // personne (voir touch_last_seen) — jamais à chaque requête. Sert au tableau
+  // de bord à dire qui est en ligne, et nulle part ailleurs.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN last_seen_at $ts"); } catch (Throwable $e) {}
   // La reprise de l'existant se fait ailleurs (backfill_email_verifie), APRES
   // migrate() : elle doit s'exécuter UNE SEULE FOIS, et migrate() tourne à
   // chaque requête. Premier essai le 29/07 : la clause « created_at <=
@@ -1485,14 +1489,46 @@ function current_user(PDO $pdo, string $secret): ?array {
   // Un « jeton de défi » 2FA (émis entre le mot de passe et le code) ne vaut PAS
   // une session : il ne sert qu'à /auth/2fa/verify. On le refuse partout ailleurs.
   if (!empty($payload['mfa'])) return null;
-  $st = $pdo->prepare('SELECT id, email, session_version FROM users WHERE id = ?');
+  $st = $pdo->prepare('SELECT id, email, session_version, last_seen_at FROM users WHERE id = ?');
   $st->execute([$payload['sub']]);
   $row = $st->fetch();
   if (!$row) return null;
   // P12 : un jeton dont la version de session ne correspond plus (mot de passe
   // changé depuis) est rejeté → les anciennes sessions sont déconnectées.
   if ((int) ($payload['sv'] ?? 0) !== (int) ($row['session_version'] ?? 0)) return null;
+  touch_last_seen($pdo, (string) $row['id'], $row['last_seen_at'] ?? null);
   return ['id' => $row['id'], 'email' => $row['email']];
+}
+
+/**
+ * LA TRACE DE PRÉSENCE — et pourquoi elle n'écrit presque jamais.
+ *
+ * `current_user()` tourne à CHAQUE requête authentifiée : liste d'annonces,
+ * favoris, messages, notifications. Y poser un `UPDATE` sans réfléchir, c'est
+ * une écriture par requête — sur un hébergement mutualisé, c'est le genre de
+ * détail qui met la base à genoux un samedi soir.
+ *
+ * On n'écrit donc que si la dernière trace date de plus de cinq minutes : au
+ * pire une écriture par personne et par tranche de cinq minutes, quoi qu'elle
+ * fasse. C'est aussi la définition retenue pour « en ligne » — quelqu'un vu il
+ * y a moins de cinq minutes est en train d'utiliser le site.
+ *
+ * ⚠️ Cette date n'est servie QU'AUX administrateurs et aux modérateurs ayant la
+ * fonctionnalité « Utilisateurs ». Elle n'apparaît sur aucune page publique :
+ * savoir quand quelqu'un s'est connecté n'a rien à faire sur un profil vendeur.
+ */
+function touch_last_seen(PDO $pdo, string $userId, ?string $dernier): void {
+  if ($dernier !== null && $dernier !== '' && (time() - strtotime($dernier)) < 300) return;
+  try {
+    $pdo->prepare('UPDATE users SET last_seen_at = ? WHERE id = ?')->execute([now_iso(), $userId]);
+  } catch (Throwable $e) { /* colonne absente : la présence n'est pas une fonction vitale */ }
+}
+
+/** Depuis combien de temps ? `null` si jamais vu. */
+function vu_il_y_a(?string $iso): ?int {
+  if ($iso === null || $iso === '') return null;
+  $t = strtotime($iso);
+  return $t ? max(0, time() - $t) : null;
 }
 function require_user(PDO $pdo, string $secret): array {
   $u = current_user($pdo, $secret);
@@ -5131,6 +5167,32 @@ try {
     $kind = ($b['kind'] ?? 'user') === 'staff' ? 'staff' : 'user';
     if ($kind === 'staff' && !$staff) jerr('Non autorisé.', 403);
 
+    // ------------------------------------------------------------------------
+    //  L'ÉQUIPE PEUT OUVRIR LE FIL, ET PAS SEULEMENT RÉPONDRE.
+    //
+    //  Jusqu'ici, un échange ne pouvait naître que d'un membre qui écrivait le
+    //  premier. Or l'essentiel de ce qu'un administrateur a à dire vient de lui :
+    //  « votre annonce est floue », « ce prix paraît faux », « votre compte
+    //  est bloqué, voici pourquoi ». Sans ce chemin, il n'avait que la
+    //  messagerie acheteur-vendeur — qui exige une annonce et fait passer
+    //  l'équipe pour un client. Un modérateur qui doit se déguiser en acheteur
+    //  pour prévenir quelqu'un, c'est un outil qui manque.
+    //
+    //  Le fil créé appartient au DESTINATAIRE, pas à l'expéditeur : c'est chez
+    //  lui qu'il apparaît, dans son assistance, et il peut répondre.
+    // ------------------------------------------------------------------------
+    $destinataire = trim((string) ($b['destinataire'] ?? ''));
+    if ($destinataire !== '') {
+      if (!$staff) jerr('Non autorisé.', 403);
+      if ($kind !== 'user') jerr('Un fil d’équipe n’a pas de destinataire.');
+      if (!admin_can($config, $pdo, $u, 'users')) {
+        jerr('Écrire à un membre nommément demande la fonctionnalité « Utilisateurs ».', 403);
+      }
+      $q = $pdo->prepare('SELECT id FROM users WHERE id = ?');
+      $q->execute([$destinataire]);
+      if (!$q->fetchColumn()) jerr('Destinataire introuvable.', 404);
+    }
+
     $sujet = mb_substr(trim((string) ($b['sujet'] ?? '')), 0, 120);
     $texte = trim((string) ($b['body'] ?? ''));
     if ($sujet === '') jerr('Indiquez l’objet de votre demande.');
@@ -5152,14 +5214,25 @@ try {
     }
 
     $id = uuid(); $mid = uuid(); $ts = now_iso();
-    $role = $kind === 'staff' ? 'equipe' : ($staff ? 'equipe' : 'utilisateur');
+    $role = $staff ? 'equipe' : 'utilisateur';
+    // À QUI appartient le fil : au destinataire quand l'équipe écrit la
+    // première, à l'auteur sinon, et à personne pour un fil interne.
+    $proprietaire = $kind === 'staff' ? '' : ($destinataire !== '' ? $destinataire : $u['id']);
     $pdo->prepare('INSERT INTO team_threads (id,kind,user_id,subject,status,created_at,last_at,last_by,unread_user,unread_staff)
                    VALUES (?,?,?,?,?,?,?,?,?,?)')
-        ->execute([$id, $kind, $kind === 'staff' ? '' : $u['id'], $sujet, 'open', $ts, $ts, $role,
+        ->execute([$id, $kind, $proprietaire, $sujet, 'open', $ts, $ts, $role,
                    $role === 'equipe' && $kind === 'user' ? 1 : 0, $role === 'utilisateur' ? 1 : 0]);
     $pdo->prepare('INSERT INTO team_messages (id,thread_id,sender_id,sender_role,sender_name,body,created_at)
                    VALUES (?,?,?,?,?,?,?)')
         ->execute([$mid, $id, $u['id'], $role, $nomDe($u['id']), $texte, $ts]);
+
+    // L'équipe écrit à quelqu'un : c'est LUI qu'on prévient, et le lien mène
+    // droit au fil. Une notification qui ne mène nulle part ne sert à rien.
+    if ($destinataire !== '') {
+      notify($pdo, $destinataire, 'message', 'Message de l’équipe Chap.ci',
+        $sujet, '#/assistance/' . $id);
+      log_security_event($pdo, 'admin_message_membre', $u['email'] ?? null, $destinataire . ' · ' . $sujet);
+    }
 
     // Prévenir l'équipe : sans cela, une demande peut attendre trois jours.
     if ($kind === 'user' && $role === 'utilisateur') {
@@ -6466,15 +6539,33 @@ try {
 
     // Utilisateurs.
     if ($path === 'admin/users' && $method === 'GET') {
-      $rows = $pdo->query('SELECT u.id, u.email, u.created_at, u.status, p.full_name, p.phone, p.commune,
-          (SELECT COUNT(*) FROM listings l WHERE l.user_id = u.id) AS listings
-        FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC')->fetchAll();
-      jout(array_map(fn($r) => [
-        'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
-        'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
-        'status' => $r['status'] ?: 'active',
-        'listings' => (int) $r['listings'], 'createdAt' => iso_to_ms($r['created_at']),
-      ], $rows));
+      // `last_seen_at` arrive par migration : sur une base qui n'a pas encore
+      // migré, la requête entière échouerait et la liste des utilisateurs
+      // disparaîtrait. On la rejoue donc sans elle plutôt que de rendre un 500.
+      $base = 'u.id, u.email, u.created_at, u.status, p.full_name, p.phone, p.commune,
+          (SELECT COUNT(*) FROM listings l WHERE l.user_id = u.id) AS listings';
+      $suffixe = ' FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC';
+      try {
+        $rows = $pdo->query('SELECT ' . $base . ', u.last_seen_at' . $suffixe)->fetchAll();
+      } catch (Throwable $e) {
+        $rows = $pdo->query('SELECT ' . $base . $suffixe)->fetchAll();
+      }
+      jout(array_map(function ($r) {
+        $depuis = vu_il_y_a($r['last_seen_at'] ?? null);
+        return [
+          'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
+          'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
+          'status' => $r['status'] ?: 'active',
+          'listings' => (int) $r['listings'], 'createdAt' => iso_to_ms($r['created_at']),
+          // « En ligne » = vu il y a moins de cinq minutes, la même fenêtre que
+          // celle où l'on réécrit la trace. Au-delà, on donne l'ancienneté en
+          // secondes et l'écran la met en mots — « il y a 2 h » se dit mieux
+          // côté interface qu'en base.
+          'derniereActivite' => iso_to_ms($r['last_seen_at'] ?? null),
+          'vuIlYA' => $depuis,
+          'enLigne' => $depuis !== null && $depuis < 300,
+        ];
+      }, $rows));
     }
 
     // ------------------------------------------------------------------------
@@ -6502,6 +6593,7 @@ try {
       // une base qui n'a pas encore migré, la requête échouerait en entier et
       // la fiche ne s'afficherait plus du tout. On la rejoue donc sans elles.
       $colonnes = 'u.id, u.email, u.created_at, u.status, u.auth_provider, u.email_verified_at,
+          u.last_seen_at,
           p.full_name, p.phone, p.commune, p.city_id, p.region_id, p.bio, p.avatar_url';
       try {
         $st = $pdo->prepare("SELECT $colonnes FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?");
@@ -6575,6 +6667,9 @@ try {
         // une adresse vérifiée par Google ; un compte e-mail non confirmé, non.
         'provider' => ($r['auth_provider'] ?? '') ?: 'email',
         'emailVerifie' => !empty($r['email_verified_at']),
+        'derniereActivite' => iso_to_ms($r['last_seen_at'] ?? null),
+        'vuIlYA' => vu_il_y_a($r['last_seen_at'] ?? null),
+        'enLigne' => ($d = vu_il_y_a($r['last_seen_at'] ?? null)) !== null && $d < 300,
         'equipe' => $estProprio ? 'proprietaire' : ($estModo ? 'moderateur' : null),
         'chiffres' => [
           'annonces' => count($annonces),

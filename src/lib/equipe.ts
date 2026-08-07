@@ -69,13 +69,23 @@ export async function chargerFils(): Promise<ListeFils> {
   return php.phpTeamThreads<ListeFils>()
 }
 
+/**
+ * Ouvre un fil.
+ *
+ * `destinataire` n'est utilisable que par l'équipe, et seulement avec la
+ * fonctionnalité « Utilisateurs » : c'est le cas où l'ADMINISTRATEUR écrit le
+ * premier à quelqu'un — « votre annonce est floue », « ce prix paraît faux ».
+ * Le fil créé appartient alors au destinataire : il apparaît dans SON
+ * assistance, et il peut répondre. Le serveur revérifie tout.
+ */
 export async function ouvrirFil(
   sujet: string,
   message: string,
   kind: 'user' | 'staff' = 'user',
+  destinataire = '',
 ): Promise<string> {
   if (!isPhp) throw new Error(NON_DISPO)
-  const r = await php.phpTeamOpenThread(sujet, message, kind)
+  const r = await php.phpTeamOpenThread(sujet, message, kind, destinataire)
   return r.id
 }
 

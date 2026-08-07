@@ -105,7 +105,8 @@ export function Privacy() {
                 <li><b>Connexion</b> : si vous vous connectez via <b>Google</b>, nous recevons votre email et votre nom depuis votre compte Google ; si vous vous connectez par <b>téléphone</b>, nous utilisons votre numéro et un code de vérification envoyé par SMS.</li>
                 <li><b>Localisation</b> : votre position (GPS si vous l’autorisez, sinon estimation par adresse IP) pour afficher les annonces proches et situer vos annonces.</li>
                 <li><b>Annonces</b> : titre, description, prix, photos, catégorie et localisation que vous publiez.</li>
-                <li><b>Messages</b> : les conversations entre acheteurs et vendeurs via la messagerie.</li>
+                <li><b>Messages</b> : les conversations entre acheteurs et vendeurs via la messagerie, ainsi que vos échanges avec notre équipe d’assistance.</li>
+                <li><b>Dernière activité</b> : la date de votre dernier passage sur le site, enregistrée au plus une fois toutes les cinq minutes. Elle sert uniquement à notre équipe de modération, pour savoir si vous êtes joignable avant de vous écrire. <b>Elle n’apparaît sur aucune page publique</b> : les autres utilisateurs ne la voient jamais, ni sur votre profil de vendeur, ni ailleurs.</li>
                 <li><b>Usage technique</b> : préférences stockées localement sur votre appareil (favoris, dernière position, conversations lues).</li>
               </ul>
             </Section>

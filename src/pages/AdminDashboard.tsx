@@ -24,6 +24,9 @@ import {
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview,
   fetchInvites, envoyerInvitations, type ListeInvites,
+} from '../lib/admin'
+import { ouvrirFil } from '../lib/equipe'
+import {
   type VisitStats, type VisitRange, type VisitPoint, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
@@ -1213,20 +1216,91 @@ const STATUS_BADGE: Record<UserStatus, { label: string; cls: string }> = {
   blocked: { label: 'Bloqué', cls: 'bg-red-50 text-red-700' },
 }
 
+/**
+ * « En ligne », ou vu quand.
+ *
+ * La fenêtre est de cinq minutes, et ce n'est pas un choix esthétique : c'est
+ * exactement l'intervalle auquel le serveur réécrit la trace de présence. Une
+ * fenêtre plus courte afficherait « hors ligne » quelqu'un qui est en train de
+ * naviguer ; une plus longue mentirait dans l'autre sens.
+ *
+ * `null` veut dire « jamais vu depuis que la trace existe » — un compte créé
+ * avant cette mise à jour, ou qui ne s'est jamais reconnecté. On le dit, plutôt
+ * que de le faire passer pour un absent de longue date.
+ */
+function Presence({ enLigne, vuIlYA, compact }: { enLigne?: boolean; vuIlYA?: number | null; compact?: boolean }) {
+  if (enLigne) {
+    return (
+      <span className={`inline-flex items-center gap-1.5 font-semibold text-ivoire-green-dark ${compact ? 'text-[11px]' : 'text-[12.5px]'}`}>
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ivoire-green opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-ivoire-green" />
+        </span>
+        En ligne
+      </span>
+    )
+  }
+  if (vuIlYA == null) {
+    return <span className={`text-gray-500 ${compact ? 'text-[11px]' : 'text-[12.5px]'}`}>Jamais vu</span>
+  }
+  const j = Math.floor(vuIlYA / 86400)
+  const h = Math.floor(vuIlYA / 3600)
+  const m = Math.floor(vuIlYA / 60)
+  const quand = j > 0 ? `il y a ${j} j` : h > 0 ? `il y a ${h} h` : m > 0 ? `il y a ${m} min` : "à l'instant"
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-gray-500 ${compact ? 'text-[11px]' : 'text-[12.5px]'}`}>
+      <span className="h-2 w-2 rounded-full bg-gray-300" />
+      Vu {quand}
+    </span>
+  )
+}
+
 function UsersTab() {
   const [items, setItems] = useState<AdminUser[] | null>(null)
   const [err, setErr] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const [enLigneSeuls, setEnLigneSeuls] = useState(false)
   const load = () => { setItems(null); setErr(''); fetchAdminUsers().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
   if (selected) return <UserDetail id={selected} onBack={() => { setSelected(null); load() }} />
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const enLigne = items.filter((u) => u.enLigne).length
+  const terme = q.trim().toLowerCase()
+  const vus = items.filter((u) => {
+    if (enLigneSeuls && !u.enLigne) return false
+    if (!terme) return true
+    return `${u.fullName} ${u.email} ${u.phone ?? ''} ${u.commune ?? ''}`.toLowerCase().includes(terme)
+  })
+
   return (
     <div className="space-y-2">
-      <RowHead count={items.length} label="utilisateur" />
-      {items.map((u) => {
+      {/* Chercher quelqu'un, et voir qui est là maintenant. Sur une liste qui
+          grandit, le nom qu'on cherche est rarement en haut. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 shadow-card">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Chercher un nom, un e-mail, un téléphone…"
+          aria-label="Chercher un utilisateur"
+          className="input h-10 min-w-[200px] flex-1 py-0 text-sm"
+        />
+        <button
+          onClick={() => setEnLigneSeuls((v) => !v)}
+          className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+            enLigneSeuls ? 'bg-ivoire-green text-white' : 'border border-line2 text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <span className={`h-2 w-2 rounded-full ${enLigneSeuls ? 'bg-white' : 'bg-ivoire-green'}`} />
+          En ligne ({enLigne})
+        </button>
+      </div>
+
+      <RowHead count={vus.length} label="utilisateur" />
+      {vus.map((u) => {
         const b = STATUS_BADGE[u.status] ?? STATUS_BADGE.active
         return (
           <button key={u.id} onClick={() => setSelected(u.id)} className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-card transition hover:shadow-md active:scale-[0.99]">
@@ -1237,15 +1311,18 @@ function UsersTab() {
                 {u.status !== 'active' && <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${b.cls}`}>{b.label}</span>}
               </p>
               <p className="truncate text-xs text-gray-500">{u.email}</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 {u.listings} annonce{u.listings > 1 ? 's' : ''}{u.commune ? ` · ${u.commune}` : ''} · inscrit {timeAgo(u.createdAt)}
               </p>
+              <p className="mt-0.5"><Presence enLigne={u.enLigne} vuIlYA={u.vuIlYA} compact /></p>
             </div>
             <ChevronRight size={18} className="shrink-0 text-gray-300" />
           </button>
         )
       })}
-      {items.length === 0 && <Empty>Aucun utilisateur.</Empty>}
+      {vus.length === 0 && (
+        <Empty>{items.length === 0 ? 'Aucun utilisateur.' : 'Personne ne correspond à cette recherche.'}</Empty>
+      )}
     </div>
   )
 }
@@ -1299,6 +1376,7 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${b.cls}`}>{b.label}</span>
             </p>
             <p className="truncate text-sm text-gray-500">{u.email}</p>
+            <p className="mt-0.5"><Presence enLigne={u.enLigne} vuIlYA={u.vuIlYA} /></p>
           </div>
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -1375,6 +1453,8 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       )}
 
+      <EcrireAuMembre id={id} nom={u.fullName} />
+
       {/* Actions de modération */}
       <div className="rounded-2xl bg-white p-4 shadow-card">
         <p className="mb-2 text-sm font-bold text-gray-800">Modération du compte</p>
@@ -1429,6 +1509,81 @@ function UserDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Écrire à ce membre — sans passer par une annonce.
+ *
+ * C'est ce qui manquait : pour prévenir quelqu'un, il n'y avait que la
+ * messagerie acheteur-vendeur, qui exige une annonce et fait passer l'équipe
+ * pour un client. Un modérateur qui doit se déguiser en acheteur pour dire
+ * « votre photo est floue », c'est un outil qui manque.
+ *
+ * Le fil créé appartient au MEMBRE : il le trouve dans son assistance, reçoit
+ * une notification, et peut répondre. Vu de lui, l'équipe signe « L'équipe
+ * Chap.ci » — jamais le nom du modérateur.
+ */
+function EcrireAuMembre({ id, nom }: { id: string; nom: string }) {
+  const navigate = useNavigate()
+  const [ouvert, setOuvert] = useState(false)
+  const [sujet, setSujet] = useState('')
+  const [message, setMessage] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState('')
+
+  async function envoyer(e: React.FormEvent) {
+    e.preventDefault()
+    if (envoi) return
+    setEnvoi(true); setErreur('')
+    try {
+      const fil = await ouvrirFil(sujet.trim(), message.trim(), 'user', id)
+      navigate(`/assistance/${fil}`)
+    } catch (err) {
+      setErreur(err instanceof Error ? err.message : 'Le message n’est pas parti. Réessayez.')
+      setEnvoi(false)
+    }
+  }
+
+  if (!ouvert) {
+    return (
+      <button
+        onClick={() => setOuvert(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary-200 bg-primary-50/60 py-3 text-sm font-bold text-primary-700 transition active:scale-[0.99] hover:bg-primary-50"
+      >
+        <MessageSquare size={17} /> Écrire à {nom === '—' ? 'ce membre' : nom.split(' ')[0]}
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={envoyer} className="space-y-3 rounded-2xl bg-white p-4 shadow-card">
+      <p className="text-sm font-bold text-gray-800">Écrire à ce membre</p>
+      <p className="text-xs leading-relaxed text-gray-600">
+        Le message arrive dans son assistance, avec une notification. Il pourra répondre, et
+        l’échange restera au même endroit. Il verra « L’équipe Chap.ci » — jamais votre nom.
+      </p>
+      <div>
+        <label className="mb-1 block text-xs font-semibold text-gray-500">Objet</label>
+        <input value={sujet} onChange={(e) => setSujet(e.target.value)} disabled={envoi} maxLength={120}
+          className="input" placeholder="Ex : votre annonce « Frigo Samsung »" />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-semibold text-gray-500">Message</label>
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} disabled={envoi} rows={5} maxLength={4000}
+          className="input resize-y"
+          placeholder={'Bonjour,\n\nVotre annonce est en ligne, mais la photo est trop floue pour qu’on distingue le produit. Pouvez-vous la remplacer ? Elle sortira mieux dans les recherches.'} />
+      </div>
+      {erreur && <p className="text-[13px] font-semibold text-red-600">{erreur}</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={!sujet.trim() || !message.trim() || envoi} className="btn-primary disabled:opacity-50">
+          {envoi ? 'Envoi…' : 'Envoyer'}
+        </button>
+        <button type="button" onClick={() => setOuvert(false)} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-600">
+          Annuler
+        </button>
+      </div>
+    </form>
   )
 }
 
