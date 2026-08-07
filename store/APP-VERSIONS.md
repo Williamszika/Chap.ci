@@ -60,7 +60,7 @@ autrement dit `git log --oneline -1` juste après avoir commité la montée de v
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | **aucune, et aucune ne l'a JAMAIS été.** Relevé de la console le 03/08 : canal de test fermé « Actif », mais **Version brouillon**, et la fiche porte toujours « ci.chap.app (unreviewed) ». La v1.17 (code 18) est téléversée et reste **Brouillon — pas encore envoyé pour examen**. Les codes 17, 11, 10, 7, 6, 5 sont « remplacés par une autre version ». Liste de diffusion « Ange » : **18 adresses invitées** — mais une invitation à un test jamais publié ne peut produire aucun testeur inscrit, donc le compte à rebours des 14 jours **n'a jamais démarré**. | **aucune** |
+| Version publiée | ✅ **v1.18 (code 19) publiée le 6 août 2026** — première publication réelle du projet. Google a notifié « Mise à jour de l'appli publiée. Les utilisateurs devraient voir les modifications immédiatement », relevé par le Patron le 7 août. Les v1.9, v1.16 et v1.17 étaient toutes restées en brouillon. ⚠️ **Le lien d'adhésion testeur `play.google.com/apps/testing/ci.chap.app` n'a pas encore été confirmé ouvert par le Patron** : la publication est acquise, l'ouverture du canal ne l'est pas encore. Aucun testeur inscrit à cette heure — le compte à rebours des 14 jours n'a donc toujours pas démarré. | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -74,13 +74,36 @@ de l'interface à s'adapter — ce que le responsive assure déjà.
 que le volet iOS est bloqué, et ne pas produire d'instructions Xcode inutiles.** Mettez
 cette table à jour le jour où la situation change.
 
+## Validation des développeurs Android — RÉGLÉE, ne rien faire
+
+Google a notifié le 6 août : « Enregistrez vos applications pour la validation des
+développeurs Android d'ici le 30 septembre 2026 ». **Aucune action n'était requise.**
+
+Relevé dans la console par le Patron le 7 août : `ci.chap.app` — **Enregistrée**,
+depuis le **22 juillet 2026**, automatiquement (Google a enregistré 99 % des
+applications déjà présentes sur Play).
+
+L'exigence commence par le Brésil, l'Indonésie, Singapour et la Thaïlande ; le
+déploiement mondial vient après 2027. La Côte d'Ivoire n'est pas dans la première
+vague.
+
+> **Ne rouvrez pas ce dossier** : il est clos, et la date d'enregistrement le prouve.
+
+---
+
 ## Le chemin vers la production (compte personnel)
 
-Constaté le 27/07 dans la Play Console : la release du 25 juillet est restée en
-**« Brouillon / Non examinée »**, et la fiche affiche encore « Nom temporaire de
-l'application : ci.chap.app (unreviewed) ». **Aucune version n'a donc jamais atteint le
-moindre testeur.** Ce n'était ni un refus, ni un délai d'examen : le déploiement n'a pas
-été lancé.
+> **Ce paragraphe décrit l'état du 27 juillet, et il est dépassé depuis le 6 août.**
+> Il est gardé parce qu'il explique pourquoi rien ne partait — pas parce qu'il décrit
+> encore la situation. La v1.18 est publiée ; voir la table ci-dessus.
+
+Constaté le 27/07 dans la Play Console : la release du 25 juillet était restée en
+**« Brouillon / Non examinée »**, et la fiche affichait encore « Nom temporaire de
+l'application : ci.chap.app (unreviewed) ». Aucune version n'avait alors atteint le
+moindre testeur. Ce n'était ni un refus, ni un délai d'examen : le déploiement n'avait
+pas été lancé. Ce qui a débloqué la situation le 6 août, c'est le bouton
+**Publication → Vue d'ensemble de la publication → Envoyer les modifications pour
+examen** — la dernière porte, celle qu'on oublie.
 
 Le compte développeur étant **personnel**, Google impose avant la production :
 
