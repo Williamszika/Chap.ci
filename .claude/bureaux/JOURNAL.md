@@ -1425,3 +1425,41 @@ se règle pas est un écran muet, pas une erreur.
 Le banc d'écran vit dans le bac à sable (`pushe2e/banc-ecran.mjs`) : il demande
 un serveur PHP local, une base SQLite et Playwright. Il n'entre pas au dépôt —
 un banc qui ne peut pas tourner tout seul finit par mentir.
+
+### 2026-08-08 — La fête est rangée
+
+**Le Patron, à 12 h 25 : « la fête est finie aujourd'hui, l'animation doit
+disparaître ».** Elle était réglée jusqu'au 10 août — trois jours de confettis
+APRÈS l'indépendance, sur un site de petites annonces. Il a raison : une
+décoration qui traîne cesse d'être une fête et devient un oubli, et c'est ce que
+voit le visiteur.
+
+La fenêtre s'arrête maintenant au petit matin du 8. La nuit du 7 au 8 va
+jusqu'à 6 h — un feu d'artifice ne s'éteint pas à minuit pile — puis plus rien.
+`isFeteDay()` couvre cette même nuit, sinon le bandeau aurait affiché « J-0 » en
+plein feu d'artifice.
+
+**Une bande blanche corrigée au passage, et elle durait depuis toujours.** Le
+bandeau vivait dans un conteneur de l'accueil qui portait `safe-top`. Ce
+conteneur restait affiché **même quand le bandeau ne rendait rien** — donc onze
+mois par an, et aussi après un « Masquer ». Sur un iPhone à encoche, il gardait
+sa marge de zone sûre : une bande blanche au-dessus de l'en-tête orange, toute
+l'année, pour un élément invisible. `safe-top` est désormais portée par le
+bandeau lui-même : elle part avec lui.
+
+La règle générale, écrite dans le commentaire de `Home.tsx` pour la suite :
+**la classe qui réserve l'encoche doit suivre le premier élément VISIBLE**, donc
+disparaître avec lui. Posée sur un conteneur permanent, elle réserve de la place
+pour du vide.
+
+**Vérifié dans un vrai navigateur, pas en relisant :** aucun bandeau, aucune
+toile de dessin, en-tête à 0 pixel du haut ; `?fete=b` rallume tout (l'an
+prochain fonctionnera) ; horloge avancée au 8 août 3 h → la fête est encore là,
+au 8 août 9 h → plus rien.
+
+**La ronde du Gardien de 10 h 55 est verte** — trois empreintes identiques au
+dépôt à `105f169c`, zéro incident en 24 h, treize tâches planifiées cohérentes,
+cloisonnement des secrets re-testé dans les deux sens. Il reste un seul dossier
+ouvert, le terrain de Treichville : signal isolé, laissé visible. Le Patron a
+désormais le modèle « Prix qui paraît faux » dans « Écrire à ce membre » — c'est
+exactement le cas d'usage pour lequel il a été écrit.

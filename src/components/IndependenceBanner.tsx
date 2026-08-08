@@ -149,6 +149,14 @@ export function IndependenceBanner() {
     : `radial-gradient(120% 130% at 50% -10%, #232a66 0%, #141a4d 40%, #0A0E2A 100%)`
 
   return (
+    // `safe-top` est PORTÉE ICI, et non par la page.
+    //
+    // Elle vivait dans un conteneur de l'accueil qui restait affiché même quand
+    // le bandeau ne rendait rien — hors fête, ou après un « Masquer ». Sur un
+    // iPhone à encoche, ce conteneur vide gardait quand même sa marge de zone
+    // sûre : un bandeau blanc au-dessus de l'en-tête orange, onze mois par an,
+    // pour un élément invisible. Portée par le bandeau, elle disparaît avec lui.
+    <div className="safe-top px-4">
     <div
       className="relative mt-3 overflow-hidden rounded-3xl shadow-card lg:mt-4"
       style={{ background: bg }}
@@ -252,6 +260,7 @@ export function IndependenceBanner() {
       >
         🐘
       </div>
+    </div>
     </div>
   )
 }

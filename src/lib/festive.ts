@@ -32,9 +32,22 @@ function param(name: string): string | null {
  * Le Patron l'a dit en une phrase : « normalement les nuits, c'est les feux
  * d'artifice ». Il a raison — un feu d'artifice, c'est le soir.
  *
- * Fenêtre de fête : du 1ᵉʳ au 10 août. Dedans :
- *   · de 18 h à 6 h (heure du téléphone) -> NUIT, feux d'artifice ;
- *   · le reste de la journée             -> JOUR, confettis.
+ * LA FÊTE S'ARRÊTE AVEC LA FÊTE.
+ *
+ * La fenêtre allait jusqu'au 10 août : trois jours de confettis APRÈS
+ * l'indépendance, pour un site de petites annonces. Le Patron l'a dit le 8 au
+ * matin — « la fête est finie aujourd'hui, l'animation doit disparaître ».
+ * Il a raison : une décoration qui traîne cesse d'être une fête et devient un
+ * oubli, et c'est ce que voit le visiteur.
+ *
+ * La fenêtre va donc du 1ᵉʳ août au petit matin du 8 :
+ *   · 1ᵉʳ → 6 août   : le décompte monte      -> JOUR, confettis ;
+ *   · 7 août         : le Jour J ;
+ *   · nuit du 7 au 8 : jusqu'à 6 h, c'est encore la nuit de la fête ;
+ *   · 8 août, 6 h    : terminé, plus rien.
+ *
+ * Dedans, l'ambiance suit l'HEURE : de 18 h à 6 h, feux d'artifice ; le reste
+ * de la journée, confettis.
  *
  * On lit l'heure LOCALE de l'appareil, pas celle du serveur : c'est la nuit de
  * celui qui regarde qui compte, pas celle d'Abidjan.
@@ -51,8 +64,11 @@ export function festiveMode(): FestiveMode | null {
   const d = new Date()
   if (d.getMonth() !== 7) return null // août = mois 7
   const day = d.getDate()
-  if (day < 1 || day > 10) return null
   const h = d.getHours()
+  if (day < 1 || day > 8) return null
+  // Le 8, on laisse finir la nuit du 7 — un feu d'artifice ne s'éteint pas à
+  // minuit pile — puis plus rien.
+  if (day === 8 && h >= 6) return null
   return h >= 18 || h < 6 ? 'night' : 'day'
 }
 
@@ -66,7 +82,11 @@ export function festiveMode(): FestiveMode | null {
 export function isFeteDay(): boolean {
   if (param('fete') === 'j') return true
   const d = new Date()
-  return d.getMonth() === 7 && d.getDate() === 7
+  if (d.getMonth() !== 7) return false
+  // Le 7 toute la journée — ET la nuit du 7 au 8 jusqu'à 6 h. À deux heures du
+  // matin on fête encore le 7 : sans cette seconde condition, le bandeau
+  // afficherait « J-0 » au milieu du feu d'artifice.
+  return d.getDate() === 7 || (d.getDate() === 8 && d.getHours() < 6)
 }
 
 export function daysToFete(): number {

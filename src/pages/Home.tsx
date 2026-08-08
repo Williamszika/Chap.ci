@@ -130,18 +130,22 @@ export function Home() {
       <h1 className="sr-only md:hidden">
         Chap.ci — petites annonces et bonnes affaires en Côte d’Ivoire
       </h1>
-      {/* Habillage festif « Fête de l'Indépendance » (auto : 1ᵉʳ→10 août, ou ?fete=a/b)
-          ⚠️ `safe-top` EST OBLIGATOIRE ICI, et pas par décoration : c'est le PREMIER
-          élément de la page, donc celui qui touche l'encoche et la barre d'état.
-          L'en-tête orange juste en dessous la porte depuis toujours — le bandeau est
-          passé devant lui le 5 août sans la reprendre, et s'est retrouvé collé à
-          y=0 (relevé par 🎨 L'Atelier le 7 août, capture à l'appui).
-          QUI QUE CE SOIT qui insère un jour quelque chose au-dessus de cet en-tête
-          doit reprendre cette classe. Sur un appareil sans encoche,
-          `env(safe-area-inset-top)` vaut 0 : elle ne coûte rien. */}
-      <div className="safe-top px-4">
-        <IndependenceBanner />
-      </div>
+      {/* Habillage festif « Fête de l'Indépendance ». Automatique : du 1ᵉʳ août
+          au petit matin du 8 — la fête finie, il disparaît de lui-même. Essais :
+          ?fete=a (jour) · ?fete=b (nuit) · ?fete=j (le 7) · ?fete=0 (éteint).
+
+          ⚠️ `safe-top` est portée par le bandeau LUI-MÊME, plus par un conteneur
+          ici. C'est la classe qui réserve l'encoche et la barre d'état, et elle
+          doit suivre le PREMIER élément visible de la page — donc le bandeau
+          quand il est là, et l'en-tête orange sinon. Portée par un conteneur qui
+          restait affiché même vide, elle laissait une bande blanche au-dessus de
+          l'en-tête onze mois par an, sur tous les iPhone à encoche.
+
+          QUI QUE CE SOIT qui insère un jour quelque chose au-dessus de l'en-tête
+          orange doit reprendre cette classe — et la faire disparaître avec son
+          élément. Sur un appareil sans encoche, `env(safe-area-inset-top)` vaut
+          0 : elle ne coûte rien. */}
+      <IndependenceBanner />
 
       {/* En-tête orange (bannière/héro sur desktop) */}
       <header className="safe-top flex min-h-[268px] flex-col justify-center bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.22),transparent_62%),linear-gradient(to_bottom,#F77F00,#D95F00)] px-4 pb-5 pt-4 text-white md:mt-4 md:min-h-[290px] md:rounded-3xl md:px-8 md:pb-7 md:pt-7">
