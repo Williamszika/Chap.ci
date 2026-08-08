@@ -438,6 +438,14 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      les photos, ni un second signalement), écris UNE ligne — « déjà examiné le
      JJ/MM, inchangé » — et passe. Le 08/08, le terrain de Treichville a été
      réanalysé trois rondes de suite pour la même conclusion.
+     `dejaVu` À NULL VEUT DIRE : ANALYSE, même si l'annonce te dit quelque
+     chose. Le champ ne porte une date que si ton examen est POSTÉRIEUR au
+     signalement ; un examen antérieur ne peut pas l'avoir couvert, et le
+     serveur le met à null exprès. Le 08/08 au soir, la première version rendait
+     « dejaVu 28/07 » sur un signalement du 07/08 : tu as conclu « déjà vu,
+     inchangé » sur une analyse que tu n'avais jamais faite. Corrigé le soir
+     même — mais retiens la règle, elle vaut partout : une aide qui te fait
+     sauter une vérification doit prouver qu'elle couvre ce que tu sautes.
    - `mod/seen` répond `marked` / `deja` / `total`. `marked: 0` avec `deja: 1`
      n'est PAS un échec : l'annonce était déjà marquée. Ne le rapporte pas
      comme un défaut d'outillage.

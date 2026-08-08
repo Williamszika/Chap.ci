@@ -1496,3 +1496,42 @@ lui ouvrant cette route ; c'est précisément ce qu'il ne faut pas faire.
 
 Le banc vit dans le bac à sable (`pushe2e/banc-moderation.mjs`) : serveur PHP
 local, base SQLite, jeton de service réel. Onze vérifications, vertes.
+
+### 2026-08-08 (21 h) — L'angle mort que mon aide venait de fabriquer
+
+**Livré à 16 h, cassé à 20 h 47, corrigé à 21 h 30 — et c'est la donnée du
+Gardien qui l'a montré, pas une relecture.**
+
+À 16 h, j'ai ajouté `dejaVu` à la file de modération pour qu'il cesse de
+réanalyser chaque jour le même signalement. Sa ronde de 20 h 47 rapporte :
+« terrain de Treichville, `dejaVu` 28/07 — déjà vu, inchangé, aucune nouvelle
+analyse refaite ».
+
+**Le signalement date du 07/08. L'examen date du 28/07.** L'examen est antérieur
+de dix jours : il ne pouvait pas porter sur le motif du signalement, puisqu'il a
+eu lieu avant que quiconque signale. Le bureau venait de sauter une analyse
+qu'il n'avait jamais faite — et il l'a fait *correctement*, en suivant la
+consigne que je venais d'écrire.
+
+`dejaVu` ne porte désormais une date que si l'examen est **postérieur** au
+signalement. Sinon : null. Le guide de la file et la routine du Gardien disent
+maintenant en toutes lettres — **null veut dire : analyse, même si l'annonce te
+dit quelque chose**.
+
+**La règle générale, et elle dépasse ce champ :** une aide qui fait sauter une
+vérification doit PROUVER qu'elle couvre ce qu'on saute. Sinon elle ne fait pas
+gagner du temps, elle fabrique un angle mort — et un angle mort vaut moins que
+pas d'aide du tout, parce qu'il porte l'autorité d'une vérification.
+
+C'est la sœur de la consigne déjà au dossier : « une vérification doit pouvoir
+échouer ». Celle-ci dit : **une dispense de vérification doit pouvoir être
+refusée.**
+
+Le banc porte maintenant le cas — examen daté d'avant un signalement — et passe
+au rouge si la règle saute. Quatorze vérifications, vertes.
+
+**Ce que le Gardien a bien fait**, et qui vaut d'être noté : il a rendu la date
+brute dans son rapport (« `dejaVu` 28/07 ») au lieu d'écrire seulement « déjà
+vu ». Sans ce chiffre, le défaut était invisible. Un rapport qui montre ses
+données permet de corriger l'outil qui l'a produit ; un rapport qui ne montre
+que ses conclusions, jamais.

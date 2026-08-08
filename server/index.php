@@ -9013,14 +9013,31 @@ try {
       foreach ($sv->fetchAll() as $v) $vues[(string) $v['listing_id']] = iso_to_ms($v['created_at']);
     }
     $reports = array_map(function ($r) use ($shape, $vues) {
+      $signaleLe = iso_to_ms($r['reported_at']);
+      $examineLe = $vues[(string) ($r['listing_id'] ?? '')] ?? null;
+      // ⚠️ UN EXAMEN ANTÉRIEUR AU SIGNALEMENT NE VAUT RIEN POUR CE SIGNALEMENT.
+      //
+      // Livré le 08/08 à 16 h, ce champ rendait la date de n'importe quel
+      // « examinée-OK », même bien plus ancienne que le signalement. Le soir
+      // même, le Gardien a lu « dejaVu 28/07 » sur un signalement du 07/08 et a
+      // conclu « déjà vu, inchangé, aucune nouvelle analyse » — il a sauté une
+      // analyse qu'il n'avait jamais faite. L'annonce avait été contrôlée dix
+      // jours AVANT que quiconque la signale : le contrôle ne portait pas sur
+      // le motif du signalement, forcément.
+      //
+      // Une aide qui fait sauter une vérification doit prouver qu'elle couvre
+      // ce qu'on saute. Sinon elle fabrique un angle mort, ce qui est pire que
+      // de ne rien rendre du tout.
+      if ($examineLe !== null && $signaleLe !== null && $examineLe < $signaleLe) $examineLe = null;
       return [
         'reportId'   => $r['report_id'],
         'listingId'  => $r['listing_id'],
         'reason'     => $r['reason'],
         'details'    => $r['details'],
-        'reportedAt' => iso_to_ms($r['reported_at']),
-        // null = jamais examinée. Sinon, la date du dernier « examinée-OK ».
-        'dejaVu'     => $vues[(string) ($r['listing_id'] ?? '')] ?? null,
+        'reportedAt' => $signaleLe,
+        // null = jamais examinée DEPUIS ce signalement. Sinon, la date de
+        // l'examen qui l'a suivi.
+        'dejaVu'     => $examineLe,
         'listing'    => $r['id'] ? $shape($r) : null,
       ];
     }, $rp);
@@ -9045,8 +9062,10 @@ try {
         . 'Digest: POST /api/mod/digest {examined,hidden:[],flagged:[],notes}. '
         . 'UN SIGNALEMENT OUVERT REVIENT TANT QU\'IL N\'EST PAS CLASSÉ, et mod/seen ne le classe pas : '
         . 'clore le signalement d\'un humain sur l\'annonce d\'un autre est une décision réservée au Patron '
-        . '(admin → Signalements → Classer). Si vous avez déjà conclu, le champ « dejaVu » porte la date de '
-        . 'votre examen : dites « déjà vu le JJ/MM, inchangé » et passez, ne refaites pas l\'analyse.',
+        . '(admin → Signalements → Classer). Le champ « dejaVu » ne porte une date QUE si vous avez examiné '
+        . 'l\'annonce APRÈS ce signalement — un examen antérieur ne peut pas l\'avoir couvert, il rend donc '
+        . 'null. dejaVu renseigné et rien de changé : dites « déjà examiné le JJ/MM, inchangé » et passez. '
+        . 'dejaVu null : analysez, même si l\'annonce vous dit quelque chose.',
     ]);
   }
   // Masquer une annonce (cas à haute confiance : illégal / NSFW). Idempotent + audité.
