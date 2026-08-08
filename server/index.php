@@ -8995,13 +8995,32 @@ try {
         l.id, l.title, l.description, l.price, l.category_id, l.images, l.hidden, l.user_id, l.created_at
       FROM reports r LEFT JOIN listings l ON l.id = r.listing_id
       WHERE r.status = 'open' ORDER BY r.created_at DESC LIMIT 200")->fetchAll();
-    $reports = array_map(function ($r) use ($shape) {
+    // DÉJÀ EXAMINÉ ? Le bureau de modération ne doit pas refaire chaque jour
+    // l'analyse d'un signalement sur lequel il a déjà conclu.
+    //
+    // Un signalement ouvert revient dans la file tant qu'il n'est pas classé —
+    // et c'est VOULU : classer le signalement d'un humain sur l'annonce d'un
+    // autre humain est une décision qui appartient au Patron, pas à un jeton de
+    // service. Ce que le bureau peut faire, lui, c'est marquer l'annonce
+    // « examinée » ; on lui rend donc cette date, pour qu'il écrive « déjà vu le
+    // 07/08, inchangé » au lieu de repartir de zéro.
+    $vues = [];
+    $idsVises = array_values(array_filter(array_map(fn($r) => (string) ($r['listing_id'] ?? ''), $rp)));
+    if ($idsVises) {
+      $in = implode(',', array_fill(0, count($idsVises), '?'));
+      $sv = $pdo->prepare("SELECT listing_id, created_at FROM mod_seen WHERE listing_id IN ($in)");
+      $sv->execute($idsVises);
+      foreach ($sv->fetchAll() as $v) $vues[(string) $v['listing_id']] = iso_to_ms($v['created_at']);
+    }
+    $reports = array_map(function ($r) use ($shape, $vues) {
       return [
         'reportId'   => $r['report_id'],
         'listingId'  => $r['listing_id'],
         'reason'     => $r['reason'],
         'details'    => $r['details'],
         'reportedAt' => iso_to_ms($r['reported_at']),
+        // null = jamais examinée. Sinon, la date du dernier « examinée-OK ».
+        'dejaVu'     => $vues[(string) ($r['listing_id'] ?? '')] ?? null,
         'listing'    => $r['id'] ? $shape($r) : null,
       ];
     }, $rp);
@@ -9019,7 +9038,15 @@ try {
       'reports' => $reports,
       'recent'  => $recent,
       'counts'  => ['reports' => count($reports), 'recent' => count($recent)],
-      'guide'   => 'Authentification: en-tête HTTP X-Service-Token. Masquer: POST /api/mod/hide {listingId,reason,confidence}. Signaler: POST /api/mod/flag {listingId,reason,details}. Marquer examinées-OK (pour ne plus les revoir): POST /api/mod/seen {listingIds:[]}. Digest: POST /api/mod/digest {examined,hidden:[],flagged:[],notes}.',
+      'guide'   => 'Authentification: en-tête HTTP X-Service-Token. '
+        . 'Masquer: POST /api/mod/hide {listingId,reason,confidence}. '
+        . 'Signaler: POST /api/mod/flag {listingId,reason,details}. '
+        . 'Marquer examinées-OK (pour ne plus les revoir dans « recent »): POST /api/mod/seen {listingIds:[]}. '
+        . 'Digest: POST /api/mod/digest {examined,hidden:[],flagged:[],notes}. '
+        . 'UN SIGNALEMENT OUVERT REVIENT TANT QU\'IL N\'EST PAS CLASSÉ, et mod/seen ne le classe pas : '
+        . 'clore le signalement d\'un humain sur l\'annonce d\'un autre est une décision réservée au Patron '
+        . '(admin → Signalements → Classer). Si vous avez déjà conclu, le champ « dejaVu » porte la date de '
+        . 'votre examen : dites « déjà vu le JJ/MM, inchangé » et passez, ne refaites pas l\'analyse.',
     ]);
   }
   // Masquer une annonce (cas à haute confiance : illégal / NSFW). Idempotent + audité.
@@ -9072,7 +9099,11 @@ try {
       try { $ins->execute([$lid, now_iso()]); $marked++; }
       catch (Throwable $e) { /* déjà marquée (clé primaire) : on ignore */ }
     }
-    jout(['ok' => true, 'marked' => $marked]);
+    // `marked: 0` seul se lit comme un échec — le bureau l'a signalé le 08/08 en
+    // le prenant pour une panne, alors que l'annonce était simplement déjà
+    // marquée depuis la veille. On distingue donc les deux : rien n'a échoué,
+    // il n'y avait rien de neuf à marquer.
+    jout(['ok' => true, 'marked' => $marked, 'deja' => count($ids) - $marked, 'total' => count($ids)]);
   }
   // Envoyer le digest de modération aux propriétaires + modérateurs.
   if ($path === 'mod/digest' && $method === 'POST') {

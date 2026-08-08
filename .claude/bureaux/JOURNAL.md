@@ -1463,3 +1463,36 @@ cloisonnement des secrets re-testé dans les deux sens. Il reste un seul dossier
 ouvert, le terrain de Treichville : signal isolé, laissé visible. Le Patron a
 désormais le modèle « Prix qui paraît faux » dans « Écrire à ce membre » — c'est
 exactement le cas d'usage pour lequel il a été écrit.
+
+### 2026-08-08 (16 h) — La file de modération se souvient
+
+**Le Gardien a signalé un point d'outillage, et il avait raison sur les faits
+mais pas sur la conclusion.** `POST /api/mod/seen` répondait `{"marked":0}` sur
+le terrain de Treichville, et le signalement revenait chaque jour bien que la
+décision — laisser visible, signal isolé — soit prise depuis deux rondes.
+
+**Ce n'était pas une panne, et le retour quotidien n'est pas un défaut.** Un
+signalement ouvert revient tant qu'il n'est pas classé, et c'est la file qui
+refuse correctement d'oublier une décision humaine non prise. `mod/seen` ne
+classe pas, et ne doit pas classer : clore le signalement d'un humain sur
+l'annonce d'un autre appartient au Patron. Le bouton existe depuis le 07/08 —
+admin → Signalements → Classer.
+
+**Deux vrais défauts d'outillage, corrigés :**
+
+1. La file ne disait pas au bureau qu'il avait déjà examiné l'annonce. Chaque
+   signalement porte désormais `dejaVu`, la date du dernier « examinée-OK ».
+2. `{"marked":0}` se lisait comme un échec. La réponse distingue maintenant
+   `marked` / `deja` / `total` — rien n'échouait, il n'y avait rien de neuf.
+
+Le `guide` de la file et la routine du Gardien portent la consigne : si `dejaVu`
+est renseigné et que rien n'a changé, une ligne — « déjà examiné le JJ/MM,
+inchangé » — et on passe.
+
+**La garantie qui compte a été éprouvée, pas supposée.** Le banc tente de
+classer le signalement avec le jeton de modération : refusé, et le signalement
+reste ouvert après la tentative. Il aurait été facile d'« aider » le bureau en
+lui ouvrant cette route ; c'est précisément ce qu'il ne faut pas faire.
+
+Le banc vit dans le bac à sable (`pushe2e/banc-moderation.mjs`) : serveur PHP
+local, base SQLite, jeton de service réel. Onze vérifications, vertes.
