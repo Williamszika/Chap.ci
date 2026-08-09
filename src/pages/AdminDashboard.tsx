@@ -1740,6 +1740,25 @@ Cinq minutes, et votre annonce ressort mieux dans les recherches.
 Merci.`,
   },
   {
+    id: 'titre',
+    nom: 'Titre et description à reprendre',
+    sujet: 'Votre annonce est presque invisible — deux minutes pour la réparer',
+    texte: (p) => `Bonjour${p ? ' ' + p : ''},
+
+Votre annonce est en ligne, mais telle qu’elle est rédigée, personne ne la trouvera. Deux choses la rendent invisible :
+
+1. Le TITRE ne contient pas le mot que les gens tapent. Quelqu’un qui cherche écrit « cahiers », « chaussures », « lapin »… Si ce mot n’est pas dans votre titre, votre annonce ne sort pas dans les résultats. Mettez donc en premier le nom exact de ce que vous vendez, puis un détail utile.
+   Exemple : « Lot de cahiers 32 à 300 pages » plutôt qu’un titre vague.
+
+2. La DESCRIPTION ne décrit pas votre produit. Écrivez ce que c’est vraiment, en une ou deux phrases : la quantité, l’état, la taille, la marque si elle compte. « Contactez-moi pour plus d’infos » ne dit rien à l’acheteur, et il passe.
+
+Il n’y a rien à supprimer — surtout pas : votre annonce a déjà une adresse que Google connaît. Ouvrez simplement Mon compte → Mes annonces → Modifier, corrigez le titre et la description, enregistrez. C’est tout.
+
+Deux minutes, et votre annonce commence enfin à être vue.
+
+Merci — et bonne vente.`,
+  },
+  {
     id: 'rubrique',
     nom: 'Annonce dans la mauvaise rubrique',
     sujet: 'Votre annonce serait mieux ailleurs',
