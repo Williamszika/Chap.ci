@@ -1560,3 +1560,45 @@ banc qui passe pour la mauvaise.
 
 Modif front seulement : `empreinteSite` `e9cfbe22552e`, les deux autres
 inchangées.
+
+### 2026-08-09 (soir) — La géographie des visiteurs, et le consentement cookies
+
+Quatre demandes du Patron dans un même message. Trois construites, une déjà
+faite.
+
+**Fait déjà, et je l'ai dit au lieu d'inventer un changement creux.** La
+géolocalisation et la DISTANCE EXACTE existent : `haversineKm` (Haversine),
+affichée sur les cartes ET la fiche acheteur, GPS haute précision qui garde la
+meilleure de plusieurs lectures (`getBestPosition`, ≤ 35 m). Il n'y avait rien à
+« renforcer » qui aurait ajouté de la valeur — je l'ai montré au Patron plutôt
+que de maquiller un no-op en travail.
+
+**Géographie des visiteurs — pays et ville, par jour/semaine/mois.** Le pays et
+la ville sont lus dans les EN-TÊTES de Cloudflare (`CF-IPCountry` toujours,
+`CF-IPCity` si le Patron active « Add visitor location headers ») — aucun appel
+réseau par visite. Nouvelles colonnes `country`/`city` sur `visits`, route
+`admin/geo?range=day|week|month` (permission `visitors`), panneau « D'où viennent
+vos visiteurs » dans l'Aperçu. Quand la ville manque, l'écran le DIT (« X visites
+sans ville identifiée ») et explique le clic Cloudflare — il n'invente pas.
+
+**Carte « Visites/jour »** ajoutée à la rangée du haut (visiteurs uniques,
+aujourd'hui + moyenne 7 j).
+
+**Consentement cookies.** Bandeau à poids égal Accepter / Refuser. Il GOUVERNE
+les pixels tiers (Meta, TikTok, Google) : `initMarketing()` ne charge rien tant
+que le consentement n'est pas donné. Le comptage de visites de première partie
+(anonyme, identifiant aléatoire) continue — on ne bloque pas le tableau de bord
+du Patron. Politique de confidentialité mise à jour (cookies + géographie).
+
+**Bancs.** `banc-geo.mjs` (bac à sable) rejoue de vraies visites avec les
+en-têtes Cloudflare simulés, puis interroge `admin/geo` et `admin/stats` comme
+le tableau de bord : Abidjan n°1, Côte d'Ivoire en tête, noms de pays en
+français, « sans ville » correct, et — la vérif qui compte — **`admin/geo`
+refusé sans le verrou admin**. Quatorze vérifications vertes. Le banc a d'ailleurs
+attrapé deux de MES erreurs (attente à 7 au lieu de 8 visiteurs ; `sansVille` qui
+comptait les « sans pays » au lieu des « sans ville ») — corrigées, l'une dans le
+test, l'autre dans le serveur.
+
+**Ce que le Patron doit faire pour les VILLES** : Cloudflare → Rules → Settings →
+Managed Transforms → activer « Add visitor location headers ». Un clic, gratuit.
+Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.

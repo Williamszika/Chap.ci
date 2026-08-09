@@ -7,6 +7,7 @@ import { Footer } from './components/Footer'
 import { LocationGate } from './components/LocationGate'
 import { NewsletterPrompt } from './components/NewsletterPrompt'
 import { FestiveOverlay } from './components/FestiveOverlay'
+import { CookieConsent } from './components/CookieConsent'
 import { NativeShell } from './components/NativeShell'
 import { useAuth } from './store/AuthContext'
 import { trackPageView } from './lib/track'
@@ -162,6 +163,8 @@ export default function App() {
       <NativeShell />
       <LocationGate />
       <NewsletterPrompt />
+      {/* Consentement cookies : gouverne les pixels tiers (Meta/TikTok/Google). */}
+      <CookieConsent />
       {/* Ambiance festive sur tout le site (fête de l'indépendance 🇨🇮) */}
       <FestiveOverlay />
     </div>

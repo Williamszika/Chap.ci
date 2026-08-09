@@ -372,6 +372,61 @@ function client_ip(): string {
   }
   return $remote !== '' ? $remote : '0.0.0.0';
 }
+
+/**
+ * Pays et ville du visiteur, lus dans les EN-TÊTES de Cloudflare.
+ *
+ * On ne fait AUCUN appel externe ici : ce serait payer une requête réseau à
+ * chaque page vue, pour une statistique. Cloudflare, qui est déjà devant le
+ * site, connaît la géolocalisation de l'IP et la pose en en-têtes — gratuit et
+ * instantané :
+ *   · `CF-IPCountry` : le code pays (ex. « CI »), TOUJOURS présent derrière
+ *     Cloudflare, rien à activer ;
+ *   · `CF-IPCity` / `CF-Region` : la ville et la région, présentes SEULEMENT si
+ *     le Patron a activé « Add visitor location headers » dans Cloudflare
+ *     (Rules → Settings → Managed Transforms). Un clic, gratuit.
+ *
+ * Sans Cloudflare (site en local, ou headers non activés), on renvoie `null` :
+ * la colonne reste vide, et l'écran d'admin le dit honnêtement (« ville non
+ * disponible ») au lieu d'inventer.
+ */
+function geo_from_request(): array {
+  $h = function (string $nom): string {
+    $k = 'HTTP_' . strtoupper(str_replace('-', '_', $nom));
+    return trim((string) ($_SERVER[$k] ?? ''));
+  };
+  $pays = strtoupper($h('CF-IPCountry'));
+  // Cloudflare renvoie « XX », « T1 » (Tor) ou vide quand il ne sait pas.
+  if (!preg_match('/^[A-Z]{2}$/', $pays) || $pays === 'XX') $pays = '';
+  $ville = mb_substr($h('CF-IPCity'), 0, 80);
+  // Certaines villes reviennent encodées (%20) : on décode proprement.
+  if ($ville !== '' && str_contains($ville, '%')) $ville = rawurldecode($ville);
+  return ['country' => $pays !== '' ? $pays : null, 'city' => $ville !== '' ? $ville : null];
+}
+
+/**
+ * Nom français d'un pays à partir de son code ISO. Couvre l'Afrique de l'Ouest
+ * et les pays d'où viennent réellement les visiteurs d'un site ivoirien (diaspora
+ * en France, Canada, États-Unis…). Un code inconnu est rendu tel quel — mieux
+ * vaut « NG » que rien, et l'admin comprend.
+ */
+function pays_nom(?string $code): string {
+  $code = strtoupper((string) $code);
+  static $noms = [
+    'CI' => 'Côte d’Ivoire', 'FR' => 'France', 'US' => 'États-Unis', 'CA' => 'Canada',
+    'BF' => 'Burkina Faso', 'ML' => 'Mali', 'SN' => 'Sénégal', 'GN' => 'Guinée',
+    'GH' => 'Ghana', 'TG' => 'Togo', 'BJ' => 'Bénin', 'NG' => 'Nigéria', 'NE' => 'Niger',
+    'LR' => 'Liberia', 'SL' => 'Sierra Leone', 'MA' => 'Maroc', 'DZ' => 'Algérie',
+    'TN' => 'Tunisie', 'CM' => 'Cameroun', 'GA' => 'Gabon', 'CG' => 'Congo',
+    'CD' => 'RD Congo', 'BE' => 'Belgique', 'CH' => 'Suisse', 'GB' => 'Royaume-Uni',
+    'DE' => 'Allemagne', 'IT' => 'Italie', 'ES' => 'Espagne', 'PT' => 'Portugal',
+    'NL' => 'Pays-Bas', 'CN' => 'Chine', 'IN' => 'Inde', 'AE' => 'Émirats arabes unis',
+    'TR' => 'Turquie', 'MR' => 'Mauritanie', 'GM' => 'Gambie', 'GW' => 'Guinée-Bissau',
+    'ZA' => 'Afrique du Sud', 'KE' => 'Kenya', 'ET' => 'Éthiopie', 'EG' => 'Égypte',
+  ];
+  return $noms[$code] ?? ($code !== '' ? $code : 'Inconnu');
+}
+
 /** Journalise un événement de sécurité. Ne casse JAMAIS la requête en cas d'erreur. */
 function log_security_event(PDO $pdo, string $kind, ?string $email = null, string $detail = ''): void {
   try {
@@ -1803,6 +1858,15 @@ function migrate(PDO $pdo): void {
   // un compte, ou sur le formulaire lui-même — deux problèmes opposés.
   try { $pdo->exec("ALTER TABLE visits ADD COLUMN authed $intT"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // PAYS ET VILLE du visiteur, pour savoir d'où vient le monde. Renseignés par
+  // Cloudflare (voir geo_from_request) — pays toujours, ville seulement si le
+  // Patron a activé « Add visitor location headers » dans Cloudflare. Colonnes
+  // ajoutées après coup : une base antérieure les reçoit ici. Le code lit
+  // toujours avec `?? null`, donc une base non migrée ne casse rien.
+  try { $pdo->exec("ALTER TABLE visits ADD COLUMN country $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE visits ADD COLUMN city $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // PUBLICITÉS : dix colonnes que le code écrit et lit depuis longtemps, mais
   // qu'aucune migration n'ajoutait — et que le CREATE TABLE ci-dessus ne déclare
   // pas non plus. Sur chap.ci elles existent (posées à la main quand la
@@ -2123,7 +2187,7 @@ function admin_feature_labels(): array {
 function admin_feature_for_path(string $path): string {
   if ($path === 'admin/check' || $path === 'admin/me' || str_starts_with($path, 'admin/unlock')) return '';
   if ($path === 'admin/stats') return 'overview';
-  if ($path === 'admin/visits' || $path === 'admin/response-time') return 'visitors';
+  if ($path === 'admin/visits' || $path === 'admin/response-time' || $path === 'admin/geo') return 'visitors';
   if (str_starts_with($path, 'admin/listings')) return 'listings';
   if (str_starts_with($path, 'admin/users')) return 'users';
   if (str_starts_with($path, 'admin/reports')) return 'reports';
@@ -6405,8 +6469,17 @@ try {
     // et n'emporte pas le cookie. Ce drapeau n'ouvre aucun droit : au pire, une
     // statistique de fréquentation est légèrement faussée.
     $authed = current_user($pdo, $secret) ? 1 : (!empty($b['auth']) ? 1 : 0);
-    $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,authed,created_at) VALUES (?,?,?,?,?,?)')
-        ->execute([uuid(), $vid, $p, $ref ?: null, $authed, now_iso()]);
+    // D'où vient ce visiteur ? Lu dans les en-têtes Cloudflare, aucun appel
+    // réseau. Colonnes ajoutées par migration : sur une base pas encore migrée,
+    // l'INSERT complet échouerait, alors on retombe sur l'INSERT d'origine.
+    $geo = geo_from_request();
+    try {
+      $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,authed,country,city,created_at) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([uuid(), $vid, $p, $ref ?: null, $authed, $geo['country'], $geo['city'], now_iso()]);
+    } catch (Throwable $e) {
+      $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,authed,created_at) VALUES (?,?,?,?,?,?)')
+          ->execute([uuid(), $vid, $p, $ref ?: null, $authed, now_iso()]);
+    }
     jout(['ok' => true]);
   }
 
@@ -7081,6 +7154,18 @@ try {
           ? (int) ($pdo->query("SELECT COUNT(*) AS c FROM ads WHERE status = 'pending'")->fetch()['c'])
           : null,
         'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
+        // VISITES pour la carte du haut : visiteurs uniques aujourd'hui, sur 7
+        // jours, et la moyenne par jour. Des VISITEURS, pas des pages vues :
+        // c'est le nombre de personnes qui compte, pas leurs clics.
+        'visites' => (function () use ($pdo): array {
+          $u1 = function (string $depuis) use ($pdo): int {
+            try { $s = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?'); $s->execute([$depuis]); return (int) $s->fetchColumn(); }
+            catch (Throwable $e) { return 0; }
+          };
+          $jour = $u1(gmdate('Y-m-d\TH:i:s\Z', time() - 86400));
+          $sem  = $u1(gmdate('Y-m-d\TH:i:s\Z', time() - 7 * 86400));
+          return ['jour' => $jour, 'semaine' => $sem, 'parJour' => (int) round($sem / 7)];
+        })(),
         // LE PARCOURS. Quatre marches, dans l'ordre où une personne les monte :
         // elle arrive, elle crée un compte, elle publie, elle vend. Chaque
         // marche est un SOUS-ENSEMBLE de la précédente (sauf la première), donc
@@ -8387,6 +8472,64 @@ try {
     if ($path === 'admin/visits' && $method === 'GET') {
       $range = in_array($_GET['range'] ?? '', ['day', 'week', 'month', 'year'], true) ? $_GET['range'] : 'day';
       jout(visit_series($pdo, $range));
+    }
+
+    // D'OÙ VIENNENT LES VISITEURS — pays et ville, par jour / semaine / mois.
+    //
+    // `range` choisit la fenêtre : `day` = les dernières 24 h, `week` = 7 jours,
+    // `month` = 30 jours. On rend les pays et les villes les plus fréquents sur
+    // cette fenêtre, avec le nombre de visiteurs UNIQUES (pas de pages vues :
+    // « 40 visiteurs d'Abidjan » veut dire quelque chose, « 400 pages » non).
+    //
+    // `sansGeo` compte les visites dont Cloudflare n'a pas donné la ville — le
+    // plus souvent parce que les en-têtes de localisation ne sont pas activés.
+    // On le rend explicitement pour que l'écran dise la vérité au lieu de faire
+    // croire que personne ne vient de nulle part.
+    if ($path === 'admin/geo' && $method === 'GET') {
+      $range = in_array($_GET['range'] ?? '', ['day', 'week', 'month'], true) ? $_GET['range'] : 'week';
+      $jours = $range === 'day' ? 1 : ($range === 'month' ? 30 : 7);
+      $since = gmdate('Y-m-d\TH:i:s\Z', time() - $jours * 86400);
+
+      $lignes = [];
+      try {
+        $st = $pdo->prepare('SELECT country, city, visitor_id FROM visits WHERE created_at >= ? LIMIT 200000');
+        $st->execute([$since]);
+        $lignes = $st->fetchAll();
+      } catch (Throwable $e) { $lignes = []; /* base pas encore migrée */ }
+
+      $paysVis = []; $villeVis = []; $totalVis = []; $avecVille = [];
+      foreach ($lignes as $r) {
+        $vid = (string) $r['visitor_id'];
+        $totalVis[$vid] = true;
+        $c = strtoupper((string) ($r['country'] ?? ''));
+        $ville = trim((string) ($r['city'] ?? ''));
+        if ($c !== '') $paysVis[$c][$vid] = true;
+        if ($c !== '' && $ville !== '') { $villeVis[$c . '|' . $ville][$vid] = true; $avecVille[$vid] = true; }
+      }
+      $tri = function (array $m): array {
+        $out = [];
+        foreach ($m as $k => $set) $out[] = ['k' => $k, 'n' => count($set)];
+        usort($out, fn($a, $b) => $b['n'] <=> $a['n']);
+        return $out;
+      };
+      $pays = array_map(fn($x) => [
+        'code' => $x['k'], 'nom' => pays_nom($x['k']), 'visiteurs' => $x['n'],
+      ], array_slice($tri($paysVis), 0, 12));
+      $villes = array_map(function ($x) {
+        [$c, $ville] = explode('|', $x['k'], 2);
+        return ['ville' => $ville, 'pays' => pays_nom($c), 'code' => $c, 'visiteurs' => $x['n']];
+      }, array_slice($tri($villeVis), 0, 15));
+
+      jout([
+        'range'      => $range,
+        'visiteurs'  => count($totalVis),
+        'pays'       => $pays,
+        'villes'     => $villes,
+        // Visiteurs qu'on n'a pas pu placer sur une ville (pays inconnu, ou ville
+        // non fournie par Cloudflare) : le total moins ceux qu'on a situés.
+        'sansVille'  => count($totalVis) - count($avecVille),
+        'villesActives' => count($villeVis) > 0, // au moins une ville connue → headers actifs
+      ]);
     }
 
     // Temps de réponse moyen aux messages.

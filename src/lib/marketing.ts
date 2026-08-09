@@ -13,6 +13,7 @@
 //  Capacitor — le suivi natif se fait via les SDK, séparément).
 // =============================================================================
 import { isNative } from './native'
+import { consentAccepted } from './consent'
 
 const META_PIXEL_ID = '1617587653705134'
 const TIKTOK_PIXEL_ID = 'D9H1PR3C77U7JAF0T350'
@@ -26,6 +27,11 @@ export function initMarketing(): void {
   if (typeof window === 'undefined') return
   if (isNative) return // app native : pas de pixels web
   if (import.meta.env.DEV) return // pas de traceurs en développement
+  // CONSENTEMENT OBLIGATOIRE. Les trois pixels posent des cookies tiers : ils ne
+  // se chargent que si la personne a accepté. Tant qu'elle n'a pas répondu, ou
+  // si elle a refusé, on ne charge RIEN. Le bandeau rappelle initMarketing()
+  // au moment de l'acceptation.
+  if (!consentAccepted()) return
   started = true
   try { loadMeta() } catch { /* silencieux */ }
   try { loadTikTok() } catch { /* silencieux */ }

@@ -783,6 +783,9 @@ export async function phpAdminDeleteReview(id: string): Promise<void> {
 export async function phpAdminVisits<T>(range: string): Promise<T> {
   return req<T>(`/admin/visits?range=${encodeURIComponent(range)}`)
 }
+export async function phpAdminGeo<T>(range: string): Promise<T> {
+  return req<T>(`/admin/geo?range=${encodeURIComponent(range)}`)
+}
 export async function phpAdminResponseTime<T>(): Promise<T> {
   return req<T>('/admin/response-time')
 }

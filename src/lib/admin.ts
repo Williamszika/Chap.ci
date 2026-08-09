@@ -25,6 +25,8 @@ export interface AdminStats {
     listings: { day: number; week: number; month: number; year: number }
   }
   series?: { date: string; users: number; listings: number }[]
+  /** Visiteurs uniques — aujourd'hui, sur 7 jours, et la moyenne par jour. */
+  visites?: { jour: number; semaine: number; parJour: number }
   /**
    * Le Parcours : quatre marches, dans l'ordre où une personne les monte.
    * Les trois dernières suivent la COHORTE des comptes créés dans la fenêtre,
@@ -292,6 +294,23 @@ export async function fetchVisits(range: VisitRange): Promise<VisitStats> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminVisits<VisitStats>(range)
 }
+/** Géographie des visiteurs : d'où ils viennent, par jour / semaine / mois. */
+export type GeoRange = 'day' | 'week' | 'month'
+export interface GeoStats {
+  range: GeoRange
+  visiteurs: number
+  pays: { code: string; nom: string; visiteurs: number }[]
+  villes: { ville: string; pays: string; code: string; visiteurs: number }[]
+  /** Visites dont Cloudflare n'a pas donné la ville (en-têtes non activés). */
+  sansVille: number
+  /** Vrai si au moins une ville est connue — donc les en-têtes Cloudflare sont actifs. */
+  villesActives: boolean
+}
+export async function fetchGeo(range: GeoRange): Promise<GeoStats> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminGeo<GeoStats>(range)
+}
+
 export async function fetchResponseTime(): Promise<ResponseTime> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminResponseTime<ResponseTime>()

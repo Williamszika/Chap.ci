@@ -24,6 +24,7 @@ import {
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview,
   fetchInvites, envoyerInvitations, type ListeInvites,
+  fetchGeo, type GeoStats, type GeoRange,
 } from '../lib/admin'
 import { ouvrirFil } from '../lib/equipe'
 import {
@@ -330,6 +331,115 @@ const PERM_LABELS: Record<string, string> = {
 }
 
 /**
+ * D'OÙ VIENNENT LES VISITEURS — pays et ville, par jour / semaine / mois.
+ *
+ * Les données arrivent de Cloudflare, qui géolocalise l'adresse IP et la pose
+ * en en-têtes : le PAYS est toujours là, la VILLE seulement si le Patron a
+ * activé « Add visitor location headers ». Quand la ville manque, on le DIT au
+ * lieu de faire croire que personne ne vient de nulle part.
+ */
+const GEO_FENETRES: [GeoRange, string][] = [['day', 'Jour'], ['week', 'Semaine'], ['month', 'Mois']]
+
+function VisiteursGeo() {
+  const [range, setRange] = useState<GeoRange>('week')
+  const [data, setData] = useState<GeoStats | null>(null)
+  const [err, setErr] = useState(false)
+  useEffect(() => {
+    let alive = true
+    setData(null); setErr(false)
+    fetchGeo(range).then((d) => { if (alive) setData(d) }).catch(() => { if (alive) setErr(true) })
+    return () => { alive = false }
+  }, [range])
+
+  const maxPays = Math.max(1, ...(data?.pays ?? []).map((p) => p.visiteurs))
+
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-card">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-display text-base font-bold text-ink">D’où viennent vos visiteurs</p>
+          <p className="text-xs text-gray-500">Pays et ville, sur la période choisie.</p>
+        </div>
+        <div className="flex gap-1 rounded-xl bg-gray-100 p-0.5">
+          {GEO_FENETRES.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setRange(id)}
+              className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold transition ${
+                range === id ? 'bg-white text-ink shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {err ? (
+        <p className="py-6 text-center text-sm text-gray-500">Chargement impossible.</p>
+      ) : !data ? (
+        <p className="py-6 text-center text-sm text-gray-400">Chargement…</p>
+      ) : data.visiteurs === 0 ? (
+        <p className="py-6 text-center text-sm text-gray-500">Aucune visite sur cette période.</p>
+      ) : (
+        <div className="mt-3 grid gap-5 md:grid-cols-2">
+          {/* Les pays */}
+          <div>
+            <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-gray-400">Pays</p>
+            <ul className="space-y-2">
+              {data.pays.map((p) => (
+                <li key={p.code}>
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="font-medium text-gray-800">{p.nom}</span>
+                    <span className="text-gray-500">{formatPrice(p.visiteurs)}</span>
+                  </div>
+                  <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <span className="block h-full rounded-full bg-primary-500" style={{ width: `${Math.max(3, (p.visiteurs / maxPays) * 100)}%` }} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Les villes */}
+          <div>
+            <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-gray-400">Villes</p>
+            {data.villes.length > 0 ? (
+              <ul className="divide-y divide-gray-50">
+                {data.villes.map((v, i) => (
+                  <li key={`${v.code}-${v.ville}-${i}`} className="flex items-center justify-between py-1.5 text-sm">
+                    <span className="min-w-0 flex-1 truncate text-gray-800">
+                      {v.ville} <span className="text-gray-400">· {v.pays}</span>
+                    </span>
+                    <span className="shrink-0 text-gray-500">{formatPrice(v.visiteurs)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-xl bg-cream-100/70 p-3 text-[12.5px] leading-snug text-gray-700">
+                <p className="mb-1 font-semibold">Les villes ne sont pas encore disponibles.</p>
+                Le pays est connu, mais pas la ville. Pour l’obtenir — c’est gratuit et
+                en un clic : dans <b>Cloudflare → Rules → Settings → Managed Transforms</b>,
+                activez <b>« Add visitor location headers »</b>. Les villes apparaîtront
+                pour les visites suivantes.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {data && data.sansVille > 0 && data.villesActives && (
+        <p className="mt-3 text-[11px] text-gray-400">
+          {formatPrice(data.sansVille)} visite{data.sansVille > 1 ? 's' : ''} sans ville identifiée
+          (réseau ou VPN masquant la localisation).
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
  * LE PARCOURS — quatre marches, et l'endroit où les gens s'arrêtent.
  *
  * Un tableau de bord qui affiche « 148 visiteurs · 12 comptes · 24 annonces »
@@ -466,6 +576,8 @@ function Overview({ stats, onGo, canSee, owner, email }: {
   const cards: { e: string; tint: string; label: string; value: number; tab: Tab; trend?: string | null; alert?: boolean }[] = [
     { e: '👥', tint: 'bg-sky-100', label: 'Utilisateurs', value: stats.users, tab: 'users', trend: stats.periods && stats.periods.users.week > 0 ? `${formatPrice(stats.periods.users.week)} (7 j)` : null },
     { e: '📦', tint: 'bg-ivoire-green/15', label: 'Annonces', value: stats.listings, tab: 'listings', trend: stats.periods && stats.periods.listings.week > 0 ? `${formatPrice(stats.periods.listings.week)} (7 j)` : null },
+    { e: '🚶', tint: 'bg-violet-100', label: 'Visites/jour', value: stats.visites?.parJour ?? 0, tab: 'visitors',
+      trend: stats.visites && stats.visites.jour > 0 ? `${formatPrice(stats.visites.jour)} aujourd’hui` : null },
     { e: '🤝', tint: 'bg-amber-100', label: 'Commandes', value: stats.orders, tab: 'orders' },
     { e: '🚩', tint: 'bg-red-100', label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
   ]
@@ -528,6 +640,9 @@ function Overview({ stats, onGo, canSee, owner, email }: {
 
       {/* Le Parcours : la seule vue qui dise OÙ ça fuit. */}
       {owner && stats.parcours && <Parcours p={stats.parcours} />}
+
+      {/* D'où viennent les visiteurs — pays et ville, par jour / semaine / mois. */}
+      {owner && <VisiteursGeo />}
 
       {/* Graphique en barres + carte Sécurité — propriétaire uniquement (artifact) */}
       {owner && (
