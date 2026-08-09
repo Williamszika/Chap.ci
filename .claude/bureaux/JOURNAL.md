@@ -1535,3 +1535,28 @@ brute dans son rapport (« `dejaVu` 28/07 ») au lieu d'écrire seulement « dé
 vu ». Sans ce chiffre, le défaut était invisible. Un rapport qui montre ses
 données permet de corriger l'outil qui l'a produit ; un rapport qui ne montre
 que ses conclusions, jamais.
+
+### 2026-08-09 — Le modèle « titre à reprendre », pour la rentrée
+
+Le catalogue de la rentrée butait sur un détail concret : l'annonce des cahiers
+de Koumassi s'intitule « Uniquement les cahiers privilégie✅️ » et se décrit
+« Un livre en bon état, à vendre » — le titre ne contient pas le mot « cahiers »
+que les gens tapent, et la description parle d'un livre. Le Crieur voulait la
+partager pour la rentrée ; l'aperçu WhatsApp aurait montré ce texte-là.
+
+Sixième modèle ajouté à « Écrire à ce membre » : « Titre et description à
+reprendre ». Il explique en deux points pourquoi l'annonce est invisible
+(mot-clé absent du titre, description vide de sens), donne un exemple, et
+rappelle de NE PAS supprimer — l'URL est déjà connue de Google — mais d'ouvrir
+Mon compte → Mes annonces → Modifier.
+
+Banc `npm run banc:modeles` : il extrait le tableau MODELES_MESSAGE de la page
+admin (données pures, pas de JSX) et exécute chaque gabarit — prénom injecté,
+aucun « undefined », chemins présents. Huit modèles, vert. Le banc a d'ailleurs
+attrapé son propre défaut au premier essai : mon extraction visait le `[]` du
+TYPE (`=> string }[]`) au lieu du vrai tableau, et rendait « 0 modèle ». Corrigé
+en ciblant le `= [`. Un banc qui échoue pour la bonne raison vaut mieux qu'un
+banc qui passe pour la mauvaise.
+
+Modif front seulement : `empreinteSite` `e9cfbe22552e`, les deux autres
+inchangées.
