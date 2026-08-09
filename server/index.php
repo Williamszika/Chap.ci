@@ -4706,6 +4706,25 @@ if (!file_exists($resetMarker)) {
   admins_fp_save($config, $pdo); // référence d'intégrité = ensemble vide (propriétaire seul)
   @file_put_contents($resetMarker, now_iso());
 }
+
+// NETTOYAGE UNIQUE : retirer les passages sur le tableau de bord des statistiques
+// de fréquentation.
+//
+// Un écran /admin n'est pas une page du site — personne ne « visite » un tableau
+// de bord. Or jusqu'ici, chaque fois que le Patron rafraîchissait son admin,
+// c'était compté comme une visite et des pages vues : d'où 4 154 pages pour 158
+// personnes (26 par tête, impossible pour du vrai trafic). Désormais /track ne
+// les enregistre plus (voir la route) ; ce nettoyage efface celles DÉJÀ en base.
+//
+// On ne touche QUE les lignes de chemin /admin — de l'accès au dashboard, aucune
+// donnée d'audience réelle. Le marqueur garantit un seul passage (migrate tourne
+// à chaque requête, et un DELETE avec scan à chaque fois coûterait cher).
+$purgeAdminVisits = chapci_secret_dir($config) . '/.visits_admin_purge_v1';
+if (!file_exists($purgeAdminVisits)) {
+  try { $pdo->prepare("DELETE FROM visits WHERE path LIKE ?")->execute(['/admin%']); }
+  catch (Throwable $e) { /* table absente : rien à faire */ }
+  @file_put_contents($purgeAdminVisits, now_iso());
+}
 $secret = $config['jwt_secret'];
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
@@ -6468,7 +6487,23 @@ try {
     // drapeau du client pour l'app native, où la requête part d'une autre origine
     // et n'emporte pas le cookie. Ce drapeau n'ouvre aucun droit : au pire, une
     // statistique de fréquentation est légèrement faussée.
-    $authed = current_user($pdo, $secret) ? 1 : (!empty($b['auth']) ? 1 : 0);
+    $u = current_user($pdo, $secret);
+    $authed = $u ? 1 : (!empty($b['auth']) ? 1 : 0);
+    // DES CHIFFRES VRAIS : on ne compte PAS les passages de l'équipe, ni les
+    // pages du tableau de bord.
+    //
+    //   · L'équipe (propriétaire, modérateurs) n'est pas le public. Le Patron
+    //     qui rafraîchit son admin cinquante fois par jour n'est pas cinquante
+    //     visiteurs — et sans cette garde, il l'était. C'est ce qui donnait
+    //     4 154 pages pour 158 personnes : 26 par tête, un chiffre impossible
+    //     pour du vrai trafic.
+    //   · Les écrans /admin ne sont pas des pages du site : personne ne « visite »
+    //     un tableau de bord. On ne les enregistre pas.
+    //
+    // On répond « ok » sans rien écrire : le front n'a pas à savoir qu'on a
+    // ignoré la mesure.
+    if ($u && is_admin($config, $pdo, $u)) jout(['ok' => true]);
+    if (str_starts_with($p, '/admin')) jout(['ok' => true]);
     // D'où vient ce visiteur ? Lu dans les en-têtes Cloudflare, aucun appel
     // réseau. Colonnes ajoutées par migration : sur une base pas encore migrée,
     // l'INSERT complet échouerait, alors on retombe sur l'INSERT d'origine.
