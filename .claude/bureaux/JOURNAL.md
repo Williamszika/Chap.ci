@@ -1602,3 +1602,36 @@ test, l'autre dans le serveur.
 **Ce que le Patron doit faire pour les VILLES** : Cloudflare → Rules → Settings →
 Managed Transforms → activer « Add visitor location headers ». Un clic, gratuit.
 Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
+
+---
+
+### 2026-08-09 20:11 — [Développement] Les vrais chiffres de fréquentation
+- **Fait** : les visites et les pages vues n'affichaient pas le VRAI public —
+  elles comptaient l'équipe et le tableau de bord. **4 154 pages pour 158
+  personnes, soit 26 pages par tête** : impossible pour du vrai trafic. La cause,
+  trouvée par le banc et non par déduction : chaque ouverture ou rafraîchissement
+  de l'admin par le Patron passait par `/track` et comptait comme une visite ; et
+  l'écran `/admin` lui-même comptait comme une page du site.
+  - `/track` ne compte plus **ni les passages de l'équipe** (propriétaire,
+    modérateurs — reconnus CÔTÉ SERVEUR par la session, pas par un drapeau du
+    client falsifiable) **ni les chemins `/admin`**. On répond « ok » sans écrire.
+  - **Nettoyage unique** gardé par un marqueur (`.visits_admin_purge_v1`, dans le
+    dossier des secrets en 0700) : efface les lignes `/admin` déjà en base, une
+    seule fois, au premier chargement après déploiement. `migrate()` tournant à
+    chaque requête, un DELETE non gardé coûterait un scan à chaque appel.
+- **Le piège évité (et une erreur avouée)** : ma première tentative filtrait la
+  requête SQL avec `'/admin%'` en littéral simple-quote **à l'intérieur** d'une
+  chaîne PHP simple-quote → SQL malformé qui renvoyait 0, avalé par le try/catch,
+  et `php -l` passait quand même (parsé comme chaîne + arithmétique). Attrapé en
+  interrogeant SQLite directement (9 lignes présentes, requête directe = 9), pas
+  en relisant le code. Reverté ; gardé la seule garde propre (`is_admin` +
+  `str_starts_with`, aucun littéral SQL).
+- **Banc** : `banc-geo.mjs` gagne deux vérifs — « une page /admin n'est pas
+  comptée » et « un vrai visiteur anonyme, lui, est bien compté ». **Seize vertes.**
+- **Pour le Patron** : zip `chap-vrais-chiffres` (un seul fichier, `api/index.php`,
+  empreinte `9b668c4362b4`). **Après extraction, les compteurs BAISSENT — c'est la
+  correction, pas une perte.** Le chiffre affiché sera enfin celui du vrai public.
+  Les inscrits ne bougent pas : ce sont de vraies personnes, déjà justes.
+- **Pour les autres bureaux** : 📊 tout bureau qui lit `admin/stats.visites` ou
+  `admin/geo` lit désormais le public réel, équipe exclue — ne vous étonnez pas de
+  la marche descendante du 9 août sur les courbes, c'est ce correctif.
