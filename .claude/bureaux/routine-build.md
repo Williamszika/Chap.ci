@@ -118,11 +118,14 @@ CE QUE TU NE FAIS PAS, ET CE N'EST PAS NÉGOCIABLE :
    git log --oneline COMMIT..HEAD -- src/ public/ index.html \
        capacitor.config.ts package.json vite.config.ts
    Remplace COMMIT par celui que tu as lu au §1. N'écris JAMAIS ici de valeur
-   d'exemple : cette ligne a longtemps porté « aujourd'hui : a993629 », figé le
-   jour de sa rédaction. Dix-sept builds plus tard il désignait toujours la
-   v1.2, et la ronde du 03/08 est partie de là — dix-sept versions en arrière.
-   Un exemple concret l'emporte toujours sur l'instruction abstraite qui
-   l'accompagne : c'est pourquoi il ne doit pas y en avoir.
+   d'exemple : cette ligne a longtemps porté un vrai hash collé après
+   « aujourd'hui : », figé le jour de sa rédaction. Dix-sept builds plus tard il
+   désignait toujours une version vieille de dix-sept crans, et la ronde du 03/08
+   est partie de là. Un exemple concret l'emporte toujours sur l'instruction
+   abstraite qui l'accompagne : c'est pourquoi il ne doit pas y en avoir — et
+   c'est pourquoi le hash d'époque a été RETIRÉ d'ici. Le 10/08, une ronde l'y
+   avait relu comme un repère à utiliser et a cru à tort qu'il « n'existait
+   plus » : preuve, encore, qu'un hash écrit là se fait suivre au lieu d'alerter.
 
    VÉRIFIE que le commit lu existe vraiment avant de t'en servir :
        git cat-file -t COMMIT     → doit répondre « commit »
