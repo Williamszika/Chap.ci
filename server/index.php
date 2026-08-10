@@ -4215,7 +4215,21 @@ function visit_series(PDO $pdo, string $range): array {
   $idx = []; foreach ($buckets as $i => $b) $idx[$b['key']] = $i;
   $views = array_fill(0, count($buckets), 0);
   $vsets = array_fill(0, count($buckets), []);
-  $st = $pdo->prepare('SELECT visitor_id, created_at FROM visits WHERE created_at >= ? ORDER BY created_at ASC LIMIT 200000');
+  // DES CHIFFRES DE PUBLIC. « Pages vues » et « Visiteurs uniques » ne comptent
+  // que les personnes NON connectées — le public. Un visiteur connecté, c'est
+  // vous, un modérateur ou l'un de vos testeurs : ils utilisent le site tous les
+  // jours et écrasaient le chiffre (25 pages par tête, un chiffre impossible pour
+  // du vrai trafic). On les retire.
+  //
+  //   · authed = 1  → la personne était connectée : équipe ou testeur. EXCLU.
+  //   · authed = 0  → visiteur anonyme : le public. COMPTÉ.
+  //   · authed NULL → visite d'AVANT la pose du drapeau (début août) : on ne sait
+  //     pas si elle était connectée. On la GARDE plutôt que de jeter de vrais
+  //     visiteurs du début — et à l'avenir chaque ligne vaut 0 ou 1, donc cette
+  //     zone d'incertitude se referme d'elle-même.
+  $st = $pdo->prepare('SELECT visitor_id, created_at FROM visits
+                       WHERE created_at >= ? AND (authed = 0 OR authed IS NULL)
+                       ORDER BY created_at ASC LIMIT 200000');
   $st->execute([$since]);
   while ($row = $st->fetch()) {
     $k = $keyOf($row['created_at']);
@@ -4252,7 +4266,8 @@ function visit_series(PDO $pdo, string $range): array {
     ];
     $totalViews += $views[$i]; $totalSignups += $signups[$i]; $totalListings += $listings[$i];
   }
-  $tv = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) AS c FROM visits WHERE created_at >= ?');
+  $tv = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) AS c FROM visits
+                       WHERE created_at >= ? AND (authed = 0 OR authed IS NULL)');
   $tv->execute([$since]);
 
   // DEPUIS QUAND MESURE-T-ON ? Un jour à zéro visite et un jour antérieur à la
@@ -7194,7 +7209,9 @@ try {
         // c'est le nombre de personnes qui compte, pas leurs clics.
         'visites' => (function () use ($pdo): array {
           $u1 = function (string $depuis) use ($pdo): int {
-            try { $s = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?'); $s->execute([$depuis]); return (int) $s->fetchColumn(); }
+            // Public seulement (même règle que visit_series) : hors équipe et
+            // comptes connectés. authed=1 exclu ; 0 ou NULL comptés.
+            try { $s = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ? AND (authed = 0 OR authed IS NULL)'); $s->execute([$depuis]); return (int) $s->fetchColumn(); }
             catch (Throwable $e) { return 0; }
           };
           $jour = $u1(gmdate('Y-m-d\TH:i:s\Z', time() - 86400));
@@ -7224,7 +7241,12 @@ try {
             $a = $depuis === null ? [] : [$depuis];
             $ouU = $depuis === null ? '' : ' AND u.created_at >= ?';
             return [
-              'visiteurs' => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits' . $ouTemps, $a),
+              // « Arrivés » = le public (hors équipe/comptes connectés), même
+              // règle que le haut du tableau ; sinon la première marche du
+              // parcours et le grand chiffre « Visiteurs uniques » se
+              // contrediraient.
+              'visiteurs' => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE (authed = 0 OR authed IS NULL)'
+                                 . ($depuis === null ? '' : ' AND created_at >= ?'), $a),
               'comptes'   => $un('SELECT COUNT(*) FROM users' . $ouTemps, $a),
               'publie'    => $un('SELECT COUNT(DISTINCT l.user_id) FROM listings l
                                     JOIN users u ON u.id = l.user_id WHERE 1=1' . $ouU, $a),

@@ -1176,6 +1176,14 @@ function VisitorsTab() {
             </div>
           </div>
 
+          {/* Ces chiffres ne comptent QUE le public. L'équipe et les comptes
+              connectés (dont les testeurs) sont exclus — sinon le Patron qui
+              rafraîchit son tableau de bord se comptait lui-même par dizaines. */}
+          <p className="-mt-1 px-1 text-[11px] leading-snug text-gray-500">
+            Chiffres du <b className="font-semibold">public</b> : votre équipe et les comptes
+            connectés (dont vos testeurs) ne sont pas comptés.
+          </p>
+
           {/* LE TAUX QU'IL FAUT REGARDER. Il est calculé, pas estimé : sur la
               période affichée, combien de visiteurs uniques ont fini par créer
               un compte. À ces volumes on le donne en clair, jamais arrondi. */}
