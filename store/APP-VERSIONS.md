@@ -60,7 +60,7 @@ autrement dit `git log --oneline -1` juste après avoir commité la montée de v
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | ✅ **v1.18 (code 19) publiée le 6 août 2026** — première publication réelle du projet. Google a notifié « Mise à jour de l'appli publiée. Les utilisateurs devraient voir les modifications immédiatement », relevé par le Patron le 7 août. Les v1.9, v1.16 et v1.17 étaient toutes restées en brouillon. ⚠️ **Le lien d'adhésion testeur `play.google.com/apps/testing/ci.chap.app` n'a pas encore été confirmé ouvert par le Patron** : la publication est acquise, l'ouverture du canal ne l'est pas encore. Aucun testeur inscrit à cette heure — le compte à rebours des 14 jours n'a donc toujours pas démarré. | **aucune** |
+| Version publiée | ✅ **v1.18 (code 19) en ligne sur le canal de TEST FERMÉ** depuis le 6 août 2026 — première mise en ligne réelle du projet (les v1.9, v1.16 et v1.17 étaient restées en brouillon). Google a notifié « Mise à jour de l'appli publiée », relevé par le Patron le 7 août, puis **confirmé dans la Play Console le 10/08/2026** : « Dernière release : 19 (1.18) », canal actif, 1 pays/région. ⚠️ **Ce n'est PAS la production** (production « Inactif », bloquée par l'exigence « 12 testeurs / 14 jours »). Le canal est ouvert : **1 testeur inscrit sur 12** — listes « Ange19 » + « testeurs2 » ajoutées, mais chaque personne doit encore cliquer `play.google.com/apps/testing/ci.chap.app` et installer ; le compte à rebours des 14 jours n'a pas démarré. | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
@@ -171,7 +171,7 @@ Remplacer une version en cours d'examen relance l'examen à zéro et retarde tou
 | Date du build | 6 août 2026 |
 | Poids de l'AAB | 5,40 Mo (5 404 994 octets) — v1.17 en faisait 5,38 |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:95:D9:70:92:F2:C0:19:A1:41:D1:35:DC:81:6A:73:28:FE:33`, valide jusqu'au 6 décembre 2053 |
-| État Play | **à téléverser** — NON VÉRIFIÉ, aucune confirmation du Patron |
+| État Play | **TÉLÉVERSÉE EN TEST FERMÉ (code 19)** — vérifiée dans la console par le Patron le 10/08/2026 : « Dernière release : 19 (1.18) », canal de test fermé actif, 1 pays/région. **Pas en production** (production « Inactif »). Test fermé ouvert : **1 testeur inscrit sur les 12 requis**, listes « Ange19 » + « testeurs2 » ajoutées — le compte à rebours des 14 jours n'a pas encore démarré. |
 
 **Le code 18 est brûlé.** La v1.17 a bien été reçue par Google le 02/08, même
 restée en brouillon : un `versionCode` déjà téléversé ne se réutilise jamais.

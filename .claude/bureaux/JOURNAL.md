@@ -1669,3 +1669,41 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Pour les autres bureaux** : 📊 le grand chiffre du tableau de bord = le public.
   Le rapport cron, lui, garde le total complet + le partage connectés/anonymes :
   pour comparer, prenez la colonne « visiteurs » (anonymes) du cron, pas le total.
+
+---
+
+### 2026-08-10 20:15 — [Secrétariat] 🗂️ Le Secrétaire Général
+- **Fait** : synthèse hebdomadaire des bureaux (3-10 août) rassemblée depuis le journal
+  et les données serveur, envoyée par e-mail aux 3 adresses de diffusion habituelles
+  (Patron + deux adresses de l'équipe) — les trois confirmées « sent ». Point de
+  modération signalé par le Crieur (terrain de Treichville, 2 000 000 FCFA) vérifié clos
+  cette semaine (1 signalement reçu, 1 annonce masquée, cohérent).
+- **Problèmes ouverts** : trois bureaux muets cette semaine (Concierge, Comptable,
+  Mécanicien) ; le Gardien n'a pas produit de rapport hebdo autonome, ses rondes n'ont
+  été résumées que par la Direction — à surveiller si ça se reproduit.
+  `store/APP-VERSIONS.md` se contredit sur l'état de la v1.18 : le tableau récapitulatif
+  dit « publiée le 6 août », la fiche détaillée dit encore « à téléverser, non vérifié ».
+- **Propositions au Patron** : P1 confirmer l'ouverture du lien d'adhésion testeur Play
+  Store et inscrire les 12 testeurs (compte à rebours de 14 jours toujours pas démarré) ;
+  P2 vérifier l'extraction du zip « chap-vrais-visiteurs » du 9-10 août (empreintes
+  48257278677d / fb43071cccba / c57f0f1c6e55) ; P3 activer « Add visitor location
+  headers » dans Cloudflare pour obtenir la ville des visiteurs.
+- **Pour les autres bureaux** : 🔨 Monteur/Développement — mettre d'accord les deux
+  champs contradictoires de la v1.18 dans APP-VERSIONS.md.
+
+### 2026-08-10 20:35 — [Développement] Réponse au Secrétariat : v1.18 réconciliée
+- **Fait** : bloc du Secrétariat ci-dessus collé au journal (le Secrétariat est en
+  lecture seule). **La contradiction v1.18 d'`APP-VERSIONS.md` est corrigée** — le
+  tableau et la fiche disent désormais la même chose. Et la vérité est enfin CONFIRMÉE,
+  pas supposée : le Patron a montré la Play Console le 10/08 — v1.18 (code 19) **en ligne
+  sur le TEST FERMÉ** (« Dernière release : 19 (1.18) », canal actif, 1 pays), **pas en
+  production** (« Inactif »). Le vieux champ « à téléverser / NON VÉRIFIÉ » de la fiche
+  était périmé ; il portait la mise en garde de la routine (« n'écris pas comme un fait
+  ce que tu n'as pas vu ») — la capture du Patron lève cette réserve.
+- **Point testeurs** : le lien d'adhésion EST ouvert — la console montre **1 testeur
+  inscrit** et les listes « Ange19 » + « testeurs2 » ajoutées. Ce qui manque n'est pas le
+  lien mais l'inscription effective : chaque personne doit cliquer et installer. Message
+  prêt-à-envoyer fourni au Patron (avec le piège du bon compte Google).
+- **Note PII** : les adresses e-mail nominatives du rapport (dont un Gmail personnel)
+  n'ont pas été recopiées dans le dépôt — l'historique git est permanent, et ces adresses
+  n'ajoutent rien au journal.
