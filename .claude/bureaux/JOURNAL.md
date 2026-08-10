@@ -1747,3 +1747,125 @@ examen.
 Developer (99 $/an) disponibles dans l'environnement. Il faudrait l'un et
 l'autre pour débloquer ce volet ; rien d'autre à écrire tant que la ligne
 « Mac » de `store/APP-VERSIONS.md` reste à « non disponible ».
+
+---
+
+### 2026-08-10 01:38 — [Livraison] 🔨 Le Monteur
+
+> ⚠️ **Le commit de repère fourni dans la consigne (`a993629`) n'existe pas dans
+> le dépôt.** C'est le commit de la v1.2 (27 juillet), visiblement resté figé
+> dans la routine hebdomadaire depuis sa création. Je m'en suis écarté et j'ai
+> lu le repère à jour dans `store/APP-VERSIONS.md` : la v1.19 (commit `5ae60ed`,
+> versionCode 20) est **déjà construite mais pas encore téléversée** — c'est
+> elle mon vrai point de départ, pas la v1.18 publiée. Un repère faux vaut
+> moins que pas de repère ; à corriger dans la consigne de la routine.
+
+**Où en est l'application.** Google Play : v1.18 (code 19) publiée le 6 août —
+première publication réelle du projet. Zéro testeur inscrit à cette heure, donc
+le compte à rebours des 14 jours n'a toujours pas démarré. La v1.19 (code 20,
+API 36 imposée par Google au 31 août) est prête depuis le 7 août mais volontairement
+retenue : l'ordre écrit dans APP-VERSIONS.md interdit de la téléverser avant que
+des testeurs soient inscrits sur le canal fermé. App Store : rien — Mac + Xcode
+toujours indisponible, volet iOS bloqué (il faudrait un Mac avec Xcode et un
+compte Apple Developer à 99 $/an).
+
+**Ce que les utilisateurs de l'application n'ont pas encore.** Depuis le commit
+de la v1.19 (`5ae60ed`, 7 août), sept commits ont touché le site :
+
+| Commit | Contenu | Catégorie |
+|---|---|---|
+| `7bf7b58` | Géographie des visiteurs (tableau de bord) + bandeau cookies | INTERNE — dashboard admin-only ; le bandeau porte `if (isNative) return`, invisible dans l'app |
+| `9cfbe7d` | Modèle de message « Titre à reprendre » | INTERNE — tableau de bord admin uniquement |
+| `78fa1de` | Retrait du bandeau de la fête de l'Indépendance + bande blanche corrigée | CORRECTION D'INTERFACE, déjà sans effet (fête terminée) |
+| `105f169` | Écran « Vérification… » qui tournait sans fin sur les notifications | CORRECTION D'INTERFACE — bug réel, encore actif |
+| `094dd4d` | Notification push + e-mail de repli quand un acheteur écrit à un vendeur hors ligne | FONCTIONNALITÉ VISIBLE |
+| `7f99b94` | Qui est en ligne, et pouvoir écrire à un membre (tableau de bord) | INTERNE — admin uniquement |
+| `8617aa4` | Bandeau de fête sous la barre d'état | CORRECTION D'INTERFACE, déjà sans effet (fête terminée) |
+
+Trois commits sont purement internes (tableau de bord du Patron, jamais vu dans
+l'app). Il reste **une fonctionnalité visible** (le push/e-mail hors ligne — le
+plus gros gain pour les 7 inscrits sur 12 qui n'ont jamais rien publié, c'est
+justement le premier message reçu qui décide de tout) et **trois corrections
+d'interface**, dont deux déjà sans objet puisque la fête est passée.
+
+**Verdict : CONSTRUIRE.** Condition (c) remplie — trois fonctionnalités/corrections
+visibles accumulées (094dd4d, 105f169, et la troisième restant symbolique vu la
+fête passée). Aucune condition (a) sécurité ni (b) exigence de boutique n'est en
+jeu cette semaine — donc pas de notification au Patron, conformément à la
+consigne.
+
+**Recommandation pratique : ne pas téléverser la v1.19 telle quelle.** Elle
+n'est encore jamais sortie du poste de build. Plutôt que l'envoyer puis devoir
+enchaîner immédiatement sur une v1.20, autant construire directement UNE version
+qui embarque le passage à l'API 36 (déjà fait dans la v1.19) ET ces sept commits
+— exactement ce que le projet a déjà fait pour les v1.5→v1.7 et v1.11→v1.17. La
+v1.19 (code 20) devient alors dépassée avant tout téléversement, comme les
+précédentes.
+
+**Numéros de version proposés :**
+- Android : `versionCode 21`, `versionName 1.20` (incrément mineur — pas de refonte visible).
+- iOS (à préparer, volet bloqué) : `CFBundleShortVersionString = 1.20` (même
+  numéro qu'Android) ; `CFBundleVersion = 1` — ce serait le tout premier envoi
+  Apple du projet.
+
+**Notes de version — Play (« Nouveautés »), 337/500 caractères :**
+> Vous êtes prévenu même le téléphone verrouillé ou le navigateur fermé : une
+> notification, et un e-mail si besoin, dès qu'un acheteur vous écrit. L'écran
+> de notifications qui restait bloqué sur « Vérification… » est corrigé.
+> Petites retouches d'affichage. Mise à jour technique pour rester compatible
+> avec les derniers téléphones Android.
+
+**Notes de version — App Store (« Nouveautés de cette version ») :**
+> Vous êtes prévenu même téléphone verrouillé ou navigateur fermé : une
+> notification, et un e-mail si besoin, dès qu'un acheteur vous écrit.
+> L'écran de notifications qui restait bloqué sur « Vérification… » est corrigé.
+> Quelques retouches d'affichage.
+> Mise à jour technique pour rester compatible avec les derniers téléphones Android.
+
+**Captures à refaire : aucune.** Aucun des sept commits ne touche visiblement
+l'un des cinq écrans capturés (accueil, annonce, explorer, vendeur, aide) — le
+bandeau de fête concernait bien l'accueil, mais il est retiré, donc l'état actuel
+de l'accueil correspond déjà à ce que montrent les captures existantes (prises
+avant l'apparition du bandeau).
+> ⚠️ Point distinct, hors périmètre de cette semaine mais à signaler : les
+> captures actuelles datent du commit `057db9d` (2 août, v1.17) d'après
+> `git log`, donc **d'avant** les rubriques Voyage/À donner/École & Fournitures
+> et la barre de recherche sans contours, déjà publiées en v1.18. Elles sont
+> probablement déjà périmées sur la fiche Play — à vérifier au prochain build
+> qui touche réellement ces écrans.
+
+**Vérifications avant build — toutes passées :**
+- `capacitor.config.ts` : `appId: 'ci.chap.app'` intact, aucune clé `server.url`.
+- `src/lib/native.ts` : `SITE_ORIGIN = 'https://chap.ci'` et `mediaUrl()` toujours en place.
+- `src/lib/marketing.ts` : garde `if (isNative) return` intacte — vérifié aussi
+  sur le nouveau bandeau cookies, qui reprend la même garde.
+- `src/components/NativeShell.tsx` : gestionnaire `backButton` et réglages
+  `StatusBar` présents.
+- `package.json` : `cap:sync` et `cap:android` chaînent bien `android-slim.mjs` ;
+  `cap:ios` ne le chaîne pas, normal.
+- Plugins `@capacitor/*` : exactement les huit attendus (core, cli, android,
+  ios, app, geolocation, splash-screen, status-bar) — aucun nouveau. La
+  fonctionnalité push utilise le Web Push du navigateur, pas un plugin natif.
+- `npm run build` : passé sans erreur TypeScript (avertissement Rollup sur la
+  taille de `nsfw-*.js`, préexistant, hors périmètre).
+
+**Marche à suivre — Android / Google Play :**
+1. `npm ci`
+2. Monter `versionCode` à `21` et `versionName` à `"1.20"` dans
+   `android/app/build.gradle` (ou Android Studio) AVANT de lancer le build.
+3. `npm run cap:sync`
+4. Dans Android Studio : Build → Generate Signed Bundle / APK → AAB, avec la
+   clé de signature habituelle (`CN=Chap.ci`).
+5. Vérifier le poids de l'AAB obtenu : attendu autour de 6-7 Mo. Au-delà de
+   10 Mo, `android-slim.mjs` n'a pas tourné — ne pas téléverser.
+6. Dans la Play Console : **priorité à l'inscription des 12 testeurs sur le
+   canal fermé avant tout nouveau téléversement** — c'est le seul délai du
+   projet que personne ne peut raccourcir, et rien ne presse à remplacer une
+   release tant que le compte à rebours n'a pas démarré. Une fois les testeurs
+   inscrits : Test fermé → Créer une version → téléverser l'AAB → coller les
+   notes de version ci-dessus → Envoyer pour examen (les captures restent
+   celles déjà en ligne, aucune n'est à remplacer cette semaine).
+
+**Marche à suivre — iOS / App Store : bloquée.** Le Mac avec Xcode reste
+indisponible ; il faudrait ce Mac et un compte Apple Developer à 99 $/an pour
+avancer. Pas d'instructions Xcode cette semaine.
