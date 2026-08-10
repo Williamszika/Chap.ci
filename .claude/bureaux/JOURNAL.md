@@ -1869,3 +1869,131 @@ avant l'apparition du bandeau).
 **Marche à suivre — iOS / App Store : bloquée.** Le Mac avec Xcode reste
 indisponible ; il faudrait ce Mac et un compte Apple Developer à 99 $/an pour
 avancer. Pas d'instructions Xcode cette semaine.
+
+### 2026-08-10 06:16 — [Livraison] 🔨 Le Monteur
+
+> ⚠️ **Cette ronde corrige le verdict de la ronde d'aujourd'hui à 01:38, sur
+> le même point de départ.** Le rapport de 01:38 concluait « CONSTRUIRE »
+> en comptant `094dd4d` (push + e-mail hors ligne) comme une fonctionnalité
+> visible et `105f169` (fin du « Vérification… » infini) comme une
+> correction d'interface « encore active ». En lisant `src/lib/push.ts`
+> plutôt que le seul message de commit, les deux se court-circuitent pour
+> l'app native **avant** d'atteindre le code concerné :
+> - ligne 71, `pushPossible()` exclut `isNative` explicitement ;
+> - ligne 134, `etatPush()` — la toute première ligne de la fonction —
+>   fait `if (isNative) return 'app-native'`, avant tout appel à
+>   `registrationPush()`, qui est l'endroit où vivait le bug du
+>   « Vérification… » infini corrigé par `105f169`.
+>
+> Autrement dit : le bug que `105f169` corrige **ne peut pas se produire**
+> dans l'app Capacitor (elle ne passe jamais par ce chemin), et le push
+> que `094dd4d` ajoute **ne fonctionne pas dans l'app** (confirmé aussi
+> par le texte affiché à l'écran, `Profile.tsx:903-908` : « L'application
+> ne reçoit pas encore ces notifications »). Les deux sont des correctifs
+> et fonctionnalités du **site web**, sans effet sur ce que contiendrait
+> une v1.20. **Ne construisez pas de v1.20 sur la base du rapport de
+> 01:38** — les numéros de version et notes qu'il propose ne correspondent
+> à aucun changement réel côté app.
+
+## 1) Où en est l'application
+
+**Google Play** : v1.18 (code 19) publiée le 6 août, il y a 4 jours.
+D'après `store/APP-VERSIONS.md`, aucun testeur confirmé inscrit sur le canal
+fermé — le compte à rebours des 14 jours n'a pas démarré. **App Store** :
+rien, Mac + Xcode toujours indisponible — volet bloqué, pas d'instructions
+Xcode ci-dessous. **v1.19** (code 20, API 36) est construite depuis le
+7 août et attend, volontairement retenue tant que les testeurs de la v1.18
+ne sont pas inscrits.
+
+> ⚠️ **À vérifier par vous** : le journal du 10 août (correctif des chiffres
+> de fréquentation) mentionne « ~18 testeurs — de vrais comptes, connectés,
+> qui cliquent tout le jour ». Le tableau d'`APP-VERSIONS.md` dit « aucun
+> testeur inscrit ». Je ne peux pas trancher depuis le dépôt si ces ~18
+> comptes sont les testeurs du canal fermé Play (auquel cas le compte à
+> rebours a peut-être déjà démarré) ou des comptes de test du site sans
+> rapport avec la Play Console. Un coup d'œil à Play Console → Test fermé
+> lève le doute.
+
+## 2) Ce que les utilisateurs de l'application n'ont pas encore
+
+Tout ce qu'apporte la v1.19, déjà construite mais retenue à l'upload : l'API
+36, la rubrique École & Fournitures (rentrée du 14 septembre), la messagerie
+d'équipe, le lien publicité → annonceur, les écrans de modération complets.
+
+## 3) Verdict : ATTENDRE
+
+Depuis le commit de la v1.19 (`5ae60ed`, 7 août), huit commits touchent
+`src/` :
+
+| Commit | Contenu | Effet réel sur l'app |
+|---|---|---|
+| `8617aa4` | Bandeau fête sous la barre d'état | Annulé par le commit suivant |
+| `78fa1de` | Retrait du bandeau fête | L'app n'affiche plus rien ici |
+| `7f99b94` | « Qui est en ligne » (Utilisateurs) | Admin seul, tableau de bord web |
+| `094dd4d` | Push + e-mail si navigateur fermé | **Exclu de l'app** — `isNative` court-circuite `pushPossible()` et `etatPush()`, l'écran dit explicitement « L'application ne reçoit pas encore ces notifications » |
+| `105f169` | Fin du « Vérification… » infini | Corrige un chemin que l'app native ne peut pas emprunter (`etatPush()` retourne `'app-native'` avant d'y arriver) |
+| `9cfbe7d` | Modèle de message admin | Admin seul |
+| `7bf7b58` | Géo visiteurs + cookies | Géo = admin seul ; bandeau cookies gardé par `if (isNative) return`, vérifié dans `CookieConsent.tsx` |
+| `ba63c57` | Chiffres de fréquentation | Tableau de bord admin seul |
+
+**Aucun des quatre critères de construction n'est rempli** une fois qu'on
+retire ce qui n'atteint pas l'app : pas de correctif de sécurité sur
+l'interface de l'app, pas d'exigence de boutique, zéro fonctionnalité ou
+correction d'interface qui reste visible dans l'app (le bandeau fête est
+posé puis retiré dans la même fenêtre ; le push et le correctif
+« Vérification… » ne concernent que le site), et 3 jours depuis la v1.19 —
+pas 3 semaines.
+
+**Ce qui presse vraiment n'est pas un build : c'est l'inscription des 12
+testeurs.** La v1.19 attend depuis 3 jours ; ajouter une v1.20 maintenant ne
+livrerait rien de plus aux utilisateurs, qui n'ont accès à aucune des deux
+tant que le canal fermé n'a pas démarré son compte à rebours.
+
+## 4) Numéros de version
+
+**Pas de nouveau build.** La v1.19 (code 20, versionName 1.19) reste la
+version à téléverser. Si un futur build se justifiait, le suivant serait
+versionCode **21** / versionName **1.20** (Android) et
+CFBundleShortVersionString **1.20** / CFBundleVersion **1** (iOS, bloqué).
+
+## 5) Notes de version
+
+Sans objet — aucun build proposé cette semaine.
+
+## 6) Captures d'écran
+
+Aucune à refaire. Le seul écran d'app qui a changé dans la fenêtre observée
+(bandeau de fête sur l'accueil) est revenu à son état d'origine — rien à
+capturer de nouveau.
+
+> Point déjà signalé le 10/08 à 01:38, toujours vrai : les captures de
+> `store/captures/` datent du commit `057db9d` (2 août, v1.17), donc d'avant
+> Voyage/À donner/École & Fournitures, déjà publiées en v1.18. À reprendre
+> au prochain build qui touche réellement ces écrans — pas celui-ci.
+
+## 7) Vérifications avant build (lecture du dépôt)
+
+| Vérification | Résultat |
+|---|---|
+| `capacitor.config.ts` : appId, `server.url` | ✅ `ci.chap.app`, aucune clé `server.url` |
+| `src/lib/native.ts` : SITE_ORIGIN, `mediaUrl()` | ✅ `https://chap.ci`, utilisé |
+| `src/lib/marketing.ts` : garde `isNative` | ✅ intacte |
+| `src/components/NativeShell.tsx` : backButton + StatusBar | ✅ les deux présents |
+| `package.json` : chaînage `android-slim.mjs` | ✅ sur `cap:sync`/`cap:android` ; absent de `cap:ios`, normal |
+| Plugins `@capacitor/*` | ✅ core, cli, android, ios, app, geolocation, splash-screen, status-bar — aucun nouveau |
+| `npm run build` | ✅ passe, aucune erreur TypeScript |
+
+## 8) Marche à suivre — Android / Google Play
+
+**Pas de nouveau build.** Seule action qui compte : téléverser la v1.19,
+déjà construite, dès que les 12 testeurs de la v1.18 sont inscrits (à
+confirmer — voir l'alerte du §1). Une fois ce feu vert obtenu : Play
+Console → Test fermé → Créer une version → téléverser l'AAB de la v1.19 →
+coller ses notes de version déjà écrites (journal du 7 août) → Envoyer pour
+examen.
+
+## 9) Marche à suivre — iOS / App Store
+
+Bloquée. Il faudrait un Mac avec Xcode et un compte Apple Developer
+(99 $/an). Pas d'instructions Xcode tant que cette ligne reste indisponible
+dans `store/APP-VERSIONS.md`.
