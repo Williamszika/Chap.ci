@@ -1635,3 +1635,37 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Pour les autres bureaux** : 📊 tout bureau qui lit `admin/stats.visites` ou
   `admin/geo` lit désormais le public réel, équipe exclue — ne vous étonnez pas de
   la marche descendante du 9 août sur les courbes, c'est ce correctif.
+
+---
+
+### 2026-08-10 — [Développement] « Pages vues » = le public, pas l'équipe
+- **Fait** : suite du correctif des vrais chiffres. Le premier lot avait retiré
+  les écrans `/admin` et cessé de compter l'admin ; il restait **3 937 pages pour
+  155 personnes (25 par tête)**. Deux sources encore : la navigation d'équipe
+  d'AVANT le correctif (toujours en base) et surtout les **~18 testeurs** — de
+  vrais comptes, connectés, qui cliquent tout le jour et passaient pour du public.
+  - « Pages vues », « Visiteurs uniques », la carte « Visites/jour » et la première
+    marche du **Parcours** ne comptent plus que les visiteurs **NON connectés**
+    (`authed = 0`). Un connecté (vous, un modérateur, un testeur) sort du chiffre,
+    **rétroactivement et sur toutes les fenêtres, sans purge** : le filtre suffit.
+  - **Piège du `authed NULL`** (trouvé en lisant le schéma, pas en devinant) : la
+    colonne `authed` a été ajoutée par migration DÉBUT AOÛT, sans valeur par défaut.
+    Les visites d'avant sont donc `NULL` = « on ne sait pas », pas « connecté ». Un
+    filtre `authed = 0` strict aurait **jeté de vrais visiteurs du début**. Retenu :
+    `(authed = 0 OR authed IS NULL)` — on garde l'incertain, et la zone se referme
+    d'elle-même puisque chaque nouvelle ligne vaut 0 ou 1.
+  - Le tableau de bord **le dit** maintenant : « votre équipe et les comptes
+    connectés (dont vos testeurs) ne sont pas comptés ».
+- **Laissé volontairement complet** : la carte « D'où viennent vos visiteurs »
+  (pays/ville) et le rapport cron des bureaux — ce sont des diagnostics qui ont
+  besoin de voir tout le monde ou le partage connectés/anonymes.
+- **Banc** : `banc-geo.mjs` gagne 5 vérifs — un testeur CONNECTÉ n'est pas compté,
+  un anonyme l'est, une ligne `authed NULL` est gardée, et la carte « Visites/jour »
+  suit la même règle. **Vingt-et-une vertes.**
+- **Pour le Patron** : zip `chap-vrais-visiteurs` (site + `api/index.php`).
+  Empreintes `48257278677d` / site `fb43071cccba` / seo `c57f0f1c6e55`. **Les
+  compteurs baissent encore — c'est le but.** Inscrits (12) et annonces (10)
+  ne bougent pas.
+- **Pour les autres bureaux** : 📊 le grand chiffre du tableau de bord = le public.
+  Le rapport cron, lui, garde le total complet + le partage connectés/anonymes :
+  pour comparer, prenez la colonne « visiteurs » (anonymes) du cron, pas le total.
