@@ -1997,3 +1997,112 @@ examen.
 Bloquée. Il faudrait un Mac avec Xcode et un compte Apple Developer
 (99 $/an). Pas d'instructions Xcode tant que cette ligne reste indisponible
 dans `store/APP-VERSIONS.md`.
+
+---
+
+### 2026-08-10 05:30 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff de la semaine revu ligne à ligne — **31 commits** touchant
+  `server/index.php` / `web/` / `src/` depuis mon dernier passage (`7c80c25`,
+  03/08), dont un très gros ajout backend (+2285 lignes sur `index.php`,
+  principalement le nouveau système de notifications push web) · sous-système
+  fouillé à fond cette semaine (rotation semaine ISO 33 % 6 = 3) : **Contrôle
+  d'accès** — chaque route neuve qui lit ou écrit une ressource d'autrui ·
+  CI et dépendances vérifiées · déploiement confirmé jusqu'au dernier commit.
+
+  **Contrôle d'accès — routes neuves passées en revue, rien à corriger.**
+  - `push/subscribe`, `push/unsubscribe`, `push/devices`, `push/test`
+    (index.php:6007-6085) : toutes derrière `require_user()`, toutes
+    scopées `WHERE user_id = ?` — un compte ne peut ni lire ni supprimer
+    l'abonnement push d'un autre. `push_subs` est en outre **volontairement
+    absente** d'`export_all()` (une ligne de cette table permettrait d'écrire
+    au nom de Chap.ci sur l'écran d'un inscrit si elle fuitait dans une
+    sauvegarde) — vérifié dans le code, toujours vrai.
+  - `team/threads` (GET/POST, 5709-5818) et `team/threads/:id/messages`
+    (5822-5893, la nouvelle messagerie d'équipe) : un membre ne voit et ne
+    poste QUE sur son propre fil (`(string) $fil['user_id'] !== (string)
+    $u['id']` → 403, ligne 5831, gardé même si le SELECT ne filtre pas par
+    id) ; ouvrir un fil « au nom d'un destinataire » exige `admin_can(...,
+    'users')` (5757) ; clore/rouvrir exige `is_admin()` (5898). Pas d'IDOR.
+  - `admin/foncier/reouvrir`, `admin/geo`, `admin/invitations` (GET/POST) :
+    toutes situées **après** le triple verrou standard (`$userIsAdmin` →
+    `admin_unlocked` → `admin_can(admin_feature_for_path($path))`,
+    index.php:6942/7004/7010) ; `admin_feature_for_path` reste **fail-closed**
+    (route `/admin/*` non répertoriée → `'unknown'` → refusée à un
+    modérateur) — pas de nouvelle route hors la porte centrale.
+  - `seller/response-time` (6291) : volontairement public (temps de réponse
+    médian, aucune donnée personnelle), la fonction sous-jacente
+    (`seller_response_time`, 4312) est paramétrée, pas de fuite du contenu
+    des messages.
+  - `mod/seen` (POST, 9310) et l'enrichissement de `mod/queue` (déjà revus
+    la semaine dernière) : toujours derrière `require_service_token($pdo,
+    'moderation')`, `$in` de la requête `IN (...)` reste des `?` liés
+    (jamais l'ID lui-même), entrée bornée à 500 éléments.
+
+  **Régression JSON-LD (fix du 30/07) : toujours fermée.** `web/seo.php:202`
+  et `:331` gardent `JSON_HEX_TAG` sans `JSON_UNESCAPED_SLASHES` — vérifié
+  par `git grep`, aucune des occurrences de `JSON_UNESCAPED_SLASHES` ajoutées
+  cette semaine (index.php, réponses API classiques) ne touche un contexte
+  `<script>`. Ce dossier reste clos.
+
+  **SQL, secrets, uploads.** Aucune concaténation de valeur utilisateur dans
+  une requête cette semaine — les seules interpolations de `$table`/`$base`/
+  `$colonnes` repérées par le grep automatique portent sur des chaînes
+  **littérales** fixées dans le code (`'users'`, `'listings'`, une liste de
+  colonnes écrite en dur), jamais sur une entrée de requête. `git grep` sur
+  secret/password/token/clé : rien hors `getenv()` et identifiants de
+  variables normaux. Les nouveaux fichiers écrits sur disque
+  (`.foncier_reouverture_v1`, `.visits_admin_purge_v1`, `push.json`) vont
+  tous dans `chapci_secret_dir()` — hors du dossier servi, hors du zip de
+  déploiement, jamais de `.php` généré. Aucun nouveau chemin d'upload cette
+  semaine.
+
+  **Vie privée / e-mail de repli (nouveau, `push_repli_email`, 921-966).**
+  Titre et corps de la notification passent par `htmlspecialchars(...)`
+  avant d'entrer dans le HTML de l'e-mail — pas d'injection possible. Le
+  sujet de l'e-mail (`$n['title']`) n'est **jamais** une valeur saisie par
+  un utilisateur : tous les appels à `notify(..., 'message', ...)` passent
+  un titre **littéral** (« Nouveau message », « Réponse de l'équipe
+  Chap.ci »…) — pas de risque d'injection d'en-tête, et `mime_h()` encode de
+  toute façon le sujet en base64 avant `mail()`.
+
+  **CI et dépendances.** `.github/workflows/security-scan.yml` toujours
+  déclenché sur `pull_request` + `push: [main]` uniquement. `php8.4 -l` :
+  propre sur `index.php` et `seo.php` (PHP 8.5.7 en production d'après
+  `/api/health` — mon environnement n'a que 8.4, l'écart de version est une
+  limite de mon environnement, pas un défaut constaté). `npm audit --omit=dev
+  --audit-level=high` : **inchangé** — même avertissement modéré
+  `react-router` (redirection ouverte + injection de constructeur SSR), rien
+  de haut/critique.
+
+  **Déploiement — confirmé pour les trois empreintes.**
+  `curl https://chap.ci/api/health` → `empreinte` (index.php) `48257278677d`,
+  `empreinteSeo` `c57f0f1c6e55`, `empreinteSite` `fb43071cccba`, déposées
+  `2026-08-10T00:52:32Z`. Comparées au dépôt HEAD (`fea69d9`) :
+  `md5sum server/index.php` → `48257278677d` (identique) ; `md5sum
+  web/seo.php` → `c57f0f1c6e55` (identique) ; `npm run build` local puis
+  `md5sum dist/index.html` → `fb43071cccba` (identique). La production
+  exécute exactement le code du dépôt, y compris les 31 commits de cette
+  semaine — rien en attente de déploiement.
+
+- **Problèmes ouverts** : aucun exploitable, aucun nouveau. Point de
+  robustesse déjà noté le 02/08 (CSP `Report-Only` avec `unsafe-eval`, pour
+  l'IA photo) : inchangé, vérifié dans `web/htaccess-root:155`, toujours pas
+  une faille en soi puisqu'il ne fait qu'observer (`report-uri`), pas
+  bloquer — je ne le re-signale pas comme trouvaille.
+
+- **Propositions au Patron** : aucune. Semaine chargée en volume de code
+  (31 commits, +2285 lignes sur `index.php`) mais chaque route neuve suit
+  exactement les patterns déjà en place (`require_user` + scope par
+  `user_id`, triple verrou admin, jeton de service cloisonné) — rien à
+  corriger, rien à durcir.
+
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à remonter ;
+  le bug `dejaVu` de la file de modération (examen antérieur au signalement
+  affiché comme couvrant le signalement) a été trouvé par votre ronde du
+  07/08 et corrigé le jour même (`37171aa`) — déjà classé, pas une affaire
+  de sécurité du code, juste une note pour dire que je l'ai vu passer.
+  **Dev** — rien à écrire. **Monteur** — le nouveau système push (VAPID,
+  service worker `public/push-sw.js`) ne concerne QUE le web ; l'app Android
+  ne le reçoit pas (WebView sans API Push, déjà documenté dans l'écran de
+  réglages) — rien à embarquer dans le prochain zip Android de votre côté.
