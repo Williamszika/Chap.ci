@@ -19,6 +19,7 @@ Store.
 | `lib/format.dart` | Prix en FCFA à la française (espaces insécables), temps écoulé |
 | `lib/api/api_client.dart` | Client de l'API PHP : jeton « Bearer », garde de 15 s, messages d'erreur en français |
 | `lib/api/auth_social.dart` | Connexion Google / Facebook (moitié serveur), même routes que le site |
+| `lib/api/push_natif.dart` | Push **natif** (FCM) — moitié app câblée, en veille tant que la console n'est pas configurée (voir plus bas) |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
@@ -242,6 +243,91 @@ Pour activer, une fois les dossiers de plateforme générés :
 
 Tant que ce n'est pas fait, les boutons expliquent poliment qu'ils sont à
 activer — l'app reste utilisable avec l'inscription par e-mail.
+
+## Notifications push natives (FCM)
+
+La **cloche in-app** est déjà là (voir plus haut). Ce qui reste, c'est le push
+**natif** : réveiller le téléphone **quand l'app est fermée**. C'est le vrai
+gain de Flutter sur l'ancienne coque WebView. Il passe par **Firebase Cloud
+Messaging (FCM)**.
+
+Le code de l'app est déjà écrit et **branché** (`lib/api/push_natif.dart`,
+appelé au démarrage) : il enregistre le jeton de l'appareil auprès du serveur.
+Il est simplement **en veille** (`PushNatif.disponible = false`) tant que les
+quatre étapes ci-dessous ne sont pas faites — exactement comme la connexion
+sociale. **Aucune** ne touche au keystore.
+
+### 1. Le projet Firebase (console, chez le Patron)
+
+1. Sur <https://console.firebase.google.com>, créez un projet (ou réutilisez
+   celui d'un éventuel autre service).
+2. Ajoutez une **application Android** avec le package **`ci.chap.app`** (le
+   même `applicationId` que l'app — sinon FCM ne la reconnaît pas).
+3. Téléchargez le **`google-services.json`** et déposez-le dans
+   **`android/app/google-services.json`** (jamais dans le dépôt — il est ignoré
+   par Git).
+4. Pour iOS le jour venu : une app iOS `ci.chap.app`, le
+   `GoogleService-Info.plist`, et une **clé APNs** dans Firebase.
+
+### 2. Les paquets (une fois le `google-services.json` en main)
+
+⚠️ N'ajoutez ces paquets **qu'après** avoir le `google-services.json` : sans
+lui, le greffon Gradle de Google **fait échouer la construction**.
+
+```bash
+flutter pub add firebase_core firebase_messaging
+```
+
+Puis, après `flutter create`, ajoutez le greffon Google à
+`android/app/build.gradle` (`apply plugin: 'com.google.gms.google-services'`)
+et sa dépendance de classpath, comme l'exige la doc FlutterFire.
+
+### 3. Brancher l'app
+
+- Autorisation Android 13+ : ajouter
+  `<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>`
+  au `AndroidManifest.xml`.
+- Dans `PushNatif.demarrer()` (ou un petit fichier `push_natif_firebase.dart`),
+  coller :
+
+```dart
+await Firebase.initializeApp();
+final fm = FirebaseMessaging.instance;
+await fm.requestPermission();                 // iOS + Android 13+
+final jeton = await fm.getToken();
+if (jeton != null) await enregistrer(jeton, plateforme: 'android');
+fm.onTokenRefresh.listen((t) => enregistrer(t, plateforme: 'android'));
+FirebaseMessaging.onMessage.listen((_) => Notifications.instance.rafraichirCompte());
+```
+
+  puis passer `PushNatif.disponible` à `true`. À la déconnexion, appeler
+  `PushNatif.instance.retirer()`.
+
+### 4. Le serveur (deux petits ajouts)
+
+Le serveur sait déjà faire le **Web Push** des navigateurs (VAPID / RFC 8291,
+table `push_subs`). Le natif est un **second canal**, à côté :
+
+1. **Stocker le jeton.** Une table `push_native (id, user_id, token, platform,
+   label, created_at, last_ok_at, fails)` et deux routes :
+   `POST /push/native` (enregistre `{token, platform, label?}` pour le compte
+   connecté) et `POST /push/native/remove` (`{token}`). L'app les appelle déjà.
+2. **Envoyer.** Dans le vidage de la file de `notify()`, en plus de
+   `push_envoyer()` (Web Push), envoyer aux jetons natifs du compte via l'API
+   **FCM HTTP v1** (`POST https://fcm.googleapis.com/v1/projects/<projet>/messages:send`).
+   L'en-tête `Authorization: Bearer <jeton OAuth>` se signe avec un **compte de
+   service** Firebase : un JSON à déposer en **`api/data/fcm-service-account.json`**
+   (en 0600, dans le dossier refusé au web — **jamais** dans le dépôt), lu comme
+   les autres secrets (`smtp.json`, `push.json`). Le marqueur du prompt est
+   `COMPTE_SERVICE_FCM_ICI`. Un jeton qui répond `404`/`UNREGISTERED` se retire
+   de la table, comme un abonné Web Push périmé.
+
+### Sécurité (rappel)
+
+Le push natif n'utilise **ni le keystore, ni un mot de passe de signature**.
+Le seul secret nouveau est le **compte de service Firebase**, qui vit sur le
+serveur (`api/data/`, 0600), au même titre que la clé VAPID — jamais dans le
+zip de déploiement, jamais dans le dépôt.
 
 ## Sécurité
 

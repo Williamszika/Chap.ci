@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'api/api_client.dart';
+import 'api/push_natif.dart';
 import 'favoris.dart';
 import 'notifications.dart';
 import 'theme.dart';
@@ -17,6 +18,8 @@ Future<void> main() async {
   await Favoris.instance.charger();
   // Le compteur de la cloche (léger, best-effort, silencieux si hors ligne).
   Notifications.instance.rafraichirCompte();
+  // Le push natif (FCM) — neutre tant qu'il n'est pas activé (voir README).
+  PushNatif.instance.demarrer();
   runApp(const ChapApp());
 }
 
