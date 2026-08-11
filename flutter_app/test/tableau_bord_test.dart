@@ -18,6 +18,9 @@ const _stats = {
     {'date': '2026-08-13', 'users': 12, 'listings': 31},
     {'date': '2026-08-14', 'users': 18, 'listings': 47},
   ],
+  'security': {
+    'failedLogins': 6, 'adminsIntegrity': true, 'owner2fa': false, 'alerts': 2,
+  },
 };
 
 void main() {
@@ -40,6 +43,16 @@ void main() {
     expect(s.visJour, 0);
     expect(s.j7.vendu, 0);
     expect(s.serie, isEmpty);
+    expect(s.securite, isNull); // pas de carte sécurité pour un non-propriétaire
+  });
+
+  test('la carte sécurité (propriétaire) se lit', () {
+    final s = StatsAdmin.depuis(_stats);
+    expect(s.securite, isNotNull);
+    expect(s.securite!.connexionsEchouees, 6);
+    expect(s.securite!.adminsIntacts, isTrue);
+    expect(s.securite!.proprietaire2fa, isFalse);
+    expect(s.securite!.alertes, 2);
   });
 
   testWidgets('le tableau affiche les grands compteurs', (tester) async {

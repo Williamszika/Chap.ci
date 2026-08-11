@@ -24,6 +24,31 @@ class PointJour {
   const PointJour(this.date, this.comptes, this.annonces);
 }
 
+/// La carte « Sécurité » de l'aperçu — réservée au propriétaire (`null` sinon).
+class SecuriteApercu {
+  /// Connexions échouées sur 7 jours (login_fail + admin_unlock_fail + mfa_fail).
+  final int connexionsEchouees;
+
+  /// La table des administrateurs est-elle intacte ? `null` = référence absente.
+  final bool? adminsIntacts;
+
+  /// Le compte propriétaire a-t-il la double authentification ?
+  final bool proprietaire2fa;
+
+  /// Alertes sur 7 jours (admins_tampered + cron_fail).
+  final int alertes;
+
+  const SecuriteApercu(
+      this.connexionsEchouees, this.adminsIntacts, this.proprietaire2fa, this.alertes);
+
+  factory SecuriteApercu.depuis(Map m) => SecuriteApercu(
+        _i(m['failedLogins']),
+        m['adminsIntegrity'] is bool ? m['adminsIntegrity'] as bool : null,
+        m['owner2fa'] == true,
+        _i(m['alerts']),
+      );
+}
+
 /// L'aperçu du tableau de bord (`GET /admin/stats`).
 class StatsAdmin {
   final int users, listings, conversations, messages, orders, reviews, newsletter;
@@ -31,6 +56,9 @@ class StatsAdmin {
   final int visJour, visSemaine, visParJour;
   final Marche j7, j30, tout;
   final List<PointJour> serie;
+
+  /// La carte sécurité (propriétaire seulement), sinon `null`.
+  final SecuriteApercu? securite;
 
   const StatsAdmin({
     required this.users,
@@ -49,6 +77,7 @@ class StatsAdmin {
     required this.j30,
     required this.tout,
     required this.serie,
+    this.securite,
   });
 
   factory StatsAdmin.depuis(Map d) {
@@ -82,6 +111,9 @@ class StatsAdmin {
       j30: marche('j30'),
       tout: marche('tout'),
       serie: serie,
+      securite: d['security'] is Map
+          ? SecuriteApercu.depuis(d['security'] as Map)
+          : null,
     );
   }
 }

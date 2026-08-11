@@ -138,6 +138,9 @@ Widget _pour(String shot) {
           {'date': '2026-08-13', 'users': 12, 'listings': 31},
           {'date': '2026-08-14', 'users': 18, 'listings': 47},
         ],
+        'security': {
+          'failedLogins': 6, 'adminsIntegrity': true, 'owner2fa': true, 'alerts': 0,
+        },
       }));
     case 'sauvegardes':
       final t = DateTime.now().millisecondsSinceEpoch;

@@ -255,7 +255,73 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
         _titre('Les 14 derniers jours'),
         const SizedBox(height: 10),
         _graphique(s.serie),
+        if (s.securite != null) ...[
+          const SizedBox(height: 18),
+          _titre('Sécurité'),
+          const SizedBox(height: 10),
+          _carteSecurite(s.securite!),
+        ],
       ],
+    );
+  }
+
+  Widget _carteSecurite(SecuriteApercu sec) {
+    const rouge = Color(0xFFB42318);
+    // Intégrité de la table des administrateurs.
+    final (intTexte, intCouleur, intIc) = sec.adminsIntacts == true
+        ? ('Intacte', ChapColors.greenDark, Icons.verified_user_outlined)
+        : sec.adminsIntacts == false
+            ? ('Altérée — à vérifier', rouge, Icons.gpp_bad_outlined)
+            : ('Référence absente', ChapColors.gray500, Icons.help_outline);
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: ChapColors.cream,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ChapColors.line2),
+      ),
+      child: Column(
+        children: [
+          _ligneSecurite(
+            Icons.lock_outline,
+            'Connexions échouées (7 j)',
+            '${sec.connexionsEchouees}',
+            sec.connexionsEchouees > 10 ? rouge : ChapColors.gray900,
+          ),
+          _ligneSecurite(intIc, 'Table des administrateurs', intTexte, intCouleur),
+          _ligneSecurite(
+            Icons.shield_outlined,
+            'Double authentification (vous)',
+            sec.proprietaire2fa ? 'Activée' : 'Non activée',
+            sec.proprietaire2fa ? ChapColors.greenDark : ChapColors.orangeDark,
+          ),
+          _ligneSecurite(
+            Icons.warning_amber_outlined,
+            'Alertes (7 j)',
+            '${sec.alertes}',
+            sec.alertes > 0 ? rouge : ChapColors.greenDark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ligneSecurite(IconData ic, String label, String valeur, Color couleur) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: Row(
+        children: [
+          Icon(ic, size: 19, color: couleur),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(fontSize: 13.5, color: ChapColors.gray700)),
+          ),
+          Text(valeur,
+              style: TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.w700, color: couleur)),
+        ],
+      ),
     );
   }
 
