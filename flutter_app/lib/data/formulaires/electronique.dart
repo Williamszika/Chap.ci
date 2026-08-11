@@ -21,6 +21,7 @@
 //  marqués varOK). Ce qui n'a pas de couleur (un téléviseur, une réparation)
 //  le dit clairement (sansCouleur).
 // =============================================================================
+import 'couleurs.dart';
 import 'schema.dart';
 
 String _t(Vals s, String cle) => (s[cle] ?? '').toString();
@@ -196,6 +197,7 @@ final Map<String, Schema> electronique = {
   'Smartphones': Schema(
     livraison: true,
     couleurs: true,
+    palette: paletteElectronique,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'stockage')]
         .where((x) => x.isNotEmpty)
         .join(' '),
@@ -231,6 +233,7 @@ final Map<String, Schema> electronique = {
   'Tablettes': Schema(
     livraison: true,
     couleurs: true,
+    palette: paletteElectronique,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'stockage')]
         .where((x) => x.isNotEmpty)
         .join(' '),
@@ -265,6 +268,7 @@ final Map<String, Schema> electronique = {
   'Ordinateurs': Schema(
     livraison: true,
     couleurs: true,
+    palette: paletteElectronique,
     aideCouleurs:
         'Cochez chaque couleur que vous avez. Ouvrez-la ensuite pour lui donner ses photos, son prix, sa mémoire et son stockage.',
     titre: (s) => [_t(s, 'marqueOrdi'), _t(s, 'modeleOrdi'), _t(s, 'processeur'), _t(s, 'ram'), _t(s, 'capaciteStockage')]
@@ -442,6 +446,7 @@ final Map<String, Schema> electronique = {
     // mixage est noire, et le restera.
     couleurs: (s) => RegExp('Enceinte Bluetooth|Casque|Écouteurs|Radio|Enceinte connectée')
         .hasMatch(_t(s, 'typeAudio')),
+    palette: paletteElectronique,
     sansCouleur: (s) => _t(s, 'typeAudio').isNotEmpty
         ? 'Ce matériel se vend en noir. Ajoutez plutôt une photo des branchements et une des haut-parleurs.'
         : 'La première photo sert de couverture.',
@@ -485,6 +490,7 @@ final Map<String, Schema> electronique = {
   'Jeux vidéo': Schema(
     livraison: true,
     couleurs: (s) => RegExp('Console|Manette|Accessoire').hasMatch(_t(s, 'typeJeu')),
+    palette: paletteElectronique,
     sansCouleur: 'Un jeu n’a pas de couleur. Photographiez la jaquette, le disque, et le dos de la boîte.',
     titre: (s) => [
           _t(s, 'modeleConsole').isNotEmpty ? _t(s, 'modeleConsole') : _t(s, 'plateforme'),
@@ -568,6 +574,7 @@ final Map<String, Schema> electronique = {
   'Appareils photo': Schema(
     livraison: true,
     couleurs: (s) => RegExp('Instantané|Compact|Caméra d’action').hasMatch(_t(s, 'typeAppareil')),
+    palette: paletteElectronique,
     sansCouleur:
         'Un boîtier est noir. Ajoutez plutôt une photo du capteur, une de l’écran allumé, et une du dessous avec le numéro de série masqué.',
     titre: (s) => [
@@ -638,6 +645,7 @@ final Map<String, Schema> electronique = {
   'Accessoires téléphone': Schema(
     livraison: true,
     couleurs: true,
+    palette: paletteElectronique,
     titre: (s) => [
           _t(s, 'typeAcc'),
           (_t(s, 'marque').isNotEmpty && _t(s, 'marque') != 'Autre marque' && _t(s, 'marque') != 'Sans marque') ? _t(s, 'marque') : '',
@@ -671,6 +679,7 @@ final Map<String, Schema> electronique = {
   'Accessoires informatiques': Schema(
     livraison: true,
     couleurs: (s) => RegExp('Clavier|Souris|Casque|Sacoche|Clé USB|Webcam|Support').hasMatch(_t(s, 'typeAcc')),
+    palette: paletteElectronique,
     sansCouleur: (s) => _t(s, 'typeAcc').isNotEmpty
         ? 'Ce matériel n’a pas de variante de couleur. Photographiez l’étiquette et les branchements.'
         : 'La première photo sert de couverture.',
@@ -731,6 +740,7 @@ final Map<String, Schema> electronique = {
   'Téléphones fixes': Schema(
     livraison: true,
     couleurs: true,
+    palette: paletteElectronique,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'typeFixe')]
         .where((x) => x.isNotEmpty)
         .join(' '),

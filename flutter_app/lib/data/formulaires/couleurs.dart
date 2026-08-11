@@ -140,6 +140,98 @@ const List<Couleur> paletteMaquillage = [
       clair: true),
 ];
 
+/// La palette de base de l'Électronique — les quinze teintes, plus le « gris
+/// sidéral » (space grey) et le « transparent » qu'on voit sur les coques et
+/// certains téléphones.
+const List<Couleur> paletteElectronique = [
+  Couleur('Noir', couleur: Color(0xFF1B1A17)),
+  Couleur('Blanc', couleur: Color(0xFFFFFFFF), clair: true),
+  Couleur('Gris', couleur: Color(0xFF9CA3AF)),
+  Couleur('Gris sidéral', couleur: Color(0xFF4B5057)),
+  Couleur('Argenté', degrade: _argente, clair: true),
+  Couleur('Doré', degrade: _dore, clair: true),
+  Couleur('Bleu', couleur: Color(0xFF2563EB)),
+  Couleur('Vert', couleur: Color(0xFF16A34A)),
+  Couleur('Rouge', couleur: Color(0xFFDC2626)),
+  Couleur('Orange', couleur: Color(0xFFF97316)),
+  Couleur('Jaune', couleur: Color(0xFFFACC15), clair: true),
+  Couleur('Rose', couleur: Color(0xFFEC4899)),
+  Couleur('Violet', couleur: Color(0xFF8B5CF6)),
+  Couleur('Marron', couleur: Color(0xFF92400E)),
+  Couleur('Beige', couleur: Color(0xFFE8D8C3), clair: true),
+  Couleur('Transparent',
+      degrade: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFFFF), Color(0xFFD9E2EC)]),
+      clair: true),
+  Couleur('Multicolore', degrade: _multicolore),
+];
+
+// Le wax / imprimé et le multicolore de la Maison — des dégradés à part.
+const _waxImprime = SweepGradient(colors: [
+  Color(0xFFF77F00),
+  Color(0xFFFACC15),
+  Color(0xFF16A34A),
+  Color(0xFF2563EB),
+  Color(0xFFDC2626),
+  Color(0xFFF77F00),
+]);
+const _multiMaison = SweepGradient(colors: [
+  Color(0xFFEC4899),
+  Color(0xFF8B5CF6),
+  Color(0xFF2563EB),
+  Color(0xFF16A34A),
+  Color(0xFFFACC15),
+  Color(0xFFEC4899),
+]);
+
+/// La palette de base de la Maison — plus riche (crème, taupe, bleu nuit,
+/// bordeaux, inox, wax) que les quinze générales.
+const List<Couleur> paletteMaison = [
+  Couleur('Blanc', couleur: Color(0xFFFFFFFF), clair: true),
+  Couleur('Noir', couleur: Color(0xFF1B1A17)),
+  Couleur('Gris', couleur: Color(0xFF9CA3AF)),
+  Couleur('Beige', couleur: Color(0xFFE8D8C3), clair: true),
+  Couleur('Crème', couleur: Color(0xFFF5EEE0), clair: true),
+  Couleur('Marron', couleur: Color(0xFF7A4423)),
+  Couleur('Taupe', couleur: Color(0xFF8B7D6B)),
+  Couleur('Bleu', couleur: Color(0xFF2563EB)),
+  Couleur('Bleu nuit', couleur: Color(0xFF1E3A5F)),
+  Couleur('Vert', couleur: Color(0xFF16A34A)),
+  Couleur('Rouge', couleur: Color(0xFFDC2626)),
+  Couleur('Bordeaux', couleur: Color(0xFF7A1F2B)),
+  Couleur('Orange', couleur: Color(0xFFF97316)),
+  Couleur('Jaune', couleur: Color(0xFFFACC15), clair: true),
+  Couleur('Rose', couleur: Color(0xFFEC4899)),
+  Couleur('Violet', couleur: Color(0xFF8B5CF6)),
+  Couleur('Doré', degrade: _dore, clair: true),
+  Couleur('Argenté / inox', degrade: _argente, clair: true),
+  Couleur('Wax / imprimé', degrade: _waxImprime),
+  Couleur('Multicolore', degrade: _multiMaison),
+];
+
+/// Les teintes de bois — pour ce qui se vend AU BOIS et non à la couleur
+/// (meubles, essences : teck, iroko, wengé…).
+const List<Couleur> paletteBois = [
+  Couleur('Bois naturel clair', couleur: Color(0xFFD6B98C), clair: true),
+  Couleur('Bois miel', couleur: Color(0xFFB8823C)),
+  Couleur('Teck', couleur: Color(0xFF9C6B32)),
+  Couleur('Iroko', couleur: Color(0xFF8A5A2B)),
+  Couleur('Acajou', couleur: Color(0xFF6B3A26)),
+  Couleur('Wengé / brun foncé', couleur: Color(0xFF3E2A20)),
+  Couleur('Ébène / noir', couleur: Color(0xFF1B1A17)),
+  Couleur('Blanc laqué', couleur: Color(0xFFFFFFFF), clair: true),
+  Couleur('Gris', couleur: Color(0xFF9CA3AF)),
+  Couleur('Bicolore bois et blanc',
+      degrade: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFB8823C), Color(0xFFFFFFFF)],
+          stops: [0.5, 0.5]),
+      clair: true),
+];
+
 /// La clé d'attribut d'une variante : `var_<Couleur>_<champ>`.
 String cleVariante(String nom, String champ) => 'var_${nom}_$champ';
 

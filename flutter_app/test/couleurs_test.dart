@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:chapci/data/formulaires/couleurs.dart';
 import 'package:chapci/data/formulaires/mode.dart';
 import 'package:chapci/data/formulaires/electronique.dart';
+import 'package:chapci/data/formulaires/maison.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -126,6 +127,28 @@ void main() {
     await monter(tester, electronique['Audio & Son']);
     expect(find.text('Multicolore'), findsNothing); // rien choisi
     await taper(tester, 'Casque'); // typeAudio → une enceinte/casque a des teintes
+    expect(find.text('Multicolore'), findsOneWidget);
+  });
+
+  testWidgets('un smartphone propose le gris sidéral', (tester) async {
+    await monter(tester, electronique['Smartphones']);
+    // La palette de l'Électronique, pas les quinze générales.
+    expect(find.text('Gris sidéral'), findsOneWidget);
+  });
+
+  testWidgets('un meuble se décline en essences de bois', (tester) async {
+    final etat = await monter(tester, maison['Meubles']);
+    expect(find.text('Teck'), findsOneWidget);
+    expect(find.text('Iroko'), findsOneWidget);
+    expect(find.text('Teintes disponibles'), findsOneWidget);
+    await taper(tester, 'Teck');
+    expect(etat()!.attributs['couleurs'], 'Teck');
+  });
+
+  testWidgets('un frigo n’a pas de couleur, une gazinière si', (tester) async {
+    await monter(tester, maison['Électroménager']);
+    expect(find.text('Multicolore'), findsNothing); // typeElec vide
+    await taper(tester, 'Réfrigérateur');
     expect(find.text('Multicolore'), findsOneWidget);
   });
 }

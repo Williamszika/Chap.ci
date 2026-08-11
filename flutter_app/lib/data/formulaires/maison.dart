@@ -15,8 +15,11 @@
 //
 //  Trois réponses interdisent carrément la publication : l'ivoire / trophée
 //  d'espèce protégée (CITES), une bouteille de gaz abîmée, un matelas porteur de
-//  punaises de lit. Le bloc couleurs / variantes du site n'est pas encore porté.
+//  punaises de lit. Le bloc couleurs / variantes est porté : un meuble se
+//  décline en essences de bois (teck, iroko, wengé), le reste dans la palette
+//  Maison — et ce qui n'a pas de couleur (un matelas, un frigo, un outil) le dit.
 // =============================================================================
+import 'couleurs.dart';
 import 'schema.dart';
 
 String _t(Vals s, String cle) => (s[cle] ?? '').toString();
@@ -142,6 +145,12 @@ Champ _etatMarche(String quoi) => Champ(
 final Map<String, Schema> maison = {
   'Meubles': Schema(
     livraison: false,
+    couleurs: true,
+    palette: paletteBois,
+    labCouleurs: 'Teintes disponibles',
+    aideCouleurs:
+        'Cochez chaque teinte que vous proposez. Ouvrez-en une pour lui donner ses photos, son prix et un détail court.',
+    aideCoulChamp: 'La teinte du bois ou de la finition, pas celle du tissu.',
     titre: (s) => [_t(s, 'typeMeuble'), _t(s, 'matiere'), _t(s, 'dims')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('piece', 'Pièce',
@@ -185,6 +194,13 @@ final Map<String, Schema> maison = {
   ),
   'Électroménager': Schema(
     livraison: false,
+    couleurs: (s) => RegExp('Réfrigérateur|Congélateur|Cuisinière|Micro-ondes|Lave-linge|Climatiseur')
+        .hasMatch(_t(s, 'typeElec')),
+    palette: paletteMaison,
+    sansCouleur: (s) => _t(s, 'typeElec').isNotEmpty
+        ? 'Cet appareil n’a pas de variante de couleur. Photographiez la plaque signalétique et l’étiquette énergie.'
+        : 'La première photo sert de couverture.',
+    aideCouleurs: 'Cochez chaque couleur disponible. Ouvrez-en une pour lui donner ses photos et son prix.',
     titre: (s) => [
           _t(s, 'typeElec'),
           _t(s, 'marqueElec'),
@@ -229,6 +245,10 @@ final Map<String, Schema> maison = {
   ),
   'Décoration': Schema(
     livraison: false,
+    couleurs: true,
+    palette: paletteMaison,
+    aideCouleurs:
+        'Cochez chaque couleur disponible. Ouvrez-en une pour lui donner ses photos, son prix et un détail court.',
     titre: (s) => [_t(s, 'typeDeco'), _t(s, 'origineDeco') == 'Artisanat ivoirien fait main' ? 'artisanat ivoirien' : '', _t(s, 'dimsDeco')]
         .where((x) => x.isNotEmpty)
         .join(' · '),
@@ -265,6 +285,11 @@ final Map<String, Schema> maison = {
   ),
   'Cuisine': Schema(
     livraison: false,
+    couleurs: (s) => RegExp('Vaisselle|Casserole|Ustensile|Textile|Rangement|Service').hasMatch(_t(s, 'typeCuisine')),
+    palette: paletteMaison,
+    sansCouleur: (s) => _t(s, 'typeCuisine').isNotEmpty
+        ? 'Cet article se vend sur sa matière et sa contenance, pas sur sa couleur. Photographiez-le sous plusieurs angles.'
+        : 'La première photo sert de couverture.',
     titre: (s) => [_t(s, 'typeCuisine'), _t(s, 'matiereCuisine'), _t(s, 'piecesCuisine')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('typeCuisine', 'Type d’article',
@@ -312,6 +337,11 @@ final Map<String, Schema> maison = {
   ),
   'Jardin & Bricolage': Schema(
     livraison: false,
+    couleurs: (s) => RegExp('Mobilier de jardin|Parasol|Pot|Arrosage').hasMatch(_t(s, 'typeJardin')),
+    palette: paletteMaison,
+    sansCouleur: (s) => _t(s, 'typeJardin').isNotEmpty
+        ? 'Un outil se vend sur son état de marche, pas sur sa couleur. Photographiez la plaque et faites une vidéo au démarrage.'
+        : 'La première photo sert de couverture.',
     titre: (s) => [_t(s, 'typeJardin'), _t(s, 'marqueOutil'), _t(s, 'puissanceOutil').isNotEmpty ? '${_t(s, 'puissanceOutil')} W' : '']
         .where((x) => x.isNotEmpty)
         .join(' · '),
@@ -352,6 +382,12 @@ final Map<String, Schema> maison = {
   ),
   'Literie': Schema(
     livraison: false,
+    couleurs: (s) => !RegExp('Matelas|Sommier').hasMatch(_t(s, 'typeLiterie')),
+    palette: paletteMaison,
+    sansCouleur:
+        'Un matelas est blanc. Photographiez plutôt l’étiquette, les coins, et la tranche pour montrer l’épaisseur.',
+    aideCouleurs:
+        'Cochez chaque couleur disponible. Ouvrez-en une pour lui donner ses photos, son prix et un détail court.',
     titre: (s) => [_t(s, 'typeLiterie'), _t(s, 'taille'), _t(s, 'epaisseur')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('typeLiterie', 'Type d’article',

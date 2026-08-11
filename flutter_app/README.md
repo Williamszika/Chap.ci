@@ -175,12 +175,12 @@ Dans l'ordre où on les construira, écran par écran :
    carnations d'un fond de teint, ou les numéros d'une mèche), et pour chaque
    coloris coché **sa photo, son prix, ses détails et les tailles / pointures /
    longueurs qui lui restent** (`var_<Couleur>_<champ>`, comme le site). La
-   catégories **Mode & Beauté** et **Électronique** sont câblées de bout en bout
-   (le sac se décline en couleurs, le bijou non ; le fond de teint reçoit sa
-   palette de carnations ; un téléphone décline son stockage, sa RAM et sa
-   provenance par coloris ; un téléviseur ou une réparation n'a pas de couleur).
-   Reste à activer le bloc, sous-catégorie par sous-catégorie, sur les 13 autres
-   catégories (le moteur, lui, est prêt).
+   catégories **Mode & Beauté**, **Électronique** et **Maison** sont câblées de
+   bout en bout, chacune avec la palette de son métier : les carnations d'un
+   fond de teint, les numéros d'une mèche, le « gris sidéral » d'un téléphone,
+   les essences de bois d'un meuble (teck, iroko, wengé). Ce qui n'a pas de
+   couleur le dit (un téléviseur, un matelas, un frigo, une réparation). Reste à
+   activer le bloc sur les 12 autres catégories (le moteur, lui, est prêt).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
