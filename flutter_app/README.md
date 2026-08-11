@@ -128,14 +128,16 @@ Dans l'ordre où on les construira, écran par écran :
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
    Voir `lib/data/formulaires/`. **« Mode & Beauté », « Électronique »,
-   « Véhicules » et « Maison » sont portées** (4 catégories sur 15) — avec, pour
-   les véhicules, le **dossier administratif** (carte grise, CSA / non-gage) et
-   le **contrôle du kilométrage annuel** ; pour la maison, le bois qui gonfle à
-   l'humidité, la facture CIE, et **trois refus de publication** exigés par la
-   loi ou la sécurité (ivoire / trophée CITES, bouteille de gaz abîmée, matelas
-   à punaises). Restent les **11 autres catégories** (mêmes données à porter, le
-   moteur est là), la **géolocalisation GPS**, le **bloc couleurs/variantes**
-   (tailles par coloris), et le reste du pays (régions/villes hors Abidjan).
+   « Véhicules », « Maison » et « Alimentation » sont portées** (5 catégories
+   sur 15) — avec, pour les véhicules, le **dossier administratif** (carte
+   grise, CSA / non-gage) ; pour la maison, le bois qui gonfle à l'humidité, la
+   facture CIE, et trois refus de publication ; pour l'alimentation, la **chaîne
+   du froid**, la **date limite**, le **prix au kilo et pas “le tas”**, le bloc
+   **cacao & café**, et trois refus de plus (produit périmé, poisson jamais
+   réfrigéré, pesticide non homologué). Restent les **10 autres catégories**
+   (mêmes données à porter, le moteur est là), la **géolocalisation GPS**, le
+   **bloc couleurs/variantes** (tailles par coloris), et le reste du pays
+   (régions/villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),

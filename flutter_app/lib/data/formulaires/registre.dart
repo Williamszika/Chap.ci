@@ -20,6 +20,7 @@ import 'mode.dart';
 import 'electronique.dart';
 import 'vehicules.dart';
 import 'maison.dart';
+import 'alimentation.dart';
 
 /// Les sous-catégories par identifiant de catégorie, dans l'ordre d'affichage.
 const Map<String, List<String>> nomsSous = {
@@ -97,6 +98,7 @@ final Map<String, Map<String, Schema>> _schemas = {
   'mode': mode,
   'electronique': electronique,
   'maison': maison,
+  'alimentation': alimentation,
 };
 
 /// Les sous-catégories d'une catégorie, ou une liste vide si elle n'en a pas.

@@ -7,6 +7,7 @@ import 'package:chapci/data/formulaires/mode.dart';
 import 'package:chapci/data/formulaires/electronique.dart';
 import 'package:chapci/data/formulaires/vehicules.dart';
 import 'package:chapci/data/formulaires/maison.dart';
+import 'package:chapci/data/formulaires/alimentation.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -133,5 +134,27 @@ void main() {
     await taper(tester, 'Punaises de lit constatées');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('punaises'));
+  });
+
+  testWidgets('un produit alimentaire périmé bloque la publication', (tester) async {
+    final etat = await monter(tester, alimentation['Produits vivriers']);
+    await taper(tester, 'Dépassée'); // date limite dépassée
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('date limite'));
+  });
+
+  testWidgets('du poisson frais jamais réfrigéré bloque la publication', (tester) async {
+    final etat = await monter(tester, alimentation['Poisson & Produits de mer']);
+    await taper(tester, 'Jamais réfrigéré');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('sanitaire'));
+  });
+
+  testWidgets('un pesticide non homologué bloque la publication', (tester) async {
+    final etat = await monter(tester, alimentation['Semences & Intrants']);
+    await taper(tester, 'Pesticide'); // fait apparaître la question d'homologation
+    await taper(tester, 'Produit non homologué / importation parallèle');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('homologué'));
   });
 }
