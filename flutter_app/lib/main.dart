@@ -5,6 +5,7 @@ import 'screens/home_screen.dart';
 import 'screens/browse_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/account_screen.dart';
+import 'screens/publier_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +38,23 @@ class AccueilShell extends StatefulWidget {
 class _AccueilShellState extends State<AccueilShell> {
   int _onglet = 0;
 
+  Future<void> _publier() async {
+    if (!ApiClient.instance.connecte) {
+      setState(() => _onglet = 3); // vers Compte pour se connecter
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Connectez-vous pour publier une annonce.')));
+      return;
+    }
+    final ok = await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => const PublierScreen()));
+    if (ok == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Votre annonce est en ligne 🎉'),
+        backgroundColor: ChapColors.greenDark,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -48,6 +66,13 @@ class _AccueilShellState extends State<AccueilShell> {
 
     return Scaffold(
       body: IndexedStack(index: _onglet, children: pages),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _publier,
+        backgroundColor: ChapColors.orange,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Publier'),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _onglet,
         onDestinationSelected: (i) => setState(() => _onglet = i),

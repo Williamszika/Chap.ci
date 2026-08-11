@@ -32,6 +32,8 @@ Store.
 | `lib/api/messaging.dart` | Conversations & messages (mêmes routes que le site) |
 | `lib/screens/messages_screen.dart` | **Messages** — la liste des conversations |
 | `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
+| `lib/screens/publier_screen.dart` | **Publier** (v1) — photos (≥ 3), titre, catégorie, état, prix, commune |
+| `lib/data/communes.dart` | Les 13 communes d'Abidjan |
 | `lib/main.dart` | La coquille + la barre du bas (Accueil · Explorer · Compte) |
 
 ---
@@ -72,6 +74,17 @@ applicationId = "ci.chap.app"
 À vérifier / corriger dans `android/app/build.gradle` après le `flutter create`.
 Si l'identifiant diffère, le Play Store la traitera comme une **nouvelle** app.
 
+### 3 bis. Autorisations photos (pour « Publier »)
+
+`image_picker` a besoin d'autorisations, à ajouter après le `flutter create` :
+
+- **iOS** — dans `ios/Runner/Info.plist` : `NSPhotoLibraryUsageDescription`
+  (« Pour choisir les photos de vos annonces ») et, si l'appareil photo est
+  utilisé, `NSCameraUsageDescription`.
+- **Android** — la galerie fonctionne sans permission (sélecteur système). Pour
+  l'appareil photo, ajouter `<uses-permission android:name="android.permission.CAMERA"/>`
+  dans `android/app/src/main/AndroidManifest.xml`.
+
 ### 4. Lancer en développement (téléphone branché ou émulateur)
 
 ```bash
@@ -101,8 +114,10 @@ Dans l'ordre où on les construira, écran par écran :
 
 1. ~~**Fiche annonce** (détail) + suivi des vues~~ ✅ fait.
 2. ~~**Recherche & filtres** (mot-clé, catégorie, état, commune, tri)~~ ✅ fait.
-3. **Publier une annonce** — le gros morceau : les 100+ formulaires par
-   sous-catégorie, les photos, la géolocalisation.
+3. ~~**Publier une annonce (v1)**~~ ✅ photos (≥ 3), titre, catégorie, état, prix,
+   négociable, commune (Abidjan), description, téléphone, livraison. Restent : les
+   **100+ formulaires par sous-catégorie** (marque, taille, année…), la
+   **géolocalisation GPS**, et le reste du pays (régions/villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ fait (nom, e-mail, mot de passe ≥ 8, consentement).
    Restent la **confirmation d'e-mail** (mur avant publication) et la **2FA**.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer) +

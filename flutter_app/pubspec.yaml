@@ -17,6 +17,8 @@ dependencies:
   http: ^1.2.2
   # Stockage local du jeton de session (l'équivalent du cookie du site).
   shared_preferences: ^2.3.2
+  # Choisir des photos (galerie / appareil photo) pour publier une annonce.
+  image_picker: ^1.1.2
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
