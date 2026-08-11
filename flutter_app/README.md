@@ -29,6 +29,7 @@ Store.
 | `lib/screens/admin/newsletter_screen.dart` | **Newsletter** — les abonnés (combien, qui, depuis quand) + export **CSV** partageable |
 | `lib/screens/admin/campagne_screen.dart` | **Campagne** — écrire un e-mail et l'envoyer à tous les abonnés, par lots, avec confirmation et barre de progression |
 | `lib/screens/admin/moderateurs_screen.dart` | **Modérateurs** (propriétaire) — ajouter un modérateur, cocher ses permissions, le bloquer / retirer ; code d'accès affiché une seule fois |
+| `lib/screens/admin/contact_screen.dart` | **Messages de contact** — la boîte du formulaire ; lire, répondre (avec brouillon proposé), marquer traité, supprimer |
 | `lib/screens/admin/emails_screen.dart` | **E-mails / SMTP** (propriétaire) — régler l'envoi des e-mails du site + envoyer un e-mail de test |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
@@ -253,7 +254,12 @@ Dans l'ordre où on les construira, écran par écran :
    c'est la seule façon prévue de créer un administrateur : le serveur tient à
    jour l'empreinte d'intégrité de la table `admins`, qu'une insertion directe
    ferait mentir (`admins_tampered`). Le code d'accès du modérateur n'est
-   **affiché qu'une seule fois**, à sa création. Les **e-mails / SMTP**
+   **affiché qu'une seule fois**, à sa création. Les **messages de contact**
+   sont portés : la boîte du formulaire (non traités d'abord), qu'on lit et à
+   laquelle on **répond** — l'e-mail part de `contact@chap.ci`, avec un
+   **brouillon proposé** par le serveur selon le contenu du message
+   (`GET`/`POST /admin/contact-messages`, `…/{id}/reply`, `…/{id}/suggest`) —
+   avant de marquer traité ou de supprimer. Les **e-mails / SMTP**
    (réservés au propriétaire) sont portés : régler l'hôte, le port, SSL/TLS, la
    boîte d'envoi, puis **envoyer un e-mail de test** (`GET`/`POST /admin/smtp`,
    `POST /admin/test-email`) — le mot de passe est un secret, le serveur ne le

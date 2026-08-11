@@ -255,6 +255,47 @@ class ReglagesSmtp {
       );
 }
 
+/// Un message reçu par le formulaire de contact (`GET /admin/contact-messages`).
+class MessageContact {
+  final String id, sujet, message;
+  final String? nom, email, reponse, reponduPar;
+
+  /// Marqué traité ?
+  final bool traite;
+  final int cree;
+
+  /// Quand la réponse a été envoyée (0 si pas de réponse).
+  final int reponduLe;
+
+  const MessageContact({
+    required this.id,
+    required this.sujet,
+    required this.message,
+    required this.nom,
+    required this.email,
+    required this.reponse,
+    required this.reponduPar,
+    required this.traite,
+    required this.cree,
+    required this.reponduLe,
+  });
+
+  bool get aRepondu => reponse != null && reponse!.isNotEmpty;
+
+  factory MessageContact.depuis(Map m) => MessageContact(
+        id: (m['id'] ?? '').toString(),
+        sujet: (m['subject'] ?? 'Message').toString(),
+        message: (m['message'] ?? '').toString(),
+        nom: m['name'] as String?,
+        email: m['email'] as String?,
+        reponse: m['replyBody'] as String?,
+        reponduPar: m['repliedBy'] as String?,
+        traite: m['handled'] == true,
+        cree: _i(m['createdAt']),
+        reponduLe: _i(m['repliedAt']),
+      );
+}
+
 /// Une fonctionnalité qu'un modérateur peut recevoir (clé + libellé français).
 class FonctionMod {
   final String cle, libelle;
@@ -542,6 +583,40 @@ class AdminApi {
       );
     }
     throw ApiException('Réponse inattendue du serveur.');
+  }
+
+  /// Les messages du formulaire de contact (non traités d'abord).
+  static Future<List<MessageContact>> messagesContact() async {
+    final d = await ApiClient.instance.get('/admin/contact-messages');
+    if (d is List) {
+      return d.whereType<Map>().map(MessageContact.depuis).toList();
+    }
+    return const [];
+  }
+
+  /// Un brouillon de réponse proposé par le serveur (gabarit local selon le
+  /// contenu du message — aucune clé externe requise).
+  static Future<String> brouillonReponse(String id) async {
+    final d = await ApiClient.instance.post('/admin/contact-messages/$id/suggest', {});
+    return (d is Map && d['draft'] is String) ? d['draft'] as String : '';
+  }
+
+  /// Répond au message : le serveur envoie l'e-mail (depuis `contact@chap.ci`,
+  /// avec signature et le message d'origine cité), l'archive et le marque traité.
+  static Future<void> repondreContact(String id, String corps) async {
+    await ApiClient.instance
+        .post('/admin/contact-messages/$id/reply', {'body': corps});
+  }
+
+  /// Marque un message traité (`traite: false` le rouvre).
+  static Future<void> marquerContact(String id, bool traite) async {
+    await ApiClient.instance
+        .post('/admin/contact-messages/$id', {'handled': traite});
+  }
+
+  /// Supprime un message de contact.
+  static Future<void> supprimerContact(String id) async {
+    await ApiClient.instance.delete('/admin/contact-messages/$id');
   }
 
   /// L'équipe d'administration : propriétaire(s), modérateurs, fonctionnalités

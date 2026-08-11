@@ -18,6 +18,7 @@ import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
 import 'screens/admin/annonces_screen.dart';
 import 'screens/admin/campagne_screen.dart';
+import 'screens/admin/contact_screen.dart';
 import 'screens/admin/emails_screen.dart';
 import 'screens/admin/moderateurs_screen.dart';
 import 'screens/admin/moderation_screen.dart';
@@ -158,6 +159,51 @@ Widget _pour(String shot) {
       ]);
     case 'campagne':
       return const CampagneScreen(apercu: 128);
+    case 'contact':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return ContactScreen(apercu: [
+        MessageContact(
+          id: 'c1',
+          sujet: 'Problème pour publier mon annonce',
+          message:
+              'Bonjour, je n’arrive pas à ajouter les photos de mon canapé, '
+              'l’application affiche une erreur à la 3e photo. Merci d’avance.',
+          nom: 'Awa Koné',
+          email: 'awa.kone@gmail.com',
+          reponse: null,
+          reponduPar: null,
+          traite: false,
+          cree: t - 2 * 3600000,
+          reponduLe: 0,
+        ),
+        MessageContact(
+          id: 'c2',
+          sujet: 'Signalement d’un faux profil',
+          message:
+              'Un vendeur me demande de payer d’avance par Wave avant la '
+              'livraison, ça me paraît louche.',
+          nom: 'Kader Diomandé',
+          email: 'kader.229@yahoo.fr',
+          reponse: null,
+          reponduPar: null,
+          traite: false,
+          cree: t - 20 * 3600000,
+          reponduLe: 0,
+        ),
+        MessageContact(
+          id: 'c3',
+          sujet: 'Merci pour ce super site !',
+          message: 'Bravo à toute l’équipe, Chap.ci m’a beaucoup aidé.',
+          nom: 'Mariam',
+          email: 'mariam.diallo@hotmail.fr',
+          reponse: 'Bonjour Mariam,\n\nMerci beaucoup, votre message fait '
+              'très plaisir à toute l’équipe !',
+          reponduPar: 'patron@chap.ci',
+          traite: true,
+          cree: t - 4 * 86400000,
+          reponduLe: t - 3 * 86400000,
+        ),
+      ]);
     case 'moderateurs':
       final t = DateTime.now().millisecondsSinceEpoch;
       return ModerateursScreen(
