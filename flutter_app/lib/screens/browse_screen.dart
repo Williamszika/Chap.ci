@@ -296,7 +296,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           color: ChapColors.gray700)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String?>(
-                    value: _commune,
+                    initialValue: _commune,
                     isExpanded: true,
                     decoration: const InputDecoration(isDense: true),
                     items: [
@@ -314,7 +314,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           color: ChapColors.gray700)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: _tri,
+                    initialValue: _tri,
                     isExpanded: true,
                     decoration: const InputDecoration(isDense: true),
                     items: const [

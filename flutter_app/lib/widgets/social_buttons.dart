@@ -18,8 +18,8 @@ class SocialButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Row(
-          children: const [
+        const Row(
+          children: [
             Expanded(child: Divider(color: ChapColors.line2)),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 10),

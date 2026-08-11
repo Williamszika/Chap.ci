@@ -328,6 +328,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       return;
     }
     final monId = await ApiClient.instance.monId();
+    if (!mounted) return;
     if (a.sellerId == monId) {
       _info(context, 'C’est votre propre annonce.');
       return;

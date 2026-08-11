@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
@@ -216,7 +215,7 @@ class _PublierScreenState extends State<PublierScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _categorie,
+              initialValue: _categorie,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Catégorie'),
               items: [
@@ -262,7 +261,7 @@ class _PublierScreenState extends State<PublierScreen> {
             ),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _commune,
+              initialValue: _commune,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Commune (Abidjan)'),
               items: [

@@ -27,6 +27,7 @@ class Listing {
   final bool featured;
   final num? promoPrice;
   final int? promoUntil; // ms
+  final bool hidden;
   final bool sold;
   final int views;
 
@@ -49,6 +50,7 @@ class Listing {
     this.featured = false,
     this.promoPrice,
     this.promoUntil,
+    this.hidden = false,
     this.sold = false,
     this.views = 0,
   });
@@ -87,6 +89,7 @@ class Listing {
       featured: j['featured'] == true,
       promoPrice: (j['promoPrice'] is num) ? j['promoPrice'] as num : null,
       promoUntil: (j['promoUntil'] is num) ? (j['promoUntil'] as num).toInt() : null,
+      hidden: j['hidden'] == true,
       sold: j['sold'] == true,
       views: (j['views'] is num) ? (j['views'] as num).toInt() : 0,
     );
