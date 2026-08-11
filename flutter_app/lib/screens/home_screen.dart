@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
+import 'favoris_screen.dart';
 import 'listing_detail_screen.dart';
 
 /// Accueil — l'en-tête de marque, une barre de recherche (qui mène à Explorer),
@@ -58,9 +59,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const Spacer(),
-                      const Text('Petites annonces 🇨🇮',
-                          style: TextStyle(
-                              fontSize: 12.5, color: ChapColors.gray600)),
+                      IconButton(
+                        icon: const Icon(Icons.favorite_border,
+                            color: ChapColors.gray700),
+                        tooltip: 'Mes favoris',
+                        onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const FavorisScreen())),
+                      ),
                     ],
                   ),
                 ),

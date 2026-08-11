@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'bouton_favori.dart';
 
 /// La carte d'annonce — le modèle propre, réutilisé partout (accueil, explorer).
 ///
@@ -27,9 +28,19 @@ class ListingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: _Image(annonce: annonce),
+            Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: _Image(annonce: annonce),
+                ),
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: BoutonFavori(
+                      listingId: annonce.id, pastille: true, taille: 18),
+                ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),

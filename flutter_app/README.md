@@ -34,6 +34,9 @@ Store.
 | `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
 | `lib/screens/publier_screen.dart` | **Publier** (v1) — photos (≥ 3), titre, catégorie, état, prix, commune |
 | `lib/screens/verifier_email_screen.dart` | **Confirmer l'e-mail** — code à 6 chiffres (mur avant de publier) |
+| `lib/favoris.dart` | Les favoris (local + synchro compte), un ChangeNotifier |
+| `lib/widgets/bouton_favori.dart` | Le cœur sur la carte et la fiche |
+| `lib/screens/favoris_screen.dart` | **Mes favoris** |
 | `lib/data/communes.dart` | Les 13 communes d'Abidjan |
 | `lib/main.dart` | La coquille + la barre du bas (Accueil · Explorer · Compte) |
 

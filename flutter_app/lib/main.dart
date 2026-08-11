@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'api/api_client.dart';
+import 'favoris.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/browse_screen.dart';
@@ -9,8 +10,10 @@ import 'screens/publier_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // On recharge la session (le jeton) avant d'afficher quoi que ce soit.
+  // On recharge la session (le jeton) avant d'afficher quoi que ce soit,
+  // puis les favoris (locaux, fusionnés au compte si connecté).
   await ApiClient.instance.chargerSession();
+  await Favoris.instance.charger();
   runApp(const ChapApp());
 }
 

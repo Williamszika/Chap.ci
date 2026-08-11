@@ -4,6 +4,7 @@ import '../api/messaging.dart';
 import '../api/models.dart';
 import '../format.dart';
 import '../theme.dart';
+import '../widgets/bouton_favori.dart';
 import 'conversation_screen.dart';
 
 /// Fiche d'une annonce — le détail complet : photos, prix, état, description,
@@ -43,6 +44,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       appBar: AppBar(
         title: const Text('Annonce'),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Center(
+                child: BoutonFavori(listingId: a.id, taille: 24)),
+          ),
           IconButton(
             icon: const Icon(Icons.share_outlined),
             tooltip: 'Partager',
