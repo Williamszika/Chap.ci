@@ -21,6 +21,7 @@ import 'screens/admin/avis_screen.dart';
 import 'screens/admin/campagne_screen.dart';
 import 'screens/admin/commandes_screen.dart';
 import 'screens/admin/contact_screen.dart';
+import 'screens/admin/conversations_screen.dart';
 import 'screens/admin/emails_screen.dart';
 import 'screens/admin/moderateurs_screen.dart';
 import 'screens/admin/moderation_screen.dart';
@@ -161,6 +162,38 @@ Widget _pour(String shot) {
       ]);
     case 'campagne':
       return const CampagneScreen(apercu: 128);
+    case 'conversations':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return ConversationsScreen(apercu: [
+        ConversationAdmin(
+          id: 'v1',
+          acheteurEmail: 'awa.kone@gmail.com',
+          vendeurEmail: 'boutique.cocody@chap.ci',
+          annonceTitre: 'Canapé 3 places en tissu',
+          dernierMessage: 'D’accord, je passe le prendre demain vers 16 h. '
+              'Vous êtes bien à la Riviera ?',
+          messages: 12,
+          cree: t - 90 * 60000,
+        ),
+        ConversationAdmin(
+          id: 'v2',
+          acheteurEmail: 'kader.229@yahoo.fr',
+          vendeurEmail: 'tech.abidjan@chap.ci',
+          annonceTitre: 'Casque audio sans fil',
+          dernierMessage: 'Le prix est-il négociable ? Je propose 80 000.',
+          messages: 4,
+          cree: t - 8 * 3600000,
+        ),
+        ConversationAdmin(
+          id: 'v3',
+          acheteurEmail: 'mariam.d@hotmail.fr',
+          vendeurEmail: 'mode.plateau@chap.ci',
+          annonceTitre: null,
+          dernierMessage: 'Merci beaucoup, la robe est superbe !',
+          messages: 7,
+          cree: t - 3 * 86400000,
+        ),
+      ]);
     case 'commandes':
       final t = DateTime.now().millisecondsSinceEpoch;
       return CommandesScreen(apercu: [

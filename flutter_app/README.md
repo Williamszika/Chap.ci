@@ -32,6 +32,7 @@ Store.
 | `lib/screens/admin/contact_screen.dart` | **Messages de contact** — la boîte du formulaire ; lire, répondre (avec brouillon proposé), marquer traité, supprimer |
 | `lib/screens/admin/avis_screen.dart` | **Avis** — les avis sur les vendeurs ; filtre des notes basses, suppression d'un avis abusif |
 | `lib/screens/admin/commandes_screen.dart` | **Commandes** — le suivi des ventes ; résumé (nombre + encaissé), filtres par statut, articles et parties |
+| `lib/screens/admin/conversations_screen.dart` | **Conversations** — supervision des échanges ; parties, annonce, nombre de messages, dernier message, recherche |
 | `lib/screens/admin/emails_screen.dart` | **E-mails / SMTP** (propriétaire) — régler l'envoi des e-mails du site + envoyer un e-mail de test |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
@@ -271,13 +272,17 @@ Dans l'ordre où on les construira, écran par écran :
    (lecture seule, comme le site) : un résumé (nombre + montant **encaissé**, qui
    ne compte que les commandes finalisées), des filtres par statut, et pour
    chaque commande les articles, le total et les parties acheteur / vendeur
-   (`GET /admin/orders`). Reste à porter, côté consultation, les
-   **conversations** ; et le **journal de sécurité** détaillé (qui demanderait
-   une nouvelle route serveur). Voir
+   (`GET /admin/orders`). Les **conversations** sont portées (supervision, en
+   lecture seule) : qui parle à qui, sur quelle annonce, le nombre de messages
+   et le dernier message, avec une recherche (`GET /admin/conversations`). Le
+   tableau de bord de l'app fait désormais **tout ce que fait celui du site** ;
+   ne reste, côté serveur, que l'idée d'un **journal de sécurité** détaillé (qui
+   demanderait une nouvelle route). Voir
    `lib/screens/admin/tableau_bord_screen.dart`,
    `lib/screens/admin/moderation_screen.dart`,
    `lib/screens/admin/avis_screen.dart`,
    `lib/screens/admin/commandes_screen.dart`,
+   `lib/screens/admin/conversations_screen.dart`,
    `lib/screens/admin/emails_screen.dart` et `lib/api/admin.dart`.
 
 Tant que la parité n'est pas atteinte, **ne pas remplacer** l'app Play Store

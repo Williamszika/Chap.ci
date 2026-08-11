@@ -8,6 +8,7 @@ import 'avis_screen.dart';
 import 'campagne_screen.dart';
 import 'commandes_screen.dart';
 import 'contact_screen.dart';
+import 'conversations_screen.dart';
 import 'emails_screen.dart';
 import 'moderateurs_screen.dart';
 import 'moderation_screen.dart';
@@ -300,6 +301,18 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
               MaterialPageRoute(builder: (_) => const CommandesScreen())),
           icon: const Icon(Icons.receipt_long_outlined, size: 18),
           label: const Text('Commandes'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+            foregroundColor: ChapColors.orange,
+            side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ConversationsScreen())),
+          icon: const Icon(Icons.chat_outlined, size: 18),
+          label: const Text('Conversations'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(46),
             foregroundColor: ChapColors.orange,

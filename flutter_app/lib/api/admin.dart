@@ -255,6 +255,33 @@ class ReglagesSmtp {
       );
 }
 
+/// Une conversation entre membres, vue en supervision (`GET /admin/conversations`).
+class ConversationAdmin {
+  final String id;
+  final String? acheteurEmail, vendeurEmail, annonceTitre, dernierMessage;
+  final int messages, cree;
+
+  const ConversationAdmin({
+    required this.id,
+    required this.acheteurEmail,
+    required this.vendeurEmail,
+    required this.annonceTitre,
+    required this.dernierMessage,
+    required this.messages,
+    required this.cree,
+  });
+
+  factory ConversationAdmin.depuis(Map m) => ConversationAdmin(
+        id: (m['id'] ?? '').toString(),
+        acheteurEmail: m['buyerEmail'] as String?,
+        vendeurEmail: m['sellerEmail'] as String?,
+        annonceTitre: m['listingTitle'] as String?,
+        dernierMessage: m['lastMessage'] as String?,
+        messages: _i(m['messages']),
+        cree: _i(m['createdAt']),
+      );
+}
+
 /// Un article d'une commande (`items` de `GET /admin/orders`).
 class ArticleCommande {
   final String titre;
@@ -659,6 +686,16 @@ class AdminApi {
       );
     }
     throw ApiException('Réponse inattendue du serveur.');
+  }
+
+  /// Les conversations entre membres (les plus récentes d'abord). Supervision :
+  /// parties, annonce, nombre de messages, dernier message.
+  static Future<List<ConversationAdmin>> conversations() async {
+    final d = await ApiClient.instance.get('/admin/conversations');
+    if (d is List) {
+      return d.whereType<Map>().map(ConversationAdmin.depuis).toList();
+    }
+    return const [];
   }
 
   /// Les commandes (les plus récentes d'abord).
