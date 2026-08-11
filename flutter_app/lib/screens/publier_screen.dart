@@ -7,6 +7,7 @@ import '../api/api_client.dart';
 import '../data/categories.dart';
 import '../data/communes.dart';
 import '../theme.dart';
+import 'verifier_email_screen.dart';
 
 /// Une photo choisie (les octets + son type), en attente d'envoi.
 class _Photo {
@@ -132,6 +133,18 @@ class _PublierScreenState extends State<PublierScreen> {
     try {
       // Le nom du vendeur = le nom du compte (récupéré côté serveur).
       final moi = await ApiClient.instance.moi();
+
+      // Mur du serveur : e-mail confirmé obligatoire pour publier. On y envoie
+      // l'utilisateur, puis on relance la publication une fois confirmé.
+      if (moi != null && moi['emailVerified'] != true) {
+        if (!mounted) return;
+        setState(() => _envoi = false);
+        final verifie = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const VerifierEmailScreen()));
+        if (verifie == true && mounted) _publier();
+        return;
+      }
+
       final nom = (moi?['user_metadata']?['full_name'] as String?)?.trim() ?? '';
 
       await ApiClient.instance.post('/listings', {

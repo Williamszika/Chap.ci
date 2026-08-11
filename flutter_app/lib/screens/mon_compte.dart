@@ -4,6 +4,7 @@ import '../api/models.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'listing_detail_screen.dart';
+import 'verifier_email_screen.dart';
 
 /// Le contenu de l'onglet Compte quand on est connecté : l'identité, et
 /// « Mes annonces » avec leur état (en ligne / masquée / vendue), leurs vues,
@@ -44,6 +45,12 @@ class _MonCompteViewState extends State<MonCompteView> {
             SnackBar(content: Text(e.message)));
       }
     }
+  }
+
+  Future<void> _ouvrirVerif() async {
+    final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const VerifierEmailScreen()));
+    if (ok == true) _recharger();
   }
 
   Future<void> _supprimer(Listing a) async {
@@ -170,26 +177,34 @@ class _MonCompteViewState extends State<MonCompteView> {
               ),
               if (u != null && !verifie) ...[
                 const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF4E0),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFF3D9A6)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.mark_email_unread_outlined,
-                          size: 18, color: ChapColors.ocreDark),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Confirmez votre e-mail pour pouvoir publier une annonce.',
-                          style: TextStyle(
-                              fontSize: 12.5, color: ChapColors.ocreDark),
+                InkWell(
+                  onTap: _ouvrirVerif,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4E0),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFF3D9A6)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.mark_email_unread_outlined,
+                            size: 18, color: ChapColors.ocreDark),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Confirmez votre e-mail pour pouvoir publier.',
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: ChapColors.ocreDark),
+                          ),
                         ),
-                      ),
-                    ],
+                        Icon(Icons.chevron_right,
+                            size: 18, color: ChapColors.ocreDark),
+                      ],
+                    ),
                   ),
                 ),
               ],

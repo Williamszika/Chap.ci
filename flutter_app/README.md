@@ -33,6 +33,7 @@ Store.
 | `lib/screens/messages_screen.dart` | **Messages** — la liste des conversations |
 | `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
 | `lib/screens/publier_screen.dart` | **Publier** (v1) — photos (≥ 3), titre, catégorie, état, prix, commune |
+| `lib/screens/verifier_email_screen.dart` | **Confirmer l'e-mail** — code à 6 chiffres (mur avant de publier) |
 | `lib/data/communes.dart` | Les 13 communes d'Abidjan |
 | `lib/main.dart` | La coquille + la barre du bas (Accueil · Explorer · Compte) |
 
@@ -118,8 +119,8 @@ Dans l'ordre où on les construira, écran par écran :
    négociable, commune (Abidjan), description, téléphone, livraison. Restent : les
    **100+ formulaires par sous-catégorie** (marque, taille, année…), la
    **géolocalisation GPS**, et le reste du pays (régions/villes hors Abidjan).
-4. ~~**Inscription**~~ ✅ fait (nom, e-mail, mot de passe ≥ 8, consentement).
-   Restent la **confirmation d'e-mail** (mur avant publication) et la **2FA**.
+4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
+   avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer) +
    identité. Restent l'édition du profil et la photo.
 6. ~~**Messagerie** acheteur ↔ vendeur~~ ✅ fait (liste, fil, envoi, relève 4 s ;
