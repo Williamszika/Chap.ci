@@ -38,6 +38,8 @@ Store.
 | `lib/screens/formulaire_dynamique.dart` | Le **moteur** qui affiche le formulaire d'une sous-catégorie (puces, bascules, alertes, blocage) |
 | `lib/data/formulaires/` | Le **contrat** (`schema.dart`), les **couleurs** (`couleurs.dart` — pastilles + palettes du métier + variantes), les données par catégorie (`mode.dart`…) et le **registre** (`registre.dart`) |
 | `lib/screens/verifier_email_screen.dart` | **Confirmer l'e-mail** — code à 6 chiffres (mur avant de publier) |
+| `lib/screens/verifier_2fa_screen.dart` | **2FA — connexion** : le défi à 6 chiffres (ou code de secours) après le mot de passe |
+| `lib/screens/securite_2fa_screen.dart` | **2FA — gestion** : activer (QR + clé + codes de secours), désactiver |
 | `lib/favoris.dart` | Les favoris (local + synchro compte), un ChangeNotifier |
 | `lib/widgets/bouton_favori.dart` | Le cœur sur la carte et la fiche |
 | `lib/notifications.dart` | La **cloche** : modèle + client des notifications du compte, un ChangeNotifier (compteur, liste, lu, effacer) |
@@ -188,7 +190,13 @@ Dans l'ordre où on les construira, écran par écran :
    d'une machine, jamais le passeport d'un candidat). Le chantier « Publier »
    est complet.
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
-   avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
+   avant publication, câblé dans Mon compte et Publier). ~~Reste la **2FA** à la
+   connexion.~~ ✅ **La double authentification est faite** : le défi à la
+   connexion (code à 6 chiffres ou code de secours), et sa gestion dans Mon
+   compte (activer avec un QR à scanner + la clé à recopier, les codes de
+   secours à conserver, désactiver). Branchée sur `/auth/2fa/*` et
+   `/auth/login` (`mfa_required`). Voir `lib/screens/verifier_2fa_screen.dart`
+   et `lib/screens/securite_2fa_screen.dart`.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
    identité, **édition du profil (nom, bio, photo)**.
 6. ~~**Messagerie** acheteur ↔ vendeur~~ ✅ fait (liste, fil, envoi, relève 4 s ;

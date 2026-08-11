@@ -5,6 +5,7 @@ import '../format.dart';
 import '../theme.dart';
 import 'listing_detail_screen.dart';
 import 'modifier_profil_screen.dart';
+import 'securite_2fa_screen.dart';
 import 'verifier_email_screen.dart';
 
 /// Le contenu de l'onglet Compte quand on est connecté : l'identité, et
@@ -239,11 +240,46 @@ class _MonCompteViewState extends State<MonCompteView> {
                   ),
                 ),
               ],
+              if (aCompte) ...[
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: _ouvrirSecurite,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: ChapColors.line2),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.shield_outlined,
+                            size: 20, color: ChapColors.gray700),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text('Double authentification',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: ChapColors.gray900)),
+                        ),
+                        Icon(Icons.chevron_right,
+                            size: 20, color: ChapColors.gray600),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
       },
     );
+  }
+
+  Future<void> _ouvrirSecurite() async {
+    await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const Securite2faScreen()));
   }
 
   Widget _avatarWidget(String? url) {

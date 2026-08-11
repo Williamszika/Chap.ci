@@ -149,22 +149,73 @@ class ApiClient {
 
   // --- Authentification -------------------------------------------------------
 
-  /// Connexion. Renvoie true si connecté ; lève ApiException si refusé.
-  /// Le cas 2FA (mfa_required) n'est pas encore géré par cet écran de départ.
-  Future<void> seConnecter(String email, String motDePasse) async {
+  /// Connexion. Renvoie `null` quand la session est ouverte tout de suite ; ou
+  /// un **jeton de défi 2FA** (`mfaToken`) quand le compte a la double
+  /// authentification — l'appelant demande alors le code à 6 chiffres et appelle
+  /// [verifier2FA]. Lève [ApiException] si refusé.
+  Future<String?> seConnecter(String email, String motDePasse) async {
     final d = await post('/auth/login', {
       'email': email.trim().toLowerCase(),
       'password': motDePasse,
     });
     if (d is Map && d['mfa_required'] == true) {
-      throw ApiException(
-          'Ce compte a la double authentification. Sa gestion arrive bientôt dans l’app.');
+      final mfa = d['mfa_token'] as String?;
+      if (mfa == null || mfa.isEmpty) {
+        throw ApiException('Session expirée. Reconnectez-vous.');
+      }
+      return mfa; // le code sera demandé à l'écran suivant
     }
     final token = (d is Map) ? d['token'] as String? : null;
     if (token == null || token.isEmpty) {
       throw ApiException('Connexion refusée.');
     }
     await _enregistrerJeton(token);
+    return null;
+  }
+
+  /// Deuxième étape de la connexion 2FA : échange le jeton de défi + un code
+  /// (TOTP ou code de secours) contre une session.
+  Future<void> verifier2FA(String mfaToken, String code) async {
+    final d = await post('/auth/2fa/verify', {
+      'mfaToken': mfaToken,
+      'code': code.trim(),
+    });
+    await appliquerReponseJeton(d);
+  }
+
+  /// La 2FA est-elle activée sur ce compte ?
+  Future<bool> statut2FA() async {
+    try {
+      final d = await get('/auth/2fa/status');
+      return d is Map && d['enabled'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Étape 1 de l'activation : génère un secret (encore inactif) et l'URI
+  /// `otpauth://` à ajouter dans une application d'authentification.
+  Future<({String secret, String uri})> preparer2FA() async {
+    final d = await post('/auth/2fa/setup', {});
+    final secret = (d is Map) ? (d['secret'] as String? ?? '') : '';
+    final uri = (d is Map) ? (d['uri'] as String? ?? '') : '';
+    if (secret.isEmpty) throw ApiException('Impossible de préparer la double authentification.');
+    return (secret: secret, uri: uri);
+  }
+
+  /// Étape 2 : vérifie un premier code → active la 2FA et renvoie (une seule
+  /// fois) les codes de secours à conserver.
+  Future<List<String>> activer2FA(String code) async {
+    final d = await post('/auth/2fa/activate', {'code': code.trim()});
+    final codes = (d is Map && d['recoveryCodes'] is List)
+        ? (d['recoveryCodes'] as List).map((e) => e.toString()).toList()
+        : <String>[];
+    return codes;
+  }
+
+  /// Désactive la 2FA — exige un code valide (TOTP ou code de secours).
+  Future<void> desactiver2FA(String code) async {
+    await post('/auth/2fa/disable', {'code': code.trim()});
   }
 
   /// Création de compte. Renvoie le jeton et connecte dans la foulée.

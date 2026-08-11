@@ -15,6 +15,8 @@ import 'theme.dart';
 import 'screens/conversation_screen.dart';
 import 'screens/formulaire_dynamique.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/securite_2fa_screen.dart';
+import 'screens/verifier_2fa_screen.dart';
 import 'screens/favoris_screen.dart';
 import 'screens/listing_detail_screen.dart';
 import 'screens/modifier_profil_screen.dart';
@@ -102,6 +104,13 @@ Widget _pour(String shot) {
       return const _ColorisTelDemo();
     case 'coloris-bois':
       return const _ColorisBoisDemo();
+    case 'twofa':
+      return const Verifier2faScreen(mfaToken: 'demo');
+    case 'twofa-setup':
+      return const Securite2faScreen(apercu: (
+        secret: 'JBSWY3DPEHPK3PXP',
+        uri: 'otpauth://totp/Chap.ci:vendeur@chap.ci?secret=JBSWY3DPEHPK3PXP&issuer=Chap.ci',
+      ));
     case 'notifs':
       final t = DateTime.now().millisecondsSinceEpoch;
       return NotificationsScreen(apercu: [

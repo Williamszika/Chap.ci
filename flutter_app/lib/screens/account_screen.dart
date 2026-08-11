@@ -4,6 +4,7 @@ import '../theme.dart';
 import '../widgets/social_buttons.dart';
 import 'mon_compte.dart';
 import 'register_screen.dart';
+import 'verifier_2fa_screen.dart';
 
 /// Compte — connexion, ou état « connecté » si un jeton est déjà présent.
 ///
@@ -37,7 +38,18 @@ class _AccountScreenState extends State<AccountScreen> {
       _erreur = null;
     });
     try {
-      await ApiClient.instance.seConnecter(_email.text, _motDePasse.text);
+      final mfaToken =
+          await ApiClient.instance.seConnecter(_email.text, _motDePasse.text);
+      if (mfaToken != null) {
+        // Le compte a la double authentification : on demande le code à 6
+        // chiffres sur l'écran suivant.
+        if (!mounted) return;
+        setState(() => _enCours = false);
+        final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(
+            builder: (_) => Verifier2faScreen(mfaToken: mfaToken)));
+        if (ok == true && mounted) setState(() {});
+        return;
+      }
       if (mounted) setState(() {});
     } on ApiException catch (e) {
       if (mounted) setState(() => _erreur = e.message);
