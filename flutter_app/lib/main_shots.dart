@@ -70,6 +70,10 @@ Widget _pour(String shot) {
       return const PublierScreen(initialCategorie: 'animaux', initialSous: 'Oiseaux, Poissons & Reptiles');
     case 'publier-betail':
       return const PublierScreen(initialCategorie: 'animaux', initialSous: 'Bétail & Élevage');
+    case 'publier-formation':
+      return const PublierScreen(initialCategorie: 'services', initialSous: 'Cours & Formation');
+    case 'publier-btp':
+      return const PublierScreen(initialCategorie: 'services', initialSous: 'BTP & Rénovation');
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
