@@ -202,6 +202,13 @@ class AnnonceAdmin {
       AnnonceAdmin(Listing.fromJson(j), j['sellerEmail'] as String?);
 }
 
+/// Un abonné à la newsletter (`GET /newsletter`).
+class Abonne {
+  final String email;
+  final int cree; // epoch ms
+  const Abonne(this.email, this.cree);
+}
+
 /// Une sauvegarde automatique présente sur le serveur (`GET /admin/backups`).
 class Sauvegarde {
   final String fichier;
@@ -343,6 +350,17 @@ class AdminApi {
     await ApiClient.instance.delete(
         '/admin/listings/$id',
         (motif != null && motif.trim().isNotEmpty) ? {'motif': motif.trim()} : null);
+  }
+
+  /// Les abonnés à la newsletter (les plus récents d'abord).
+  static Future<List<Abonne>> newsletter() async {
+    final d = await ApiClient.instance.get('/newsletter');
+    final liste =
+        (d is Map && d['subscribers'] is List) ? d['subscribers'] as List : const [];
+    return liste
+        .whereType<Map>()
+        .map((m) => Abonne((m['email'] ?? '').toString(), _i(m['createdAt'])))
+        .toList();
   }
 
   /// La liste des sauvegardes automatiques présentes sur le serveur.

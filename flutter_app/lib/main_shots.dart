@@ -18,6 +18,7 @@ import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
 import 'screens/admin/annonces_screen.dart';
 import 'screens/admin/moderation_screen.dart';
+import 'screens/admin/newsletter_screen.dart';
 import 'screens/admin/sauvegardes_screen.dart';
 import 'screens/admin/tableau_bord_screen.dart';
 import 'screens/admin/utilisateurs_screen.dart';
@@ -142,6 +143,16 @@ Widget _pour(String shot) {
           'failedLogins': 6, 'adminsIntegrity': true, 'owner2fa': true, 'alerts': 0,
         },
       }));
+    case 'newsletter':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return NewsletterScreen(apercu: [
+        Abonne('awa.kone@gmail.com', t - 2 * 3600000),
+        Abonne('boutique.229@yahoo.fr', t - 26 * 3600000),
+        Abonne('k.traore@gmail.com', t - 3 * 86400000),
+        Abonne('mariam.diallo@hotmail.fr', t - 8 * 86400000),
+        Abonne('serge.gbagbo@gmail.com', t - 15 * 86400000),
+        Abonne('fatou@chap.ci', t - 40 * 86400000),
+      ]);
     case 'sauvegardes':
       final t = DateTime.now().millisecondsSinceEpoch;
       return SauvegardesScreen(apercu: [

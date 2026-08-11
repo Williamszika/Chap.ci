@@ -26,6 +26,7 @@ Store.
 | `lib/screens/admin/utilisateurs_screen.dart` | **Utilisateurs** — chercher un compte, le restreindre ou le bloquer |
 | `lib/screens/admin/annonces_screen.dart` | **Annonces** (admin) — toutes les annonces ; masquer / démasquer / retirer |
 | `lib/screens/admin/sauvegardes_screen.dart` | **Sauvegardes** — liste des exports du serveur + « créer et partager » un export complet |
+| `lib/screens/admin/newsletter_screen.dart` | **Newsletter** — les abonnés (combien, qui, depuis quand) + export **CSV** partageable |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
@@ -233,10 +234,16 @@ Dans l'ordre où on les construira, écran par écran :
    `X-Admin-Unlock`). La **modération** est portée : un bouton mène à la file
    des signalements (`/admin/reports`) où, d'un seul geste, on décide ET on
    agit sur l'annonce — **classer**, **masquer** (le vendeur est prévenu et
-   peut corriger), **supprimer** (`POST /admin/reports/<id>`). Les autres
-   sections du site (comptes, e-mails, sauvegardes…) restent à porter écran par
-   écran. Voir `lib/screens/admin/tableau_bord_screen.dart`,
-   `lib/screens/admin/moderation_screen.dart` et `lib/api/admin.dart`.
+   peut corriger), **supprimer** (`POST /admin/reports/<id>`). Suivent les
+   **utilisateurs** (chercher, restreindre, bloquer), les **annonces** (masquer /
+   démasquer / retirer), les **sauvegardes** (liste des exports + « créer et
+   partager ») et la **newsletter** : combien d'abonnés, qui, depuis quand, avec
+   un export **CSV** partageable (`GET /newsletter`). Restent à porter les
+   **e-mails / SMTP** (`/admin/smtp`, `/admin/test-email`) et le **journal de
+   sécurité** détaillé (qui demanderait une nouvelle route serveur). Voir
+   `lib/screens/admin/tableau_bord_screen.dart`,
+   `lib/screens/admin/moderation_screen.dart`,
+   `lib/screens/admin/newsletter_screen.dart` et `lib/api/admin.dart`.
 
 Tant que la parité n'est pas atteinte, **ne pas remplacer** l'app Play Store
 actuelle : on ne livre en production que quand l'app Flutter fait au moins tout

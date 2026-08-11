@@ -5,6 +5,7 @@ import '../../format.dart';
 import '../../theme.dart';
 import 'annonces_screen.dart';
 import 'moderation_screen.dart';
+import 'newsletter_screen.dart';
 import 'sauvegardes_screen.dart';
 import 'utilisateurs_screen.dart';
 
@@ -233,6 +234,18 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
               MaterialPageRoute(builder: (_) => const SauvegardesScreen())),
           icon: const Icon(Icons.backup_outlined, size: 18),
           label: const Text('Sauvegardes'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+            foregroundColor: ChapColors.orange,
+            side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const NewsletterScreen())),
+          icon: const Icon(Icons.mail_outline, size: 18),
+          label: const Text('Newsletter'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(46),
             foregroundColor: ChapColors.orange,
