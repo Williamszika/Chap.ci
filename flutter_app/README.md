@@ -27,6 +27,7 @@ Store.
 | `lib/screens/admin/annonces_screen.dart` | **Annonces** (admin) — toutes les annonces ; masquer / démasquer / retirer |
 | `lib/screens/admin/sauvegardes_screen.dart` | **Sauvegardes** — liste des exports du serveur + « créer et partager » un export complet |
 | `lib/screens/admin/newsletter_screen.dart` | **Newsletter** — les abonnés (combien, qui, depuis quand) + export **CSV** partageable |
+| `lib/screens/admin/emails_screen.dart` | **E-mails / SMTP** (propriétaire) — régler l'envoi des e-mails du site + envoyer un e-mail de test |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
@@ -238,12 +239,15 @@ Dans l'ordre où on les construira, écran par écran :
    **utilisateurs** (chercher, restreindre, bloquer), les **annonces** (masquer /
    démasquer / retirer), les **sauvegardes** (liste des exports + « créer et
    partager ») et la **newsletter** : combien d'abonnés, qui, depuis quand, avec
-   un export **CSV** partageable (`GET /newsletter`). Restent à porter les
-   **e-mails / SMTP** (`/admin/smtp`, `/admin/test-email`) et le **journal de
+   un export **CSV** partageable (`GET /newsletter`). Les **e-mails / SMTP**
+   (réservés au propriétaire) sont portés : régler l'hôte, le port, SSL/TLS, la
+   boîte d'envoi, puis **envoyer un e-mail de test** (`GET`/`POST /admin/smtp`,
+   `POST /admin/test-email`) — le mot de passe est un secret, le serveur ne le
+   renvoie jamais et l'app ne le garde pas. Reste à porter le **journal de
    sécurité** détaillé (qui demanderait une nouvelle route serveur). Voir
    `lib/screens/admin/tableau_bord_screen.dart`,
    `lib/screens/admin/moderation_screen.dart`,
-   `lib/screens/admin/newsletter_screen.dart` et `lib/api/admin.dart`.
+   `lib/screens/admin/emails_screen.dart` et `lib/api/admin.dart`.
 
 Tant que la parité n'est pas atteinte, **ne pas remplacer** l'app Play Store
 actuelle : on ne livre en production que quand l'app Flutter fait au moins tout

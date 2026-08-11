@@ -4,6 +4,7 @@ import '../../api/api_client.dart';
 import '../../format.dart';
 import '../../theme.dart';
 import 'annonces_screen.dart';
+import 'emails_screen.dart';
 import 'moderation_screen.dart';
 import 'newsletter_screen.dart';
 import 'sauvegardes_screen.dart';
@@ -252,6 +253,23 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
             side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
           ),
         ),
+        // « E-mails » (réglages SMTP) : réservé au propriétaire côté serveur —
+        // on n'affiche donc le bouton qu'à lui, pour ne pas tenter un
+        // modérateur avec une porte qui se refermerait en 403.
+        if (_proprietaire) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const EmailsScreen())),
+            icon: const Icon(Icons.alternate_email, size: 18),
+            label: const Text('E-mails'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              foregroundColor: ChapColors.orange,
+              side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
         _titre('Le parcours'),
         const SizedBox(height: 4),

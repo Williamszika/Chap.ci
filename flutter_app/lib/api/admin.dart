@@ -230,6 +230,43 @@ class Export {
   const Export(this.nom, this.octets);
 }
 
+/// Les réglages d'envoi d'e-mails (SMTP) — `GET /admin/smtp`.
+///
+/// Le mot de passe n'est **jamais** renvoyé par le serveur : seul [configure]
+/// dit s'il est déjà posé. Tant qu'il ne l'est pas, le site retombe sur le
+/// `mail()` du serveur, moins fiable en hébergement mutualisé.
+class ReglagesSmtp {
+  final String hote, port, securite, utilisateur;
+  final bool configure;
+  const ReglagesSmtp({
+    required this.hote,
+    required this.port,
+    required this.securite,
+    required this.utilisateur,
+    required this.configure,
+  });
+
+  factory ReglagesSmtp.depuis(Map m) => ReglagesSmtp(
+        hote: (m['host'] ?? 'localhost').toString(),
+        port: (m['port'] ?? '465').toString(),
+        securite: (m['secure'] ?? 'ssl').toString(),
+        utilisateur: (m['user'] ?? '').toString(),
+        configure: m['configured'] == true,
+      );
+}
+
+/// Le résultat d'un envoi de test (`POST /admin/test-email`).
+class ResultatTest {
+  final bool envoye;
+
+  /// L'adresse destinataire (celle du compte connecté).
+  final String destinataire;
+
+  /// La voie empruntée : `smtp` (réglages posés) ou `mail()` (repli serveur).
+  final String voie;
+  const ResultatTest(this.envoye, this.destinataire, this.voie);
+}
+
 /// Le tableau de bord (réservé au Patron). Trois verrous côté serveur : être
 /// admin, avoir déverrouillé avec le code d'accès, puis les permissions fines.
 class AdminApi {
@@ -380,5 +417,48 @@ class AdminApi {
     final d = await ApiClient.instance.get('/admin/backup');
     final octets = utf8.encode(const JsonEncoder.withIndent('  ').convert(d));
     return Export('chapci-$horodatage.json', octets);
+  }
+
+  /// Les réglages d'envoi d'e-mails. Réservé au propriétaire.
+  static Future<ReglagesSmtp> smtp() async {
+    final d = await ApiClient.instance.get('/admin/smtp');
+    if (d is! Map) throw ApiException('Réponse inattendue du serveur.');
+    return ReglagesSmtp.depuis(d);
+  }
+
+  /// Enregistre les réglages SMTP. Le serveur écrit `api/data/smtp.json` (JSON
+  /// inerte, en 0600, dans le dossier refusé au web) — jamais de code généré.
+  ///
+  /// Le mot de passe est **obligatoire** à chaque enregistrement : le serveur
+  /// ne le renvoie jamais, l'app ne peut donc pas le deviner, et il faut le
+  /// retaper pour valider le moindre changement.
+  static Future<void> enregistrerSmtp({
+    required String hote,
+    required String port,
+    required String securite,
+    required String utilisateur,
+    required String motDePasse,
+  }) async {
+    await ApiClient.instance.post('/admin/smtp', {
+      'host': hote.trim(),
+      'port': port.trim(),
+      'secure': securite,
+      'user': utilisateur.trim(),
+      'pass': motDePasse,
+    });
+  }
+
+  /// Envoie un e-mail de test à l'adresse du compte connecté, avec les réglages
+  /// actuellement enregistrés (repli sur `mail()` s'il n'y en a pas).
+  static Future<ResultatTest> testerEmail() async {
+    final d = await ApiClient.instance.post('/admin/test-email', {});
+    if (d is Map) {
+      return ResultatTest(
+        d['sent'] == true,
+        (d['to'] ?? '').toString(),
+        (d['via'] ?? '').toString(),
+      );
+    }
+    throw ApiException('Réponse inattendue du serveur.');
   }
 }
