@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'api/api_client.dart';
 import 'api/messaging.dart';
 import 'api/models.dart';
+import 'data/formulaires/electronique.dart';
 import 'data/formulaires/mode.dart';
 import 'favoris.dart';
 import 'main.dart';
@@ -94,6 +95,8 @@ Widget _pour(String shot) {
       return const PublierScreen(initialCategorie: 'a-donner', initialSous: 'Meubles & électroménager');
     case 'coloris':
       return const _ColorisDemo();
+    case 'coloris-tel':
+      return const _ColorisTelDemo();
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
@@ -130,6 +133,40 @@ class _ColorisDemo extends StatelessWidget {
               'var_Rouge_note': 'dernière pièce',
               'var_Rouge_tailles': ['40', '42'],
               'var_Noir_tailles': ['38'],
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Un smartphone décliné en deux coloris (Noir 128 Go, Bleu 256 Go) — pour la
+/// capture des variantes sur l'Électronique. Réservé aux captures.
+class _ColorisTelDemo extends StatelessWidget {
+  const _ColorisTelDemo();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Un téléphone, deux coloris')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 60),
+        children: [
+          FormulaireDynamique(
+            schema: electronique['Smartphones']!,
+            onChange: (_) {},
+            initiales: const {
+              'marque': 'Samsung',
+              'modele': 'Galaxy A55',
+              'stockage': '128 Go',
+              'provenance': 'Occasion Côte d’Ivoire',
+              'comptes': 'Déconnectés — prêt à l’emploi',
+              'couleurs': ['Noir', 'Bleu'],
+              'var_Noir_stockage': ['128 Go'],
+              'var_Noir_prix': '95000',
+              'var_Bleu_stockage': ['256 Go'],
+              'var_Bleu_prix': '110000',
+              'var_Bleu_note': 'dernière pièce',
             },
           ),
         ],
