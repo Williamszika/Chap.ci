@@ -20,6 +20,7 @@ class Listing {
   final List<String> images;
   final String? commune;
   final String sellerName;
+  final String? sellerId; // le compte vendeur (pour ouvrir une conversation)
   final bool sellerVerified;
   final int createdAt; // ms
   final bool delivery;
@@ -40,6 +41,7 @@ class Listing {
     required this.images,
     required this.sellerName,
     required this.createdAt,
+    this.sellerId,
     this.subcategory,
     this.commune,
     this.sellerVerified = false,
@@ -78,6 +80,7 @@ class Listing {
           : const [],
       commune: j['commune']?.toString(),
       sellerName: (j['sellerName'] ?? 'Vendeur').toString(),
+      sellerId: j['sellerId']?.toString(),
       sellerVerified: j['sellerVerified'] == true,
       createdAt: (j['createdAt'] is num) ? (j['createdAt'] as num).toInt() : 0,
       delivery: j['delivery'] == true,

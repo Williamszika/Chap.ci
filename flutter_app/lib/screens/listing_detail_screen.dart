@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../api/api_client.dart';
+import '../api/messaging.dart';
 import '../api/models.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'conversation_screen.dart';
 
 /// Fiche d'une annonce — le détail complet : photos, prix, état, description,
 /// vendeur, et le bouton « Contacter ».
@@ -299,10 +302,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: a.sold
-                    ? null
-                    : () => _info(context,
-                        'La messagerie native arrive dans une prochaine mise à jour. En attendant, vous pouvez contacter le vendeur depuis la même annonce sur chap.ci.'),
+                onPressed: a.sold ? null : () => _contacter(a),
                 icon: const Icon(Icons.chat_bubble_outline, size: 18),
                 label: Text(a.sold ? 'Vendu' : 'Contacter'),
               ),
@@ -311,6 +311,37 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ),
       ),
     );
+  }
+
+  /// « Contacter » : ouvre (ou retrouve) la conversation avec le vendeur, puis
+  /// le fil de discussion. Refuse poliment si non connecté ou si c'est sa
+  /// propre annonce.
+  Future<void> _contacter(Listing a) async {
+    if (!ApiClient.instance.connecte) {
+      _info(context,
+          'Connectez-vous depuis l’onglet Compte pour contacter le vendeur.');
+      return;
+    }
+    if (a.sellerId == null || a.sellerId!.isEmpty) {
+      _info(context,
+          'Ce vendeur ne peut pas être contacté dans l’application pour le moment.');
+      return;
+    }
+    final monId = await ApiClient.instance.monId();
+    if (a.sellerId == monId) {
+      _info(context, 'C’est votre propre annonce.');
+      return;
+    }
+    try {
+      final convId = await Conversation.ouvrirAvec(a.id, a.sellerId!);
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) =>
+            ConversationScreen(conversationId: convId, titre: a.sellerName),
+      ));
+    } on ApiException catch (e) {
+      if (mounted) _info(context, e.message);
+    }
   }
 
   void _info(BuildContext context, String message) {

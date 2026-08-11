@@ -18,6 +18,14 @@ String formatFCFA(num montant) {
   return '$signe$tampon${_nbsp}FCFA';
 }
 
+/// Heure locale courte « 14:05 » à partir d'un timestamp en millisecondes.
+String heureCourte(int ms) {
+  final d = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
+  final h = d.hour.toString().padLeft(2, '0');
+  final m = d.minute.toString().padLeft(2, '0');
+  return '$h:$m';
+}
+
 /// Temps écoulé depuis un timestamp en millisecondes -> « il y a 3 h », « hier »…
 String tempsEcoule(int timestampMs) {
   final maintenant = DateTime.now().millisecondsSinceEpoch;

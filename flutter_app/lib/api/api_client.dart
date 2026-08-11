@@ -28,6 +28,7 @@ class ApiClient {
   static const Duration _timeout = Duration(seconds: 15);
 
   String? _token;
+  String? _monId; // l'id du compte courant, mis en cache (voir monId())
 
   /// À appeler une fois au démarrage : recharge le jeton stocké.
   Future<void> chargerSession() async {
@@ -39,6 +40,7 @@ class ApiClient {
 
   Future<void> _enregistrerJeton(String? token) async {
     _token = token;
+    _monId = null; // le cache d'identité ne vaut que pour la session courante
     final prefs = await SharedPreferences.getInstance();
     if (token == null || token.isEmpty) {
       await prefs.remove(_tokenKey);
@@ -167,9 +169,19 @@ class ApiClient {
   Future<Map<String, dynamic>?> moi() async {
     final d = await get('/auth/me');
     if (d is Map && d['user'] is Map) {
-      return Map<String, dynamic>.from(d['user'] as Map);
+      final u = Map<String, dynamic>.from(d['user'] as Map);
+      _monId = u['id'] as String?;
+      return u;
     }
     return null;
+  }
+
+  /// L'id du compte courant, mis en cache (utile pour aligner mes messages à
+  /// droite). Le récupère via `moi()` au besoin.
+  Future<String?> monId() async {
+    if (_monId != null) return _monId;
+    await moi();
+    return _monId;
   }
 
   /// Ouvre la session à partir d'une réponse `{ token, user }` (utilisé par la

@@ -3,6 +3,7 @@ import 'api/api_client.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/browse_screen.dart';
+import 'screens/messages_screen.dart';
 import 'screens/account_screen.dart';
 
 Future<void> main() async {
@@ -41,6 +42,7 @@ class _AccueilShellState extends State<AccueilShell> {
     final pages = [
       HomeScreen(onVoirTout: () => setState(() => _onglet = 1)),
       const BrowseScreen(),
+      MessagesScreen(onVersCompte: () => setState(() => _onglet = 3)),
       const AccountScreen(),
     ];
 
@@ -60,6 +62,11 @@ class _AccueilShellState extends State<AccueilShell> {
               icon: Icon(Icons.grid_view_outlined),
               selectedIcon: Icon(Icons.grid_view, color: ChapColors.orange),
               label: 'Explorer'),
+          NavigationDestination(
+              icon: Icon(Icons.chat_bubble_outline),
+              selectedIcon:
+                  Icon(Icons.chat_bubble, color: ChapColors.orange),
+              label: 'Messages'),
           NavigationDestination(
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person, color: ChapColors.orange),

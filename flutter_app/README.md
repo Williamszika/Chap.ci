@@ -29,6 +29,9 @@ Store.
 | `lib/screens/account_screen.dart` | **Compte / Connexion** |
 | `lib/screens/register_screen.dart` | **Inscription** — nom, e-mail, mot de passe ≥ 8, consentement |
 | `lib/screens/mon_compte.dart` | **Mon compte** — identité + mes annonces (état, vues, masquer/supprimer) |
+| `lib/api/messaging.dart` | Conversations & messages (mêmes routes que le site) |
+| `lib/screens/messages_screen.dart` | **Messages** — la liste des conversations |
+| `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
 | `lib/main.dart` | La coquille + la barre du bas (Accueil · Explorer · Compte) |
 
 ---
@@ -104,7 +107,8 @@ Dans l'ordre où on les construira, écran par écran :
    Restent la **confirmation d'e-mail** (mur avant publication) et la **2FA**.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer) +
    identité. Restent l'édition du profil et la photo.
-6. **Messagerie** acheteur ↔ vendeur.
+6. ~~**Messagerie** acheteur ↔ vendeur~~ ✅ fait (liste, fil, envoi, relève 4 s ;
+   « Contacter » sur la fiche ouvre la conversation).
 7. **Notifications natives** (Firebase Cloud Messaging) — c'est ici que l'app
    Flutter apporte ce que la coque WebView ne pouvait pas faire.
 8. **Tableau de bord** (réservé au Patron).
