@@ -42,6 +42,7 @@ class _PublierScreenState extends State<PublierScreen> {
     super.initState();
     _categorie = widget.initialCategorie;
     _sousCategorie = widget.initialSous;
+    if (_schema != null) _cleForm = GlobalKey<FormulaireDynamiqueState>();
   }
 
   final _formKey = GlobalKey<FormState>();
@@ -54,6 +55,9 @@ class _PublierScreenState extends State<PublierScreen> {
   String? _categorie;
   String? _sousCategorie;
   EtatFormulaire? _etatForm; // le dernier état du formulaire détaillé
+  // Une clé par sous-catégorie : elle réinitialise le formulaire au changement
+  // ET donne prise dessus pour renuméroter les photos liées à une couleur.
+  GlobalKey<FormulaireDynamiqueState>? _cleForm;
   String _condition = 'occasion';
   Lieu _lieu = const Lieu(); // région / ville / commune choisies
   Coords? _gpsCoords; // position précise si le GPS a été activé
@@ -277,6 +281,7 @@ class _PublierScreenState extends State<PublierScreen> {
                 _categorie = v;
                 _sousCategorie = null; // la sous-catégorie dépend de la catégorie
                 _etatForm = null;
+                _cleForm = null;
               }),
             ),
             if (_categorie != null && sousDe(_categorie!).isNotEmpty) ...[
@@ -292,6 +297,9 @@ class _PublierScreenState extends State<PublierScreen> {
                 onChanged: (v) => setState(() {
                   _sousCategorie = v;
                   _etatForm = null;
+                  _cleForm = schemaPour(_categorie, v) != null
+                      ? GlobalKey<FormulaireDynamiqueState>()
+                      : null;
                 }),
               ),
             ],
@@ -301,8 +309,9 @@ class _PublierScreenState extends State<PublierScreen> {
               const SizedBox(height: 16),
               _titreSection('Détails de la sous-catégorie'),
               FormulaireDynamique(
-                key: ValueKey('$_categorie/$_sousCategorie'),
+                key: _cleForm,
                 schema: _schema!,
+                images: _photos.map((p) => p.bytes).toList(),
                 onChange: (e) => setState(() => _etatForm = e),
               ),
               const SizedBox(height: 6),
@@ -457,7 +466,11 @@ class _PublierScreenState extends State<PublierScreen> {
             top: 2,
             right: 2,
             child: GestureDetector(
-              onTap: () => setState(() => _photos.removeAt(i)),
+              onTap: () {
+                setState(() => _photos.removeAt(i));
+                // Une couleur pouvait pointer vers cette photo : on renumérote.
+                _cleForm?.currentState?.photoRetiree(i);
+              },
               child: Container(
                 decoration: const BoxDecoration(
                     color: Colors.black54, shape: BoxShape.circle),

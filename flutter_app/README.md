@@ -35,7 +35,7 @@ Store.
 | `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
 | `lib/screens/publier_screen.dart` | **Publier** — photos (≥ 3), catégorie **et sous-catégorie**, prix, localisation, + le formulaire détaillé |
 | `lib/screens/formulaire_dynamique.dart` | Le **moteur** qui affiche le formulaire d'une sous-catégorie (puces, bascules, alertes, blocage) |
-| `lib/data/formulaires/` | Le **contrat** (`schema.dart`), les données par catégorie (`mode.dart`…) et le **registre** (`registre.dart`) |
+| `lib/data/formulaires/` | Le **contrat** (`schema.dart`), les **couleurs** (`couleurs.dart` — pastilles + palettes du métier + variantes), les données par catégorie (`mode.dart`…) et le **registre** (`registre.dart`) |
 | `lib/screens/verifier_email_screen.dart` | **Confirmer l'e-mail** — code à 6 chiffres (mur avant de publier) |
 | `lib/favoris.dart` | Les favoris (local + synchro compte), un ChangeNotifier |
 | `lib/widgets/bouton_favori.dart` | Le cœur sur la carte et la fiche |
@@ -170,7 +170,15 @@ Dans l'ordre où on les construira, écran par écran :
    la main en cascade Région → Ville → Commune. Faute de GPS, l'annonce part
    quand même avec la position approximative de sa commune / ville
    (`lib/data/coords.dart`), pour que la distance s'affiche.
-   Reste, sur ce chantier : le **bloc couleurs/variantes** (tailles par coloris).
+   **Le bloc couleurs / variantes est porté** (`couleurs.dart` + le moteur) :
+   pastilles de la palette du métier (les quinze teintes générales, ou les
+   carnations d'un fond de teint, ou les numéros d'une mèche), et pour chaque
+   coloris coché **sa photo, son prix, ses détails et les tailles / pointures /
+   longueurs qui lui restent** (`var_<Couleur>_<champ>`, comme le site). La
+   catégorie **Mode & Beauté** est câblée de bout en bout (le sac se décline en
+   couleurs, le bijou non ; le fond de teint reçoit sa palette de carnations).
+   Reste à activer le bloc, sous-catégorie par sous-catégorie, sur les autres
+   catégories (le moteur, lui, est prêt).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),

@@ -11,6 +11,7 @@
 //  contrainte de poids du paquet web, et un champ nommé se relit mieux qu'un
 //  `k`/`l`/`o`. Le moteur d'affichage est `screens/formulaire_dynamique.dart`.
 // =============================================================================
+import 'couleurs.dart';
 
 /// Les réponses déjà saisies. Une valeur est tantôt un texte (« Toyota »),
 /// tantôt une liste (les tailles cochées) — d'où le `dynamic`, comme sur le site.
@@ -21,6 +22,7 @@ typedef Vals = Map<String, dynamic>;
 /// avec [resoudreBool] / [resoudreTexte].
 typedef CondFn = bool Function(Vals);
 typedef TexteFn = String Function(Vals);
+typedef PaletteFn = List<Couleur> Function(Vals);
 
 /// Résout un `Selon<bool>` : soit un booléen direct, soit une fonction de l'état.
 bool resoudreBool(Object? v, Vals s, {bool defaut = false}) {
@@ -33,6 +35,13 @@ bool resoudreBool(Object? v, Vals s, {bool defaut = false}) {
 String? resoudreTexte(Object? v, Vals s) {
   if (v is String) return v;
   if (v is TexteFn) return v(s);
+  return null;
+}
+
+/// Résout un `Selon<List<Couleur>>` : liste directe, fonction, ou `null`.
+List<Couleur>? resoudrePalette(Object? v, Vals s) {
+  if (v is List<Couleur>) return v;
+  if (v is PaletteFn) return v(s);
   return null;
 }
 
@@ -131,6 +140,14 @@ class Champ {
   /// Pourquoi la publication est refusée, et quoi faire à la place.
   final String? motifBloc;
 
+  /// Ce champ peut être précisé couleur par couleur (les tailles restantes dans
+  /// tel coloris). Il s'affiche normalement, ET dans chaque carte de couleur.
+  final bool varOK;
+
+  /// Le libellé abrégé du champ dans le bloc « variantes » (« Tailles
+  /// restantes dans cette couleur »). À défaut, on reprend [libelle].
+  final String? lVar;
+
   const Champ(
     this.cle,
     this.libelle, {
@@ -148,6 +165,8 @@ class Champ {
     this.alerte,
     this.bloque = const [],
     this.motifBloc,
+    this.varOK = false,
+    this.lVar,
   });
 
   /// Le libellé du choix « libre », s'il est ouvert : la chaîne fournie, ou
@@ -185,6 +204,27 @@ class Schema {
 
   final List<Champ> champs;
 
+  /// Proposer le bloc couleurs — souvent conditionnel (un bijou, non).
+  /// `bool` ou fonction `Selon<bool>`.
+  final Object? couleurs;
+
+  /// La palette du métier : teintes de bois, carnations, numéros de mèches…
+  /// `List<Couleur>` ou fonction `Selon<List<Couleur>>`. À défaut, les quinze
+  /// teintes générales.
+  final Object? palette;
+
+  /// Ce qu'on dit à la place du bloc couleurs quand il n'y en a pas.
+  final Object? sansCouleur;
+
+  /// L'aide au-dessus des pastilles.
+  final Object? aideCouleurs;
+
+  /// Le mot juste : « Couleurs », « Coloris », « Teintes », « Essences ».
+  final Object? labCouleurs;
+
+  /// L'aide du champ déclinable par couleur.
+  final Object? aideCoulChamp;
+
   const Schema({
     this.etat = true,
     this.livraison = false,
@@ -192,5 +232,11 @@ class Schema {
     this.prixLabel,
     this.titre,
     required this.champs,
+    this.couleurs,
+    this.palette,
+    this.sansCouleur,
+    this.aideCouleurs,
+    this.labCouleurs,
+    this.aideCoulChamp,
   });
 }

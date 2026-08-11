@@ -13,11 +13,19 @@
 //     depuis 1967) et Woodin, puis très loin les imprimés importés d'Asie.
 //     Le formulaire demande la marque et sépare « authentique » de « sans preuve ».
 //
-//  Le bloc couleurs / variantes du site (pastilles, tailles par coloris) n'est
-//  pas encore porté ici : le moteur natif v1 affiche les champs, pas les
-//  variantes. Les questions, elles, sont fidèles au mot près.
+//  Le bloc couleurs / variantes (pastilles, tailles ou pointures par coloris)
+//  est porté : chaque coloris coché reçoit sa photo, son prix et les tailles
+//  qui lui restent. Les palettes du métier — carnations d'un fond de teint,
+//  numéros d'une mèche — viennent de `couleurs.dart`.
 // =============================================================================
+import 'couleurs.dart';
 import 'schema.dart';
+
+// Beauté : quels produits ont vraiment une couleur, et laquelle.
+final _bCheveux = RegExp('Perruque|Tissage|Mèches|Extensions|Coloration');
+final _bTeint = RegExp('Fond de teint|Poudre');
+final _bMaquillage =
+    RegExp('Rouge à lèvres|Fard à paupières|Crayon|Mascara|Vernis|Faux ongles');
 
 const _taillesLettre = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', 'Taille unique'];
 const _taillesFemme = ['34', '36', '38', '40', '42', '44', '46', '48', '50', '52', '54', '56'];
@@ -71,6 +79,9 @@ final Map<String, Schema> mode = {
   'Vêtements Femme': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    aideCouleurs:
+        'Cochez chaque couleur que vous avez. Ouvrez-la ensuite pour lui donner ses photos, son prix et les tailles qui lui restent.',
     titre: (s) =>
         [_t(s, 'typeF'), _t(s, 'matiere'), _listeTailles('taille', s['tailles'])]
             .where((x) => x.isNotEmpty)
@@ -85,8 +96,10 @@ final Map<String, Schema> mode = {
       const Champ('tailles', 'Tailles disponibles',
           multi: true,
           req: true,
+          varOK: true,
+          lVar: 'Tailles restantes dans cette couleur',
           options: [..._taillesLettre, ..._taillesFemme],
-          h: 'Cochez toutes les tailles que vous avez.'),
+          h: 'Cochez toutes les tailles que vous avez. Vous pourrez ensuite préciser, couleur par couleur, celles qui restent.'),
       const Champ('matiere', 'Matière', options: _matieres, req: true),
       const Champ('marqueF', 'Marque', ph: 'Ex : Zara, création locale, sans marque'),
       const Champ('style', 'Style', multi: true, options: [
@@ -102,6 +115,9 @@ final Map<String, Schema> mode = {
   'Vêtements Homme': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    aideCouleurs:
+        'Cochez chaque couleur que vous avez. Ouvrez-la ensuite pour lui donner ses photos, son prix et les tailles qui lui restent.',
     titre: (s) =>
         [_t(s, 'typeH'), _t(s, 'matiere'), _listeTailles('taille', s['tailles'])]
             .where((x) => x.isNotEmpty)
@@ -116,8 +132,10 @@ final Map<String, Schema> mode = {
       const Champ('tailles', 'Tailles disponibles',
           multi: true,
           req: true,
+          varOK: true,
+          lVar: 'Tailles restantes dans cette couleur',
           options: [..._taillesLettre, ..._taillesHomme],
-          h: 'Cochez toutes les tailles que vous avez.'),
+          h: 'Cochez toutes les tailles que vous avez. Vous pourrez ensuite préciser, couleur par couleur, celles qui restent.'),
       Champ('colChemise', 'Tour de col',
           options: const ['37', '38', '39', '40', '41', '42', '43', '44', '45', '46'],
           when: (s) => _t(s, 'typeH') == 'Chemise'),
@@ -134,6 +152,9 @@ final Map<String, Schema> mode = {
   'Chaussures': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    aideCouleurs:
+        'Cochez chaque couleur que vous avez. Ouvrez-la ensuite pour lui donner ses photos, son prix et les pointures qui lui restent.',
     titre: (s) =>
         [_t(s, 'typeCh'), _t(s, 'marqueCh'), _listeTailles('pointure', s['pointures'])]
             .where((x) => x.isNotEmpty)
@@ -148,6 +169,8 @@ final Map<String, Schema> mode = {
       const Champ('pointures', 'Pointures disponibles',
           multi: true,
           req: true,
+          varOK: true,
+          lVar: 'Pointures restantes dans cette couleur',
           options: _pointures,
           h: 'Cochez toutes les pointures en stock. Une annonce qui annonce une pointure absente fait perdre l’acheteur et la vente.'),
       const Champ('marqueCh', 'Marque', ph: 'Ex : Nike, Adidas, sans marque'),
@@ -167,6 +190,16 @@ final Map<String, Schema> mode = {
   'Sacs & Bijoux': Schema(
     etat: true,
     livraison: true,
+    // Un sac existe en noir et en marron : la couleur est une vraie variante.
+    // Un bijou, non — sa « couleur », c'est son métal, et une chaîne en or ne
+    // se vend pas au prix d'une chaîne en argent. Deux annonces, pas deux
+    // pastilles.
+    couleurs: (s) => _t(s, 'famille').isNotEmpty && _t(s, 'famille') != 'Bijou',
+    sansCouleur: (s) => _t(s, 'famille') == 'Bijou'
+        ? 'Un bijou n’a pas de pastille de couleur : c’est son métal qui la donne. Une chaîne en or et la même en argent sont deux annonces, pas deux variantes.'
+        : 'La première photo sert de couverture.',
+    aideCouleurs:
+        'Cochez chaque couleur que vous avez. Ouvrez-la ensuite pour lui donner ses photos, son prix et un détail court.',
     titre: (s) => [_t(s, 'typeSB'), _t(s, 'marqueSB'), _t(s, 'carat')]
         .where((x) => x.isNotEmpty)
         .join(' · '),
@@ -221,6 +254,14 @@ final Map<String, Schema> mode = {
   'Pagnes & Tissus': Schema(
     etat: true,
     livraison: true,
+    // Un même dessin de wax se décline en plusieurs coloris. Ce qu'on coche
+    // ici, c'est la couleur dominante de chaque pièce.
+    couleurs: true,
+    labCouleurs: 'Coloris disponibles',
+    aideCouleurs:
+        'Le même dessin existe souvent en plusieurs coloris. Cochez-les, puis ouvrez-en un pour lui donner ses photos, son prix et un détail court.',
+    aideCoulChamp:
+        'Cochez la couleur dominante de chaque pièce. Pour un imprimé très chargé, « Multicolore ».',
     titre: (s) => [
           _t(s, 'typeTissu'),
           _t(s, 'marqueTissu') != 'Autre / je ne sais pas' ? _t(s, 'marqueTissu') : '',
@@ -294,6 +335,44 @@ final Map<String, Schema> mode = {
   ),
   'Beauté & Cosmétiques': Schema(
     livraison: true,
+    // Un tube de lait corporel n'a pas de couleur. Un fond de teint a une
+    // carnation, une mèche un numéro, un vernis une nuance — et ce ne sont pas
+    // les mêmes listes. Le formulaire choisit la bonne, ou n'en propose aucune.
+    couleurs: (s) {
+      final t = _t(s, 'typeBeaute');
+      return _bCheveux.hasMatch(t) || _bTeint.hasMatch(t) || _bMaquillage.hasMatch(t);
+    },
+    palette: (s) {
+      final t = _t(s, 'typeBeaute');
+      if (_bCheveux.hasMatch(t)) return paletteCheveux;
+      if (_bTeint.hasMatch(t)) return paletteTeint;
+      return paletteMaquillage;
+    },
+    labCouleurs: (s) =>
+        _bCheveux.hasMatch(_t(s, 'typeBeaute')) ? 'Couleurs disponibles' : 'Teintes disponibles',
+    aideCouleurs: (s) {
+      final t = _t(s, 'typeBeaute');
+      if (_bCheveux.hasMatch(t)) {
+        return 'Cochez chaque couleur que vous avez. Ouvrez-la ensuite pour lui donner ses photos, son prix et les longueurs qui lui restent.';
+      }
+      if (_bTeint.hasMatch(t)) {
+        return 'Cochez chaque carnation que vous avez en stock. Ouvrez-en une pour lui donner ses photos et son prix.';
+      }
+      return 'Cochez chaque teinte que vous avez. Ouvrez-en une pour lui donner ses photos, son prix et un détail court.';
+    },
+    aideCoulChamp: (s) {
+      final t = _t(s, 'typeBeaute');
+      if (_bCheveux.hasMatch(t)) {
+        return 'Les numéros du marché : 1B pour le noir naturel, 27 pour le miel, 613 pour le blond platine.';
+      }
+      if (_bTeint.hasMatch(t)) {
+        return 'Une teinte qui ne correspond pas à la carnation ne se revend jamais. Photographiez la référence écrite sur le flacon.';
+      }
+      return '';
+    },
+    sansCouleur: (s) => _t(s, 'typeBeaute').isNotEmpty
+        ? 'Ce produit n’a pas de teinte à choisir. Ajoutez vos photos — pensez à une vue lisible de l’étiquette.'
+        : 'La première photo sert de couverture.',
     // Un flacon de crème n'est pas « neuf ou d'occasion » : il est scellé,
     // ouvert, entamé ou testeur. Un sèche-cheveux, lui, l'est vraiment.
     etat: (s) => _t(s, 'familleB') == 'Accessoire beauté',
@@ -335,10 +414,13 @@ final Map<String, Schema> mode = {
           when: (s) => RegExp('Perruque|Tissage|Mèches|Extensions').hasMatch(_t(s, 'typeBeaute'))),
       Champ('longueurCheveux', 'Longueurs disponibles',
           multi: true,
+          varOK: true,
+          lVar: 'Longueurs restantes dans cette couleur',
           options: const [
             '8 pouces', '10 pouces', '12 pouces', '14 pouces', '16 pouces',
             '18 pouces', '20 pouces', '22 pouces', '24 pouces', '26 pouces et plus'
           ],
+          h: 'Comme pour les tailles : vous pourrez préciser, couleur par couleur, les longueurs qui restent.',
           when: (s) => RegExp('Perruque|Tissage|Mèches|Extensions').hasMatch(_t(s, 'typeBeaute'))),
       Champ('textureCheveux', 'Texture',
           options: const ['Lisse', 'Ondulé', 'Bouclé', 'Crépu', 'Afro kinky', 'Water wave', 'Deep wave'],
