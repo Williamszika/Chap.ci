@@ -11,6 +11,7 @@ import 'package:chapci/data/formulaires/alimentation.dart';
 import 'package:chapci/data/formulaires/animaux.dart';
 import 'package:chapci/data/formulaires/services.dart';
 import 'package:chapci/data/formulaires/emploi.dart';
+import 'package:chapci/data/formulaires/sante.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -209,5 +210,26 @@ void main() {
     await taper(tester, 'Moins de 18 ans');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('mineure'));
+  });
+
+  testWidgets('vendre un médicament hors pharmacie bloque la publication', (tester) async {
+    final etat = await monter(tester, sante['Compléments & Tisanes']);
+    await taper(tester, 'Médicament, avec ou sans ordonnance');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('pharmacies'));
+  });
+
+  testWidgets('promettre de guérir une maladie bloque la publication', (tester) async {
+    final etat = await monter(tester, sante['Compléments & Tisanes']);
+    await taper(tester, 'Guérit une maladie (diabète, hypertension, VIH, cancer…)');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('vrai traitement'));
+  });
+
+  testWidgets('un anabolisant en nutrition sportive bloque la publication', (tester) async {
+    final etat = await monter(tester, sante['Nutrition sportive']);
+    await taper(tester, 'Contient un anabolisant, une hormone ou un stéroïde');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('prescription'));
   });
 }

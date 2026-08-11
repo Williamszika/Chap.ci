@@ -24,6 +24,7 @@ import 'alimentation.dart';
 import 'animaux.dart';
 import 'services.dart';
 import 'emploi.dart';
+import 'sante.dart';
 
 /// Les sous-catégories par identifiant de catégorie, dans l'ordre d'affichage.
 const Map<String, List<String>> nomsSous = {
@@ -105,6 +106,7 @@ final Map<String, Map<String, Schema>> _schemas = {
   'animaux': animaux,
   'services': services,
   'emploi': emploi,
+  'sante': sante,
 };
 
 /// Les sous-catégories d'une catégorie, ou une liste vide si elle n'en a pas.
