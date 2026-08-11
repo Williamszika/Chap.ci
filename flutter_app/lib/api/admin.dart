@@ -120,6 +120,43 @@ class Signalement {
       );
 }
 
+/// Un compte, vu du tableau de bord (`GET /admin/users`).
+class Utilisateur {
+  final String id, email, nom, statut;
+  final String? telephone, commune;
+  final int annonces, cree, derniereActivite;
+  final bool enLigne;
+
+  const Utilisateur({
+    required this.id,
+    required this.email,
+    required this.nom,
+    required this.statut,
+    required this.telephone,
+    required this.commune,
+    required this.annonces,
+    required this.cree,
+    required this.derniereActivite,
+    required this.enLigne,
+  });
+
+  bool get bloque => statut == 'blocked';
+  bool get restreint => statut == 'restricted';
+
+  factory Utilisateur.depuis(Map r) => Utilisateur(
+        id: (r['id'] ?? '').toString(),
+        email: (r['email'] ?? '').toString(),
+        nom: (r['fullName'] ?? '—').toString(),
+        statut: (r['status'] ?? 'active').toString(),
+        telephone: r['phone'] as String?,
+        commune: r['commune'] as String?,
+        annonces: _i(r['listings']),
+        cree: _i(r['createdAt']),
+        derniereActivite: _i(r['derniereActivite']),
+        enLigne: r['enLigne'] == true,
+      );
+}
+
 /// Le tableau de bord (réservé au Patron). Trois verrous côté serveur : être
 /// admin, avoir déverrouillé avec le code d'accès, puis les permissions fines.
 class AdminApi {
@@ -198,5 +235,19 @@ class AdminApi {
       'action': action,
       if (motif != null && motif.trim().isNotEmpty) 'motif': motif.trim(),
     });
+  }
+
+  /// La liste des comptes (les plus récents d'abord).
+  static Future<List<Utilisateur>> utilisateurs() async {
+    final d = await ApiClient.instance.get('/admin/users');
+    if (d is List) {
+      return d.whereType<Map>().map(Utilisateur.depuis).toList();
+    }
+    return const [];
+  }
+
+  /// Change le statut d'un compte : `active`, `restricted` ou `blocked`.
+  static Future<void> changerStatut(String id, String statut) async {
+    await ApiClient.instance.post('/admin/users/$id/status', {'status': statut});
   }
 }

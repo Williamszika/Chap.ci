@@ -18,6 +18,7 @@ import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
 import 'screens/admin/moderation_screen.dart';
 import 'screens/admin/tableau_bord_screen.dart';
+import 'screens/admin/utilisateurs_screen.dart';
 import 'screens/securite_2fa_screen.dart';
 import 'screens/verifier_2fa_screen.dart';
 import 'screens/favoris_screen.dart';
@@ -136,6 +137,30 @@ Widget _pour(String shot) {
           {'date': '2026-08-14', 'users': 18, 'listings': 47},
         ],
       }));
+    case 'utilisateurs':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return UtilisateursScreen(apercu: [
+        Utilisateur.depuis({
+          'id': 'u1', 'email': 'awa.kone@gmail.com', 'fullName': 'Awa Koné',
+          'status': 'active', 'commune': 'Cocody', 'listings': 12,
+          'createdAt': t, 'derniereActivite': t - 90000, 'enLigne': true,
+        }),
+        Utilisateur.depuis({
+          'id': 'u2', 'email': 'boutique.229@yahoo.fr', 'fullName': 'Boutique 229',
+          'status': 'restricted', 'commune': 'Yopougon', 'listings': 47,
+          'createdAt': t, 'derniereActivite': t - 3 * 3600000, 'enLigne': false,
+        }),
+        Utilisateur.depuis({
+          'id': 'u3', 'email': 'promo.rapide@gmail.com', 'fullName': 'Promo Rapide',
+          'status': 'blocked', 'commune': 'Abobo', 'listings': 3,
+          'createdAt': t, 'derniereActivite': t - 5 * 86400000, 'enLigne': false,
+        }),
+        Utilisateur.depuis({
+          'id': 'u4', 'email': 'k.traore@chap.ci', 'fullName': 'Kader Traoré',
+          'status': 'active', 'commune': 'Marcory', 'listings': 2,
+          'createdAt': t, 'derniereActivite': t - 40 * 60000, 'enLigne': false,
+        }),
+      ]);
     case 'moderation':
       return ModerationScreen(apercu: [
         Signalement.depuis({

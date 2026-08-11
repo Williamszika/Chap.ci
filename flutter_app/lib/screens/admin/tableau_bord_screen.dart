@@ -4,6 +4,7 @@ import '../../api/api_client.dart';
 import '../../format.dart';
 import '../../theme.dart';
 import 'moderation_screen.dart';
+import 'utilisateurs_screen.dart';
 
 /// Le tableau de bord, réservé au Patron (et aux modérateurs habilités).
 ///
@@ -200,6 +201,18 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
         _grilleCompteurs(s),
         const SizedBox(height: 12),
         _boutonModeration(s.reportsOpen),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UtilisateursScreen())),
+          icon: const Icon(Icons.people_outline, size: 18),
+          label: const Text('Utilisateurs'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+            foregroundColor: ChapColors.orange,
+            side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+          ),
+        ),
         const SizedBox(height: 18),
         _titre('Le parcours'),
         const SizedBox(height: 4),
