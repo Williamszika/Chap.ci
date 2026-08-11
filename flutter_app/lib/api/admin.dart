@@ -255,6 +255,50 @@ class ReglagesSmtp {
       );
 }
 
+/// Un article d'une commande (`items` de `GET /admin/orders`).
+class ArticleCommande {
+  final String titre;
+  final int prix;
+  final String? image;
+  const ArticleCommande(this.titre, this.prix, this.image);
+
+  factory ArticleCommande.depuis(Map m) => ArticleCommande(
+        (m['title'] ?? '').toString(),
+        _i(m['price']),
+        m['image'] as String?,
+      );
+}
+
+/// Une commande, vue du tableau de bord (`GET /admin/orders`).
+class Commande {
+  final String id, statut;
+  final String? acheteurEmail, vendeurEmail;
+  final int cree, total;
+  final List<ArticleCommande> articles;
+
+  const Commande({
+    required this.id,
+    required this.statut,
+    required this.acheteurEmail,
+    required this.vendeurEmail,
+    required this.cree,
+    required this.total,
+    required this.articles,
+  });
+
+  factory Commande.depuis(Map m) => Commande(
+        id: (m['id'] ?? '').toString(),
+        statut: (m['status'] ?? 'pending').toString(),
+        acheteurEmail: m['buyerEmail'] as String?,
+        vendeurEmail: m['sellerEmail'] as String?,
+        cree: _i(m['createdAt']),
+        total: _i(m['total']),
+        articles: (m['items'] is List)
+            ? (m['items'] as List).whereType<Map>().map(ArticleCommande.depuis).toList()
+            : const [],
+      );
+}
+
 /// Un avis laissé sur un vendeur (`GET /admin/reviews`).
 class Avis {
   final String id;
@@ -615,6 +659,15 @@ class AdminApi {
       );
     }
     throw ApiException('Réponse inattendue du serveur.');
+  }
+
+  /// Les commandes (les plus récentes d'abord).
+  static Future<List<Commande>> commandes() async {
+    final d = await ApiClient.instance.get('/admin/orders');
+    if (d is List) {
+      return d.whereType<Map>().map(Commande.depuis).toList();
+    }
+    return const [];
   }
 
   /// Les avis laissés sur les vendeurs (les plus récents d'abord).

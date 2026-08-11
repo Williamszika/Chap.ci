@@ -19,6 +19,7 @@ import 'api/admin.dart';
 import 'screens/admin/annonces_screen.dart';
 import 'screens/admin/avis_screen.dart';
 import 'screens/admin/campagne_screen.dart';
+import 'screens/admin/commandes_screen.dart';
 import 'screens/admin/contact_screen.dart';
 import 'screens/admin/emails_screen.dart';
 import 'screens/admin/moderateurs_screen.dart';
@@ -160,6 +161,44 @@ Widget _pour(String shot) {
       ]);
     case 'campagne':
       return const CampagneScreen(apercu: 128);
+    case 'commandes':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return CommandesScreen(apercu: [
+        Commande(
+          id: 'o1',
+          statut: 'finalise',
+          acheteurEmail: 'awa.kone@gmail.com',
+          vendeurEmail: 'boutique.cocody@chap.ci',
+          cree: t - 3 * 3600000,
+          total: 165000,
+          articles: const [
+            ArticleCommande('Canapé 3 places en tissu', 150000, null),
+            ArticleCommande('Coussins décoratifs (x2)', 15000, null),
+          ],
+        ),
+        Commande(
+          id: 'o2',
+          statut: 'en_cours',
+          acheteurEmail: 'kader.229@yahoo.fr',
+          vendeurEmail: 'tech.abidjan@chap.ci',
+          cree: t - 26 * 3600000,
+          total: 90000,
+          articles: const [
+            ArticleCommande('Casque audio sans fil', 90000, null),
+          ],
+        ),
+        Commande(
+          id: 'o3',
+          statut: 'annule',
+          acheteurEmail: 'mariam.d@hotmail.fr',
+          vendeurEmail: 'mode.plateau@chap.ci',
+          cree: t - 5 * 86400000,
+          total: 25000,
+          articles: const [
+            ArticleCommande('Robe en pagne', 25000, null),
+          ],
+        ),
+      ]);
     case 'avis':
       final t = DateTime.now().millisecondsSinceEpoch;
       return AvisScreen(apercu: [

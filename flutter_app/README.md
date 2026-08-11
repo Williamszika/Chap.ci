@@ -31,6 +31,7 @@ Store.
 | `lib/screens/admin/moderateurs_screen.dart` | **Modérateurs** (propriétaire) — ajouter un modérateur, cocher ses permissions, le bloquer / retirer ; code d'accès affiché une seule fois |
 | `lib/screens/admin/contact_screen.dart` | **Messages de contact** — la boîte du formulaire ; lire, répondre (avec brouillon proposé), marquer traité, supprimer |
 | `lib/screens/admin/avis_screen.dart` | **Avis** — les avis sur les vendeurs ; filtre des notes basses, suppression d'un avis abusif |
+| `lib/screens/admin/commandes_screen.dart` | **Commandes** — le suivi des ventes ; résumé (nombre + encaissé), filtres par statut, articles et parties |
 | `lib/screens/admin/emails_screen.dart` | **E-mails / SMTP** (propriétaire) — régler l'envoi des e-mails du site + envoyer un e-mail de test |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
@@ -266,12 +267,17 @@ Dans l'ordre où on les construira, écran par écran :
    `POST /admin/test-email`) — le mot de passe est un secret, le serveur ne le
    renvoie jamais et l'app ne le garde pas. Les **avis** sur les vendeurs sont
    portés : les lire, mettre en avant les **notes basses** (≤ 2), et **supprimer**
-   un avis abusif (`GET`/`DELETE /admin/reviews`). Restent à porter, côté
-   consultation, les **commandes** et les **conversations** ; et le **journal de
-   sécurité** détaillé (qui demanderait une nouvelle route serveur). Voir
+   un avis abusif (`GET`/`DELETE /admin/reviews`). Les **commandes** sont portées
+   (lecture seule, comme le site) : un résumé (nombre + montant **encaissé**, qui
+   ne compte que les commandes finalisées), des filtres par statut, et pour
+   chaque commande les articles, le total et les parties acheteur / vendeur
+   (`GET /admin/orders`). Reste à porter, côté consultation, les
+   **conversations** ; et le **journal de sécurité** détaillé (qui demanderait
+   une nouvelle route serveur). Voir
    `lib/screens/admin/tableau_bord_screen.dart`,
    `lib/screens/admin/moderation_screen.dart`,
    `lib/screens/admin/avis_screen.dart`,
+   `lib/screens/admin/commandes_screen.dart`,
    `lib/screens/admin/emails_screen.dart` et `lib/api/admin.dart`.
 
 Tant que la parité n'est pas atteinte, **ne pas remplacer** l'app Play Store
