@@ -88,6 +88,8 @@ Widget _pour(String shot) {
       return const PublierScreen(initialCategorie: 'scolaire', initialSous: 'Fournitures & papeterie');
     case 'publier-maquis':
       return const PublierScreen(initialCategorie: 'materiel-pro', initialSous: 'Restauration & Maquis');
+    case 'publier-don':
+      return const PublierScreen(initialCategorie: 'a-donner', initialSous: 'Meubles & électroménager');
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
