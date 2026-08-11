@@ -6,6 +6,7 @@ import 'api/api_client.dart';
 import 'api/messaging.dart';
 import 'api/models.dart';
 import 'data/formulaires/electronique.dart';
+import 'data/formulaires/maison.dart';
 import 'data/formulaires/mode.dart';
 import 'favoris.dart';
 import 'main.dart';
@@ -97,6 +98,8 @@ Widget _pour(String shot) {
       return const _ColorisDemo();
     case 'coloris-tel':
       return const _ColorisTelDemo();
+    case 'coloris-bois':
+      return const _ColorisBoisDemo();
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
@@ -167,6 +170,33 @@ class _ColorisTelDemo extends StatelessWidget {
               'var_Bleu_stockage': ['256 Go'],
               'var_Bleu_prix': '110000',
               'var_Bleu_note': 'dernière pièce',
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Un meuble décliné en essences de bois — pour la capture de la palette du
+/// métier (teck, iroko, wengé). Réservé aux captures.
+class _ColorisBoisDemo extends StatelessWidget {
+  const _ColorisBoisDemo();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Un meuble, ses essences')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 60),
+        children: [
+          FormulaireDynamique(
+            schema: maison['Meubles']!,
+            onChange: (_) {},
+            initiales: const {
+              'typeMeuble': 'Table à manger',
+              'couleurs': ['Teck', 'Wengé / brun foncé'],
+              'var_Teck_prix': '150000',
+              'var_Teck_note': 'bois massif',
             },
           ),
         ],
