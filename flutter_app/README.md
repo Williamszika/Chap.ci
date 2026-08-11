@@ -22,6 +22,7 @@ Store.
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
 | `lib/screens/home_screen.dart` | **Accueil** — en-tête, recherche, dernières annonces |
 | `lib/screens/browse_screen.dart` | **Explorer** — la grille de toutes les annonces |
+| `lib/screens/listing_detail_screen.dart` | **Fiche annonce** — photos, prix, description, vendeur, vue comptée |
 | `lib/screens/account_screen.dart` | **Compte / Connexion** |
 | `lib/main.dart` | La coquille + la barre du bas (Accueil · Explorer · Compte) |
 
@@ -90,7 +91,7 @@ Le `.aab` produit se trouve dans `build/app/outputs/bundle/release/`.
 
 Dans l'ordre où on les construira, écran par écran :
 
-1. **Fiche annonce** (détail) + suivi des vues (`POST /listings/{id}/view`).
+1. ~~**Fiche annonce** (détail) + suivi des vues~~ ✅ fait.
 2. **Recherche & filtres** (catégorie, commune, prix).
 3. **Publier une annonce** — le gros morceau : les 100+ formulaires par
    sous-catégorie, les photos, la géolocalisation.

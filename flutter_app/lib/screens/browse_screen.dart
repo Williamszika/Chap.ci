@@ -3,6 +3,7 @@ import '../api/api_client.dart';
 import '../api/models.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
+import 'listing_detail_screen.dart';
 
 /// Explorer — la grille de toutes les annonces publiques.
 ///
@@ -72,7 +73,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 childAspectRatio: 0.66,
               ),
               itemCount: annonces.length,
-              itemBuilder: (context, i) => ListingCard(annonce: annonces[i]),
+              itemBuilder: (context, i) => ListingCard(
+                annonce: annonces[i],
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        ListingDetailScreen(annonce: annonces[i]))),
+              ),
             );
           },
         ),

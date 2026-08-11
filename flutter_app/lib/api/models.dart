@@ -98,6 +98,21 @@ class Listing {
         .map(Listing.fromJson)
         .toList();
   }
+
+  /// Une annonce précise, fraîche du serveur (`GET /listings/{id}`).
+  static Future<Listing> parId(String id) async {
+    final d = await ApiClient.instance.get('/listings/$id');
+    if (d is Map<String, dynamic>) return Listing.fromJson(d);
+    throw ApiException('Annonce introuvable.');
+  }
+
+  /// Enregistre une vue. Silencieux : c'est une statistique, pas un geste
+  /// critique — un échec ne doit jamais gêner l'affichage de la fiche.
+  static Future<void> marquerVue(String id) async {
+    try {
+      await ApiClient.instance.post('/listings/$id/view', const {});
+    } catch (_) {/* ignoré volontairement */}
+  }
 }
 
 /// Résout une source d'image d'annonce en quelque chose d'affichable.

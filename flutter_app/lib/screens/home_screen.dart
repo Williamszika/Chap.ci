@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
+import 'listing_detail_screen.dart';
 
 /// Accueil — l'en-tête de marque, une barre de recherche (qui mène à Explorer),
 /// et les dernières annonces. C'est la première impression : elle doit charger
@@ -150,7 +151,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         childAspectRatio: 0.66,
                       ),
                       delegate: SliverChildBuilderDelegate(
-                        (context, i) => ListingCard(annonce: annonces[i]),
+                        (context, i) => ListingCard(
+                          annonce: annonces[i],
+                          onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => ListingDetailScreen(
+                                      annonce: annonces[i]))),
+                        ),
                         childCount: annonces.length,
                       ),
                     ),
