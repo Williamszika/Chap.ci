@@ -17,6 +17,7 @@ import 'package:chapci/data/formulaires/voyage.dart';
 import 'package:chapci/data/formulaires/loisirs.dart';
 import 'package:chapci/data/formulaires/scolaire.dart';
 import 'package:chapci/data/formulaires/materiel.dart';
+import 'package:chapci/data/formulaires/donner.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -302,5 +303,26 @@ void main() {
     await taper(tester, 'Dispositif médical réservé aux professionnels de santé');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('professionnels de santé'));
+  });
+
+  testWidgets('un don « payez juste le transport » bloque la publication', (tester) async {
+    final etat = await monter(tester, aDonner['Autres objets']);
+    await taper(tester, 'Une participation aux frais de transport');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('ne se paie pas'));
+  });
+
+  testWidgets('un don d’argent (collecte) bloque la publication', (tester) async {
+    final etat = await monter(tester, aDonner['Autres objets']);
+    await taper(tester, 'De l’argent (espèces, Mobile Money)');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('collecte'));
+  });
+
+  testWidgets('donner un médicament reste interdit (comme à la vente)', (tester) async {
+    final etat = await monter(tester, aDonner['Nourriture & hygiène']);
+    await taper(tester, 'Médicaments');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('hors pharmacie'));
   });
 }

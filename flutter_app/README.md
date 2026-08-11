@@ -126,39 +126,29 @@ Dans l'ordre où on les construira, écran par écran :
    ~~**Publier v2 — le moteur de formulaires par sous-catégorie**~~ ✅ : choix de
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
-   **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **Quatorze catégories sur 15 sont portées** —
-   Mode & Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux,
-   Services, Emploi, Santé, Bébé & Enfant, Voyage, Loisirs, Scolaire et Matériel
-   Pro — avec, à
-   chaque fois, les garde-fous du terrain : dossier administratif du véhicule
-   (carte grise, CSA / non-gage), bois qui gonfle à l'humidité, chaîne du froid
-   et date limite pour l'alimentation, et pour les animaux les **espèces
-   protégées (CITES)**, l'**interdiction des combats** et la vaccination /
-   sevrage. En tout **onze réponses interdisent la publication** (produit
-   éclaircissant, verrou BIOS, ivoire, gaz abîmé, punaises, produit périmé,
-   poisson non réfrigéré, pesticide non homologué, espèce sauvage, combat
-   d'animaux, aliment périmé, et — pour les services — une formation qui promet
-   un emploi garanti contre paiement, des frais réclamés au candidat — la grande
-   arnaque des faux recrutements — et le travail domestique d'un mineur). La
-   santé est la plus surveillée : **médicaments** (monopole des pharmacies),
-   **produits éclaircissants**, **promesses de guérison**, **anabolisants** — et
-   tout produit périmé — refusent l'annonce. Côté bébé, deux objets ne se
-   revendent jamais : un **siège auto accidenté** et un **lit à barreaux non
-   conforme** (écartement > 6,5 cm), plus tout **modèle rappelé** par son
-   fabricant. Restent les **3 autres catégories** (Scolaire, Matériel Pro, À
-   donner), la **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles
-   par coloris), et le reste du pays (régions / villes hors Abidjan).
-   Le voyage est la 2ᵉ catégorie la plus surveillée : « **visa garanti** »
-   (impossible), **frais avant contrat**, **frais de placement** payés par le
-   candidat (convention n° 181 de l'OIT), **passeport confisqué** et **passage
-   sans visa** (traite) refusent tous l'annonce. Côté loisirs, la vente
-   d'**armes à feu, de munitions et d'armes blanches** est refusée (armurier
-   agréé obligatoire). Côté scolaire, deux refus : la revente d'un **kit
-   gratuit de l'État** (il prive un enfant de ses cahiers) et le **manuel
-   photocopié** (contrefaçon). Côté matériel pro, la revente d'un **dispositif
-   médical réservé aux professionnels de santé** (échographe, autoclave…) est
-   refusée entre particuliers.
+   **refus de publication** exigé par la loi ou la sécurité. Voir
+   `lib/data/formulaires/`.
+   **Les 15 catégories sont portées** — Mode & Beauté, Électronique, Véhicules,
+   Maison, Alimentation, Animaux, Services, Emploi, Santé, Bébé & Enfant,
+   Voyage, Loisirs, Scolaire, Matériel Pro et « À donner » — avec, à chaque
+   fois, les garde-fous du terrain (le dossier administratif d'un véhicule, la
+   chaîne du froid d'un poisson, les espèces protégées CITES, la vaccination
+   d'un animal, le contrat écrit avant un départ à l'étranger…).
+   **Une trentaine de réponses interdisent la publication** à travers tout le
+   formulaire : produit éclaircissant, verrou BIOS d'un ordinateur, ivoire /
+   trophée, bouteille de gaz abîmée, matelas à punaises, produit alimentaire
+   périmé, poisson jamais réfrigéré, pesticide non homologué, espèce sauvage
+   protégée, combat d'animaux, médicament hors pharmacie, promesse de guérison,
+   anabolisant, siège auto accidenté, lit à barreaux non conforme, faux
+   recrutement (frais au candidat), travail domestique d'un mineur, « visa
+   garanti », passeport confisqué, passage clandestin (traite), arme à feu, kit
+   scolaire gratuit de l'État revendu, manuel photocopié, dispositif médical
+   réservé aux soignants, don payant (« payez juste le transport ») et don
+   d'argent. Un banc de test (`test/formulaire_test.dart`) prouve les points
+   sensibles ; `flutter analyze` passe à zéro.
+   Restent, sur ce chantier : la **géolocalisation GPS**, le **bloc
+   couleurs/variantes** (tailles par coloris), et le reste du pays (régions /
+   villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
