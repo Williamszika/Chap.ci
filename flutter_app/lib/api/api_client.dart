@@ -89,6 +89,20 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> delete(String chemin) async {
+    try {
+      final r =
+          await http.delete(_uri(chemin), headers: _entetes()).timeout(_timeout);
+      return _traiter(r);
+    } on TimeoutException {
+      throw ApiException('Connexion trop lente. Réessayez.');
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw ApiException('Pas de connexion. Vérifiez votre réseau.');
+    }
+  }
+
   Future<dynamic> post(String chemin, Map<String, dynamic> corps) async {
     try {
       final r = await http
@@ -146,6 +160,16 @@ class ApiClient {
 
   Future<void> seDeconnecter() async {
     await _enregistrerJeton(null);
+  }
+
+  /// L'utilisateur courant (`GET /auth/me`) : `{id, email, emailVerified,
+  /// badge, user_metadata:{full_name}, …}`, ou null si la session a expiré.
+  Future<Map<String, dynamic>?> moi() async {
+    final d = await get('/auth/me');
+    if (d is Map && d['user'] is Map) {
+      return Map<String, dynamic>.from(d['user'] as Map);
+    }
+    return null;
   }
 
   /// Ouvre la session à partir d'une réponse `{ token, user }` (utilisé par la

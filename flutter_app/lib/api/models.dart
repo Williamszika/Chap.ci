@@ -99,6 +99,17 @@ class Listing {
         .toList();
   }
 
+  /// Mes annonces (`GET /listings/mine`) — réservé au compte connecté, toutes
+  /// les siennes (y compris masquées et vendues).
+  static Future<List<Listing>> miennes() async {
+    final data = await ApiClient.instance.get('/listings/mine');
+    if (data is! List) return const [];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(Listing.fromJson)
+        .toList();
+  }
+
   /// Une annonce précise, fraîche du serveur (`GET /listings/{id}`).
   static Future<Listing> parId(String id) async {
     final d = await ApiClient.instance.get('/listings/$id');

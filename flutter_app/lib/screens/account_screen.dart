@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../theme.dart';
 import '../widgets/social_buttons.dart';
+import 'mon_compte.dart';
 import 'register_screen.dart';
 
 /// Compte — connexion, ou état « connecté » si un jeton est déjà présent.
@@ -61,46 +62,19 @@ class _AccountScreenState extends State<AccountScreen> {
   Widget build(BuildContext context) {
     final connecte = ApiClient.instance.connecte;
     return Scaffold(
-      appBar: AppBar(title: Text(connecte ? 'Mon compte' : 'Connexion')),
-      body: connecte ? _vueConnecte() : _vueConnexion(),
-    );
-  }
-
-  Widget _vueConnecte() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircleAvatar(
-              radius: 34,
-              backgroundColor: ChapColors.cream100,
-              child: Icon(Icons.person, size: 36, color: ChapColors.orange),
-            ),
-            const SizedBox(height: 14),
-            const Text('Vous êtes connecté',
-                style:
-                    TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            const Text(
-              'Le profil complet, vos annonces et la messagerie arrivent\ndans les prochaines mises à jour de l’application.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: ChapColors.gray600),
-            ),
-            const SizedBox(height: 22),
-            OutlinedButton(
-              onPressed: _seDeconnecter,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: ChapColors.gray700,
-                minimumSize: const Size(180, 48),
-                side: const BorderSide(color: ChapColors.line2),
-              ),
-              child: const Text('Se déconnecter'),
-            ),
-          ],
-        ),
+      appBar: AppBar(
+        title: Text(connecte ? 'Mon compte' : 'Connexion'),
+        actions: connecte
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Se déconnecter',
+                  onPressed: _seDeconnecter,
+                ),
+              ]
+            : null,
       ),
+      body: connecte ? const MonCompteView() : _vueConnexion(),
     );
   }
 
