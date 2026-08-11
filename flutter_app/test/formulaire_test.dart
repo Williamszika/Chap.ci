@@ -10,6 +10,7 @@ import 'package:chapci/data/formulaires/maison.dart';
 import 'package:chapci/data/formulaires/alimentation.dart';
 import 'package:chapci/data/formulaires/animaux.dart';
 import 'package:chapci/data/formulaires/services.dart';
+import 'package:chapci/data/formulaires/emploi.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -194,5 +195,19 @@ void main() {
     await taper(tester, 'Transport de personnes'); // choix multiple
     expect(find.textContaining('Autorisation de transport'), findsOneWidget);
     expect(etat()!.attributs['prestaT'], contains('Transport de personnes'));
+  });
+
+  testWidgets('une offre qui réclame des frais au candidat bloque la publication', (tester) async {
+    final etat = await monter(tester, emploi['Offres d’emploi']);
+    await taper(tester, 'Des frais de dossier sont demandés');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('jamais d’argent'));
+  });
+
+  testWidgets('le travail domestique d’un mineur bloque la publication', (tester) async {
+    final etat = await monter(tester, emploi['Emploi maison']);
+    await taper(tester, 'Moins de 18 ans');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('mineure'));
   });
 }

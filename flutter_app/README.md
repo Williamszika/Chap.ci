@@ -127,9 +127,9 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **Sept catégories sur 15 sont portées** — Mode &
-   Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux et Services —
-   avec, à
+   Voir `lib/data/formulaires/`. **Huit catégories sur 15 sont portées** — Mode &
+   Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux, Services et
+   Emploi — avec, à
    chaque fois, les garde-fous du terrain : dossier administratif du véhicule
    (carte grise, CSA / non-gage), bois qui gonfle à l'humidité, chaîne du froid
    et date limite pour l'alimentation, et pour les animaux les **espèces
@@ -138,10 +138,11 @@ Dans l'ordre où on les construira, écran par écran :
    éclaircissant, verrou BIOS, ivoire, gaz abîmé, punaises, produit périmé,
    poisson non réfrigéré, pesticide non homologué, espèce sauvage, combat
    d'animaux, aliment périmé, et — pour les services — une formation qui promet
-   un emploi garanti contre paiement). Restent les **8 autres catégories**
-   (mêmes données à porter, le moteur est là), la **géolocalisation GPS**, le
-   **bloc couleurs/variantes** (tailles par coloris), et le reste du pays
-   (régions / villes hors Abidjan).
+   un emploi garanti contre paiement, des frais réclamés au candidat — la grande
+   arnaque des faux recrutements — et le travail domestique d'un mineur).
+   Restent les **7 autres catégories** (mêmes données à porter, le moteur est
+   là), la **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles par
+   coloris), et le reste du pays (régions / villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
