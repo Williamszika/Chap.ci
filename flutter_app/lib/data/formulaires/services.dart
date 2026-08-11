@@ -86,6 +86,8 @@ List<Champ> _communs(String quoi) => [
 
 final Map<String, Schema> services = {
   'BTP & Rénovation': Schema(
+    couleurs: false,
+    sansCouleur: 'Montrez vos chantiers finis : sur du bâtiment, une photo d’avant/après vaut tous les arguments.',
     etat: false,
     prixLabel: 'Tarif à partir de',
     champs: [
@@ -110,6 +112,8 @@ final Map<String, Schema> services = {
     ],
   ),
   'Cours & Formation': Schema(
+    couleurs: false,
+    sansCouleur: 'Une photo de vous en situation, ou de vos supports de cours, rassure plus qu’un logo.',
     etat: false,
     prixLabel: 'Tarif',
     champs: [
@@ -148,6 +152,8 @@ final Map<String, Schema> services = {
     ],
   ),
   'Événementiel': Schema(
+    couleurs: false,
+    sansCouleur: 'Montrez vos prestations passées : sur l’événementiel, tout se décide sur les photos.',
     etat: false,
     prixLabel: 'Tarif à partir de',
     champs: [
@@ -173,6 +179,8 @@ final Map<String, Schema> services = {
     ],
   ),
   'Transport & Déménagement': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez votre véhicule, plaque lisible ou masquée : c’est ce qui rassure avant de confier des affaires.',
     etat: false,
     prixLabel: 'Tarif à partir de',
     champs: [
@@ -208,6 +216,8 @@ final Map<String, Schema> services = {
     ],
   ),
   'Informatique & Digital': Schema(
+    couleurs: false,
+    sansCouleur: 'Montrez vos réalisations : un portfolio vend mieux que n’importe quelle description.',
     etat: false,
     prixLabel: 'Tarif',
     champs: [
@@ -231,6 +241,8 @@ final Map<String, Schema> services = {
     ],
   ),
   'Couture & Artisanat': Schema(
+    couleurs: false,
+    sansCouleur: 'Montrez vos modèles finis, portés si possible. En couture, tout se décide là.',
     etat: false,
     prixLabel: 'Tarif à partir de',
     champs: [

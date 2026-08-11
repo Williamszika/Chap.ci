@@ -116,6 +116,8 @@ final _itineraire = Champ('itineraire', 'Comment se fait le voyage',
 
 final Map<String, Schema> voyage = {
   'Billets d’avion': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la réservation en masquant le numéro de dossier et le numéro de passeport. Un billet complet en photo se revend à votre place.',
     etat: false,
     livraison: false,
     prixLabel: 'Prix du billet',
@@ -167,6 +169,8 @@ final Map<String, Schema> voyage = {
     ],
   ),
   'Agences de voyage': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez votre devanture, votre agrément et votre équipe. Sur ce rayon, un visage et une adresse valent tous les arguments.',
     etat: false,
     livraison: false,
     service: true,
@@ -203,6 +207,8 @@ final Map<String, Schema> voyage = {
     ],
   ),
   'Visas & formalités': Schema(
+    couleurs: false,
+    sansCouleur: 'Ne publiez JAMAIS la photo d’un passeport, d’un visa ou d’une carte de séjour — le vôtre ou celui d’un client. Ces images se recopient pour fabriquer des faux.',
     etat: false,
     livraison: false,
     service: true,
@@ -243,6 +249,8 @@ final Map<String, Schema> voyage = {
     ],
   ),
   'Études à l’étranger': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez vos locaux ou vos partenariats signés. Ne publiez jamais le dossier d’un étudiant, même anonymisé.',
     etat: false,
     livraison: false,
     service: true,
@@ -306,6 +314,8 @@ final Map<String, Schema> voyage = {
     ],
   ),
   'Travail à l’étranger': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le contrat type, vos locaux, votre agrément. Ne publiez jamais le passeport ni les papiers d’un candidat.',
     etat: false,
     livraison: false,
     service: true,
@@ -394,6 +404,8 @@ final Map<String, Schema> voyage = {
     ],
   ),
   'Séjours & circuits': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le lieu réel du séjour, pas une image trouvée en ligne. Un client qui reconnaît une photo de catalogue ne rappelle pas.',
     etat: false,
     livraison: false,
     prixLabel: 'Prix par personne',

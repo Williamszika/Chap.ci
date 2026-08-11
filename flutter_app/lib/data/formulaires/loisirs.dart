@@ -10,6 +10,7 @@
 //     ou se monte — un jeu sans ses pions, un vélo sans sa clé, un instrument
 //     sans son archet. La question est posée partout.
 // =============================================================================
+import 'couleurs.dart';
 import 'schema.dart';
 
 String _t(Vals s, String cle) => (s[cle] ?? '').toString();
@@ -32,6 +33,9 @@ Champ _complet(String quoi) => Champ('complet', 'Complet ?',
 
 final Map<String, Schema> loisirs = {
   'Sport & Fitness': Schema(
+    couleurs: true,
+    palette: paletteLoisirs,
+    aideCouleurs: 'Cochez chaque couleur disponible. Ouvrez-en une pour lui donner ses photos et son prix.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeSport'), _t(s, 'marqueL'), _t(s, 'tailleSport')].where((x) => x.isNotEmpty).join(' · '),
@@ -69,6 +73,9 @@ final Map<String, Schema> loisirs = {
     ],
   ),
   'Vélos & Trottinettes': Schema(
+    couleurs: true,
+    palette: paletteLoisirs,
+    aideCouleurs: 'Cochez chaque couleur disponible.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeVelo'), _t(s, 'marqueL'), _t(s, 'tailleVelo')].where((x) => x.isNotEmpty).join(' · '),
@@ -106,6 +113,9 @@ final Map<String, Schema> loisirs = {
     ],
   ),
   'Instruments de musique': Schema(
+    couleurs: true,
+    palette: paletteLoisirs,
+    aideCouleurs: 'Cochez chaque finition disponible.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'instrument'), _t(s, 'marqueL'), _t(s, 'tonalite')].where((x) => x.isNotEmpty).join(' · '),
@@ -137,6 +147,8 @@ final Map<String, Schema> loisirs = {
     ],
   ),
   'Livres & BD': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la couverture, la tranche et une page ouverte : c’est ce qui montre l’état réel.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'genreLivre'), _t(s, 'nbLivres'), _t(s, 'langueLivre')].where((x) => x.isNotEmpty).join(' · '),
@@ -172,6 +184,8 @@ final Map<String, Schema> loisirs = {
     ],
   ),
   'Jeux de société & Puzzles': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le contenu étalé, pas seulement la boîte. C’est ce qui prouve qu’il est complet.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeJeuS'), _t(s, 'ageJeu'), _t(s, 'joueurs')].where((x) => x.isNotEmpty).join(' · '),
@@ -194,6 +208,8 @@ final Map<String, Schema> loisirs = {
     ],
   ),
   'Collections': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez chaque pièce nettement, recto et verso, avec un repère de taille.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeCollec'), _t(s, 'epoque'), _t(s, 'nbCollec')].where((x) => x.isNotEmpty).join(' · '),

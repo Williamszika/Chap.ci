@@ -13,7 +13,8 @@
 //     mutation. Un véhicule acheté à crédit non soldé ne peut pas être vendu.
 //   · Import : limite d'âge 5 ans pour une voiture particulière.
 //
-//  Le bloc couleurs / variantes du site n'est pas encore porté ici.
+//  Le bloc couleurs est porté : un véhicule se décline en couleurs (palette
+//  générale) ; une location, elle, n'a pas de teinte à choisir.
 // =============================================================================
 import 'schema.dart';
 
@@ -175,6 +176,7 @@ const _anneesAuto = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '20
 
 final Map<String, Schema> vehicules = {
   'Voitures': Schema(
+    couleurs: true,
     livraison: false,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'annee')]
         .where((x) => x.isNotEmpty)
@@ -253,6 +255,7 @@ final Map<String, Schema> vehicules = {
     ],
   ),
   'Motos & Scooters': Schema(
+    couleurs: true,
     livraison: false,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'cylindree')]
         .where((x) => x.isNotEmpty)
@@ -290,6 +293,7 @@ final Map<String, Schema> vehicules = {
     ],
   ),
   'Camions & Utilitaires': Schema(
+    couleurs: true,
     livraison: false,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'typeCamion')]
         .where((x) => x.isNotEmpty)
@@ -315,6 +319,7 @@ final Map<String, Schema> vehicules = {
     ],
   ),
   'Engins & Agricoles': Schema(
+    couleurs: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeEngin'), _t(s, 'marqueEngin'), _t(s, 'anneeEngin')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
@@ -356,6 +361,7 @@ final Map<String, Schema> vehicules = {
     ],
   ),
   'Pièces & Accessoires': Schema(
+    couleurs: true,
     livraison: true,
     titre: (s) => [_t(s, 'typePiece'), _t(s, 'compatible')].where((x) => x.isNotEmpty).join(' — '),
     champs: [
@@ -374,6 +380,7 @@ final Map<String, Schema> vehicules = {
     ],
   ),
   'Bateaux': Schema(
+    couleurs: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeBateau'), _t(s, 'longueur'), _t(s, 'annee')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
@@ -404,6 +411,8 @@ final Map<String, Schema> vehicules = {
     ],
   ),
   'Location': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le véhicule propre, dedans comme dehors : sur une location, c’est l’état à la remise qui décide, pas la teinte.',
     etat: false,
     prixLabel: 'Tarif par jour',
     titre: (s) {

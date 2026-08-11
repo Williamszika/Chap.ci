@@ -266,6 +266,80 @@ const List<Couleur> paletteBebe = [
   Couleur('Multicolore', degrade: _multiMaison),
 ];
 
+const _multiLoisirs = SweepGradient(colors: [
+  Color(0xFFF77F00),
+  Color(0xFFFACC15),
+  Color(0xFF16A34A),
+  Color(0xFF2563EB),
+  Color(0xFFEC4899),
+  Color(0xFFF77F00),
+]);
+
+/// La palette des Loisirs — vélos, instruments, matériel de sport.
+const List<Couleur> paletteLoisirs = [
+  Couleur('Noir', couleur: Color(0xFF1B1A17)),
+  Couleur('Blanc', couleur: Color(0xFFFFFFFF), clair: true),
+  Couleur('Gris', couleur: Color(0xFF9CA3AF)),
+  Couleur('Argenté', degrade: _argente, clair: true),
+  Couleur('Rouge', couleur: Color(0xFFDC2626)),
+  Couleur('Bleu', couleur: Color(0xFF2563EB)),
+  Couleur('Vert', couleur: Color(0xFF16A34A)),
+  Couleur('Jaune', couleur: Color(0xFFFACC15), clair: true),
+  Couleur('Orange', couleur: Color(0xFFF97316)),
+  Couleur('Rose', couleur: Color(0xFFEC4899)),
+  Couleur('Violet', couleur: Color(0xFF8B5CF6)),
+  Couleur('Marron / bois', couleur: Color(0xFF7A4423)),
+  Couleur('Doré', degrade: _dore, clair: true),
+  Couleur('Multicolore', degrade: _multiLoisirs),
+];
+
+/// La palette de la Santé & Bien-être — avec l'« écaille » d'une monture de
+/// lunettes et le « transparent » d'un boîtier.
+const List<Couleur> paletteSante = [
+  Couleur('Blanc', couleur: Color(0xFFFFFFFF), clair: true),
+  Couleur('Noir', couleur: Color(0xFF1B1A17)),
+  Couleur('Gris', couleur: Color(0xFF9CA3AF)),
+  Couleur('Argenté', degrade: _argente, clair: true),
+  Couleur('Doré', degrade: _dore, clair: true),
+  Couleur('Écaille',
+      degrade: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF7A4423), Color(0xFFC89B6A)])),
+  Couleur('Transparent',
+      degrade: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFFFF), Color(0xFFE5E7EB)]),
+      clair: true),
+  Couleur('Bleu', couleur: Color(0xFF2563EB)),
+  Couleur('Vert', couleur: Color(0xFF16A34A)),
+  Couleur('Rouge', couleur: Color(0xFFDC2626)),
+  Couleur('Rose', couleur: Color(0xFFEC4899)),
+  Couleur('Violet', couleur: Color(0xFF8B5CF6)),
+  Couleur('Marron', couleur: Color(0xFF7A4423)),
+  Couleur('Multicolore', degrade: _multiMaison),
+];
+
+/// La palette du Scolaire — avec le « kaki » et le « bleu marine » des uniformes.
+const List<Couleur> paletteScolaire = [
+  Couleur('Noir', couleur: Color(0xFF1B1A17)),
+  Couleur('Bleu marine', couleur: Color(0xFF1E3A8A)),
+  Couleur('Bleu', couleur: Color(0xFF2563EB)),
+  Couleur('Bleu ciel', couleur: Color(0xFF7DD3FC), clair: true),
+  Couleur('Rouge', couleur: Color(0xFFDC2626)),
+  Couleur('Rose', couleur: Color(0xFFEC4899)),
+  Couleur('Vert', couleur: Color(0xFF16A34A)),
+  Couleur('Jaune', couleur: Color(0xFFFACC15), clair: true),
+  Couleur('Orange', couleur: Color(0xFFF77F00)),
+  Couleur('Violet', couleur: Color(0xFF8B5CF6)),
+  Couleur('Gris', couleur: Color(0xFF9CA3AF)),
+  Couleur('Blanc', couleur: Color(0xFFFFFFFF), clair: true),
+  Couleur('Kaki', couleur: Color(0xFF8A7B4F)),
+  Couleur('Marron', couleur: Color(0xFF7A4423)),
+  Couleur('Multicolore', degrade: _multiMaison),
+];
+
 /// La clé d'attribut d'une variante : `var_<Couleur>_<champ>`.
 String cleVariante(String nom, String champ) => 'var_${nom}_$champ';
 

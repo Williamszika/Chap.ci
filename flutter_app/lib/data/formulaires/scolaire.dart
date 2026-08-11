@@ -13,6 +13,7 @@
 //  Deux avertissements (sans blocage) : l'uniforme d'un autre établissement
 //  (chaque école impose sa teinte) et le manuel d'un ancien programme.
 // =============================================================================
+import 'couleurs.dart';
 import 'schema.dart';
 
 String _t(Vals s, String cle) => (s[cle] ?? '').toString();
@@ -73,6 +74,8 @@ const _quantiteLot = Champ('quantiteScol', 'Quantité',
 
 final Map<String, Schema> scolaire = {
   'Fournitures & papeterie': Schema(
+    couleurs: false,
+    sansCouleur: 'Étalez le lot et photographiez-le en entier, sans le trier pour la photo. Un acheteur qui compte 38 cahiers sur une annonce qui en promet 50 ne rappelle pas.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeFourn'), _t(s, 'quantiteScol'), _t(s, 'niveauFourn')].where((x) => x.isNotEmpty).join(' · '),
@@ -102,6 +105,9 @@ final Map<String, Schema> scolaire = {
     ],
   ),
   'Cartables & trousses': Schema(
+    couleurs: true,
+    palette: paletteScolaire,
+    aideCouleurs: 'Cochez chaque coloris disponible : à cet âge, la couleur décide de l’achat plus que le prix.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeSac'), _t(s, 'niveauSac'), _t(s, 'marqueSac')].where((x) => x.isNotEmpty).join(' · '),
@@ -126,6 +132,8 @@ final Map<String, Schema> scolaire = {
     ],
   ),
   'Manuels & livres scolaires': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la couverture ET la page de garde. C’est là qu’on distingue un original d’une contrefaçon, et c’est la première chose qu’un parent averti demande.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'matiereManuel'), _t(s, 'niveauManuel'), _t(s, 'editeurManuel')].where((x) => x.isNotEmpty).join(' · '),
@@ -172,6 +180,8 @@ final Map<String, Schema> scolaire = {
     ],
   ),
   'Annales & parascolaire': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la couverture et le sommaire : ce sont les années couvertes et la présence des corrigés qui décident de l’achat.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'examenAnn'), _t(s, 'matiereAnn'), _t(s, 'anneesAnn')].where((x) => x.isNotEmpty).join(' · '),
@@ -209,6 +219,9 @@ final Map<String, Schema> scolaire = {
     ],
   ),
   'Uniformes & tenues': Schema(
+    couleurs: true,
+    palette: paletteScolaire,
+    aideCouleurs: 'Cochez la teinte réelle du tissu, pas celle de la photo au soleil. Un kaki n’est pas l’autre, et c’est justement là que ça coince.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeTenue'), _t(s, 'tailleTenue'), _t(s, 'etabTenue')].where((x) => x.isNotEmpty).join(' · '),
@@ -260,6 +273,9 @@ final Map<String, Schema> scolaire = {
     ],
   ),
   'Calculatrices & matériel de classe': Schema(
+    couleurs: true,
+    palette: paletteScolaire,
+    aideCouleurs: 'Cochez les coloris disponibles s’il y en a plusieurs.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeMatCl'), _t(s, 'marqueMatCl'), _t(s, 'niveauMatCl')].where((x) => x.isNotEmpty).join(' · '),

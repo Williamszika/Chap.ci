@@ -175,13 +175,14 @@ Dans l'ordre où on les construira, écran par écran :
    carnations d'un fond de teint, ou les numéros d'une mèche), et pour chaque
    coloris coché **sa photo, son prix, ses détails et les tailles / pointures /
    longueurs qui lui restent** (`var_<Couleur>_<champ>`, comme le site). La
-   catégories **Mode & Beauté**, **Électronique**, **Maison** et **Bébé &
-   Enfant** sont câblées de bout en bout, chacune avec la palette de son
-   métier : les carnations d'un fond de teint, les numéros d'une mèche, le
-   « gris sidéral » d'un téléphone, les essences de bois d'un meuble (teck,
-   iroko, wengé), les pastels et imprimés d'un vêtement bébé. Ce qui n'a pas de
-   couleur le dit (un téléviseur, un matelas, un frigo, une réparation). Reste à
-   activer le bloc sur les 11 autres catégories (le moteur, lui, est prêt).
+   **les 15 catégories** sont câblées de bout en bout, chacune avec la palette
+   de son métier : les carnations d'un fond de teint, les numéros d'une mèche,
+   le « gris sidéral » d'un téléphone, les essences de bois d'un meuble (teck,
+   iroko, wengé), les pastels d'un vêtement bébé, l'« écaille » d'une monture de
+   lunettes, le « kaki » d'un uniforme. Ce qui n'a pas de couleur le dit et
+   guide plutôt la photo utile (l'œil et les branchies d'un poisson, la plaque
+   d'une machine, jamais le passeport d'un candidat). Le chantier « Publier »
+   est complet.
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),

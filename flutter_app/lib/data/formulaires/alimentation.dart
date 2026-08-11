@@ -86,6 +86,8 @@ final _bio = Champ('culture', 'Mode de culture',
 
 final Map<String, Schema> alimentation = {
   'Produits vivriers': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la marchandise en pleine lumière, et de près. Sur du vivrier, l’œil décide.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'produitV'), _t(s, 'poids'), _t(s, 'unite')].where((x) => x.isNotEmpty).join(' · '),
@@ -103,6 +105,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Fruits & Légumes': Schema(
+    couleurs: false,
+    sansCouleur: 'Une photo prise à la lumière du jour, sans flash : c’est ce qui montre la fraîcheur.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'produitF'), _t(s, 'poids'), _t(s, 'unite')].where((x) => x.isNotEmpty).join(' · '),
@@ -122,6 +126,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Céréales & Tubercules': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le grain de près, et le sac ouvert : c’est ce qu’un acheteur en gros regarde.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'produitC'), _t(s, 'poids'), _t(s, 'unite')].where((x) => x.isNotEmpty).join(' · '),
@@ -146,6 +152,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Épices & Condiments': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le produit hors de son sachet : la couleur et la finesse de la mouture se voient.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'produitE'), _t(s, 'poids')].where((x) => x.isNotEmpty).join(' · '),
@@ -162,6 +170,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Produits du terroir': Schema(
+    couleurs: false,
+    sansCouleur: 'Montrez le produit et son étiquette. Sur du terroir, l’origine fait le prix.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'produitT'), _t(s, 'regionT'), _t(s, 'poids')].where((x) => x.isNotEmpty).join(' · '),
@@ -182,6 +192,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Boissons': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’étiquette lisiblement, avec la date.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'produitB'), _t(s, 'contenanceB'), _t(s, 'unite')].where((x) => x.isNotEmpty).join(' · '),
@@ -209,6 +221,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Plats préparés': Schema(
+    couleurs: false,
+    sansCouleur: 'Une vraie photo de votre plat, pas une image trouvée sur internet. C’est ce qui fait revenir.',
     etat: false,
     livraison: true,
     prixLabel: 'Prix la portion',
@@ -242,6 +256,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Cacao & Café': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez les fèves étalées, à la lumière du jour : l’acheteur juge la couleur et la taille.',
     etat: false,
     livraison: true,
     prixLabel: 'Prix au kilogramme',
@@ -276,6 +292,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Semences & Intrants': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’étiquette du sac : numéro de lot, date, et composition.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'typeIntrant'), _t(s, 'cultureCible'), _t(s, 'poids')].where((x) => x.isNotEmpty).join(' · '),
@@ -312,6 +330,8 @@ final Map<String, Schema> alimentation = {
     ],
   ),
   'Poisson & Produits de mer': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’œil et les branchies : c’est là que se voit la fraîcheur, et tout acheteur le sait.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'produitP'), _t(s, 'etatP'), _t(s, 'poids')].where((x) => x.isNotEmpty).join(' · '),

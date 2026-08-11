@@ -8,6 +8,11 @@ import 'package:chapci/data/formulaires/mode.dart';
 import 'package:chapci/data/formulaires/electronique.dart';
 import 'package:chapci/data/formulaires/maison.dart';
 import 'package:chapci/data/formulaires/bebe.dart';
+import 'package:chapci/data/formulaires/vehicules.dart';
+import 'package:chapci/data/formulaires/loisirs.dart';
+import 'package:chapci/data/formulaires/sante.dart';
+import 'package:chapci/data/formulaires/scolaire.dart';
+import 'package:chapci/data/formulaires/voyage.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -160,5 +165,39 @@ void main() {
     expect(find.text('Rose vif'), findsOneWidget);
     await taper(tester, 'Rose');
     expect(etat()!.attributs['couleurs'], 'Rose');
+  });
+
+  testWidgets('une voiture se décline en couleurs', (tester) async {
+    final etat = await monter(tester, vehicules['Voitures']);
+    expect(find.text('Multicolore'), findsOneWidget);
+    await taper(tester, 'Rouge');
+    expect(etat()!.attributs['couleurs'], 'Rouge');
+  });
+
+  testWidgets('une location de véhicule n’a pas de pastille', (tester) async {
+    await monter(tester, vehicules['Location']);
+    expect(find.text('Multicolore'), findsNothing);
+    expect(find.textContaining('véhicule propre'), findsOneWidget);
+  });
+
+  testWidgets('un vélo a la palette Loisirs (marron / bois)', (tester) async {
+    await monter(tester, loisirs['Vélos & Trottinettes']);
+    expect(find.text('Marron / bois'), findsOneWidget);
+  });
+
+  testWidgets('une monture de lunettes propose l’écaille', (tester) async {
+    await monter(tester, sante['Optique & Audition']);
+    expect(find.text('Écaille'), findsOneWidget);
+  });
+
+  testWidgets('un uniforme propose le kaki', (tester) async {
+    await monter(tester, scolaire['Uniformes & tenues']);
+    expect(find.text('Kaki'), findsOneWidget);
+  });
+
+  testWidgets('un visa n’a pas de couleur, et le rappelle', (tester) async {
+    await monter(tester, voyage['Visas & formalités']);
+    expect(find.text('Multicolore'), findsNothing);
+    expect(find.textContaining('JAMAIS la photo d’un passeport'), findsOneWidget);
   });
 }

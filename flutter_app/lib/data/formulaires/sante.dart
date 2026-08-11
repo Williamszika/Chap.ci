@@ -16,6 +16,7 @@
 //  Tout le reste — tisanes, karité, matériel de confort, optique, sport — se
 //  vend librement, et le formulaire le facilite.
 // =============================================================================
+import 'couleurs.dart';
 import 'schema.dart';
 
 String _t(Vals s, String cle) => (s[cle] ?? '').toString();
@@ -94,6 +95,8 @@ final _scelle = Champ('scelle', 'Emballage',
 
 final Map<String, Schema> sante = {
   'Compléments & Tisanes': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’emballage, la liste des ingrédients et la date. C’est ce qu’un acheteur prudent regarde.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'typeComp'), _t(s, 'marqueS'), _t(s, 'contenanceS')].where((x) => x.isNotEmpty).join(' · '),
@@ -113,6 +116,9 @@ final Map<String, Schema> sante = {
     ],
   ),
   'Soins & Hygiène': Schema(
+    couleurs: true,
+    palette: paletteSante,
+    aideCouleurs: 'Cochez chaque teinte ou parfum disponible.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'typeSoin'), _t(s, 'marqueS'), _t(s, 'contenanceS')].where((x) => x.isNotEmpty).join(' · '),
@@ -134,6 +140,8 @@ final Map<String, Schema> sante = {
     ],
   ),
   'Matériel médical de confort': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’article entier, les sangles et les points d’appui.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeMatS'), _t(s, 'marqueS')].where((x) => x.isNotEmpty).join(' · '),
@@ -165,6 +173,9 @@ final Map<String, Schema> sante = {
     ],
   ),
   'Optique & Audition': Schema(
+    couleurs: true,
+    palette: paletteSante,
+    aideCouleurs: 'Cochez chaque coloris de monture disponible.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeOpt'), _t(s, 'marqueS')].where((x) => x.isNotEmpty).join(' · '),
@@ -202,6 +213,9 @@ final Map<String, Schema> sante = {
     ],
   ),
   'Bien-être & Massage': Schema(
+    couleurs: true,
+    palette: paletteSante,
+    aideCouleurs: 'Cochez chaque couleur disponible.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeBien'), _t(s, 'marqueS')].where((x) => x.isNotEmpty).join(' · '),
@@ -233,6 +247,8 @@ final Map<String, Schema> sante = {
     ],
   ),
   'Nutrition sportive': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le pot, la liste des ingrédients et le tableau nutritionnel.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'typeNut'), _t(s, 'marqueS'), _t(s, 'contenanceS')].where((x) => x.isNotEmpty).join(' · '),

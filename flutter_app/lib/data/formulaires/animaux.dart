@@ -81,6 +81,8 @@ List<Champ> _sante(String quoi) => [
 
 final Map<String, Schema> animaux = {
   'Volaille': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez les bêtes vivantes, dans leur enclos. Une photo de catalogue ne rassure personne.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'especeV'), _t(s, 'ageV'), _t(s, 'nombreV')].where((x) => x.isNotEmpty).join(' · '),
@@ -107,6 +109,8 @@ final Map<String, Schema> animaux = {
     ],
   ),
   'Bétail & Élevage': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez chaque bête entière, de profil, debout. C’est ainsi qu’on juge un animal.',
     etat: false,
     livraison: true,
     prixLabel: 'Prix par tête',
@@ -133,6 +137,8 @@ final Map<String, Schema> animaux = {
     ],
   ),
   'Chiens & Chats': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’animal éveillé, entier, et avec sa mère s’il est jeune. C’est le meilleur gage de sérieux.',
     etat: false,
     livraison: false,
     titre: (s) => [_t(s, 'especeC'), _t(s, 'raceC'), _t(s, 'ageC')].where((x) => x.isNotEmpty).join(' · '),
@@ -164,6 +170,8 @@ final Map<String, Schema> animaux = {
     ],
   ),
   'Oiseaux, Poissons & Reptiles': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’animal vivant dans son installation, et non une image trouvée en ligne.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'especeO'), _t(s, 'ageO')].where((x) => x.isNotEmpty).join(' · '),
@@ -191,6 +199,8 @@ final Map<String, Schema> animaux = {
     ],
   ),
   'Aliments pour animaux': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le sac et son étiquette : composition, date, numéro de lot.',
     etat: false,
     livraison: true,
     titre: (s) => [_t(s, 'typeAl'), _t(s, 'pourQui'), _t(s, 'condAl')].where((x) => x.isNotEmpty).join(' · '),
@@ -227,6 +237,8 @@ final Map<String, Schema> animaux = {
     ],
   ),
   'Accessoires & Matériel': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le matériel monté, et de près sur les points d’usure.',
     etat: true,
     livraison: true,
     titre: (s) => [_t(s, 'typeMat'), _t(s, 'pourQuiM')].where((x) => x.isNotEmpty).join(' · '),

@@ -86,6 +86,8 @@ final List<Champ> _communsPro = [
 
 final Map<String, Schema> materiel = {
   'Restauration & Maquis': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la machine en marche, et la plaque signalétique. Un professionnel regarde d’abord ça.',
     etat: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeResto'), _t(s, 'marquePro'), _t(s, 'capaciteResto')].where((x) => x.isNotEmpty).join(' · '),
@@ -104,6 +106,8 @@ final Map<String, Schema> materiel = {
     ],
   ),
   'Boutique & Commerce': Schema(
+    couleurs: false,
+    sansCouleur: 'Montrez le matériel installé si possible : un commerçant se projette mieux.',
     etat: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeBoutique'), _t(s, 'marquePro')].where((x) => x.isNotEmpty).join(' · '),
@@ -122,6 +126,8 @@ final Map<String, Schema> materiel = {
     ],
   ),
   'Agriculture & Élevage': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la machine en fonctionnement, et le moteur ouvert.',
     etat: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeAgri'), _t(s, 'marquePro'), _t(s, 'heures').isNotEmpty ? '${_t(s, 'heures')} h' : ''].where((x) => x.isNotEmpty).join(' · '),
@@ -139,6 +145,8 @@ final Map<String, Schema> materiel = {
     ],
   ),
   'Industrie & Atelier': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la plaque signalétique et la machine sous tension.',
     etat: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeIndus'), _t(s, 'marquePro'), _t(s, 'heures').isNotEmpty ? '${_t(s, 'heures')} h' : ''].where((x) => x.isNotEmpty).join(' · '),
@@ -156,6 +164,8 @@ final Map<String, Schema> materiel = {
     ],
   ),
   'Bureau & Informatique': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le mobilier monté et les compteurs des copieurs.',
     etat: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeBureau'), _t(s, 'marquePro')].where((x) => x.isNotEmpty).join(' · '),
@@ -184,6 +194,8 @@ final Map<String, Schema> materiel = {
     ],
   ),
   'Salon & Esthétique': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le poste complet, installé : c’est ce qu’achète une gérante de salon.',
     etat: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeSalon'), _t(s, 'marquePro')].where((x) => x.isNotEmpty).join(' · '),
@@ -201,6 +213,8 @@ final Map<String, Schema> materiel = {
     ],
   ),
   'Médical & Paramédical': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez la plaque, le numéro de série et les accessoires fournis.',
     etat: true,
     livraison: false,
     titre: (s) => [_t(s, 'typeMed'), _t(s, 'marquePro')].where((x) => x.isNotEmpty).join(' · '),

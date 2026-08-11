@@ -90,6 +90,8 @@ const _postes = {
 
 final Map<String, Schema> emploi = {
   'Offres d’emploi': Schema(
+    couleurs: false,
+    sansCouleur: 'Une offre d’emploi n’a pas de couleur. Ajoutez le logo de l’entreprise et, si vous le pouvez, une photo des locaux : cela rassure plus que tout le reste.',
     etat: false,
     livraison: false,
     prixLabel: 'Salaire mensuel proposé',
@@ -138,6 +140,8 @@ final Map<String, Schema> emploi = {
     ],
   ),
   'Demandes d’emploi': Schema(
+    couleurs: false,
+    sansCouleur: 'Ajoutez une photo d’identité sobre si vous le souhaitez — jamais votre CNI, jamais un document officiel.',
     etat: false,
     livraison: false,
     prixLabel: 'Prétention salariale mensuelle',
@@ -179,6 +183,8 @@ final Map<String, Schema> emploi = {
     ],
   ),
   'Stages': Schema(
+    couleurs: false,
+    sansCouleur: 'Ajoutez le logo de l’entreprise et, si possible, une photo des locaux.',
     etat: false,
     livraison: false,
     prixLabel: 'Gratification mensuelle',
@@ -215,6 +221,8 @@ final Map<String, Schema> emploi = {
     ],
   ),
   'Freelance': Schema(
+    couleurs: false,
+    sansCouleur: 'Montrez vos réalisations : sur du freelance, le portfolio vend mieux que n’importe quel texte.',
     etat: false,
     livraison: false,
     prixLabel: 'Tarif',
@@ -262,6 +270,8 @@ final Map<String, Schema> emploi = {
     ],
   ),
   'Emploi maison': Schema(
+    couleurs: false,
+    sansCouleur: 'Une photo du lieu de travail rassure une candidate. Ne publiez jamais de document d’identité.',
     etat: false,
     livraison: false,
     prixLabel: 'Salaire mensuel',

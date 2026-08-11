@@ -94,6 +94,8 @@ const _quantite = Champ('quantiteDon', 'Quantité',
 
 final Map<String, Schema> aDonner = {
   'Vêtements & chaussures': Schema(
+    couleurs: false,
+    sansCouleur: 'Étalez le lot et photographiez-le tel qu’il est, sans le trier pour la photo. Une personne qui reçoit préfère savoir à quoi s’attendre.',
     etat: false,
     livraison: false,
     titre: (s) => [_t(s, 'typeVet'), _t(s, 'tailleVet'), _t(s, 'quantiteDon')].where((x) => x.isNotEmpty).join(' · '),
@@ -139,6 +141,8 @@ final Map<String, Schema> aDonner = {
     ],
   ),
   'Meubles & électroménager': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le meuble en entier, chez vous, avec ce qu’il y a autour. On doit pouvoir juger son encombrement d’un coup d’œil.',
     etat: false,
     livraison: false,
     titre: (s) => [_t(s, 'typeMeuble'), _t(s, 'fonctionne')].where((x) => x.isNotEmpty).join(' · '),
@@ -179,6 +183,8 @@ final Map<String, Schema> aDonner = {
     ],
   ),
   'Fournitures & matériel scolaire': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez le lot posé à plat. À la rentrée, une photo claire d’un lot de cahiers part dans l’heure.',
     etat: false,
     livraison: false,
     titre: (s) => [_t(s, 'typeScol'), _t(s, 'niveauScol'), _t(s, 'quantiteDon')].where((x) => x.isNotEmpty).join(' · '),
@@ -206,6 +212,8 @@ final Map<String, Schema> aDonner = {
     ],
   ),
   'Bébé & enfant': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’article entier, les sangles et l’étiquette de norme s’il y en a une. C’est ce que regarde un parent prudent.',
     etat: false,
     livraison: false,
     titre: (s) => [_t(s, 'typeBebeDon'), _t(s, 'ageBebeDon')].where((x) => x.isNotEmpty).join(' · '),
@@ -255,6 +263,8 @@ final Map<String, Schema> aDonner = {
     ],
   ),
   'Nourriture & hygiène': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez les emballages ET les dates. Sur ce rayon, la date est l’information principale.',
     etat: false,
     livraison: false,
     titre: (s) => [_t(s, 'typeNourr'), _t(s, 'peremptionDon')].where((x) => x.isNotEmpty).join(' · '),
@@ -311,6 +321,8 @@ final Map<String, Schema> aDonner = {
     ],
   ),
   'Coup de main & services': Schema(
+    couleurs: false,
+    sansCouleur: 'Une photo n’est pas indispensable ici. Si vous en mettez une, montrez votre atelier ou votre matériel, jamais des visages d’enfants.',
     etat: false,
     livraison: false,
     service: true,
@@ -355,6 +367,8 @@ final Map<String, Schema> aDonner = {
     ],
   ),
   'Autres objets': Schema(
+    couleurs: false,
+    sansCouleur: 'Photographiez l’objet tel qu’il est, avec ses défauts. Un don décrit honnêtement trouve preneur ; un don embelli fait perdre son temps à tout le monde.',
     etat: false,
     livraison: false,
     titre: (s) => [_t(s, 'natureObjet'), _t(s, 'etatObjet')].where((x) => x.isNotEmpty).join(' · '),
