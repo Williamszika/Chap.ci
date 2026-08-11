@@ -16,6 +16,7 @@ import 'screens/conversation_screen.dart';
 import 'screens/formulaire_dynamique.dart';
 import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
+import 'screens/admin/annonces_screen.dart';
 import 'screens/admin/moderation_screen.dart';
 import 'screens/admin/tableau_bord_screen.dart';
 import 'screens/admin/utilisateurs_screen.dart';
@@ -137,6 +138,24 @@ Widget _pour(String shot) {
           {'date': '2026-08-14', 'users': 18, 'listings': 47},
         ],
       }));
+    case 'annonces-admin':
+      return AnnoncesAdminScreen(apercu: [
+        AnnonceAdmin.depuis(const {
+          'id': 'l1', 'title': 'Table à manger en teck massif', 'price': 150000,
+          'categoryId': 'maison', 'commune': 'Cocody',
+          'sellerEmail': 'awa.kone@gmail.com', 'images': [],
+        }),
+        AnnonceAdmin.depuis(const {
+          'id': 'l2', 'title': 'iPhone 15 Pro Max — 90 000 FCFA', 'price': 90000,
+          'categoryId': 'electronique', 'commune': 'Yopougon', 'hidden': true,
+          'sellerEmail': 'promo.rapide@gmail.com', 'images': [],
+        }),
+        AnnonceAdmin.depuis(const {
+          'id': 'l3', 'title': 'Robe wax taille 40', 'price': 25000,
+          'categoryId': 'mode', 'commune': 'Marcory', 'sold': true,
+          'sellerEmail': 'boutique.229@yahoo.fr', 'images': [],
+        }),
+      ]);
     case 'utilisateurs':
       final t = DateTime.now().millisecondsSinceEpoch;
       return UtilisateursScreen(apercu: [

@@ -3,6 +3,7 @@ import '../../api/admin.dart';
 import '../../api/api_client.dart';
 import '../../format.dart';
 import '../../theme.dart';
+import 'annonces_screen.dart';
 import 'moderation_screen.dart';
 import 'utilisateurs_screen.dart';
 
@@ -207,6 +208,18 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
               MaterialPageRoute(builder: (_) => const UtilisateursScreen())),
           icon: const Icon(Icons.people_outline, size: 18),
           label: const Text('Utilisateurs'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+            foregroundColor: ChapColors.orange,
+            side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AnnoncesAdminScreen())),
+          icon: const Icon(Icons.sell_outlined, size: 18),
+          label: const Text('Annonces'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(46),
             foregroundColor: ChapColors.orange,

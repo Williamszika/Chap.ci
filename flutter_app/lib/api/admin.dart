@@ -1,4 +1,5 @@
 import 'api_client.dart';
+import 'models.dart';
 
 /// Le résultat du contrôle d'accès : est-on admin, propriétaire ?
 class AccesAdmin {
@@ -157,6 +158,17 @@ class Utilisateur {
       );
 }
 
+/// Une annonce vue de l'admin : l'annonce complète + l'e-mail du vendeur
+/// (`GET /admin/listings`).
+class AnnonceAdmin {
+  final Listing annonce;
+  final String? vendeurEmail;
+  const AnnonceAdmin(this.annonce, this.vendeurEmail);
+
+  factory AnnonceAdmin.depuis(Map<String, dynamic> j) =>
+      AnnonceAdmin(Listing.fromJson(j), j['sellerEmail'] as String?);
+}
+
 /// Le tableau de bord (réservé au Patron). Trois verrous côté serveur : être
 /// admin, avoir déverrouillé avec le code d'accès, puis les permissions fines.
 class AdminApi {
@@ -249,5 +261,33 @@ class AdminApi {
   /// Change le statut d'un compte : `active`, `restricted` ou `blocked`.
   static Future<void> changerStatut(String id, String statut) async {
     await ApiClient.instance.post('/admin/users/$id/status', {'status': statut});
+  }
+
+  /// Toutes les annonces (les plus récentes d'abord), signalées ou non.
+  static Future<List<AnnonceAdmin>> annonces() async {
+    final d = await ApiClient.instance.get('/admin/listings');
+    if (d is List) {
+      return d
+          .whereType<Map>()
+          .map((m) => AnnonceAdmin.depuis(m.cast<String, dynamic>()))
+          .toList();
+    }
+    return const [];
+  }
+
+  /// Masque (motif obligatoire, il part au vendeur) ou démasque une annonce.
+  static Future<void> changerVisibilite(String id, bool masquer,
+      {String? motif}) async {
+    await ApiClient.instance.post('/admin/listings/$id/visibility', {
+      'hidden': masquer,
+      if (motif != null && motif.trim().isNotEmpty) 'motif': motif.trim(),
+    });
+  }
+
+  /// Retire définitivement une annonce (le motif, s'il est donné, part au vendeur).
+  static Future<void> supprimerAnnonce(String id, {String? motif}) async {
+    await ApiClient.instance.delete(
+        '/admin/listings/$id',
+        (motif != null && motif.trim().isNotEmpty) ? {'motif': motif.trim()} : null);
   }
 }

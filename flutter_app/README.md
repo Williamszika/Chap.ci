@@ -24,6 +24,7 @@ Store.
 | `lib/screens/admin/tableau_bord_screen.dart` | **Tableau de bord** (réservé au Patron) — verrou + aperçu (visiteurs, compteurs, parcours, 14 jours) |
 | `lib/screens/admin/moderation_screen.dart` | **Modération** — la file des signalements ; classer / masquer / supprimer en un geste |
 | `lib/screens/admin/utilisateurs_screen.dart` | **Utilisateurs** — chercher un compte, le restreindre ou le bloquer |
+| `lib/screens/admin/annonces_screen.dart` | **Annonces** (admin) — toutes les annonces ; masquer / démasquer / retirer |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
