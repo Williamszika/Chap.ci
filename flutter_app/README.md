@@ -127,14 +127,15 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **« Mode & Beauté », « Électronique » et
-   « Véhicules » sont portées** (3 catégories sur 15) — dont, pour les
-   véhicules, le **dossier administratif** (carte grise à mon nom, CSA /
-   non-gage : le garde-fou contre un véhicule volé ou gagé) et le **contrôle du
-   kilométrage annuel** qui repère un compteur trafiqué. Restent les **12
-   autres catégories** (mêmes données à porter, le moteur est là), la
-   **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles par
-   coloris), et le reste du pays (régions/villes hors Abidjan).
+   Voir `lib/data/formulaires/`. **« Mode & Beauté », « Électronique »,
+   « Véhicules » et « Maison » sont portées** (4 catégories sur 15) — avec, pour
+   les véhicules, le **dossier administratif** (carte grise, CSA / non-gage) et
+   le **contrôle du kilométrage annuel** ; pour la maison, le bois qui gonfle à
+   l'humidité, la facture CIE, et **trois refus de publication** exigés par la
+   loi ou la sécurité (ivoire / trophée CITES, bouteille de gaz abîmée, matelas
+   à punaises). Restent les **11 autres catégories** (mêmes données à porter, le
+   moteur est là), la **géolocalisation GPS**, le **bloc couleurs/variantes**
+   (tailles par coloris), et le reste du pays (régions/villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),

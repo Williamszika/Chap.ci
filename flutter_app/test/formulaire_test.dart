@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:chapci/data/formulaires/mode.dart';
 import 'package:chapci/data/formulaires/electronique.dart';
 import 'package:chapci/data/formulaires/vehicules.dart';
+import 'package:chapci/data/formulaires/maison.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -110,5 +111,27 @@ void main() {
     await taper(tester, 'Au nom d’un tiers (avec procuration)');
     expect(etat()!.attributs['carteGrise'], 'Au nom d’un tiers (avec procuration)');
     expect(etat()!.motifBloc, isNull);
+  });
+
+  testWidgets('un objet en ivoire (CITES) bloque la publication', (tester) async {
+    final etat = await monter(tester, maison['Décoration']);
+    await taper(tester, 'Ivoire');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('CITES'));
+  });
+
+  testWidgets('une bouteille de gaz qui fuit bloque la publication', (tester) async {
+    final etat = await monter(tester, maison['Cuisine']);
+    await taper(tester, 'Bouteille de gaz'); // fait apparaître l'état de la bouteille
+    await taper(tester, 'Fuite constatée');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('revendeur agréé'));
+  });
+
+  testWidgets('un matelas porteur de punaises bloque la publication', (tester) async {
+    final etat = await monter(tester, maison['Literie']);
+    await taper(tester, 'Punaises de lit constatées');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('punaises'));
   });
 }
