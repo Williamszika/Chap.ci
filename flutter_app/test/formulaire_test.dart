@@ -12,6 +12,7 @@ import 'package:chapci/data/formulaires/animaux.dart';
 import 'package:chapci/data/formulaires/services.dart';
 import 'package:chapci/data/formulaires/emploi.dart';
 import 'package:chapci/data/formulaires/sante.dart';
+import 'package:chapci/data/formulaires/bebe.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -231,5 +232,21 @@ void main() {
     await taper(tester, 'Contient un anabolisant, une hormone ou un stéroïde');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('prescription'));
+  });
+
+  testWidgets('un siège auto accidenté bloque la publication', (tester) async {
+    final etat = await monter(tester, bebe['Poussettes & Sièges auto']);
+    await taper(tester, 'Siège auto'); // fait apparaître la question du choc
+    await taper(tester, 'A subi un accident, même léger');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('ne protégera plus'));
+  });
+
+  testWidgets('un lit à barreaux non conforme bloque la publication', (tester) async {
+    final etat = await monter(tester, bebe['Mobilier & Chambre']);
+    await taper(tester, 'Lit à barreaux'); // fait apparaître l'écartement
+    await taper(tester, 'Supérieur à 6,5 cm');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('nourrisson'));
   });
 }

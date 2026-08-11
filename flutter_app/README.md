@@ -127,9 +127,9 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **Neuf catégories sur 15 sont portées** — Mode &
+   Voir `lib/data/formulaires/`. **Dix catégories sur 15 sont portées** — Mode &
    Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux, Services,
-   Emploi et Santé — avec, à
+   Emploi, Santé et Bébé & Enfant — avec, à
    chaque fois, les garde-fous du terrain : dossier administratif du véhicule
    (carte grise, CSA / non-gage), bois qui gonfle à l'humidité, chaîne du froid
    et date limite pour l'alimentation, et pour les animaux les **espèces
@@ -142,10 +142,12 @@ Dans l'ordre où on les construira, écran par écran :
    arnaque des faux recrutements — et le travail domestique d'un mineur). La
    santé est la plus surveillée : **médicaments** (monopole des pharmacies),
    **produits éclaircissants**, **promesses de guérison**, **anabolisants** — et
-   tout produit périmé — refusent l'annonce. Restent les **6 autres catégories**
-   (mêmes données à porter, le moteur est là), la **géolocalisation GPS**, le
-   **bloc couleurs/variantes** (tailles par coloris), et le reste du pays
-   (régions / villes hors Abidjan).
+   tout produit périmé — refusent l'annonce. Côté bébé, deux objets ne se
+   revendent jamais : un **siège auto accidenté** et un **lit à barreaux non
+   conforme** (écartement > 6,5 cm), plus tout **modèle rappelé** par son
+   fabricant. Restent les **5 autres catégories** (mêmes données à porter, le
+   moteur est là), la **géolocalisation GPS**, le **bloc couleurs/variantes**
+   (tailles par coloris), et le reste du pays (régions / villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
