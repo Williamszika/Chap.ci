@@ -15,6 +15,7 @@ import 'package:chapci/data/formulaires/sante.dart';
 import 'package:chapci/data/formulaires/bebe.dart';
 import 'package:chapci/data/formulaires/voyage.dart';
 import 'package:chapci/data/formulaires/loisirs.dart';
+import 'package:chapci/data/formulaires/scolaire.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -279,5 +280,19 @@ void main() {
     await taper(tester, 'Arme à feu, munitions ou arme blanche');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('armurier agréé'));
+  });
+
+  testWidgets('revendre un kit scolaire gratuit de l’État bloque la publication', (tester) async {
+    final etat = await monter(tester, scolaire['Fournitures & papeterie']);
+    await taper(tester, 'Kit gratuit distribué par l’État (primaire public)');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('donnés aux élèves'));
+  });
+
+  testWidgets('un manuel photocopié (contrefaçon) bloque la publication', (tester) async {
+    final etat = await monter(tester, scolaire['Manuels & livres scolaires']);
+    await taper(tester, 'Photocopie reliée');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('contrefaçon'));
   });
 }
