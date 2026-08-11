@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'api/api_client.dart';
 import 'favoris.dart';
+import 'notifications.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/browse_screen.dart';
@@ -14,6 +15,8 @@ Future<void> main() async {
   // puis les favoris (locaux, fusionnés au compte si connecté).
   await ApiClient.instance.chargerSession();
   await Favoris.instance.charger();
+  // Le compteur de la cloche (léger, best-effort, silencieux si hors ligne).
+  Notifications.instance.rafraichirCompte();
   runApp(const ChapApp());
 }
 
@@ -39,8 +42,28 @@ class AccueilShell extends StatefulWidget {
   State<AccueilShell> createState() => _AccueilShellState();
 }
 
-class _AccueilShellState extends State<AccueilShell> {
+class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver {
   late int _onglet = widget.initialTab;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Le téléphone revient au premier plan : on rafraîchit la pastille.
+    if (state == AppLifecycleState.resumed) {
+      Notifications.instance.rafraichirCompte();
+    }
+  }
 
   Future<void> _publier() async {
     if (!ApiClient.instance.connecte) {

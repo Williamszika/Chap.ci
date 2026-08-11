@@ -10,9 +10,11 @@ import 'data/formulaires/maison.dart';
 import 'data/formulaires/mode.dart';
 import 'favoris.dart';
 import 'main.dart';
+import 'notifications.dart';
 import 'theme.dart';
 import 'screens/conversation_screen.dart';
 import 'screens/formulaire_dynamique.dart';
+import 'screens/notifications_screen.dart';
 import 'screens/favoris_screen.dart';
 import 'screens/listing_detail_screen.dart';
 import 'screens/modifier_profil_screen.dart';
@@ -100,6 +102,26 @@ Widget _pour(String shot) {
       return const _ColorisTelDemo();
     case 'coloris-bois':
       return const _ColorisBoisDemo();
+    case 'notifs':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return NotificationsScreen(apercu: [
+        NotifItem(
+            id: '1', type: 'message', titre: 'Nouveau message de Aïcha',
+            corps: 'Bonjour, la robe wax est-elle toujours disponible ?',
+            lien: '#/messages/c1', lue: false, cree: t - 5 * 60000),
+        NotifItem(
+            id: '2', type: 'favorite', titre: 'Quelqu’un a aimé votre annonce',
+            corps: 'Votre « iPhone 13 128 Go » a été mis en favori.',
+            lien: '#/annonce/abc123', lue: false, cree: t - 55 * 60000),
+        NotifItem(
+            id: '3', type: 'listing', titre: 'Annonce publiée ✅',
+            corps: 'Votre « Table à manger en teck » est maintenant en ligne.',
+            lien: '#/annonce/def456', lue: true, cree: t - 26 * 3600000),
+        NotifItem(
+            id: '4', type: 'listing', titre: 'Annonce à mettre à jour',
+            corps: 'Ajoutez le dossier foncier pour la remettre en ligne.',
+            lien: '#/modifier/ghi789', lue: true, cree: t - 3 * 86400000),
+      ]);
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':

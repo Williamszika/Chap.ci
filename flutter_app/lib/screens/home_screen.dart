@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../theme.dart';
+import '../widgets/cloche_notifs.dart';
 import '../widgets/listing_card.dart';
 import 'favoris_screen.dart';
 import 'listing_detail_screen.dart';
@@ -59,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const Spacer(),
+                      const ClocheNotifs(),
                       IconButton(
                         icon: const Icon(Icons.favorite_border,
                             color: ChapColors.gray700),

@@ -98,10 +98,13 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> delete(String chemin) async {
+  Future<dynamic> delete(String chemin, [Map<String, dynamic>? corps]) async {
     try {
-      final r =
-          await http.delete(_uri(chemin), headers: _entetes()).timeout(_timeout);
+      final r = await http
+          .delete(_uri(chemin),
+              headers: _entetes(avecCorps: corps != null),
+              body: corps == null ? null : jsonEncode(corps))
+          .timeout(_timeout);
       return _traiter(r);
     } on TimeoutException {
       throw ApiException('Connexion trop lente. Réessayez.');

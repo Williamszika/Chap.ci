@@ -39,6 +39,9 @@ Store.
 | `lib/screens/verifier_email_screen.dart` | **Confirmer l'e-mail** — code à 6 chiffres (mur avant de publier) |
 | `lib/favoris.dart` | Les favoris (local + synchro compte), un ChangeNotifier |
 | `lib/widgets/bouton_favori.dart` | Le cœur sur la carte et la fiche |
+| `lib/notifications.dart` | La **cloche** : modèle + client des notifications du compte, un ChangeNotifier (compteur, liste, lu, effacer) |
+| `lib/screens/notifications_screen.dart` | **Notifications** — la liste, le point des non-lues, balayer pour effacer |
+| `lib/widgets/cloche_notifs.dart` | La cloche de l'en-tête avec la pastille du nombre de non-lues |
 | `lib/screens/favoris_screen.dart` | **Mes favoris** |
 | `lib/data/locations.dart` | Tout le pays : 33 régions, les villes, les 13 communes d'Abidjan + les aides (`citiesByRegion`, `locationLabel`, rapprochement d'un nom capté) |
 | `lib/data/coords.dart` | Coordonnées GPS approximatives des villes / communes — position de repli quand le vendeur n'active pas son GPS |
@@ -189,8 +192,20 @@ Dans l'ordre où on les construira, écran par écran :
    identité, **édition du profil (nom, bio, photo)**.
 6. ~~**Messagerie** acheteur ↔ vendeur~~ ✅ fait (liste, fil, envoi, relève 4 s ;
    « Contacter » sur la fiche ouvre la conversation).
-7. **Notifications natives** (Firebase Cloud Messaging) — c'est ici que l'app
-   Flutter apporte ce que la coque WebView ne pouvait pas faire.
+7. **Notifications.** La **cloche in-app** est faite ✅ : la liste des
+   notifications du compte (nouveau message, favori, annonce publiée, rappel),
+   le badge du nombre de non-lues dans l'en-tête, l'ouverture qui marque lu, le
+   balayage pour effacer, le « tout effacer » — tout branché sur les routes
+   existantes du serveur (`/notifications`, `/notifications/count`,
+   `/notifications/read`, `DELETE /notifications`). Voir `lib/notifications.dart`,
+   `lib/screens/notifications_screen.dart`, `lib/widgets/cloche_notifs.dart`.
+   **Reste le push natif** (réveiller le téléphone quand l'app est fermée) — c'est
+   ce que la coque WebView ne pouvait pas faire. Il demande **Firebase Cloud
+   Messaging** : un projet Firebase et le `google-services.json` (à créer dans la
+   console, chez le Patron), le paquet `firebase_messaging`, et côté serveur une
+   route qui enregistre le jeton FCM de l'appareil + un envoi FCM (le serveur
+   sait déjà faire le Web Push VAPID des navigateurs ; le natif est un second
+   canal). Rien de tout cela ne touche au keystore.
 8. **Tableau de bord** (réservé au Patron).
 
 Tant que la parité n'est pas atteinte, **ne pas remplacer** l'app Play Store
