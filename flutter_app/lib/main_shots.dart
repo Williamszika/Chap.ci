@@ -16,6 +16,7 @@ import 'screens/conversation_screen.dart';
 import 'screens/formulaire_dynamique.dart';
 import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
+import 'screens/admin/moderation_screen.dart';
 import 'screens/admin/tableau_bord_screen.dart';
 import 'screens/securite_2fa_screen.dart';
 import 'screens/verifier_2fa_screen.dart';
@@ -135,6 +136,30 @@ Widget _pour(String shot) {
           {'date': '2026-08-14', 'users': 18, 'listings': 47},
         ],
       }));
+    case 'moderation':
+      return ModerationScreen(apercu: [
+        Signalement.depuis({
+          'id': 'r1', 'listingId': 'l1',
+          'listingTitle': 'iPhone 15 Pro Max — 90 000 FCFA',
+          'listingHidden': false, 'reason': 'Prix trop beau / arnaque',
+          'details': 'Le vendeur demande un dépôt Mobile Money avant livraison.',
+          'reporterEmail': 'awa****@gmail.com', 'status': 'open',
+          'createdAt': DateTime.now().millisecondsSinceEpoch - 25 * 60000,
+        }),
+        Signalement.depuis({
+          'id': 'r2', 'listingId': 'l2',
+          'listingTitle': 'Parfum « Dior » — lot de 12',
+          'listingHidden': false, 'reason': 'Contrefaçon',
+          'reporterEmail': 'k****@yahoo.fr', 'status': 'open',
+          'createdAt': DateTime.now().millisecondsSinceEpoch - 3 * 3600000,
+        }),
+        Signalement.depuis({
+          'id': 'r3', 'listingId': 'l3',
+          'listingTitle': 'Studio meublé Cocody',
+          'listingHidden': false, 'reason': 'Doublon', 'status': 'closed',
+          'createdAt': DateTime.now().millisecondsSinceEpoch - 2 * 86400000,
+        }),
+      ]);
     case 'twofa':
       return const Verifier2faScreen(mfaToken: 'demo');
     case 'twofa-setup':

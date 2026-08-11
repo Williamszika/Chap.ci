@@ -86,6 +86,40 @@ class StatsAdmin {
 
 int _i(dynamic v) => (v is num) ? v.toInt() : (int.tryParse('$v') ?? 0);
 
+/// Un signalement d'annonce (`GET /admin/reports`).
+class Signalement {
+  final String id, listingId, listingTitle, reason, status;
+  final String? details, reporterEmail;
+  final bool listingHidden;
+  final int cree;
+
+  const Signalement({
+    required this.id,
+    required this.listingId,
+    required this.listingTitle,
+    required this.reason,
+    required this.status,
+    required this.details,
+    required this.reporterEmail,
+    required this.listingHidden,
+    required this.cree,
+  });
+
+  bool get ouvert => status == 'open';
+
+  factory Signalement.depuis(Map r) => Signalement(
+        id: (r['id'] ?? '').toString(),
+        listingId: (r['listingId'] ?? '').toString(),
+        listingTitle: (r['listingTitle'] ?? '').toString(),
+        reason: (r['reason'] ?? '').toString(),
+        status: (r['status'] ?? 'open').toString(),
+        details: r['details'] as String?,
+        reporterEmail: r['reporterEmail'] as String?,
+        listingHidden: r['listingHidden'] == true,
+        cree: _i(r['createdAt']),
+      );
+}
+
 /// Le tableau de bord (réservé au Patron). Trois verrous côté serveur : être
 /// admin, avoir déverrouillé avec le code d'accès, puis les permissions fines.
 class AdminApi {
@@ -145,4 +179,24 @@ class AdminApi {
   /// Oublie le déverrouillage (revenir à l'écran verrouillé).
   static Future<void> reverrouiller() =>
       ApiClient.instance.definirDeverrouillageAdmin(null);
+
+  /// La file des signalements (ouverts d'abord).
+  static Future<List<Signalement>> signalements() async {
+    final d = await ApiClient.instance.get('/admin/reports');
+    if (d is List) {
+      return d.whereType<Map>().map(Signalement.depuis).toList();
+    }
+    return const [];
+  }
+
+  /// Traite un signalement ET agit sur l'annonce dans le même geste :
+  /// `classer` (rien à reprocher), `masquer` (le vendeur peut corriger),
+  /// `supprimer` (définitif). Le motif par défaut reprend la raison.
+  static Future<void> traiterSignalement(String id, String action,
+      {String? motif}) async {
+    await ApiClient.instance.post('/admin/reports/$id', {
+      'action': action,
+      if (motif != null && motif.trim().isNotEmpty) 'motif': motif.trim(),
+    });
+  }
 }

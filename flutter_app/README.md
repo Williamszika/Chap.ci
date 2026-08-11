@@ -22,6 +22,7 @@ Store.
 | `lib/api/push_natif.dart` | Push **natif** (FCM) — moitié app câblée, en veille tant que la console n'est pas configurée (voir plus bas) |
 | `lib/api/admin.dart` | Le **tableau de bord** côté client : contrôle admin, déverrouillage, statistiques |
 | `lib/screens/admin/tableau_bord_screen.dart` | **Tableau de bord** (réservé au Patron) — verrou + aperçu (visiteurs, compteurs, parcours, 14 jours) |
+| `lib/screens/admin/moderation_screen.dart` | **Modération** — la file des signalements ; classer / masquer / supprimer en un geste |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
@@ -226,9 +227,13 @@ Dans l'ordre où on les construira, écran par écran :
    inscrits → ont publié → ont vendu, sur 7 j / 30 j / depuis le début) et les
    14 derniers jours. Branché sur `/admin/check`, `/admin/unlock*`,
    `/admin/stats` (le jeton de déverrouillage voyage dans l'en-tête
-   `X-Admin-Unlock`). Les sections plus profondes du site (modération, comptes,
-   e-mails, sauvegardes…) restent à porter écran par écran. Voir
-   `lib/screens/admin/tableau_bord_screen.dart` et `lib/api/admin.dart`.
+   `X-Admin-Unlock`). La **modération** est portée : un bouton mène à la file
+   des signalements (`/admin/reports`) où, d'un seul geste, on décide ET on
+   agit sur l'annonce — **classer**, **masquer** (le vendeur est prévenu et
+   peut corriger), **supprimer** (`POST /admin/reports/<id>`). Les autres
+   sections du site (comptes, e-mails, sauvegardes…) restent à porter écran par
+   écran. Voir `lib/screens/admin/tableau_bord_screen.dart`,
+   `lib/screens/admin/moderation_screen.dart` et `lib/api/admin.dart`.
 
 Tant que la parité n'est pas atteinte, **ne pas remplacer** l'app Play Store
 actuelle : on ne livre en production que quand l'app Flutter fait au moins tout

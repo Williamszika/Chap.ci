@@ -3,6 +3,7 @@ import '../../api/admin.dart';
 import '../../api/api_client.dart';
 import '../../format.dart';
 import '../../theme.dart';
+import 'moderation_screen.dart';
 
 /// Le tableau de bord, réservé au Patron (et aux modérateurs habilités).
 ///
@@ -197,6 +198,8 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
         _carteVisiteurs(s),
         const SizedBox(height: 14),
         _grilleCompteurs(s),
+        const SizedBox(height: 12),
+        _boutonModeration(s.reportsOpen),
         const SizedBox(height: 18),
         _titre('Le parcours'),
         const SizedBox(height: 4),
@@ -214,6 +217,24 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
         const SizedBox(height: 10),
         _graphique(s.serie),
       ],
+    );
+  }
+
+  Widget _boutonModeration(int ouverts) {
+    final urgent = ouverts > 0;
+    final c = urgent ? const Color(0xFFB42318) : ChapColors.orange;
+    return OutlinedButton.icon(
+      onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ModerationScreen())),
+      icon: const Icon(Icons.gavel_outlined, size: 18),
+      label: Text(urgent
+          ? 'Modération — $ouverts à traiter'
+          : 'Modération — file vide'),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(46),
+        foregroundColor: c,
+        side: BorderSide(color: c.withValues(alpha: 0.5)),
+      ),
     );
   }
 
