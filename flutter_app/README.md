@@ -33,7 +33,9 @@ Store.
 | `lib/api/messaging.dart` | Conversations & messages (mêmes routes que le site) |
 | `lib/screens/messages_screen.dart` | **Messages** — la liste des conversations |
 | `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
-| `lib/screens/publier_screen.dart` | **Publier** (v1) — photos (≥ 3), titre, catégorie, état, prix, commune |
+| `lib/screens/publier_screen.dart` | **Publier** — photos (≥ 3), catégorie **et sous-catégorie**, prix, commune, + le formulaire détaillé |
+| `lib/screens/formulaire_dynamique.dart` | Le **moteur** qui affiche le formulaire d'une sous-catégorie (puces, bascules, alertes, blocage) |
+| `lib/data/formulaires/` | Le **contrat** (`schema.dart`), les données par catégorie (`mode.dart`…) et le **registre** (`registre.dart`) |
 | `lib/screens/verifier_email_screen.dart` | **Confirmer l'e-mail** — code à 6 chiffres (mur avant de publier) |
 | `lib/favoris.dart` | Les favoris (local + synchro compte), un ChangeNotifier |
 | `lib/widgets/bouton_favori.dart` | Le cœur sur la carte et la fiche |
@@ -120,9 +122,15 @@ Dans l'ordre où on les construira, écran par écran :
 1. ~~**Fiche annonce** (détail) + suivi des vues~~ ✅ fait.
 2. ~~**Recherche & filtres** (mot-clé, catégorie, état, commune, tri)~~ ✅ fait.
 3. ~~**Publier une annonce (v1)**~~ ✅ photos (≥ 3), titre, catégorie, état, prix,
-   négociable, commune (Abidjan), description, téléphone, livraison. Restent : les
-   **100+ formulaires par sous-catégorie** (marque, taille, année…), la
-   **géolocalisation GPS**, et le reste du pays (régions/villes hors Abidjan).
+   négociable, commune (Abidjan), description, téléphone, livraison.
+   ~~**Publier v2 — le moteur de formulaires par sous-catégorie**~~ ✅ : choix de
+   la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
+   champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
+   **refus de publication** exigé par la loi (éclaircissant, produit périmé).
+   Voir `lib/data/formulaires/`. **« Mode & Beauté » est porté en entier** ;
+   restent les **14 autres catégories** (mêmes données à porter, le moteur est
+   là), la **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles par
+   coloris), et le reste du pays (régions/villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
