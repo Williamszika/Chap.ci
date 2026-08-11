@@ -66,6 +66,10 @@ Widget _pour(String shot) {
       return const PublierScreen(initialCategorie: 'alimentation', initialSous: 'Produits vivriers');
     case 'publier-poisson':
       return const PublierScreen(initialCategorie: 'alimentation', initialSous: 'Poisson & Produits de mer');
+    case 'publier-oiseaux':
+      return const PublierScreen(initialCategorie: 'animaux', initialSous: 'Oiseaux, Poissons & Reptiles');
+    case 'publier-betail':
+      return const PublierScreen(initialCategorie: 'animaux', initialSous: 'Bétail & Élevage');
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
