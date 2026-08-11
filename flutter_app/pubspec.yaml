@@ -1,0 +1,26 @@
+name: chapci
+description: "Chap.ci — petites annonces en Côte d'Ivoire (application Flutter)."
+publish_to: "none"
+
+# La version affichée + le versionCode Android (après le +).
+# ⚠️ Le nombre après le + DOIT être supérieur au dernier versionCode téléversé
+#    sur le Play Store. Dernier connu : 20 (v1.19). Donc on démarre à 21.
+version: 1.20.0+21
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Réseau : appels à l'API PHP existante (https://chap.ci/api).
+  http: ^1.2.2
+  # Stockage local du jeton de session (l'équivalent du cookie du site).
+  shared_preferences: ^2.3.2
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,18 @@
+# Dossiers de plateforme régénérés par « flutter create » — jamais dans le dépôt,
+# exactement comme android/ et ios/ du site (le keystore n'y entre jamais).
+/android/
+/ios/
+/linux/
+/macos/
+/windows/
+/web/
+
+# Artefacts Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.iml
+.idea/
+pubspec.lock

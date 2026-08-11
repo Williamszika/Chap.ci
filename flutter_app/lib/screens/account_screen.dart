@@ -1,0 +1,179 @@
+import 'package:flutter/material.dart';
+import '../api/api_client.dart';
+import '../theme.dart';
+
+/// Compte — connexion, ou état « connecté » si un jeton est déjà présent.
+///
+/// Pour l'instant : se connecter et se déconnecter. L'inscription, le profil
+/// complet, la 2FA et la publication viendront dans les prochains écrans.
+class AccountScreen extends StatefulWidget {
+  const AccountScreen({super.key});
+  @override
+  State<AccountScreen> createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends State<AccountScreen> {
+  final _email = TextEditingController();
+  final _motDePasse = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _enCours = false;
+  bool _voirMdp = false;
+  String? _erreur;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _motDePasse.dispose();
+    super.dispose();
+  }
+
+  Future<void> _seConnecter() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _enCours = true;
+      _erreur = null;
+    });
+    try {
+      await ApiClient.instance.seConnecter(_email.text, _motDePasse.text);
+      if (mounted) setState(() {});
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _erreur = e.message);
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  Future<void> _seDeconnecter() async {
+    await ApiClient.instance.seDeconnecter();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final connecte = ApiClient.instance.connecte;
+    return Scaffold(
+      appBar: AppBar(title: Text(connecte ? 'Mon compte' : 'Connexion')),
+      body: connecte ? _vueConnecte() : _vueConnexion(),
+    );
+  }
+
+  Widget _vueConnecte() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircleAvatar(
+              radius: 34,
+              backgroundColor: ChapColors.cream100,
+              child: Icon(Icons.person, size: 36, color: ChapColors.orange),
+            ),
+            const SizedBox(height: 14),
+            const Text('Vous êtes connecté',
+                style:
+                    TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            const Text(
+              'Le profil complet, vos annonces et la messagerie arrivent\ndans les prochaines mises à jour de l’application.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ChapColors.gray600),
+            ),
+            const SizedBox(height: 22),
+            OutlinedButton(
+              onPressed: _seDeconnecter,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: ChapColors.gray700,
+                minimumSize: const Size(180, 48),
+                side: const BorderSide(color: ChapColors.line2),
+              ),
+              child: const Text('Se déconnecter'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _vueConnexion() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 8),
+            const Text('Bon retour 👋',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            const Text('Connectez-vous pour publier et suivre vos annonces.',
+                style: TextStyle(color: ChapColors.gray600)),
+            const SizedBox(height: 22),
+            TextFormField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              decoration: const InputDecoration(
+                labelText: 'Adresse e-mail',
+                prefixIcon: Icon(Icons.mail_outline),
+              ),
+              validator: (v) =>
+                  (v == null || !v.contains('@')) ? 'E-mail invalide' : null,
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _motDePasse,
+              obscureText: !_voirMdp,
+              autofillHints: const [AutofillHints.password],
+              decoration: InputDecoration(
+                labelText: 'Mot de passe',
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                      _voirMdp ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () => setState(() => _voirMdp = !_voirMdp),
+                ),
+              ),
+              validator: (v) => (v == null || v.length < 6)
+                  ? 'Au moins 6 caractères'
+                  : null,
+            ),
+            if (_erreur != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFDECEC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF5C6C6)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline,
+                        color: Color(0xFFB42318), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(_erreur!,
+                            style: const TextStyle(color: Color(0xFFB42318)))),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _enCours ? null : _seConnecter,
+              child: _enCours
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Se connecter'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
