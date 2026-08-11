@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'api_client.dart';
 import 'models.dart';
 
@@ -169,6 +170,27 @@ class AnnonceAdmin {
       AnnonceAdmin(Listing.fromJson(j), j['sellerEmail'] as String?);
 }
 
+/// Une sauvegarde automatique présente sur le serveur (`GET /admin/backups`).
+class Sauvegarde {
+  final String fichier;
+  final int octets;
+  final int quand; // epoch ms
+  const Sauvegarde(this.fichier, this.octets, this.quand);
+
+  factory Sauvegarde.depuis(Map m) => Sauvegarde(
+        (m['file'] ?? '').toString(),
+        _i(m['bytes']),
+        _i(m['at']),
+      );
+}
+
+/// Le résultat d'un export : le nom de fichier proposé et son contenu (octets).
+class Export {
+  final String nom;
+  final List<int> octets;
+  const Export(this.nom, this.octets);
+}
+
 /// Le tableau de bord (réservé au Patron). Trois verrous côté serveur : être
 /// admin, avoir déverrouillé avec le code d'accès, puis les permissions fines.
 class AdminApi {
@@ -289,5 +311,24 @@ class AdminApi {
     await ApiClient.instance.delete(
         '/admin/listings/$id',
         (motif != null && motif.trim().isNotEmpty) ? {'motif': motif.trim()} : null);
+  }
+
+  /// La liste des sauvegardes automatiques présentes sur le serveur.
+  static Future<List<Sauvegarde>> sauvegardes() async {
+    final d = await ApiClient.instance.get('/admin/backups');
+    final liste = (d is Map && d['backups'] is List) ? d['backups'] as List : const [];
+    return liste.whereType<Map>().map(Sauvegarde.depuis).toList();
+  }
+
+  /// Génère un export complet de la base, prêt à partager / enregistrer.
+  ///
+  /// Le serveur renvoie tout le contenu ; on le ré-encode en JSON (l'ordre et
+  /// les données sont préservés). L'horodatage du nom est passé en argument
+  /// (`Date.now()` n'existe pas dans les scripts déterministes ; ici on est
+  /// dans l'app, donc on peut horodater à l'appel).
+  static Future<Export> exporter(String horodatage) async {
+    final d = await ApiClient.instance.get('/admin/backup');
+    final octets = utf8.encode(const JsonEncoder.withIndent('  ').convert(d));
+    return Export('chapci-$horodatage.json', octets);
   }
 }

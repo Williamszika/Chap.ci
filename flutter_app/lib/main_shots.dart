@@ -18,6 +18,7 @@ import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
 import 'screens/admin/annonces_screen.dart';
 import 'screens/admin/moderation_screen.dart';
+import 'screens/admin/sauvegardes_screen.dart';
 import 'screens/admin/tableau_bord_screen.dart';
 import 'screens/admin/utilisateurs_screen.dart';
 import 'screens/securite_2fa_screen.dart';
@@ -138,6 +139,14 @@ Widget _pour(String shot) {
           {'date': '2026-08-14', 'users': 18, 'listings': 47},
         ],
       }));
+    case 'sauvegardes':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return SauvegardesScreen(apercu: [
+        Sauvegarde.depuis({'file': 'chapci-2026-08-14-030000.json', 'bytes': 1319948, 'at': t - 5 * 3600000}),
+        Sauvegarde.depuis({'file': 'chapci-2026-08-13-030000.json', 'bytes': 1305210, 'at': t - 29 * 3600000}),
+        Sauvegarde.depuis({'file': 'chapci-2026-08-12-030000.json', 'bytes': 1298004, 'at': t - 53 * 3600000}),
+        Sauvegarde.depuis({'file': 'chapci-2026-08-11-030000.json', 'bytes': 1287771, 'at': t - 77 * 3600000}),
+      ]);
     case 'annonces-admin':
       return AnnoncesAdminScreen(apercu: [
         AnnonceAdmin.depuis(const {

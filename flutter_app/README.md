@@ -25,6 +25,7 @@ Store.
 | `lib/screens/admin/moderation_screen.dart` | **Modération** — la file des signalements ; classer / masquer / supprimer en un geste |
 | `lib/screens/admin/utilisateurs_screen.dart` | **Utilisateurs** — chercher un compte, le restreindre ou le bloquer |
 | `lib/screens/admin/annonces_screen.dart` | **Annonces** (admin) — toutes les annonces ; masquer / démasquer / retirer |
+| `lib/screens/admin/sauvegardes_screen.dart` | **Sauvegardes** — liste des exports du serveur + « créer et partager » un export complet |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
