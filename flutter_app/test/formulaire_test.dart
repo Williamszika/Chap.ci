@@ -13,6 +13,7 @@ import 'package:chapci/data/formulaires/services.dart';
 import 'package:chapci/data/formulaires/emploi.dart';
 import 'package:chapci/data/formulaires/sante.dart';
 import 'package:chapci/data/formulaires/bebe.dart';
+import 'package:chapci/data/formulaires/voyage.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -248,5 +249,26 @@ void main() {
     await taper(tester, 'Supérieur à 6,5 cm');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('nourrisson'));
+  });
+
+  testWidgets('« visa garanti » bloque la publication', (tester) async {
+    final etat = await monter(tester, voyage['Visas & formalités']);
+    await taper(tester, 'Visa garanti, remboursé en cas de refus');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('consulat'));
+  });
+
+  testWidgets('la confiscation du passeport (travail à l’étranger) bloque', (tester) async {
+    final etat = await monter(tester, voyage['Travail à l’étranger']);
+    await taper(tester, 'L’employeur le conserve');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('traite'));
+  });
+
+  testWidgets('un passage sans visa (traite) bloque la publication', (tester) async {
+    final etat = await monter(tester, voyage['Études à l’étranger']);
+    await taper(tester, 'Traversée en mer'); // champ « Comment se fait le voyage »
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('traite'));
   });
 }

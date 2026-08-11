@@ -127,9 +127,9 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **Dix catégories sur 15 sont portées** — Mode &
+   Voir `lib/data/formulaires/`. **Onze catégories sur 15 sont portées** — Mode &
    Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux, Services,
-   Emploi, Santé et Bébé & Enfant — avec, à
+   Emploi, Santé, Bébé & Enfant et Voyage — avec, à
    chaque fois, les garde-fous du terrain : dossier administratif du véhicule
    (carte grise, CSA / non-gage), bois qui gonfle à l'humidité, chaîne du froid
    et date limite pour l'alimentation, et pour les animaux les **espèces
@@ -148,6 +148,10 @@ Dans l'ordre où on les construira, écran par écran :
    fabricant. Restent les **5 autres catégories** (mêmes données à porter, le
    moteur est là), la **géolocalisation GPS**, le **bloc couleurs/variantes**
    (tailles par coloris), et le reste du pays (régions / villes hors Abidjan).
+   Le voyage est la 2ᵉ catégorie la plus surveillée : « **visa garanti** »
+   (impossible), **frais avant contrat**, **frais de placement** payés par le
+   candidat (convention n° 181 de l'OIT), **passeport confisqué** et **passage
+   sans visa** (traite) refusent tous l'annonce.
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
