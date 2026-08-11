@@ -5,7 +5,10 @@ import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../data/categories.dart';
 import '../data/communes.dart';
+import '../data/formulaires/registre.dart';
+import '../data/formulaires/schema.dart';
 import '../theme.dart';
+import 'formulaire_dynamique.dart';
 import 'verifier_email_screen.dart';
 
 /// Une photo choisie (les octets + son type), en attente d'envoi.
@@ -22,12 +25,23 @@ class _Photo {
 /// titre, et le texte passe la modération. Les formulaires détaillés par
 /// sous-catégorie (marque, taille, année…) viendront dans une version suivante.
 class PublierScreen extends StatefulWidget {
-  const PublierScreen({super.key});
+  /// Pré-sélection facultative (utilisée par l'outil de captures pour ouvrir
+  /// directement un formulaire détaillé). L'app réelle n'en passe pas.
+  final String? initialCategorie;
+  final String? initialSous;
+  const PublierScreen({super.key, this.initialCategorie, this.initialSous});
   @override
   State<PublierScreen> createState() => _PublierScreenState();
 }
 
 class _PublierScreenState extends State<PublierScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _categorie = widget.initialCategorie;
+    _sousCategorie = widget.initialSous;
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _titre = TextEditingController();
   final _prix = TextEditingController();
@@ -36,11 +50,17 @@ class _PublierScreenState extends State<PublierScreen> {
 
   final _photos = <_Photo>[];
   String? _categorie;
+  String? _sousCategorie;
+  EtatFormulaire? _etatForm; // le dernier état du formulaire détaillé
   String _condition = 'occasion';
   String? _commune;
   bool _negociable = false;
   bool _livraison = false;
   bool _envoi = false;
+
+  /// Le formulaire détaillé de la sous-catégorie choisie, ou `null` s'il n'est
+  /// pas encore porté (le formulaire de base suffit alors).
+  Schema? get _schema => schemaPour(_categorie, _sousCategorie);
 
   @override
   void dispose() {
@@ -118,6 +138,10 @@ class _PublierScreenState extends State<PublierScreen> {
       _dialogue('Catégorie', 'Choisissez une catégorie.');
       return;
     }
+    if (sousDe(_categorie!).isNotEmpty && _sousCategorie == null) {
+      _dialogue('Sous-catégorie', 'Choisissez une sous-catégorie : le formulaire s’y adapte.');
+      return;
+    }
     if (_commune == null) {
       _dialogue('Commune', 'Choisissez une commune.');
       return;
@@ -125,6 +149,19 @@ class _PublierScreenState extends State<PublierScreen> {
     if (_photos.length < 3) {
       _dialogue('Photos',
           'Ajoutez au moins 3 photos de l’objet. Une annonce sans photo ne se vend pas — montrez-le sous plusieurs angles.');
+      return;
+    }
+    // Le formulaire détaillé : d'abord un éventuel refus (produit interdit,
+    // périmé…), puis les champs requis manquants.
+    final motif = _etatForm?.motifBloc;
+    if (motif != null) {
+      _dialogue('Publication impossible', motif);
+      return;
+    }
+    final manquants = _etatForm?.manquants ?? const [];
+    if (manquants.isNotEmpty) {
+      _dialogue('À compléter',
+          'Ces informations manquent :\n\n• ${manquants.join('\n• ')}');
       return;
     }
 
@@ -146,12 +183,14 @@ class _PublierScreenState extends State<PublierScreen> {
 
       final nom = (moi?['user_metadata']?['full_name'] as String?)?.trim() ?? '';
 
+      final attributs = _etatForm?.attributs ?? const {};
       await ApiClient.instance.post('/listings', {
         'title': _titre.text.trim(),
         'description': _description.text.trim(),
         'price': int.tryParse(_prix.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
         'negotiable': _negociable,
         'categoryId': _categorie,
+        'subcategory': _sousCategorie,
         'condition': _condition,
         'images': _photos.map((p) => p.dataUri).toList(),
         'regionId': regionAbidjan,
@@ -160,6 +199,7 @@ class _PublierScreenState extends State<PublierScreen> {
         'sellerName': nom,
         'sellerPhone': _tel.text.trim(),
         'delivery': _livraison,
+        if (attributs.isNotEmpty) 'attributes': attributs,
       });
 
       if (!mounted) return;
@@ -223,8 +263,40 @@ class _PublierScreenState extends State<PublierScreen> {
                   DropdownMenuItem(
                       value: c.id, child: Text('${c.emoji}  ${c.nom}')),
               ],
-              onChanged: (v) => setState(() => _categorie = v),
+              onChanged: (v) => setState(() {
+                _categorie = v;
+                _sousCategorie = null; // la sous-catégorie dépend de la catégorie
+                _etatForm = null;
+              }),
             ),
+            if (_categorie != null && sousDe(_categorie!).isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _sousCategorie,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Sous-catégorie'),
+                items: [
+                  for (final s in sousDe(_categorie!))
+                    DropdownMenuItem(value: s, child: Text(s)),
+                ],
+                onChanged: (v) => setState(() {
+                  _sousCategorie = v;
+                  _etatForm = null;
+                }),
+              ),
+            ],
+            // Le formulaire détaillé de la sous-catégorie (marque, taille,
+            // année…), quand il est porté. Sinon, le formulaire de base suffit.
+            if (_schema != null) ...[
+              const SizedBox(height: 16),
+              _titreSection('Détails de la sous-catégorie'),
+              FormulaireDynamique(
+                key: ValueKey('$_categorie/$_sousCategorie'),
+                schema: _schema!,
+                onChange: (e) => setState(() => _etatForm = e),
+              ),
+              const SizedBox(height: 6),
+            ],
             const SizedBox(height: 14),
             const Text('État', style: _labelStyle),
             const SizedBox(height: 6),

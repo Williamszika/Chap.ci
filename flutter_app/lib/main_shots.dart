@@ -48,6 +48,10 @@ Widget _pour(String shot) {
       return const VerifierEmailScreen();
     case 'publier':
       return const PublierScreen();
+    case 'publier-mode':
+      return const PublierScreen(initialCategorie: 'mode', initialSous: 'Vêtements Femme');
+    case 'publier-beaute':
+      return const PublierScreen(initialCategorie: 'mode', initialSous: 'Beauté & Cosmétiques');
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
