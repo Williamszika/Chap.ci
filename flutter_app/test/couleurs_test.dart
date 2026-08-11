@@ -7,6 +7,7 @@ import 'package:chapci/data/formulaires/couleurs.dart';
 import 'package:chapci/data/formulaires/mode.dart';
 import 'package:chapci/data/formulaires/electronique.dart';
 import 'package:chapci/data/formulaires/maison.dart';
+import 'package:chapci/data/formulaires/bebe.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -150,5 +151,14 @@ void main() {
     expect(find.text('Multicolore'), findsNothing); // typeElec vide
     await taper(tester, 'Réfrigérateur');
     expect(find.text('Multicolore'), findsOneWidget);
+  });
+
+  testWidgets('un vêtement bébé a sa palette pastel', (tester) async {
+    final etat = await monter(tester, bebe['Vêtements bébé & enfant']);
+    // La palette Bébé, pas les quinze générales.
+    expect(find.text('Imprimé enfant'), findsOneWidget);
+    expect(find.text('Rose vif'), findsOneWidget);
+    await taper(tester, 'Rose');
+    expect(etat()!.attributs['couleurs'], 'Rose');
   });
 }

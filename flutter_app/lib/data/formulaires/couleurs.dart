@@ -232,6 +232,40 @@ const List<Couleur> paletteBois = [
       clair: true),
 ];
 
+// L'imprimé enfant — un dégradé pastel propre au rayon Bébé.
+const _imprimeEnfant = SweepGradient(colors: [
+  Color(0xFFF9A8D4),
+  Color(0xFF93C5FD),
+  Color(0xFFFACC15),
+  Color(0xFFA7F3D0),
+  Color(0xFFF9A8D4),
+]);
+
+/// La palette du rayon Bébé & Enfant — des pastels (rose layette, bleu ciel,
+/// vert d'eau) et les imprimés enfant, que les teintes générales n'ont pas.
+const List<Couleur> paletteBebe = [
+  Couleur('Blanc', couleur: Color(0xFFFFFFFF), clair: true),
+  Couleur('Écru / crème', couleur: Color(0xFFF5EEE0), clair: true),
+  Couleur('Beige', couleur: Color(0xFFE8D8C3), clair: true),
+  Couleur('Gris', couleur: Color(0xFF9CA3AF)),
+  Couleur('Noir', couleur: Color(0xFF1B1A17)),
+  Couleur('Rose', couleur: Color(0xFFF9A8D4), clair: true),
+  Couleur('Rose vif', couleur: Color(0xFFEC4899)),
+  Couleur('Bleu ciel', couleur: Color(0xFF93C5FD), clair: true),
+  Couleur('Bleu', couleur: Color(0xFF2563EB)),
+  Couleur('Bleu marine', couleur: Color(0xFF1E3A5F)),
+  Couleur('Vert', couleur: Color(0xFF16A34A)),
+  Couleur('Vert d’eau', couleur: Color(0xFFA7F3D0), clair: true),
+  Couleur('Jaune', couleur: Color(0xFFFACC15), clair: true),
+  Couleur('Orange', couleur: Color(0xFFF97316)),
+  Couleur('Rouge', couleur: Color(0xFFDC2626)),
+  Couleur('Violet', couleur: Color(0xFF8B5CF6)),
+  Couleur('Marron', couleur: Color(0xFF7A4423)),
+  Couleur('Wax / pagne', degrade: _waxImprime),
+  Couleur('Imprimé enfant', degrade: _imprimeEnfant),
+  Couleur('Multicolore', degrade: _multiMaison),
+];
+
 /// La clé d'attribut d'une variante : `var_<Couleur>_<champ>`.
 String cleVariante(String nom, String champ) => 'var_${nom}_$champ';
 

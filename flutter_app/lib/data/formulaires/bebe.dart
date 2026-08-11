@@ -15,6 +15,7 @@
 //  formulaire encourage franchement l'occasion : l'état, le lavage, ce qui est
 //  COMPLET.
 // =============================================================================
+import 'couleurs.dart';
 import 'schema.dart';
 
 String _t(Vals s, String cle) => (s[cle] ?? '').toString();
@@ -59,6 +60,9 @@ final Map<String, Schema> bebe = {
   'Vêtements bébé & enfant': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    palette: paletteBebe,
+    aideCouleurs: 'Cochez chaque couleur disponible. Ouvrez-en une pour lui donner ses photos, son prix et les tailles qui restent.',
     titre: (s) {
       final t = _liste(s, 'tailleB');
       final tStr = t.isEmpty ? '' : (t.length <= 2 ? t.join(', ') : '${t.length} tailles');
@@ -70,7 +74,7 @@ final Map<String, Schema> bebe = {
           req: true,
           options: ['Body', 'Pyjama / grenouillère', 'Ensemble', 'Robe', 'Pantalon', 'Short', 'T-shirt', 'Chemise', 'Pull / gilet', 'Manteau', 'Tenue de baptême', 'Tenue traditionnelle', 'Chaussures', 'Chaussettes', 'Bonnet / chapeau', 'Maillot de bain', 'Lot de vêtements']),
       const Champ('tailleB', 'Tailles disponibles',
-          multi: true, req: true, options: _ages,
+          multi: true, req: true, varOK: true, lVar: 'Tailles restantes dans cette couleur', options: _ages,
           h: 'Un enfant met une taille trois mois : c’est ce qui rend l’occasion si utile ici. Cochez tout ce que vous avez.'),
       const Champ('nbPiecesB', 'Nombre de pièces',
           req: true,
@@ -85,6 +89,9 @@ final Map<String, Schema> bebe = {
   'Poussettes & Sièges auto': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    palette: paletteBebe,
+    aideCouleurs: 'Cochez chaque coloris disponible.',
     titre: (s) => [_t(s, 'typePouss'), _t(s, 'marqueB'), _t(s, 'groupeSiege')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('typePouss', 'Type',
@@ -133,6 +140,9 @@ final Map<String, Schema> bebe = {
   'Mobilier & Chambre': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    palette: paletteBebe,
+    aideCouleurs: 'Cochez chaque finition disponible.',
     titre: (s) => [_t(s, 'typeMobB'), _t(s, 'marqueB'), _t(s, 'dimsB')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('typeMobB', 'Type',
@@ -171,6 +181,9 @@ final Map<String, Schema> bebe = {
   'Jouets & Éveil': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    palette: paletteBebe,
+    aideCouleurs: 'Cochez chaque couleur disponible.',
     titre: (s) => [_t(s, 'typeJouet'), _t(s, 'ageJ'), _t(s, 'nbJouets')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('typeJouet', 'Type',
@@ -197,6 +210,9 @@ final Map<String, Schema> bebe = {
   'Puériculture & Repas': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    palette: paletteBebe,
+    aideCouleurs: 'Cochez chaque couleur disponible.',
     titre: (s) => [_t(s, 'typePueri'), _t(s, 'marqueB')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('typePueri', 'Type',
@@ -237,13 +253,16 @@ final Map<String, Schema> bebe = {
   'Vêtements de maternité': Schema(
     etat: true,
     livraison: true,
+    couleurs: true,
+    palette: paletteBebe,
+    aideCouleurs: 'Cochez chaque couleur disponible. Ouvrez-en une pour ses tailles et ses photos.',
     titre: (s) => [_t(s, 'typeMat'), _liste(s, 'tailleMat').join('/')].where((x) => x.isNotEmpty).join(' · '),
     champs: [
       const Champ('typeMat', 'Type',
           req: true,
           options: ['Robe de grossesse', 'Pantalon de grossesse', 'Haut / t-shirt', 'Robe d’allaitement', 'Soutien-gorge d’allaitement', 'Ceinture de grossesse', 'Bandeau de soutien', 'Pyjama de maternité', 'Tenue de sortie de maternité', 'Boubou de grossesse', 'Lot de vêtements']),
       const Champ('tailleMat', 'Tailles disponibles',
-          multi: true, req: true,
+          multi: true, req: true, varOK: true, lVar: 'Tailles restantes dans cette couleur',
           options: ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '36', '38', '40', '42', '44', '46', '48', 'Taille unique']),
       const Champ('trimestre', 'Adapté au', multi: true, options: ['1er trimestre', '2e trimestre', '3e trimestre', 'Après l’accouchement', 'Allaitement']),
       const Champ('matiereMat', 'Matière', options: ['Coton', 'Coton élasthanne', 'Viscose', 'Polyester', 'Wax / pagne', 'Lin', 'Jersey']),
