@@ -25,6 +25,7 @@ Store.
 | `lib/screens/browse_screen.dart` | **Explorer** — recherche + filtres (catégorie, état, commune, tri) |
 | `lib/screens/listing_detail_screen.dart` | **Fiche annonce** — photos, prix, description, vendeur, vue comptée |
 | `lib/screens/account_screen.dart` | **Compte / Connexion** |
+| `lib/screens/register_screen.dart` | **Inscription** — nom, e-mail, mot de passe ≥ 8, consentement |
 | `lib/main.dart` | La coquille + la barre du bas (Accueil · Explorer · Compte) |
 
 ---
@@ -96,7 +97,8 @@ Dans l'ordre où on les construira, écran par écran :
 2. ~~**Recherche & filtres** (mot-clé, catégorie, état, commune, tri)~~ ✅ fait.
 3. **Publier une annonce** — le gros morceau : les 100+ formulaires par
    sous-catégorie, les photos, la géolocalisation.
-4. **Inscription** + confirmation d'e-mail + 2FA.
+4. ~~**Inscription**~~ ✅ fait (nom, e-mail, mot de passe ≥ 8, consentement).
+   Restent la **confirmation d'e-mail** (mur avant publication) et la **2FA**.
 5. **Mon compte** : mes annonces, profil, photo.
 6. **Messagerie** acheteur ↔ vendeur.
 7. **Notifications natives** (Firebase Cloud Messaging) — c'est ici que l'app

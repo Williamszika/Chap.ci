@@ -126,11 +126,16 @@ class ApiClient {
   }
 
   /// Création de compte. Renvoie le jeton et connecte dans la foulée.
+  ///
+  /// Le serveur EXIGE le consentement (loi ivoirienne 2013-450 / 2013-546) et un
+  /// mot de passe d'au moins 8 caractères — l'écran d'inscription le fait
+  /// respecter avant d'appeler cette méthode.
   Future<void> sInscrire(String email, String motDePasse, String nom) async {
     final d = await post('/auth/signup', {
       'email': email.trim().toLowerCase(),
       'password': motDePasse,
       'full_name': nom.trim(),
+      'consent': true,
     });
     final token = (d is Map) ? d['token'] as String? : null;
     if (token == null || token.isEmpty) {

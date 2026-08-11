@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../theme.dart';
+import 'register_screen.dart';
 
 /// Compte — connexion, ou état « connecté » si un jeton est déjà présent.
 ///
@@ -45,6 +46,13 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _seDeconnecter() async {
     await ApiClient.instance.seDeconnecter();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _ouvrirInscription() async {
+    await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const RegisterScreen()));
+    // Au retour, l'utilisateur est peut-être connecté : on rafraîchit l'écran.
     if (mounted) setState(() {});
   }
 
@@ -170,6 +178,26 @@ class _AccountScreenState extends State<AccountScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Text('Se connecter'),
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: TextButton(
+                onPressed: _enCours ? null : _ouvrirInscription,
+                child: const Text.rich(
+                  TextSpan(
+                    text: 'Pas encore de compte ? ',
+                    style: TextStyle(color: ChapColors.gray600),
+                    children: [
+                      TextSpan(
+                        text: 'Créer un compte',
+                        style: TextStyle(
+                            color: ChapColors.orangeDark,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
