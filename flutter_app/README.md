@@ -127,17 +127,19 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **« Mode & Beauté », « Électronique »,
-   « Véhicules », « Maison » et « Alimentation » sont portées** (5 catégories
-   sur 15) — avec, pour les véhicules, le **dossier administratif** (carte
-   grise, CSA / non-gage) ; pour la maison, le bois qui gonfle à l'humidité, la
-   facture CIE, et trois refus de publication ; pour l'alimentation, la **chaîne
-   du froid**, la **date limite**, le **prix au kilo et pas “le tas”**, le bloc
-   **cacao & café**, et trois refus de plus (produit périmé, poisson jamais
-   réfrigéré, pesticide non homologué). Restent les **10 autres catégories**
-   (mêmes données à porter, le moteur est là), la **géolocalisation GPS**, le
-   **bloc couleurs/variantes** (tailles par coloris), et le reste du pays
-   (régions/villes hors Abidjan).
+   Voir `lib/data/formulaires/`. **Six catégories sur 15 sont portées** — Mode &
+   Beauté, Électronique, Véhicules, Maison, Alimentation et Animaux — avec, à
+   chaque fois, les garde-fous du terrain : dossier administratif du véhicule
+   (carte grise, CSA / non-gage), bois qui gonfle à l'humidité, chaîne du froid
+   et date limite pour l'alimentation, et pour les animaux les **espèces
+   protégées (CITES)**, l'**interdiction des combats** et la vaccination /
+   sevrage. En tout **onze réponses interdisent la publication** (produit
+   éclaircissant, verrou BIOS, ivoire, gaz abîmé, punaises, produit périmé,
+   poisson non réfrigéré, pesticide non homologué, espèce sauvage, combat
+   d'animaux, aliment périmé). Restent les **9 autres catégories** (mêmes
+   données à porter, le moteur est là), la **géolocalisation GPS**, le **bloc
+   couleurs/variantes** (tailles par coloris), et le reste du pays (régions /
+   villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),

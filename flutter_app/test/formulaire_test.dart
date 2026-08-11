@@ -8,6 +8,7 @@ import 'package:chapci/data/formulaires/electronique.dart';
 import 'package:chapci/data/formulaires/vehicules.dart';
 import 'package:chapci/data/formulaires/maison.dart';
 import 'package:chapci/data/formulaires/alimentation.dart';
+import 'package:chapci/data/formulaires/animaux.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -156,5 +157,25 @@ void main() {
     await taper(tester, 'Produit non homologué / importation parallèle');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('homologué'));
+  });
+
+  testWidgets('une espèce sauvage protégée (CITES) bloque la publication', (tester) async {
+    final etat = await monter(tester, animaux['Oiseaux, Poissons & Reptiles']);
+    await taper(tester, 'Espèce sauvage capturée (perroquet gris, tortue, pangolin, singe, python…)');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('CITES'));
+  });
+
+  testWidgets('un animal vendu pour le combat bloque la publication', (tester) async {
+    final etat = await monter(tester, animaux['Chiens & Chats']);
+    await taper(tester, 'Combat / bagarre');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('combats'));
+  });
+
+  testWidgets('un aliment pour animaux périmé bloque la publication', (tester) async {
+    final etat = await monter(tester, animaux['Aliments pour animaux']);
+    await taper(tester, 'Dépassée');
+    expect(etat()!.motifBloc, isNotNull);
   });
 }
