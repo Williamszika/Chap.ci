@@ -78,6 +78,8 @@ Widget _pour(String shot) {
       return const PublierScreen(initialCategorie: 'emploi', initialSous: 'Offres d’emploi');
     case 'publier-complement':
       return const PublierScreen(initialCategorie: 'sante', initialSous: 'Compléments & Tisanes');
+    case 'publier-jouet':
+      return const PublierScreen(initialCategorie: 'bebe', initialSous: 'Jouets & Éveil');
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
