@@ -127,9 +127,10 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **Treize catégories sur 15 sont portées** — Mode &
-   Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux, Services,
-   Emploi, Santé, Bébé & Enfant, Voyage, Loisirs et Scolaire — avec, à
+   Voir `lib/data/formulaires/`. **Quatorze catégories sur 15 sont portées** —
+   Mode & Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux,
+   Services, Emploi, Santé, Bébé & Enfant, Voyage, Loisirs, Scolaire et Matériel
+   Pro — avec, à
    chaque fois, les garde-fous du terrain : dossier administratif du véhicule
    (carte grise, CSA / non-gage), bois qui gonfle à l'humidité, chaîne du froid
    et date limite pour l'alimentation, et pour les animaux les **espèces
@@ -155,7 +156,9 @@ Dans l'ordre où on les construira, écran par écran :
    d'**armes à feu, de munitions et d'armes blanches** est refusée (armurier
    agréé obligatoire). Côté scolaire, deux refus : la revente d'un **kit
    gratuit de l'État** (il prive un enfant de ses cahiers) et le **manuel
-   photocopié** (contrefaçon).
+   photocopié** (contrefaçon). Côté matériel pro, la revente d'un **dispositif
+   médical réservé aux professionnels de santé** (échographe, autoclave…) est
+   refusée entre particuliers.
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),

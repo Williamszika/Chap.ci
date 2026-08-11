@@ -16,6 +16,7 @@ import 'package:chapci/data/formulaires/bebe.dart';
 import 'package:chapci/data/formulaires/voyage.dart';
 import 'package:chapci/data/formulaires/loisirs.dart';
 import 'package:chapci/data/formulaires/scolaire.dart';
+import 'package:chapci/data/formulaires/materiel.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -294,5 +295,12 @@ void main() {
     await taper(tester, 'Photocopie reliée');
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('contrefaçon'));
+  });
+
+  testWidgets('un dispositif médical réservé aux pros bloque la publication', (tester) async {
+    final etat = await monter(tester, materiel['Médical & Paramédical']);
+    await taper(tester, 'Dispositif médical réservé aux professionnels de santé');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('professionnels de santé'));
   });
 }
