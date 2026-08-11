@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import '../api/models.dart';
+import '../api/pub.dart';
 import '../theme.dart';
 import '../widgets/cloche_notifs.dart';
+import '../widgets/ecran_pub.dart';
 import '../widgets/listing_card.dart';
 import 'favoris_screen.dart';
 import 'listing_detail_screen.dart';
 
 /// Accueil — l'en-tête de marque, une barre de recherche (qui mène à Explorer),
-/// et les dernières annonces. C'est la première impression : elle doit charger
-/// vite et parler ivoirien.
+/// **l'écran publicitaire** (bannière animée), et les dernières annonces. C'est
+/// la première impression : elle doit charger vite et parler ivoirien.
 class HomeScreen extends StatefulWidget {
   /// Pour envoyer l'utilisateur vers l'onglet Explorer quand il touche la barre.
   final VoidCallback? onVoirTout;
-  const HomeScreen({super.key, this.onVoirTout});
+
+  /// Aperçu (captures / tests) : annonces et pubs fournies, sans réseau.
+  final List<Listing>? apercuAnnonces;
+  final List<Pub>? apercuPubs;
+  const HomeScreen({super.key, this.onVoirTout, this.apercuAnnonces, this.apercuPubs});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -24,7 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _futur = Listing.toutes();
+    _futur = widget.apercuAnnonces != null
+        ? Future.value(widget.apercuAnnonces!)
+        : Listing.toutes();
   }
 
   @override
@@ -99,6 +107,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+              // L'écran publicitaire : la bannière animée, comme sur le site.
+              SliverToBoxAdapter(child: EcranPub(apercu: widget.apercuPubs)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),

@@ -37,7 +37,9 @@ Store.
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
-| `lib/screens/home_screen.dart` | **Accueil** — en-tête, recherche, dernières annonces |
+| `lib/screens/home_screen.dart` | **Accueil** — en-tête, recherche, **écran publicitaire** animé, dernières annonces |
+| `lib/widgets/ecran_pub.dart` | **Écran publicitaire** — la bannière noire animée de l'accueil ; rotation des pubs, 5 styles, animations, comptage vues/clics, auto-promo |
+| `lib/api/pub.dart` | Client de l'écran de pub (`GET /ads/active`, comptage `view`/`click`) |
 | `lib/data/categories.dart` | Les 16 catégories (id + libellé + emoji), comme le site |
 | `lib/screens/browse_screen.dart` | **Explorer** — recherche + filtres (catégorie, état, commune, tri) |
 | `lib/screens/listing_detail_screen.dart` | **Fiche annonce** — photos, prix, description, vendeur, vue comptée |
@@ -129,6 +131,18 @@ Sans ces autorisations, le bouton GPS explique poliment qu'il est refusé et le
 vendeur choisit son lieu à la main — l'app reste utilisable. La position n'est
 JAMAIS suivie en arrière-plan : elle n'est lue qu'au moment où le vendeur tape
 sur « Activer ma position ».
+
+`url_launcher` (bouton « En savoir plus » de l'écran publicitaire) fonctionne
+sur le web sans configuration. Sur Android/iOS, après le `flutter create`, il
+ouvre le navigateur par défaut ; aucune autorisation particulière n'est requise
+pour un lien `https`. Si l'écran de pub ne trouve pas de navigateur, il n'insiste
+pas (le clic est simplement compté).
+
+**Compatibilité des tailles d'écran.** L'accueil (et les grilles d'annonces) est
+mesuré du petit téléphone d'entrée de gamme (largeur 360) à la tablette (800) :
+la grille passe toute seule de 2 à 4 colonnes, la bannière et le titre animé se
+replient sans débordement. Rien n'est figé en pixels ; tout est en unités
+relatives.
 
 ### 4. Lancer en développement (téléphone branché ou émulateur)
 

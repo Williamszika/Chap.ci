@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'api/api_client.dart';
 import 'api/messaging.dart';
 import 'api/models.dart';
+import 'api/pub.dart';
+import 'screens/home_screen.dart';
 import 'data/formulaires/electronique.dart';
 import 'data/formulaires/maison.dart';
 import 'data/formulaires/mode.dart';
@@ -57,6 +59,69 @@ Future<void> main() async {
 
 Widget _pour(String shot) {
   switch (shot) {
+    case 'accueil':
+      return HomeScreen(
+        apercuPubs: const [
+          Pub(
+            id: 'p1',
+            titre: 'Grand déstockage à Adjamé',
+            description:
+                'Téléphones, écouteurs et accessoires à prix cassés tout le week-end.',
+            lien: null,
+            style: 'ivoire',
+            couleurTexte: null,
+            images: [],
+            kind: 'paid',
+            anims: ['pop'],
+            animGap: 8,
+            animLoop: true,
+          ),
+          Pub(
+            id: 'p2',
+            titre: 'Win Immobilier',
+            description: 'Studios et 2 pièces à louer à Cocody et Yopougon.',
+            lien: 'https://exemple.ci',
+            style: 'neon',
+            couleurTexte: null,
+            images: [],
+            kind: 'paid',
+            anims: ['fondu'],
+            animGap: 8,
+            animLoop: true,
+          ),
+          Pub(
+            id: 'p3',
+            titre: 'Vendez plus vite sur Chap.ci',
+            description: '',
+            lien: null,
+            style: 'impact',
+            couleurTexte: null,
+            images: [],
+            kind: 'seo',
+            anims: ['glissement'],
+            animGap: 8,
+            animLoop: true,
+          ),
+        ],
+        apercuAnnonces: [
+          Listing.fromJson(const {
+            'id': 'l1', 'title': 'iPhone 12 — 64 Go, très propre', 'price': 120000,
+            'categoryId': 'electronique', 'commune': 'Cocody', 'images': [],
+          }),
+          Listing.fromJson(const {
+            'id': 'l2', 'title': 'Canapé d’angle en tissu', 'price': 150000,
+            'categoryId': 'maison', 'commune': 'Marcory', 'images': [],
+          }),
+          Listing.fromJson(const {
+            'id': 'l3', 'title': 'Robe en pagne wax (taille M)', 'price': 18000,
+            'categoryId': 'mode', 'commune': 'Yopougon', 'images': [],
+          }),
+          Listing.fromJson(const {
+            'id': 'l4', 'title': 'Toyota Yaris 2015, essence', 'price': 4200000,
+            'categoryId': 'vehicules', 'commune': 'Treichville', 'images': [],
+          }),
+        ],
+      );
     case 'explorer':
       return const AccueilShell(initialTab: 1);
     case 'messages':
