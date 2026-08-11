@@ -298,24 +298,27 @@ class _PublierScreenState extends State<PublierScreen> {
               const SizedBox(height: 6),
             ],
             const SizedBox(height: 14),
-            const Text('État', style: _labelStyle),
-            const SizedBox(height: 6),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'neuf', label: Text('Neuf')),
-                ButtonSegment(value: 'occasion', label: Text('Occasion')),
-              ],
-              selected: {_condition},
-              onSelectionChanged: (s) => setState(() => _condition = s.first),
-              showSelectedIcon: false,
-            ),
-            const SizedBox(height: 14),
+            // Un service (réparation, cours…) n'est ni « neuf » ni « d'occasion ».
+            if (_schema?.etat != false) ...[
+              const Text('État', style: _labelStyle),
+              const SizedBox(height: 6),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'neuf', label: Text('Neuf')),
+                  ButtonSegment(value: 'occasion', label: Text('Occasion')),
+                ],
+                selected: {_condition},
+                onSelectionChanged: (s) => setState(() => _condition = s.first),
+                showSelectedIcon: false,
+              ),
+              const SizedBox(height: 14),
+            ],
             TextFormField(
               controller: _prix,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Prix',
+              decoration: InputDecoration(
+                labelText: _schema?.prixLabel ?? 'Prix',
                 suffixText: 'FCFA',
               ),
               validator: (v) {

@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:chapci/data/formulaires/mode.dart';
+import 'package:chapci/data/formulaires/electronique.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -65,6 +66,31 @@ void main() {
     final etat = await monter(tester, mode['Beauté & Cosmétiques']);
     await taper(tester, 'Soin corps');
     await taper(tester, 'Non — aucun agent éclaircissant');
+    expect(etat()!.motifBloc, isNull);
+  });
+
+  testWidgets('un ordinateur verrouillé par une entreprise (BIOS) bloque', (tester) async {
+    final etat = await monter(tester, electronique['Ordinateurs']);
+    await taper(tester, 'Verrouillage d’entreprise ou mot de passe BIOS');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.attributs['etatLogiciel'], 'Verrouillage d’entreprise ou mot de passe BIOS');
+  });
+
+  testWidgets('les modèles dépendent de la marque choisie (Tecno → Spark)', (tester) async {
+    final etat = await monter(tester, electronique['Smartphones']);
+    // Avant de choisir la marque, aucun modèle Tecno n'est affiché.
+    expect(find.text('Spark 30'), findsNothing);
+    await taper(tester, 'Tecno');
+    await taper(tester, 'Spark 30');
+    expect(etat()!.attributs['marque'], 'Tecno');
+    expect(etat()!.attributs['modele'], 'Spark 30');
+  });
+
+  testWidgets('un iPhone encore lié au compte affiche l’alerte « pour pièces »', (tester) async {
+    final etat = await monter(tester, electronique['Smartphones']);
+    await taper(tester, 'Encore liés (vendu pour pièces)');
+    expect(etat()!.attributs['comptes'], 'Encore liés (vendu pour pièces)');
+    // Ce n'est pas un blocage (la vente pour pièces est permise), juste une alerte.
     expect(etat()!.motifBloc, isNull);
   });
 }

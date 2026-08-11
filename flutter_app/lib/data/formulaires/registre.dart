@@ -17,6 +17,7 @@
 // =============================================================================
 import 'schema.dart';
 import 'mode.dart';
+import 'electronique.dart';
 
 /// Les sous-catégories par identifiant de catégorie, dans l'ordre d'affichage.
 const Map<String, List<String>> nomsSous = {
@@ -91,6 +92,7 @@ const Map<String, List<String>> nomsSous = {
 /// (On ajoute une entrée ici à chaque catégorie portée.)
 final Map<String, Map<String, Schema>> _schemas = {
   'mode': mode,
+  'electronique': electronique,
 };
 
 /// Les sous-catégories d'une catégorie, ou une liste vide si elle n'en a pas.

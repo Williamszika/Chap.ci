@@ -127,9 +127,12 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **« Mode & Beauté » est porté en entier** ;
-   restent les **14 autres catégories** (mêmes données à porter, le moteur est
-   là), la **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles par
+   Voir `lib/data/formulaires/`. **« Mode & Beauté » et « Électronique » sont
+   portées** (2 catégories sur 15, dont les 11 sous-catégories de
+   l'électronique — le contrôle iCloud/Google, le verrou BIOS qui bloque, la
+   TNT DVB-T2, le 230 V, le compteur de déclenchements) ; restent les **13
+   autres catégories** (mêmes données à porter, le moteur est là), la
+   **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles par
    coloris), et le reste du pays (régions/villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.

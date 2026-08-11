@@ -52,6 +52,10 @@ Widget _pour(String shot) {
       return const PublierScreen(initialCategorie: 'mode', initialSous: 'Vêtements Femme');
     case 'publier-beaute':
       return const PublierScreen(initialCategorie: 'mode', initialSous: 'Beauté & Cosmétiques');
+    case 'publier-tel':
+      return const PublierScreen(initialCategorie: 'electronique', initialSous: 'Smartphones');
+    case 'publier-ordi':
+      return const PublierScreen(initialCategorie: 'electronique', initialSous: 'Ordinateurs');
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
