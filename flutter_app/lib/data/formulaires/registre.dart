@@ -18,6 +18,7 @@
 import 'schema.dart';
 import 'mode.dart';
 import 'electronique.dart';
+import 'vehicules.dart';
 
 /// Les sous-catégories par identifiant de catégorie, dans l'ordre d'affichage.
 const Map<String, List<String>> nomsSous = {
@@ -91,6 +92,7 @@ const Map<String, List<String>> nomsSous = {
 /// Les formulaires détaillés portés, par identifiant de catégorie.
 /// (On ajoute une entrée ici à chaque catégorie portée.)
 final Map<String, Map<String, Schema>> _schemas = {
+  'vehicules': vehicules,
   'mode': mode,
   'electronique': electronique,
 };

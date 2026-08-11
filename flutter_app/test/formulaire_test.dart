@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:chapci/data/formulaires/mode.dart';
 import 'package:chapci/data/formulaires/electronique.dart';
+import 'package:chapci/data/formulaires/vehicules.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -91,6 +92,23 @@ void main() {
     await taper(tester, 'Encore liés (vendu pour pièces)');
     expect(etat()!.attributs['comptes'], 'Encore liés (vendu pour pièces)');
     // Ce n'est pas un blocage (la vente pour pièces est permise), juste une alerte.
+    expect(etat()!.motifBloc, isNull);
+  });
+
+  testWidgets('un kilométrage trop bas pour l’âge alerte sur le compteur trafiqué', (tester) async {
+    final etat = await monter(tester, vehicules['Voitures']);
+    await taper(tester, '2005'); // année : 21 ans
+    await tester.enterText(find.byType(TextField).first, '5000'); // ~238 km/an
+    await tester.pumpAndSettle();
+    expect(find.textContaining('compteur trafiqué'), findsOneWidget);
+    expect(etat()!.attributs['km'], '5000');
+    expect(etat()!.attributs['annee'], '2005');
+  });
+
+  testWidgets('la carte grise pas au nom du vendeur est signalée, sans bloquer', (tester) async {
+    final etat = await monter(tester, vehicules['Voitures']);
+    await taper(tester, 'Au nom d’un tiers (avec procuration)');
+    expect(etat()!.attributs['carteGrise'], 'Au nom d’un tiers (avec procuration)');
     expect(etat()!.motifBloc, isNull);
   });
 }

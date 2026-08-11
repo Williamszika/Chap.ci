@@ -127,10 +127,11 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **« Mode & Beauté » et « Électronique » sont
-   portées** (2 catégories sur 15, dont les 11 sous-catégories de
-   l'électronique — le contrôle iCloud/Google, le verrou BIOS qui bloque, la
-   TNT DVB-T2, le 230 V, le compteur de déclenchements) ; restent les **13
+   Voir `lib/data/formulaires/`. **« Mode & Beauté », « Électronique » et
+   « Véhicules » sont portées** (3 catégories sur 15) — dont, pour les
+   véhicules, le **dossier administratif** (carte grise à mon nom, CSA /
+   non-gage : le garde-fou contre un véhicule volé ou gagé) et le **contrôle du
+   kilométrage annuel** qui repère un compteur trafiqué. Restent les **12
    autres catégories** (mêmes données à porter, le moteur est là), la
    **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles par
    coloris), et le reste du pays (régions/villes hors Abidjan).
