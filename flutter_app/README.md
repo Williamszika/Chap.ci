@@ -33,14 +33,17 @@ Store.
 | `lib/api/messaging.dart` | Conversations & messages (mêmes routes que le site) |
 | `lib/screens/messages_screen.dart` | **Messages** — la liste des conversations |
 | `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
-| `lib/screens/publier_screen.dart` | **Publier** — photos (≥ 3), catégorie **et sous-catégorie**, prix, commune, + le formulaire détaillé |
+| `lib/screens/publier_screen.dart` | **Publier** — photos (≥ 3), catégorie **et sous-catégorie**, prix, localisation, + le formulaire détaillé |
 | `lib/screens/formulaire_dynamique.dart` | Le **moteur** qui affiche le formulaire d'une sous-catégorie (puces, bascules, alertes, blocage) |
 | `lib/data/formulaires/` | Le **contrat** (`schema.dart`), les données par catégorie (`mode.dart`…) et le **registre** (`registre.dart`) |
 | `lib/screens/verifier_email_screen.dart` | **Confirmer l'e-mail** — code à 6 chiffres (mur avant de publier) |
 | `lib/favoris.dart` | Les favoris (local + synchro compte), un ChangeNotifier |
 | `lib/widgets/bouton_favori.dart` | Le cœur sur la carte et la fiche |
 | `lib/screens/favoris_screen.dart` | **Mes favoris** |
-| `lib/data/communes.dart` | Les 13 communes d'Abidjan |
+| `lib/data/locations.dart` | Tout le pays : 33 régions, les villes, les 13 communes d'Abidjan + les aides (`citiesByRegion`, `locationLabel`, rapprochement d'un nom capté) |
+| `lib/data/coords.dart` | Coordonnées GPS approximatives des villes / communes — position de repli quand le vendeur n'active pas son GPS |
+| `lib/api/geo.dart` | GPS (position précise, `geolocator`) + géocodage inversé (coordonnées → région / ville / commune) |
+| `lib/widgets/selecteur_lieu.dart` | Le **sélecteur de lieu** : bouton GPS + choix manuel en cascade Région → Ville → Commune |
 | `lib/main.dart` | La coquille + la barre du bas (Accueil · Explorer · Compte) |
 
 ---
@@ -91,6 +94,21 @@ Si l'identifiant diffère, le Play Store la traitera comme une **nouvelle** app.
 - **Android** — la galerie fonctionne sans permission (sélecteur système). Pour
   l'appareil photo, ajouter `<uses-permission android:name="android.permission.CAMERA"/>`
   dans `android/app/src/main/AndroidManifest.xml`.
+
+### 3 ter. Autorisations de localisation (le bouton GPS de « Publier »)
+
+`geolocator` a besoin d'autorisations, à ajouter après le `flutter create` :
+
+- **Android** — dans `android/app/src/main/AndroidManifest.xml`, à l'intérieur
+  de `<manifest>` : `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>`
+  (et, en repli, `ACCESS_COARSE_LOCATION`).
+- **iOS** — dans `ios/Runner/Info.plist` : `NSLocationWhenInUseUsageDescription`
+  (« Pour placer votre annonce à l'endroit exact »).
+
+Sans ces autorisations, le bouton GPS explique poliment qu'il est refusé et le
+vendeur choisit son lieu à la main — l'app reste utilisable. La position n'est
+JAMAIS suivie en arrière-plan : elle n'est lue qu'au moment où le vendeur tape
+sur « Activer ma position ».
 
 ### 4. Lancer en développement (téléphone branché ou émulateur)
 
@@ -146,9 +164,13 @@ Dans l'ordre où on les construira, écran par écran :
    réservé aux soignants, don payant (« payez juste le transport ») et don
    d'argent. Un banc de test (`test/formulaire_test.dart`) prouve les points
    sensibles ; `flutter analyze` passe à zéro.
-   Restent, sur ce chantier : la **géolocalisation GPS**, le **bloc
-   couleurs/variantes** (tailles par coloris), et le reste du pays (régions /
-   villes hors Abidjan).
+   **La localisation couvre tout le pays** : 33 régions, leurs villes et les 13
+   communes d'Abidjan (`lib/data/locations.dart`), choisies par un bouton
+   **GPS** (position précise + retour à la région / ville / commune connue) ou à
+   la main en cascade Région → Ville → Commune. Faute de GPS, l'annonce part
+   quand même avec la position approximative de sa commune / ville
+   (`lib/data/coords.dart`), pour que la distance s'affiche.
+   Reste, sur ce chantier : le **bloc couleurs/variantes** (tailles par coloris).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),

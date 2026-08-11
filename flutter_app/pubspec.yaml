@@ -20,6 +20,7 @@ dependencies:
   # Choisir des photos (galerie / appareil photo) pour publier une annonce.
   image_picker: ^1.1.2
   cupertino_icons: ^1.0.8
+  geolocator: ^14.0.3
 
 dev_dependencies:
   flutter_test:

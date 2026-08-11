@@ -4,10 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../data/categories.dart';
-import '../data/communes.dart';
+import '../data/coords.dart';
+import '../data/locations.dart';
 import '../data/formulaires/registre.dart';
 import '../data/formulaires/schema.dart';
 import '../theme.dart';
+import '../widgets/selecteur_lieu.dart';
 import 'formulaire_dynamique.dart';
 import 'verifier_email_screen.dart';
 
@@ -53,7 +55,8 @@ class _PublierScreenState extends State<PublierScreen> {
   String? _sousCategorie;
   EtatFormulaire? _etatForm; // le dernier état du formulaire détaillé
   String _condition = 'occasion';
-  String? _commune;
+  Lieu _lieu = const Lieu(); // région / ville / commune choisies
+  Coords? _gpsCoords; // position précise si le GPS a été activé
   bool _negociable = false;
   bool _livraison = false;
   bool _envoi = false;
@@ -142,8 +145,9 @@ class _PublierScreenState extends State<PublierScreen> {
       _dialogue('Sous-catégorie', 'Choisissez une sous-catégorie : le formulaire s’y adapte.');
       return;
     }
-    if (_commune == null) {
-      _dialogue('Commune', 'Choisissez une commune.');
+    if (_lieu.regionId == null) {
+      _dialogue('Localisation',
+          'Indiquez où se trouve l’objet : activez le GPS ou choisissez la région à la main.');
       return;
     }
     if (_photos.length < 3) {
@@ -184,6 +188,10 @@ class _PublierScreenState extends State<PublierScreen> {
       final nom = (moi?['user_metadata']?['full_name'] as String?)?.trim() ?? '';
 
       final attributs = _etatForm?.attributs ?? const {};
+      // Position précise (GPS) sinon coordonnées approximatives de la
+      // commune / ville — comme le site : toute annonce porte un point, pour
+      // que la distance s'affiche même sans GPS.
+      final coords = _gpsCoords ?? coordsFor(_lieu.cityId, _lieu.commune);
       await ApiClient.instance.post('/listings', {
         'title': _titre.text.trim(),
         'description': _description.text.trim(),
@@ -193,9 +201,11 @@ class _PublierScreenState extends State<PublierScreen> {
         'subcategory': _sousCategorie,
         'condition': _condition,
         'images': _photos.map((p) => p.dataUri).toList(),
-        'regionId': regionAbidjan,
-        'cityId': cityAbidjan,
-        'commune': _commune,
+        'regionId': _lieu.regionId,
+        'cityId': _lieu.cityId ?? '',
+        if (_lieu.commune != null) 'commune': _lieu.commune,
+        if (coords != null) 'lat': coords.lat,
+        if (coords != null) 'lng': coords.lng,
         'sellerName': nom,
         'sellerPhone': _tel.text.trim(),
         'delivery': _livraison,
@@ -334,16 +344,15 @@ class _PublierScreenState extends State<PublierScreen> {
               controlAffinity: ListTileControlAffinity.leading,
               title: const Text('Prix négociable'),
             ),
+            const SizedBox(height: 12),
+            const Text('Localisation', style: _labelStyle),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              initialValue: _commune,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Commune (Abidjan)'),
-              items: [
-                for (final c in communesAbidjan)
-                  DropdownMenuItem(value: c, child: Text(c)),
-              ],
-              onChanged: (v) => setState(() => _commune = v),
+            SelecteurLieu(
+              valeur: _lieu,
+              onChange: (choix) => setState(() {
+                _lieu = choix.lieu;
+                _gpsCoords = choix.gps;
+              }),
             ),
             const SizedBox(height: 14),
             TextFormField(
