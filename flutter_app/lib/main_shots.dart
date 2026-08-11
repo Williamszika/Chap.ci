@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'api/api_client.dart';
 import 'api/messaging.dart';
 import 'api/models.dart';
+import 'data/formulaires/mode.dart';
 import 'favoris.dart';
 import 'main.dart';
 import 'theme.dart';
 import 'screens/conversation_screen.dart';
+import 'screens/formulaire_dynamique.dart';
 import 'screens/favoris_screen.dart';
 import 'screens/listing_detail_screen.dart';
 import 'screens/modifier_profil_screen.dart';
@@ -90,6 +92,8 @@ Widget _pour(String shot) {
       return const PublierScreen(initialCategorie: 'materiel-pro', initialSous: 'Restauration & Maquis');
     case 'publier-don':
       return const PublierScreen(initialCategorie: 'a-donner', initialSous: 'Meubles & électroménager');
+    case 'coloris':
+      return const _ColorisDemo();
     case 'profil':
       return const ModifierProfilScreen();
     case 'favoris':
@@ -100,6 +104,37 @@ Widget _pour(String shot) {
       return const _PremiereConversation();
     default:
       return const AccueilShell(initialTab: 0);
+  }
+}
+
+/// Le bloc couleurs / variantes, avec deux coloris déjà cochés — pour montrer
+/// « les tailles restantes dans cette couleur ». Réservé aux captures.
+class _ColorisDemo extends StatelessWidget {
+  const _ColorisDemo();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Couleurs & variantes')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 60),
+        children: [
+          FormulaireDynamique(
+            schema: mode['Vêtements Femme']!,
+            onChange: (_) {},
+            initiales: const {
+              'typeF': 'Robe',
+              'tailles': ['38', '40', '42', '44'],
+              'matiere': 'Wax',
+              'couleurs': ['Rouge', 'Noir'],
+              'var_Rouge_prix': '25000',
+              'var_Rouge_note': 'dernière pièce',
+              'var_Rouge_tailles': ['40', '42'],
+              'var_Noir_tailles': ['38'],
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 

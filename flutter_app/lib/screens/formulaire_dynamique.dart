@@ -35,11 +35,16 @@ class FormulaireDynamique extends StatefulWidget {
   /// d'elles. Le moteur ne les modifie pas ; il pointe juste dessus.
   final List<Uint8List> images;
 
+  /// Valeurs de départ, pour rouvrir un formulaire déjà rempli (édition d'une
+  /// annonce) ou présenter un exemple. Les clés sont celles des attributs.
+  final Vals? initiales;
+
   const FormulaireDynamique({
     super.key,
     required this.schema,
     required this.onChange,
     this.images = const [],
+    this.initiales,
   });
 
   @override
@@ -57,6 +62,11 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
   @override
   void initState() {
     super.initState();
+    if (widget.initiales != null) {
+      widget.initiales!.forEach((k, v) {
+        _vals[k] = v is List ? List<String>.from(v.map((e) => e.toString())) : v;
+      });
+    }
     // On remonte l'état initial (les champs requis encore vides) dès le montage,
     // pour que le parent sache quoi exiger même si le vendeur ne touche à rien.
     WidgetsBinding.instance.addPostFrameCallback((_) {
