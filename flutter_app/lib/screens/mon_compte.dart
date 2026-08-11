@@ -252,6 +252,9 @@ class _MonCompteViewState extends State<MonCompteView> {
       if (src.url != null) {
         return CircleAvatar(radius: 26, backgroundImage: NetworkImage(src.url!));
       }
+      if (src.bytes != null) {
+        return CircleAvatar(radius: 26, backgroundImage: MemoryImage(src.bytes!));
+      }
     }
     return const CircleAvatar(
       radius: 26,

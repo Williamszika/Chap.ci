@@ -20,7 +20,10 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
 
-  static const String baseUrl = 'https://chap.ci/api';
+  // Surchargeable au build (`--dart-define=API_BASE=…`) pour pointer vers un
+  // serveur local en développement ; en production, le vrai back de Chap.ci.
+  static const String baseUrl =
+      String.fromEnvironment('API_BASE', defaultValue: 'https://chap.ci/api');
   static const String _tokenKey = 'chapci.php.token';
 
   // Même garde que le site : au-delà de 15 s on abandonne, pour ne jamais
@@ -37,6 +40,10 @@ class ApiClient {
   }
 
   bool get connecte => _token != null && _token!.isNotEmpty;
+
+  /// Fixe le jeton directement (utilisé par l'outil de captures pour ouvrir une
+  /// session sans passer par l'écran de connexion).
+  Future<void> definirJeton(String token) => _enregistrerJeton(token);
 
   Future<void> _enregistrerJeton(String? token) async {
     _token = token;

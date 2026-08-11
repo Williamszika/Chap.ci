@@ -204,6 +204,9 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
       if (src.url != null) {
         return CircleAvatar(radius: r, backgroundImage: NetworkImage(src.url!));
       }
+      if (src.bytes != null) {
+        return CircleAvatar(radius: r, backgroundImage: MemoryImage(src.bytes!));
+      }
     }
     return const CircleAvatar(
       radius: r,

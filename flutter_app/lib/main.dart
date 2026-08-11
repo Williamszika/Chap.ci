@@ -33,13 +33,14 @@ class ChapApp extends StatelessWidget {
 /// La coquille avec la barre du bas : Accueil · Explorer · Compte.
 /// Les autres onglets du site (Publier, Messages…) s'ajouteront ici.
 class AccueilShell extends StatefulWidget {
-  const AccueilShell({super.key});
+  final int initialTab;
+  const AccueilShell({super.key, this.initialTab = 0});
   @override
   State<AccueilShell> createState() => _AccueilShellState();
 }
 
 class _AccueilShellState extends State<AccueilShell> {
-  int _onglet = 0;
+  late int _onglet = widget.initialTab;
 
   Future<void> _publier() async {
     if (!ApiClient.instance.connecte) {
