@@ -255,6 +255,38 @@ class ReglagesSmtp {
       );
 }
 
+/// Un avis laissé sur un vendeur (`GET /admin/reviews`).
+class Avis {
+  final String id;
+
+  /// La note, de 1 à 5.
+  final int note;
+  final String? commentaire, auteurNom, auteurEmail, vendeurEmail, annonceTitre;
+  final int cree;
+
+  const Avis({
+    required this.id,
+    required this.note,
+    required this.commentaire,
+    required this.auteurNom,
+    required this.auteurEmail,
+    required this.vendeurEmail,
+    required this.annonceTitre,
+    required this.cree,
+  });
+
+  factory Avis.depuis(Map m) => Avis(
+        id: (m['id'] ?? '').toString(),
+        note: _i(m['rating']).clamp(0, 5),
+        commentaire: m['comment'] as String?,
+        auteurNom: m['reviewerName'] as String?,
+        auteurEmail: m['reviewerEmail'] as String?,
+        vendeurEmail: m['sellerEmail'] as String?,
+        annonceTitre: m['listingTitle'] as String?,
+        cree: _i(m['createdAt']),
+      );
+}
+
 /// Un message reçu par le formulaire de contact (`GET /admin/contact-messages`).
 class MessageContact {
   final String id, sujet, message;
@@ -583,6 +615,20 @@ class AdminApi {
       );
     }
     throw ApiException('Réponse inattendue du serveur.');
+  }
+
+  /// Les avis laissés sur les vendeurs (les plus récents d'abord).
+  static Future<List<Avis>> avis() async {
+    final d = await ApiClient.instance.get('/admin/reviews');
+    if (d is List) {
+      return d.whereType<Map>().map(Avis.depuis).toList();
+    }
+    return const [];
+  }
+
+  /// Supprime un avis abusif.
+  static Future<void> supprimerAvis(String id) async {
+    await ApiClient.instance.delete('/admin/reviews/$id');
   }
 
   /// Les messages du formulaire de contact (non traités d'abord).

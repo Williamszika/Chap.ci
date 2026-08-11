@@ -4,6 +4,7 @@ import '../../api/api_client.dart';
 import '../../format.dart';
 import '../../theme.dart';
 import 'annonces_screen.dart';
+import 'avis_screen.dart';
 import 'campagne_screen.dart';
 import 'contact_screen.dart';
 import 'emails_screen.dart';
@@ -274,6 +275,18 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
               MaterialPageRoute(builder: (_) => const ContactScreen())),
           icon: const Icon(Icons.forum_outlined, size: 18),
           label: const Text('Messages de contact'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+            foregroundColor: ChapColors.orange,
+            side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AvisScreen())),
+          icon: const Icon(Icons.star_outline, size: 18),
+          label: const Text('Avis'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(46),
             foregroundColor: ChapColors.orange,

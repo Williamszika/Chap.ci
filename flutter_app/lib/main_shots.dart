@@ -17,6 +17,7 @@ import 'screens/formulaire_dynamique.dart';
 import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
 import 'screens/admin/annonces_screen.dart';
+import 'screens/admin/avis_screen.dart';
 import 'screens/admin/campagne_screen.dart';
 import 'screens/admin/contact_screen.dart';
 import 'screens/admin/emails_screen.dart';
@@ -159,6 +160,42 @@ Widget _pour(String shot) {
       ]);
     case 'campagne':
       return const CampagneScreen(apercu: 128);
+    case 'avis':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return AvisScreen(apercu: [
+        Avis(
+          id: 'a1',
+          note: 5,
+          commentaire: 'Vendeur très sérieux, canapé conforme à l’annonce '
+              'et livraison rapide. Je recommande !',
+          auteurNom: 'Awa Koné',
+          auteurEmail: 'awa.kone@gmail.com',
+          vendeurEmail: 'boutique.cocody@chap.ci',
+          annonceTitre: 'Canapé 3 places en tissu',
+          cree: t - 5 * 3600000,
+        ),
+        Avis(
+          id: 'a2',
+          note: 1,
+          commentaire: 'Arnaqueur ! Il a pris mon acompte et ne répond plus. '
+              'À bannir absolument.',
+          auteurNom: 'Kader D.',
+          auteurEmail: 'kader.229@yahoo.fr',
+          vendeurEmail: 'ventes.rapides@gmail.com',
+          annonceTitre: 'iPhone 13 — prix cassé',
+          cree: t - 30 * 3600000,
+        ),
+        Avis(
+          id: 'a3',
+          note: 4,
+          commentaire: null,
+          auteurNom: 'Mariam',
+          auteurEmail: 'mariam.d@hotmail.fr',
+          vendeurEmail: 'boutique.cocody@chap.ci',
+          annonceTitre: 'Table basse en bois',
+          cree: t - 4 * 86400000,
+        ),
+      ]);
     case 'contact':
       final t = DateTime.now().millisecondsSinceEpoch;
       return ContactScreen(apercu: [
