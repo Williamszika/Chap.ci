@@ -22,6 +22,7 @@ import 'vehicules.dart';
 import 'maison.dart';
 import 'alimentation.dart';
 import 'animaux.dart';
+import 'services.dart';
 
 /// Les sous-catégories par identifiant de catégorie, dans l'ordre d'affichage.
 const Map<String, List<String>> nomsSous = {
@@ -101,6 +102,7 @@ final Map<String, Map<String, Schema>> _schemas = {
   'maison': maison,
   'alimentation': alimentation,
   'animaux': animaux,
+  'services': services,
 };
 
 /// Les sous-catégories d'une catégorie, ou une liste vide si elle n'en a pas.

@@ -9,6 +9,7 @@ import 'package:chapci/data/formulaires/vehicules.dart';
 import 'package:chapci/data/formulaires/maison.dart';
 import 'package:chapci/data/formulaires/alimentation.dart';
 import 'package:chapci/data/formulaires/animaux.dart';
+import 'package:chapci/data/formulaires/services.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -177,5 +178,21 @@ void main() {
     final etat = await monter(tester, animaux['Aliments pour animaux']);
     await taper(tester, 'Dépassée');
     expect(etat()!.motifBloc, isNotNull);
+  });
+
+  testWidgets('une formation « emploi garanti contre paiement » bloque la publication', (tester) async {
+    final etat = await monter(tester, services['Cours & Formation']);
+    await taper(tester, 'Emploi garanti contre paiement de la formation');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('arnaque'));
+  });
+
+  testWidgets('la licence n’est demandée qu’en cas de transport de personnes', (tester) async {
+    final etat = await monter(tester, services['Transport & Déménagement']);
+    // Avant de cocher « Transport de personnes », le champ licence est masqué.
+    expect(find.textContaining('Autorisation de transport'), findsNothing);
+    await taper(tester, 'Transport de personnes'); // choix multiple
+    expect(find.textContaining('Autorisation de transport'), findsOneWidget);
+    expect(etat()!.attributs['prestaT'], contains('Transport de personnes'));
   });
 }
