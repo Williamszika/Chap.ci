@@ -19,6 +19,7 @@ import 'api/admin.dart';
 import 'screens/admin/annonces_screen.dart';
 import 'screens/admin/campagne_screen.dart';
 import 'screens/admin/emails_screen.dart';
+import 'screens/admin/moderateurs_screen.dart';
 import 'screens/admin/moderation_screen.dart';
 import 'screens/admin/newsletter_screen.dart';
 import 'screens/admin/sauvegardes_screen.dart';
@@ -157,6 +158,42 @@ Widget _pour(String shot) {
       ]);
     case 'campagne':
       return const CampagneScreen(apercu: 128);
+    case 'moderateurs':
+      final t = DateTime.now().millisecondsSinceEpoch;
+      return ModerateursScreen(
+        apercu: EquipeAdmin(
+          const ['patron@chap.ci'],
+          [
+            Moderateur(
+              email: 'awa.kone@chap.ci',
+              cree: t - 12 * 86400000,
+              permissions: const ['listings', 'reports', 'users'],
+              aCode: true,
+              bloque: false,
+            ),
+            Moderateur(
+              email: 'kader.diomande@gmail.com',
+              cree: t - 3 * 86400000,
+              permissions: const ['campaigns', 'newsletter'],
+              aCode: true,
+              bloque: true,
+            ),
+          ],
+          const [
+            FonctionMod('visitors', 'Visiteurs'),
+            FonctionMod('listings', 'Annonces'),
+            FonctionMod('users', 'Utilisateurs'),
+            FonctionMod('reports', 'Signalements'),
+            FonctionMod('contact', 'Messages de contact'),
+            FonctionMod('ads', 'Publicités'),
+            FonctionMod('orders', 'Commandes'),
+            FonctionMod('conversations', 'Conversations'),
+            FonctionMod('reviews', 'Avis'),
+            FonctionMod('newsletter', 'Abonnés'),
+            FonctionMod('campaigns', 'Campagnes'),
+          ],
+        ),
+      );
     case 'emails':
       return const EmailsScreen(
         apercu: ReglagesSmtp(

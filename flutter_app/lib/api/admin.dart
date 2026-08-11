@@ -255,6 +255,68 @@ class ReglagesSmtp {
       );
 }
 
+/// Une fonctionnalité qu'un modérateur peut recevoir (clé + libellé français).
+class FonctionMod {
+  final String cle, libelle;
+  const FonctionMod(this.cle, this.libelle);
+}
+
+/// Un modérateur : son e-mail, ses permissions, s'il a un code, s'il est bloqué.
+class Moderateur {
+  final String email;
+  final int cree;
+  final List<String> permissions;
+
+  /// A-t-il déjà un code d'accès personnel ?
+  final bool aCode;
+
+  /// Son accès au tableau de bord est-il coupé ?
+  final bool bloque;
+
+  const Moderateur({
+    required this.email,
+    required this.cree,
+    required this.permissions,
+    required this.aCode,
+    required this.bloque,
+  });
+
+  factory Moderateur.depuis(Map m) => Moderateur(
+        email: (m['email'] ?? '').toString(),
+        cree: _i(m['createdAt']),
+        permissions: (m['permissions'] is List)
+            ? (m['permissions'] as List).map((e) => '$e').toList()
+            : const [],
+        aCode: m['hasCode'] == true,
+        bloque: m['blocked'] == true,
+      );
+}
+
+/// L'équipe d'administration (`GET /admin/moderators`) : le(s) propriétaire(s),
+/// les modérateurs, et la liste des fonctionnalités délégables.
+class EquipeAdmin {
+  final List<String> proprietaires;
+  final List<Moderateur> moderateurs;
+  final List<FonctionMod> fonctions;
+  const EquipeAdmin(this.proprietaires, this.moderateurs, this.fonctions);
+}
+
+/// Le résultat d'un enregistrement de modérateur (`POST /admin/moderators`).
+class ResultatModerateur {
+  /// Le modérateur existait déjà (on a mis ses permissions à jour).
+  final bool existait;
+
+  /// Un e-mail de notification lui a été envoyé.
+  final bool notifie;
+
+  /// Le code d'accès **en clair**, renvoyé **une seule fois** (à la création ou
+  /// quand on le redéfinit), pour qu'on le transmette au modérateur. `null` si
+  /// on n'a fait que changer les permissions sans toucher au code.
+  final String? code;
+
+  const ResultatModerateur(this.existait, this.notifie, this.code);
+}
+
 /// Le compte-rendu d'un **lot** de campagne (`POST /admin/campaign/send`).
 ///
 /// L'envoi se fait par lots (un appel = jusqu'à 40 e-mails) : dix-huit envois
@@ -480,6 +542,69 @@ class AdminApi {
       );
     }
     throw ApiException('Réponse inattendue du serveur.');
+  }
+
+  /// L'équipe d'administration : propriétaire(s), modérateurs, fonctionnalités
+  /// délégables. Réservé au propriétaire.
+  static Future<EquipeAdmin> equipe() async {
+    final d = await ApiClient.instance.get('/admin/moderators');
+    if (d is! Map) throw ApiException('Réponse inattendue du serveur.');
+    final mods = (d['moderators'] is List)
+        ? (d['moderators'] as List).whereType<Map>().map(Moderateur.depuis).toList()
+        : <Moderateur>[];
+    final feats = (d['features'] is List)
+        ? (d['features'] as List)
+            .whereType<Map>()
+            .map((m) => FonctionMod(
+                (m['key'] ?? '').toString(), (m['label'] ?? m['key'] ?? '').toString()))
+            .toList()
+        : <FonctionMod>[];
+    final owners = (d['owners'] is List)
+        ? (d['owners'] as List).map((e) => '$e').toList()
+        : <String>[];
+    return EquipeAdmin(owners, mods, feats);
+  }
+
+  /// Ajoute un modérateur ou met à jour ses permissions. Le serveur tient à jour
+  /// l'empreinte d'intégrité de la table `admins` : passer par ici est la **seule**
+  /// façon sûre de créer un administrateur (une insertion directe en base
+  /// déclencherait l'alerte `admins_tampered`).
+  ///
+  /// [code] : laissé vide, le serveur en génère un à la création (renvoyé une
+  /// fois) ; sur un modérateur existant, vide = code inchangé, sinon (≥ 6
+  /// caractères) le code est redéfini.
+  static Future<ResultatModerateur> enregistrerModerateur({
+    required String email,
+    required List<String> permissions,
+    String? code,
+  }) async {
+    final d = await ApiClient.instance.post('/admin/moderators', {
+      'email': email.trim(),
+      'permissions': permissions,
+      if (code != null && code.trim().isNotEmpty) 'code': code.trim(),
+    });
+    if (d is Map) {
+      return ResultatModerateur(
+        d['already'] == true,
+        d['emailed'] == true,
+        (d['code'] is String && (d['code'] as String).isNotEmpty)
+            ? d['code'] as String
+            : null,
+      );
+    }
+    throw ApiException('Réponse inattendue du serveur.');
+  }
+
+  /// Retire un modérateur (le propriétaire ne peut pas l'être).
+  static Future<void> retirerModerateur(String email) async {
+    await ApiClient.instance.delete('/admin/moderators', {'email': email.trim()});
+  }
+
+  /// Coupe (ou rétablit) l'accès d'un modérateur au tableau de bord. Bloqué, son
+  /// jeton de déverrouillage ne vaut plus rien : l'accès est révoqué aussitôt.
+  static Future<void> bloquerModerateur(String email, bool bloque) async {
+    await ApiClient.instance
+        .post('/admin/moderators/block', {'email': email.trim(), 'blocked': bloque});
   }
 
   /// Combien d'abonnés recevraient une campagne (`GET /admin/campaign/count`).

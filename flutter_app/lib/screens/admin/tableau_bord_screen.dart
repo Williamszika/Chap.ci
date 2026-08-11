@@ -6,6 +6,7 @@ import '../../theme.dart';
 import 'annonces_screen.dart';
 import 'campagne_screen.dart';
 import 'emails_screen.dart';
+import 'moderateurs_screen.dart';
 import 'moderation_screen.dart';
 import 'newsletter_screen.dart';
 import 'sauvegardes_screen.dart';
@@ -266,10 +267,22 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
             side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
           ),
         ),
-        // « E-mails » (réglages SMTP) : réservé au propriétaire côté serveur —
-        // on n'affiche donc le bouton qu'à lui, pour ne pas tenter un
+        // « Modérateurs » et « E-mails » : réservés au propriétaire côté serveur —
+        // on n'affiche donc les boutons qu'à lui, pour ne pas tenter un
         // modérateur avec une porte qui se refermerait en 403.
         if (_proprietaire) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ModerateursScreen())),
+            icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
+            label: const Text('Modérateurs'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              foregroundColor: ChapColors.orange,
+              side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+            ),
+          ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(

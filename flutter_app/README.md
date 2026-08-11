@@ -28,6 +28,7 @@ Store.
 | `lib/screens/admin/sauvegardes_screen.dart` | **Sauvegardes** — liste des exports du serveur + « créer et partager » un export complet |
 | `lib/screens/admin/newsletter_screen.dart` | **Newsletter** — les abonnés (combien, qui, depuis quand) + export **CSV** partageable |
 | `lib/screens/admin/campagne_screen.dart` | **Campagne** — écrire un e-mail et l'envoyer à tous les abonnés, par lots, avec confirmation et barre de progression |
+| `lib/screens/admin/moderateurs_screen.dart` | **Modérateurs** (propriétaire) — ajouter un modérateur, cocher ses permissions, le bloquer / retirer ; code d'accès affiché une seule fois |
 | `lib/screens/admin/emails_screen.dart` | **E-mails / SMTP** (propriétaire) — régler l'envoi des e-mails du site + envoyer un e-mail de test |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
@@ -245,7 +246,14 @@ Dans l'ordre où on les construira, écran par écran :
    (`GET /admin/campaign/count`, `POST /admin/campaign/send`) — l'envoi part
    **par lots** (l'app boucle avec un décalage croissant, montre l'avancement et
    sait **reprendre** après une coupure), derrière une **confirmation** puisqu'on
-   ne rappelle pas un e-mail parti. Les **e-mails / SMTP**
+   ne rappelle pas un e-mail parti. Les **modérateurs** (réservés au
+   propriétaire) sont portés : ajouter quelqu'un, **cocher ses permissions**
+   (annonces, utilisateurs, signalements, campagnes…), le bloquer ou le retirer
+   (`GET`/`POST`/`DELETE /admin/moderators`, `POST /admin/moderators/block`) —
+   c'est la seule façon prévue de créer un administrateur : le serveur tient à
+   jour l'empreinte d'intégrité de la table `admins`, qu'une insertion directe
+   ferait mentir (`admins_tampered`). Le code d'accès du modérateur n'est
+   **affiché qu'une seule fois**, à sa création. Les **e-mails / SMTP**
    (réservés au propriétaire) sont portés : régler l'hôte, le port, SSL/TLS, la
    boîte d'envoi, puis **envoyer un e-mail de test** (`GET`/`POST /admin/smtp`,
    `POST /admin/test-email`) — le mot de passe est un secret, le serveur ne le
