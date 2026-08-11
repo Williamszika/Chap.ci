@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../theme.dart';
+import '../widgets/social_buttons.dart';
 import 'register_screen.dart';
 
 /// Compte — connexion, ou état « connecté » si un jeton est déjà présent.
@@ -179,7 +180,11 @@ class _AccountScreenState extends State<AccountScreen> {
                           strokeWidth: 2, color: Colors.white))
                   : const Text('Se connecter'),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
+            SocialButtons(onConnecte: () {
+              if (mounted) setState(() {});
+            }),
+            const SizedBox(height: 6),
             Center(
               child: TextButton(
                 onPressed: _enCours ? null : _ouvrirInscription,

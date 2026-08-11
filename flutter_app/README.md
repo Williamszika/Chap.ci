@@ -18,6 +18,8 @@ Store.
 | `lib/theme.dart` | Les couleurs de marque (orange `#F77F00`, vert `#009E60`, crème), reprises du site |
 | `lib/format.dart` | Prix en FCFA à la française (espaces insécables), temps écoulé |
 | `lib/api/api_client.dart` | Client de l'API PHP : jeton « Bearer », garde de 15 s, messages d'erreur en français |
+| `lib/api/auth_social.dart` | Connexion Google / Facebook (moitié serveur), même routes que le site |
+| `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
 | `lib/screens/home_screen.dart` | **Accueil** — en-tête, recherche, dernières annonces |
@@ -110,6 +112,35 @@ actuelle : on ne livre en production que quand l'app Flutter fait au moins tout
 ce que fait l'actuelle.
 
 ---
+
+## Connexion Google & Facebook
+
+Le **serveur sait déjà** les gérer (routes `POST /auth/google` avec
+`{credential}` et `POST /auth/facebook` avec `{accessToken}` — les mêmes que le
+site). Dans l'app, les boutons sont déjà là (`lib/widgets/social_buttons.dart`)
+et la moitié serveur est câblée (`lib/api/auth_social.dart`). Il reste la moitié
+**téléphone** — obtenir le jeton — qui demande une configuration console.
+
+Pour activer, une fois les dossiers de plateforme générés :
+
+1. **Paquets** : ajouter `google_sign_in` et `flutter_facebook_auth` à
+   `pubspec.yaml`, puis `flutter pub get`.
+2. **Google** : dans Google Cloud Console, créer un **client OAuth Android**
+   avec le **SHA-1 de l'application** — lu dans la **Play Console → Intégrité de
+   l'application**, JAMAIS dans le keystore — et un **client OAuth Web** dont
+   l'ID sert de `serverClientId` (c'est lui que le serveur vérifie via
+   `google_client_id`). Déposer le `google-services.json` dans `android/app/`.
+3. **Facebook** : dans Facebook Developers, créer une app, y enregistrer le
+   **key hash** de l'application, et mettre `facebook_app_id` +
+   `facebook_client_token` dans `android/app/src/main/res/values/strings.xml`.
+   ⚠️ Tant que ces valeurs manquent, l'app **ne construit pas** — n'ajoutez ce
+   paquet qu'une fois la valeur en main.
+4. **Brancher** : passer `AuthSocial.disponible` à `true` et, dans
+   `SocialButtons._appui`, appeler la connexion native puis `avecGoogle(idToken)`
+   / `avecFacebook(accessToken)`.
+
+Tant que ce n'est pas fait, les boutons expliquent poliment qu'ils sont à
+activer — l'app reste utilisable avec l'inscription par e-mail.
 
 ## Sécurité
 

@@ -147,4 +147,14 @@ class ApiClient {
   Future<void> seDeconnecter() async {
     await _enregistrerJeton(null);
   }
+
+  /// Ouvre la session à partir d'une réponse `{ token, user }` (utilisé par la
+  /// connexion sociale). Lève si le jeton manque.
+  Future<void> appliquerReponseJeton(dynamic reponse) async {
+    final token = (reponse is Map) ? reponse['token'] as String? : null;
+    if (token == null || token.isEmpty) {
+      throw ApiException('Connexion refusée par le serveur.');
+    }
+    await _enregistrerJeton(token);
+  }
 }

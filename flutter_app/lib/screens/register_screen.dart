@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../theme.dart';
+import '../widgets/social_buttons.dart';
 
 /// Inscription — créer un compte Chap.ci.
 ///
@@ -180,7 +181,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             strokeWidth: 2, color: Colors.white))
                     : const Text('Créer mon compte'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 18),
+              SocialButtons(onConnecte: () {
+                if (mounted) Navigator.of(context).pop(true);
+              }),
+              const SizedBox(height: 4),
               Center(
                 child: TextButton(
                   onPressed:
