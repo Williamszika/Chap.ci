@@ -28,7 +28,8 @@ Store.
 | `lib/screens/listing_detail_screen.dart` | **Fiche annonce** — photos, prix, description, vendeur, vue comptée |
 | `lib/screens/account_screen.dart` | **Compte / Connexion** |
 | `lib/screens/register_screen.dart` | **Inscription** — nom, e-mail, mot de passe ≥ 8, consentement |
-| `lib/screens/mon_compte.dart` | **Mon compte** — identité + mes annonces (état, vues, masquer/supprimer) |
+| `lib/screens/mon_compte.dart` | **Mon compte** — identité + photo + mes annonces (état, vues, masquer/supprimer) |
+| `lib/screens/modifier_profil_screen.dart` | **Modifier le profil** — nom, bio, photo |
 | `lib/api/messaging.dart` | Conversations & messages (mêmes routes que le site) |
 | `lib/screens/messages_screen.dart` | **Messages** — la liste des conversations |
 | `lib/screens/conversation_screen.dart` | **Discussion** — le fil, envoi, relève toutes les 4 s |
@@ -124,8 +125,8 @@ Dans l'ordre où on les construira, écran par écran :
    **géolocalisation GPS**, et le reste du pays (régions/villes hors Abidjan).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
-5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer) +
-   identité. Restent l'édition du profil et la photo.
+5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
+   identité, **édition du profil (nom, bio, photo)**.
 6. ~~**Messagerie** acheteur ↔ vendeur~~ ✅ fait (liste, fil, envoi, relève 4 s ;
    « Contacter » sur la fiche ouvre la conversation).
 7. **Notifications natives** (Firebase Cloud Messaging) — c'est ici que l'app

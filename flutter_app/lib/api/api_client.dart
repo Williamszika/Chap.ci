@@ -121,6 +121,22 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> put(String chemin, Map<String, dynamic> corps) async {
+    try {
+      final r = await http
+          .put(_uri(chemin),
+              headers: _entetes(avecCorps: true), body: jsonEncode(corps))
+          .timeout(_timeout);
+      return _traiter(r);
+    } on TimeoutException {
+      throw ApiException('Connexion trop lente. Réessayez.');
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw ApiException('Pas de connexion. Vérifiez votre réseau.');
+    }
+  }
+
   // --- Authentification -------------------------------------------------------
 
   /// Connexion. Renvoie true si connecté ; lève ApiException si refusé.

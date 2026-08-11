@@ -4,6 +4,7 @@ import '../api/models.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'listing_detail_screen.dart';
+import 'modifier_profil_screen.dart';
 import 'verifier_email_screen.dart';
 
 /// Le contenu de l'onglet Compte quand on est connecté : l'identité, et
@@ -16,22 +17,48 @@ class MonCompteView extends StatefulWidget {
 }
 
 class _MonCompteViewState extends State<MonCompteView> {
-  late Future<Map<String, dynamic>?> _moi;
+  late Future<Map<String, dynamic>> _infos;
   late Future<List<Listing>> _annonces;
 
   @override
   void initState() {
     super.initState();
-    _moi = ApiClient.instance.moi();
+    _infos = _chargerInfos();
     _annonces = Listing.miennes();
   }
 
   Future<void> _recharger() async {
     setState(() {
-      _moi = ApiClient.instance.moi();
+      _infos = _chargerInfos();
       _annonces = Listing.miennes();
     });
     await _annonces;
+  }
+
+  /// Identité (nom, e-mail, e-mail confirmé) + photo de profil, en une fois.
+  Future<Map<String, dynamic>> _chargerInfos() async {
+    final moi = await ApiClient.instance.moi();
+    String? avatar;
+    final id = moi?['id'] as String?;
+    if (id != null) {
+      try {
+        final p = await ApiClient.instance.get('/profile/$id');
+        if (p is Map) avatar = p['avatarUrl'] as String?;
+      } catch (_) {/* pas de profil, pas grave */}
+    }
+    return {
+      'aCompte': moi != null,
+      'nom': (moi?['user_metadata']?['full_name'] as String?)?.trim(),
+      'email': moi?['email'] as String? ?? '',
+      'verifie': moi?['emailVerified'] == true,
+      'avatarUrl': avatar,
+    };
+  }
+
+  Future<void> _ouvrirProfil() async {
+    final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const ModifierProfilScreen()));
+    if (ok == true) _recharger();
   }
 
   /// Exécute une action vendeur, montre l'erreur éventuelle, puis recharge.
@@ -127,13 +154,15 @@ class _MonCompteViewState extends State<MonCompteView> {
   }
 
   Widget _entete() {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _moi,
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _infos,
       builder: (context, snap) {
-        final u = snap.data;
-        final nom = (u?['user_metadata']?['full_name'] as String?)?.trim();
-        final email = u?['email'] as String? ?? '';
-        final verifie = u?['emailVerified'] == true;
+        final d = snap.data ?? const <String, dynamic>{};
+        final nom = d['nom'] as String?;
+        final email = d['email'] as String? ?? '';
+        final verifie = d['verifie'] == true;
+        final aCompte = d['aCompte'] == true;
+        final avatarUrl = d['avatarUrl'] as String?;
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           padding: const EdgeInsets.all(16),
@@ -146,12 +175,7 @@ class _MonCompteViewState extends State<MonCompteView> {
             children: [
               Row(
                 children: [
-                  const CircleAvatar(
-                    radius: 26,
-                    backgroundColor: ChapColors.cream100,
-                    child: Icon(Icons.person,
-                        color: ChapColors.orange, size: 28),
-                  ),
+                  _avatarWidget(avatarUrl),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -173,9 +197,16 @@ class _MonCompteViewState extends State<MonCompteView> {
                       ],
                     ),
                   ),
+                  if (aCompte)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined,
+                          size: 20, color: ChapColors.gray600),
+                      tooltip: 'Modifier le profil',
+                      onPressed: _ouvrirProfil,
+                    ),
                 ],
               ),
-              if (u != null && !verifie) ...[
+              if (aCompte && !verifie) ...[
                 const SizedBox(height: 12),
                 InkWell(
                   onTap: _ouvrirVerif,
@@ -212,6 +243,20 @@ class _MonCompteViewState extends State<MonCompteView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _avatarWidget(String? url) {
+    if (url != null && url.isNotEmpty) {
+      final src = ImageSource.resoudre(url);
+      if (src.url != null) {
+        return CircleAvatar(radius: 26, backgroundImage: NetworkImage(src.url!));
+      }
+    }
+    return const CircleAvatar(
+      radius: 26,
+      backgroundColor: ChapColors.cream100,
+      child: Icon(Icons.person, color: ChapColors.orange, size: 28),
     );
   }
 
