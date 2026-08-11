@@ -4,6 +4,7 @@ import '../../api/api_client.dart';
 import '../../format.dart';
 import '../../theme.dart';
 import 'annonces_screen.dart';
+import 'campagne_screen.dart';
 import 'emails_screen.dart';
 import 'moderation_screen.dart';
 import 'newsletter_screen.dart';
@@ -247,6 +248,18 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
               MaterialPageRoute(builder: (_) => const NewsletterScreen())),
           icon: const Icon(Icons.mail_outline, size: 18),
           label: const Text('Newsletter'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+            foregroundColor: ChapColors.orange,
+            side: BorderSide(color: ChapColors.orange.withValues(alpha: 0.5)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CampagneScreen())),
+          icon: const Icon(Icons.campaign_outlined, size: 18),
+          label: const Text('Campagne'),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(46),
             foregroundColor: ChapColors.orange,

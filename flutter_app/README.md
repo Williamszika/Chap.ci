@@ -27,6 +27,7 @@ Store.
 | `lib/screens/admin/annonces_screen.dart` | **Annonces** (admin) — toutes les annonces ; masquer / démasquer / retirer |
 | `lib/screens/admin/sauvegardes_screen.dart` | **Sauvegardes** — liste des exports du serveur + « créer et partager » un export complet |
 | `lib/screens/admin/newsletter_screen.dart` | **Newsletter** — les abonnés (combien, qui, depuis quand) + export **CSV** partageable |
+| `lib/screens/admin/campagne_screen.dart` | **Campagne** — écrire un e-mail et l'envoyer à tous les abonnés, par lots, avec confirmation et barre de progression |
 | `lib/screens/admin/emails_screen.dart` | **E-mails / SMTP** (propriétaire) — régler l'envoi des e-mails du site + envoyer un e-mail de test |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
@@ -239,7 +240,12 @@ Dans l'ordre où on les construira, écran par écran :
    **utilisateurs** (chercher, restreindre, bloquer), les **annonces** (masquer /
    démasquer / retirer), les **sauvegardes** (liste des exports + « créer et
    partager ») et la **newsletter** : combien d'abonnés, qui, depuis quand, avec
-   un export **CSV** partageable (`GET /newsletter`). Les **e-mails / SMTP**
+   un export **CSV** partageable (`GET /newsletter`). Les **campagnes** ferment
+   la boucle : écrire un e-mail et l'envoyer à tous les abonnés
+   (`GET /admin/campaign/count`, `POST /admin/campaign/send`) — l'envoi part
+   **par lots** (l'app boucle avec un décalage croissant, montre l'avancement et
+   sait **reprendre** après une coupure), derrière une **confirmation** puisqu'on
+   ne rappelle pas un e-mail parti. Les **e-mails / SMTP**
    (réservés au propriétaire) sont portés : régler l'hôte, le port, SSL/TLS, la
    boîte d'envoi, puis **envoyer un e-mail de test** (`GET`/`POST /admin/smtp`,
    `POST /admin/test-email`) — le mot de passe est un secret, le serveur ne le

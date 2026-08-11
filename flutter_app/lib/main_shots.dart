@@ -17,6 +17,7 @@ import 'screens/formulaire_dynamique.dart';
 import 'screens/notifications_screen.dart';
 import 'api/admin.dart';
 import 'screens/admin/annonces_screen.dart';
+import 'screens/admin/campagne_screen.dart';
 import 'screens/admin/emails_screen.dart';
 import 'screens/admin/moderation_screen.dart';
 import 'screens/admin/newsletter_screen.dart';
@@ -154,6 +155,8 @@ Widget _pour(String shot) {
         Abonne('serge.gbagbo@gmail.com', t - 15 * 86400000),
         Abonne('fatou@chap.ci', t - 40 * 86400000),
       ]);
+    case 'campagne':
+      return const CampagneScreen(apercu: 128);
     case 'emails':
       return const EmailsScreen(
         apercu: ReglagesSmtp(

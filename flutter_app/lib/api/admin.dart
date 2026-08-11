@@ -255,6 +255,26 @@ class ReglagesSmtp {
       );
 }
 
+/// Le compte-rendu d'un **lot** de campagne (`POST /admin/campaign/send`).
+///
+/// L'envoi se fait par lots (un appel = jusqu'à 40 e-mails) : dix-huit envois
+/// SMTP d'affilée dépasseraient le temps d'une requête web. L'app boucle avec
+/// un décalage ([traites]) croissant jusqu'à [fini].
+class LotCampagne {
+  /// E-mails effectivement partis dans ce lot.
+  final int envoyes;
+
+  /// Total d'abonnés déjà traités (= le prochain décalage à demander).
+  final int traites;
+
+  /// Nombre total d'abonnés.
+  final int total;
+
+  /// Plus rien à envoyer.
+  final bool fini;
+  const LotCampagne(this.envoyes, this.traites, this.total, this.fini);
+}
+
 /// Le résultat d'un envoi de test (`POST /admin/test-email`).
 class ResultatTest {
   final bool envoye;
@@ -457,6 +477,38 @@ class AdminApi {
         d['sent'] == true,
         (d['to'] ?? '').toString(),
         (d['via'] ?? '').toString(),
+      );
+    }
+    throw ApiException('Réponse inattendue du serveur.');
+  }
+
+  /// Combien d'abonnés recevraient une campagne (`GET /admin/campaign/count`).
+  static Future<int> nombreDestinataires() async {
+    final d = await ApiClient.instance.get('/admin/campaign/count');
+    return (d is Map) ? _i(d['total']) : 0;
+  }
+
+  /// Envoie **un lot** de la campagne à partir de [offset]. Le serveur habille
+  /// le message (paragraphes sûrs, bouton « Voir les annonces », signature).
+  /// L'app appelle cette route en boucle jusqu'à [LotCampagne.fini].
+  static Future<LotCampagne> envoyerLotCampagne({
+    required String objet,
+    required String message,
+    required int offset,
+    int limit = 25,
+  }) async {
+    final d = await ApiClient.instance.post('/admin/campaign/send', {
+      'subject': objet,
+      'message': message,
+      'offset': offset,
+      'limit': limit,
+    });
+    if (d is Map) {
+      return LotCampagne(
+        _i(d['sent']),
+        _i(d['processed']),
+        _i(d['total']),
+        d['done'] == true,
       );
     }
     throw ApiException('Réponse inattendue du serveur.');
