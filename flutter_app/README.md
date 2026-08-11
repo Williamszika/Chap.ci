@@ -20,6 +20,8 @@ Store.
 | `lib/api/api_client.dart` | Client de l'API PHP : jeton « Bearer », garde de 15 s, messages d'erreur en français |
 | `lib/api/auth_social.dart` | Connexion Google / Facebook (moitié serveur), même routes que le site |
 | `lib/api/push_natif.dart` | Push **natif** (FCM) — moitié app câblée, en veille tant que la console n'est pas configurée (voir plus bas) |
+| `lib/api/admin.dart` | Le **tableau de bord** côté client : contrôle admin, déverrouillage, statistiques |
+| `lib/screens/admin/tableau_bord_screen.dart` | **Tableau de bord** (réservé au Patron) — verrou + aperçu (visiteurs, compteurs, parcours, 14 jours) |
 | `lib/widgets/social_buttons.dart` | Boutons « Continuer avec Google / Facebook » |
 | `lib/api/models.dart` | Le modèle `Listing` (mêmes clés JSON que le site) + résolution des images |
 | `lib/widgets/listing_card.dart` | La carte d'annonce |
@@ -215,7 +217,18 @@ Dans l'ordre où on les construira, écran par écran :
    route qui enregistre le jeton FCM de l'appareil + un envoi FCM (le serveur
    sait déjà faire le Web Push VAPID des navigateurs ; le natif est un second
    canal). Rien de tout cela ne touche au keystore.
-8. **Tableau de bord** (réservé au Patron).
+8. ~~**Tableau de bord** (réservé au Patron).~~ ✅ **Un premier aperçu est là** :
+   l'entrée n'apparaît, dans Mon compte, que pour un compte admin ; elle ouvre
+   un écran **verrouillé** (le code d'accès du site — le propriétaire peut le
+   recevoir par e-mail), puis l'**aperçu** : visiteurs uniques (jour / 7 jours /
+   moyenne), les grands compteurs (comptes, annonces, conversations, commandes,
+   avis, newsletter, ventes en FCFA, signalements), **le parcours** (arrivés →
+   inscrits → ont publié → ont vendu, sur 7 j / 30 j / depuis le début) et les
+   14 derniers jours. Branché sur `/admin/check`, `/admin/unlock*`,
+   `/admin/stats` (le jeton de déverrouillage voyage dans l'en-tête
+   `X-Admin-Unlock`). Les sections plus profondes du site (modération, comptes,
+   e-mails, sauvegardes…) restent à porter écran par écran. Voir
+   `lib/screens/admin/tableau_bord_screen.dart` et `lib/api/admin.dart`.
 
 Tant que la parité n'est pas atteinte, **ne pas remplacer** l'app Play Store
 actuelle : on ne livre en production que quand l'app Flutter fait au moins tout

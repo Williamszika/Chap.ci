@@ -25,6 +25,7 @@ class ApiClient {
   static const String baseUrl =
       String.fromEnvironment('API_BASE', defaultValue: 'https://chap.ci/api');
   static const String _tokenKey = 'chapci.php.token';
+  static const String _adminKey = 'chapci.php.admin_unlock';
 
   // Même garde que le site : au-delà de 15 s on abandonne, pour ne jamais
   // laisser un écran tourner indéfiniment sur un réseau ivoirien instable.
@@ -32,11 +33,25 @@ class ApiClient {
 
   String? _token;
   String? _monId; // l'id du compte courant, mis en cache (voir monId())
+  String? _adminUnlock; // jeton de déverrouillage du tableau de bord (X-Admin-Unlock)
 
   /// À appeler une fois au démarrage : recharge le jeton stocké.
   Future<void> chargerSession() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_tokenKey);
+    _adminUnlock = prefs.getString(_adminKey);
+  }
+
+  /// Enregistre (ou efface) le jeton de déverrouillage du tableau de bord. Il
+  /// voyage ensuite dans l'en-tête `X-Admin-Unlock` de chaque appel.
+  Future<void> definirDeverrouillageAdmin(String? token) async {
+    _adminUnlock = token;
+    final prefs = await SharedPreferences.getInstance();
+    if (token == null || token.isEmpty) {
+      await prefs.remove(_adminKey);
+    } else {
+      await prefs.setString(_adminKey, token);
+    }
   }
 
   bool get connecte => _token != null && _token!.isNotEmpty;
@@ -51,6 +66,9 @@ class ApiClient {
     final prefs = await SharedPreferences.getInstance();
     if (token == null || token.isEmpty) {
       await prefs.remove(_tokenKey);
+      // Déconnexion : le déverrouillage admin ne vaut plus rien.
+      _adminUnlock = null;
+      await prefs.remove(_adminKey);
     } else {
       await prefs.setString(_tokenKey, token);
     }
@@ -61,6 +79,9 @@ class ApiClient {
     if (avecCorps) h['Content-Type'] = 'application/json';
     if (_token != null && _token!.isNotEmpty) {
       h['Authorization'] = 'Bearer $_token';
+    }
+    if (_adminUnlock != null && _adminUnlock!.isNotEmpty) {
+      h['X-Admin-Unlock'] = _adminUnlock!;
     }
     return h;
   }

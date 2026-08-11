@@ -15,6 +15,8 @@ import 'theme.dart';
 import 'screens/conversation_screen.dart';
 import 'screens/formulaire_dynamique.dart';
 import 'screens/notifications_screen.dart';
+import 'api/admin.dart';
+import 'screens/admin/tableau_bord_screen.dart';
 import 'screens/securite_2fa_screen.dart';
 import 'screens/verifier_2fa_screen.dart';
 import 'screens/favoris_screen.dart';
@@ -104,6 +106,35 @@ Widget _pour(String shot) {
       return const _ColorisTelDemo();
     case 'coloris-bois':
       return const _ColorisBoisDemo();
+    case 'admin':
+      return TableauBordScreen(
+          apercu: StatsAdmin.depuis(const {
+        'users': 1284, 'listings': 3691, 'conversations': 872, 'messages': 5140,
+        'orders': 218, 'reviews': 143, 'newsletter': 402, 'reportsOpen': 3,
+        'ordersValue': 4875000,
+        'visites': {'jour': 148, 'semaine': 936, 'parJour': 134},
+        'parcours': {
+          'j7': {'visiteurs': 936, 'comptes': 61, 'publie': 24, 'vendu': 7},
+          'j30': {'visiteurs': 3820, 'comptes': 240, 'publie': 96, 'vendu': 33},
+          'tout': {'visiteurs': 41200, 'comptes': 1284, 'publie': 540, 'vendu': 190},
+        },
+        'series': [
+          {'date': '2026-08-01', 'users': 8, 'listings': 21},
+          {'date': '2026-08-02', 'users': 12, 'listings': 30},
+          {'date': '2026-08-03', 'users': 6, 'listings': 18},
+          {'date': '2026-08-04', 'users': 15, 'listings': 41},
+          {'date': '2026-08-05', 'users': 11, 'listings': 27},
+          {'date': '2026-08-06', 'users': 9, 'listings': 33},
+          {'date': '2026-08-07', 'users': 14, 'listings': 38},
+          {'date': '2026-08-08', 'users': 7, 'listings': 22},
+          {'date': '2026-08-09', 'users': 13, 'listings': 35},
+          {'date': '2026-08-10', 'users': 10, 'listings': 29},
+          {'date': '2026-08-11', 'users': 16, 'listings': 44},
+          {'date': '2026-08-12', 'users': 9, 'listings': 26},
+          {'date': '2026-08-13', 'users': 12, 'listings': 31},
+          {'date': '2026-08-14', 'users': 18, 'listings': 47},
+        ],
+      }));
     case 'twofa':
       return const Verifier2faScreen(mfaToken: 'demo');
     case 'twofa-setup':

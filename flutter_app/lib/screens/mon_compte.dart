@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../api/admin.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'admin/tableau_bord_screen.dart';
 import 'listing_detail_screen.dart';
 import 'modifier_profil_screen.dart';
 import 'securite_2fa_screen.dart';
@@ -20,12 +22,20 @@ class MonCompteView extends StatefulWidget {
 class _MonCompteViewState extends State<MonCompteView> {
   late Future<Map<String, dynamic>> _infos;
   late Future<List<Listing>> _annonces;
+  bool _estAdmin = false; // l'entrée du tableau de bord n'apparaît que pour eux
 
   @override
   void initState() {
     super.initState();
     _infos = _chargerInfos();
     _annonces = Listing.miennes();
+    _verifierAdmin();
+  }
+
+  Future<void> _verifierAdmin() async {
+    if (!ApiClient.instance.connecte) return;
+    final acces = await AdminApi.verifier();
+    if (mounted && acces.admin) setState(() => _estAdmin = true);
   }
 
   Future<void> _recharger() async {
@@ -270,11 +280,47 @@ class _MonCompteViewState extends State<MonCompteView> {
                   ),
                 ),
               ],
+              if (aCompte && _estAdmin) ...[
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: _ouvrirTableauBord,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: ChapColors.cream100.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: ChapColors.orange.withValues(alpha: 0.4)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.dashboard_outlined,
+                            size: 20, color: ChapColors.orangeDark),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text('Tableau de bord',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: ChapColors.orangeDark)),
+                        ),
+                        Icon(Icons.chevron_right,
+                            size: 20, color: ChapColors.orangeDark),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
       },
     );
+  }
+
+  Future<void> _ouvrirTableauBord() async {
+    await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const TableauBordScreen()));
   }
 
   Future<void> _ouvrirSecurite() async {
