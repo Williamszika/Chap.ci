@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
+import '../data/categories.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
 
-/// Explorer — la grille de toutes les annonces publiques.
+/// Explorer — recherche et filtres sur les annonces.
 ///
-/// Trois états explicites : chargement, erreur (avec « Réessayer »), et vide.
-/// Un écran ne doit jamais laisser l'utilisateur devant du blanc sans un mot.
+/// On charge toutes les annonces une fois, puis on filtre CÔTÉ APP (mot-clé,
+/// catégorie, état, commune, tri). À la taille actuelle du catalogue c'est
+/// instantané ; quand il grandira, on passera la recherche côté serveur.
 class BrowseScreen extends StatefulWidget {
   const BrowseScreen({super.key});
   @override
@@ -17,6 +19,13 @@ class BrowseScreen extends StatefulWidget {
 
 class _BrowseScreenState extends State<BrowseScreen> {
   late Future<List<Listing>> _futur;
+  final _rechCtrl = TextEditingController();
+
+  String _recherche = '';
+  String? _categorie; // null = toutes
+  String _condition = 'tous'; // tous | neuf | occasion
+  String? _commune; // null = toutes
+  String _tri = 'recent'; // recent | prixAsc | prixDesc
 
   @override
   void initState() {
@@ -24,70 +33,339 @@ class _BrowseScreenState extends State<BrowseScreen> {
     _futur = Listing.toutes();
   }
 
+  @override
+  void dispose() {
+    _rechCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _recharger() async {
     setState(() => _futur = Listing.toutes());
     await _futur;
+  }
+
+  // Minuscule + sans accents, pour une recherche indulgente.
+  String _plat(String s) {
+    s = s.toLowerCase();
+    const acc = {
+      'à': 'a', 'â': 'a', 'ä': 'a', 'á': 'a', 'ã': 'a',
+      'ç': 'c', 'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+      'î': 'i', 'ï': 'i', 'í': 'i', 'ì': 'i',
+      'ô': 'o', 'ö': 'o', 'ó': 'o', 'ò': 'o', 'õ': 'o',
+      'û': 'u', 'ü': 'u', 'ú': 'u', 'ù': 'u',
+    };
+    acc.forEach((a, b) => s = s.replaceAll(a, b));
+    return s;
+  }
+
+  List<String> _communes(List<Listing> toutes) {
+    final set = <String>{};
+    for (final a in toutes) {
+      if (a.commune != null && a.commune!.trim().isNotEmpty) set.add(a.commune!);
+    }
+    final list = set.toList()..sort();
+    return list;
+  }
+
+  List<Listing> _filtrer(List<Listing> toutes) {
+    final q = _plat(_recherche.trim());
+    var r = toutes.where((a) {
+      if (a.sold) return false;
+      if (_categorie != null && a.categoryId != _categorie) return false;
+      if (_condition != 'tous' && a.condition != _condition) return false;
+      if (_commune != null && a.commune != _commune) return false;
+      if (q.isNotEmpty) {
+        final texte = _plat('${a.title} ${a.description}');
+        if (!texte.contains(q)) return false;
+      }
+      return true;
+    }).toList();
+
+    switch (_tri) {
+      case 'prixAsc':
+        r.sort((a, b) => a.prixAffiche.compareTo(b.prixAffiche));
+        break;
+      case 'prixDesc':
+        r.sort((a, b) => b.prixAffiche.compareTo(a.prixAffiche));
+        break;
+      default:
+        r.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+    return r;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Explorer')),
-      body: RefreshIndicator(
-        onRefresh: _recharger,
-        color: ChapColors.orange,
-        child: FutureBuilder<List<Listing>>(
-          future: _futur,
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(
-                  child: CircularProgressIndicator(color: ChapColors.orange));
-            }
-            if (snap.hasError) {
-              return _Message(
-                icone: Icons.wifi_off_rounded,
-                titre: 'Impossible de charger les annonces',
-                detail: snap.error is ApiException
-                    ? (snap.error as ApiException).message
-                    : 'Vérifiez votre connexion.',
-                action: _recharger,
-              );
-            }
-            final annonces =
-                (snap.data ?? const <Listing>[]).where((a) => !a.sold).toList();
-            if (annonces.isEmpty) {
-              return const _Message(
-                icone: Icons.storefront_outlined,
-                titre: 'Aucune annonce pour le moment',
-                detail: 'Revenez bientôt — le catalogue grandit chaque semaine.',
-              );
-            }
-            return GridView.builder(
-              padding: const EdgeInsets.all(12),
-              physics: const AlwaysScrollableScrollPhysics(),
-              gridDelegate:
-                  const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 220,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.66,
+      body: FutureBuilder<List<Listing>>(
+        future: _futur,
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(
+                child: CircularProgressIndicator(color: ChapColors.orange));
+          }
+          if (snap.hasError) {
+            return _Message(
+              icone: Icons.wifi_off_rounded,
+              titre: 'Impossible de charger les annonces',
+              detail: snap.error is ApiException
+                  ? (snap.error as ApiException).message
+                  : 'Vérifiez votre connexion.',
+              action: _recharger,
+            );
+          }
+          final toutes = snap.data ?? const <Listing>[];
+          final communes = _communes(toutes);
+          final resultats = _filtrer(toutes);
+
+          return Column(
+            children: [
+              _barreRecherche(),
+              _chipsCategories(),
+              _ligneFiltres(communes),
+              _compteur(resultats.length),
+              Expanded(
+                child: RefreshIndicator(
+                  color: ChapColors.orange,
+                  onRefresh: _recharger,
+                  child: resultats.isEmpty
+                      ? const _Message(
+                          icone: Icons.search_off_rounded,
+                          titre: 'Aucune annonce ne correspond',
+                          detail: 'Essayez d’élargir votre recherche ou vos filtres.',
+                        )
+                      : GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 220,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 0.66,
+                          ),
+                          itemCount: resultats.length,
+                          itemBuilder: (context, i) => ListingCard(
+                            annonce: resultats[i],
+                            onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => ListingDetailScreen(
+                                        annonce: resultats[i]))),
+                          ),
+                        ),
+                ),
               ),
-              itemCount: annonces.length,
-              itemBuilder: (context, i) => ListingCard(
-                annonce: annonces[i],
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) =>
-                        ListingDetailScreen(annonce: annonces[i]))),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _barreRecherche() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: TextField(
+        controller: _rechCtrl,
+        onChanged: (v) => setState(() => _recherche = v),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Rechercher une annonce…',
+          prefixIcon: const Icon(Icons.search),
+          isDense: true,
+          suffixIcon: _recherche.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    _rechCtrl.clear();
+                    setState(() => _recherche = '');
+                  },
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipsCategories() {
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          _chip('Toutes', _categorie == null,
+              () => setState(() => _categorie = null)),
+          for (final c in categories)
+            _chip('${c.emoji} ${c.nom}', _categorie == c.id,
+                () => setState(() => _categorie = c.id)),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String texte, bool actif, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(texte),
+        selected: actif,
+        onSelected: (_) => onTap(),
+        showCheckmark: false,
+        labelStyle: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: actif ? Colors.white : ChapColors.gray700,
+        ),
+        selectedColor: ChapColors.orange,
+        backgroundColor: ChapColors.cream,
+        side: const BorderSide(color: ChapColors.line2),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+
+  Widget _ligneFiltres(List<String> communes) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+      child: Row(
+        children: [
+          // État : Tous / Neuf / Occasion
+          Expanded(
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'tous', label: Text('Tous')),
+                ButtonSegment(value: 'neuf', label: Text('Neuf')),
+                ButtonSegment(value: 'occasion', label: Text('Occasion')),
+              ],
+              selected: {_condition},
+              onSelectionChanged: (s) => setState(() => _condition = s.first),
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+              showSelectedIcon: false,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _menuFiltres(communes),
+        ],
+      ),
+    );
+  }
+
+  Widget _menuFiltres(List<String> communes) {
+    return IconButton(
+      tooltip: 'Commune et tri',
+      icon: Badge(
+        isLabelVisible: _commune != null || _tri != 'recent',
+        smallSize: 8,
+        backgroundColor: ChapColors.orange,
+        child: const Icon(Icons.tune, color: ChapColors.gray700),
+      ),
+      onPressed: () => _ouvrirFiltres(communes),
+    );
+  }
+
+  void _ouvrirFiltres(List<String> communes) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheet) {
+            void maj(VoidCallback f) {
+              setSheet(f);
+              setState(f);
+            }
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Filtres',
+                      style: TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  const Text('Commune',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: ChapColors.gray700)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String?>(
+                    value: _commune,
+                    isExpanded: true,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      const DropdownMenuItem(
+                          value: null, child: Text('Toutes les communes')),
+                      for (final c in communes)
+                        DropdownMenuItem(value: c, child: Text(c)),
+                    ],
+                    onChanged: (v) => maj(() => _commune = v),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Trier par',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: ChapColors.gray700)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: _tri,
+                    isExpanded: true,
+                    decoration: const InputDecoration(isDense: true),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'recent', child: Text('Plus récentes')),
+                      DropdownMenuItem(
+                          value: 'prixAsc',
+                          child: Text('Prix croissant')),
+                      DropdownMenuItem(
+                          value: 'prixDesc',
+                          child: Text('Prix décroissant')),
+                    ],
+                    onChanged: (v) => maj(() => _tri = v ?? 'recent'),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Voir les résultats'),
+                    ),
+                  ),
+                ],
               ),
             );
           },
+        );
+      },
+    );
+  }
+
+  Widget _compteur(int n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          n == 0
+              ? 'Aucun résultat'
+              : '$n annonce${n > 1 ? 's' : ''}',
+          style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: ChapColors.gray600),
         ),
       ),
     );
   }
 }
 
-/// Bloc d'état plein écran (erreur / vide), avec bouton « Réessayer » facultatif.
+/// Bloc d'état plein écran (erreur / vide), avec « Réessayer » facultatif.
 class _Message extends StatelessWidget {
   final IconData icone;
   final String titre;
@@ -102,10 +380,9 @@ class _Message extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ListView pour que le « pull-to-refresh » fonctionne même sur un écran vide.
     return ListView(
       children: [
-        SizedBox(height: MediaQuery.of(context).size.height * 0.18),
+        SizedBox(height: MediaQuery.of(context).size.height * 0.12),
         Icon(icone, size: 48, color: ChapColors.line2),
         const SizedBox(height: 12),
         Text(titre,
