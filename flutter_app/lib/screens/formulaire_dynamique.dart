@@ -118,9 +118,15 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
   List<Couleur> get _couleursChoisies =>
       lireCouleurs(_vals['couleurs'], _palette);
 
-  /// Les champs déclinables couleur par couleur, actuellement visibles.
-  List<Champ> get _champsVariante =>
-      widget.schema.champs.where((c) => c.varOK && _visible(c)).toList();
+  /// Les champs déclinables couleur par couleur, actuellement visibles. On ne
+  /// garde que ceux qui ont des puces à cocher (les tailles, la RAM…) : un
+  /// oui/non n'a rien à décliner par couleur.
+  List<Champ> get _champsVariante => widget.schema.champs
+      .where((c) =>
+          c.varOK &&
+          _visible(c) &&
+          (c.options != null || (c.dependDe != null && c.table != null)))
+      .toList();
 
   String _digits(dynamic v) => (v ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
 

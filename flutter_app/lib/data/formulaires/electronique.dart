@@ -15,8 +15,11 @@
 //  5. LE DÉCLENCHEMENT. L'obturateur d'un reflex d'entrée de gamme est donné
 //     pour ~100 000 déclenchements ; un boîtier pro tient jusqu'à 400 000.
 //
-//  Le bloc couleurs / variantes du site n'est pas encore porté (le moteur v1
-//  affiche les champs, pas les variantes). Les questions sont fidèles.
+//  Le bloc couleurs / variantes est porté : un même téléphone en noir et en
+//  bleu tient dans une seule annonce, chaque coloris avec sa photo, son prix,
+//  et — le cas échéant — son stockage, sa RAM ou sa provenance (les champs
+//  marqués varOK). Ce qui n'a pas de couleur (un téléviseur, une réparation)
+//  le dit clairement (sansCouleur).
 // =============================================================================
 import 'schema.dart';
 
@@ -192,6 +195,7 @@ String _avisDeclenchements(Vals s) {
 final Map<String, Schema> electronique = {
   'Smartphones': Schema(
     livraison: true,
+    couleurs: true,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'stockage')]
         .where((x) => x.isNotEmpty)
         .join(' '),
@@ -200,16 +204,18 @@ final Map<String, Schema> electronique = {
       const Champ('modele', 'Modèle',
           dependDe: 'marque', table: _modTel, req: true, libre: 'Autre modèle',
           h: 'Le modèle exact fait trouver votre annonce : c’est lui que les acheteurs tapent dans la recherche.'),
-      const Champ('stockage', 'Stockage', options: ['32 Go', '64 Go', '128 Go', '256 Go', '512 Go', '1 To'], req: true),
-      const Champ('ram', 'Mémoire (RAM)', options: ['2 Go', '3 Go', '4 Go', '6 Go', '8 Go', '12 Go']),
+      const Champ('stockage', 'Stockage', options: ['32 Go', '64 Go', '128 Go', '256 Go', '512 Go', '1 To'], req: true, varOK: true),
+      const Champ('ram', 'Mémoire (RAM)', options: ['2 Go', '3 Go', '4 Go', '6 Go', '8 Go', '12 Go'], varOK: true),
       const Champ('batterie', 'Santé de la batterie',
           options: ['100 %', 'Plus de 90 %', '80 à 90 %', 'Moins de 80 %', 'Batterie changée', 'Je ne sais pas'],
+          varOK: true,
           h: 'Réglages → Batterie sur iPhone. Une réponse honnête évite le retour fâché.'),
       const Champ('provenance', 'Provenance',
-          options: ['Neuf scellé (sous carton)', 'Occasion Côte d’Ivoire', 'Occasion d’Europe (« France au revoir »)'], req: true),
+          options: ['Neuf scellé (sous carton)', 'Occasion Côte d’Ivoire', 'Occasion d’Europe (« France au revoir »)'], req: true, varOK: true),
       const Champ('comptes', 'Comptes iCloud / Google',
           options: ['Déconnectés — prêt à l’emploi', 'Encore liés (vendu pour pièces)'],
           req: true,
+          varOK: true,
           alerte: Alerte(
             bon: 'Déconnectés — prêt à l’emploi',
             texteBon: 'Le vendeur déclare l’appareil dissocié de son compte. Vérifiez-le avant de payer.',
@@ -217,13 +223,14 @@ final Map<String, Schema> electronique = {
           ),
           h: 'Un téléphone encore lié au compte de l’ancien propriétaire est inutilisable. C’est l’arnaque n° 1 sur l’occasion : l’acheteur vérifiera avant de payer — vérifiez avant de vendre.'),
       const Champ('fournis', 'Fournis avec',
-          options: ['Boîte d’origine', 'Facture', 'Chargeur', 'Écouteurs', 'Coque offerte'], multi: true,
+          options: ['Boîte d’origine', 'Facture', 'Chargeur', 'Écouteurs', 'Coque offerte'], multi: true, varOK: true,
           h: 'La boîte d’origine permet à l’acheteur de comparer l’IMEI (*#06#) avec celui imprimé dessus.'),
       const Champ('garantie', 'Sous garantie', type: TypeChamp.bascule),
     ],
   ),
   'Tablettes': Schema(
     livraison: true,
+    couleurs: true,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'stockage')]
         .where((x) => x.isNotEmpty)
         .join(' '),
@@ -232,17 +239,18 @@ final Map<String, Schema> electronique = {
       const Champ('modele', 'Modèle', dependDe: 'marque', table: _modTab, req: true, libre: 'Autre modèle'),
       const Champ('ecran', 'Taille de l’écran',
           options: ['7 pouces', '8 pouces', '10 pouces', '11 pouces', '12 pouces et plus'], req: true),
-      const Champ('stockage', 'Stockage', options: ['16 Go', '32 Go', '64 Go', '128 Go', '256 Go', '512 Go', '1 To'], req: true),
-      const Champ('ram', 'Mémoire (RAM)', options: ['2 Go', '3 Go', '4 Go', '6 Go', '8 Go']),
+      const Champ('stockage', 'Stockage', options: ['16 Go', '32 Go', '64 Go', '128 Go', '256 Go', '512 Go', '1 To'], req: true, varOK: true),
+      const Champ('ram', 'Mémoire (RAM)', options: ['2 Go', '3 Go', '4 Go', '6 Go', '8 Go'], varOK: true),
       const Champ('reseau', 'Connectivité',
           options: ['Wi-Fi seulement', 'Wi-Fi + carte SIM (4G/5G)'], req: true,
           h: 'Une tablette avec carte SIM se vend nettement plus cher : dites-le.'),
-      const Champ('batterie', 'Santé de la batterie', options: ['Comme neuve', 'Bonne', 'Moyenne', 'Batterie changée', 'Je ne sais pas']),
+      const Champ('batterie', 'Santé de la batterie', options: ['Comme neuve', 'Bonne', 'Moyenne', 'Batterie changée', 'Je ne sais pas'], varOK: true),
       const Champ('provenance', 'Provenance',
-          options: ['Neuf scellé (sous carton)', 'Occasion Côte d’Ivoire', 'Occasion d’Europe (« France au revoir »)'], req: true),
+          options: ['Neuf scellé (sous carton)', 'Occasion Côte d’Ivoire', 'Occasion d’Europe (« France au revoir »)'], req: true, varOK: true),
       const Champ('comptes', 'Comptes iCloud / Google',
           options: ['Déconnectés — prêt à l’emploi', 'Encore liés (vendu pour pièces)'],
           req: true,
+          varOK: true,
           alerte: Alerte(
             bon: 'Déconnectés — prêt à l’emploi',
             texteBon: 'Le vendeur déclare la tablette dissociée de son compte. Vérifiez-le avant de payer.',
@@ -250,12 +258,15 @@ final Map<String, Schema> electronique = {
           ),
           h: 'Un iPad encore lié à l’identifiant Apple de l’ancien propriétaire ne se réinitialise pas. Même arnaque que sur les téléphones.'),
       const Champ('fournis', 'Fournis avec',
-          options: ['Boîte d’origine', 'Facture', 'Chargeur', 'Étui / clavier', 'Stylet'], multi: true),
+          options: ['Boîte d’origine', 'Facture', 'Chargeur', 'Étui / clavier', 'Stylet'], multi: true, varOK: true),
       const Champ('garantie', 'Sous garantie', type: TypeChamp.bascule),
     ],
   ),
   'Ordinateurs': Schema(
     livraison: true,
+    couleurs: true,
+    aideCouleurs:
+        'Cochez chaque couleur que vous avez. Ouvrez-la ensuite pour lui donner ses photos, son prix, sa mémoire et son stockage.',
     titre: (s) => [_t(s, 'marqueOrdi'), _t(s, 'modeleOrdi'), _t(s, 'processeur'), _t(s, 'ram'), _t(s, 'capaciteStockage')]
         .where((x) => x.isNotEmpty)
         .join(' · '),
@@ -280,7 +291,8 @@ final Map<String, Schema> electronique = {
               ? '!La génération compte autant que le numéro. Un Core i7 de 6e génération est plus lent qu’un Core i5 de 11e — annoncez-la, sinon l’acheteur découvre le chiffre au démarrage et repart.'
               : 'La génération compte autant que le i5 ou le i7. Elle se lit dans le numéro complet : un « i5-1135G7 » est de 11e génération, un « i7-4600U » de 4e.'),
       const Champ('ram', 'Mémoire vive (RAM)',
-          req: true, options: ['2 Go', '4 Go', '6 Go', '8 Go', '12 Go', '16 Go', '24 Go', '32 Go', '64 Go et plus']),
+          req: true, varOK: true, lVar: 'RAM de cette version',
+          options: ['2 Go', '4 Go', '6 Go', '8 Go', '12 Go', '16 Go', '24 Go', '32 Go', '64 Go et plus']),
       Champ('typeStockage', 'Type de stockage',
           req: true,
           options: const ['SSD', 'Disque dur (HDD)', 'SSD + disque dur', 'eMMC'],
@@ -292,7 +304,8 @@ final Map<String, Schema> electronique = {
             return '';
           }),
       const Champ('capaciteStockage', 'Capacité de stockage',
-          req: true, options: ['32 Go', '64 Go', '128 Go', '250 Go', '256 Go', '320 Go', '500 Go', '512 Go', '1 To', '2 To et plus']),
+          req: true, varOK: true, lVar: 'Stockage de cette version',
+          options: ['32 Go', '64 Go', '128 Go', '250 Go', '256 Go', '320 Go', '500 Go', '512 Go', '1 To', '2 To et plus']),
       Champ('ecranPouces', 'Taille de l’écran',
           when: (s) => RegExp('Portable|Tout-en-un|Chromebook|Tablette').hasMatch(_t(s, 'typeOrdi')),
           options: const ['11,6 pouces', '12,5 pouces', '13,3 pouces', '14 pouces', '15,6 pouces', '16 pouces', '17,3 pouces', '21 pouces', '24 pouces', '27 pouces']),
@@ -361,6 +374,9 @@ final Map<String, Schema> electronique = {
   ),
   'TV & Écrans': Schema(
     livraison: true,
+    couleurs: false,
+    sansCouleur:
+        'Un téléviseur est noir. Ajoutez plutôt une photo de l’écran allumé — c’est la seule qui rassure.',
     titre: (s) => [_t(s, 'typeEcran'), _t(s, 'marqueTV'), _t(s, 'pouces'), _t(s, 'resolution')]
         .where((x) => x.isNotEmpty)
         .join(' · '),
@@ -422,6 +438,13 @@ final Map<String, Schema> electronique = {
   ),
   'Audio & Son': Schema(
     livraison: true,
+    // Une enceinte portable ou un casque existe en dix teintes ; une table de
+    // mixage est noire, et le restera.
+    couleurs: (s) => RegExp('Enceinte Bluetooth|Casque|Écouteurs|Radio|Enceinte connectée')
+        .hasMatch(_t(s, 'typeAudio')),
+    sansCouleur: (s) => _t(s, 'typeAudio').isNotEmpty
+        ? 'Ce matériel se vend en noir. Ajoutez plutôt une photo des branchements et une des haut-parleurs.'
+        : 'La première photo sert de couverture.',
     titre: (s) => [_t(s, 'typeAudio'), _t(s, 'marqueAudio'), _t(s, 'puissance').isNotEmpty ? '${_t(s, 'puissance')} W' : '']
         .where((x) => x.isNotEmpty)
         .join(' · '),
@@ -461,6 +484,8 @@ final Map<String, Schema> electronique = {
   ),
   'Jeux vidéo': Schema(
     livraison: true,
+    couleurs: (s) => RegExp('Console|Manette|Accessoire').hasMatch(_t(s, 'typeJeu')),
+    sansCouleur: 'Un jeu n’a pas de couleur. Photographiez la jaquette, le disque, et le dos de la boîte.',
     titre: (s) => [
           _t(s, 'modeleConsole').isNotEmpty ? _t(s, 'modeleConsole') : _t(s, 'plateforme'),
           _t(s, 'typeJeu') == 'Jeu (disque ou boîte)' ? _t(s, 'refJeu') : '',
@@ -542,6 +567,9 @@ final Map<String, Schema> electronique = {
   ),
   'Appareils photo': Schema(
     livraison: true,
+    couleurs: (s) => RegExp('Instantané|Compact|Caméra d’action').hasMatch(_t(s, 'typeAppareil')),
+    sansCouleur:
+        'Un boîtier est noir. Ajoutez plutôt une photo du capteur, une de l’écran allumé, et une du dessous avec le numéro de série masqué.',
     titre: (s) => [
           _t(s, 'marquePhoto'),
           _t(s, 'modelePhoto'),
@@ -609,6 +637,7 @@ final Map<String, Schema> electronique = {
   ),
   'Accessoires téléphone': Schema(
     livraison: true,
+    couleurs: true,
     titre: (s) => [
           _t(s, 'typeAcc'),
           (_t(s, 'marque').isNotEmpty && _t(s, 'marque') != 'Autre marque' && _t(s, 'marque') != 'Sans marque') ? _t(s, 'marque') : '',
@@ -635,12 +664,16 @@ final Map<String, Schema> electronique = {
       _authenticite('Un chargeur ou un écouteur de marque'),
       const Champ('lot', 'Vendu par lot', type: TypeChamp.bascule,
           h: 'Cochez si vous vendez en gros : l’acheteur revendeur le cherche.'),
-      const Champ('provenance', 'Provenance', req: true, options: ['Neuf scellé (sous carton)', 'Neuf sans boîte', 'Occasion']),
+      const Champ('provenance', 'Provenance', req: true, varOK: true, options: ['Neuf scellé (sous carton)', 'Neuf sans boîte', 'Occasion']),
       const Champ('garantie', 'Sous garantie', type: TypeChamp.bascule),
     ],
   ),
   'Accessoires informatiques': Schema(
     livraison: true,
+    couleurs: (s) => RegExp('Clavier|Souris|Casque|Sacoche|Clé USB|Webcam|Support').hasMatch(_t(s, 'typeAcc')),
+    sansCouleur: (s) => _t(s, 'typeAcc').isNotEmpty
+        ? 'Ce matériel n’a pas de variante de couleur. Photographiez l’étiquette et les branchements.'
+        : 'La première photo sert de couverture.',
     titre: (s) => [_t(s, 'typeAcc'), _t(s, 'marqueAcc'), _t(s, 'capaciteAcc'), _t(s, 'disposition')]
         .where((x) => x.isNotEmpty)
         .join(' · '),
@@ -697,6 +730,7 @@ final Map<String, Schema> electronique = {
   ),
   'Téléphones fixes': Schema(
     livraison: true,
+    couleurs: true,
     titre: (s) => [_t(s, 'marque') != 'Autre marque' ? _t(s, 'marque') : '', _t(s, 'modele'), _t(s, 'typeFixe')]
         .where((x) => x.isNotEmpty)
         .join(' '),
@@ -710,8 +744,8 @@ final Map<String, Schema> electronique = {
           options: const ['1', '2', '3', '4 et plus']),
       const Champ('fonctions', 'Fonctions', multi: true,
           options: ['Écran', 'Répondeur', 'Mains libres', 'Blocage d’appels', 'Grandes touches', 'Rétroéclairage']),
-      const Champ('provenance', 'Provenance', req: true, options: ['Neuf scellé (sous carton)', 'Occasion Côte d’Ivoire', 'Occasion d’Europe']),
-      const Champ('fournis', 'Fournis avec', multi: true,
+      const Champ('provenance', 'Provenance', req: true, varOK: true, options: ['Neuf scellé (sous carton)', 'Occasion Côte d’Ivoire', 'Occasion d’Europe']),
+      const Champ('fournis', 'Fournis avec', multi: true, varOK: true,
           options: ['Boîte d’origine', 'Facture', 'Adaptateur secteur', 'Câble téléphonique', 'Notice']),
       const Champ('garantie', 'Sous garantie', type: TypeChamp.bascule),
     ],
@@ -719,7 +753,10 @@ final Map<String, Schema> electronique = {
   'Réparation & Dépannage': Schema(
     etat: false,
     service: true,
+    couleurs: false,
     prixLabel: 'Tarif à partir de',
+    sansCouleur:
+        'Une réparation n’est pas un objet : elle n’a ni couleur ni état. Montrez votre atelier, votre établi, vos avant/après.',
     titre: (s) {
       final a = (s['appareilsRep'] is List) ? List<String>.from(s['appareilsRep'] as List) : <String>[];
       final p = (s['prestations'] is List) ? List<String>.from(s['prestations'] as List) : <String>[];

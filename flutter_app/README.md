@@ -175,9 +175,11 @@ Dans l'ordre où on les construira, écran par écran :
    carnations d'un fond de teint, ou les numéros d'une mèche), et pour chaque
    coloris coché **sa photo, son prix, ses détails et les tailles / pointures /
    longueurs qui lui restent** (`var_<Couleur>_<champ>`, comme le site). La
-   catégorie **Mode & Beauté** est câblée de bout en bout (le sac se décline en
-   couleurs, le bijou non ; le fond de teint reçoit sa palette de carnations).
-   Reste à activer le bloc, sous-catégorie par sous-catégorie, sur les autres
+   catégories **Mode & Beauté** et **Électronique** sont câblées de bout en bout
+   (le sac se décline en couleurs, le bijou non ; le fond de teint reçoit sa
+   palette de carnations ; un téléphone décline son stockage, sa RAM et sa
+   provenance par coloris ; un téléviseur ou une réparation n'a pas de couleur).
+   Reste à activer le bloc, sous-catégorie par sous-catégorie, sur les 13 autres
    catégories (le moteur, lui, est prêt).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.

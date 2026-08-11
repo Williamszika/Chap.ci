@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:chapci/data/formulaires/couleurs.dart';
 import 'package:chapci/data/formulaires/mode.dart';
+import 'package:chapci/data/formulaires/electronique.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -101,5 +102,30 @@ void main() {
     // Un numéro de mèche apparaît ; la palette générale ne l'a pas.
     expect(find.textContaining('613 · Blond platine'), findsOneWidget);
     expect(find.text('Couleurs disponibles'), findsOneWidget);
+  });
+
+  testWidgets('un smartphone décline son stockage par couleur', (tester) async {
+    final etat = await monter(tester, electronique['Smartphones']);
+    await taper(tester, 'Bleu'); // coloris
+    expect(etat()!.attributs['couleurs'], 'Bleu');
+    // « 128 Go » : le champ principal, puis la carte du coloris.
+    final go = find.text('128 Go');
+    await tester.ensureVisible(go.last);
+    await tester.tap(go.last);
+    await tester.pumpAndSettle();
+    expect(etat()!.attributs['var_Bleu_stockage'], '128 Go');
+  });
+
+  testWidgets('un téléviseur n’a pas de couleur', (tester) async {
+    await monter(tester, electronique['TV & Écrans']);
+    expect(find.textContaining('téléviseur est noir'), findsOneWidget);
+    expect(find.text('Multicolore'), findsNothing);
+  });
+
+  testWidgets('l’audio n’ouvre les couleurs que pour ce qui en a', (tester) async {
+    await monter(tester, electronique['Audio & Son']);
+    expect(find.text('Multicolore'), findsNothing); // rien choisi
+    await taper(tester, 'Casque'); // typeAudio → une enceinte/casque a des teintes
+    expect(find.text('Multicolore'), findsOneWidget);
   });
 }
