@@ -14,6 +14,7 @@ import 'package:chapci/data/formulaires/emploi.dart';
 import 'package:chapci/data/formulaires/sante.dart';
 import 'package:chapci/data/formulaires/bebe.dart';
 import 'package:chapci/data/formulaires/voyage.dart';
+import 'package:chapci/data/formulaires/loisirs.dart';
 import 'package:chapci/screens/formulaire_dynamique.dart';
 
 void main() {
@@ -270,5 +271,13 @@ void main() {
     await taper(tester, 'Traversée en mer'); // champ « Comment se fait le voyage »
     expect(etat()!.motifBloc, isNotNull);
     expect(etat()!.motifBloc, contains('traite'));
+  });
+
+  testWidgets('une arme à feu (loisirs) bloque la publication', (tester) async {
+    final etat = await monter(tester, loisirs['Sport & Fitness']);
+    await taper(tester, 'Chasse'); // discipline → fait apparaître la question « arme »
+    await taper(tester, 'Arme à feu, munitions ou arme blanche');
+    expect(etat()!.motifBloc, isNotNull);
+    expect(etat()!.motifBloc, contains('armurier agréé'));
   });
 }

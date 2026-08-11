@@ -127,9 +127,9 @@ Dans l'ordre où on les construira, écran par écran :
    la sous-catégorie, puces (choix unique/multiple), bascules, saisie libre,
    champs conditionnels (`when`), options dépendantes, bandeau d'alerte, et le
    **refus de publication** exigé par la loi (éclaircissant, produit périmé).
-   Voir `lib/data/formulaires/`. **Onze catégories sur 15 sont portées** — Mode &
+   Voir `lib/data/formulaires/`. **Douze catégories sur 15 sont portées** — Mode &
    Beauté, Électronique, Véhicules, Maison, Alimentation, Animaux, Services,
-   Emploi, Santé, Bébé & Enfant et Voyage — avec, à
+   Emploi, Santé, Bébé & Enfant, Voyage et Loisirs — avec, à
    chaque fois, les garde-fous du terrain : dossier administratif du véhicule
    (carte grise, CSA / non-gage), bois qui gonfle à l'humidité, chaîne du froid
    et date limite pour l'alimentation, et pour les animaux les **espèces
@@ -145,13 +145,15 @@ Dans l'ordre où on les construira, écran par écran :
    tout produit périmé — refusent l'annonce. Côté bébé, deux objets ne se
    revendent jamais : un **siège auto accidenté** et un **lit à barreaux non
    conforme** (écartement > 6,5 cm), plus tout **modèle rappelé** par son
-   fabricant. Restent les **5 autres catégories** (mêmes données à porter, le
-   moteur est là), la **géolocalisation GPS**, le **bloc couleurs/variantes**
-   (tailles par coloris), et le reste du pays (régions / villes hors Abidjan).
+   fabricant. Restent les **3 autres catégories** (Scolaire, Matériel Pro, À
+   donner), la **géolocalisation GPS**, le **bloc couleurs/variantes** (tailles
+   par coloris), et le reste du pays (régions / villes hors Abidjan).
    Le voyage est la 2ᵉ catégorie la plus surveillée : « **visa garanti** »
    (impossible), **frais avant contrat**, **frais de placement** payés par le
    candidat (convention n° 181 de l'OIT), **passeport confisqué** et **passage
-   sans visa** (traite) refusent tous l'annonce.
+   sans visa** (traite) refusent tous l'annonce. Côté loisirs, la vente
+   d'**armes à feu, de munitions et d'armes blanches** est refusée (armurier
+   agréé obligatoire).
 4. ~~**Inscription**~~ ✅ + ~~**confirmation d'e-mail**~~ ✅ (code à 6 chiffres, mur
    avant publication, câblé dans Mon compte et Publier). Reste la **2FA** à la connexion.
 5. ~~**Mon compte**~~ ✅ mes annonces (état, vues, masquer/afficher, supprimer),
