@@ -22,7 +22,12 @@ class AuthSocial {
   static final AuthSocial instance = AuthSocial._();
 
   static const bool googleDisponible = true;
-  static const bool facebookDisponible = true;
+  // Le code Facebook (flux web + route serveur) est PRÊT et testé. On garde le
+  // bouton en « bientôt » tant que l'app Facebook n'est pas passée en « Live » —
+  // ce qui demande la vérification d'entreprise chez Facebook (à faire quand
+  // l'entreprise du Patron sera créée). Le jour venu : repasser à `true` ici,
+  // et basculer l'app Facebook en Live dans la console. Rien d'autre à changer.
+  static const bool facebookDisponible = false;
 
   // ----- Google -----
   static const String _webClientId =
