@@ -123,13 +123,16 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
      plutôt que de viser 22 communes à la fois.
 
 4) C. L'APPLICATION (chiffres et limites)
-   - Les installations et les testeurs se suivent UNIQUEMENT dans la Play
-     Console : tu n'y as pas accès. Demande au Patron, une fois par semaine,
-     les 3 chiffres utiles : installations, testeurs actifs, plantages.
-     Note-les dans le rapport pour construire l'historique.
-   - Ce que tu PEUX vérifier seul : la version en tête de store/APP-VERSIONS.md
-     est-elle alignée avec le site en ligne ? Signale
-     tout écart au bureau Développement.
+   - Les installations et les testeurs se suivent dans la Play Console (Android)
+     ET dans App Store Connect (iOS) : tu n'as accès à aucune des deux. Demande
+     au Patron, une fois par semaine, les chiffres utiles PAR BOUTIQUE :
+     installations, testeurs actifs, plantages. Note-les pour l'historique.
+   - Ce que tu PEUX vérifier seul : la version publiée en tête de
+     store/APP-VERSIONS.md et sa date. Depuis la v1.20, l'app est en FLUTTER —
+     un code séparé du site (flutter_app/) : ne cherche PLUS à « aligner l'app
+     sur le site », ce concept n'a plus de sens. C'est 🔨 Le Monteur qui juge si
+     flutter_app/ a assez avancé pour une nouvelle version ; toi, tu notes la
+     version publiée.
    - N'invente jamais un chiffre d'installations.
 
 5) SIGNAUX pour les autres bureaux
