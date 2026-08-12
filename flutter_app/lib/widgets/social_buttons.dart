@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
+import '../api/api_client.dart';
 import '../api/auth_social.dart';
 import '../theme.dart';
 
 /// Les boutons « Continuer avec Google / Facebook », partagés par la connexion
 /// et l'inscription.
 ///
-/// Le serveur sait déjà les traiter (mêmes routes que le site). L'obtention du
-/// jeton côté téléphone demande une configuration console (voir README) ; tant
-/// qu'elle n'est pas faite (`AuthSocial.disponible == false`), un appui explique
-/// honnêtement que le bouton est à activer — jamais un plantage.
-class SocialButtons extends StatelessWidget {
+/// Google est actif : appui → sélecteur de compte Google → session ouverte via
+/// la route serveur `/auth/google` (la même que le site). Facebook reste « à
+/// venir » tant que l'app Facebook mobile et les réglages serveur ne sont pas
+/// en place ; l'appui explique alors honnêtement, sans planter.
+class SocialButtons extends StatefulWidget {
   /// Appelé après une connexion sociale réussie (pour rafraîchir l'écran).
   final VoidCallback? onConnecte;
   const SocialButtons({super.key, this.onConnecte});
+
+  @override
+  State<SocialButtons> createState() => _SocialButtonsState();
+}
+
+class _SocialButtonsState extends State<SocialButtons> {
+  String? _enCours; // le fournisseur dont la connexion est en cours
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +38,6 @@ class SocialButtons extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _bouton(
-          context: context,
           fournisseur: 'Google',
           fond: Colors.white,
           texteCol: ChapColors.gray900,
@@ -39,7 +46,6 @@ class SocialButtons extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _bouton(
-          context: context,
           fournisseur: 'Facebook',
           fond: const Color(0xFF1877F2),
           texteCol: Colors.white,
@@ -55,45 +61,82 @@ class SocialButtons extends StatelessWidget {
   }
 
   Widget _bouton({
-    required BuildContext context,
     required String fournisseur,
     required Color fond,
     required Color texteCol,
     required Color bord,
     required Widget logo,
   }) {
+    final enCours = _enCours == fournisseur;
+    final actif = _enCours == null;
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: OutlinedButton(
-        onPressed: () => _appui(context, fournisseur),
+        onPressed: actif ? () => _appui(fournisseur) : null,
         style: OutlinedButton.styleFrom(
           backgroundColor: fond,
           side: BorderSide(color: bord),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(width: 22, height: 22, child: Center(child: logo)),
-            const SizedBox(width: 10),
-            Text('Continuer avec $fournisseur',
-                style: TextStyle(
-                    color: texteCol,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600)),
-          ],
-        ),
+        child: enCours
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: texteCol),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(width: 22, height: 22, child: Center(child: logo)),
+                  const SizedBox(width: 10),
+                  Text('Continuer avec $fournisseur',
+                      style: TextStyle(
+                          color: texteCol,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
       ),
     );
   }
 
-  void _appui(BuildContext context, String fournisseur) {
-    if (AuthSocial.disponible) {
-      // Activé plus tard : ici on lancera la connexion native puis onConnecte().
+  void _appui(String fournisseur) {
+    if (fournisseur == 'Google' && AuthSocial.googleDisponible) {
+      _connecterGoogle();
       return;
     }
+    if (fournisseur == 'Facebook' && AuthSocial.facebookDisponible) {
+      // Câblé plus tard, comme Google.
+      return;
+    }
+    _bientot(fournisseur);
+  }
+
+  Future<void> _connecterGoogle() async {
+    setState(() => _enCours = 'Google');
+    try {
+      final ok = await AuthSocial.instance.connecterGoogle();
+      if (!mounted) return;
+      if (ok) widget.onConnecte?.call();
+    } on ApiException catch (e) {
+      if (mounted) _erreur(e.message);
+    } catch (_) {
+      if (mounted) {
+        _erreur('La connexion Google n’a pas abouti. Réessayez, ou '
+            'créez un compte avec votre e-mail.');
+      }
+    } finally {
+      if (mounted) setState(() => _enCours = null);
+    }
+  }
+
+  void _erreur(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _bientot(String fournisseur) {
     showModalBottomSheet(
       context: context,
       backgroundColor: ChapColors.cream,
@@ -108,13 +151,13 @@ class SocialButtons extends StatelessWidget {
             const Icon(Icons.info_outline, color: ChapColors.orange),
             const SizedBox(height: 10),
             Text('Connexion $fournisseur — bientôt',
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             const Text(
-              'Le serveur sait déjà gérer Google et Facebook (comme sur le site). '
-              'Dans l’application, ce bouton s’activera une fois la configuration '
-              'terminée. En attendant, créez votre compte avec votre e-mail.',
+              'Le serveur sait déjà gérer Facebook (comme sur le site). Dans '
+              'l’application, ce bouton s’activera une fois la configuration '
+              'terminée. En attendant, utilisez Google ou votre e-mail.',
               style: TextStyle(
                   fontSize: 14, height: 1.5, color: ChapColors.gray700),
             ),

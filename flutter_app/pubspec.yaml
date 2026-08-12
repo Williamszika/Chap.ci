@@ -25,6 +25,7 @@ dependencies:
   share_plus: ^13.3.0
   # Ouvrir le lien « En savoir plus » d'une publicité (navigateur / lien externe).
   url_launcher: ^6.3.0
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:

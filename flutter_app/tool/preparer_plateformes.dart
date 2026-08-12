@@ -114,6 +114,13 @@ void _configurerIos() {
     plist = plist.replaceFirst(
         '</dict>\n</plist>', '$_permsIos</dict>\n</plist>');
   }
+  // Connexion Google : le schéma d'URL (client ID iOS inversé) et le GIDClientID
+  // doivent être dans l'Info.plist, sinon la redirection Google échoue sur iOS.
+  // Ce sont des identifiants PUBLICS de client OAuth, pas des secrets.
+  if (!plist.contains('GIDClientID')) {
+    plist = plist.replaceFirst(
+        '</dict>\n</plist>', '$_googleIos</dict>\n</plist>');
+  }
   plistFichier.writeAsStringSync(plist);
 }
 
@@ -156,6 +163,21 @@ const _permsIos =
     '\t<string>Pour prendre une photo de votre annonce.</string>\n'
     '\t<key>NSLocationWhenInUseUsageDescription</key>\n'
     '\t<string>Pour placer votre annonce à l’endroit exact.</string>\n';
+
+// Connexion Google sur iOS. Le schéma d'URL est le client ID iOS « inversé »
+// (com.googleusercontent.apps.<id>), tel que l'exige google_sign_in.
+const _googleIos =
+    '\t<key>GIDClientID</key>\n'
+    '\t<string>564942885290-l33tp6lok4ge79lmdjh6mu9a1q5aeu29.apps.googleusercontent.com</string>\n'
+    '\t<key>CFBundleURLTypes</key>\n'
+    '\t<array>\n'
+    '\t\t<dict>\n'
+    '\t\t\t<key>CFBundleURLSchemes</key>\n'
+    '\t\t\t<array>\n'
+    '\t\t\t\t<string>com.googleusercontent.apps.564942885290-l33tp6lok4ge79lmdjh6mu9a1q5aeu29</string>\n'
+    '\t\t\t</array>\n'
+    '\t\t</dict>\n'
+    '\t</array>\n';
 
 const _buildGradleKts = '''
 import java.util.Properties
