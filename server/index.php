@@ -1497,6 +1497,49 @@ function facebook_verify_token(array $config, string $accessToken): ?array {
   return $me; // { id, name, email? }
 }
 
+/**
+ * Ouvre (ou crée) la session Chap.ci à partir d'une identité Facebook DÉJÀ
+ * vérifiée { id, name, email? }. Mutualisé entre la route POST (jeton d'un SDK)
+ * et la route GET mobile (flux web : échange d'un code). Renvoie
+ * ['user' => $u, 'token' => $token].
+ */
+function fb_session_from_identity(PDO $pdo, array $config, string $secret, array $fb): array {
+  $fbId  = (string) ($fb['id'] ?? '');
+  $email = strtolower(trim((string) ($fb['email'] ?? '')));
+  $name  = trim((string) ($fb['name'] ?? ''));
+  // Facebook ne partage pas toujours l'email : on se rabat sur une clé stable
+  // dérivée de l'identifiant Facebook, pour retrouver toujours le même compte.
+  $realEmail = filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+  if (!$realEmail) {
+    if ($fbId === '') { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
+    $email = 'fb_' . $fbId . '@facebook.chapci';
+  }
+  $st = $pdo->prepare('SELECT id,email,status,password_hash,auth_provider FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+  if (!$u) {
+    $id = uuid();
+    $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider,email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
+        ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'facebook', now_iso()]);
+    $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
+        ->execute([$id, $name, now_iso()]);
+    log_security_event($pdo, 'signup', $email, 'facebook');
+    if ($realEmail) send_welcome_email($config, $email, $name); // pas d'email vers une adresse fictive
+    $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
+  } else {
+    if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'facebook'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+    // Anti-pré-détournement : invalide un mot de passe local éventuel — sauf si
+    // c'est Facebook qui a ouvert le compte (le mot de passe est alors celui que
+    // son propriétaire vient de choisir pour entrer dans l'app).
+    $creeParFb = ($u['auth_provider'] ?? '') === 'facebook';
+    if (!$creeParFb && ($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
+      $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+          ->execute(['facebook', $u['id']]);
+      log_security_event($pdo, 'oauth_password_reset', $email, 'facebook');
+    }
+    log_security_event($pdo, 'login_ok', $email, 'facebook');
+  }
+  return ['user' => $u, 'token' => mk_token($pdo, $u['id'], $u['email'], $secret)];
+}
+
 // ---- Base de données --------------------------------------------------------
 function db(array $config): PDO {
   static $pdo = null;
@@ -5066,50 +5109,42 @@ try {
     if ($tok === '') jerr('Jeton Facebook manquant.');
     $fb = facebook_verify_token($config, $tok);
     if (!$fb) { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
-    $fbId  = (string) ($fb['id'] ?? '');
-    $email = strtolower(trim((string) ($fb['email'] ?? '')));
-    $name  = trim((string) ($fb['name'] ?? ''));
-    // Facebook ne partage pas toujours l'email (permission « email » non validée
-    // pour le grand public). On se rabat alors sur une clé stable dérivée de
-    // l'identifiant Facebook, pour que la connexion marche quand même et retrouve
-    // toujours le même compte. Aucun email n'est envoyé vers cette adresse fictive.
-    $realEmail = filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
-    if (!$realEmail) {
-      if ($fbId === '') { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
-      $email = 'fb_' . $fbId . '@facebook.chapci';
+    $sess = fb_session_from_identity($pdo, $config, $secret, $fb);
+    set_session_cookie($config, $sess['token']);
+    jout(['token' => $sess['token'], 'user' => user_public($pdo, $sess['user'])]);
+  }
+
+  // Connexion Facebook « web » pour l'app mobile (sans SDK natif — le téléphone
+  // ouvre juste la page Facebook dans le navigateur du système). Facebook nous
+  // renvoie ici un `code` d'autorisation ; on l'échange contre un jeton d'accès
+  // (le SECRET Facebook ne quitte jamais le serveur), on ouvre la session, puis
+  // on renvoie l'app par un schéma privé `chapci://` — que seule l'application
+  // enregistrée sur ce schéma peut recevoir.
+  if ($path === 'auth/facebook/mobile' && $method === 'GET') {
+    $ret = 'chapci://facebook-auth';
+    $redirectUri = 'https://chap.ci/api/auth/facebook/mobile';
+    if (($config['facebook_app_id'] ?? '') === '' || ($config['facebook_app_secret'] ?? '') === '') {
+      header('Location: ' . $ret . '?error=' . rawurlencode('Facebook non activé sur le serveur')); exit;
     }
-    // `auth_provider` est lu ici parce qu'il décide, plus bas, s'il faut effacer
-    // le mot de passe local — voir le commentaire « anti-pré-détournement ».
-    $st = $pdo->prepare('SELECT id,email,status,password_hash,auth_provider FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
-    if (!$u) {
-      $id = uuid();
-      // email_verified_at pose d'emblee : Google et Facebook ont DEJA verifie
-      // l'adresse avant de nous la transmettre. Redemander un code serait une
-      // formalite vide, et un obstacle de plus a l'inscription la plus fluide.
-      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider,email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
-          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'facebook', now_iso()]);
-      $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
-          ->execute([$id, $name, now_iso()]);
-      log_security_event($pdo, 'signup', $email, 'facebook');
-      if ($realEmail) send_welcome_email($config, $email, $name); // pas d'email vers une adresse fictive
-      $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
-    } else {
-      if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'facebook'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
-      // Anti-pré-détournement (voir Google) : invalide un mot de passe local
-      // éventuel — sauf si c'est Facebook qui a ouvert le compte, auquel cas le
-      // mot de passe est celui que son propriétaire vient de choisir pour
-      // pouvoir entrer dans l'application Android.
-      $creeParFb = ($u['auth_provider'] ?? '') === 'facebook';
-      if (!$creeParFb && ($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
-        $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
-            ->execute(['facebook', $u['id']]);
-        log_security_event($pdo, 'oauth_password_reset', $email, 'facebook');
-      }
-      log_security_event($pdo, 'login_ok', $email, 'facebook');
+    $code = (string) ($_GET['code'] ?? '');
+    if ($code === '') {
+      // Facebook a renvoyé une erreur (refus, fenêtre fermée…).
+      header('Location: ' . $ret . '?error=' . rawurlencode((string) ($_GET['error_description'] ?? $_GET['error'] ?? 'Connexion annulée'))); exit;
     }
-    $token = mk_token($pdo, $u['id'], $u['email'], $secret);
-    set_session_cookie($config, $token);
-    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+    rate_limit($pdo, 'oauth', null, 30, 3600);
+    $ex = http_fetch('https://graph.facebook.com/v18.0/oauth/access_token?client_id=' . urlencode((string) $config['facebook_app_id'])
+      . '&client_secret=' . urlencode((string) $config['facebook_app_secret'])
+      . '&redirect_uri=' . urlencode($redirectUri)
+      . '&code=' . urlencode($code));
+    $ej = json_decode((string) ($ex['body'] ?? ''), true);
+    $accessToken = is_array($ej) ? (string) ($ej['access_token'] ?? '') : '';
+    if ($accessToken === '') {
+      header('Location: ' . $ret . '?error=' . rawurlencode('Échec de la connexion Facebook')); exit;
+    }
+    $fb = facebook_verify_token($config, $accessToken);
+    if (!$fb) { log_security_event($pdo, 'oauth_fail', null, 'facebook'); header('Location: ' . $ret . '?error=' . rawurlencode('Connexion Facebook invalide')); exit; }
+    $sess = fb_session_from_identity($pdo, $config, $secret, $fb);
+    header('Location: ' . $ret . '?token=' . rawurlencode($sess['token'])); exit;
   }
 
   // Connexion par téléphone — étape 1 : envoi d'un code à 6 chiffres par SMS.

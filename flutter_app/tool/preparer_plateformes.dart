@@ -81,6 +81,15 @@ void _configurerAndroid() {
   if (!manifest.contains('android.permission.INTERNET')) {
     manifest = manifest.replaceFirst(ouverture, '$ouverture\n$_permsAndroid');
   }
+
+  // Connexion Facebook « web » : l'activité de rappel de flutter_web_auth_2, qui
+  // capte le retour `chapci://…` du navigateur. Sur iOS, rien à déclarer (la
+  // session d'auth du système renvoie directement à l'app).
+  if (!manifest.contains('flutter_web_auth_2.CallbackActivity')) {
+    manifest =
+        manifest.replaceFirst('</application>', '$_callbackWebAuth    </application>');
+  }
+
   manifestFichier.writeAsStringSync(manifest);
 }
 
@@ -155,6 +164,18 @@ const _permsAndroid =
     '    <uses-permission android:name="android.permission.CAMERA"/>\n'
     '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n'
     '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>';
+
+// Activité de rappel de flutter_web_auth_2 : capte le retour de la connexion
+// Facebook web (schéma privé `chapci://`).
+const _callbackWebAuth =
+    '        <activity android:name="com.linusu.flutter_web_auth_2.CallbackActivity" android:exported="true">\n'
+    '            <intent-filter android:label="flutter_web_auth_2">\n'
+    '                <action android:name="android.intent.action.VIEW"/>\n'
+    '                <category android:name="android.intent.category.DEFAULT"/>\n'
+    '                <category android:name="android.intent.category.BROWSABLE"/>\n'
+    '                <data android:scheme="chapci"/>\n'
+    '            </intent-filter>\n'
+    '        </activity>\n';
 
 const _permsIos =
     '\t<key>NSPhotoLibraryUsageDescription</key>\n'

@@ -1,36 +1,39 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'api_client.dart';
 
 /// Connexion via un fournisseur externe (Google, Facebook).
 ///
-/// Branchée sur les routes EXISTANTES du serveur — exactement celles du site :
-///   · POST /auth/google    { credential: <ID token Google> }   → { token, user }
-///   · POST /auth/facebook   { accessToken: <token Facebook> }   → { token, user }
+/// Branchée sur les routes EXISTANTES du serveur — les mêmes que le site :
+///   · Google  : sélecteur natif → ID token → POST /auth/google.
+///   · Facebook : flux WEB (sans SDK lourd, pour un réseau instable). Le
+///     téléphone ouvre la page Facebook dans le navigateur du système ; après
+///     accord, Facebook renvoie un `code` à la route serveur
+///     `GET /auth/facebook/mobile`, qui l'échange (le SECRET reste au serveur)
+///     et renvoie l'app par le schéma privé `chapci://facebook-auth?token=…`.
 ///
-/// Les identifiants ci-dessous sont des **identifiants publics** (client OAuth),
-/// pas des secrets : ils sont, par nature, embarqués dans chaque application.
-/// Ils correspondent aux clients créés dans la console Google Cloud du projet
-/// 564942885290, enregistrés avec le package `ci.chap.app` et le SHA-1 de
-/// l'application.
+/// Les identifiants ci-dessous sont PUBLICS (client OAuth, App ID) : ils sont,
+/// par nature, embarqués dans chaque application. Aucun secret ici.
 class AuthSocial {
   AuthSocial._();
   static final AuthSocial instance = AuthSocial._();
 
-  /// Google est câblé (clients OAuth Android + iOS créés). Facebook viendra
-  /// quand l'app Facebook mobile et les réglages serveur seront en place.
   static const bool googleDisponible = true;
-  static const bool facebookDisponible = false;
+  static const bool facebookDisponible = true;
 
-  /// Client OAuth « Web » du serveur : c'est SON audience que le jeton d'identité
-  /// doit viser pour que `/auth/google` l'accepte (`serverClientId` sur Android).
+  // ----- Google -----
   static const String _webClientId =
       '564942885290-f1v7caemq0838kp6qickrsirk46vk4dl.apps.googleusercontent.com';
-
-  /// Client OAuth « iOS » (Bundle `ci.chap.app`), utilisé côté iPhone/iPad.
   static const String _iosClientId =
       '564942885290-l33tp6lok4ge79lmdjh6mu9a1q5aeu29.apps.googleusercontent.com';
+
+  // ----- Facebook (flux web) -----
+  static const String _fbAppId = '1617587653705134';
+  static const String _fbRedirect = 'https://chap.ci/api/auth/facebook/mobile';
+  static const String _schemeApp = 'chapci';
 
   /// Ouvre le sélecteur de compte Google, récupère le jeton d'identité, puis
   /// ouvre la session côté serveur. Renvoie `false` si l'utilisateur annule.
@@ -47,21 +50,40 @@ class AuthSocial {
     if (idToken == null || idToken.isEmpty) {
       throw ApiException('Google n’a pas renvoyé de jeton. Réessayez.');
     }
-    await avecGoogle(idToken);
+    final d =
+        await ApiClient.instance.post('/auth/google', {'credential': idToken});
+    await ApiClient.instance.appliquerReponseJeton(d);
     return true;
   }
 
-  /// Envoie au serveur un ID token Google déjà obtenu côté téléphone.
-  Future<void> avecGoogle(String idToken) async {
-    final d = await ApiClient.instance
-        .post('/auth/google', {'credential': idToken});
-    await ApiClient.instance.appliquerReponseJeton(d);
-  }
-
-  /// Envoie au serveur un jeton d'accès Facebook déjà obtenu côté téléphone.
-  Future<void> avecFacebook(String accessToken) async {
-    final d = await ApiClient.instance
-        .post('/auth/facebook', {'accessToken': accessToken});
-    await ApiClient.instance.appliquerReponseJeton(d);
+  /// Connexion Facebook par le navigateur système : on ouvre la boîte de
+  /// dialogue OAuth, le serveur fait l'échange et nous renvoie un jeton Chap.ci
+  /// prêt à l'emploi via `chapci://…`. Renvoie `false` si l'utilisateur annule.
+  Future<bool> connecterFacebook() async {
+    final url = 'https://www.facebook.com/v18.0/dialog/oauth'
+        '?client_id=$_fbAppId'
+        '&redirect_uri=${Uri.encodeQueryComponent(_fbRedirect)}'
+        '&response_type=code'
+        '&scope=${Uri.encodeQueryComponent('email,public_profile')}';
+    String resultat;
+    try {
+      resultat = await FlutterWebAuth2.authenticate(
+        url: url,
+        callbackUrlScheme: _schemeApp,
+      );
+    } on PlatformException catch (e) {
+      // L'utilisateur a fermé la fenêtre : ce n'est pas une erreur.
+      if (e.code.toUpperCase().contains('CANCEL')) return false;
+      rethrow;
+    }
+    final params = Uri.parse(resultat).queryParameters;
+    final token = params['token'];
+    if (token != null && token.isNotEmpty) {
+      await ApiClient.instance.definirJeton(token);
+      return true;
+    }
+    final erreur = params['error'];
+    if (erreur != null && erreur.isNotEmpty) throw ApiException(erreur);
+    return false;
   }
 }

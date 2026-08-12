@@ -104,27 +104,30 @@ class _SocialButtonsState extends State<SocialButtons> {
 
   void _appui(String fournisseur) {
     if (fournisseur == 'Google' && AuthSocial.googleDisponible) {
-      _connecterGoogle();
+      _connecter('Google', AuthSocial.instance.connecterGoogle);
       return;
     }
     if (fournisseur == 'Facebook' && AuthSocial.facebookDisponible) {
-      // Câblé plus tard, comme Google.
+      _connecter('Facebook', AuthSocial.instance.connecterFacebook);
       return;
     }
     _bientot(fournisseur);
   }
 
-  Future<void> _connecterGoogle() async {
-    setState(() => _enCours = 'Google');
+  /// Lance la connexion d'un fournisseur : spinner, succès → onConnecte,
+  /// annulation silencieuse, erreur expliquée.
+  Future<void> _connecter(
+      String fournisseur, Future<bool> Function() action) async {
+    setState(() => _enCours = fournisseur);
     try {
-      final ok = await AuthSocial.instance.connecterGoogle();
+      final ok = await action();
       if (!mounted) return;
       if (ok) widget.onConnecte?.call();
     } on ApiException catch (e) {
       if (mounted) _erreur(e.message);
     } catch (_) {
       if (mounted) {
-        _erreur('La connexion Google n’a pas abouti. Réessayez, ou '
+        _erreur('La connexion $fournisseur n’a pas abouti. Réessayez, ou '
             'créez un compte avec votre e-mail.');
       }
     } finally {
