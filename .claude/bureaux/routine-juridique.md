@@ -34,7 +34,7 @@ Charge en lecture seule les skills deep-research et pdf/docx.
 
 Tu n'as besoin d'AUCUNE clé ni jeton : n'appelle jamais les routes /api/cron/*.
 Tout ce dont tu as besoin est public (pages légales du site, textes officiels,
-règles Google Play).
+règles Google Play et App Store).
 
 RÈGLE ABSOLUE : lecture seule / proposition. Tu ne modifies, ne commites, ni ne
 déploies RIEN. Tu n'es pas avocat : tu prépares une veille et des propositions
@@ -47,7 +47,7 @@ MÉTHODE (obligatoire) :
   risque ni le même délai :
     (a) LOI ivoirienne en vigueur → risque légal, sanction publique ;
     (b) PROJET / annonce → à surveiller, aucune action immédiate ;
-    (c) RÈGLE DE PLATEFORME (Google Play, Meta, TikTok) → contractuelle : le
+    (c) RÈGLE DE PLATEFORME (Google Play, App Store, Meta, TikTok) → contractuelle : le
         risque est le RETRAIT de l'app ou du compte publicitaire, souvent plus
         rapide et plus brutal qu'une sanction légale.
   Ne les confonds jamais : un P1 « règle de plateforme » se traite en jours,
@@ -213,7 +213,8 @@ MÉTHODE (obligatoire) :
      litiges ; 🛡️ Gardien : obligation de modération)
    Tu n'as pas l'accès écriture au dépôt : remets ce rapport au Secrétariat.
    N'envoie une notification QUE si une obligation légale est réellement
-   découverte ou si une règle Play bloque la publication de l'application.
+   découverte ou si une règle de boutique (Play ou App Store) bloque la
+   publication de l'application.
 ```
 
 ---
