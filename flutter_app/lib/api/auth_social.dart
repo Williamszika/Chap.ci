@@ -1,6 +1,5 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'api_client.dart';
 
@@ -19,11 +18,10 @@ class AuthSocial {
   AuthSocial._();
   static final AuthSocial instance = AuthSocial._();
 
-  /// Google et Facebook sont câblés. Pour Facebook, la config native (App ID +
-  /// jeton client) est injectée par le script de préparation depuis `social.json`
-  /// (hors dépôt) ; si elle manque, la connexion échoue proprement à l'usage.
+  /// Google est câblé (clients OAuth Android + iOS créés). Facebook viendra
+  /// quand l'app Facebook mobile et les réglages serveur seront en place.
   static const bool googleDisponible = true;
-  static const bool facebookDisponible = true;
+  static const bool facebookDisponible = false;
 
   /// Client OAuth « Web » du serveur : c'est SON audience que le jeton d'identité
   /// doit viser pour que `/auth/google` l'accepte (`serverClientId` sur Android).
@@ -50,23 +48,6 @@ class AuthSocial {
       throw ApiException('Google n’a pas renvoyé de jeton. Réessayez.');
     }
     await avecGoogle(idToken);
-    return true;
-  }
-
-  /// Ouvre la connexion Facebook, récupère le jeton d'accès, puis ouvre la
-  /// session côté serveur. Renvoie `false` si l'utilisateur annule.
-  Future<bool> connecterFacebook() async {
-    final res = await FacebookAuth.instance
-        .login(permissions: const ['email', 'public_profile']);
-    if (res.status == LoginStatus.cancelled) return false;
-    final token = res.accessToken?.tokenString;
-    if (res.status != LoginStatus.success || token == null || token.isEmpty) {
-      final msg = res.message;
-      throw ApiException((msg != null && msg.isNotEmpty)
-          ? msg
-          : 'Connexion Facebook impossible. Réessayez.');
-    }
-    await avecFacebook(token);
     return true;
   }
 

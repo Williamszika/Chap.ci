@@ -1,4 +1,0 @@
-{
-  "_lisez_moi": "Copiez ce fichier en social.json (racine de flutter_app), puis mettez votre jeton client Facebook. Ce fichier ne va JAMAIS dans Git. L'App ID Facebook et les ID clients Google sont publics et déjà dans le script.",
-  "facebookClientToken": "VOTRE_JETON_CLIENT_FACEBOOK_ICI"
-}
