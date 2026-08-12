@@ -84,30 +84,34 @@ keystore — et **c'est voulu** : la clé de signature ne quitte jamais votre po
 flutter doctor
 ```
 
-### 2. Préparer le dossier `android/` — **une seule commande**
+### 2. Préparer `android/` et `ios/` — **une seule commande**
 
-Le dépôt ne contient **que** le code Dart (`lib/`). Le dossier `android/` se
-régénère — comme pour le site. Un script fait tout, depuis ce dossier
+Le dépôt ne contient **que** le code Dart (`lib/`). Les dossiers `android/` et
+`ios/` se régénèrent — comme pour le site. Un script fait tout, depuis ce dossier
 `flutter_app/` :
 
 ```bash
-dart run tool/preparer_android.dart
+dart run tool/preparer_plateformes.dart
 ```
 
-Il régénère `android/` PUIS y applique toute la configuration Chap.ci, sans
-qu'on ait à toucher un fichier à la main :
+Il régénère `android/` et `ios/` PUIS y applique toute la configuration Chap.ci,
+sans qu'on ait à toucher un fichier à la main :
 
-- **identifiant `ci.chap.app`** — le MÊME que l'app Play Store actuelle, pour que
-  ce soit une **mise à jour** et non une nouvelle app ;
-- **minSdk 22 · targetSdk 35** (comme l'app actuelle) ;
-- le **nom affiché « Chap.ci »** et les **autorisations** réellement utilisées :
-  Internet, appareil photo (`image_picker`), position fine et grossière
-  (`geolocator`) ;
-- l'**icône de lancement**, générée depuis le logo (`assets/icon/`) ;
-- la **signature de production**, lue depuis `android/key.properties` (voir §4).
+- **identifiant `ci.chap.app`** — le MÊME que l'app actuelle sur les stores, pour
+  que ce soit une **mise à jour** et non une nouvelle app (applicationId Android
+  ET bundle identifier iOS) ;
+- **Android** : minSdk 22 · targetSdk 35 ; **iOS** : nom + permissions ;
+- le **nom affiché « Chap.ci »** et les **autorisations** réellement utilisées sur
+  les deux plateformes : Internet, appareil photo (`image_picker`), position fine
+  et grossière (`geolocator`) ;
+- l'**icône de lancement** (Android + iOS), générée depuis le logo
+  (`assets/icon/` ; côté iOS, aplatie sur l'orange de la marque car iOS refuse
+  toute transparence) ;
+- **Android** : la **signature de production**, lue depuis `android/key.properties`
+  (voir §3). **iOS** se signe dans Xcode, sur un Mac.
 
 Le script est **ré-exécutable** sans risque (relancez-le après tout changement de
-dépendances). Détails dans `tool/preparer_android.dart`.
+dépendances). Détails dans `tool/preparer_plateformes.dart`.
 
 > La position n'est **jamais** suivie en arrière-plan : elle n'est lue qu'au
 > moment où le vendeur tape sur « Activer ma position ». Autorisation refusée →
@@ -145,6 +149,21 @@ secrets » du `CLAUDE.md`.
 
    Il sort dans `build/app/outputs/bundle/release/app-release.aab`. C'est ce
    fichier qu'on téléverse dans la Play Console (production ou test fermé).
+
+### 4. Construire et publier l'app iOS (sur un Mac)
+
+iOS se construit **uniquement sur un Mac**, avec Xcode et un compte **Apple
+Developer**. Les secrets Apple — certificats, profils de provisionnement,
+identifiants App Store Connect — ne quittent jamais votre machine (même règle que
+le keystore).
+
+1. Ouvrez `ios/Runner.xcworkspace` dans Xcode → onglet **Signing & Capabilities**
+   → choisissez votre **équipe (Team)**. Le *bundle identifier* est déjà
+   `ci.chap.app` (posé par le script).
+2. `flutter build ipa` → l'archive part vers **App Store Connect** via Xcode
+   (Organizer) ou **Transporter**.
+3. Même règle de version : le numéro de build doit dépasser le précédent
+   (`pubspec.yaml`, champ `version`).
 
 `url_launcher` (bouton « En savoir plus » de l'écran publicitaire) fonctionne
 sur le web sans configuration. Sur Android/iOS, après le `flutter create`, il
