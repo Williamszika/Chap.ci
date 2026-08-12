@@ -7,6 +7,7 @@ import 'api/messaging.dart';
 import 'api/models.dart';
 import 'api/pub.dart';
 import 'screens/home_screen.dart';
+import 'widgets/ecran_pub.dart';
 import 'data/formulaires/electronique.dart';
 import 'data/formulaires/maison.dart';
 import 'data/formulaires/mode.dart';
@@ -59,6 +60,64 @@ Future<void> main() async {
 
 Widget _pour(String shot) {
   switch (shot) {
+    case 'pub-demo':
+      // Démo vidéo : l'écran de pub qui enchaîne styles et animations.
+      return const Scaffold(
+        backgroundColor: ChapColors.cream200,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+                child: Text.rich(TextSpan(
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                  children: [
+                    TextSpan(text: 'Chap', style: TextStyle(color: ChapColors.orange)),
+                    TextSpan(text: '.ci', style: TextStyle(color: ChapColors.green)),
+                  ],
+                )),
+              ),
+              EcranPub(
+                demoRotation: Duration(seconds: 5),
+                apercu: [
+                  Pub(
+                    id: 'd1', titre: 'Grand déstockage à Adjamé',
+                    description: 'Téléphones et accessoires à prix cassés tout le week-end.',
+                    lien: null, style: 'ivoire', couleurTexte: null, images: [],
+                    kind: 'paid', anims: ['pop'], animGap: 5, animLoop: true,
+                  ),
+                  Pub(
+                    id: 'd2', titre: 'Win Immobilier',
+                    description: 'Studios et 2 pièces à louer à Cocody et Yopougon.',
+                    lien: 'https://exemple.ci', style: 'neon', couleurTexte: null, images: [],
+                    kind: 'paid', anims: ['glissement'], animGap: 5, animLoop: true,
+                  ),
+                  Pub(
+                    id: 'd3', titre: 'Promo spéciale week-end',
+                    description: 'Jusqu’à −40 % chez les vendeurs partenaires.',
+                    lien: null, style: 'impact', couleurTexte: null, images: [],
+                    kind: 'admin', anims: ['zoom'], animGap: 5, animLoop: true,
+                  ),
+                  Pub(
+                    id: 'd4', titre: 'Nouveau : livraison à Abidjan',
+                    description: 'Faites-vous livrer partout dans la ville.',
+                    lien: null, style: 'classique', couleurTexte: null, images: [],
+                    kind: 'seo', anims: ['machine'], animGap: 5, animLoop: true,
+                  ),
+                  Pub(
+                    id: 'd5', titre: 'Élégance à petit prix',
+                    description: 'La mode ivoirienne, du pagne au prêt-à-porter.',
+                    lien: null, style: 'script', couleurTexte: null, images: [],
+                    kind: 'paid', anims: ['fondu-bas'], animGap: 5, animLoop: true,
+                  ),
+                ],
+              ),
+              Spacer(),
+            ],
+          ),
+        ),
+      );
     case 'accueil':
       return HomeScreen(
         apercuPubs: const [

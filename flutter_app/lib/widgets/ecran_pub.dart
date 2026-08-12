@@ -16,7 +16,11 @@ import '../theme.dart';
 class EcranPub extends StatefulWidget {
   /// Aperçu (captures / tests) : pubs fournies, sans réseau ni rotation.
   final List<Pub>? apercu;
-  const EcranPub({super.key, this.apercu});
+
+  /// Démo (vidéo) : force la rotation en mode aperçu, à ce rythme, pour montrer
+  /// l'enchaînement des styles et des animations. Sans effet hors aperçu.
+  final Duration? demoRotation;
+  const EcranPub({super.key, this.apercu, this.demoRotation});
   @override
   State<EcranPub> createState() => _EcranPubState();
 }
@@ -38,6 +42,12 @@ class _EcranPubState extends State<EcranPub> {
       _pubs = widget.apercu!;
       _charge = true;
       _compterVue();
+      if (widget.demoRotation != null && _pubs.length > 1) {
+        _rotation = Timer.periodic(widget.demoRotation!, (_) {
+          if (!mounted) return;
+          setState(() => _idx = (_idx + 1) % _pubs.length);
+        });
+      }
     } else {
       _charger();
       _rafraichi = Timer.periodic(const Duration(seconds: 120), (_) => _charger());
