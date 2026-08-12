@@ -93,7 +93,7 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
 - IndexNow : ping automatique à la création/modification d'annonce (serveur).
 - Search Console : propriété déjà vérifiée.
 - Pixels web : Meta, TikTok et Google GA4 posés sur le site.
-- APPLICATION ANDROID : lis `.claude/bureaux/COMMUN.md` § 2, puis
+- APPLICATION (Android + iOS) : lis `.claude/bureaux/COMMUN.md` § 2, puis
   `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
 - CONSTAT MAJEUR : le catalogue est trop maigre pour ce que le SEO sait déjà
   indexer — des centaines d'URLs indexables, presque rien à y mettre. Le frein
@@ -181,20 +181,23 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
         apple-touch-icon, theme-color #F77F00.
       - La bannière « Installer l'application » doit rester présente dans le code
         servi de l'accueil. Toute disparition = P1.
-   b) Play Store (ASO — l'app n'est pas encore publique) :
+   b) Boutiques (ASO — Google Play ET App Store) :
       - Compare les mots-clés RÉELS (§3) aux textes de store/STORE-LISTING.txt
-        (titre 30 car., description courte 80 car., longue 4000 car.).
+        (Play : titre 30 car., description courte 80 car., longue 4000 car. ;
+        App Store : nom 30 car., sous-titre 30 car., mots-clés 100 car.).
       - Ne propose une réécriture QUE si le catalogue s'est diversifié : sur un
         catalogue étroit, sur-spécialiser la fiche serait prématuré.
-      - Quand l'app sera publique : vérifier qu'elle ressort sur « Chap.ci » et
-        « petites annonces Côte d'Ivoire » dans Google et sur le Play Store.
-   c) Liens profonds (App Links) — PAS encore en place
-      (/.well-known/assetlinks.json absent, c'est normal). Chantier à proposer
-      APRÈS la mise en production Play : gain = un lien chap.ci ouvre directement
-      l'app ; coût = modification native + nouvel AAB. Rappelle ce compromis sans
-      le présenter comme un défaut.
-   d) Mesure : les installations se suivent dans la Play Console uniquement
-      (les pixels web sont volontairement inactifs dans l'app).
+      - Quand l'app est publique : vérifier qu'elle ressort sur « Chap.ci » et
+        « petites annonces Côte d'Ivoire » dans Google, sur le Play Store ET sur
+        l'App Store.
+   c) Liens profonds — PAS encore en place (/.well-known/assetlinks.json absent
+      pour Android, apple-app-site-association absent pour iOS : normal).
+      Chantier à proposer APRÈS la mise en production : gain = un lien chap.ci
+      ouvre directement l'app (App Links Android + Universal Links iOS) ; coût =
+      config dans flutter_app/ + nouveau build. Rappelle ce compromis sans le
+      présenter comme un défaut.
+   d) Mesure : les installations se suivent dans la Play Console (Android) et
+      dans App Store Connect (iOS) — l'app Flutter n'embarque aucun pixel.
 
 6) PORTÉE « TOUT LE NET » (propositions, aucun envoi non validé)
    - Search Console : requêtes réelles à exploiter (demande une extraction au

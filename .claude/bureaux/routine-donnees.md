@@ -84,7 +84,7 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
 - Le goulot d'étranglement est l'OFFRE, pas la technique : le SEO est prêt
   (349 URLs indexables) mais il n'y a presque rien à indexer. Le bureau
   Croissance t'a passé le relais avec 🤝 Le Concierge.
-- APPLICATION ANDROID : lis `.claude/bureaux/COMMUN.md` § 2, puis
+- APPLICATION (Android + iOS) : lis `.claude/bureaux/COMMUN.md` § 2, puis
   `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
 - POINT DE DÉPART DE TA SÉRIE : la première mesure datée est celle du 27/07,
   16 h 30, consignée dans `.claude/bureaux/JOURNAL.md` — va l'y lire plutôt que
@@ -115,9 +115,10 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
      vendeurs pros approcher (boutiques de quartier, revendeurs de téléphones,
      couturières, restaurateurs).
    - Rappelle le levier disponible immédiatement : les testeurs du test fermé
-     Play Store doivent utiliser l'app pendant 14 jours — chaque testeur qui
-     publie 2 annonces enrichit le catalogue ET valide le test. Chiffre-le :
-     « 12 testeurs × 2 annonces = 24 annonces, 4-5 communes ».
+     Play Store doivent utiliser l'app pendant 14 jours (côté App Store, le test
+     passe par TestFlight, sans ce seuil) — chaque testeur qui publie 2 annonces
+     enrichit le catalogue ET valide le test. Chiffre-le : « 12 testeurs ×
+     2 annonces = 24 annonces, 4-5 communes ».
    - Recommande de CONCENTRER l'effort sur une niche géographique gagnable
      plutôt que de viser 22 communes à la fois.
 

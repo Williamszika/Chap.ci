@@ -70,7 +70,7 @@ MÉTHODE (obligatoire) :
   ressenti. Si un compte de test te serait utile, demande-le au Patron.
 
 ÉTAT CONNU DU PROJET (surveille, ne re-découvre pas) :
-- APPLICATION ANDROID : lis `.claude/bureaux/COMMUN.md` § 2, puis
+- APPLICATION (Android + iOS) : lis `.claude/bureaux/COMMUN.md` § 2, puis
   `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
 - CHIFFRE CLÉ : le rapport entre les VISITEURS et les ANNONCES publiées.
   Mesure-le au début de chaque ronde (`.claude/bureaux/COMMUN.md` § 1) — il a

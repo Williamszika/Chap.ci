@@ -89,7 +89,7 @@ Un silence signalé vaut mieux qu'un blanc : c'est souvent le signe d'une
 routine en panne.
 
 ÉTAT CONNU DU PROJET (contexte pour hiérarchiser) :
-- APPLICATION ANDROID : lis `.claude/bureaux/COMMUN.md` § 2, puis
+- APPLICATION (Android + iOS) : lis `.claude/bureaux/COMMUN.md` § 2, puis
   `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
 - CHEMIN CRITIQUE DU PROJET : pour un compte développeur personnel, Google
   exige 12 testeurs inscrits en continu pendant 14 jours sur un TEST FERMÉ
