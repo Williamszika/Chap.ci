@@ -119,6 +119,55 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.20 — versionCode 21
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `b9786a1` |
+| Date du build | 12 août 2026 |
+| Poids de l'AAB | **50,3 Mo** — dix fois la v1.19 (5,42 Mo), et c'est NORMAL : ce n'est plus une WebView Capacitor, c'est Flutter, qui embarque son propre moteur de rendu. L'utilisateur ne télécharge pas 50 Mo : le Play Store découpe le bundle par appareil (ABI + densité) et n'envoie que la tranche utile. |
+| **minSdk 22 · targetSdk 35** | signée avec la **NOUVELLE clé d'importation** — alias `chapci`, `CN=Chap.ci, OU=Mobile, O=Chap.ci, L=Abidjan, ST=Abidjan, C=CI`, SHA-1 `84:98:BB:44:AF:0E:22:2B:F5:3F:1E:6B:C0:D7:18:EF:0F:C8:F4:84` |
+| État Play | **PRÊTE, PAS ENCORE TÉLÉVERSÉE.** Upload possible **seulement à partir du 14/08/2026 15 h 10 UTC** (réinitialisation de la clé d'importation, voir ci-dessous). À déposer sur le **canal de test fermé**, même canal que la v1.18. NON VÉRIFIÉ. |
+
+**C'est la refonte Flutter — le plus gros changement depuis la v1.0.** L'application
+n'est plus le site enveloppé dans une WebView Capacitor : c'est une application
+Flutter native, reconstruite écran par écran, qui parle au **même** backend PHP
+(`chap.ci/api`) — aucun changement serveur. L'`applicationId` reste `ci.chap.app` :
+pour le Play Store, c'est une **mise à jour** de l'app existante, pas une nouvelle app.
+
+**Le dossier `android/` n'est plus régénéré par `cap sync` mais par
+`dart run tool/preparer_plateformes.dart`** (équivalent Flutter : il recrée
+`android/` ET `ios/`, applique l'identifiant, l'icône, les permissions et la config
+de signature). Le keystore et son mot de passe **vivent uniquement sur le Mac du
+Patron**, sauvegardés hors machine — jamais dans le dépôt.
+
+> ⚠️ **La clé d'importation a changé — l'ancien keystore Capacitor a été perdu.**
+> Google a accepté une **réinitialisation de la clé d'importation** (Play App
+> Signing) : la nouvelle clé (SHA-1 `84:98:…:F4:84`) prend effet le **14 août 2026
+> à 15 h 10 UTC**. AUCUN téléversement n'est possible avant cette heure.
+> **Ce que voient les utilisateurs ne change pas** : grâce à Play App Signing,
+> Google resigne chaque installation avec la clé d'application d'origine
+> (SHA-1 `0E:C0:95:D9:…:FE:33`, inchangée depuis la v1.0). Seule la clé qui sert
+> à *déposer* le fichier a été renouvelée.
+
+> ⚠️ **`targetSdk 35` — accepté jusqu'au 30 août 2026 seulement.** Ce build passe
+> s'il est déposé avant cette date (il l'est : upload prévu le 14/08). Mais
+> `tool/preparer_plateformes.dart` fige `targetSdk = 35` : **tout build produit
+> à partir du 31 août sera refusé** tant que le script (et le `build.gradle.kts`
+> qu'il écrit) ne montent pas à `targetSdk 36`, comme la v1.19 l'avait fait côté
+> Capacitor. À corriger dans le script avant la prochaine version.
+
+**Ce que la refonte apporte** (repris des notes de version, `store/notes-version-v1.20.md`) :
+placement GPS de l'annonce à l'endroit exact ; couverture de toute la Côte d'Ivoire ;
+couleurs et variantes ; notifications quand un acheteur écrit ; connexion plus sûre.
+Côté administration, l'app couvre désormais aperçu, modération, utilisateurs, annonces,
+sauvegardes, newsletter, campagnes, e-mails/SMTP, modérateurs, messages de contact,
+avis, commandes et conversations. La ligne « reconnectez-vous une fois » des notes
+est volontaire : l'ancienne app et la nouvelle ne rangent pas la session au même
+endroit (rien n'est perdu, tout est sur le serveur).
+
+---
+
 ## v1.19 — versionCode 20
 
 | Champ | Valeur |
