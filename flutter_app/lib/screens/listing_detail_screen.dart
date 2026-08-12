@@ -3,6 +3,8 @@ import 'package:share_plus/share_plus.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
+import '../data/categories.dart';
+import '../data/formulaires/registre.dart';
 import '../format.dart';
 import '../theme.dart';
 import '../widgets/bouton_favori.dart';
@@ -84,7 +86,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 _prix(a),
                 const SizedBox(height: 12),
                 _badges(a),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
+                _filAriane(a),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     const Icon(Icons.schedule,
@@ -93,8 +97,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     Text('Publié ${tempsEcoule(a.createdAt)}',
                         style: const TextStyle(
                             fontSize: 12.5, color: ChapColors.gray600)),
+                    if (a.views > 0) ...[
+                      const SizedBox(width: 12),
+                      const Icon(Icons.visibility_outlined,
+                          size: 14, color: ChapColors.gray500),
+                      const SizedBox(width: 4),
+                      Text('${a.views} ${a.views == 1 ? 'vue' : 'vues'}',
+                          style: const TextStyle(
+                              fontSize: 12.5, color: ChapColors.gray600)),
+                    ],
                   ],
                 ),
+                _detailsSection(a),
                 const Divider(height: 30, color: ChapColors.line),
                 const Text('Description',
                     style: TextStyle(
@@ -247,6 +261,125 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           puce('🚚 Livraison', const Color(0xFFE6F6EE), ChapColors.greenDark),
       ],
     );
+  }
+
+  Widget _filAriane(Listing a) {
+    final cat = nomCategorie(a.categoryId);
+    final sous = a.subcategory;
+    final texte = (sous != null && sous.isNotEmpty) ? '$cat · $sous' : cat;
+    return Row(
+      children: [
+        const Icon(Icons.local_offer_outlined,
+            size: 13, color: ChapColors.gray500),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(texte,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  const TextStyle(fontSize: 12.5, color: ChapColors.gray600)),
+        ),
+      ],
+    );
+  }
+
+  /// La section « Détails » — État, les réponses du formulaire (Taille, Marque,
+  /// Pour…) étiquetées par le schéma, puis Livraison. Même contenu que la fiche
+  /// du site. Rien si l'annonce n'a aucun détail à montrer.
+  Widget _detailsSection(Listing a) {
+    final items = _details(a);
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 30, color: ChapColors.line),
+        const Text('Détails',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: ChapColors.gray900)),
+        const SizedBox(height: 10),
+        for (final it in items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 120,
+                  child: Text(it.$1,
+                      style: const TextStyle(
+                          fontSize: 13.5, color: ChapColors.gray600)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(it.$2,
+                      style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: ChapColors.gray900)),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Construit la liste « libellé → valeur » comme le site : État d'abord, puis
+  /// les champs du schéma qui ont une réponse, les éventuels champs restants
+  /// (anciens formulaires) hors variantes couleur, et enfin Livraison.
+  List<(String, String)> _details(Listing a) {
+    final items = <(String, String)>[];
+    final schema = schemaPour(a.categoryId, a.subcategory);
+
+    if (schema == null || schema.etat != false) {
+      items.add(('État', a.condition == 'neuf' ? 'Neuf' : 'Occasion'));
+    }
+
+    String? fmt(dynamic v) {
+      if (v == null) return null;
+      if (v is List) {
+        final s = v
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty)
+            .join(', ');
+        return s.isEmpty ? null : s;
+      }
+      if (v is bool) return v ? 'Oui' : 'Non';
+      final s = v.toString().trim();
+      return s.isEmpty ? null : s;
+    }
+
+    final vus = <String>{};
+    if (schema != null) {
+      for (final champ in schema.champs) {
+        final v = fmt(a.attributes[champ.cle]);
+        if (v == null) continue;
+        items.add((champ.libelle, v));
+        vus.add(champ.cle);
+      }
+    }
+
+    // Champs restants (sous-catégorie non portée, anciens formulaires), hors
+    // variantes couleur (`var_…`) et clés internes.
+    const internes = {'docs', 'couleurs', 'lat', 'lng', 'region_id', 'city_id'};
+    for (final e in a.attributes.entries) {
+      if (vus.contains(e.key) ||
+          e.key.startsWith('var_') ||
+          internes.contains(e.key)) {
+        continue;
+      }
+      final v = fmt(e.value);
+      if (v == null) continue;
+      final k = e.key;
+      items.add(
+          (k.isEmpty ? k : '${k[0].toUpperCase()}${k.substring(1)}', v));
+    }
+
+    if (schema?.livraison == true) {
+      items.add(('Livraison', a.delivery ? 'Possible' : 'Sur place'));
+    }
+    return items;
   }
 
   Widget _vendeur(Listing a) {

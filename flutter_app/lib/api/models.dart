@@ -31,6 +31,11 @@ class Listing {
   final bool sold;
   final int views;
 
+  /// Les réponses du formulaire de publication, clé de champ → valeur (texte,
+  /// liste pour un choix multiple, booléen pour une bascule). Sert à afficher
+  /// le détail « État · Taille · Marque… » comme sur le site. Vide si absent.
+  final Map<String, dynamic> attributes;
+
   const Listing({
     required this.id,
     required this.title,
@@ -53,6 +58,7 @@ class Listing {
     this.hidden = false,
     this.sold = false,
     this.views = 0,
+    this.attributes = const {},
   });
 
   /// Le prix à afficher : le promo s'il est actif, sinon le prix normal.
@@ -92,6 +98,9 @@ class Listing {
       hidden: j['hidden'] == true,
       sold: j['sold'] == true,
       views: (j['views'] is num) ? (j['views'] as num).toInt() : 0,
+      attributes: (j['attributes'] is Map)
+          ? Map<String, dynamic>.from(j['attributes'] as Map)
+          : const {},
     );
   }
 
