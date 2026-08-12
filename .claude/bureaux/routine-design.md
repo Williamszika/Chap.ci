@@ -99,27 +99,29 @@ CHANTIER OUVERT, À POURSUIVRE PAR PETITS LOTS :
    Vérifie en priorité les écrans les plus vus : accueil, explorer, fiche
    annonce, publier, connexion/inscription, messagerie.
 
-3) SCAN DE L'APPLICATION (Android — même code React, contraintes en plus)
-   L'app embarque l'interface du site : tes correctifs la servent aussi. Mais
-   certains points ne concernent QUE l'app — vérifie-les :
-   - Encoches et barres système : les écrans qui touchent le haut ou le bas
-     doivent utiliser .safe-top / .safe-bottom (sinon le contenu passe sous la
-     barre d'état ou la barre de navigation gestuelle).
-   - Barre d'état : NativeShell la règle en fond crème avec icônes sombres.
-     Signale tout écran dont l'en-tête (héro orange, par exemple) jure avec ce
-     réglage.
-   - Pas de survol dans l'app : tout effet « hover » doit être protégé par le
-     préfixe md:hover (sinon il reste collé après un tap). C'est une régression
-     fréquente et facile à repérer.
-   - Cibles tactiles : dans l'app, il n'y a pas de curseur de secours — les
-     44 px sont un minimum strict, pouce en marchant, en plein soleil.
-   - Tablette : l'app est distribuée pour téléphones ET tablettes. Vérifie que
-     les écrans clés ne s'étirent pas bêtement au-delà de ~900 px de large
-     (conteneurs centrés, grilles qui gagnent des colonnes plutôt que de
-     grossir).
-   - Poids visuel : images et animations sobres — réseau 3G et téléphones
-     d'entrée de gamme (Tecno / Infinix) sont la cible.
-   Ne touche pas au dossier android/ : il n'est pas dans le dépôt.
+3) L'APPLICATION EST EN FLUTTER (depuis la v1.20) — un code séparé du site
+   Attention : l'app n'embarque PLUS l'interface du site. C'est une application
+   Flutter native (flutter_app/), avec ses PROPRES écrans. Tes correctifs sur le
+   site ne la corrigent donc plus automatiquement — et tu ne peux pas juger ses
+   écrans depuis le site en ligne.
+   Si le dépôt est à ta disposition, examine flutter_app/lib/screens/ ; sinon,
+   dis clairement que le design de l'app se revoit dans flutter_app/, pas ici, et
+   concentre ce rapport sur le SITE.
+   Les principes à vérifier dans l'app Flutter (par lecture du code, ou à confier
+   au Développement) :
+   - Zones sûres : les écrans qui touchent le haut ou le bas utilisent SafeArea
+     (sinon le contenu passe sous la barre d'état ou la barre gestuelle).
+   - Barre d'état : fond crème, icônes sombres, cohérente avec les en-têtes — un
+     héro orange ne doit pas jurer avec ce réglage.
+   - Cibles tactiles : 48 px minimum (Material) — pouce en marchant, plein soleil.
+   - Tablette : l'app couvre téléphones ET tablettes. Les écrans clés ne doivent
+     pas s'étirer bêtement au-delà de ~900 px de large (conteneurs centrés,
+     grilles qui gagnent des colonnes plutôt que de grossir).
+   - Poids visuel : images et animations sobres — 3G et téléphones d'entrée de
+     gamme (Tecno / Infinix) sont la cible.
+   (Pas de « hover » à protéger : c'était une contrainte web ; en Flutter, il n'y
+   a pas d'état survol sur mobile.)
+   Ne touche pas aux dossiers android/ et ios/ : ils ne sont pas dans le dépôt.
 
 4) PROPOSITIONS PRIORISÉES
    - P1 : accessibilité des flux fréquents (contraste du texte utile, cibles

@@ -4,7 +4,7 @@
 permet de savoir ce que les utilisateurs de l'application ont réellement entre les
 mains, et donc ce qui leur manque.
 
-Le dossier `android/` n'est pas dans le dépôt — il est régénéré par `cap sync` — et
+Le dossier `android/` n'est pas dans le dépôt — il est régénéré par `dart run tool/preparer_plateformes.dart` (Flutter, depuis la v1.20) — et
 l'AAB est signé sur la machine du Patron. **Rien dans le dépôt ne peut donc dire quelle
 version tourne sur le Play Store.** D'où ce fichier, tenu à la main.
 
@@ -63,7 +63,7 @@ autrement dit `git log --oneline -1` juste après avoir commité la montée de v
 | Version publiée | ✅ **v1.18 (code 19) en ligne sur le canal de TEST FERMÉ** depuis le 6 août 2026 — première mise en ligne réelle du projet (les v1.9, v1.16 et v1.17 étaient restées en brouillon). Google a notifié « Mise à jour de l'appli publiée », relevé par le Patron le 7 août, puis **confirmé dans la Play Console le 10/08/2026** : « Dernière release : 19 (1.18) », canal actif, 1 pays/région. ⚠️ **Ce n'est PAS la production** (production « Inactif », bloquée par l'exigence « 12 testeurs / 14 jours »). Le canal est ouvert : **1 testeur inscrit sur 12** — listes « Ange19 » + « testeurs2 » ajoutées, mais chaque personne doit encore cliquer `play.google.com/apps/testing/ci.chap.app` et installer ; le compte à rebours des 14 jours n'a pas démarré. | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
-| Projet dans le dépôt | non (`/android` ignoré, régénéré par `cap sync`) | non (`/ios` ignoré) |
+| Projet dans le dépôt | non (`/android` ignoré, régénéré par `dart run tool/preparer_plateformes.dart`) | non (`/ios` ignoré, régénéré de même) |
 
 **Un seul binaire par boutique couvre tous les formats.** Il n'existe pas de « version
 tablette » à part : le même AAB sert téléphones et tablettes Android, le même IPA sert

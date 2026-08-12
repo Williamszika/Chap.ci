@@ -400,27 +400,32 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      reste, quel que soit son nom.
      Un zip n'efface jamais ce qu'il ne remplace pas : ce dossier accumule.
 
-6) SCAN DE CODE DE L'APPLICATION (Capacitor — lecture seule)
-   L'app Android embarque le code web du dépôt + une couche native fine.
-   Vérifie :
-   - capacitor.config.ts : appId toujours « ci.chap.app ». ALERTE si une clé
-     « server.url » apparaît (l'app chargerait un site distant — jamais voulu).
-   - src/lib/native.ts : SITE_ORIGIN === 'https://chap.ci' (https, ce domaine
-     uniquement).
-   - src/components/NativeShell.tsx : gestionnaire « backButton » et réglage
-     StatusBar présents — le bouton retour Android ne doit jamais redevenir
-     « fermer l'app ».
-   - src/lib/marketing.ts : le garde « if (isNative) return » est intact —
-     aucun pixel publicitaire ne doit tourner dans l'app native.
-   - package.json : plugins @capacitor/* attendus = core, cli, android, ios,
-     app, geolocation, splash-screen, status-bar. (Le projet iOS existe depuis
-     l'origine bien qu'aucune app iOS ne soit publiée : ce n'est PAS une
-     anomalie.) Tout plugin NOUVEAU est à signaler avec sa raison d'être.
-   - scripts/android-slim.mjs : présent et chaîné dans cap:sync / cap:android
-     (c'est lui qui garde l'app à quelques mégaoctets au lieu de 35).
-   Rappel : le dossier android/ et l'AAB ne sont pas dans le dépôt ; leur
-   contrôle (signature, targetSdk, taille) relève du Développement au moment du
-   build. Ne le signale pas comme un manque.
+6) SCAN DE CODE DE L'APPLICATION (Flutter — lecture seule)
+   Depuis la v1.20, l'application n'est PLUS le site enveloppé dans Capacitor :
+   c'est une application FLUTTER native, code séparé dans flutter_app/ (Dart),
+   qui parle au même backend PHP. Ignore les vieux fichiers Capacitor s'ils
+   traînent encore (capacitor.config.ts, plugins @capacitor/*,
+   scripts/android-slim.mjs, src/lib/native.ts, src/components/NativeShell.tsx) :
+   ils ne servent plus à l'application.
+   Vérifie, dans flutter_app/ :
+   - lib/api/api_client.dart : la base par défaut reste « https://chap.ci/api »
+     (https, ce domaine). ALERTE si elle pointe ailleurs (localhost, une IP, un
+     autre domaine) — l'app parlerait au mauvais serveur.
+   - tool/preparer_plateformes.dart : l'identifiant reste « ci.chap.app » sur les
+     deux plateformes ; il ne déclare que les autorisations attendues (Internet,
+     appareil photo, position). Signale toute autorisation NOUVELLE, et tout
+     schéma d'URL nouveau (au-delà de « chapci », le retour de la connexion
+     Facebook web).
+   - pubspec.yaml : signale toute DÉPENDANCE nouvelle — surtout un paquet à
+     couche native lourde, ou qui capte des données (analytique, pub tierce,
+     traçage). Aucun pixel publicitaire tiers ne doit tourner dans l'app.
+   - Aucun secret dans le dépôt : uniquement des identifiants OAuth PUBLICS
+     (App ID Facebook, client ID Google), embarqués par nature. Le fichier de
+     signature (android/key.properties) et le keystore ne sont PAS suivis par
+     Git — leur absence du dépôt est NORMALE, ne la signale pas comme un manque.
+   Rappel : les dossiers android/ et ios/, et l'AAB/IPA, ne sont pas dans le
+   dépôt (régénérés par tool/preparer_plateformes.dart) ; leur contrôle
+   (signature, targetSdk, taille) relève du Développement au moment du build.
 
 7) MODÉRATION (ton seul droit d'action)
    curl -sS -H 'X-Service-Token: JETON_MODERATION_ICI' 'https://chap.ci/api/mod/queue'

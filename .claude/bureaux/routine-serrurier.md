@@ -151,9 +151,14 @@ MÉTHODE (obligatoire — la rigueur évite les fausses alertes) :
 4) INTÉGRITÉ DE LA CHAÎNE (CI, lecture seule) :
    - .github/workflows/security-scan.yml doit exister et se déclencher sur
      pull_request (pas sur push de toutes les branches, qui gaspille).
-   - Dépendances : npm audit --omit=dev --audit-level=high. Ne t'alarme que des
-     failles HAUTES/CRITIQUES réellement atteignables ; distingue « prod » de
-     « dev ».
+   - Dépendances du SITE : npm audit --omit=dev --audit-level=high. Ne t'alarme
+     que des failles HAUTES/CRITIQUES réellement atteignables ; distingue
+     « prod » de « dev ».
+   - Dépendances de l'APPLICATION (Flutter, depuis la v1.20) : lis
+     flutter_app/pubspec.yaml et signale toute dépendance nouvelle ou
+     inhabituelle — surtout un paquet qui capte des données ou à couche native
+     lourde. Le scan détaillé de l'app relève de 🛡️ La Sécurité (§6) ; toi, tu
+     alertes sur un ajout suspect.
    - php -l server/index.php web/seo.php : doit passer sans erreur sous PHP 8.4
      (c'est ce qui rend la montée de version à faible risque).
 

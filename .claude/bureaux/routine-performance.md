@@ -114,9 +114,11 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
 - Photos d'annonces redimensionnées à 1280 px AVANT envoi.
 - Délai de garde réseau de 15 s sur les appels API (src/lib/php.ts:104) : une
   requête qui traîne est interrompue plutôt que de figer l'écran.
-- scripts/android-slim.mjs retire les bannières /og/ et les binaires ort* de
-  l'app après « cap sync » : c'est ce qui la garde à quelques mégaoctets au
-  lieu de 35.
+- L'application est en Flutter depuis la v1.20 : un code NATIF séparé du site
+  (flutter_app/), avec son propre moteur de rendu (AAB ~50 Mo, que le Play Store
+  découpe par appareil au téléchargement). Les optimisations du site ne
+  l'allègent plus — sa performance se mesure à part (§7). Oublie « cap sync » et
+  android-slim.mjs : l'ancien monde Capacitor.
 
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 
@@ -165,22 +167,25 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
        'https://chap.ci/api/cron/security?days=7'  → un failRatio qui grimpe ou
      des 5xx récurrents sont un signal de fiabilité, pas seulement de sécurité.
 
-7) PERFORMANCE DE L'APPLICATION (Android)
-   L'app embarque le même code web : tes gains la servent aussi. Mais elle a
-   ses propres contraintes — vérifie-les :
+7) PERFORMANCE DE L'APPLICATION (Flutter — Android et iOS)
+   Depuis la v1.20, l'app n'embarque PLUS le code web : c'est une application
+   Flutter native, séparée (flutter_app/). Tes gains sur le site ne la servent
+   donc PAS automatiquement — sa performance se mesure à part.
    - Poids de l'installation : lis le poids de l'AAB dans store/APP-VERSIONS.md,
      version la plus récente en tête — ne recopie JAMAIS un chiffre ici, il
-     vieillit en silence (celui-ci a annoncé « 6,5 Mo, v1.2 » pendant quinze
-     builds). Toute dépendance ajoutée au bundle web grossit AUSSI l'app :
-     signale toute librairie lourde nouvelle.
+     vieillit en silence. Un AAB Flutter pèse ~50 Mo (moteur de rendu embarqué) :
+     c'est NORMAL, et le Play Store n'envoie à chaque appareil que la tranche
+     utile (ABI + densité). Ce qu'il faut surveiller, c'est une hausse ANORMALE
+     d'une version à l'autre, ou une dépendance lourde nouvelle dans
+     flutter_app/pubspec.yaml — signale-la.
    - Démarrage à froid : l'écran de lancement doit s'effacer dès l'interface
-     prête (SplashScreen.hide() dans NativeShell) — un splash qui traîne se lit
-     comme une lenteur.
+     prête — un splash qui traîne se lit comme une lenteur.
    - Réseau faible : l'app est hors ligne dès que la 3G lâche. Repère les écrans
      qui restent bloqués sans message et signale-les au bureau Support.
-   - Ne touche pas au dossier android/ : il n'est pas dans le dépôt. La taille
-     de l'AAB, le targetSdk et la signature relèvent du Développement au moment
-     du build — ne les signale pas comme des manques.
+   - Ne touche pas aux dossiers android/ et ios/ : ils ne sont pas dans le dépôt
+     (régénérés par tool/preparer_plateformes.dart). La taille du binaire, le
+     targetSdk et la signature relèvent du Développement au moment du build — ne
+     les signale pas comme des manques.
 
 8) COMPTE-RENDU priorisé (P1 → P3) au format du journal :
    ### AAAA-MM-JJ HH:MM — [Performance] ⚡ Le Mécanicien
