@@ -132,18 +132,26 @@ DÉJÀ EN PLACE POUR RÉDUIRE LA FRICTION — ne pas re-proposer :
    Messages d'erreur explicites, formulaires étiquetés, cibles ≥ 44 px,
    contraste des textes d'aide. Signale à l'Atelier, ne double pas son travail.
 
-6) EXPÉRIENCE DANS L'APPLICATION
-   - Installation : la bannière « Installer l'application » est-elle visible et
-     compréhensible ? Le chemin iPhone (Partager → Sur l'écran d'accueil)
-     est-il clair pour quelqu'un qui ne connaît pas ?
-   - Dans l'app : le bouton retour Android recule bien dans l'app (et demande
-     confirmation avant de quitter à la racine) ; aucun écran ne doit inviter à
-     « ouvrir dans le navigateur ».
-   - Hors ligne / réseau faible : que voit l'utilisateur quand la connexion
-     lâche au milieu d'une publication ? C'est le cas d'usage ivoirien type —
-     signale tout écran qui laisse l'utilisateur sans explication.
-   - Rappelle, si utile, que l'app n'est pas encore publique : les retours des
-     testeurs internes sont une source précieuse à réclamer au Patron.
+6) EXPÉRIENCE DANS L'APPLICATION (Flutter — Android et iOS)
+   L'app est une vraie application NATIVE (Flutter), installée depuis Google Play
+   ou l'App Store — ce n'est plus une WebView. Deux chemins d'accès coexistent :
+   l'app des boutiques, et l'installation PWA depuis le navigateur (bannière
+   « Installer l'application » sur le site).
+   - Installation : la bannière PWA du SITE est-elle claire ? Et, pour l'app
+     native, la fiche boutique donne-t-elle confiance (captures, description) ?
+     Le chemin PWA iPhone (Partager → Sur l'écran d'accueil) reste utile à
+     expliquer tant que l'app iOS n'est pas publiée.
+   - Dans l'app native : les parcours clés (accueil, annonce, publier, messages,
+     compte) sont-ils fluides ? Le retour arrière ramène-t-il à l'écran précédent
+     sans sortir brutalement de l'app ? En Flutter c'est géré nativement — il n'y
+     a plus de bouton retour de WebView ni d'invitation à « ouvrir dans le
+     navigateur » ; si tu vois encore ce genre de chose, signale-le.
+   - Hors ligne / réseau faible : que voit l'utilisateur quand la connexion lâche
+     au milieu d'une publication ou d'une connexion sociale ? C'est le cas
+     d'usage ivoirien type — signale tout écran qui reste bloqué sans message.
+   - Retours des testeurs : selon l'état de chaque boutique (voir COMMUN.md § 2
+     et store/APP-VERSIONS.md), les retours des testeurs Play et TestFlight (iOS)
+     sont une source précieuse à réclamer au Patron.
 
 7) COMPTE-RENDU priorisé (P1 → P3) au format du journal :
    ### AAAA-MM-JJ HH:MM — [Support & Expérience] 🤝 Le Concierge
