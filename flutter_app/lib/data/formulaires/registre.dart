@@ -124,6 +124,28 @@ final Map<String, Map<String, Schema>> _schemas = {
 /// Les sous-catégories d'une catégorie, ou une liste vide si elle n'en a pas.
 List<String> sousDe(String categoryId) => nomsSous[categoryId] ?? const [];
 
+/// Une catégorie propose-t-elle le choix « neuf / occasion » ?
+///
+/// L'état se règle par SOUS-catégorie (`Schema.etat`) : un lapin, de l'attiéké
+/// ou un billet d'avion n'ont pas de « neuf/occasion ». Une catégorie « a un
+/// état » dès qu'AU MOINS une de ses sous-catégories en propose un — c'est la
+/// granularité disponible sur l'explorateur, qui ne filtre que par catégorie.
+///
+/// Une sous-catégorie non encore portée retombe sur le formulaire de base, qui
+/// propose l'état : on la compte donc comme « avec état ». Résultat : seules les
+/// catégories dont TOUTES les sous-catégories sont explicitement sans état
+/// (Alimentation, Emploi, Services, Voyage, À donner…) renvoient `false`.
+bool categorieAEtat(String categoryId) {
+  final noms = nomsSous[categoryId];
+  if (noms == null || noms.isEmpty) return true; // inconnue : on garde le filtre
+  for (final nom in noms) {
+    final s = _schemas[categoryId]?[nom];
+    if (s == null) return true; // sous-cat. non portée → base → état proposé
+    if (s.etat != false) return true; // true, ou fonction conditionnelle
+  }
+  return false; // toutes les sous-catégories sont explicitement sans état
+}
+
 /// Le formulaire détaillé d'une sous-catégorie, ou `null` s'il n'est pas encore
 /// porté (le formulaire de base prend alors le relais).
 Schema? schemaPour(String? categoryId, String? sousNom) {

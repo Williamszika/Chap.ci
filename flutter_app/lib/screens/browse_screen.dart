@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../data/categories.dart';
+import '../data/formulaires/registre.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
@@ -67,12 +68,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
     return list;
   }
 
+  /// Le filtre Neuf/Occasion n'a de sens que pour une catégorie qui propose un
+  /// état. On le cache sur « Toutes » (mélange de catégories) et sur celles
+  /// sans neuf/occasion (Alimentation, Emploi, Voyage…), comme sur le site où
+  /// l'état se règle par catégorie.
+  bool get _montrerEtat => _categorie != null && categorieAEtat(_categorie!);
+
   List<Listing> _filtrer(List<Listing> toutes) {
     final q = _plat(_recherche.trim());
     var r = toutes.where((a) {
       if (a.sold) return false;
       if (_categorie != null && a.categoryId != _categorie) return false;
-      if (_condition != 'tous' && a.condition != _condition) return false;
+      if (_montrerEtat && _condition != 'tous' && a.condition != _condition) {
+        return false;
+      }
       if (_commune != null && a.commune != _commune) return false;
       if (q.isNotEmpty) {
         final texte = _plat('${a.title} ${a.description}');
@@ -195,11 +204,19 @@ class _BrowseScreenState extends State<BrowseScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         children: [
+          // Changer de catégorie remet l'état à « Tous » : la sélection
+          // neuf/occasion est propre à chaque catégorie, elle ne se traîne pas.
           _chip('Toutes', _categorie == null,
-              () => setState(() => _categorie = null)),
+              () => setState(() {
+                    _categorie = null;
+                    _condition = 'tous';
+                  })),
           for (final c in categories)
             _chip('${c.emoji} ${c.nom}', _categorie == c.id,
-                () => setState(() => _categorie = c.id)),
+                () => setState(() {
+                      _categorie = c.id;
+                      _condition = 'tous';
+                    })),
         ],
       ),
     );
@@ -232,21 +249,26 @@ class _BrowseScreenState extends State<BrowseScreen> {
       padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
       child: Row(
         children: [
-          // État : Tous / Neuf / Occasion
-          Expanded(
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'tous', label: Text('Tous')),
-                ButtonSegment(value: 'neuf', label: Text('Neuf')),
-                ButtonSegment(value: 'occasion', label: Text('Occasion')),
-              ],
-              selected: {_condition},
-              onSelectionChanged: (s) => setState(() => _condition = s.first),
-              style: const ButtonStyle(visualDensity: VisualDensity.compact),
-              showSelectedIcon: false,
+          // État : Tous / Neuf / Occasion — seulement pour les catégories qui
+          // ont un neuf/occasion (voir _montrerEtat).
+          if (_montrerEtat) ...[
+            Expanded(
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'tous', label: Text('Tous')),
+                  ButtonSegment(value: 'neuf', label: Text('Neuf')),
+                  ButtonSegment(value: 'occasion', label: Text('Occasion')),
+                ],
+                selected: {_condition},
+                onSelectionChanged: (s) =>
+                    setState(() => _condition = s.first),
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                showSelectedIcon: false,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
+            const SizedBox(width: 8),
+          ] else
+            const Spacer(),
           _menuFiltres(communes),
         ],
       ),
