@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
@@ -6,6 +7,7 @@ import '../format.dart';
 import '../theme.dart';
 import '../widgets/bouton_favori.dart';
 import 'conversation_screen.dart';
+import 'vendeur_screen.dart';
 
 /// Fiche d'une annonce — le détail complet : photos, prix, état, description,
 /// vendeur, et le bouton « Contacter ».
@@ -14,7 +16,13 @@ import 'conversation_screen.dart';
 /// instantané, et on enregistre la vue en arrière-plan.
 class ListingDetailScreen extends StatefulWidget {
   final Listing annonce;
-  const ListingDetailScreen({super.key, required this.annonce});
+
+  /// En mode aperçu (tests, captures d'écran), on ne compte pas la vue : pas
+  /// d'appel réseau, l'écran reste déterministe.
+  final bool apercu;
+
+  const ListingDetailScreen(
+      {super.key, required this.annonce, this.apercu = false});
 
   @override
   State<ListingDetailScreen> createState() => _ListingDetailScreenState();
@@ -27,8 +35,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Une vue, comptée en silence.
-    Listing.marquerVue(widget.annonce.id);
+    // Une vue, comptée en silence — sauf en aperçu (pas de réseau).
+    if (!widget.apercu) Listing.marquerVue(widget.annonce.id);
   }
 
   @override
@@ -49,11 +57,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             child: Center(
                 child: BoutonFavori(listingId: a.id, taille: 24)),
           ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: 'Partager',
-            onPressed: () => _info(context,
-                'Le partage arrive bientôt. En attendant, retrouvez cette annonce sur chap.ci.'),
+          Builder(
+            builder: (btnContext) => IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Partager',
+              onPressed: () => _partager(btnContext, a),
+            ),
           ),
         ],
       ),
@@ -241,7 +250,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 
   Widget _vendeur(Listing a) {
-    return Row(
+    // Certaines annonces (l'équipe Chap.ci) n'ont pas de compte vendeur unique :
+    // dans ce cas, pas de page à ouvrir, le bloc reste simplement informatif.
+    final aVendeur = a.sellerId != null && a.sellerId!.isNotEmpty;
+    final contenu = Row(
       children: [
         const CircleAvatar(
           radius: 22,
@@ -270,13 +282,56 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   ],
                 ],
               ),
-              const Text('Vendeur sur Chap.ci',
-                  style: TextStyle(fontSize: 12.5, color: ChapColors.gray600)),
+              Text(
+                  aVendeur
+                      ? 'Voir ses annonces et ses infos'
+                      : 'Vendeur sur Chap.ci',
+                  style: const TextStyle(
+                      fontSize: 12.5, color: ChapColors.gray600)),
             ],
           ),
         ),
+        if (aVendeur)
+          const Icon(Icons.chevron_right, color: ChapColors.gray500),
       ],
     );
+
+    if (!aVendeur) return contenu;
+    return InkWell(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => VendeurScreen(
+          sellerId: a.sellerId!,
+          sellerName: a.sellerName,
+          sellerVerified: a.sellerVerified,
+        ),
+      )),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: contenu,
+      ),
+    );
+  }
+
+  /// Ouvre la feuille de partage native (réseaux sociaux, WhatsApp, « Copier »…)
+  /// avec le lien public de l'annonce. `sharePositionOrigin` est requis sur iPad,
+  /// sinon la feuille ne sait pas d'où s'ancrer.
+  Future<void> _partager(BuildContext ctx, Listing a) async {
+    final url = 'https://chap.ci/annonce/${a.id}';
+    final box = ctx.findRenderObject() as RenderBox?;
+    try {
+      await SharePlus.instance.share(ShareParams(
+        text: '${a.title} — ${formatFCFA(a.prixAffiche)}\n$url',
+        subject: '${a.title} · Chap.ci',
+        sharePositionOrigin:
+            box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+      ));
+    } catch (_) {
+      if (mounted) {
+        _info(context,
+            'Le partage n’a pas pu s’ouvrir. Voici le lien de l’annonce : $url');
+      }
+    }
   }
 
   Widget _barreContact(BuildContext context, Listing a) {
