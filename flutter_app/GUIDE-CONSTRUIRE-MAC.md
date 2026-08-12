@@ -45,14 +45,19 @@ retapez `flutter --version`.)
 
 ## Étape 3 — Android Studio (pour le SDK Android)
 
-C'est lui qui apporte les outils Android. **Vous l'avez peut-être déjà** de
-l'ancienne application.
+C'est lui qui apporte les outils Android. **Obligatoire** pour construire l'AAB
+(sans lui : « Unable to locate Android SDK »).
 
-1. S'il n'est pas installé : allez sur **developer.android.com/studio**,
-   téléchargez, ouvrez le fichier `.dmg`, glissez **Android Studio** dans
-   **Applications**, puis **ouvrez-le une fois** (il installe le SDK tout seul —
-   acceptez les écrans par défaut).
-2. De retour dans le Terminal, acceptez les licences :
+1. Allez sur **developer.android.com/studio**, téléchargez, ouvrez le fichier
+   `.dmg`, glissez **Android Studio** dans **Applications**.
+2. **Ouvrez Android Studio.** Au premier lancement, l'assistant **Setup Wizard**
+   s'ouvre → choisissez **Standard** → Next → il télécharge le SDK Android
+   (~1 Go, patientez ; acceptez les licences à l'écran) → **Finish**.
+3. **Ajoutez les « Command-line Tools »** (souvent nécessaires, sinon l'étape des
+   licences plus bas échoue) : dans Android Studio, écran d'accueil →
+   **More Actions** (ou l'icône ⚙️) → **SDK Manager** → onglet **SDK Tools** →
+   cochez **« Android SDK Command-line Tools (latest) »** → **Apply** → OK.
+4. Fermez Android Studio. De retour dans le Terminal, acceptez les licences :
 
 ```
 flutter doctor --android-licenses
@@ -60,14 +65,17 @@ flutter doctor --android-licenses
 
 Tapez `y` puis Entrée à chaque question, jusqu'au bout.
 
-3. Vérifiez :
+5. Vérifiez :
 
 ```
 flutter doctor
 ```
 
-Vous voulez une **coche verte ✓** en face de « Android toolchain ». Si une ligne
-reste rouge, elle vous dit quoi faire ; refaites `flutter doctor` après.
+Vous voulez une **coche verte ✓** en face de « Android toolchain ».
+
+> Si `flutter doctor` ne trouve toujours pas le SDK après tout ça, indiquez-lui
+> son emplacement habituel :
+> `flutter config --android-sdk ~/Library/Android/sdk`
 
 ---
 
