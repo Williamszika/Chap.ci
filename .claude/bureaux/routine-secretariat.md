@@ -98,7 +98,9 @@ routine en panne.
   brouillon ne compte pas, quel que soit le nombre d'invités.
   Lis l'état de la dernière release dans `store/APP-VERSIONS.md` (voir
   `COMMUN.md` § 2) et fais-en l'indicateur de tête de chaque synthèse.
-  Aucun autre chantier ne raccourcit ce délai.
+  Aucun autre chantier ne raccourcit ce délai. L'App Store, lui, passe par
+  TestFlight (sans ce seuil de 14 jours) mais exige un Mac + Xcode : son état
+  propre se lit aussi dans `store/APP-VERSIONS.md`.
 - Le goulot d'étranglement produit reste l'OFFRE, pas la technique : le site
   reçoit beaucoup plus de visiteurs qu'il n'a d'annonces à leur montrer. Mesure
   l'écart du jour (`.claude/bureaux/COMMUN.md` § 1) et cite-le daté. Toute
@@ -134,7 +136,8 @@ routine en panne.
      avec l'effort estimé. C'est la section la plus importante de l'e-mail.
    - Chiffres clés : annonces actives, vendeurs, communes, inscrits, visites,
      connexions échouées, IP à surveiller, disponibilité du site.
-   - Une section APPLICATION quand il y a du nouveau (test Play, version, poids).
+   - Une section APPLICATION quand il y a du nouveau (test Play / TestFlight,
+     version, boutiques).
    Ton factuel, en « vous ». HTML simple : <h3>, <p>, <ul>. Pas de CSS savant :
    beaucoup de messageries l'ignorent. Écris le fichier dans /tmp/synthese.html.
 
