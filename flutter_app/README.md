@@ -84,53 +84,67 @@ keystore — et **c'est voulu** : la clé de signature ne quitte jamais votre po
 flutter doctor
 ```
 
-### 2. Générer les dossiers de plateforme (une seule fois)
+### 2. Préparer le dossier `android/` — **une seule commande**
 
-Le dépôt ne contient **que** le code Dart (`lib/`). Les dossiers `android/` et
-`ios/` se régénèrent — comme pour le site. Depuis ce dossier `flutter_app/` :
+Le dépôt ne contient **que** le code Dart (`lib/`). Le dossier `android/` se
+régénère — comme pour le site. Un script fait tout, depuis ce dossier
+`flutter_app/` :
 
 ```bash
-flutter create --platforms=android,ios --org ci.chap .
-flutter pub get
+dart run tool/preparer_android.dart
 ```
 
-### 3. ⚠️ Point CRUCIAL — le bon identifiant d'application
+Il régénère `android/` PUIS y applique toute la configuration Chap.ci, sans
+qu'on ait à toucher un fichier à la main :
 
-Pour que cette app soit une **mise à jour** de l'actuelle (et non une app
-différente), elle doit porter **exactement** le même identifiant :
+- **identifiant `ci.chap.app`** — le MÊME que l'app Play Store actuelle, pour que
+  ce soit une **mise à jour** et non une nouvelle app ;
+- **minSdk 22 · targetSdk 35** (comme l'app actuelle) ;
+- le **nom affiché « Chap.ci »** et les **autorisations** réellement utilisées :
+  Internet, appareil photo (`image_picker`), position fine et grossière
+  (`geolocator`) ;
+- l'**icône de lancement**, générée depuis le logo (`assets/icon/`) ;
+- la **signature de production**, lue depuis `android/key.properties` (voir §4).
 
-```
-applicationId = "ci.chap.app"
-```
+Le script est **ré-exécutable** sans risque (relancez-le après tout changement de
+dépendances). Détails dans `tool/preparer_android.dart`.
 
-À vérifier / corriger dans `android/app/build.gradle` après le `flutter create`.
-Si l'identifiant diffère, le Play Store la traitera comme une **nouvelle** app.
+> La position n'est **jamais** suivie en arrière-plan : elle n'est lue qu'au
+> moment où le vendeur tape sur « Activer ma position ». Autorisation refusée →
+> le bouton GPS l'explique poliment et le vendeur choisit son lieu à la main.
 
-### 3 bis. Autorisations photos (pour « Publier »)
+### 3. Construire et publier l'app Android (sur VOTRE machine)
 
-`image_picker` a besoin d'autorisations, à ajouter après le `flutter create` :
+⚠️ **Le keystore ne quitte jamais votre machine.** Aucun bureau, aucun agent, aucun
+prestataire n'a de raison de le demander — c'est le sujet de la section « Les
+secrets » du `CLAUDE.md`.
 
-- **iOS** — dans `ios/Runner/Info.plist` : `NSPhotoLibraryUsageDescription`
-  (« Pour choisir les photos de vos annonces ») et, si l'appareil photo est
-  utilisé, `NSCameraUsageDescription`.
-- **Android** — la galerie fonctionne sans permission (sélecteur système). Pour
-  l'appareil photo, ajouter `<uses-permission android:name="android.permission.CAMERA"/>`
-  dans `android/app/src/main/AndroidManifest.xml`.
+1. **Le keystore.** Utilisez **le même** keystore que celui qui a signé la
+   dernière version (v1.19). Le Play Store **refuse** une mise à jour signée par
+   une autre clé. (N'en créez pas un nouveau, sauf à passer par la réinitialisation
+   de clé de la Play Console — une autre histoire.)
 
-### 3 ter. Autorisations de localisation (le bouton GPS de « Publier »)
+2. **Le fichier `key.properties`.** Copiez le modèle et remplissez-le avec le
+   chemin et les mots de passe de VOTRE keystore :
 
-`geolocator` a besoin d'autorisations, à ajouter après le `flutter create` :
+   ```bash
+   cp tool/key.properties.exemple android/key.properties
+   ```
 
-- **Android** — dans `android/app/src/main/AndroidManifest.xml`, à l'intérieur
-  de `<manifest>` : `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>`
-  (et, en repli, `ACCESS_COARSE_LOCATION`).
-- **iOS** — dans `ios/Runner/Info.plist` : `NSLocationWhenInUseUsageDescription`
-  (« Pour placer votre annonce à l'endroit exact »).
+   Ni ce fichier, ni le `.jks` n'entrent dans Git (`android/` est ignoré).
 
-Sans ces autorisations, le bouton GPS explique poliment qu'il est refusé et le
-vendeur choisit son lieu à la main — l'app reste utilisable. La position n'est
-JAMAIS suivie en arrière-plan : elle n'est lue qu'au moment où le vendeur tape
-sur « Activer ma position ».
+3. **Le versionCode.** Il DOIT dépasser le dernier publié (**20** pour la v1.19).
+   Il se règle dans `pubspec.yaml`, champ `version` : `1.20.0+21` = versionName
+   `1.20.0`, versionCode `21`. Puis mettez à jour `store/APP-VERSIONS.md`.
+
+4. **L'AAB à déposer :**
+
+   ```bash
+   flutter build appbundle --release
+   ```
+
+   Il sort dans `build/app/outputs/bundle/release/app-release.aab`. C'est ce
+   fichier qu'on téléverse dans la Play Console (production ou test fermé).
 
 `url_launcher` (bouton « En savoir plus » de l'écran publicitaire) fonctionne
 sur le web sans configuration. Sur Android/iOS, après le `flutter create`, il

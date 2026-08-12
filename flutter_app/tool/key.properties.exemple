@@ -1,0 +1,23 @@
+# Signature de l'app Android — MODÈLE.
+#
+# Copiez ce fichier en  android/key.properties  et remplissez-le avec VOTRE
+# keystore. Ni ce fichier rempli, ni le keystore (.jks) n'entrent JAMAIS dans
+# Git : ils restent sur votre machine. (Le dossier android/ est déjà ignoré.)
+#
+#     cp tool/key.properties.exemple android/key.properties
+#
+# Puis remplacez les valeurs ci-dessous.
+
+# L'alias de la clé DANS le keystore (celui choisi à sa création).
+keyAlias=chapci
+
+# Le mot de passe de cette clé.
+keyPassword=VOTRE_MOT_DE_PASSE_DE_CLE
+
+# Le chemin ABSOLU vers le fichier keystore, sur votre machine.
+#   • Windows :  storeFile=C:\\Users\\Patron\\chapci.jks
+#   • Mac / Linux :  storeFile=/Users/patron/chapci.jks
+storeFile=/chemin/absolu/vers/chapci.jks
+
+# Le mot de passe du keystore lui-même.
+storePassword=VOTRE_MOT_DE_PASSE_KEYSTORE
