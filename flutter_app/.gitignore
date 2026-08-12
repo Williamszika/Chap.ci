@@ -16,3 +16,6 @@ build/
 *.iml
 .idea/
 pubspec.lock
+
+# Config connexion sociale (jeton client Facebook) — jamais dans Git
+/social.json

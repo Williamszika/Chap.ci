@@ -22,6 +22,7 @@
 //
 // Ré-exécutable sans risque : il régénère puis reconfigure à chaque fois.
 
+import 'dart:convert';
 import 'dart:io';
 
 void main() {
@@ -32,6 +33,11 @@ void main() {
         '(dart run tool/preparer_plateformes.dart).');
   }
 
+  // Jeton client Facebook, lu depuis social.json (hors dépôt). Absent → la
+  // connexion Facebook n'est pas configurée (le bouton échouera proprement) ;
+  // Google, lui, ne dépend pas de ce fichier.
+  final fbToken = _jetonFacebook();
+
   // 1. Régénère android/ et ios/ (templates Flutter, sans SDK ni Xcode).
   _etape('Génération des dossiers android/ et ios/…');
   _executer('flutter', [
@@ -40,8 +46,8 @@ void main() {
   final demo = File('test/widget_test.dart');
   if (demo.existsSync()) demo.deleteSync();
 
-  _configurerAndroid();
-  _configurerIos();
+  _configurerAndroid(fbToken);
+  _configurerIos(fbToken);
 
   // Icône de lancement (android + ios), depuis assets/icon/ (config pubspec).
   _etape('Génération des icônes de lancement…');
@@ -52,7 +58,7 @@ void main() {
 
 // ───────────────────────────── Android ──────────────────────────────────────
 
-void _configurerAndroid() {
+void _configurerAndroid(String? fbToken) {
   _etape('Android : build.gradle.kts (ci.chap.app, minSdk 22, targetSdk 35)…');
   File('android/app/build.gradle.kts').writeAsStringSync(_buildGradleKts);
 
@@ -81,12 +87,25 @@ void _configurerAndroid() {
   if (!manifest.contains('android.permission.INTERNET')) {
     manifest = manifest.replaceFirst(ouverture, '$ouverture\n$_permsAndroid');
   }
+
+  // Connexion Facebook : les ressources (App ID, jeton client, schéma) et les
+  // deux activités du SDK. Uniquement si social.json fournit le jeton client.
+  if (fbToken != null) {
+    _etape('Android : connexion Facebook (strings.xml + AndroidManifest)…');
+    File('android/app/src/main/res/values/strings_facebook.xml')
+        .writeAsStringSync(_fbStrings(fbToken));
+    if (!manifest.contains('com.facebook.sdk.ApplicationId')) {
+      manifest =
+          manifest.replaceFirst('</application>', '$_fbManifest    </application>');
+    }
+  }
+
   manifestFichier.writeAsStringSync(manifest);
 }
 
 // ─────────────────────────────── iOS ────────────────────────────────────────
 
-void _configurerIos() {
+void _configurerIos(String? fbToken) {
   final pbxproj = File('ios/Runner.xcodeproj/project.pbxproj');
   if (!pbxproj.existsSync()) return; // pas d'ios/ (create sans la plateforme)
 
@@ -114,12 +133,13 @@ void _configurerIos() {
     plist = plist.replaceFirst(
         '</dict>\n</plist>', '$_permsIos</dict>\n</plist>');
   }
-  // Connexion Google : le schéma d'URL (client ID iOS inversé) et le GIDClientID
-  // doivent être dans l'Info.plist, sinon la redirection Google échoue sur iOS.
-  // Ce sont des identifiants PUBLICS de client OAuth, pas des secrets.
+  // Connexions Google (toujours) et Facebook (si social.json fournit le jeton) :
+  // schémas d'URL et clés que les SDK lisent dans l'Info.plist. Le client ID
+  // Google et l'App ID Facebook sont PUBLICS ; seul le jeton client vient du
+  // fichier hors dépôt.
   if (!plist.contains('GIDClientID')) {
     plist = plist.replaceFirst(
-        '</dict>\n</plist>', '$_googleIos</dict>\n</plist>');
+        '</dict>\n</plist>', '${_blocIos(fbToken)}</dict>\n</plist>');
   }
   plistFichier.writeAsStringSync(plist);
 }
@@ -164,20 +184,90 @@ const _permsIos =
     '\t<key>NSLocationWhenInUseUsageDescription</key>\n'
     '\t<string>Pour placer votre annonce à l’endroit exact.</string>\n';
 
-// Connexion Google sur iOS. Le schéma d'URL est le client ID iOS « inversé »
-// (com.googleusercontent.apps.<id>), tel que l'exige google_sign_in.
-const _googleIos =
-    '\t<key>GIDClientID</key>\n'
-    '\t<string>564942885290-l33tp6lok4ge79lmdjh6mu9a1q5aeu29.apps.googleusercontent.com</string>\n'
-    '\t<key>CFBundleURLTypes</key>\n'
-    '\t<array>\n'
-    '\t\t<dict>\n'
-    '\t\t\t<key>CFBundleURLSchemes</key>\n'
-    '\t\t\t<array>\n'
-    '\t\t\t\t<string>com.googleusercontent.apps.564942885290-l33tp6lok4ge79lmdjh6mu9a1q5aeu29</string>\n'
-    '\t\t\t</array>\n'
-    '\t\t</dict>\n'
-    '\t</array>\n';
+// ─────────────────────── Connexion sociale (Google / Facebook) ──────────────
+
+// Identifiants PUBLICS, embarqués dans toute application. Le SECRET Facebook
+// reste sur le serveur ; le jeton client vient de social.json (hors dépôt).
+const _googleIosClientId =
+    '564942885290-l33tp6lok4ge79lmdjh6mu9a1q5aeu29.apps.googleusercontent.com';
+const _googleIosScheme =
+    'com.googleusercontent.apps.564942885290-l33tp6lok4ge79lmdjh6mu9a1q5aeu29';
+const _fbAppId = '1617587653705134';
+
+/// Le jeton client Facebook, lu depuis social.json à la racine de flutter_app.
+/// Renvoie null si le fichier manque ou ne le contient pas.
+String? _jetonFacebook() {
+  final f = File('social.json');
+  if (!f.existsSync()) return null;
+  try {
+    final j = jsonDecode(f.readAsStringSync());
+    final t = (j is Map) ? j['facebookClientToken'] : null;
+    final s = t?.toString().trim() ?? '';
+    return s.isEmpty ? null : s;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Le bloc Info.plist iOS : GIDClientID, les schémas d'URL (Google, et Facebook
+/// si configuré), puis les clés Facebook.
+String _blocIos(String? fbToken) {
+  final schemes = <String>[
+    _googleIosScheme,
+    if (fbToken != null) 'fb$_fbAppId',
+  ];
+  final b = StringBuffer()
+    ..write('\t<key>GIDClientID</key>\n')
+    ..write('\t<string>$_googleIosClientId</string>\n')
+    ..write('\t<key>CFBundleURLTypes</key>\n\t<array>\n');
+  for (final s in schemes) {
+    b
+      ..write('\t\t<dict>\n')
+      ..write('\t\t\t<key>CFBundleURLSchemes</key>\n\t\t\t<array>\n')
+      ..write('\t\t\t\t<string>$s</string>\n')
+      ..write('\t\t\t</array>\n\t\t</dict>\n');
+  }
+  b.write('\t</array>\n');
+  if (fbToken != null) {
+    b
+      ..write('\t<key>FacebookAppID</key>\n\t<string>$_fbAppId</string>\n')
+      ..write('\t<key>FacebookClientToken</key>\n\t<string>$fbToken</string>\n')
+      ..write('\t<key>FacebookDisplayName</key>\n\t<string>Chap.ci</string>\n')
+      ..write('\t<key>LSApplicationQueriesSchemes</key>\n\t<array>\n');
+    for (final q in const [
+      'fbapi',
+      'fb-messenger-share-api',
+      'fbauth2',
+      'fbshareextension'
+    ]) {
+      b.write('\t\t<string>$q</string>\n');
+    }
+    b.write('\t</array>\n');
+  }
+  return b.toString();
+}
+
+/// strings_facebook.xml : App ID, schéma de connexion et jeton client.
+String _fbStrings(String token) => '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<resources>\n'
+    '    <string name="facebook_app_id">$_fbAppId</string>\n'
+    '    <string name="fb_login_protocol_scheme">fb$_fbAppId</string>\n'
+    '    <string name="facebook_client_token">$token</string>\n'
+    '</resources>\n';
+
+/// Le bloc à insérer dans <application> de l'AndroidManifest pour Facebook.
+const _fbManifest =
+    '        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>\n'
+    '        <meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token"/>\n'
+    '        <activity android:name="com.facebook.FacebookActivity" android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation" android:label="Chap.ci"/>\n'
+    '        <activity android:name="com.facebook.CustomTabActivity" android:exported="true">\n'
+    '            <intent-filter>\n'
+    '                <action android:name="android.intent.action.VIEW"/>\n'
+    '                <category android:name="android.intent.category.DEFAULT"/>\n'
+    '                <category android:name="android.intent.category.BROWSABLE"/>\n'
+    '                <data android:scheme="@string/fb_login_protocol_scheme"/>\n'
+    '            </intent-filter>\n'
+    '        </activity>\n';
 
 const _buildGradleKts = '''
 import java.util.Properties
