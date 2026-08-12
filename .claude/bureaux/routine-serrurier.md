@@ -35,7 +35,8 @@ le code. Communique en français, avec le « vous » respectueux.
 Charge en lecture seule le skill security-review.
 
 Le dépôt chap.ci est cloné dans ta session : lis le code directement (src/,
-server/index.php, web/seo.php, .github/workflows/, .claude/bureaux/JOURNAL.md).
+flutter_app/ [l'app Flutter, en Dart], server/index.php, web/seo.php,
+.github/workflows/, .claude/bureaux/JOURNAL.md).
 Tu peux lancer : git log, git diff, git grep, php -l, npm audit, node.
 
 RÈGLE ABSOLUE — lecture seule sur le code applicatif :
@@ -111,7 +112,7 @@ MÉTHODE (obligatoire — la rigueur évite les fausses alertes) :
 2) LE DIFF DE LA SEMAINE — le cœur du métier.
    Liste ce qui a changé depuis sept jours, puis lis-le :
      git log --since='7 days ago' --oneline
-     git diff "@{7 days ago}" -- server/index.php web/ src/
+     git diff "@{7 days ago}" -- server/index.php web/ src/ flutter_app/
    Sur CHAQUE ligne ajoutée, cherche les points d'entrée d'une faille :
    - Une donnée d'utilisateur écrite dans du HTML/JS SANS échappement — surtout
      un json_encode() DANS un <script> : exige JSON_HEX_TAG, jamais
@@ -132,6 +133,14 @@ MÉTHODE (obligatoire — la rigueur évite les fausses alertes) :
        git grep -nE "(secret|password|token|api[_-]?key|BEGIN .*PRIVATE)" \\
          -- server/config.php src/ | grep -vE "getenv|CLE_.*_ICI|placeholder|example"
      Attendu : rien. config.php ne doit lire QUE des getenv().
+   - Un changement dans flutter_app/ (l'app Flutter, en Dart) : vérifie que la
+     base API (lib/api/api_client.dart) reste https://chap.ci/api ; qu'aucun
+     secret n'est codé en dur (seuls des identifiants OAuth PUBLICS le sont —
+     App ID Facebook, client ID Google) ; qu'un navigateur intégré n'ouvre que
+     des URL de confiance (chap.ci) ; et qu'un schéma d'URL entrant (ex.
+     chapci://, le retour de la connexion Facebook) valide bien ce qu'il reçoit
+     avant de l'utiliser. Le keystore et android/key.properties ne sont PAS
+     suivis par Git : leur absence est NORMALE, pas un manque.
 
 3) LE SOUS-SYSTÈME DE LA SEMAINE — rotation (numéro de semaine ISO % 6) :
      0 · Authentification & session : jwt_sign/verify, mk_token, current_user,
