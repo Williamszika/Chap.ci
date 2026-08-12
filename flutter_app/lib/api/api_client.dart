@@ -262,6 +262,15 @@ class ApiClient {
     await _enregistrerJeton(null);
   }
 
+  /// Supprime définitivement le compte courant (`POST /auth/delete`) puis ferme
+  /// la session localement. Le serveur redemande le mot de passe si le compte
+  /// en a un ; pour un compte Google/téléphone, le jeton suffit (mot de passe
+  /// vide accepté).
+  Future<void> supprimerCompte(String? motDePasse) async {
+    await post('/auth/delete', {'password': motDePasse ?? ''});
+    await _enregistrerJeton(null);
+  }
+
   /// L'utilisateur courant (`GET /auth/me`) : `{id, email, emailVerified,
   /// badge, user_metadata:{full_name}, …}`, ou null si la session a expiré.
   Future<Map<String, dynamic>?> moi() async {

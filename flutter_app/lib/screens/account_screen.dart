@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../liens_site.dart';
 import '../theme.dart';
 import '../widgets/social_buttons.dart';
 import 'mon_compte.dart';
@@ -70,6 +71,46 @@ class _AccountScreenState extends State<AccountScreen> {
     if (mounted) setState(() {});
   }
 
+  /// La réinitialisation par e-mail n'existe pas encore côté serveur (le site
+  /// non plus) : on l'explique honnêtement plutôt que d'afficher un bouton qui
+  /// ne mène à rien.
+  void _motDePasseOublie() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.lock_reset, color: ChapColors.orange),
+            const SizedBox(height: 10),
+            const Text('Mot de passe oublié',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text(
+              'La réinitialisation par e-mail n’est pas encore disponible. '
+              'Écrivez-nous à contact@chap.ci et nous vous aiderons — ou, si '
+              'vous vous êtes inscrit avec Google, utilisez le bouton Google.',
+              style:
+                  TextStyle(fontSize: 14, height: 1.5, color: ChapColors.gray700),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('J’ai compris')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final connecte = ApiClient.instance.connecte;
@@ -134,6 +175,18 @@ class _AccountScreenState extends State<AccountScreen> {
                   ? 'Au moins 6 caractères'
                   : null,
             ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _enCours ? null : _motDePasseOublie,
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                child: const Text('Mot de passe oublié ?',
+                    style: TextStyle(color: ChapColors.gray600, fontSize: 13)),
+              ),
+            ),
             if (_erreur != null) ...[
               const SizedBox(height: 14),
               Container(
@@ -190,9 +243,37 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () =>
+                      ouvrirPageSite(context, PagesSite.conditions),
+                  style: _lienLegalStyle,
+                  child: const Text('Conditions d’utilisation'),
+                ),
+                const Text('·', style: TextStyle(color: ChapColors.gray500)),
+                TextButton(
+                  onPressed: () =>
+                      ouvrirPageSite(context, PagesSite.confidentialite),
+                  style: _lienLegalStyle,
+                  child: const Text('Confidentialité'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+
+  static final ButtonStyle _lienLegalStyle = TextButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+    minimumSize: Size.zero,
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    foregroundColor: ChapColors.gray600,
+    textStyle: const TextStyle(fontSize: 12.5),
+  );
 }

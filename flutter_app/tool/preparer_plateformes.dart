@@ -90,6 +90,13 @@ void _configurerAndroid() {
         manifest.replaceFirst('</application>', '$_callbackWebAuth    </application>');
   }
 
+  // Android 11+ : sans cette déclaration, url_launcher ne trouve aucun
+  // navigateur pour ouvrir les pages du site (aide, FAQ, mentions légales) ni
+  // les liens des publicités. On déclare l'intention « ouvrir une URL https ».
+  if (!manifest.contains('<queries>')) {
+    manifest = manifest.replaceFirst('</manifest>', '$_queriesAndroid</manifest>');
+  }
+
   manifestFichier.writeAsStringSync(manifest);
 }
 
@@ -164,6 +171,16 @@ const _permsAndroid =
     '    <uses-permission android:name="android.permission.CAMERA"/>\n'
     '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n'
     '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>';
+
+// Android 11+ : autorise url_launcher à ouvrir des pages web (https) — pages
+// d'info du site et liens des publicités.
+const _queriesAndroid =
+    '    <queries>\n'
+    '        <intent>\n'
+    '            <action android:name="android.intent.action.VIEW"/>\n'
+    '            <data android:scheme="https"/>\n'
+    '        </intent>\n'
+    '    </queries>\n';
 
 // Activité de rappel de flutter_web_auth_2 : capte le retour de la connexion
 // Facebook web (schéma privé `chapci://`).

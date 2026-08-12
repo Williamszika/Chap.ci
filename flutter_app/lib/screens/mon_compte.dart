@@ -3,11 +3,13 @@ import '../api/admin.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../format.dart';
+import '../liens_site.dart';
 import '../theme.dart';
 import 'admin/tableau_bord_screen.dart';
 import 'listing_detail_screen.dart';
 import 'modifier_profil_screen.dart';
 import 'securite_2fa_screen.dart';
+import 'supprimer_compte_screen.dart';
 import 'verifier_email_screen.dart';
 
 /// Le contenu de l'onglet Compte quand on est connecté : l'identité, et
@@ -159,9 +161,109 @@ class _MonCompteViewState extends State<MonCompteView> {
               );
             },
           ),
+          _sectionAide(),
         ],
       ),
     );
+  }
+
+  /// « Aide & informations » : les pages du site (FAQ, contact, mentions
+  /// légales…) ouvertes dans un navigateur intégré — donc toujours à jour avec
+  /// le site — puis la suppression de compte (exigée par les stores).
+  Widget _sectionAide() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 22, 16, 6),
+          child: Text('Aide & informations',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: ChapColors.gray900)),
+        ),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: ChapColors.cream,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: ChapColors.line),
+          ),
+          child: Column(
+            children: [
+              _tuile(Icons.help_outline, 'Aide',
+                  () => ouvrirPageSite(context, PagesSite.aide)),
+              _sep(),
+              _tuile(Icons.quiz_outlined, 'Questions fréquentes (FAQ)',
+                  () => ouvrirPageSite(context, PagesSite.faq)),
+              _sep(),
+              _tuile(Icons.mail_outline, 'Nous contacter',
+                  () => ouvrirPageSite(context, PagesSite.contact)),
+              _sep(),
+              _tuile(Icons.info_outline, 'À propos',
+                  () => ouvrirPageSite(context, PagesSite.aPropos)),
+              _sep(),
+              _tuile(Icons.description_outlined, 'Conditions d’utilisation',
+                  () => ouvrirPageSite(context, PagesSite.conditions)),
+              _sep(),
+              _tuile(Icons.privacy_tip_outlined, 'Confidentialité',
+                  () => ouvrirPageSite(context, PagesSite.confidentialite)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: ChapColors.cream,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFF1C9C4)),
+          ),
+          child: _tuile(Icons.delete_outline, 'Supprimer mon compte',
+              _ouvrirSuppression,
+              danger: true),
+        ),
+      ],
+    );
+  }
+
+  Widget _tuile(IconData icone, String titre, VoidCallback onTap,
+      {bool danger = false}) {
+    final couleur = danger ? const Color(0xFFB42318) : ChapColors.gray900;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icone, size: 20, color: couleur),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(titre,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          danger ? FontWeight.w600 : FontWeight.w500,
+                      color: couleur)),
+            ),
+            Icon(Icons.chevron_right,
+                size: 20,
+                color: danger
+                    ? const Color(0xFFB42318)
+                    : ChapColors.gray500),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sep() =>
+      const Divider(height: 1, thickness: 1, color: ChapColors.line);
+
+  Future<void> _ouvrirSuppression() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const SupprimerCompteScreen()));
+    if (mounted) setState(() {}); // le compte peut avoir été supprimé
   }
 
   Widget _entete() {
