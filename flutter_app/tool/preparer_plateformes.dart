@@ -57,7 +57,12 @@ void _configurerAndroid() {
   File('android/app/build.gradle.kts').writeAsStringSync(_buildGradleKts);
 
   _etape('Android : MainActivity dans le paquet ci.chap.app…');
+  // On repart d'un dossier kotlin/ VIDE : selon l'org que « flutter create »
+  // déduit, le MainActivity de départ peut atterrir sous com/example/… ou
+  // ci/chap/chapci/… — on efface tout et on n'écrit QUE le nôtre, pour ne
+  // jamais laisser un MainActivity orphelin dans un ancien paquet.
   final kotlin = Directory('android/app/src/main/kotlin');
+  if (kotlin.existsSync()) kotlin.deleteSync(recursive: true);
   final cible = Directory('${kotlin.path}/ci/chap/app')
     ..createSync(recursive: true);
   File('${cible.path}/MainActivity.kt').writeAsStringSync(
@@ -65,8 +70,6 @@ void _configurerAndroid() {
     'import io.flutter.embedding.android.FlutterActivity\n\n'
     'class MainActivity : FlutterActivity()\n',
   );
-  final exemple = Directory('${kotlin.path}/com');
-  if (exemple.existsSync()) exemple.deleteSync(recursive: true);
 
   _etape('Android : nom « Chap.ci » et autorisations (AndroidManifest.xml)…');
   final manifestFichier = File('android/app/src/main/AndroidManifest.xml');
