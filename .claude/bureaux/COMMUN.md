@@ -28,24 +28,31 @@ la réalité, en écrivant ce chiffre comme un constat.
 
 ---
 
-## 2. L'état de l'application sur Google Play
+## 2. L'état de l'application (Google Play ET App Store)
 
 **Lis `store/APP-VERSIONS.md`** — seul endroit tenu à jour, la version la plus récente en
 tête.
 
 Ce qui reste vrai et ne bouge pas :
 
-- appId `ci.chap.app`, **Android uniquement**, compte développeur **personnel** ;
-- **pas d'application iOS**, et il n'y en aura pas tant qu'un Mac et Xcode manquent —
-  ne produis aucune instruction Apple ;
-- avant la production, Google impose **12 testeurs inscrits en continu pendant 14 jours**
-  sur un test **fermé**. C'est le seul délai incompressible ;
+- appId `ci.chap.app` sur les DEUX plateformes ; compte développeur **personnel** ;
+- depuis la **v1.20, l'application est en FLUTTER** — un code natif séparé, dans
+  `flutter_app/`, et non plus le site enveloppé dans une WebView Capacitor. Un correctif du
+  site (`src/`) ne rentre donc PLUS dans l'app ; seul `flutter_app/` la fait avancer. Le
+  serveur, lui, reste commun au site et à l'app ;
+- l'application vise les **deux boutiques** : **Google Play** (un AAB, ~50 Mo, que le Play
+  Store découpe par appareil au téléchargement) et l'**App Store** (un IPA). Le volet **iOS**
+  exige un Mac avec Xcode : tant qu'il manque, il est bloqué — `store/APP-VERSIONS.md` le dit,
+  et aucun bureau ne produit alors d'instructions Apple ;
+- avant la production sur **Google Play**, Google impose **12 testeurs inscrits en continu
+  pendant 14 jours** sur un test **fermé** (l'App Store, lui, passe par TestFlight, sans ce
+  seuil) ;
 - le site propose aussi l'installation en **PWA** depuis le navigateur.
 
-**Le champ « État Play » est écrit à l'avance par le Développement.** Aucun bureau n'a
-accès à la Play Console. Énonce-le comme une lecture de journal, jamais comme un
-constat : « d'après le journal, non confirmé par le Patron », et demande la relecture de
-la ligne de la release.
+**Le champ « État » est écrit à l'avance par le Développement.** Aucun bureau n'a accès à la
+Play Console ni à App Store Connect. Énonce-le comme une lecture de journal, jamais comme un
+constat : « d'après le journal, non confirmé par le Patron », et demande la relecture de la
+ligne de la release.
 
 ---
 
