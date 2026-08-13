@@ -468,7 +468,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 
   Widget _barreContact(BuildContext context, Listing a) {
+    // top: false — c'est une barre fixée EN BAS ; seule la zone gestuelle du bas
+    // doit être réservée (cohérent avec la barre de saisie de la messagerie).
     return SafeArea(
+      top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         decoration: const BoxDecoration(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 /// Les couleurs de marque Chap.ci — reprises à l'identique de `tailwind.config.js`
 /// du site, pour que l'application et le site se ressemblent trait pour trait.
@@ -46,6 +47,10 @@ ThemeData chapTheme() {
       foregroundColor: ChapColors.ink,
       elevation: 0,
       centerTitle: false,
+      // Fond crème clair → icônes de la barre d'état SOMBRES, sur les écrans
+      // qui ont une AppBar. Les écrans sans AppBar (l'accueil) sont couverts par
+      // le réglage global posé au démarrage (main.dart).
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -56,6 +61,11 @@ ThemeData chapTheme() {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
       ),
+    ),
+    // Les IconButton (retour, favori, options…) doivent eux aussi offrir une
+    // cible d'au moins 48 px : Material 3 les réduit sinon sous le pouce.
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,

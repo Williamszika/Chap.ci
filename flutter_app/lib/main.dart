@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'api/api_client.dart';
 import 'api/push_natif.dart';
 import 'favoris.dart';
@@ -12,6 +13,13 @@ import 'screens/publier_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Barre d'état : fond transparent, icônes SOMBRES (le fond de l'app est clair)
+  // — y compris sur l'accueil, qui n'a pas d'AppBar pour l'imposer lui-même.
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark, // Android
+    statusBarBrightness: Brightness.light, // iOS
+  ));
   // On recharge la session (le jeton) avant d'afficher quoi que ce soit,
   // puis les favoris (locaux, fusionnés au compte si connecté).
   await ApiClient.instance.chargerSession();
@@ -31,6 +39,18 @@ class ChapApp extends StatelessWidget {
       title: 'Chap.ci',
       debugShowCheckedModeBanner: false,
       theme: chapTheme(),
+      // Sur tablette et grands écrans, on borne la largeur du contenu et on le
+      // centre — comme le site (max-w-4xl) — pour éviter des lignes qui
+      // s'étirent à l'infini. Sous 900 px (téléphones), c'est sans effet.
+      builder: (context, child) => ColoredBox(
+        color: ChapColors.cream200,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: child,
+          ),
+        ),
+      ),
       home: const AccueilShell(),
     );
   }
