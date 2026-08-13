@@ -201,7 +201,7 @@ export function Advertise() {
         <div className="rounded-2xl border border-ivoire-green/30 bg-ivoire-green/5 p-6 text-center md:p-8">
           <CheckCircle2 className="mx-auto text-ivoire-green" size={46} />
           <h1 className="mt-3 font-display text-xl font-extrabold text-ink">
-            {source ? 'Prolongation enregistrée !' : 'Demande enregistrée !'}
+            {source ? 'Prolongation enregistrée !' : 'Demande enregistrée !'}
           </h1>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-600">
             {source ? (
@@ -232,8 +232,8 @@ export function Advertise() {
               {copied ? <><Check size={14} className="text-ivoire-green" /> Copié</> : <><Copy size={14} /> Copier</>}
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-400">{op.howTo}</p>
-          <p className="mt-4 text-xs text-gray-400">Référence de votre demande : <b className="font-mono">{done.id.slice(0, 8).toUpperCase()}</b></p>
+          <p className="mt-2 text-xs text-gray-500">{op.howTo}</p>
+          <p className="mt-4 text-xs text-gray-500">Référence de votre demande : <b className="font-mono">{done.id.slice(0, 8).toUpperCase()}</b></p>
           <Link to="/" className="btn-primary mt-5 inline-flex">Retour à l’accueil</Link>
         </div>
       </div>

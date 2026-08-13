@@ -118,11 +118,11 @@ export function NewsletterPrompt() {
               <button onClick={subscribe} disabled={state === 'busy'} className="btn-primary w-full py-3 disabled:opacity-60">
                 {state === 'busy' ? <Loader2 size={18} className="animate-spin" /> : 'Oui, je m’inscris'}
               </button>
-              <button onClick={dismiss} className="w-full py-2 text-sm font-medium text-gray-400">
+              <button onClick={dismiss} className="w-full py-2 text-sm font-medium text-gray-500">
                 Plus tard
               </button>
             </div>
-            <p className="mt-2 text-center text-[11px] text-gray-400">Gratuit, sans spam. Désinscription à tout moment.</p>
+            <p className="mt-2 text-center text-[11px] text-gray-500">Gratuit, sans spam. Désinscription à tout moment.</p>
           </>
         )}
       </div>

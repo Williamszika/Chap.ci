@@ -276,7 +276,7 @@ export function SellerProfile() {
             {profile?.bio ? (
               <p className="text-sm leading-relaxed text-gray-600">{profile.bio}</p>
             ) : (
-              <p className="text-sm text-gray-400">Ce vendeur n’a pas encore ajouté de description.</p>
+              <p className="text-sm text-gray-500">Ce vendeur n’a pas encore ajouté de description.</p>
             )}
             {location && (
               <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-500">
