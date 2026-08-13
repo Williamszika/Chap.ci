@@ -5236,6 +5236,10 @@ try {
     $ustatus = $stt->fetch()['status'] ?? 'active';
     if (in_array($ustatus, ['blocked', 'restricted'], true))
       jerr('Votre compte ne peut pas publier d’annonce pour le moment. Contactez le support.', 403);
+    // Anti-abus : un vendeur actif ne publie pas 30 annonces en une heure. La
+    // limite est GÉNÉREUSE (aucun usage normal ne l'atteint) mais borne une
+    // requête forgée qui enchaînerait les créations pour saturer le disque.
+    rate_limit($pdo, 'listing_create', $u['email'] ?? null, 30, 3600);
     // Adresse e-mail confirmée : obligatoire pour PUBLIER, et là seulement.
     // Le message porte un code que l'écran sait reconnaître pour ouvrir la
     // saisie du code au lieu d'afficher une erreur sèche.
@@ -5254,7 +5258,11 @@ try {
       ], 422);
     }
     $images = [];
-    foreach ((array) ($b['images'] ?? []) as $img) {
+    // Plafond de sécurité : max 10 photos. L'écran en autorise 5 (site) / 8
+    // (app) ; au-delà, c'est une requête forgée qui cherche à saturer le disque
+    // (comme /ads plafonne déjà ses visuels à 3). Chaque image reste vérifiée
+    // par son contenu réel et limitée à 8 Mo par save_data_uri().
+    foreach (array_slice((array) ($b['images'] ?? []), 0, 10) as $img) {
       $url = save_data_uri($config, (string) $img, true); // true = filigrane Chap.ci
       if ($url) $images[] = $url;
     }
@@ -5430,8 +5438,9 @@ try {
       ], 422);
     }
     // Images : on garde les URLs existantes, on enregistre les nouvelles (data-URI).
+    // Même plafond qu'à la publication (max 10) — voir POST /listings.
     $images = [];
-    foreach ((array) ($b['images'] ?? []) as $img) {
+    foreach (array_slice((array) ($b['images'] ?? []), 0, 10) as $img) {
       $img = (string) $img;
       if ($img === '') continue;
       if (strncmp($img, 'data:', 5) === 0) { $url = save_data_uri($config, $img, true); if ($url) $images[] = $url; }
