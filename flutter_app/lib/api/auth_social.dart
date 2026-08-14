@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'dart:math' show Random;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
@@ -65,11 +66,17 @@ class AuthSocial {
   /// dialogue OAuth, le serveur fait l'échange et nous renvoie un jeton Chap.ci
   /// prêt à l'emploi via `chapci://…`. Renvoie `false` si l'utilisateur annule.
   Future<bool> connecterFacebook() async {
+    // Jeton anti-CSRF (`state`) : généré ici, renvoyé tel quel par Facebook, puis
+    // répercuté par le serveur et VÉRIFIÉ au retour. Sans lui, un lien forgé
+    // pourrait faire ouvrir dans l'app une session qu'on n'a pas demandée
+    // (fixation de session).
+    final state = _genererState();
     final url = 'https://www.facebook.com/v18.0/dialog/oauth'
         '?client_id=$_fbAppId'
         '&redirect_uri=${Uri.encodeQueryComponent(_fbRedirect)}'
         '&response_type=code'
-        '&scope=${Uri.encodeQueryComponent('email,public_profile')}';
+        '&scope=${Uri.encodeQueryComponent('email,public_profile')}'
+        '&state=$state';
     String resultat;
     try {
       resultat = await FlutterWebAuth2.authenticate(
@@ -82,13 +89,26 @@ class AuthSocial {
       rethrow;
     }
     final params = Uri.parse(resultat).queryParameters;
-    final token = params['token'];
-    if (token != null && token.isNotEmpty) {
-      await ApiClient.instance.definirJeton(token);
-      return true;
-    }
     final erreur = params['error'];
     if (erreur != null && erreur.isNotEmpty) throw ApiException(erreur);
-    return false;
+    final token = params['token'];
+    if (token == null || token.isEmpty) return false;
+    // Le `state` renvoyé DOIT être exactement celui qu'on a émis : sinon c'est un
+    // retour forgé, on refuse la session.
+    if (params['state'] != state) {
+      throw ApiException(
+          'Connexion Facebook refusée (jeton de sécurité invalide). Réessayez.');
+    }
+    await ApiClient.instance.definirJeton(token);
+    return true;
+  }
+
+  /// Un jeton anti-CSRF imprévisible (128 bits, en hexadécimal) pour le
+  /// paramètre OAuth `state`.
+  static String _genererState() {
+    final alea = Random.secure();
+    return List<int>.generate(16, (_) => alea.nextInt(256))
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
   }
 }

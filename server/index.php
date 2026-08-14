@@ -5143,8 +5143,16 @@ try {
     }
     $fb = facebook_verify_token($config, $accessToken);
     if (!$fb) { log_security_event($pdo, 'oauth_fail', null, 'facebook'); header('Location: ' . $ret . '?error=' . rawurlencode('Connexion Facebook invalide')); exit; }
+    // On répercute le `state` anti-CSRF émis par l'app (Facebook l'a renvoyé tel
+    // quel dans ?state=…). L'app vérifiera qu'il correspond exactement à celui
+    // qu'elle a émis avant d'accepter la session — protection contre la fixation
+    // de session. Le serveur ne stocke rien : c'est l'app, seul « client » du
+    // flux, qui tranche.
+    $state = (string) ($_GET['state'] ?? '');
     $sess = fb_session_from_identity($pdo, $config, $secret, $fb);
-    header('Location: ' . $ret . '?token=' . rawurlencode($sess['token'])); exit;
+    $loc = $ret . '?token=' . rawurlencode($sess['token']);
+    if ($state !== '') $loc .= '&state=' . rawurlencode($state);
+    header('Location: ' . $loc); exit;
   }
 
   // Connexion par téléphone — étape 1 : envoi d'un code à 6 chiffres par SMS.
