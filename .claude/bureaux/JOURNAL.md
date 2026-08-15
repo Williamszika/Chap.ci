@@ -1919,3 +1919,19 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   (« corriger ce fichier ne le corrige pas », leçon du 04/08). Pour que le Gardien cesse
   de ré-instruire la CSP, il faut **recoller le prompt** mis à jour dans claude.ai.
   Sans ce geste, la ronde de demain refera l'enquête.
+
+### 2026-08-15 21:10 — [Développement] Prompt du Gardien recollé — la consigne CSP est active
+- **Fait** : le Patron a **recollé le prompt** du bureau Confiance & Sécurité dans
+  claude.ai → Routines. Le point laissé ouvert à 20:55 (« ce changement ne prend PAS effet
+  tout seul : le prompt de claude.ai est une copie figée ») est **clos**. La copie qui
+  tourne porte désormais la question tranchée `api.bigdatacloud.net`.
+- **Vérifié avant le collage** : la copie du Patron était bien la version à jour du dépôt
+  (les huit sections présentes et dans l'ordre, la nouvelle entrée CSP incluse). Deux
+  réserves signalées : les deux secrets étaient encore les placeholders `CLE_CRON_ICI` /
+  `JETON_MODERATION_ICI` — les coller tels quels aurait produit un 403 sur **toutes** les
+  routes de la ronde suivante ; et un artefact d'affichage avait transformé
+  `www.google.com` en lien Markdown (sans conséquence).
+- **Comment on saura que c'est pris** — à lire dans la prochaine ronde :
+  - plus d'enquête sur `api.bigdatacloud.net` (le but de l'opération) ;
+  - aucun 403 « Clé invalide ». S'il y en a un, la cause la plus probable est un secret
+    mal recopié (chevrons, espace, retour à la ligne), **pas** une clé régénérée.
