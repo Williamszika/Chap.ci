@@ -127,7 +127,7 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | Date du build | 12 août 2026 |
 | Poids de l'AAB | **50,3 Mo** — dix fois la v1.19 (5,42 Mo), et c'est NORMAL : ce n'est plus une WebView Capacitor, c'est Flutter, qui embarque son propre moteur de rendu. L'utilisateur ne télécharge pas 50 Mo : le Play Store découpe le bundle par appareil (ABI + densité) et n'envoie que la tranche utile. |
 | **minSdk 22 · targetSdk 35** | signée avec la **NOUVELLE clé d'importation** — alias `chapci`, `CN=Chap.ci, OU=Mobile, O=Chap.ci, L=Abidjan, ST=Abidjan, C=CI`, SHA-1 `84:98:BB:44:AF:0E:22:2B:F5:3F:1E:6B:C0:D7:18:EF:0F:C8:F4:84` |
-| État Play | **PRÊTE, PAS ENCORE TÉLÉVERSÉE.** Upload possible **seulement à partir du 14/08/2026 15 h 10 UTC** (réinitialisation de la clé d'importation, voir ci-dessous). À déposer sur le **canal de test fermé**, même canal que la v1.18. NON VÉRIFIÉ. |
+| État Play | **PRÊTE, PAS ENCORE TÉLÉVERSÉE.** Upload possible **seulement à partir du 14/08/2026 15 h 10 UTC** (réinitialisation de la clé d'importation, voir ci-dessous). À déposer sur le **canal de test fermé**, même canal que la v1.18. Fenêtre d'importation **ouverte depuis le 14/08 15 h 10 UTC**. Marche à suivre pas à pas : **`store/BUILD-v1.20.md`**. NON VÉRIFIÉ. |
 
 **C'est la refonte Flutter — le plus gros changement depuis la v1.0.** L'application
 n'est plus le site enveloppé dans une WebView Capacitor : c'est une application

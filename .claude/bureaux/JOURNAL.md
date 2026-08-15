@@ -1779,3 +1779,21 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   raccourcit.
 - **Note PII** : aucun nom ni adresse de testeur recopié dans le dépôt (historique git
   permanent) — seul le compte 10/12 est consigné.
+
+### 2026-08-15 08:30 — [Développement] Fiche de téléversement v1.20 prête
+- **Fait** : rédigé `store/BUILD-v1.20.md`, la marche à suivre pas à pas pour déposer
+  la refonte Flutter (code 21) sur le canal de test fermé — sur le gabarit de
+  `BUILD-v1.9.md` (chemins de menus et noms de boutons réels de la Play Console). Renvoi
+  ajouté depuis la section v1.20 d'`APP-VERSIONS.md`. La fenêtre d'importation est
+  **ouverte depuis le 14/08 15 h 10 UTC** (nouvelle clé d'importation `chapci`,
+  SHA-1 `84:98…F4:84`) ; l'AAB du 12/08 est déjà signé avec elle, rien à reconstruire.
+  Code 21 > 19 (dernier téléversé) : pas de collision, le code 20 (v1.19 jamais monté)
+  est sauté, ce qui est permis.
+- **Point de vigilance signalé dans la fiche** : la v1.20 ajoute la connexion 2FA — le
+  compte de test fourni aux relecteurs Google (« Instructions d'accès ») doit encore
+  permettre de se connecter, sinon le relecteur bloque et l'examen échoue.
+- **Recommandation** : téléverser maintenant plutôt qu'attendre les 12 testeurs — le
+  compte à rebours des 14 jours n'ayant pas démarré, autant qu'il tourne sur la vraie app
+  Flutter. Déposer une version ne remet pas à zéro le compte des testeurs.
+- **Pour les autres bureaux** : 🔨 Monteur — exécution côté Play Console = Patron only ;
+  la fiche est prête à suivre dès que le catalogue de testeurs atteint 12.
