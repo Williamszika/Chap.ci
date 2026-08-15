@@ -1935,3 +1935,24 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   - plus d'enquête sur `api.bigdatacloud.net` (le but de l'opération) ;
   - aucun 403 « Clé invalide ». S'il y en a un, la cause la plus probable est un secret
     mal recopié (chevrons, espace, retour à la ligne), **pas** une clé régénérée.
+
+### 2026-08-15 21:30 — [Développement] Le canal de test est limité à 1 pays — piste sérieuse sur le blocage des testeurs
+- **Fait** : capture Play Store du Patron sur son téléphone. Trois constats.
+  1. **« Cet article n'est pas disponible dans votre pays. »** — cohérent avec ce que le
+     dépôt consigne depuis le 10/08 : le canal de test est actif sur **1 seul pays/région**
+     (`APP-VERSIONS.md`, lignes 63 et 223). Le Patron étant manifestement hors de ce pays
+     (toute son interface est en allemand), Play lui refuse l'installation.
+  2. **« Vous êtes testeur interne »** / titre « (accès anticipé interne) » — son appareil
+     est inscrit au **test INTERNE**, qui **ne compte pas** dans les 12 testeurs requis
+     (`APP-VERSIONS.md` ~ligne 362 : « le test interne ne compte pas dans les 12 testeurs :
+     c'est exactement ce à quoi il sert »). Seul le **test FERMÉ** compte.
+  3. **Les notes de version v1.20 s'affichent** (« Chap.ci fait peau neuve… », mise à jour
+     du 15 août 2026) : le texte préparé dans `store/notes-version-v1.20.md` est bien
+     arrivé sur la fiche.
+- **Hypothèse à vérifier par le Patron, et elle est importante** : si une partie des
+  personnes invitées vit **hors du pays sélectionné**, elles voient le même message et
+  **ne peuvent pas installer**. Cela expliquerait un recrutement qui plafonne à 10/12
+  malgré des invitations envoyées. À trancher dans Play Console → Test fermé →
+  **Pays et régions**.
+- **Ce n'est pas une panne du code** : rien à corriger côté dépôt. C'est un réglage de
+  distribution dans la console, accessible au seul Patron.
