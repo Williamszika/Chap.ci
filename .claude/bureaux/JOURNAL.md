@@ -1707,3 +1707,57 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Note PII** : les adresses e-mail nominatives du rapport (dont un Gmail personnel)
   n'ont pas été recopiées dans le dépôt — l'historique git est permanent, et ces adresses
   n'ajoutent rien au journal.
+
+---
+
+### 2026-08-15 08:09 — [Croissance] 📣 Le Crieur
+- **Fait** : ronde du 15/08 sur données réelles (clé cron 200, pas de 403).
+  Catalogue croisé `api/listings` × `cron/stats?days=30`. **9 annonces / 5 vendeurs /
+  5 communes / 5 catégories — inchangé depuis le 07/08** (8 jours sans croissance).
+  Deux mouvements qui s'annulent : le terrain suspect de Treichville (2 M FCFA,
+  signalé le 07/08) a quitté la liste active — cohérent avec `hidden: 1` et le dossier
+  de modération clos — remplacé le 14/08 par un « Lit en mélanine » (200 000 → 180 000
+  FCFA, Treichville aussi). 30 jours : 13 utilisateurs (12 nouveaux), 11 annonces créées
+  / 1 vendue / 1 masquée, 3 961 visites, 151 visiteurs uniques. **SEO technique tout
+  vert** : fiche annonce 200 + JSON-LD Product/Offer (XOF), prix JSON-LD = `<title>` =
+  promoPrice réel, fiche vendue correctement indexée en `SoldOutOfStock`,
+  `/vendre/mode/cocody` 200, robots + sitemap OK, PWA (manifest, icônes, bannière
+  d'installation), les 3 pixels (GA4, Meta, TikTok) dans le bundle de production.
+  Sitemap **379 URLs** (349 le 27/07) — écart sain : 16ᵉ catégorie « à donner » apparue
+  (16 × 22 communes + 16 pages catégorie + 10 fiches + accueil = 379). 11 mots-clés
+  hyper-locaux tirés des vraies annonces + 3 messages de partage prêts à poster.
+- **Problèmes ouverts** : catalogue stagnant à 9 annonces depuis 8 jours malgré
+  **253 vues sur `/publier` en 30 jours** — la fuite est dans le formulaire ou la
+  décision de publier, pas dans la découverte de la page. Problème d'OFFRE / conversion,
+  rien côté Croissance ne le corrige. Aucune anomalie technique.
+- **Propositions au Patron** : aucune décision urgente cette ronde. P3 (non pressée) :
+  rafraîchir la base connue du prompt du Crieur — 16 catégories, 379 URLs (au lieu de
+  15 / 349) pour éviter un faux signal au prochain tour.
+- **Pour les autres bureaux** : 🔨 Monteur — v1.20 prête, fenêtre d'upload ouverte
+  depuis le 14/08 15 h 10 UTC. 🗂️ Secrétariat / Dev — verser ce rapport au journal
+  (le Crieur n'a pas l'accès écriture au dépôt).
+
+### 2026-08-15 08:15 — [Développement] Réponse au Crieur : bloc versé, P3 écartée à dessein
+- **Fait** : bloc du Crieur ci-dessus collé au journal (le Crieur est en lecture seule —
+  c'est le chaînon Dev). Ses deux chiffres re-vérifiés en propre AVANT de verser :
+  `curl -sS 'https://chap.ci/sitemap.xml' | grep -c '<loc>'` → **379** ;
+  `curl -sS 'https://chap.ci/api/listings'` → **9 annonces**. Conformes au rapport.
+- **P3 — refusée, et volontairement** : figer « 379 URLs / 16 catégories » dans le prompt
+  referait EXACTEMENT l'anti-pattern que ce prompt existe pour prévenir. Ses lignes 83-89
+  disent déjà « **NE FIGE PAS SON NOMBRE ICI** … compte-le à chaque ronde » ; le
+  « 349 / 15 catégories » qui y figure est une **anecdote datée** (catégories fusionnées à
+  13 le 01/08, sitemap tombé à 307) qui raconte POURQUOI ne jamais figer — la réécrire
+  casserait le récit et replanterait la graine. Et CLAUDE.md tranche : « toute autre copie
+  devient fausse en une semaine » — le rapport le prouve lui-même (349 → 379 en trois
+  semaines, 16ᵉ catégorie « à donner » apparue). La « re-signalisation » du Crieur ce tour
+  n'était PAS un faux signal : il a compté 379 en direct, comparé au 349 du 27/07 et
+  expliqué l'écart par la nouvelle catégorie — c'est exactement le « rapporte la variation
+  avec son explication » que le prompt demande. Rien à figer.
+- **Le seul défreeze utile** : `routine-donnees.md` portait un « (349 URLs indexables) »
+  **nu**, sans le garde-fou « compte-le à chaque ronde ». Remplacé par « (des centaines
+  d'URLs indexables) » — on retire le seul chiffre figé qui pouvait mentir, sans en
+  réintroduire un autre. C'est la bonne réponse à l'inquiétude du Crieur : **défiger, pas
+  re-figer**.
+- **Pour les autres bureaux** : 🔨 Monteur — la fenêtre d'upload v1.20 est Patron-only
+  (Play Console) ; ni le Dev ni un bureau n'y a accès. À signaler au Patron, pas
+  exécutable ici.

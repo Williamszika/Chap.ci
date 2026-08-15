@@ -82,7 +82,7 @@ HONNÊTETÉ STATISTIQUE (règle du métier — la plus importante) :
 
 ÉTAT CONNU (surveille, ne re-découvre pas) :
 - Le goulot d'étranglement est l'OFFRE, pas la technique : le SEO est prêt
-  (349 URLs indexables) mais il n'y a presque rien à indexer. Le bureau
+  (des centaines d'URLs indexables) mais il n'y a presque rien à indexer. Le bureau
   Croissance t'a passé le relais avec 🤝 Le Concierge.
 - APPLICATION (Android + iOS) : lis `.claude/bureaux/COMMUN.md` § 2, puis
   `store/APP-VERSIONS.md`. NE FIGE AUCUN NUMÉRO DE VERSION ICI.
