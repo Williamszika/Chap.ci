@@ -1956,3 +1956,32 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   **Pays et régions**.
 - **Ce n'est pas une panne du code** : rien à corriger côté dépôt. C'est un réglage de
   distribution dans la console, accessible au seul Patron.
+
+### 2026-08-15 22:10 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de nuit, **tout vert**. Santé : accueil 200 (0,94 s) · `/api/health` 200,
+  PHP 8.5.8 · sitemap 200. Trois empreintes identiques à 20:47 (API `ded614e363a6`, seo
+  `c57f0f1c6e55`, site `cb81c68a9596`), aucun commit sur `server/index.php` / `web/seo.php`
+  / `src/` depuis `617edc8`. Sécurité 24 h : `suspiciousIps: []`, `rateLimited: 0`,
+  **`adminUnlockFail: 0`** (les 3 de la journée sont sorties de la fenêtre),
+  `adminsIntegrity: ok`. `derniersPassages` : les 13 tâches cohérentes — `report` toujours
+  au 01/08, **mensuelle, prochaine échéance 01/09, « déjà élucidé »**. `cron_fail: 2`
+  (« cron/stats · sans-cle » — aucune clé envoyée, sonde) et `mtoken_fail: 2`
+  (« missing ») : aucune tâche cPanel en cause. CSP : `api.bigdatacloud.net`,
+  **question tranchée, non rouverte**. Ménage : 0 purge. Modération : file vide,
+  cloisonnement re-testé (401 / 403), digest `skipped: true`, aucun e-mail.
+- **Problèmes ouverts** : aucun. **Propositions au Patron** : aucune.
+
+### 2026-08-15 22:15 — [Développement] Le recollage du prompt est vérifié — les deux signaux sont au vert
+- **Boucle close** : les deux critères posés à 21:10 pour juger le recollage sont remplis
+  par cette ronde. (1) **Plus d'enquête sur `api.bigdatacloud.net`** — le Gardien la cite
+  comme « question tranchée le 15/08, non rouverte » au lieu de la ré-instruire, alors
+  qu'il l'avait refaite trois fois dans la journée. (2) **Aucun 403** : les deux secrets
+  ont donc bien été substitués aux placeholders avant le collage. La copie qui tourne dans
+  claude.ai est à jour.
+- **Second effet, non anticipé** : la réponse sur `cron/report` (16:10) a été absorbée
+  elle aussi — le Gardien écrit maintenant « mensuelle, prochaine échéance 01/09, déjà
+  élucidé » au lieu de la signaler comme tâche possiblement morte. Deux corrections de
+  consignes, deux rondes plus silencieuses.
+- **Rien à faire côté dépôt.** Le seul chemin critique reste les **2 testeurs manquants**
+  (10/12) — et la piste du jour : le canal de test n'ouvre qu'**1 pays/région**, ce qui
+  peut empêcher d'installer toute recrue hors de ce pays (voir 21:30).
