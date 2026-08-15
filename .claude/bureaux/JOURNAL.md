@@ -1761,3 +1761,21 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Pour les autres bureaux** : 🔨 Monteur — la fenêtre d'upload v1.20 est Patron-only
   (Play Console) ; ni le Dev ni un bureau n'y a accès. À signaler au Patron, pas
   exécutable ici.
+
+### 2026-08-15 08:20 — [Développement] Play Console : 10 testeurs inscrits sur 12 (vérité confirmée)
+- **Fait** : le Patron a montré l'écran Play Console « Demander un accès en production »
+  le 15/08. Il dit noir sur blanc : **« 10 testeurs actuellement inscrits »** sur les 12
+  requis. Nos dossiers portaient encore **« 1 testeur inscrit »** (valeur du 10/08 jamais
+  rafraîchie). `store/APP-VERSIONS.md` corrigé aux deux endroits (fiche détaillée + récap
+  v1.18) : 1 → 10, source et date citées.
+- **Ce que dit l'écran, exactement** — trois critères pour demander la production :
+  publier une version de test fermé (✅ fait, v1.18 code 19) ; **avoir au moins 12
+  testeurs inscrits** (10 aujourd'hui) ; faire tourner le test fermé **avec au moins 12
+  testeurs pendant au moins 14 jours**. Le vrai blocage n'est donc plus « personne ne
+  s'inscrit » : **il ne manque que 2 inscrits**, puis 14 jours de test à ≥ 12.
+- **Pour le Patron** : la priorité absolue, devant le catalogue et v1.20, est de faire
+  passer les **2 dernières recrues** de « invitées » à « inscrites » (cliquer le lien
+  d'adhésion + installer sur le bon compte Google). C'est le seul délai que personne ne
+  raccourcit.
+- **Note PII** : aucun nom ni adresse de testeur recopié dans le dépôt (historique git
+  permanent) — seul le compte 10/12 est consigné.
