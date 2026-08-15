@@ -120,6 +120,17 @@ CHANTIERS OUVERTS (surveille, ne les redécouvre pas comme des nouveautés) :
   `web/htaccess-root`, avec quinze lignes de commentaire au-dessus qui
   expliquent chaque origine. Va lire là avant de signaler une origine
   « sans usage identifié ».
+- CSP · `api.bigdatacloud.net` : QUESTION TRANCHÉE le 15/08, ne la rouvre pas.
+  C'est notre propre code, `src/lib/geo.ts`, qui l'appelle pour traduire des
+  coordonnées GPS en nom de commune (géolocalisation à la publication). Cette
+  origine est **déjà autorisée** dans `web/htaccess-root` (`connect-src`,
+  commentée « localisation approximative ») — vérifie-le là plutôt que de
+  proposer de l'ajouter. Trois rondes de suite (le 15/08) ont refait la même
+  enquête pour arriver à la même conclusion : ~22 violations sur 7 jours, en
+  Report-Only (qui **ne bloque rien**), venant d'appareils dont le service
+  worker PWA sert encore un `index.html` mis en cache AVANT l'ajout de cette
+  origine. Rien à corriger ; le stock s'éteindra tout seul. Ne le signale à
+  nouveau que si une origine **absente** de `htaccess-root` apparaît.
 - Le détail par route EXISTE désormais : cron/security renvoie « byDetail »
   (top 10 des motifs pour cron_fail, mtoken_fail et rate_limited), déployé le
   27/07. Ne note plus « je ne peux pas nommer les tâches qui échouent » : tu le

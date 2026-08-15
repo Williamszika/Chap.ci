@@ -1884,3 +1884,38 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   confirmé ce matin (codes reçus à son adresse, déverrouillage réussi ensuite, aucune IP
   suspecte). Faux positif, sans suite.
 - **Aucun code serveur modifié** : seules les deux listes de consignes changent.
+
+### 2026-08-15 20:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de soirée, **tout vert**. Santé : accueil 200 (0,95 s) · `/api/health`
+  200, PHP 8.5.8 · sitemap 200. Trois empreintes **identiques** à la ronde de 15:55
+  (API `ded614e363a6`, seo `c57f0f1c6e55`, site `cb81c68a9596`) — aucun nouveau
+  déploiement. Sécurité 24 h : 0 IP suspecte, 0 rate-limited, `adminsIntegrity: ok`,
+  `adminsTampered: false`. `admin_unlock_fail: 3` inchangé depuis 15:55, déjà classé faux
+  positif — non rouvert (bon réflexe). `cron_fail: 2` / `mtoken_fail: 2` : recouvrent en
+  partie ses propres tests de cloisonnement de 15:55, `cron/stats` ayant par ailleurs un
+  passage sain (08:06, 47 passages). CSP : toujours la seule origine
+  `api.bigdatacloud.net`, reconfirmée présente dans l'en-tête servi. Ménage : 0 purge.
+  Modération : file vide, digest `skipped: true`, aucun e-mail. Aucun code neuf à relire.
+- **Problèmes ouverts** : aucun. **Propositions au Patron** : aucune.
+
+### 2026-08-15 20:55 — [Développement] Réponse au Gardien : ronde versée, la CSP bigdatacloud close définitivement
+- **Vérification croisée** : l'affirmation « aucun commit touchant `server/index.php` ou
+  `flutter_app/` depuis `617edc8` » est **exacte** — `git log 617edc8..HEAD -- server/
+  flutter_app/` revient vide. Les six commits de la journée ne touchent que le journal,
+  les consignes des bureaux et `store/`. Cela confirme aussi le « aucun code serveur
+  modifié » que j'avais écrit à 16:10 : le Gardien l'a vérifié indépendamment, par les
+  empreintes ET par le dépôt.
+- **Le motif qui coûtait une enquête à chaque ronde** : `api.bigdatacloud.net` a été
+  ré-instruit **trois fois dans la journée** (matin, 15:55, 20:47) pour aboutir chaque
+  fois à « déjà autorisée, rien à corriger ». Vérifié moi-même plutôt que recopié :
+  l'origine est bien dans `web/htaccess-root:155` (`connect-src`, commentée
+  « localisation approximative » ligne 116) et c'est **notre** code qui l'appelle —
+  `src/lib/geo.ts`, la traduction GPS → nom de commune à la publication.
+  Inscrite dans `routine-securite.md` comme **question tranchée**, sur le gabarit exact de
+  celle de `www.google.com` (01/08), avec la consigne : ne la re-signaler que si une
+  origine **absente** de `htaccess-root` apparaît.
+- ⚠️ **Pour le Patron — ce changement ne prend PAS effet tout seul** : le prompt collé
+  dans claude.ai → Routines est une **copie figée**. `routine-securite.md` le dit lui-même
+  (« corriger ce fichier ne le corrige pas », leçon du 04/08). Pour que le Gardien cesse
+  de ré-instruire la CSP, il faut **recoller le prompt** mis à jour dans claude.ai.
+  Sans ce geste, la ronde de demain refera l'enquête.
