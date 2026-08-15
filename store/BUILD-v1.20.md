@@ -155,16 +155,33 @@ remplace sur le canal.
 
 ## Si l'AAB du 12/08 n'est plus sur le Mac : reconstruire
 
-Depuis `flutter_app/`, sur le Mac du Patron (le keystore et son mot de passe y
-vivent, et **nulle part ailleurs**) :
+Le `.aab` est un produit de build (50 Mo, signé) : il **ne vit pas dans Git** et
+personne d'autre que votre Mac ne peut le fabriquer — le keystore et son mot de
+passe y vivent, et **nulle part ailleurs**. On le reconstruit à l'identique. Le
+guide pas-à-pas complet est **`flutter_app/GUIDE-CONSTRUIRE-MAC.md`** ; la version
+courte, une fois tout déjà installé (ce qui est le cas depuis le 12/08) :
 
 ```bash
-dart run tool/preparer_plateformes.dart   # régénère android/ + ios/ + la config de signature
-flutter build appbundle --release          # sort dans build/app/outputs/bundle/release/app-release.aab
+cd ~/chap && git pull && cd flutter_app && flutter pub get
+dart run tool/preparer_plateformes.dart
+flutter build appbundle --release
+open build/app/outputs/bundle/release/
 ```
 
-Le fichier reproduit doit rester en **versionCode 21** et signé avec la clé
-d'importation `chapci` (SHA-1 `84:98:…:F4:84`).
+> **Le fichier reconstruit sera un peu plus récent que celui du 12/08 — et c'est
+> tant mieux.** Depuis ce build, l'app a gagné la connexion Google/Facebook, la
+> page vendeur complète, la fiche d'annonce détaillée et — utile pour l'examen —
+> la **suppression de compte + les pages légales + l'aide**. Le `versionCode`
+> reste **21** (déjà figé dans `pubspec.yaml : version: 1.20.0+21`) : **n'y
+> touchez pas**, 21 n'a jamais été téléversé.
+
+> ⚠️ **Si le build échoue sur la signature** (« key.properties » manquant, build
+> non signé) : recréez le fichier de signature avec **le même keystore** que la
+> v1.18/v1.19, puis relancez le build —
+> `cp tool/key.properties.exemple android/key.properties`, `open -e
+> android/key.properties`, remplissez les quatre valeurs (alias, mot de passe de
+> la clé, chemin du `.jks`, mot de passe du keystore), enregistrez, puis
+> `flutter build appbundle --release`.
 
 ---
 
