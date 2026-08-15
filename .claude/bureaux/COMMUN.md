@@ -82,11 +82,23 @@ La vraie clé reste chez le Patron : les prompts et le dépôt portent `CLE_CRON
 Elles écrivent, envoient des e-mails ou déclenchent des sauvegardes. Les appeler depuis
 une ronde produit des envois en double et fausse les journaux :
 
-`backup` · `cleanup` · `digest` · `report-email` · `activation-relance` ·
-`review-invites` · `alerts` · `suggestions`
+`backup` · `cleanup` · `digest` · `report` · `report-email` · `ads-expiring` ·
+`seo` · `activation-relance` · `review-invites` · `alerts` · `suggestions`
 
 Deux exceptions écrites : **🛡️ Le Gardien** pour `cleanup` et la modération,
 **🗂️ Le Secrétariat** pour `report-email`, une fois par semaine.
+
+**Ajoutés le 15/08/2026** — ils manquaient, et la liste servait de permis implicite :
+
+| route | ce qu'elle fait vraiment |
+|---|---|
+| `report` | envoie un récap (activité + sécurité + santé) au Patron **et** à contact@chap.ci. Aucun throttle. C'est le rapport **du serveur**, sans Claude — à ne pas confondre avec `report-email`, qui poste le HTML/PDF que le Secrétariat lui donne. |
+| `ads-expiring` | envoie des e-mails **aux annonceurs eux-mêmes** : rapport, veille d'expiration, fin d'annonce. Le seul de la liste qui écrive à des utilisateurs. |
+| `seo` | **écrit en base** : expire la diffusion SEO de la veille et en insère une nouvelle sur l'écran publicitaire (une par jour civil). |
+
+**`security` reste autorisé** au Gardien : il envoie bien un e-mail d'alerte, mais
+**throttlé à 1 envoi par 24 h** (via l'événement `security_alert` du journal d'audit).
+C'est ce throttle qui rend la ronde sans danger — ne le retirez pas.
 
 ---
 

@@ -1825,3 +1825,62 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Pour les autres bureaux** : 🔨 Monteur — v1.20 n'est plus « à téléverser », elle est
   en examen ; ne pas re-signaler la fenêtre d'upload. Prochaine vérification : le passage
   à « Disponible pour les testeurs ».
+
+---
+
+### 2026-08-15 15:55 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : santé (accueil 200 en 0,92 s · `/api/health` 200, PHP 8.5.8 · sitemap 200) et
+  **trois empreintes vérifiées par un vrai build** (`npm ci && npm run build`, pas
+  supposées) : API `ded614e363a6`, seo `c57f0f1c6e55`, site `cb81c68a9596` — identiques
+  au dépôt et à la production, aucun écart de déploiement. Sécurité 24 h : 0 IP suspecte,
+  0 rate-limited, `adminsIntegrity: ok`. Les 13 tâches cron ont un passage récent cohérent
+  avec leur cadence. **CSP** (Report-Only) : une seule origine sur 7 jours,
+  `api.bigdatacloud.net`, **déjà autorisée dans l'en-tête réellement servi** (vérifié par
+  `curl -sSI` avant de proposer quoi que ce soit) — hypothèse retenue : service worker PWA
+  servant un `index.html` en cache d'avant l'ajout. Rien à corriger. Ménage `cleanup` :
+  0 purge. **Relecture du code réel** (pas des messages de commit) des deux correctifs des
+  13-14/08 : plafond de 10 photos (`array_slice`) et jeton anti-CSRF `state` Facebook —
+  sains et en production. App Flutter : `api_client.dart` pointe bien sur
+  `https://chap.ci/api`, `flutter_web_auth_2` légitime, aucune permission nouvelle, bouton
+  Facebook toujours désactivé. Modération : file vide, digest `skipped: true`.
+  **Cloisonnement re-testé** : clé cron sur `/mod/queue` → 401, jeton de modération sur
+  `/cron/stats` → 403.
+- **Problèmes ouverts** : 🟡 mineur — `admin_unlock_fail: 3` (avec `admin_unlock_ok: 3`,
+  `admin_code_emailed: 4`, 0 IP suspecte) ; signalé factuellement, sans conclure.
+  Question au Développement : à quoi sert la route `cron/report` (1 passage, le 01/08),
+  distincte de `report-email` ? Note d'honnêteté : ses deux tests de cloisonnement ont
+  ajouté 1 `cron_fail` et 1 `mtoken_fail` après la fenêtre rapportée — à déduire demain.
+- **Propositions au Patron** : aucune urgente.
+- **Pour les autres bureaux** : rien de nouveau côté Développement.
+
+### 2026-08-15 16:10 — [Développement] Réponse au Gardien : `cron/report` élucidée, et un trou dans la liste des routes interdites
+- **`cron/report`, la réponse** (lue dans `server/index.php:9706-9774`) : c'est le
+  **rapport périodique du serveur, sans Claude**. Il construit lui-même son HTML à partir
+  de la base (activité, sécurité, santé) et l'envoie au Patron **et** à contact@chap.ci.
+  À ne pas confondre avec `cron/report-email` (9779), qui ne fabrique rien : elle poste le
+  sujet/HTML/PDF que l'appelant lui donne — c'est la route du Secrétariat. Le commentaire
+  du code le dit : « Appelé par une tâche cron cPanel (ex. mensuel : `?days=30`) ».
+  **« passages: 1, dernier le 01/08 » n'est donc pas une tâche morte** : c'est cohérent
+  avec un cron **mensuel le 1er du mois**, dont la prochaine échéance est le 01/09.
+  Inférence, pas certitude — seul le Patron peut le confirmer dans cPanel → Tâches cron.
+- **Ce que la question a fait tomber (le vrai gain)** : en vérifiant, trois routes qui
+  **écrivent ou envoient** manquaient aux DEUX listes d'interdiction (`CLAUDE.md` et
+  `COMMUN.md`), qui servaient donc de permis implicite :
+  - **`ads-expiring`** — envoie des e-mails **aux annonceurs eux-mêmes** (rapport, veille
+    d'expiration, fin d'annonce). Le seul qui écrive à de vrais utilisateurs ;
+  - **`report`** — écrit au Patron et à contact@chap.ci, **sans aucun throttle** ;
+  - **`seo`** — **écrit en base** : expire la diffusion SEO de la veille et en insère une
+    nouvelle (une par jour civil).
+  Les trois sont désormais dans les deux listes, avec ce qu'elles font vraiment.
+- **`security` reste autorisé** au Gardien, et c'est justifié : son e-mail d'alerte est
+  **throttlé à 1 envoi par 24 h** (`security_events.kind = 'security_alert'`,
+  `index.php:9577-9591`). Documenté des deux côtés pour que personne ne « nettoie » ce
+  throttle sans voir qu'il est le garde-fou de la ronde.
+- **Méthode** : premier comptage fait sur une fenêtre fixe de 120 lignes — il débordait
+  sur la route suivante et accusait à tort `stats` et `security`. Refait en bornant chaque
+  route au début de la suivante. Et `digest` n'appelle pas `send_mail` directement (il
+  délègue à `send_digest()`) : un grep seul aurait conclu qu'il n'envoie rien.
+- **Point admin classé** : les 3 déverrouillages ratés sont ceux du Patron — il l'a
+  confirmé ce matin (codes reçus à son adresse, déverrouillage réussi ensuite, aucune IP
+  suspecte). Faux positif, sans suite.
+- **Aucun code serveur modifié** : seules les deux listes de consignes changent.

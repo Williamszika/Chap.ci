@@ -132,9 +132,19 @@ qu'on signale quelque chose de cassé ou de lent.
 Onze routines dans `.claude/bureaux/`, un `routine-*.md` par bureau.
 
 **Les routes cron qui écrivent ou envoient ne s'appellent pas depuis un bureau** :
-`backup`, `cleanup`, `digest`, `report-email`, `activation-relance`, `review-invites`,
-`alerts`, `suggestions`. Deux exceptions écrites : 🛡️ Le Gardien pour `cleanup` et la
-modération, 🗂️ Le Secrétariat pour `report-email` une fois par semaine.
+`backup`, `cleanup`, `digest`, `report`, `report-email`, `ads-expiring`, `seo`,
+`activation-relance`, `review-invites`, `alerts`, `suggestions`. Deux exceptions
+écrites : 🛡️ Le Gardien pour `cleanup` et la modération, 🗂️ Le Secrétariat pour
+`report-email` une fois par semaine.
+
+`report`, `ads-expiring` et `seo` ont été ajoutés le 15/08/2026 : ils manquaient à la
+liste alors qu'ils envoient ou écrivent — `ads-expiring` écrit **aux annonceurs
+eux-mêmes** (rapport, veille d'expiration, fin d'annonce). Un bureau qui lisait cette
+liste pouvait les croire inoffensifs.
+
+`security`, lui, **reste autorisé** au Gardien : il envoie un e-mail d'alerte, mais
+**throttlé à un seul envoi par 24 h** via l'événement `security_alert` du journal
+d'audit. Ce throttle est ce qui rend la ronde sans danger — ne le retirez pas.
 
 **Les numéros de version de l'application ne se figent que dans `store/APP-VERSIONS.md`.**
 Toute autre copie devient fausse en une semaine.
