@@ -1797,3 +1797,31 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   Flutter. Déposer une version ne remet pas à zéro le compte des testeurs.
 - **Pour les autres bureaux** : 🔨 Monteur — exécution côté Play Console = Patron only ;
   la fiche est prête à suivre dès que le catalogue de testeurs atteint 12.
+
+### 2026-08-15 10:50 — [Développement] v1.20 envoyée à l'examen — la refonte Flutter est partie
+- **Fait** : le Patron a reconstruit l'AAB sur son Mac (l'ancien fichier du 12/08 avait
+  disparu ; un `.aab` signé ne vit pas dans Git et seul son Mac peut le produire), l'a
+  téléversé sur le **canal de test fermé** et a franchi la dernière porte. **Vu dans la
+  console** : « 21 (1.20.0) — Tests fermés – Test fermé Chap.ci », déploiement complet,
+  puis le titre est passé de « Modifications PAS ENCORE envoyées pour examen » à
+  « **Modifications EN COURS D'EXAMEN** ». C'est la première fois que la refonte Flutter
+  atteint Google.
+- **La porte qui avait piégé la v1.1 et la v1.16 est franchie** : téléverser n'est pas
+  publier ; il fallait « Publication → Vue d'ensemble de la publication → Envoyer 1
+  modification pour examen ». La fiche `store/BUILD-v1.20.md` l'annonçait comme le point
+  n°6, et c'est exactement là que le Patron a eu besoin d'être guidé.
+- **« Publication gérée désactivée »** : une fois l'examen validé, la v1.20 part aux
+  testeurs **automatiquement**, sans autre clic.
+- **Ce qui est parti est plus récent que le build du 12/08** : reconstruit depuis le HEAD,
+  l'AAB embarque les 12 commits suivants — connexions Google/Facebook, page vendeur
+  complète, fiche d'annonce détaillée, et surtout **suppression de compte + pages légales
+  + aide** (utiles à l'examen). Toujours `versionCode 21`, jamais téléversé auparavant.
+- **`store/APP-VERSIONS.md` mis à jour** aux deux endroits (fiche v1.20 + tableau « État
+  des deux boutiques ») : l'état n'est plus « PRÊTE, PAS ENCORE TÉLÉVERSÉE » mais
+  « ENVOYÉE À L'EXAMEN », avec la mention que les testeurs ont encore la v1.18 tant que
+  Google n'a pas tranché.
+- **Reste au Patron** : les **2 derniers testeurs** (10/12). Le compte à rebours des
+  14 jours ne démarre qu'à 12 inscrits — et il tournera désormais sur la vraie app Flutter.
+- **Pour les autres bureaux** : 🔨 Monteur — v1.20 n'est plus « à téléverser », elle est
+  en examen ; ne pas re-signaler la fenêtre d'upload. Prochaine vérification : le passage
+  à « Disponible pour les testeurs ».
