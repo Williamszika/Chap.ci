@@ -2191,3 +2191,24 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   travail. Héritée, à ne PAS fusionner (histoires disjointes).
 - **Pour le Patron** : si un bureau annonce « poussé sur telle branche », il faut le
   vérifier — les rondes n'atterrissent pas toutes au même endroit.
+
+### 2026-08-16 18:45 — [Développement] Correctifs de l'Atelier déployés et vérifiés en production
+- **Déployé** : zip `chap-cibles-tactiles` (site seul, 107 fichiers) extrait dans
+  `public_html` par le Patron. **Vérifié, pas supposé** :
+  - `empreinteSite` : `cb81c68a9596` → **`bbbaa08d5db0`**, exactement la valeur annoncée
+    dans le `A-LIRE-DABORD.txt` ; `deposeSite` passe au **16/08 18:40:45 Z** ;
+  - `empreinte` (API) `ded614e363a6` et `empreinteSeo` `c57f0f1c6e55` **inchangées** —
+    normal, le zip ne les contenait pas ;
+  - accueil **200 en 0,82 s**, et le paquet servi est bien l'entrée de ce build
+    (`/assets/index-Ba-OaK-B.js`, présente dans le zip). Le nom vu au premier coup d'œil
+    dans l'archive (`index-CQcaQsJF.js`) était un **autre** morceau commençant par
+    « index- » : vérifié avant de conclure, pas déduit du nom.
+- **Périmètre volontairement réduit** : l'API et `seo.php` étant déjà identiques entre
+  dépôt et production, le zip ne portait que `dist/`. Moins de surface, moins de risque —
+  et aucun `.htaccess`, `config.php`, `uploads/` ou `api/data/` dedans, contrôlé avant envoi.
+- **Contenu réel du dépôt** : un seul commit touchait `src/` depuis le dernier dépôt du
+  site (13/08) — `b14c78c`, les six correctifs de l'Atelier. Le zip ne transportait donc
+  rien d'autre.
+- **En ligne maintenant** : cibles tactiles de 44 et 48 px sur la bannière d'installation
+  et le bandeau cookies, quatre textes porteurs de sens repassés au-dessus du seuil AA,
+  et le bandeau cookies qui entre en fondu au lieu de surgir.
