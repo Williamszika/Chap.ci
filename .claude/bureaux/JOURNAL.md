@@ -2112,3 +2112,17 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   installations mais les **inscriptions**. Si l'ami a pu cliquer « Devenir testeur », il
   compte peut-être **déjà** comme 11ᵉ, blocage d'installation ou non. À lire sur l'écran
   « Demander un accès en production ».
+
+### 2026-08-16 08:35 — [Développement] Pays du test fermé : configuration confirmée correcte
+- **Vu dans la console** (onglet « Pays/Régions » du test fermé) : **« Ciblé(s) (2) »** —
+  **Allemagne** et **Côte d'Ivoire**, toutes deux à l'état **Ciblé**. Le réglage est donc
+  bel et bien appliqué sur le bon canal.
+- **Ma piste de 08:20 était fausse** : je supposais la modification retenue dans la file de
+  publication derrière la v1.20 en examen. Elle ne l'est pas — la console l'affiche
+  « Ciblé », pas « en attente ». Écartée.
+- **Il ne reste donc que deux causes au refus vu par le testeur** : la **propagation** côté
+  Google (plusieurs heures) et le **cache du Play Store** sur son téléphone. Rien à faire
+  dans la console.
+- **Toujours pas vérifié, et c'est le seul chiffre qui décide** : le compteur de l'écran
+  « Demander un accès en production » affiche-t-il 10 ou 11 ? Le seuil compte des
+  inscriptions, pas des installations — l'ami peut compter sans avoir pu installer.
