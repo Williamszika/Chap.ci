@@ -2094,3 +2094,21 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   le lien du fermé.
 - **Ma correction de 07:45 tient**, mais son angle « diaspora » est maintenant confirmé
   réel : le Patron a bien au moins une recrue hors de Côte d'Ivoire.
+
+### 2026-08-16 08:20 — [Développement] Le lien du test fermé a bien fait basculer le testeur de canal
+- **Preuve par la capture** : avec le lien `play.google.com/apps/testing/ci.chap.app`, la
+  fiche vue par l'ami en Allemagne n'affiche **plus** « (accès anticipé interne) » ni
+  « Vous êtes testeur interne » — elle affiche « Chap.ci — Petites annonces CI » tout court,
+  avec les captures d'écran et la description. **Le basculement interne → fermé a marché.**
+  C'était la bonne piste : le canal, pas le pays.
+- **Reste** : « Cet article n'est pas disponible dans votre pays » persiste, et Play lui
+  sert bien la boutique allemande (mention « USK : 12 ans et plus », l'organisme de
+  classification allemand). L'ouverture de l'Allemagne sur le canal fermé n'a donc pas
+  encore pris effet. Causes plausibles, par ordre : propagation (plusieurs heures, parfois
+  24 h) ; modification enregistrée mais **non publiée** — les changements de pays passent
+  par la file de publication, et une **release est justement en cours d'examen** (v1.20),
+  ce qui peut les retenir ; ou réglage appliqué à un autre canal.
+- **Point à vérifier tout de suite, et le plus utile** : le compteur ne compte pas les
+  installations mais les **inscriptions**. Si l'ami a pu cliquer « Devenir testeur », il
+  compte peut-être **déjà** comme 11ᵉ, blocage d'installation ou non. À lire sur l'écran
+  « Demander un accès en production ».
