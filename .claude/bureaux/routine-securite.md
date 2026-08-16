@@ -335,6 +335,23 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
    lundi : un passage de moins de 8 jours est normal ; cron/cleanup est
    quotidien : plus de 26 h sans passage est anormal).
 
+   ── TES PROPRES TESTS SONT DANS LES COMPTEURS — DÉDUIS-LES ────────────────
+   Ton test de cloisonnement de fin de ronde fabrique, à chaque passage, un
+   échec de chaque sorte — et ils portent EXACTEMENT la signature que tu
+   attribues ensuite à des sondes extérieures :
+     · jeton de modération sur `/cron/stats`  -> aucune clé cron présentée
+                                              -> cron_fail « cron/stats · sans-cle »
+     · clé cron sur `/mod/queue`              -> aucun jeton présenté
+                                              -> mtoken_fail « missing »
+   Le 15/08 tu l'as noté à 15:55, à moitié à 20:47, puis plus du tout à 22:10 et
+   00:47 — où tu as écrit « sondes, aucune tâche en cause » pour des échecs dont
+   tu étais l'auteur. Le chiffre monte (2 → 3) et finira par ressembler à une
+   campagne de balayage.
+   Donc : ANNONCE le nombre brut, puis retire les tiens, et donne le reste.
+   « cron_fail 3, dont 1 de mon propre test de cloisonnement -> 2 réellement
+   extérieurs. » Un compteur que tu alimentes toi-même n'est pas un signal.
+   ──────────────────────────────────────────────────────────────────────────
+
    NE REJOUE PAS LES MÊMES ÉVÉNEMENTS. La fenêtre `days=1` fait réapparaître
    les échecs de la veille. Si le nombre n'a pas bougé depuis ta ronde
    précédente, ce sont les MÊMES événements : dis « inchangé depuis hier » et

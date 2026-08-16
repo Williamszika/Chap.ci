@@ -1985,3 +1985,36 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Rien à faire côté dépôt.** Le seul chemin critique reste les **2 testeurs manquants**
   (10/12) — et la piste du jour : le canal de test n'ouvre qu'**1 pays/région**, ce qui
   peut empêcher d'installer toute recrue hors de ce pays (voir 21:30).
+
+### 2026-08-16 00:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de nuit, **tout vert**. Santé : accueil 200 (1,10 s) · `/api/health` 200,
+  PHP 8.5.8 · sitemap 200. Trois empreintes inchangées (API `ded614e363a6`, seo
+  `c57f0f1c6e55`, site `cb81c68a9596`), aucun commit sur `server/`, `web/seo.php`, `src/`
+  ni `flutter_app/` depuis `617edc8`. Sécurité 24 h : `suspiciousIps: []`, `rateLimited: 0`,
+  `adminUnlockFail: 0`, `adminsIntegrity: ok`. `cron_fail: 3` (tous « cron/stats ·
+  sans-clé ») et `mtoken_fail: 3` (tous « missing »). Les 13 tâches cohérentes (`report`
+  mensuelle, non re-signalée). CSP : question tranchée, non rouverte. Ménage : 0 purge.
+  Modération : file vide, cloisonnement re-testé (401 / 403), digest `skipped: true`.
+- **Problèmes ouverts** : aucun. **Propositions au Patron** : aucune.
+
+### 2026-08-16 00:55 — [Développement] Le Gardien compte ses propres tests comme des sondes extérieures
+- **Constat** : `cron_fail` et `mtoken_fail` montent (2 → 3) et sont attribués depuis deux
+  rondes à « des sondes, aucune tâche en cause ». Vérification dans le code
+  (`server/index.php:9025`) : **« sans-cle » signifie que personne n'a présenté de clé**.
+  Or le test de cloisonnement que le Gardien exécute en fin de CHAQUE ronde produit
+  précisément cela :
+  - jeton de modération envoyé à `/cron/stats` → aucune clé cron → `cron_fail`
+    « cron/stats · sans-cle » ;
+  - clé cron envoyée à `/mod/queue` → aucun jeton → `mtoken_fail` « missing ».
+  La signature correspond trait pour trait. **Ces échecs sont les siens.**
+- **Pourquoi ça compte** : il l'avait noté honnêtement à 15:55 (« mes deux tests ont ajouté
+  1 `cron_fail` et 1 `mtoken_fail` — à déduire demain »), à moitié à 20:47, puis plus du
+  tout. Un compteur qu'un bureau alimente lui-même et présente comme extérieur finit par
+  ressembler à une campagne de balayage — et fera chercher au Patron un attaquant qui
+  n'existe pas. C'est la faute du 02/08, en sens inverse.
+- **Corrigé dans `routine-securite.md`** : encadré « TES PROPRES TESTS SONT DANS LES
+  COMPTEURS — DÉDUIS-LES », avec la consigne d'annoncer le brut puis le net
+  (« cron_fail 3, dont 1 de mon test → 2 réellement extérieurs »).
+- **Pas de recollage urgent** : le Gardien lit le JOURNAL au début de chaque ronde (§1),
+  il verra donc ce point dès la prochaine. La consigne durable prendra effet au prochain
+  recollage du prompt — inutile de le refaire ce soir pour ça.
