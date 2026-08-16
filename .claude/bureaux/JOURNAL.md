@@ -2053,3 +2053,23 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   commandes cron avec la clé en `?key=` dans l'URL. C'est le repli cPanel documenté
   (26/07), et l'écran est derrière une session admin — mais une clé en URL finit dans les
   journaux du serveur. À revoir un jour, sans urgence.
+
+### 2026-08-16 07:45 — [Développement] Pays du test : correction de mon hypothèse de la veille
+- **Constat** : le Patron a ajouté l'Allemagne, et son téléphone affiche TOUJOURS « Cet
+  article n'est pas disponible dans votre pays » (capture 07:37). La même capture montre
+  pourquoi c'est cohérent : son appareil est sur le **test INTERNE** (« accès anticipé
+  interne », « Vous êtes testeur interne »), pas sur le test fermé. **La disponibilité par
+  pays se règle canal par canal** : ouvrir l'Allemagne sur le test fermé ne change rien au
+  canal interne. S'ajoute un délai de propagation de quelques heures.
+- **Je corrige ce que j'ai écrit à 21:30** : j'y présentais la restriction pays comme
+  pouvant expliquer le plafond à 10/12. C'est trop large. Le pays autorisé étant la Côte
+  d'Ivoire, **les testeurs qui vivent en Côte d'Ivoire n'ont jamais été bloqués**. La
+  restriction ne gêne que le Patron (en Allemagne) et d'éventuelles recrues de la diaspora.
+  Elle n'explique donc PAS, à elle seule, les 2 inscriptions manquantes.
+- **Ce qui reste vrai et utile** : ouvrir les pays reste nécessaire pour que le Patron —
+  et toute recrue hors de CI — puisse installer et réellement tester. Mais le compteur
+  « 12 testeurs inscrits » compte des **inscriptions**, pas des installations : il ne
+  montera que si 2 personnes de plus cliquent le lien du test **fermé**.
+- **Rappel utile** : le test interne **ne compte pas** dans les 12. Le téléphone du Patron
+  y est ; tant qu'il y reste, Play lui sert le canal interne en priorité, même s'il rejoint
+  le test fermé.
