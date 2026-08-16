@@ -2018,3 +2018,38 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Pas de recollage urgent** : le Gardien lit le JOURNAL au début de chaque ronde (§1),
   il verra donc ce point dès la prochaine. La consigne durable prendra effet au prochain
   recollage du prompt — inutile de le refaire ce soir pour ça.
+
+### 2026-08-16 04:05 — [Développement] Le Patron demande si l'attaque « clé en clair dans le front » marche sur Chap.ci — NON, vérifié
+- **La question** : une méthode qui circule (DevTools → onglet Réseau → `Ctrl+F` sur
+  « sk- ») trouve les clés d'API que certains sites laissent dans leur JavaScript public.
+  Applicable à Chap.ci ?
+- **Réponse : non.** Vérifié en refaisant **exactement** le geste de l'attaquant, sur la
+  production, pas sur le dépôt :
+  - paquets réellement servis téléchargés (`index-CI2AIQ8X.js` 434 Ko + `helpers`) :
+    **aucune** correspondance pour `sk-`, `sk_live_`, `AIza…`, `ghp_`, `xox[bp]-` ;
+    aucune chaîne `client_secret` / `api_key` / `private_key` ;
+  - le morceau **admin** (`AdminDashboard-C1WlUzS1.js`, 174 Ko), pourtant téléchargeable
+    par n'importe qui : **aucun secret** non plus. Il ne contient que le *gabarit* des
+    commandes cPanel, avec une variable `cronKey` remplie **à l'exécution** ;
+  - cette variable vient de `/api/admin/backups`, testée sans session :
+    `GET /api/admin/{backups,service-tokens,stats,users}` → **401** sur les quatre,
+    corps `{"error":"Non authentifié."}`, aucune fuite.
+- **Pourquoi l'attaque ne mord pas ici — c'est architectural** : le front de Chap.ci
+  n'appelle **aucune API tierce payante**. Il ne parle qu'à notre propre backend PHP
+  (`/api`), qui détient les secrets côté serveur (`api/config.php`, `api/data/`, hors
+  dépôt, hors dossier web). Les sites vulnérables sont ceux dont le navigateur appelle
+  directement un fournisseur (IA, paiement) : la clé doit alors voyager jusqu'au
+  navigateur, donc elle est lisible. Chez nous elle ne quitte jamais le serveur.
+- **Ce qui EST dans le paquet public, et c'est normal** : l'App ID Facebook
+  (`1617587653705134`) et le client ID Google — **publics par nature**, présents dans
+  chaque bouton de connexion sociale du web. Idem `VITE_ADMIN_EMAILS`, qui n'ouvre aucun
+  droit (le serveur seul décide, `admin_emails` dans `config.php`).
+- **La règle à tenir pour que ça reste vrai** : tout ce qui est préfixé **`VITE_`** est
+  **cuit dans le paquet public**. Aujourd'hui il n'y en a que cinq, tous inoffensifs
+  (`VITE_BASE`, `VITE_API_URL`, `VITE_ADMIN_EMAILS`, `VITE_GOOGLE_CLIENT_ID`,
+  `VITE_FACEBOOK_APP_ID`). **N'ajoutez jamais un secret derrière `VITE_`** : ce serait
+  exactement la faille décrite, créée de nos mains.
+- **Observation secondaire** (pas la faille en question) : l'écran admin fabrique certaines
+  commandes cron avec la clé en `?key=` dans l'URL. C'est le repli cPanel documenté
+  (26/07), et l'écran est derrière une session admin — mais une clé en URL finit dans les
+  journaux du serveur. À revoir un jour, sans urgence.
