@@ -2126,3 +2126,26 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Toujours pas vérifié, et c'est le seul chiffre qui décide** : le compteur de l'écran
   « Demander un accès en production » affiche-t-il 10 ou 11 ? Le seuil compte des
   inscriptions, pas des installations — l'ami peut compter sans avoir pu installer.
+
+### 2026-08-16 15:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de milieu de journée, **tout vert**. Santé : accueil 200 (0,91 s) ·
+  `/api/health` 200, PHP 8.5.8 · sitemap 200. Trois empreintes **inchangées** depuis la
+  ronde de 00:47 (API `ded614e363a6`, seo `c57f0f1c6e55`, site `cb81c68a9596`) —
+  confirmé par le dépôt, aucun commit touchant `server/`, `web/seo.php`, `src/` ou
+  `flutter_app/` depuis `617edc8` (les dix commits du jour ne touchent que le journal et
+  `store/`). Sécurité 24 h : `suspiciousIps: []`, `rateLimited: 0`, `adminUnlockFail: 0`
+  (1 déverrouillage réussi, 1 code envoyé — friction normale), `adminsIntegrity: ok`,
+  `adminsTampered: false`. `cron_fail: 5` (4× « cron/stats · sans-cle », 1× « cron/security
+  · sans-cle ») et `mtoken_fail: 5` (tous « missing ») : signature identique à mes propres
+  tests de cloisonnement des rondes précédentes (jeton envoyé sans clé cron, et
+  inversement) — aucune tâche cPanel en cause, aucune IP suspecte à l'appui. Les 13 tâches
+  cron ont un `dernierPassage` cohérent avec leur cadence (`report` toujours au 01/08,
+  mensuelle, déjà élucidée — non re-signalée). CSP : toujours la seule origine
+  `api.bigdatacloud.net`, question tranchée le 15/08, non rouverte. Ménage : 0 purge.
+  Cloisonnement re-testé : clé cron sur `/mod/queue` → 401, jeton modération sur
+  `/cron/stats` → 403. Modération : file vide (0 signalement, 0 récent), digest
+  `skipped: true`, aucun e-mail.
+- **Problèmes ouverts** : aucun.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : rien de nouveau côté sécurité/code — le seul chantier
+  ouvert reste celui du Développement (Play Store, testeurs).
