@@ -2149,3 +2149,45 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Propositions au Patron** : aucune.
 - **Pour les autres bureaux** : rien de nouveau côté sécurité/code — le seul chantier
   ouvert reste celui du Développement (Play Store, testeurs).
+
+### 2026-08-16 16:10 — [Design & Typographie] 🎨 L'Atelier
+- **Fait** : audit de code (Chromium inaccessible depuis sa session — limite annoncée, pas
+  présentée comme une vérification). Notes : cohérence visuelle 4/5, typographie 4/5,
+  carte d'annonce 5/5, responsive 4/5, **accessibilité 3/5**, micro-animations 4/5, note
+  ivoirienne 5/5. Périmètre réel cité fichier par fichier, dont les 19 écrans Flutter.
+  Lot `text-gray-400` de la ronde : 153 occurrences restantes (162 le 07/08), la majorité
+  vérifiée **décorative** et non re-signalée.
+- **6 propositions** (sur 9 possibles, budget volontairement sous-utilisé) : 2 cibles
+  tactiles sous 44 px, 3 contrastes sous AA sur du texte porteur de sens, 1 animation
+  manquante. Toutes avec fichier:ligne, Avant/Après et risque.
+- **Vérification qui pouvait échouer et n'a rien trouvé** (app Flutter) : les 4 écrans à
+  contenu personnalisé en haut utilisent `SafeArea` explicitement, les 15 autres passent
+  par `Scaffold + AppBar` que Material gère ; aucun `Positioned(bottom:)` ni barre
+  personnalisée sous la barre gestuelle. Les valeurs 18-38 px repérées par balayage sont
+  des icônes **à l'intérieur** de `ListTile` tapables, pas les cibles — vérifié au cas par cas.
+- **Problèmes ouverts** : chantier `hover:` sans `md:` toujours en attente d'arbitrage du
+  Patron. Prochain lot `text-gray-400` suggéré : `SellerProfile.tsx` + `Faq.tsx`.
+
+### 2026-08-16 16:15 — [Développement] Les 6 correctifs de l'Atelier appliqués — et un journal qui se fragmentait
+- **Appliqué** (commit `b14c78c`, `npm run build` vert) : les **six** propositions, après
+  avoir rouvert chaque ligne citée — **les six citations étaient exactes**, y compris
+  l'existence de `.btn-primary`/`.btn-outline` (`index.css:100,106`, tous deux en `py-3`
+  avec `active:scale`) et de `animate-fadeup` (`tailwind.config.js:79`). Rien à corriger
+  dans son rapport.
+- **Ce que ça change pour un visiteur** : le bouton « Fermer » de la bannière
+  d'installation passe de 32 à 44 px, les boutons du bandeau cookies de ~40 à 48 px, et
+  quatre textes réellement porteurs de sens (action « Réinitialiser », districts du
+  sélecteur de commune, message d'écran vide des notifications, réassurance financière
+  après paiement) repassent au-dessus du seuil AA. Le poids égal Accepter/Refuser est
+  préservé.
+- ⚠️ **DÉCOUVERTE — le journal se fragmentait entre branches.** Le Gardien a annoncé avoir
+  poussé sa ronde de 15:47 sur `claude/gracious-darwin-6sn446`. Vérifié : cette branche
+  **existe**, et vaut exactement notre HEAD **+ 1 commit** (`ee5c2a6`) — sa ronde n'était
+  donc **pas** chez nous. Rapatriée par `merge --ff-only`, sans conflit. Sans ce contrôle,
+  l'entrée était orpheline.
+- **Autre canal repéré** : la branche `bureaux/journal` (« journal: Serrurier »,
+  « journal: Livraison »…) est une **histoire séparée**, 344 commits, **dormante depuis le
+  10/08** — c'est-à-dire depuis que le Dev verse les rondes directement sur la branche de
+  travail. Héritée, à ne PAS fusionner (histoires disjointes).
+- **Pour le Patron** : si un bureau annonce « poussé sur telle branche », il faut le
+  vérifier — les rondes n'atterrissent pas toutes au même endroit.
