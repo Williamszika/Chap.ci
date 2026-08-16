@@ -2073,3 +2073,24 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Rappel utile** : le test interne **ne compte pas** dans les 12. Le téléphone du Patron
   y est ; tant qu'il y reste, Play lui sert le canal interne en priorité, même s'il rejoint
   le test fermé.
+
+### 2026-08-16 08:00 — [Développement] La capture « pas disponible » vient d'un TESTEUR, pas du Patron — piste sérieuse
+- **Précision décisive** : l'écran Play « Cet article n'est pas disponible dans votre
+  pays » + « Vous êtes testeur interne » vient d'un **ami du Patron vivant en Allemagne**,
+  pas du Patron lui-même. Deux défauts se cumulent sur cette personne :
+  1. **elle est sur le canal INTERNE**, qui **ne compte pas** dans les 12 testeurs requis —
+     son inscription est donc perdue pour le seuil, quoi qu'elle fasse ;
+  2. **elle est en Allemagne**, pays qui n'était pas ouvert (il l'est depuis hier soir,
+     mais sur le canal FERMÉ seulement).
+- **Ce que cela suggère, et qu'il faut trancher** : si d'autres recrues ont été invitées au
+  **test interne** au lieu du **test fermé**, leur inscription ne compte pas non plus. Cela
+  expliquerait bien mieux le plafond à 10/12 que la restriction pays. Les deux canaux ont
+  des liens d'adhésion DIFFÉRENTS — seul `play.google.com/apps/testing/ci.chap.app`
+  (test fermé) alimente le compteur des 12.
+- **Question posée au Patron** : quel lien a-t-il envoyé à ses recrues ?
+- **Bonne nouvelle pour cet ami** : l'Allemagne étant désormais ouverte sur le canal fermé,
+  il peut devenir le **11ᵉ inscrit** — à condition d'être ajouté à la liste du test fermé,
+  de quitter le test interne (sinon Play lui sert l'interne en priorité) et de repasser par
+  le lien du fermé.
+- **Ma correction de 07:45 tient**, mais son angle « diaspora » est maintenant confirmé
+  réel : le Patron a bien au moins une recrue hors de Côte d'Ivoire.
