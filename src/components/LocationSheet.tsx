@@ -65,7 +65,7 @@ export function LocationSheet({ open, onClose, value, onApply }: Props) {
 
           {districts.map((d) => (
             <div key={d}>
-              <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-gray-400">
+              <p className="mb-1.5 px-1 text-xs font-bold uppercase tracking-wide text-gray-500">
                 {d}
               </p>
               <div className="overflow-hidden rounded-xl border border-gray-100">
@@ -150,7 +150,7 @@ export function LocationSheet({ open, onClose, value, onApply }: Props) {
       )}
 
       {(draft.regionId || value.regionId) && step === 'region' && (
-        <button onClick={reset} className="mt-4 w-full text-center text-sm text-gray-400">
+        <button onClick={reset} className="mt-4 w-full text-center text-sm text-gray-500">
           Réinitialiser
         </button>
       )}

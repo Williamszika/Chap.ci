@@ -233,7 +233,7 @@ function Empty({ text }: { text: string }) {
   return (
     <div className="grid place-items-center gap-2 px-4 py-16 text-center text-gray-400">
       <Bell size={40} className="text-gray-300" />
-      <p className="text-sm">{text}</p>
+      <p className="text-sm text-gray-500">{text}</p>
     </div>
   )
 }

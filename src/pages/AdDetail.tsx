@@ -180,7 +180,7 @@ export function AdDetail() {
               <Link to={`/publicite?prolonger=${encodeURIComponent(stats.id)}`} className="btn-primary mt-4 w-full py-3">
                 <RefreshCw size={17} /> Prolonger ma publicité
               </Link>
-              <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-gray-400">
+              <p className="mt-1.5 text-center text-[11.5px] leading-relaxed text-gray-500">
                 Les jours achetés s’ajoutent à votre date de fin : aucune coupure d’affichage,
                 aucun jour déjà payé n’est perdu.
               </p>

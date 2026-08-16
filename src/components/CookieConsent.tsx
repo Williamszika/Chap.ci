@@ -41,7 +41,7 @@ export function CookieConsent() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-[60] px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3"
+      className="fixed inset-x-0 bottom-0 z-[60] animate-fadeup px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3"
       role="dialog"
       aria-label="Consentement aux cookies"
     >
@@ -64,13 +64,13 @@ export function CookieConsent() {
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 onClick={() => repondre(true)}
-                className="flex-1 rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-bold text-white active:scale-[0.98]"
+                className="btn-primary flex-1 text-sm"
               >
                 Accepter
               </button>
               <button
                 onClick={() => repondre(false)}
-                className="flex-1 rounded-xl border border-line2 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 active:bg-gray-50"
+                className="btn-outline flex-1 text-sm"
               >
                 Refuser
               </button>

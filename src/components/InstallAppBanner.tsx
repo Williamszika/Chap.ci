@@ -43,7 +43,7 @@ export function InstallAppBanner() {
         <button
           onClick={() => setDismissed(true)}
           aria-label="Fermer"
-          className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+          className="absolute right-2 top-2 grid h-11 w-11 place-items-center rounded-full text-gray-400 transition md:hover:bg-gray-100 md:hover:text-gray-600"
         >
           <X size={16} />
         </button>
