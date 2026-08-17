@@ -2212,3 +2212,37 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **En ligne maintenant** : cibles tactiles de 44 et 48 px sur la bannière d'installation
   et le bandeau cookies, quatre textes porteurs de sens repassés au-dessus du seuil AA,
   et le bandeau cookies qui entre en fondu au lieu de surgir.
+
+### 2026-08-17 05:55 — [Développement] Bannière de partage déployée + verdict sur une analyse extérieure
+- **Déployé et vérifié** : zip `chap-banniere-partage`. `empreinteSite`
+  `bbbaa08d5db0` → **`0f03b3173268`** (valeur annoncée), `deposeSite` au 17/08 05:50:48 Z.
+  La bannière répond **200, 72 571 octets, image/png**.
+- **La vérification qui comptait vraiment** : le site sert une page différente aux robots
+  (`seo.php`). J'ai donc interrogé l'accueil **avec l'agent `facebookexternalhit`** en plus
+  d'un agent normal : les deux reçoivent bien `og:image = /og/accueil.png` et
+  `twitter:card = summary_large_image`. Sans ce contrôle, on aurait pu corriger
+  `index.html` et laisser WhatsApp voir l'ancienne vignette.
+- **Origine** : une analyse extérieure transmise par le Patron. Sur ses cinq points, **un
+  seul tenait** — vérification faite dans le code, pas au jugé :
+  - ✅ **og:image / twitter:card de l'ACCUEIL** : exact, c'était l'`apple-touch-icon`
+    180×180 en `summary`. Corrigé. Nuance qu'elle n'avait pas vue : les pages
+    `/vendre/{cat}/{ville}` ont bannière 1200×630 + `summary_large_image` depuis juillet.
+  - ❌ **« ajoute WebSite + SearchAction »** : présents dans `index.html` depuis longtemps,
+    avec `Organization`, `Service`, `ContactPoint` ; `seo.php` ajoute `Product`, `Offer`,
+    `BreadcrumbList`.
+  - ❌ **« il manque des CGU »** et ❌ **« une page Conseils de sécurité »** : les deux sont
+    dans `footerLinks.ts` (`/conditions`, `/aide?rubrique=securite`), et les conseils
+    anti-arnaque s'affichent **dans la conversation**, au moment du risque (PLCC citée).
+  - ⚖️ **« migre en history mode »** : écarté, et c'est un choix, pas un oubli. Les URLs
+    indexées SONT de vrais chemins rendus par `seo.php` (JSON-LD, canonical,
+    `index,follow`) ; le hash ne sert qu'aux écrans applicatifs, non indexables par
+    destination. Migrer = réécrire routage + réécriture serveur, pour un gain que
+    `seo.php` fournit déjà. À revoir si l'architecture SEO change, pas avant.
+  - ⏳ **« affiche le nombre d'annonces »** : juste sur le principe, contre-productif à 9
+    annonces. À ressortir quand le volume existera.
+- **Outillage** : `scripts/generate-og.mjs` gagne la bannière `accueil` (la première qui ne
+  parle pas d'une catégorie) et la variable `CHROMIUM_PATH`, sans laquelle Playwright
+  refusait de démarrer sur un Chromium pourtant présent.
+- **Pour le Patron** : l'aperçu ne changera pas tout de suite dans WhatsApp — le cache est
+  partagé avec Facebook et tient plusieurs jours. Le forcer via
+  `developers.facebook.com/tools/debug/` → « Scrape Again ».
