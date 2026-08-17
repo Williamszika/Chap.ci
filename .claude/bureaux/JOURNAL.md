@@ -2462,3 +2462,36 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Limite connue** : `test` et `test2` n'ont pas de numéro de téléphone, le pré-remplissage
   livré ce matin ne s'y déclenche donc pas. Pour l'éprouver, il faudrait un compte créé
   **par téléphone**.
+
+### 2026-08-17 10:49 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde verte. Santé 200 partout (PHP 8.5.8). **Les trois empreintes construites
+  en local** (`npm ci && npm run build`) correspondent exactement aux servies —
+  `54a4e4f4367b` / `c57f0f1c6e55` / `35bd5cd8f3ad` — **y compris le commit de 10:29**
+  (`114b97b`) : dépôt et production synchronisés, rien en attente. Sécurité 24 h :
+  `suspiciousIps` vide, `failRatio` 0, `rateLimited` 0, `adminUnlockFail` 0,
+  `adminsTampered` false. CSP : `api.bigdatacloud.net` seule, **question tranchée, non
+  rouverte**. Ménage : 0 purge (le nettoyage automatique avait tourné à 05:47). Scan de
+  code site et Flutter : aucune régression — `hash_equals`, `session_version`, bcrypt,
+  jeton de modération haché et scopé, uploads vérifiés par contenu réel ; `api_client.dart`
+  toujours sur `https://chap.ci/api`, aucune permission ni dépendance nouvelle. Modération :
+  file vide, digest `skipped: true`.
+- **Problèmes ouverts** : aucun. Point noté sans urgence : la périodicité de `cron/report`.
+
+### 2026-08-17 11:45 — [Développement] Deux consignes déjà écrites qui ne s'appliquent pas
+- **Le Gardien redemande la périodicité de `cron/report`** — question tranchée le 16/08 à
+  16:10, et qu'il avait lui-même reprise à 00:47 (« mensuelle, prochaine échéance 01/09,
+  déjà élucidé »). Elle ressort aujourd'hui.
+- **Et il attribue de nouveau ses `cron_fail` à des sondes extérieures** (« jamais une tâche
+  cPanel ») alors que l'encadré ajouté le 16/08 à 00:55 établit que ce sont **ses propres
+  tests de cloisonnement** — la signature « cron/stats · sans-cle » est exactement ce que
+  produit son jeton de modération envoyé à `/cron/stats`. Le compteur monte régulièrement
+  (2 → 3 → 4), au rythme d'une ronde.
+- **Diagnostic** : ce ne sont pas des oublis de sa part. **Les deux consignes sont dans le
+  dépôt mais pas dans la copie qui tourne** — le prompt de claude.ai est figé depuis le
+  recollage du 15/08 au soir, antérieur aux deux ajouts. Le journal, lui, est lu mais noyé :
+  il a beaucoup grossi aujourd'hui.
+- **Fait** : la périodicité de `cron/report` entre à son tour dans `routine-securite.md`,
+  avec le seuil qui rouvrirait légitimement le sujet (aucun passage après le 5 du mois).
+- **Pour le Patron** : un **recollage du prompt** du Gardien règle les deux d'un coup. Ce
+  n'est pas urgent — rien n'est cassé — mais c'est le geste qui fait cesser deux répétitions
+  par ronde.

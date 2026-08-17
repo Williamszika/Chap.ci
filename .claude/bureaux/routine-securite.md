@@ -131,6 +131,16 @@ CHANTIERS OUVERTS (surveille, ne les redécouvre pas comme des nouveautés) :
   worker PWA sert encore un `index.html` mis en cache AVANT l'ajout de cette
   origine. Rien à corriger ; le stock s'éteindra tout seul. Ne le signale à
   nouveau que si une origine **absente** de `htaccess-root` apparaît.
+- `cron/report` · UN SEUL PASSAGE LE 1er DU MOIS : C'EST NORMAL, ne le redemande pas.
+  QUESTION TRANCHÉE le 16/08 (journal, 16:10), reposée le 17/08 — d'où cette entrée.
+  C'est le rapport périodique DU SERVEUR, sans Claude : il construit son HTML
+  depuis la base et l'envoie au Patron et à contact@chap.ci. Son commentaire dans
+  `server/index.php` le dit — « appelé par une tâche cron cPanel (ex. mensuel :
+  ?days=30) ». Un seul passage, daté du 1er, est donc la cadence ATTENDUE, pas
+  une tâche morte : la prochaine échéance est le 1er du mois suivant.
+  À ne pas confondre avec `cron/report-email` (hebdomadaire, celle du
+  Secrétariat), qui ne fabrique rien et poste le HTML qu'on lui donne.
+  Ne le signale QUE si aucun passage n'apparaît après le 5 d'un mois.
 - Le détail par route EXISTE désormais : cron/security renvoie « byDetail »
   (top 10 des motifs pour cron_fail, mtoken_fail et rate_limited), déployé le
   27/07. Ne note plus « je ne peux pas nommer les tâches qui échouent » : tu le
