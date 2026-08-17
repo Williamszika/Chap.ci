@@ -1639,6 +1639,25 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS visits (
       id $id PRIMARY KEY, visitor_id $txt, path $txt, referrer $txt, created_at $ts
     )$eng",
+    // LES MARCHES DE LA PUBLICATION — l'entonnoir qui manquait.
+    //
+    // Le 17/08, on savait que 219 personnes étaient arrivées sur /publier en
+    // trente jours et qu'UNE avait publié. On ignorait laquelle des douze
+    // marches les arrêtait : le mur de connexion, le code e-mail, la troisième
+    // photo, un champ de catégorie ? Toute correction aurait été une hypothèse.
+    //
+    // TABLE À PART, ET C'EST VOULU. Ces événements ne sont PAS des pages vues.
+    // Les écrire dans `visits` gonflerait « Pages vues » — le chiffre qu'on a
+    // précisément assaini les 9 et 10 août en excluant l'équipe et les comptes
+    // connectés. Une mesure qui abîme une autre mesure ne vaut rien.
+    //
+    // `etape` : arrivee · mur_connexion · mur_email · formulaire · echec · publiee
+    // `detail` : pour « echec » seulement, CE QUI a bloqué (photos, titre, prix,
+    //            attr:pointures…). Jamais une valeur saisie par l'utilisateur.
+    "CREATE TABLE IF NOT EXISTS publier_etapes (
+      id $id PRIMARY KEY, visitor_id $txt, etape VARCHAR(24), detail VARCHAR(60),
+      authed $intT, created_at $ts
+    )$eng",
     // Dernier passage RÉUSSI de chaque tâche planifiée. Sans cette trace, une
     // tâche cron qui échoue est totalement silencieuse : le 26/07, la sauvegarde
     // quotidienne ne tournait plus depuis douze jours sans que rien ne l'indique.
@@ -2093,13 +2112,30 @@ function user_public(PDO $pdo, array $u): array {
     $s = $pdo->prepare('SELECT status FROM users WHERE id = ?'); $s->execute([$u['id']]);
     $status = $s->fetch()['status'] ?? null;
   }
-  $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+  // `phone` est lu dans la MÊME requête que `verified` : c'est le numéro que le
+  // compte a déjà donné (inscription par téléphone, ou saisi plus tard). Il sert
+  // à PRÉ-REMPLIR le champ vendeur de l'écran de publication — le nom l'est déjà
+  // pour cette raison exacte, et le retaper est une friction inutile sur la page
+  // la plus décisive de la conversion visiteur → vendeur.
+  // Repli sur la requête d'origine : la colonne est arrivée par migration, une
+  // base pas encore migrée ferait échouer le SELECT complet.
+  $phone = null;
+  try {
+    $vf = $pdo->prepare('SELECT verified, phone FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+    $row = $vf->fetch() ?: [];
+    $ver = (int) ($row['verified'] ?? 0);
+    $phone = ($row['phone'] ?? '') !== '' ? $row['phone'] : null;
+  } catch (Throwable $e) {
+    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+    $ver = (int) ($vf->fetchColumn() ?: 0);
+  }
   return ['id' => $u['id'], 'email' => $u['email'], 'status' => $status ?: 'active',
-          'verified' => ((int) ($vf->fetchColumn() ?: 0)) === 1,
+          'verified' => $ver === 1,
           // « emailVerified » commande le droit de publier ; « badge » ne
           // commande rien, il se contente de dire ce qu'on est.
           'emailVerified' => email_verifie($pdo, (string) $u['id']),
           'badge' => badge_of($GLOBALS['chapci_config'] ?? [], $pdo, $u),
+          'phone' => $phone,
           'user_metadata' => ['full_name' => $name]];
 }
 /**
@@ -6571,6 +6607,29 @@ try {
     // ignoré la mesure.
     if ($u && is_admin($config, $pdo, $u)) jout(['ok' => true]);
     if (str_starts_with($p, '/admin')) jout(['ok' => true]);
+
+    // ── MARCHE DE LA PUBLICATION ────────────────────────────────────────────
+    // Même porte, même gardes (équipe exclue ci-dessus, `authed` tranché côté
+    // serveur), mais une AUTRE TABLE : ces événements ne sont pas des pages vues
+    // et ne doivent jamais entrer dans « Pages vues ». On sort ici, avant
+    // l'INSERT dans `visits`.
+    $etape = substr(trim((string) ($b['etape'] ?? '')), 0, 24);
+    if ($etape !== '') {
+      // Liste blanche : un client ne choisit pas les noms d'étapes, sinon la
+      // table se remplit de valeurs inventées et l'entonnoir devient illisible.
+      $connues = ['arrivee', 'mur_connexion', 'mur_email', 'formulaire', 'echec', 'publiee'];
+      if (!in_array($etape, $connues, true)) jout(['ok' => true]);
+      // `detail` n'accompagne QUE « echec », et ne porte jamais une valeur
+      // saisie : uniquement le nom du champ qui a bloqué.
+      $detail = $etape === 'echec'
+        ? substr(preg_replace('/[^a-zA-Z0-9_:-]/', '', (string) ($b['detail'] ?? '')), 0, 60)
+        : '';
+      try {
+        $pdo->prepare('INSERT INTO publier_etapes (id,visitor_id,etape,detail,authed,created_at) VALUES (?,?,?,?,?,?)')
+            ->execute([uuid(), $vid, $etape, $detail ?: null, $authed, now_iso()]);
+      } catch (Throwable $e) { /* la mesure ne casse jamais la publication */ }
+      jout(['ok' => true]);
+    }
     // D'où vient ce visiteur ? Lu dans les en-têtes Cloudflare, aucun appel
     // réseau. Colonnes ajoutées par migration : sur une base pas encore migrée,
     // l'INSERT complet échouerait, alors on retombe sur l'INSERT d'origine.
@@ -9515,6 +9574,37 @@ try {
         'sold'   => $one('SELECT COUNT(*) FROM listings WHERE sold = 1'),
         'hidden' => $one('SELECT COUNT(*) FROM listings WHERE hidden = 1'),
       ],
+      // L'ENTONNOIR DE LA PUBLICATION — les marches, dans l'ordre où on les monte.
+      //
+      // Il répond à la question que `topPaths` ne pouvait pas trancher : on
+      // voyait 219 arrivées sur /publier pour une annonce, sans savoir OÙ les
+      // gens s'arrêtaient. Chaque marche donne des PERSONNES distinctes, pas des
+      // vues — une vue ne décide de rien (leçon du 05/08).
+      //
+      // `echecs` détaille CE QUI a bloqué à l'envoi, champ par champ. C'est la
+      // ligne à lire en premier : elle nomme le coupable.
+      'publier'    => (function () use ($pdo, $since): array {
+        $par = function (string $sql) use ($pdo, $since): array {
+          try {
+            $st = $pdo->prepare($sql); $st->execute([$since]);
+            $out = [];
+            foreach ($st->fetchAll() as $r) $out[(string) ($r['k'] ?? '')] = (int) ($r['n'] ?? 0);
+            return $out;
+          } catch (Throwable $e) { return []; }
+        };
+        $marches = $par('SELECT etape AS k, COUNT(DISTINCT visitor_id) AS n
+                           FROM publier_etapes WHERE created_at >= ? GROUP BY etape');
+        $ordre = ['arrivee', 'mur_connexion', 'mur_email', 'formulaire', 'echec', 'publiee'];
+        $rangees = [];
+        foreach ($ordre as $e) $rangees[$e] = $marches[$e] ?? 0;
+        return [
+          'personnes' => $rangees,
+          'echecs'    => $par('SELECT detail AS k, COUNT(*) AS n
+                                 FROM publier_etapes
+                                WHERE created_at >= ? AND etape = \'echec\' AND detail IS NOT NULL
+                                GROUP BY detail ORDER BY n DESC'),
+        ];
+      })(),
       'messages'   => [
         'new'              => $one('SELECT COUNT(*) FROM messages WHERE created_at >= ?', [$since]),
         'newConversations' => $one('SELECT COUNT(*) FROM conversations WHERE created_at >= ?', [$since]),

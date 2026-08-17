@@ -22,6 +22,12 @@ export interface User {
   emailVerified?: boolean
   /** '' = aucun badge · 'anciennete' = vert (6 mois) · 'admin' = bleu (équipe). */
   badge?: 'admin' | 'anciennete' | ''
+  /**
+   * Le numéro déjà connu du compte. Sert à pré-remplir le champ vendeur de
+   * l'écran de publication, comme le nom : c'était le dernier champ qu'un
+   * premier vendeur devait taper à la main.
+   */
+  phone?: string | null
   user_metadata?: { full_name?: string | null; avatar_url?: string | null }
 }
 

@@ -60,3 +60,52 @@ export function trackPageView(path: string): void {
     /* silencieux */
   }
 }
+
+/* ===========================================================================
+ *  LES MARCHES DE LA PUBLICATION
+ *
+ *  Le 17/08, on savait que 219 personnes étaient arrivées sur /publier en trente
+ *  jours et qu'UNE avait publié. On ignorait laquelle des douze marches les
+ *  arrêtait : le mur de connexion, le code e-mail, la troisième photo, un champ
+ *  de catégorie ? Toute correction du formulaire aurait été une hypothèse.
+ *
+ *  Ces six repères répondent à la question. Ils partent vers la MÊME route que
+ *  les visites (mêmes gardes : équipe exclue, session tranchée côté serveur)
+ *  mais atterrissent dans une table à part : ce ne sont pas des pages vues, et
+ *  les compter comme telles fausserait « Pages vues ».
+ *
+ *  Aucune donnée saisie ne part jamais — ni titre, ni prix, ni photo. `detail`
+ *  ne porte que le NOM du champ qui a bloqué.
+ * ======================================================================== */
+export type EtapePublier =
+  | 'arrivee'        // l'écran /publier s'ouvre
+  | 'mur_connexion'  // le visiteur n'a pas de compte : on lui propose d'en créer un
+  | 'mur_email'      // compte présent, adresse non confirmée : on demande le code
+  | 'formulaire'     // le formulaire est réellement affiché, on peut saisir
+  | 'echec'          // l'envoi a été refusé — `detail` dit quel champ
+  | 'publiee'        // l'annonce est partie
+
+export function trackEtapePublier(etape: EtapePublier, detail?: string): void {
+  if (!isPhp) return
+  try {
+    const body = JSON.stringify({
+      vid: visitorId(),
+      path: '/publier',
+      etape,
+      detail: etape === 'echec' ? (detail ?? '').slice(0, 60) : '',
+      auth: phpGetUid() ? 1 : 0,
+    })
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(API + '/track', new Blob([body], { type: 'application/json' }))
+    } else {
+      void fetch(API + '/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => {})
+    }
+  } catch {
+    /* la mesure ne casse jamais la publication */
+  }
+}

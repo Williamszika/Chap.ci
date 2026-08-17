@@ -24,6 +24,7 @@ import { PromoTag } from '../components/PromoTag'
 import { LocationSheet } from '../components/LocationSheet'
 import { formatFCFA } from '../lib/format'
 import { trackPublish } from '../lib/marketing'
+import { trackEtapePublier, type EtapePublier } from '../lib/track'
 import { guessFromTitle } from '../lib/autofill'
 import { analyzePhoto } from '../lib/vision'
 import { locationLabel, resolveLocationByName } from '../data/locations'
@@ -218,6 +219,51 @@ export function PostAd() {
     if (!fullName) return
     setSeller((prev) => (prev.name.trim() ? prev : { ...prev, name: fullName }))
   }, [user, editing, setSeller])
+
+  // Pré-remplit le TÉLÉPHONE depuis le compte, exactement pour la même raison que
+  // le nom ci-dessus : c'était le dernier champ qu'un premier vendeur devait taper
+  // à la main, alors que la base connaît déjà son numéro (inscription par
+  // téléphone, ou saisi depuis). Ne touche pas si déjà rempli — le brouillon et la
+  // mémoire locale gardent la main sur ce que le vendeur a lui-même écrit.
+  useEffect(() => {
+    if (editing) return
+    const tel = (user?.phone ?? '').trim()
+    if (!tel) return
+    setSeller((prev) => (prev.phone.trim() ? prev : { ...prev, phone: tel }))
+  }, [user, editing, setSeller])
+
+  /* ── LES MARCHES DE LA PUBLICATION ────────────────────────────────────────
+   * On ignorait laquelle des marches arrêtait les gens : 219 arrivées sur
+   * /publier en trente jours, une annonce publiée. Ces repères le disent.
+   * La marche est CALCULÉE puis envoyée depuis un effet — l'émettre au rendu la
+   * compterait à chaque re-rendu, et un champ qu'on remplit en provoque beaucoup.
+   * Modifier une annonce n'est pas publier : `editing` ne mesure rien.
+   */
+  // `null` = on ne sait pas encore, donc on n'écrit rien. Sans le palier
+  // `!verifStatus`, une seconde d'attente sur l'état de vérification comptait un
+  // « formulaire » que le vendeur n'a jamais vu, puis un « mur_email » : la marche
+  // la plus importante de l'entonnoir aurait été gonflée par sa propre mesure.
+  const marche: EtapePublier | null = authLoading
+    ? null
+    : !user
+      ? 'mur_connexion'
+      : !verifStatus
+        ? null
+        : !verifStatus.emailVerified
+          ? 'mur_email'
+          : 'formulaire'
+  const arriveeVue = useRef(false)
+  const marcheVue = useRef<EtapePublier | null>(null)
+  useEffect(() => {
+    if (editing || arriveeVue.current) return
+    arriveeVue.current = true
+    trackEtapePublier('arrivee')
+  }, [editing])
+  useEffect(() => {
+    if (editing || !marche || marcheVue.current === marche) return
+    marcheVue.current = marche
+    trackEtapePublier(marche)
+  }, [marche, editing])
 
   // Pré-remplit la localisation avec la position captée à l'ouverture / la connexion.
   useEffect(() => {
@@ -442,6 +488,10 @@ export function PostAd() {
    * sélecteur, on se contente alors de la faire apparaître à l'écran).
    */
   function fail(msg: string, fieldId: string) {
+    // Toutes les validations passent par ici : c'est donc le seul endroit à
+    // instrumenter pour savoir QUEL champ arrête les gens. On envoie le nom du
+    // champ (« photos », « prix », « attr-pointures »), jamais ce qui a été saisi.
+    if (!editing) trackEtapePublier('echec', fieldId.replace(/^pa-/, ''))
     setError(msg)
     const el = document.getElementById(fieldId)
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -573,7 +623,7 @@ export function PostAd() {
       toast.success(editing ? 'Annonce mise à jour ✅' : 'Votre annonce est en ligne ✅')
       // Le brouillon a rempli son office : on l'efface, sinon la prochaine
       // publication proposerait de reprendre une annonce déjà en ligne.
-      if (!editing) { effacerBrouillon(); trackPublish() } // conversion pixels
+      if (!editing) { effacerBrouillon(); trackPublish(); trackEtapePublier('publiee') } // conversion pixels + dernière marche
       refreshNotifs()
       navigate(`/annonce/${created.id}`)
     } catch (e) {

@@ -24,6 +24,12 @@ export interface PhpUser {
   emailVerified?: boolean
   /** '' = aucun badge · 'anciennete' = vert (6 mois) · 'admin' = bleu (équipe). */
   badge?: 'admin' | 'anciennete' | ''
+  /**
+   * Le numéro déjà connu du compte (inscription par téléphone, ou saisi depuis).
+   * Sert à PRÉ-REMPLIR le champ vendeur de l'écran de publication, comme le nom :
+   * c'était le dernier champ qu'un premier vendeur devait taper à la main.
+   */
+  phone?: string | null
   user_metadata?: { full_name?: string | null }
 }
 
