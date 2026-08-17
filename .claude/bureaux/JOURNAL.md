@@ -2233,3 +2233,176 @@ dans `store/APP-VERSIONS.md`.
   maintenant de `flutter_app/` (Capacitor abandonné, `b96f85a`) : le prochain
   paquet de build suit le nouveau script `tool/preparer_plateformes.dart`,
   pas `cap:sync`.
+
+---
+
+### 2026-08-17 06:12 — [Livraison] 🔨 Le Monteur
+
+> ⚠️ **Le champ Commit de la v1.20 dans `store/APP-VERSIONS.md` est faux —
+> corrigez-le.** Il indique `b9786a1` (12/08, 14h05). Mais le journal du
+> 15/08 09:49 (commit `9c7d5f9`, celui qui annonce l'envoi à l'examen) le dit
+> noir sur blanc : « l'AAB parti est plus récent que le build du 12/08 : il
+> embarque les 12 commits suivants ». Le vrai point de départ de l'AAB
+> réellement téléversé est donc `617edc8` (14/08, 01h43 — le correctif CSRF
+> Facebook du Gardien), pas `b9786a1`. Tout mon calcul du §2 part de
+> `617edc8` ; si un autre bureau relit `APP-VERSIONS.md` sans ce correctif,
+> il partira de dix-sept builds trop tôt, exactement l'incident du 03/08.
+
+## 1) Où en est l'application
+
+**Google Play** : v1.20 (code 21) — d'après le journal, **envoyée à
+l'examen le 15/08/2026, non confirmé par le Patron** au-delà de cette
+ligne. Il y a deux jours. Ce que les testeurs ont réellement entre les
+mains reste la **v1.18 (code 19)**, en test fermé depuis le 6 août (onze
+jours) — 10 inscrits sur 12 requis, confirmé par le Patron le 15/08.
+**App Store** : aucune version, volet **bloqué** — la ligne « Mac + Xcode »
+reste à « non disponible » dans `store/APP-VERSIONS.md`. Il faudrait un Mac
+avec Xcode et un compte Apple Developer (99 $/an) ; pas d'instructions
+Xcode ci-dessous tant que cette ligne ne change pas.
+
+`pubspec.yaml` (`version: 1.20.0+21`) correspond bien à la tête
+d'`APP-VERSIONS.md` (v1.20, versionCode 21) — seul le champ Commit de cette
+entrée est faux, corrigé ci-dessus.
+
+## 2) Ce qui a changé dans l'application depuis le vrai commit de départ
+
+En partant de `617edc8` (le commit réellement embarqué dans l'AAB envoyé à
+l'examen, pas `b9786a1`) :
+
+```
+git log --oneline 617edc8..HEAD -- flutter_app/
+git log --oneline 617edc8..HEAD -- server/
+```
+
+**Les deux commandes ne retournent rien.** Aucun commit ne touche
+`flutter_app/` ni `server/` depuis le 14/08 01h43. Rien ne s'est accumulé
+depuis l'envoi à l'examen.
+
+Pour mémoire, ce que l'AAB envoyé le 15/08 contient déjà (les 13 commits
+entre `b9786a1` et `617edc8`, 12-14/08) :
+
+| Commit | Catégorie | Contenu |
+|---|---|---|
+| `031a466` | Fonctionnalité visible | Fiche d'annonce : vendeur cliquable, vrai partage |
+| `19f2e57` | Correction d'interface | Explorer : le filtre Neuf/Occasion ne s'affiche que pour une catégorie qui a un état |
+| `2782f8f` | Fonctionnalité visible | Fiche d'annonce : tout le détail affiché, comme le site |
+| `d3a8696` | Fonctionnalité visible | Connexion Google dans l'app |
+| `7ee2756` / `02ecc78` | — | Connexion Facebook ajoutée puis annulée le jour même — effet net nul |
+| `1aebc5e` | Fonctionnalité visible | Page vendeur complète, comme le site |
+| `7a20cb6` | Fonctionnalité visible | Connexion Facebook « web », sans SDK lourd |
+| `df43ad0` | Conformité | Bouton Facebook en « bientôt » tant que l'app Facebook n'est pas vérifiée |
+| `d97ea88` | Conformité | Suppression de compte, pages légales, aide — **exigence de boutique directe** |
+| `418796b` | Correction d'interface | Finitions Atelier (barre d'état, tablette, cibles tactiles) |
+| `c66912f` | — (serveur seul) | Plafond du nombre de photos par annonce — ne compte pas pour l'app |
+| `617edc8` | **Correction de sécurité** | Jeton anti-CSRF sur la connexion Facebook web (faille signalée par le Gardien) |
+
+Décalage serveur ↔ app : **aucun**. Le Serrurier l'a confirmé ce matin
+(ronde du 17/08 05h20) : le serveur n'a gagné aucune route neuve cette
+semaine, le nouveau panneau admin Flutter n'appelle que des routes
+`/admin/*` déjà existantes. Seul point à surveiller pour plus tard, sans
+urgence : `POST /push/native` et `/push/native/remove` n'existent pas
+encore côté serveur, mais le push natif (FCM) est déclaré
+`disponible = false` côté app — dormant, pas un décalage actif.
+
+## 3) Verdict : ATTENDRE
+
+Rien n'a changé dans `flutter_app/` depuis le commit réellement soumis à
+Google. L'AAB en cours d'examen contient déjà tout ce qui aurait justifié
+un build cette semaine (une correction de sécurité sur l'interface, une
+exigence de boutique — suppression de compte —, et bien plus de trois
+fonctionnalités visibles). Construire une v1.21 maintenant ne livrerait
+rien de plus : il n'y a rien de neuf à embarquer, et cela ferait perdre à
+Google l'examen déjà engagé sur la v1.20 pour rien.
+
+**Ce qui presse n'est pas un build, ce sont deux corrections documentaires
+et une échéance :**
+- corriger le champ Commit de la v1.20 dans `APP-VERSIONS.md` (`b9786a1` →
+  `617edc8`), pour que le prochain bureau ne reparte pas dix-sept builds
+  trop tôt ;
+- **`targetSdk 35` n'est accepté par Google que jusqu'au 30 août 2026 —
+  dans 13 jours.** `tool/preparer_plateformes.dart` fige encore
+  `targetSdk = 35` (`android/build.gradle.kts`, ligne 241 et suivantes).
+  Tant que la v1.20 est en examen, ne touchez à rien ; mais le **prochain**
+  build (celui qui suivra le verdict de Google, quel qu'il soit) devra
+  monter le script à `targetSdk 36` avant d'être construit, sans quoi il
+  sera refusé au dépôt.
+
+## 4) Numéros de version
+
+Aucun nouveau build proposé. `pubspec.yaml` reste à `version: 1.20.0+21`
+(versionName 1.20, versionCode 21) tant que le verdict de Google sur cette
+version n'est pas connu.
+
+## 5) Notes de version
+
+Sans objet — aucun build proposé cette semaine.
+
+## 6) Captures d'écran
+
+**Deux écrans sont à refaire, dans les trois formats (téléphone, tablette
+7", tablette 10") — six fichiers :**
+
+- **`*-02-annonce.png`** (fiche d'annonce) : capturé le 12/08 à 13h59
+  (`a14e10f`), donc **avant** `2782f8f` (tout le détail affiché) et
+  `031a466` (vendeur cliquable, vrai partage), qui touchent tous les deux
+  `listing_detail_screen.dart` après la capture ;
+- **`*-04-vendeur.png`** (page vendeur) : même capture du 12/08, donc
+  **avant** `1aebc5e` (page vendeur réécrite, 568 lignes) et `031a466`, qui
+  touchent tous les deux `vendeur_screen.dart` après la capture.
+
+`*-01-accueil.png`, `*-03-explorer.png` et `*-05-aide.png` sont probablement
+encore bons : aucun commit ne touche l'écran d'accueil ; `browse_screen.dart`
+(explorer) n'a reçu qu'un changement de logique de filtre
+(`19f2e57`, le segment Neuf/Occasion disparaît sur les catégories sans état)
+qui peut ne rien changer à la capture selon la catégorie choisie au moment
+de la prise — à vérifier d'un coup d'œil plutôt qu'à reprendre d'office ;
+« aide » ouvre une page du site, pas un écran d'app, donc hors de portée des
+commits Flutter listés ici.
+
+À reprendre au prochain cycle de captures, pas en urgence : la v1.20 est
+déjà en examen avec les anciennes captures, et Google ne les recompare pas
+en cours d'examen.
+
+## 7) Vérifications avant build (lecture du dépôt — Flutter n'est pas
+installé dans cette session)
+
+**Flutter n'est pas installé ici : `flutter analyze` et `flutter test`
+n'ont pas pu être exécutés.** Vérifié par lecture du code à la place :
+
+| Vérification | Résultat |
+|---|---|
+| `pubspec.yaml` : `version: 1.20.0+21` | ✅ cohérent avec `APP-VERSIONS.md` |
+| `flutter_app/lib/api/api_client.dart` : base par défaut | ✅ `https://chap.ci/api`, `String.fromEnvironment` avec ce défaut |
+| `tool/preparer_plateformes.dart` : `applicationId` / bundle iOS | ✅ `ci.chap.app` sur les deux plateformes |
+| Permissions déclarées | ✅ Internet, Camera, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `<queries>` https, schéma `chapci://` |
+| Dépendances de `pubspec.yaml` | ✅ dix paquets de production, tous revus et expliqués par le Serrurier ce matin (http, shared_preferences, image_picker, geolocator, qr_flutter, share_plus, url_launcher, google_sign_in, flutter_web_auth_2, cupertino_icons) — aucun ajout depuis `617edc8` |
+| Tests unitaires présents dans le dépôt | `flutter_app/test/suppression_compte_test.dart`, `vendeur_profil_test.dart`, `vendeur_test.dart`, `etat_categorie_test.dart` — existence vérifiée par lecture, exécution non faite (Flutter absent) |
+
+Je n'affirme donc pas que `flutter analyze` finit « No issues found! » ni que
+les tests passent : je n'ai pas pu les lancer. Le Serrurier, lui, a relu le
+code Flutter en entier ce matin (OAuth Facebook, secrets, frontière
+navigateur intégré/externe) sans rien trouver à corriger.
+
+## 8) Marche à suivre — Android / Google Play
+
+**Aucune action de build.** La v1.20 est déjà en examen. La seule chose à
+faire est d'attendre le verdict de Google, et de recruter les 2 derniers
+testeurs qui manquent au canal de la v1.18 (10/12) pendant ce temps — ce
+n'est pas lié à la v1.20, mais c'est le seul délai du projet que personne
+ne peut raccourcir.
+
+Si Google **rejette** la v1.20 : lisez le motif exact dans la Play Console
+avant toute correction — ne devinez pas depuis ce rapport.
+
+Si Google **valide** la v1.20 : rien à reconstruire pour la faire
+apparaître aux testeurs, la publication gérée est désactivée (elle part
+seule dès l'examen validé, par `store/APP-VERSIONS.md`).
+
+## 9) Marche à suivre — iOS / App Store
+
+**Bloqué.** Il faudrait un Mac avec Xcode et un compte Apple Developer
+(99 $/an) — aucun des deux n'est disponible cette semaine. Pas
+d'instructions Xcode tant que cette ligne reste ainsi dans
+`store/APP-VERSIONS.md`.
+
+---
