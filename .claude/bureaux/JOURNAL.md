@@ -2106,3 +2106,130 @@ dans `store/APP-VERSIONS.md`.
   service worker `public/push-sw.js`) ne concerne QUE le web ; l'app Android
   ne le reçoit pas (WebView sans API Push, déjà documenté dans l'écran de
   réglages) — rien à embarquer dans le prochain zip Android de votre côté.
+
+---
+
+### 2026-08-17 05:20 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff de la semaine revu ligne à ligne — **120 commits** depuis mon
+  dernier passage (`fea69d9`, 10/08). Semaine hors norme : la refonte complète
+  de l'application en **Flutter** est arrivée d'un coup — **107 fichiers,
+  25 099 lignes**, tout `flutter_app/` — remplaçant la coque Capacitor.
+  `server/index.php`, lui, n'a bougé que de +97/-45 lignes (refactor de la
+  connexion Facebook, plafond de photos, une limite de débit) : le nouveau
+  panneau admin Flutter n'est qu'un **nouveau client** sur des routes
+  `/admin/*` déjà existantes — aucune route serveur neuve cette semaine.
+  Sous-système fouillé à fond (rotation semaine ISO 34 % 6 = 4) : **Admin &
+  rôles** · CI et dépendances vérifiées · déploiement confirmé jusqu'au
+  dernier commit.
+
+  **Admin & rôles — toujours solide, rien de neuf côté serveur.** Relu en
+  entier : le triple verrou (`$userIsAdmin` → `admin_unlocked` →
+  `admin_can`, index.php:6979-7057) protège toujours l'intégralité du bloc
+  `/admin/*`, y compris les routes que le nouveau client Flutter appelle
+  (`moderators`, `campaign/send`, `smtp`, `backup`, `orders`, `reviews`…).
+  `admin_unlocked()` (1162) revérifie en direct le blocage d'un modérateur à
+  CHAQUE requête (`SELECT blocked FROM admins`), donc un blocage coupe
+  l'accès immédiatement même si son jeton de déverrouillage (30 jours) est
+  encore valide — vérifié, inchangé. `POST /admin/moderators` (8683) hache
+  le code d'accès en bcrypt, ne renvoie le code en clair qu'une seule fois,
+  filtre les permissions contre `admin_grantable_features()` (pas moyen de
+  s'auto-accorder une fonctionnalité hors liste), et met à jour l'empreinte
+  d'intégrité (`admins_fp_save`) à chaque changement légitime — sans quoi
+  l'alerte `admins_tampered` se déclencherait à tort. Rien de tout cela n'a
+  changé cette semaine ; je le confirme plutôt que de le re-découvrir.
+
+  **La refonte Flutter — passée au crible sur les points qui comptent.**
+  - **OAuth Facebook (CSRF), corrigé la semaine dernière par le Gardien
+    (`617edc8`) : vérifié à la source, solide.** Le `state` anti-CSRF est
+    généré côté app avec `Random.secure()` (128 bits,
+    `flutter_app/lib/api/auth_social.dart:_genererState`), transmis à
+    Facebook, répercuté tel quel par le serveur
+    (`GET /auth/facebook/mobile`, index.php:5119-5148, qui ne fait
+    QU'échanger le `code` contre un jeton — le secret Facebook ne quitte
+    jamais le serveur) vers `chapci://facebook-auth?token=…&state=…`, puis
+    **comparé à l'identique côté app avant d'accepter la session**
+    (`auth_social.dart:96-99` : `if (params['state'] != state) throw`).
+    `FlutterWebAuth2.authenticate()` n'intercepte que le retour de CET appel
+    précis (session de navigateur éphémère liée à l'appel), donc un lien
+    `chapci://facebook-auth?token=…` forgé et envoyé hors de ce flux ne
+    serait jamais reçu par cette promesse. Accessoirement : le bouton reste
+    à « bientôt » (`facebookDisponible = false`) tant que l'app Facebook
+    n'est pas passée en Live — le chemin est donc inactif en production,
+    mais le code qui l'implémente est déjà correct.
+  - **Secrets et identifiants** : `git grep` sur secret/password/token/clé
+    dans `flutter_app/lib` — rien hors les client IDs Google/Facebook
+    (publics par nature, embarqués dans toute app) et un secret TOTP de
+    démonstration (`JBSWY3DPEHPK3PXP`, le vecteur RFC 6238 générique) dans
+    `main_shots.dart`, l'outil de captures d'écran pour les stores — un
+    point d'entrée séparé (`flutter run -t lib/main_shots.dart`), jamais
+    inclus dans le build normal, avec des comptes fictifs. `tool/
+    key.properties.exemple` est un modèle à valeurs `VOTRE_MOT_DE_PASSE…` —
+    pas une vraie clé. Le jeton de session (`api_client.dart`) vit dans
+    `SharedPreferences`, en clair — pas un stockage sécurisé
+    (`flutter_secure_storage`/Keystore) ; c'est une limite de robustesse
+    (vol nécessite un accès physique ou un téléphone déjà compromis, hors du
+    modèle de menace réseau), pas une faille exploitable à distance — je la
+    note sans la présenter comme une brèche.
+  - **Frontière navigateur intégré / navigateur externe, respectée.** Les
+    pages légales du site (`flutter_app/lib/liens_site.dart`) s'ouvrent en
+    navigateur INTÉGRÉ (feuille Safari / onglet Chrome) mais uniquement vers
+    un jeu fermé de chemins littéraux sous `https://chap.ci/#/…`
+    (`PagesSite.aide`, `.faq`, etc. — jamais une valeur reçue). Le lien d'une
+    publicité (`ecran_pub.dart:_ouvrir`), potentiellement une URL externe non
+    maîtrisée, s'ouvre lui en navigateur EXTERNE
+    (`LaunchMode.externalApplication`), jamais intégré — la bonne séparation
+    (contenu de confiance vs contenu annonceur) est en place.
+  - **Push natif (FCM)** : `flutter_app/lib/api/push_natif.dart` appelle
+    `POST /push/native` et `/push/native/remove`, qui **n'existent pas
+    encore côté serveur** (`git grep` : aucune occurrence) — sans
+    conséquence puisque `disponible = false` (pas de dépendance Firebase
+    dans `pubspec.yaml`, le code ne s'exécute jamais). Pas une faille ;
+    signalé au Monteur/Dev ci-dessous pour que la moitié serveur soit posée
+    AVANT d'activer `disponible = true`, plutôt que découverte par une app
+    qui échoue silencieusement.
+  - `pubspec.yaml` (nouveau) : dix dépendances de production, toutes
+    connues et attendues au vu des fonctionnalités (http, shared_preferences,
+    image_picker, geolocator, qr_flutter, share_plus, url_launcher,
+    google_sign_in, flutter_web_auth_2, cupertino_icons) — aucune ne capte
+    de données au-delà de son rôle déclaré, rien d'inhabituel.
+
+  **CI et dépendances.** `.github/workflows/security-scan.yml` toujours
+  déclenché sur `pull_request` + `push: [main]` uniquement. `php8.4 -l` :
+  propre sur `index.php` et `seo.php` (le serveur tourne en 8.5.8 d'après
+  `/api/health` — mon environnement n'a que 8.4, écart déjà connu, limite de
+  mon environnement). `npm audit --omit=dev --audit-level=high` : inchangé,
+  seul l'avertissement modéré `react-router` déjà connu (redirection
+  ouverte + injection de constructeur SSR), rien de haut/critique.
+
+  **Déploiement — confirmé sur les trois empreintes.**
+  `curl https://chap.ci/api/health` → `empreinte` `ded614e363a6`, `empreinteSeo`
+  `c57f0f1c6e55`, `empreinteSite` `bbbaa08d5db0` (déposées 14/08 et 16/08).
+  Comparées au dépôt HEAD (`5662103`) : `md5sum server/index.php` →
+  `ded614e363a6` (identique) ; `md5sum web/seo.php` → `c57f0f1c6e55`
+  (identique, inchangé depuis le correctif JSON-LD du 30/07 — dossier
+  toujours clos) ; `npm run build` (dans un `git worktree` séparé, pour ne
+  pas toucher à ma branche) puis `md5sum dist/index.html` → `bbbaa08d5db0`
+  (identique). La production exécute exactement le code du dépôt, y compris
+  les 120 commits de cette semaine — rien en attente de déploiement.
+
+- **Problèmes ouverts** : aucun exploitable, aucun nouveau. Deux points de
+  robustesse (pas des brèches) : le jeton de session Flutter en
+  `SharedPreferences` non chiffré (ci-dessus), et les routes `/push/native`
+  manquantes côté serveur pour une fonctionnalité encore désactivée.
+
+- **Propositions au Patron** : aucune de sécurité urgente. Semaine
+  exceptionnelle par le volume (nouvelle application entière) mais chaque
+  point sensible (OAuth, admin, stockage local, frontière navigateur) suit
+  ou améliore les patterns déjà en place — rien à corriger dans l'immédiat.
+
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à remonter.
+  **Dev** — quand le push natif (FCM) sera activé (`PushNatif.disponible =
+  true` dans `flutter_app/lib/api/push_natif.dart`), poser d'abord les
+  routes serveur `POST /push/native` et `/push/native/remove` (sur le modèle
+  scopé `user_id` de `push/subscribe` déjà en place pour le web) — sinon
+  l'enregistrement du jeton échouera silencieusement (le `catch` de
+  `push_natif.dart` avale l'erreur). **Monteur** — l'app Android part
+  maintenant de `flutter_app/` (Capacitor abandonné, `b96f85a`) : le prochain
+  paquet de build suit le nouveau script `tool/preparer_plateformes.dart`,
+  pas `cap:sync`.
