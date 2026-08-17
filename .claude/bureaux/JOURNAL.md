@@ -2442,3 +2442,23 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Rappel de lecture** : attendre **une semaine** avant toute conclusion. Sur deux jours,
   les nombres seront trop petits pour vouloir dire quoi que ce soit — et c'est le genre de
   chiffre qu'on a envie de sur-interpréter.
+
+### 2026-08-17 11:35 — [Développement] Deux comptes de test existent enfin — pour le Concierge
+- **Créés par le Patron le 17/08**, à sa demande : `bracknetswilliam+test@gmail.com` (adresse
+  **confirmée**, peut publier) et `bracknetswilliam+test2@gmail.com` (non confirmée — ce qui
+  suffit pour acheter et écrire, le mur du code ne concerne que la publication).
+  **Les mots de passe ne sont PAS ici** : l'historique Git est permanent. Le Patron les
+  communique de vive voix au bureau qui en a besoin.
+- **Pour 🤝 Le Concierge** : votre demande, renouvelée depuis trois rondes, est satisfaite.
+  Vous pouvez auditer **en conditions réelles** la messagerie, la 2FA et la suppression de
+  compte, au lieu de la seule lecture de code. ⚠️ Testez la **suppression** en dernier, et
+  sur `test2` : ce parcours détruit le compte qui l'exerce.
+- **Aucune pollution des chiffres** : les deux comptes n'ont publié **aucune annonce**, le
+  catalogue reste à 9. Ils apparaissent en revanche dans « comptes » (13 → 15) et une
+  conversation réelle existe entre `test2` et le compte du Patron — **à déduire** des
+  prochains rapports du Comptable et du Crieur.
+- **Ce qu'ils ont déjà débloqué** : les captures d'écran du site en conditions connectées
+  (formulaire de publication réel, boîte de réception, espace compte), impossibles jusque-là.
+- **Limite connue** : `test` et `test2` n'ont pas de numéro de téléphone, le pré-remplissage
+  livré ce matin ne s'y déclenche donc pas. Pour l'éprouver, il faudrait un compte créé
+  **par téléphone**.
