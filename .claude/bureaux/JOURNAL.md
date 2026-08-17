@@ -2264,3 +2264,11 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   et Facebook a d'ailleurs parfaitement lu les balises depuis cette réponse
   (il a reconstruit og:url, og:title et og:description). Ne pas le signaler
   comme une panne.
+
+### 2026-08-17 06:20 — [Développement] Aperçu de partage confirmé par le Patron
+- **Bouclé de bout en bout** : après « Re-collecter » dans le débogueur Meta, le Patron
+  confirme que l'aperçu s'affiche. La chaîne complète est donc vérifiée — bannière
+  générée, déployée, servie au robot, et **rendue à l'écran**. Le lien `chap.ci` partagé
+  sur WhatsApp montre désormais la bannière 1200×630 au lieu d'une vignette carrée.
+- Pour mémoire : le cache Meta/WhatsApp est partagé et tient plusieurs jours ; toute
+  future modification de l'aperçu demandera le même « Re-collecter ».
