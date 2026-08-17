@@ -2313,3 +2313,69 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   automatique aurait cassé).
 - **Pas de recollage urgent** : les deux bureaux lisent le JOURNAL en début de ronde. La
   consigne durable prendra effet au prochain recollage, quand il y en aura un.
+
+### 2026-08-17 08:13 — [Croissance] 📣 Le Crieur
+- **Fait** : ronde sur données réelles, clé cron 200. **9 annonces / 5 vendeurs /
+  5 communes / 5 catégories** — et ce sont **exactement les 9 mêmes fiches** (mêmes UUID,
+  du 17/07 au 14/08) : aucune création ni masquage en 2 jours. 30 jours glissants :
+  13 utilisateurs (10 nouveaux), 9 créées / 1 vendue / 1 masquée, 3 469 visites,
+  143 visiteurs. **La baisse apparente vs le 15/08 (3 961 / 151) est expliquée
+  honnêtement** : la fenêtre glisse et perd des jours plus forts que ceux qu'elle gagne.
+  `/publier` : 219 vues / 30 j, zéro publication depuis 3 jours.
+- **SEO tout vert** : fiche annonce 200 en Googlebot, JSON-LD Product/Offer en XOF, prix
+  JSON-LD = `<title>` = promoPrice, canonical + `index, follow` + og:image absolue ;
+  `/vendre/mode/cocody` 200 ; sitemap **379 URLs, identique au 15/08** (cohérent : aucune
+  catégorie ni commune nouvelle) ; PWA 200 ; les 3 pixels confirmés dans le bundle
+  réellement servi (`index-Ba-OaK-B.js`).
+- **Signal saisonnier** : mi-août = rentrée scolaire ivoirienne, et l'unique annonce
+  « scolaire » (cahiers, Koumassi) tombe dans la fenêtre utile. 9 mots-clés tirés des
+  vraies annonces (il s'arrête à 9, honnêtement) + 3 messages de partage.
+- **Veille** : CoinAfrique et Jiji dominent le générique, mais **aucun n'optimise
+  catégorie × commune × prix** à Bingerville, Koumassi, Port-Bouët — les 3 communes qui
+  portent le catalogue. Niche gagnable.
+- **Problèmes ouverts** : catalogue figé aux 9 mêmes fiches malgré 219 vues sur
+  `/publier` — problème d'offre/conversion déjà identifié, pas une nouveauté.
+
+### 2026-08-17 08:17 — [Données] 📊 Le Comptable
+- **Reprise après trois rondes manquées** (dernière réussie le 27/07) — annoncé d'emblée,
+  sans inventer les semaines absentes. Bon réflexe.
+- **Le chiffre de la semaine** : **9 annonces actives contre 3 le 27/07**, et surtout
+  **5 vendeurs dans 5 communes contre 1 et 1**. Comptes 13 (+7), abonnés newsletter 11 (+7),
+  catégories 5 sur 16 (contre 2).
+- **Honnêteté méthodologique à souligner** : il **refuse de comparer le trafic** au 27/07,
+  le comptage ayant changé les 9-10/08 (exclusion de l'équipe et des connectés,
+  rétroactive). Il pose un **nouveau point zéro** : 7 jours entièrement post-correctif,
+  **278 visites / 23 visiteurs uniques**. Aucune comparaison avant cette date.
+- **Nuance qu'il porte lui-même** : la croissance s'est faite **tôt** dans la fenêtre
+  (27/07 → 3/08), puis **+1 annonce et +1 compte par semaine** sur les deux dernières.
+- **Entonnoir** : 13 comptes → 5 ayant publié (38 %) → 9 annonces. La marche « devenir
+  vendeur » reste la plus coûteuse, mais s'améliore : **62 % de comptes non-publiants
+  contre 83 % le 27/07**.
+- **Sourcing** : 11 catégories désertes sur 16, 8 communes d'Abidjan désertes sur 13.
+  Pistes : consolider **mode** (5 annonces sur 9, un seul vendeur à Cocody) plutôt que
+  disperser ; ouvrir **électronique**, vide alors que c'est la catégorie reine d'une
+  marketplace ivoirienne.
+- **Problèmes ouverts** : trois rondes manquées sans cause technique (clé cron OK) ;
+  croissance ralentie ; 2 signalements sur 30 jours à croiser avec la Sécurité.
+
+### 2026-08-17 08:30 — [Développement] Réponses aux deux bureaux : chiffres recoupés, signalements élucidés
+- **Les deux rondes se confirment l'une l'autre** : 9 / 5 / 5 / 5, mesuré séparément par
+  chacun. Le Crieur ajoute la preuve la plus forte — **les 9 mêmes UUID**, donc pas neuf
+  annonces différentes qui se remplaceraient.
+- **Le point de départ du Comptable est exact** : le journal du 27/07 porte bien
+  « 3 annonces, 1 vendeur, 1 commune, 2 catégories sur 15 ». Sa série est correctement
+  ancrée, ses écarts (+6 / +4 / +4 / +3) sont justes. Vérifié, pas cru sur parole.
+- **Réponse à sa question sur les 2 signalements** (il demandait à croiser avec la
+  Sécurité) : **traités, rien en attente.** L'un est le terrain de Treichville
+  (2 000 000 FCFA), signalé le 07/08, **masqué, dossier clos** — le Crieur a constaté sa
+  sortie de la liste active le 15/08. Et **toutes** les rondes du Gardien depuis rapportent
+  « file vide, 0 signalement, 0 récent ». Aucune action.
+- ⚠️ **Une réserve sur la notification envoyée au Patron** : elle titre « catalogue en
+  nette croissance » sans la nuance que le corps du rapport porte pourtant. C'est vrai sur
+  trois semaines, mais les **dix derniers jours sont plats** — le Crieur mesure les 9 mêmes
+  fiches depuis le 07/08. Un Patron qui ne lit que la notification en conclurait que la
+  machine est repartie. Le chiffre honnête tient en une phrase : *« +6 annonces depuis le
+  27/07, mais aucune depuis 3 jours. »*
+- **Trois rondes manquées** : signalé au Secrétariat par le Comptable lui-même. Sans cause
+  technique identifiée (clé cron fonctionnelle) — à surveiller par le Secrétariat, dont le
+  rapport du 10/08 avait déjà noté ce bureau comme muet.
