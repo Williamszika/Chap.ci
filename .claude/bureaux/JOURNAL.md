@@ -2417,3 +2417,28 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Ce que je NE recommande pas sans mesure** : toucher au minimum de 3 photos. C'est une
   décision argumentée (`:40-53`) et le serveur l'applique aussi (`LISTING_MIN_PHOTOS`).
   L'affaiblir sur une intuition dégraderait la qualité du catalogue pour un gain supposé.
+
+### 2026-08-17 09:20 — [Développement] Entonnoir de publication déployé (API + site)
+- **Déployé et vérifié** : zip `chap-entonnoir-publier`, le premier de la journée à toucher
+  l'API. **Les deux empreintes ont bougé** : API `ded614e363a6` → **`54a4e4f4367b`**,
+  site `0f03b3173268` → **`e5cb47158582`** ; `empreinteSeo` inchangée, le zip ne la
+  contenait pas. `depose` et `deposeSite` au 17/08 09:16:09 Z.
+- **Santé après une modification d'API** : `/api/health` 200 (PHP 8.5.8), `/api/listings`
+  200, accueil 200, `sitemap.xml` 200. Aucune erreur fatale — donc la migration qui crée
+  `publier_etapes` s'est exécutée proprement (`migrate()` tourne à chaque requête : une
+  table mal formée aurait mis toutes les routes à terre).
+- ⚠️ **CE QUE JE N'AI PAS PU VÉRIFIER, ET POURQUOI** : `/track` répond `{"ok":true}`
+  **même quand il ignore l'événement** — c'est voulu (« le front n'a pas à savoir qu'on a
+  ignoré la mesure »). Un 200 ne prouve donc **rien** sur l'écriture réelle. Sans la clé
+  cron, je ne peux pas relire la table : la seule vérification qui puisse échouer est
+  côté Patron.
+- **Événement témoin envoyé pour rendre la chaîne testable** : une étape `arrivee` avec le
+  `vid` **`v-temoin-deploiement-17aout`**, plus une étape inventée (`etape_bidon`) qui doit
+  être rejetée par la liste blanche. Si `cron/stats` montre `publier.personnes.arrivee = 1`
+  et rien d'autre, la chaîne complète est prouvée — et la liste blanche aussi.
+  **À déduire des premiers chiffres** : 1 personne fictive sur la marche « arrivee ».
+- **Commande remise au Patron** (il détient la clé) :
+  `curl -sS -H 'X-Cron-Key: …' 'https://chap.ci/api/cron/stats?days=1' | grep -o '"publier".*'`
+- **Rappel de lecture** : attendre **une semaine** avant toute conclusion. Sur deux jours,
+  les nombres seront trop petits pour vouloir dire quoi que ce soit — et c'est le genre de
+  chiffre qu'on a envie de sur-interpréter.
