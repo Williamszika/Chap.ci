@@ -46,6 +46,17 @@ const POLICE = readFileSync(
  *   emoji  — le pictogramme du carré blanc, à droite
  */
 const BANNIERES = {
+  // La bannière de l'ACCUEIL — la seule qui ne parle pas d'une catégorie.
+  // Elle manquait : `index.html` servait l'apple-touch-icon (180×180, carrée),
+  // si bien que le lien le plus partagé du site — « va voir chap.ci » sur
+  // WhatsApp — arrivait en petite vignette, quand les pages de catégorie, elles,
+  // avaient droit à une vraie image depuis juillet. Signalée le 16/08.
+  accueil: {
+    verbe: 'Achetez, vendez',
+    titre: 'chap-chap',
+    sous: 'Partout en Côte d’Ivoire —\ngratuit, sans commission.',
+    emoji: '🛍️',
+  },
   // Le mot vert prolonge le verbe : « Vendez vos voyages », et non
   // « Vendez Voyage ». Les quinze bannières de juillet mettaient le nom de la
   // rubrique tel quel — cela passait sur « Vendez Véhicules », cela ne passe
@@ -136,7 +147,14 @@ const page_html = ({ verbe, titre, sous, emoji }) => `
 const demandees = process.argv.slice(2)
 const aFaire = demandees.length ? demandees : Object.keys(BANNIERES)
 
-const navigateur = await chromium.launch()
+// CHROMIUM_PATH permet d'utiliser un Chromium DÉJÀ présent sur la machine.
+// Sans lui, Playwright exige la version exacte qu'il vient d'installer et
+// refuse de démarrer sur celle d'à côté — ce qui bloquait la génération le
+// 16/08 alors qu'un Chromium parfaitement utilisable était là.
+//   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/generate-og.mjs accueil
+const navigateur = await chromium.launch(
+  process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
+)
 const onglet = await navigateur.newPage({ viewport: { width: 1200, height: 630 } })
 for (const id of aFaire) {
   const b = BANNIERES[id]

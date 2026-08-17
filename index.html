@@ -27,12 +27,19 @@
     <meta property="og:title" content="Chap.ci — Petites annonces en Côte d'Ivoire" />
     <meta property="og:description" content="Achetez et vendez chap-chap partout en Côte d'Ivoire : voitures, téléphones, immobilier, mode, alimentation… 100% ivoirien 🇨🇮" />
     <meta property="og:url" content="https://chap.ci/" />
-    <meta property="og:image" content="https://chap.ci/apple-touch-icon.png" />
+    <!-- Bannière 1200×630 (scripts/generate-og.mjs). C'était l'apple-touch-icon
+         jusqu'au 16/08 : 180×180, donc une vignette carrée là où WhatsApp sait
+         afficher une grande image. L'accueil est le lien le plus partagé du
+         site ; les pages de catégorie avaient déjà leur bannière. -->
+    <meta property="og:image" content="https://chap.ci/og/accueil.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Chap.ci — achetez et vendez chap-chap partout en Côte d'Ivoire, gratuit et sans commission." />
     <meta property="og:locale" content="fr_CI" />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Chap.ci — Petites annonces en Côte d'Ivoire" />
     <meta name="twitter:description" content="Achetez et vendez chap-chap partout en Côte d'Ivoire. 100% ivoirien 🇨🇮" />
-    <meta name="twitter:image" content="https://chap.ci/apple-touch-icon.png" />
+    <meta name="twitter:image" content="https://chap.ci/og/accueil.png" />
 
     <!-- Données structurées (Google : nom du site + barre de recherche) -->
     <script type="application/ld+json">
