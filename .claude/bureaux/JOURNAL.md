@@ -2495,3 +2495,18 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Pour le Patron** : un **recollage du prompt** du Gardien règle les deux d'un coup. Ce
   n'est pas urgent — rien n'est cassé — mais c'est le geste qui fait cesser deux répétitions
   par ronde.
+
+### 2026-08-17 11:55 — [Développement] Prompt du Gardien recollé — trois consignes deviennent actives
+- **Fait** : le Patron a recollé le prompt du bureau Confiance & Sécurité. La copie qui
+  tourne rattrape enfin trois ajouts faits depuis le 15/08 au soir.
+- **Ce qui devient actif** : (1) `cron/report` est mensuelle — ne plus la redemander ;
+  (2) les `cron_fail` / `mtoken_fail` engendrés par ses **propres tests de cloisonnement**
+  sont à déduire, brut puis net ; (3) le **certificat TLS se vérifie tout seul** via les
+  journaux de transparence (`crt.sh`), sans plus déranger le Patron chaque mois.
+- **Comment on saura, à la prochaine ronde** — trois signes, tous observables :
+  - plus de question sur la périodicité de `cron/report` ;
+  - les `cron_fail` annoncés en **brut puis net** (« 4, dont 1 de mon test → 3 extérieurs »)
+    au lieu de « sondes extérieures, aucune tâche en cause » ;
+  - aucun rappel de contrôle du certificat adressé au Patron ; expiration citée depuis
+    `crt.sh` (12/10/2026 au dernier relevé).
+  - et, comme toujours, **aucun 403** : signe que les deux secrets ont bien été substitués.
