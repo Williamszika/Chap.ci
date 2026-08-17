@@ -2246,3 +2246,21 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Pour le Patron** : l'aperçu ne changera pas tout de suite dans WhatsApp — le cache est
   partagé avec Facebook et tient plusieurs jours. Le forcer via
   `developers.facebook.com/tools/debug/` → « Scrape Again ».
+
+### 2026-08-17 06:10 — [Développement] Débogueur Facebook : l'alerte « image trop petite » est un cache du 28/07
+- **Constat** : le débogueur affiche « Image trop petite » sur
+  `apple-touch-icon.png` — mais sa propre ligne « Dernière analyse » indique
+  **le 28 juillet à 09:45**. Il montre donc son cache d'il y a trois semaines,
+  antérieur au correctif d'aujourd'hui. **Rien à corriger : il faut cliquer
+  « Re-collecter ».**
+- **Vérifié au même moment** : le robot `facebookexternalhit` reçoit aujourd'hui
+  `og:image = https://chap.ci/og/accueil.png` avec `og:image:width = 1200`, et
+  l'image répond 200 en 72 571 octets.
+- **FAUSSE ALERTE À NE PAS ROUVRIR — le « Code de réponse 206 »** : le débogueur
+  affiche 206 (contenu partiel). Ce n'est **pas** une anomalie. Reproduit :
+  l'accueil renvoie **200** au robot Facebook sans en-tête `Range`, et **206**
+  quand `Range` est envoyé — ce que fait le scraper de Meta pour ne pas
+  télécharger toute la page. 206 est la réponse CORRECTE à une requête `Range`,
+  et Facebook a d'ailleurs parfaitement lu les balises depuis cette réponse
+  (il a reconstruit og:url, og:title et og:description). Ne pas le signaler
+  comme une panne.
