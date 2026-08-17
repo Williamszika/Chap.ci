@@ -64,6 +64,19 @@ const sections: Section[] = [
         ),
       },
       {
+        // La question que les 24 autres ne posaient pas, alors que l'écran de
+        // publication l'impose à chaque visiteur (🤝 Le Concierge, ronde du 17/08).
+        q: 'Pourquoi dois-je créer un compte pour publier une annonce ?',
+        a: (
+          <>
+            Un compte permet aux acheteurs de vous <b>identifier</b> et de vous écrire en confiance, et il
+            limite les faux profils et les annonces frauduleuses. La création est <b>gratuite</b> et prend
+            moins d’une minute. Pour <b>acheter</b> ou <b>écrire à un vendeur</b>, en revanche, aucun compte
+            n’est demandé.
+          </>
+        ),
+      },
+      {
         q: 'J’ai oublié mon mot de passe, que faire ?',
         a: (
           <>

@@ -276,7 +276,7 @@ export function Home() {
             <div className="min-w-0 flex-1">
               <p className="font-display text-base font-black leading-tight">Vous avez un truc à vendre&nbsp;? 🇨🇮</p>
               <p className="mt-0.5 text-sm text-white/90">
-                Publiez votre 1ʳᵉ annonce <b>gratuitement</b> — en ligne en 2 minutes.
+                Publiez votre 1ʳᵉ annonce <b>gratuitement</b> — 3 photos, un titre, un prix.
               </p>
             </div>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-white px-3 py-2 text-sm font-bold text-primary-700 shadow-sm">

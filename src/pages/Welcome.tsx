@@ -30,7 +30,7 @@ export function Welcome() {
       <h1 className="mt-4 font-display text-2xl font-black text-ink">Bienvenue sur Chap.ci&nbsp;! 🎉</h1>
       <p className="mt-2 max-w-sm text-sm text-gray-500">
         Votre compte est prêt. Lancez-vous&nbsp;: publiez votre première annonce — c’est
-        <b className="text-gray-700"> gratuit</b> et ça prend moins de 2&nbsp;minutes.
+        <b className="text-gray-700"> gratuit</b>, il vous faut 3&nbsp;photos, un titre et un prix.
       </p>
 
       <div className="mt-6 flex w-full max-w-xs flex-col gap-2.5">

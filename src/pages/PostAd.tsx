@@ -693,7 +693,17 @@ export function PostAd() {
         <div>
           <h1 className="font-display text-2xl font-black text-ink">Connectez-vous pour publier</h1>
           <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
-            Créez un compte gratuit ou connectez-vous pour mettre votre annonce en ligne — ça prend moins d’une minute.
+            Créez un compte gratuit ou connectez-vous pour mettre votre annonce en ligne.
+          </p>
+          {/* POURQUOI un compte — la question que cet écran laissait sans réponse.
+              C'est ici que se décide la marche la plus fuyante de l'entonnoir : un
+              visiteur à qui l'on demande de s'inscrire sans dire pourquoi s'en va.
+              Le motif est réel et vérifiable sur le site : les annonces portent le
+              nom du vendeur, et un compte est ce qui rend un vendeur joignable et
+              signalable. Proposé par 🤝 Le Concierge, ronde du 17/08. */}
+          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-gray-500">
+            Un compte identifie chaque vendeur auprès des acheteurs&nbsp;: cela limite les
+            faux profils et les arnaques.
           </p>
         </div>
         <div className="flex w-full max-w-xs flex-col gap-2.5">
@@ -735,7 +745,7 @@ export function PostAd() {
         <p className="mt-1.5 text-sm text-gray-500">
           {editing
             ? 'Mettez à jour les informations de votre annonce.'
-            : 'Gratuit · en ligne en 2 minutes'}
+            : 'Gratuit · 3 photos, un titre, un prix'}
         </p>
       </header>
 

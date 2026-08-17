@@ -345,7 +345,7 @@ export function Browse() {
                 Soyez le premier à vendre {activeCat ? `en « ${activeCat.name} »` : 'ici'} 🇨🇮
               </p>
               <p className="mt-0.5 text-sm text-white/90">
-                Publiez votre annonce <b>gratuitement</b> — en ligne en 2 minutes.
+                Publiez votre annonce <b>gratuitement</b> — 3 photos, un titre, un prix.
               </p>
               <Link
                 to="/publier"
