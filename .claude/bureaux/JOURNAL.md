@@ -2379,3 +2379,41 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Trois rondes manquées** : signalé au Secrétariat par le Comptable lui-même. Sans cause
   technique identifiée (clé cron fonctionnelle) — à surveiller par le Secrétariat, dont le
   rapport du 10/08 avait déjà noté ce bureau comme muet.
+
+### 2026-08-17 09:10 — [Développement] Audit du formulaire de publication — la fuite n'est pas mesurée
+- **Demande du Patron** : 219 vues sur `/publier` en 30 jours, ~1 publication. Où
+  décrochent les gens ?
+- **La chaîne complète avant qu'une annonce parte** (lue dans `src/pages/PostAd.tsx`) —
+  deux murs, puis dix contrôles bloquants :
+  1. **Compte obligatoire** (`PostAd.tsx:633`) — le formulaire n'est PAS montré aux
+     visiteurs ; 2. **adresse e-mail confirmée** (`:618`, `EmailGate`).
+  Puis, dans cet ordre exact à l'envoi (`:461-507`) : **3 photos** (`MIN_PHOTOS = 3`,
+  contrôlé EN PREMIER) · titre · catégorie · prix · localisation · **nom** · **téléphone** ·
+  les champs obligatoires de la catégorie (**3 pour des chaussures** : type, pour qui,
+  pointures) · 3 cases d'engagement (immobilier seulement) · réponses interdisant la vente.
+  Soit, pour une paire de chaussures : **3 photos + 10 champs**, après inscription et
+  vérification d'e-mail.
+- **Ce qui est déjà bien fait, et qu'il ne faut pas casser** : le manque de photos est
+  annoncé EN DIRECT (« encore 2 photos », `:774`) et non découvert à l'envoi ; chaque
+  erreur **emmène au champ fautif** et y place le curseur (`fail(msg, ancre)`) ; le **nom**
+  est pré-rempli depuis le compte et la **localisation** depuis le GPS ; le mur d'e-mail
+  **propose le code sur place** au lieu de renvoyer aux réglages ; le mur de connexion
+  porte une icône d'invitation, pas un cadenas (arbitrage Design du 27/07). Ce formulaire
+  a été pensé.
+- ⚠️ **LE VRAI CONSTAT — on ne mesure pas là où ça fuit.** Le `parcours` du serveur
+  (`server/index.php:7286`) compte **visiteurs → comptes → publié → vendu**. Il ne voit
+  **rien entre `/publier` et l'annonce en ligne** : ni le mur de connexion, ni le mur
+  d'e-mail, ni l'échec de validation, ni sur quel champ. On sait que 219 personnes sont
+  arrivées et qu'une a publié ; **on ignore laquelle des douze marches les a arrêtées.**
+  Toute proposition faite aujourd'hui serait une hypothèse, pas un diagnostic — ce que la
+  doctrine du dépôt interdit (« construisez d'abord une boucle rouge/vert »).
+- **Piste concrète et sûre, indépendante de la mesure** : le **téléphone du vendeur n'est
+  pas pré-rempli**, alors que la table `users` porte une colonne `phone`
+  (`server/index.php:1977`) et qu'un parcours d'inscription par téléphone existe. Il
+  manque seulement dans la réponse `/auth/me` (`PhpUser`, `src/lib/php.ts:19-28`). Le nom
+  est pré-rempli précisément parce que « le retaper est une friction inutile — levier de
+  conversion visiteur → vendeur » : le même argument vaut pour le téléphone, dernier champ
+  qu'un premier vendeur doit taper à la main.
+- **Ce que je NE recommande pas sans mesure** : toucher au minimum de 3 photos. C'est une
+  décision argumentée (`:40-53`) et le serveur l'applique aussi (`LISTING_MIN_PHOTOS`).
+  L'affaiblir sur une intuition dégraderait la qualité du catalogue pour un gain supposé.
