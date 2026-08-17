@@ -160,9 +160,18 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
      liste s'arrête à une date ancienne, la tâche cron cPanel ne tourne plus —
      c'est un incident de FIABILITÉ de ton ressort, à remonter immédiatement.
    - Certificat TLS : ton proxy sortant re-signe le TLS, tu ne vois donc PAS le
-     vrai certificat de chap.ci. N'en fais pas un incident : rappelle une fois
-     par mois au Patron de contrôler la date d'expiration (cadenas du navigateur
-     ou ssllabs.com/ssltest).
+     vrai certificat de chap.ci. N'en fais pas un incident — et N'ENVOIE PLUS LE
+     PATRON REGARDER LE CADENAS. Depuis le 17/08, la date d'expiration se lit
+     toute seule dans les journaux publics de transparence des certificats, que
+     le proxy n'affecte pas (aucune poignée de main TLS inspectée, on lit un
+     JSON tiers) :
+
+       curl -sS 'https://crt.sh/?q=chap.ci&output=json' | python3 -c "import sys,json;[print(c['not_after'][:10], c['issuer_name'][:40]) for c in sorted(json.load(sys.stdin), key=lambda c: c['not_after'], reverse=True)[:3]]"
+
+     Au 17/08/2026 : expiration le 2026-10-12, émetteurs Let's Encrypt et Google
+     Trust Services — Cloudflare renouvelle automatiquement, bien avant terme.
+     Ne signale QUE s'il reste moins de 21 jours, ou si plus aucun certificat
+     récent n'apparaît (le renouvellement automatique aurait alors cassé).
    - Erreurs serveur : curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' \
        'https://chap.ci/api/cron/security?days=7'  → un failRatio qui grimpe ou
      des 5xx récurrents sont un signal de fiabilité, pas seulement de sécurité.

@@ -2272,3 +2272,44 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   sur WhatsApp montre désormais la bannière 1200×630 au lieu d'une vignette carrée.
 - Pour mémoire : le cache Meta/WhatsApp est partagé et tient plusieurs jours ; toute
   future modification de l'aperçu demandera le même « Re-collecter ».
+
+### 2026-08-17 07:35 — [Performance] ⚡ Le Mécanicien
+- **Fait — site** : disponibilité en **triple relevé** (médianes : accueil **1,09 s**,
+  `/api/health` 0,57 s, sitemap 0,84 s), aucun 5xx ; le pic isolé à 2,34 s écarté par la
+  règle du triple relevé. Compression **Brotli** confirmée, `no-cache` sur `index.html` et
+  `immutable` sur les assets versionnés. JS d'entrée réellement servi
+  (`index-Ba-OaK-B.js`) **129 945 octets en Brotli**, CSS 14 935 — **≈ 141,5 Ko, sous le
+  budget de 150 Ko**. Build reproduit à l'identique de la production. Code-split sain :
+  admin, PostAd et ~15 pages en `lazy()`, modules IA (`ort`, `nsfw`) en chunks séparés
+  absents du chargement initial. Précache PWA 81 entrées / 1,71 Mo — croissance normale,
+  exclusions de `vite.config.ts` toujours actives (zéro `ort`, `nsfw`, `og/`, polices
+  non-latines). Images d'annonces réelles cohérentes avec le redimensionnement à 1280 px.
+  Sauvegarde cron passée ce matin (`backup` 02:00:06, 23 passages).
+- **`cron_fail`/`mtoken_fail` (18 chacun)** : même signature « sans-clé »/« missing »,
+  reconnus comme les **auto-tests de cloisonnement entre bureaux** et **non re-signalés** —
+  la consigne du 16/08 (00:55) a bien été absorbée.
+- **Limite d'environnement annoncée, pas déguisée en incident** : Lighthouse mobile non
+  obtenu, Chromium refusant le TLS re-signé par le proxy (curl passe). Vérifié côté proxy
+  qu'aucun échec de relais n'était enregistré.
+- **Problèmes ouverts** : JS initial à **136,95 Ko gzip contre 127,7 Ko le 27/07**, soit
+  **+9,25 Ko (+7 %) en trois semaines** — sous budget, à surveiller. Rappel TLS mensuel en
+  retard (dernier le 23/07).
+
+### 2026-08-17 07:50 — [Développement] Le contrôle du certificat TLS ne réclame plus le Patron
+- **Le problème** : deux routines (Gardien et Mécanicien) portaient la même consigne —
+  « le proxy re-signe le TLS, donc rappelle une fois par mois au Patron d'aller regarder le
+  cadenas ». Une corvée récurrente, déléguée faute de mieux, et en retard depuis le 23/07.
+- **La voie qui marche** : les **journaux publics de transparence des certificats**. Le
+  proxy n'y change rien, puisqu'on n'inspecte aucune poignée de main TLS — on lit un JSON
+  tiers. `curl -sS 'https://crt.sh/?q=chap.ci&output=json'` répond 200 en 7 Ko.
+- **Résultat, mesuré** : 20 certificats publiés ; les plus récents émis le **14/07**,
+  expirant le **12/10/2026** — soit **56 jours** au 17/08. Portée `chap.ci` + `*.chap.ci`,
+  émetteurs **Let's Encrypt (YE1)** et **Google Trust Services (WE1)** : c'est le schéma
+  Cloudflare, renouvellement automatique bien avant l'échéance (cadence visible dans les
+  journaux : 12/07, 14/07…). **Rien à faire, et le rappel du 23/07 est soldé.**
+- **Corrigé dans les deux routines** : la consigne « demande au Patron » est remplacée par
+  la commande, avec un seuil d'alerte explicite — ne signaler que s'il reste **moins de
+  21 jours**, ou si plus aucun certificat récent n'apparaît (là, le renouvellement
+  automatique aurait cassé).
+- **Pas de recollage urgent** : les deux bureaux lisent le JOURNAL en début de ronde. La
+  consigne durable prendra effet au prochain recollage, quand il y en aura un.

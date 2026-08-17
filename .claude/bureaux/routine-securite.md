@@ -144,9 +144,18 @@ CHANTIERS OUVERTS (surveille, ne les redécouvre pas comme des nouveautés) :
 LIMITE CONNUE DE TON ENVIRONNEMENT :
 - Le proxy sortant re-signe le TLS : `openssl s_client` ne montre PAS le vrai
   certificat de chap.ci. N'en fais pas un incident. Vérifie plutôt que la
-  chaîne est valide (une requête HTTPS qui aboutit = certificat amont accepté)
-  et rappelle une fois par mois au Patron de contrôler la date d'expiration via
-  le cadenas du navigateur ou ssllabs.com/ssltest.
+  chaîne est valide (une requête HTTPS qui aboutit = certificat amont accepté).
+  MAIS N'ENVOIE PLUS LE PATRON REGARDER LE CADENAS : depuis le 17/08, la date
+  d'expiration se lit TOUTE SEULE dans les journaux publics de transparence des
+  certificats, que le proxy n'affecte pas (on n'y inspecte aucune poignée de
+  main TLS, on lit un JSON tiers) :
+
+    curl -sS 'https://crt.sh/?q=chap.ci&output=json' | python3 -c "import sys,json;[print(c['not_after'][:10], c['issuer_name'][:40]) for c in sorted(json.load(sys.stdin), key=lambda c: c['not_after'], reverse=True)[:3]]"
+
+  Au 17/08/2026 : expiration le 2026-10-12, émetteurs Let's Encrypt et Google
+  Trust Services — c'est Cloudflare qui renouvelle, automatiquement, bien avant
+  l'échéance. Ne signale QUE s'il reste moins de 21 jours, ou si plus aucun
+  certificat récent n'apparaît (là, le renouvellement automatique a cassé).
 
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 
