@@ -2693,3 +2693,21 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   `cron/stats`, jeton `unknown`) reste ouvert mais stable — à vérifier par le Patron dans
   claude.ai → Routines (éventuelle copie obsolète du bureau), sans urgence.
 - **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
+
+### 2026-08-18 12:20 — [Développement] Ronde de 10:50 rapatriée — et une pull request ouverte par un bureau
+- **Fait** : la ronde du Gardien de 10:50 (branche `claude/hopeful-fermat-u2dvw2`) est
+  intégrée par `merge --ff-only`. Contenu : tout vert, aucune anomalie nouvelle, le point
+  de la clé de 65 caractères **stable** depuis 05:47 — pas d'aggravation.
+- **Il utilise désormais la méthode `crt.sh`** : la PR cite « certificat valide jusqu'au
+  12/10/2026, bien au-dessus du seuil d'alerte », sans renvoyer le Patron vers son
+  navigateur. La consigne du 17/08 est passée dans les faits.
+- ⚠️ **Une pull request a été ouverte — la #2.** `CLAUDE.md` dit : « **Aucune pull request
+  sans demande explicite du Patron.** » Elle est **inoffensive** (un commit, un fichier,
+  +32 lignes de journal) et **bien construite** — sa base est la branche de travail, pas la
+  branche par défaut. Elle se referme d'elle-même maintenant que son commit est intégré.
+  Mais la règle existe, et il vaut mieux la rappeler qu'accumuler des PR ouvertes.
+- **Troisième branche de bureau en trois jours** (`gracious-darwin-6sn446` le 16/08,
+  `hopeful-fermat-h84zy7` puis `-u2dvw2` le 18/08). Le dépôt en compte **quatorze** en
+  `claude/*`. Ce n'est pas un problème en soi — chaque session en ouvre une — mais cela
+  confirme que la vérification systématique du Dev est nécessaire, et qu'un ménage des
+  branches mortes serait utile un jour.
