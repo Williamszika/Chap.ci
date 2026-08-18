@@ -123,11 +123,18 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `b9786a1` |
-| Date du build | 12 août 2026 |
+| **Commit** | `617edc8` — corrigé le 18/08 sur signalement du Monteur : le champ portait `b9786a1` (build du 12/08, perdu), mais l'AAB **réellement téléversé le 15/08** a été reconstruit et embarque tous les commits jusqu'à `617edc8` (14/08, le correctif anti-CSRF Facebook — dernier commit touchant `flutter_app/`). Vérifié : `git log 617edc8..HEAD -- flutter_app/ server/` est vide. |
+| Date du build | 15 août 2026 (reconstruction — le fichier du build du 12/08 avait été perdu) |
 | Poids de l'AAB | **50,3 Mo** — dix fois la v1.19 (5,42 Mo), et c'est NORMAL : ce n'est plus une WebView Capacitor, c'est Flutter, qui embarque son propre moteur de rendu. L'utilisateur ne télécharge pas 50 Mo : le Play Store découpe le bundle par appareil (ABI + densité) et n'envoie que la tranche utile. |
 | **minSdk 22 · targetSdk 35** | signée avec la **NOUVELLE clé d'importation** — alias `chapci`, `CN=Chap.ci, OU=Mobile, O=Chap.ci, L=Abidjan, ST=Abidjan, C=CI`, SHA-1 `84:98:BB:44:AF:0E:22:2B:F5:3F:1E:6B:C0:D7:18:EF:0F:C8:F4:84` |
 | État Play | ✅ **TÉLÉVERSÉE ET ENVOYÉE À L'EXAMEN le 15/08/2026** sur le canal de **test fermé** (même canal que la v1.18) — **vu dans la console par le Patron** : « 21 (1.20.0) — Tests fermés – Test fermé Chap.ci », puis « **Modifications en cours d'examen** ». Déploiement réglé sur « Lancer le déploiement complet », **publication gérée désactivée** (la version part aux testeurs dès l'examen validé, sans autre clic). En attente du verdict de Google. Marche à suivre : **`store/BUILD-v1.20.md`**. |
+
+> ⚠️ **Échéance Google — `targetSdk 35` n'est accepté que jusqu'au 30/08/2026**
+> (signalé par le Monteur le 17/08). La v1.20 en examen n'est pas concernée : ne
+> touchez à rien tant que le verdict n'est pas tombé. Mais **tout build
+> postérieur au 30/08 devra passer à `targetSdk 36`** dans
+> `tool/preparer_plateformes.dart` (qui fige `targetSdk = 35` dans
+> `android/build.gradle.kts`), sans quoi Google refusera le dépôt de l'AAB.
 
 **C'est la refonte Flutter — le plus gros changement depuis la v1.0.** L'application
 n'est plus le site enveloppé dans une WebView Capacitor : c'est une application

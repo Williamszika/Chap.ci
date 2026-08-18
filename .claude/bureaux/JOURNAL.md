@@ -1128,6 +1128,53 @@ coller dans claude.ai/code/routines quand vous voudrez l'activer.
 
 ---
 
+### 2026-08-02 09:00 — [Juridique] ⚖️ Le Juriste (ronde mensuelle)
+> *Versée en retard le 18/08 : rapport remis au Secrétariat le 02/08, jamais
+> parvenu au journal. Transmis par le Patron le 18/08, récupéré tel quel.*
+- **Fait** : lecture du journal (jusqu'au 30/07) + historique Git jusqu'au 01/08 ;
+  code de `Privacy.tsx`, `Terms.tsx`, `DeleteAccount.tsx`, `App.tsx`,
+  `GUIDE-FONCIER-CI.md`, `GUIDE-PLAY-STORE.md`, `STORE-LISTING.txt` ; vérification
+  du site en ligne (en-têtes, CSP, `Last-Modified` 01/08 — le déploiement reflète
+  le dépôt) ; recherches datées ARTCI/CERTINUM, projet de loi e-commerce, annexe
+  fiscale 2026, règles Google Play, fraude foncière. **Limite honnête déclarée** :
+  les pages légales sont en HashRouter, le rendu réel en ligne n'a pas pu être lu —
+  audit sur code source recoupé, pas sur rendu vérifié.
+- **Évolutions du mois** : CERTINUM (guichet ARTCI ouvert le 02/07) — rien de neuf,
+  déclaration toujours en attente côté Patron. Étude nationale de conformité ARTCI
+  confiée à OKTO (climat de contrôle qui se durcit — renforce l'urgence, aucune
+  action nouvelle). Projet de loi e-commerce : toujours à l'étude, à resurveiller.
+  Annexe fiscale 2026 (IS 30 % plateformes étrangères ≥ 50 M FCFA) : **sans objet**,
+  Chap.ci est ivoirienne et sans commission. Google Play suppression de compte :
+  **déjà conforme** via `/suppression-compte`, confirmé. Fraude foncière : ~30 % du
+  contentieux civil ivoirien, aucun texte nouveau visant les plateformes — le cadre
+  de `GUIDE-FONCIER-CI.md` reste le bon.
+- **Problèmes ouverts** :
+  🔴 **P1 mentions légales incomplètes, inchangé depuis le 26/07** — `Terms.tsx`
+  invoque la loi 2013-546 mais `EDITOR_NAME`, `EDITOR_RCCM`, `EDITOR_ADDRESS`,
+  `EDITOR_NCC` sont vides : la page revendique une conformité qu'elle n'assure pas.
+  Arbitrage du Patron requis : publier son identité, ou immatriculer une société.
+  🔴 **P1 déclaration ARTCI** — invérifiable de l'extérieur, seul le Patron sait.
+  🟠 **P2 nouveau : le foncier n'a pas de miroir dans les CGU** — l'immobilier a un
+  formulaire dédié et « Chap.ci ne vérifie aucun document » affiché trois fois,
+  mais `Terms.tsx` ne mentionne l'immobilier nulle part. Texte prêt, recommandé et
+  non obligatoire, à insérer en fin de section 4 après validation du Patron :
+  « Pour une annonce immobilière (vente de terrain, maison ou appartement), le
+  vendeur déclare lui-même les documents fonciers qu'il détient. Chap.ci ne
+  vérifie aucun document et ne garantit aucune vente immobilière ; l'acheteur est
+  invité à faire vérifier l'authenticité des pièces par un notaire ou à la
+  Conservation foncière avant tout versement. »
+  🔵 **P3 à vérifier en Play Console** : le formulaire Sécurité des données
+  déclare-t-il la localisation **précise** (GPS) en plus de l'approximative (IP) ?
+  La politique décrit les deux ; si seule « approximative » est cochée, incohérence
+  à corriger.
+  🟢 Bandeau traceurs : arbitré le 27/07, aucune condition de réouverture remplie.
+  🟢 Clos : suppression de compte publique, conforme, vérifiée.
+- **Rappel unique** : le nom de la personne physique du compte développeur Play
+  peut apparaître publiquement sur la fiche — au Patron de trancher, une fois.
+- **Pour les autres bureaux** : Dev — texte foncier prêt, ne rien insérer tant que
+  le Patron n'a pas validé. Concierge, Gardien — rien de nouveau.
+- Aucune notification : les deux P1 sont des rappels, aucune règle ne bloque l'app.
+
 ### 2026-08-05 — [Direction] Rattrapage du journal : six jours et 43 commits
 
 Le Gardien a signalé cette nuit que `JOURNAL.md` s'arrêtait au 30/07 alors que le
@@ -2293,6 +2340,133 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Propositions au Patron** : aucune.
 - **Pour les autres bureaux** : rien de nouveau côté sécurité/code.
 
+### 2026-08-17 05:20 — [Sécurité du code] 🔒 Le Serrurier
+> *Versée en retard le 18/08 : ronde poussée sur la branche `bureaux/journal`
+> (commit `7d4f280`), jamais rapatriée. Récupérée telle quelle.*
+
+- **Fait** : diff de la semaine revu ligne à ligne — **120 commits** depuis mon
+  dernier passage (`fea69d9`, 10/08). Semaine hors norme : la refonte complète
+  de l'application en **Flutter** est arrivée d'un coup — **107 fichiers,
+  25 099 lignes**, tout `flutter_app/` — remplaçant la coque Capacitor.
+  `server/index.php`, lui, n'a bougé que de +97/-45 lignes (refactor de la
+  connexion Facebook, plafond de photos, une limite de débit) : le nouveau
+  panneau admin Flutter n'est qu'un **nouveau client** sur des routes
+  `/admin/*` déjà existantes — aucune route serveur neuve cette semaine.
+  Sous-système fouillé à fond (rotation semaine ISO 34 % 6 = 4) : **Admin &
+  rôles** · CI et dépendances vérifiées · déploiement confirmé jusqu'au
+  dernier commit.
+
+  **Admin & rôles — toujours solide, rien de neuf côté serveur.** Relu en
+  entier : le triple verrou (`$userIsAdmin` → `admin_unlocked` →
+  `admin_can`, index.php:6979-7057) protège toujours l'intégralité du bloc
+  `/admin/*`, y compris les routes que le nouveau client Flutter appelle
+  (`moderators`, `campaign/send`, `smtp`, `backup`, `orders`, `reviews`…).
+  `admin_unlocked()` (1162) revérifie en direct le blocage d'un modérateur à
+  CHAQUE requête (`SELECT blocked FROM admins`), donc un blocage coupe
+  l'accès immédiatement même si son jeton de déverrouillage (30 jours) est
+  encore valide — vérifié, inchangé. `POST /admin/moderators` (8683) hache
+  le code d'accès en bcrypt, ne renvoie le code en clair qu'une seule fois,
+  filtre les permissions contre `admin_grantable_features()` (pas moyen de
+  s'auto-accorder une fonctionnalité hors liste), et met à jour l'empreinte
+  d'intégrité (`admins_fp_save`) à chaque changement légitime — sans quoi
+  l'alerte `admins_tampered` se déclencherait à tort. Rien de tout cela n'a
+  changé cette semaine ; je le confirme plutôt que de le re-découvrir.
+
+  **La refonte Flutter — passée au crible sur les points qui comptent.**
+  - **OAuth Facebook (CSRF), corrigé la semaine dernière par le Gardien
+    (`617edc8`) : vérifié à la source, solide.** Le `state` anti-CSRF est
+    généré côté app avec `Random.secure()` (128 bits,
+    `flutter_app/lib/api/auth_social.dart:_genererState`), transmis à
+    Facebook, répercuté tel quel par le serveur
+    (`GET /auth/facebook/mobile`, index.php:5119-5148, qui ne fait
+    QU'échanger le `code` contre un jeton — le secret Facebook ne quitte
+    jamais le serveur) vers `chapci://facebook-auth?token=…&state=…`, puis
+    **comparé à l'identique côté app avant d'accepter la session**
+    (`auth_social.dart:96-99` : `if (params['state'] != state) throw`).
+    `FlutterWebAuth2.authenticate()` n'intercepte que le retour de CET appel
+    précis (session de navigateur éphémère liée à l'appel), donc un lien
+    `chapci://facebook-auth?token=…` forgé et envoyé hors de ce flux ne
+    serait jamais reçu par cette promesse. Accessoirement : le bouton reste
+    à « bientôt » (`facebookDisponible = false`) tant que l'app Facebook
+    n'est pas passée en Live — le chemin est donc inactif en production,
+    mais le code qui l'implémente est déjà correct.
+  - **Secrets et identifiants** : `git grep` sur secret/password/token/clé
+    dans `flutter_app/lib` — rien hors les client IDs Google/Facebook
+    (publics par nature, embarqués dans toute app) et un secret TOTP de
+    démonstration (`JBSWY3DPEHPK3PXP`, le vecteur RFC 6238 générique) dans
+    `main_shots.dart`, l'outil de captures d'écran pour les stores — un
+    point d'entrée séparé (`flutter run -t lib/main_shots.dart`), jamais
+    inclus dans le build normal, avec des comptes fictifs. `tool/
+    key.properties.exemple` est un modèle à valeurs `VOTRE_MOT_DE_PASSE…` —
+    pas une vraie clé. Le jeton de session (`api_client.dart`) vit dans
+    `SharedPreferences`, en clair — pas un stockage sécurisé
+    (`flutter_secure_storage`/Keystore) ; c'est une limite de robustesse
+    (vol nécessite un accès physique ou un téléphone déjà compromis, hors du
+    modèle de menace réseau), pas une faille exploitable à distance — je la
+    note sans la présenter comme une brèche.
+  - **Frontière navigateur intégré / navigateur externe, respectée.** Les
+    pages légales du site (`flutter_app/lib/liens_site.dart`) s'ouvrent en
+    navigateur INTÉGRÉ (feuille Safari / onglet Chrome) mais uniquement vers
+    un jeu fermé de chemins littéraux sous `https://chap.ci/#/…`
+    (`PagesSite.aide`, `.faq`, etc. — jamais une valeur reçue). Le lien d'une
+    publicité (`ecran_pub.dart:_ouvrir`), potentiellement une URL externe non
+    maîtrisée, s'ouvre lui en navigateur EXTERNE
+    (`LaunchMode.externalApplication`), jamais intégré — la bonne séparation
+    (contenu de confiance vs contenu annonceur) est en place.
+  - **Push natif (FCM)** : `flutter_app/lib/api/push_natif.dart` appelle
+    `POST /push/native` et `/push/native/remove`, qui **n'existent pas
+    encore côté serveur** (`git grep` : aucune occurrence) — sans
+    conséquence puisque `disponible = false` (pas de dépendance Firebase
+    dans `pubspec.yaml`, le code ne s'exécute jamais). Pas une faille ;
+    signalé au Monteur/Dev ci-dessous pour que la moitié serveur soit posée
+    AVANT d'activer `disponible = true`, plutôt que découverte par une app
+    qui échoue silencieusement.
+  - `pubspec.yaml` (nouveau) : dix dépendances de production, toutes
+    connues et attendues au vu des fonctionnalités (http, shared_preferences,
+    image_picker, geolocator, qr_flutter, share_plus, url_launcher,
+    google_sign_in, flutter_web_auth_2, cupertino_icons) — aucune ne capte
+    de données au-delà de son rôle déclaré, rien d'inhabituel.
+
+  **CI et dépendances.** `.github/workflows/security-scan.yml` toujours
+  déclenché sur `pull_request` + `push: [main]` uniquement. `php8.4 -l` :
+  propre sur `index.php` et `seo.php` (le serveur tourne en 8.5.8 d'après
+  `/api/health` — mon environnement n'a que 8.4, écart déjà connu, limite de
+  mon environnement). `npm audit --omit=dev --audit-level=high` : inchangé,
+  seul l'avertissement modéré `react-router` déjà connu (redirection
+  ouverte + injection de constructeur SSR), rien de haut/critique.
+
+  **Déploiement — confirmé sur les trois empreintes.**
+  `curl https://chap.ci/api/health` → `empreinte` `ded614e363a6`, `empreinteSeo`
+  `c57f0f1c6e55`, `empreinteSite` `bbbaa08d5db0` (déposées 14/08 et 16/08).
+  Comparées au dépôt HEAD (`5662103`) : `md5sum server/index.php` →
+  `ded614e363a6` (identique) ; `md5sum web/seo.php` → `c57f0f1c6e55`
+  (identique, inchangé depuis le correctif JSON-LD du 30/07 — dossier
+  toujours clos) ; `npm run build` (dans un `git worktree` séparé, pour ne
+  pas toucher à ma branche) puis `md5sum dist/index.html` → `bbbaa08d5db0`
+  (identique). La production exécute exactement le code du dépôt, y compris
+  les 120 commits de cette semaine — rien en attente de déploiement.
+
+- **Problèmes ouverts** : aucun exploitable, aucun nouveau. Deux points de
+  robustesse (pas des brèches) : le jeton de session Flutter en
+  `SharedPreferences` non chiffré (ci-dessus), et les routes `/push/native`
+  manquantes côté serveur pour une fonctionnalité encore désactivée.
+
+- **Propositions au Patron** : aucune de sécurité urgente. Semaine
+  exceptionnelle par le volume (nouvelle application entière) mais chaque
+  point sensible (OAuth, admin, stockage local, frontière navigateur) suit
+  ou améliore les patterns déjà en place — rien à corriger dans l'immédiat.
+
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à remonter.
+  **Dev** — quand le push natif (FCM) sera activé (`PushNatif.disponible =
+  true` dans `flutter_app/lib/api/push_natif.dart`), poser d'abord les
+  routes serveur `POST /push/native` et `/push/native/remove` (sur le modèle
+  scopé `user_id` de `push/subscribe` déjà en place pour le web) — sinon
+  l'enregistrement du jeton échouera silencieusement (le `catch` de
+  `push_natif.dart` avale l'erreur). **Monteur** — l'app Android part
+  maintenant de `flutter_app/` (Capacitor abandonné, `b96f85a`) : le prochain
+  paquet de build suit le nouveau script `tool/preparer_plateformes.dart`,
+  pas `cap:sync`.
+
 ### 2026-08-17 05:47 — [Confiance & Sécurité] 🛡️ Le Gardien
 > *Versée en retard le 18/08 : cette ronde n'existait que sur la branche
 > `claude/gracious-darwin-6apbg3`, jamais rapatriée. Récupérée telle quelle.*
@@ -2374,6 +2548,177 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   et Facebook a d'ailleurs parfaitement lu les balises depuis cette réponse
   (il a reconstruit og:url, og:title et og:description). Ne pas le signaler
   comme une panne.
+
+### 2026-08-17 06:12 — [Livraison] 🔨 Le Monteur
+> *Versée en retard le 18/08 : ronde poussée sur la branche `bureaux/journal`
+> (commit `9abbcb4`), jamais rapatriée. Récupérée telle quelle.*
+
+> ⚠️ **Le champ Commit de la v1.20 dans `store/APP-VERSIONS.md` est faux —
+> corrigez-le.** Il indique `b9786a1` (12/08, 14h05). Mais le journal du
+> 15/08 09:49 (commit `9c7d5f9`, celui qui annonce l'envoi à l'examen) le dit
+> noir sur blanc : « l'AAB parti est plus récent que le build du 12/08 : il
+> embarque les 12 commits suivants ». Le vrai point de départ de l'AAB
+> réellement téléversé est donc `617edc8` (14/08, 01h43 — le correctif CSRF
+> Facebook du Gardien), pas `b9786a1`. Tout mon calcul du §2 part de
+> `617edc8` ; si un autre bureau relit `APP-VERSIONS.md` sans ce correctif,
+> il partira de dix-sept builds trop tôt, exactement l'incident du 03/08.
+
+## 1) Où en est l'application
+
+**Google Play** : v1.20 (code 21) — d'après le journal, **envoyée à
+l'examen le 15/08/2026, non confirmé par le Patron** au-delà de cette
+ligne. Il y a deux jours. Ce que les testeurs ont réellement entre les
+mains reste la **v1.18 (code 19)**, en test fermé depuis le 6 août (onze
+jours) — 10 inscrits sur 12 requis, confirmé par le Patron le 15/08.
+**App Store** : aucune version, volet **bloqué** — la ligne « Mac + Xcode »
+reste à « non disponible » dans `store/APP-VERSIONS.md`. Il faudrait un Mac
+avec Xcode et un compte Apple Developer (99 $/an) ; pas d'instructions
+Xcode ci-dessous tant que cette ligne ne change pas.
+
+`pubspec.yaml` (`version: 1.20.0+21`) correspond bien à la tête
+d'`APP-VERSIONS.md` (v1.20, versionCode 21) — seul le champ Commit de cette
+entrée est faux, corrigé ci-dessus.
+
+## 2) Ce qui a changé dans l'application depuis le vrai commit de départ
+
+En partant de `617edc8` (le commit réellement embarqué dans l'AAB envoyé à
+l'examen, pas `b9786a1`) :
+
+```
+git log --oneline 617edc8..HEAD -- flutter_app/
+git log --oneline 617edc8..HEAD -- server/
+```
+
+**Les deux commandes ne retournent rien.** Aucun commit ne touche
+`flutter_app/` ni `server/` depuis le 14/08 01h43. Rien ne s'est accumulé
+depuis l'envoi à l'examen.
+
+Pour mémoire, ce que l'AAB envoyé le 15/08 contient déjà (les 13 commits
+entre `b9786a1` et `617edc8`, 12-14/08) :
+
+| Commit | Catégorie | Contenu |
+|---|---|---|
+| `031a466` | Fonctionnalité visible | Fiche d'annonce : vendeur cliquable, vrai partage |
+| `19f2e57` | Correction d'interface | Explorer : le filtre Neuf/Occasion ne s'affiche que pour une catégorie qui a un état |
+| `2782f8f` | Fonctionnalité visible | Fiche d'annonce : tout le détail affiché, comme le site |
+| `d3a8696` | Fonctionnalité visible | Connexion Google dans l'app |
+| `7ee2756` / `02ecc78` | — | Connexion Facebook ajoutée puis annulée le jour même — effet net nul |
+| `1aebc5e` | Fonctionnalité visible | Page vendeur complète, comme le site |
+| `7a20cb6` | Fonctionnalité visible | Connexion Facebook « web », sans SDK lourd |
+| `df43ad0` | Conformité | Bouton Facebook en « bientôt » tant que l'app Facebook n'est pas vérifiée |
+| `d97ea88` | Conformité | Suppression de compte, pages légales, aide — **exigence de boutique directe** |
+| `418796b` | Correction d'interface | Finitions Atelier (barre d'état, tablette, cibles tactiles) |
+| `c66912f` | — (serveur seul) | Plafond du nombre de photos par annonce — ne compte pas pour l'app |
+| `617edc8` | **Correction de sécurité** | Jeton anti-CSRF sur la connexion Facebook web (faille signalée par le Gardien) |
+
+Décalage serveur ↔ app : **aucun**. Le Serrurier l'a confirmé ce matin
+(ronde du 17/08 05h20) : le serveur n'a gagné aucune route neuve cette
+semaine, le nouveau panneau admin Flutter n'appelle que des routes
+`/admin/*` déjà existantes. Seul point à surveiller pour plus tard, sans
+urgence : `POST /push/native` et `/push/native/remove` n'existent pas
+encore côté serveur, mais le push natif (FCM) est déclaré
+`disponible = false` côté app — dormant, pas un décalage actif.
+
+## 3) Verdict : ATTENDRE
+
+Rien n'a changé dans `flutter_app/` depuis le commit réellement soumis à
+Google. L'AAB en cours d'examen contient déjà tout ce qui aurait justifié
+un build cette semaine (une correction de sécurité sur l'interface, une
+exigence de boutique — suppression de compte —, et bien plus de trois
+fonctionnalités visibles). Construire une v1.21 maintenant ne livrerait
+rien de plus : il n'y a rien de neuf à embarquer, et cela ferait perdre à
+Google l'examen déjà engagé sur la v1.20 pour rien.
+
+**Ce qui presse n'est pas un build, ce sont deux corrections documentaires
+et une échéance :**
+- corriger le champ Commit de la v1.20 dans `APP-VERSIONS.md` (`b9786a1` →
+  `617edc8`), pour que le prochain bureau ne reparte pas dix-sept builds
+  trop tôt ;
+- **`targetSdk 35` n'est accepté par Google que jusqu'au 30 août 2026 —
+  dans 13 jours.** `tool/preparer_plateformes.dart` fige encore
+  `targetSdk = 35` (`android/build.gradle.kts`, ligne 241 et suivantes).
+  Tant que la v1.20 est en examen, ne touchez à rien ; mais le **prochain**
+  build (celui qui suivra le verdict de Google, quel qu'il soit) devra
+  monter le script à `targetSdk 36` avant d'être construit, sans quoi il
+  sera refusé au dépôt.
+
+## 4) Numéros de version
+
+Aucun nouveau build proposé. `pubspec.yaml` reste à `version: 1.20.0+21`
+(versionName 1.20, versionCode 21) tant que le verdict de Google sur cette
+version n'est pas connu.
+
+## 5) Notes de version
+
+Sans objet — aucun build proposé cette semaine.
+
+## 6) Captures d'écran
+
+**Deux écrans sont à refaire, dans les trois formats (téléphone, tablette
+7", tablette 10") — six fichiers :**
+
+- **`*-02-annonce.png`** (fiche d'annonce) : capturé le 12/08 à 13h59
+  (`a14e10f`), donc **avant** `2782f8f` (tout le détail affiché) et
+  `031a466` (vendeur cliquable, vrai partage), qui touchent tous les deux
+  `listing_detail_screen.dart` après la capture ;
+- **`*-04-vendeur.png`** (page vendeur) : même capture du 12/08, donc
+  **avant** `1aebc5e` (page vendeur réécrite, 568 lignes) et `031a466`, qui
+  touchent tous les deux `vendeur_screen.dart` après la capture.
+
+`*-01-accueil.png`, `*-03-explorer.png` et `*-05-aide.png` sont probablement
+encore bons : aucun commit ne touche l'écran d'accueil ; `browse_screen.dart`
+(explorer) n'a reçu qu'un changement de logique de filtre
+(`19f2e57`, le segment Neuf/Occasion disparaît sur les catégories sans état)
+qui peut ne rien changer à la capture selon la catégorie choisie au moment
+de la prise — à vérifier d'un coup d'œil plutôt qu'à reprendre d'office ;
+« aide » ouvre une page du site, pas un écran d'app, donc hors de portée des
+commits Flutter listés ici.
+
+À reprendre au prochain cycle de captures, pas en urgence : la v1.20 est
+déjà en examen avec les anciennes captures, et Google ne les recompare pas
+en cours d'examen.
+
+## 7) Vérifications avant build (lecture du dépôt — Flutter n'est pas
+installé dans cette session)
+
+**Flutter n'est pas installé ici : `flutter analyze` et `flutter test`
+n'ont pas pu être exécutés.** Vérifié par lecture du code à la place :
+
+| Vérification | Résultat |
+|---|---|
+| `pubspec.yaml` : `version: 1.20.0+21` | ✅ cohérent avec `APP-VERSIONS.md` |
+| `flutter_app/lib/api/api_client.dart` : base par défaut | ✅ `https://chap.ci/api`, `String.fromEnvironment` avec ce défaut |
+| `tool/preparer_plateformes.dart` : `applicationId` / bundle iOS | ✅ `ci.chap.app` sur les deux plateformes |
+| Permissions déclarées | ✅ Internet, Camera, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `<queries>` https, schéma `chapci://` |
+| Dépendances de `pubspec.yaml` | ✅ dix paquets de production, tous revus et expliqués par le Serrurier ce matin (http, shared_preferences, image_picker, geolocator, qr_flutter, share_plus, url_launcher, google_sign_in, flutter_web_auth_2, cupertino_icons) — aucun ajout depuis `617edc8` |
+| Tests unitaires présents dans le dépôt | `flutter_app/test/suppression_compte_test.dart`, `vendeur_profil_test.dart`, `vendeur_test.dart`, `etat_categorie_test.dart` — existence vérifiée par lecture, exécution non faite (Flutter absent) |
+
+Je n'affirme donc pas que `flutter analyze` finit « No issues found! » ni que
+les tests passent : je n'ai pas pu les lancer. Le Serrurier, lui, a relu le
+code Flutter en entier ce matin (OAuth Facebook, secrets, frontière
+navigateur intégré/externe) sans rien trouver à corriger.
+
+## 8) Marche à suivre — Android / Google Play
+
+**Aucune action de build.** La v1.20 est déjà en examen. La seule chose à
+faire est d'attendre le verdict de Google, et de recruter les 2 derniers
+testeurs qui manquent au canal de la v1.18 (10/12) pendant ce temps — ce
+n'est pas lié à la v1.20, mais c'est le seul délai du projet que personne
+ne peut raccourcir.
+
+Si Google **rejette** la v1.20 : lisez le motif exact dans la Play Console
+avant toute correction — ne devinez pas depuis ce rapport.
+
+Si Google **valide** la v1.20 : rien à reconstruire pour la faire
+apparaître aux testeurs, la publication gérée est désactivée (elle part
+seule dès l'examen validé, par `store/APP-VERSIONS.md`).
+
+## 9) Marche à suivre — iOS / App Store
+
+**Bloqué.** Il faudrait un Mac avec Xcode et un compte Apple Developer
+(99 $/an) — aucun des deux n'est disponible cette semaine. Pas
+d'instructions Xcode tant que cette ligne reste ainsi dans
+`store/APP-VERSIONS.md`.
 
 ### 2026-08-17 06:20 — [Développement] Aperçu de partage confirmé par le Patron
 - **Bouclé de bout en bout** : après « Re-collecter » dans le débogueur Meta, le Patron
@@ -2854,3 +3199,49 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   Versées ce jour à leur place chronologique, marquées « versée en retard ». Le journal
   est enfin complet — la vérification systématique des branches, désormais faite par
   `git fetch --prune` + comptage des commits d'avance, a précisément servi à cela.
+
+### 2026-08-18 17:30 — [Développement] Le Monteur et le Serrurier n'ont jamais été muets — ils écrivaient sur une branche que personne ne lisait
+- **La découverte qui corrige deux erreurs de suivi.** Le Secrétariat (17/08 20:04)
+  signalait le Monteur muet depuis trois semaines ; ma propre entrée du 18/08 01:05
+  l'affirmait aussi (« Le Monteur, en revanche, est bien muet »). **Les deux sont
+  fausses.** Les deux bureaux versent leurs rondes sur la branche `bureaux/journal`
+  — une histoire Git séparée, notée « dormante » le 16/08 — qui porte en réalité
+  **huit rondes depuis le 03/08** : Livraison les 03, 04, 10 (×2, verdict corrigé
+  dans la journée) et 17/08 ; Serrurier les 03, 10 et 17/08. Les routines tournent,
+  la chaîne de rapatriement était cassée — le même défaut, côté branche, que le
+  rapport du Concierge jamais versé. Réponse à la P2 du Secrétariat : **le
+  Concierge et le Monteur tournent tous les deux** ; il ne reste rien à vérifier
+  dans claude.ai → Routines à ce sujet (seule la question de la clé de
+  65 caractères y demeure).
+- **Versé aujourd'hui, à leur place chronologique** : les rondes du 17/08 du
+  Serrurier (05:20, revue des 120 commits de la semaine Flutter, rien
+  d'exploitable) et du Monteur (06:12, verdict ATTENDRE), plus la ronde mensuelle
+  du **Juriste du 02/08** transmise par le Patron. Les quatre rondes plus
+  anciennes de la branche restent lisibles sur `bureaux/journal` ; leur substance,
+  en une ligne chacune : Serrurier 03/08 (un commit revu, RAS) et 10/08
+  (31 commits, RAS) ; Livraison 03/08 (ATTENDRE), 04/08 (CONSTRUIRE — c'est la
+  ronde qui a préparé la v1.18 partie aux testeurs le 06/08), 10/08 (CONSTRUIRE à
+  01:38, corrigé en ATTENDRE à 06:16 le même jour).
+- **La correction du Monteur est appliquée à `store/APP-VERSIONS.md`** après
+  vérification indépendante : le champ Commit de la v1.20 portait `b9786a1`
+  (12/08 — un commit de documentation qui ne touche même pas `flutter_app/`),
+  alors que l'AAB réellement téléversé le 15/08 a été reconstruit et embarque tout
+  jusqu'à `617edc8` (14/08, l'anti-CSRF Facebook). `git log 617edc8..HEAD --
+  flutter_app/ server/` est vide — rien ne s'est accumulé depuis l'envoi à
+  l'examen, le verdict ATTENDRE est le bon. Date du build corrigée au 15/08.
+- ⚠️ **Une échéance ferme entre au dossier : `targetSdk 35` n'est accepté par
+  Google que jusqu'au 30/08/2026.** Vérifié dans le dépôt :
+  `tool/preparer_plateformes.dart:254` fige `targetSdk = 35`. Gravé en tête de la
+  fiche v1.20 d'`APP-VERSIONS.md` : rien à toucher tant que la v1.20 est en
+  examen, mais tout build postérieur au 30/08 devra monter le script à 36.
+- **Notes durables reprises des deux rondes** : avant d'activer le push natif
+  (`PushNatif.disponible = true`), poser d'abord les routes serveur
+  `POST /push/native` et `/push/native/remove` sur le modèle scopé de
+  `push/subscribe` — sinon échec silencieux (le `catch` de `push_natif.dart`
+  avale l'erreur). Les captures `*-02-annonce` et `*-04-vendeur` (trois formats)
+  sont à refaire au prochain cycle, sans urgence. Le jeton de session Flutter en
+  `SharedPreferences` non chiffré : limite de robustesse notée, pas une brèche.
+- **Doublons écartés sans bruit** : le Patron a retransmis les rapports du
+  Secrétariat (20:04), du Concierge (10:09), du Comptable (08:17), du Mécanicien
+  (07:35) et de l'Atelier (16/08) — tous déjà versés au journal et leurs
+  propositions déjà appliquées ou arbitrées. Rien de nouveau dedans.
