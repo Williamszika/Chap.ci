@@ -3321,3 +3321,19 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Effet de bord attendu** : supprimer `hopeful-fermat-u2dvw2` fermera d'elle-même la
   pull request #2 (son commit est déjà intégré) — conforme à la règle « aucune PR sans
   demande du Patron ».
+
+### 2026-08-18 22:05 — [Développement] Ménage fait à moitié — et `bureaux/journal` supprimée par erreur, restaurée dans la minute
+- **Le Patron a fait le ménage** : sept des quatorze branches mortes sont supprimées
+  (les quatre `amazing-*`, `dreamy-fermi-imao17`, `eloquent-fermi-l67nvy`,
+  `hopeful-fermat-u2dvw2` — cette dernière fermant la pull request #2 comme prévu).
+- ⚠️ **Mais `bureaux/journal` a été supprimée aussi** — la branche vivante, celle où
+  le Monteur et le Serrurier écrivent leurs rondes. **Restaurée aussitôt** depuis la
+  copie locale complète de cette session : `git push origin
+  9abbcb4:refs/heads/bureaux/journal`, vérifiée — même pointe (`9abbcb4`), mêmes
+  346 commits qu'avant la suppression. **Aucune perte.** La leçon : une liste de
+  quatorze noms à cliquer avec deux exceptions, c'est un mode d'emploi qui invite
+  l'erreur — la prochaine fois, donner la liste SEULE, sans mentionner les branches à
+  garder autrement qu'en tout début, ou faire le ménage en plusieurs petits lots.
+- **Reste à supprimer** (sept branches, tout leur contenu déjà au journal) :
+  `claude/gracious-darwin-1tpbxd`, `-3mdd6v`, `-6apbg3`, `-6sn446`, `-sc8u2u`,
+  `claude/hopeful-fermat-h84zy7`, `claude/hopeful-fermat-oqd2mj`.
