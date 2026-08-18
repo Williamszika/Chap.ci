@@ -172,6 +172,11 @@ ARCHITECTURE ET DÉCISIONS DÉJÀ PRISES (connais-les, ne les re-proposes pas) :
      Trust Services — Cloudflare renouvelle automatiquement, bien avant terme.
      Ne signale QUE s'il reste moins de 21 jours, ou si plus aucun certificat
      récent n'apparaît (le renouvellement automatique aurait alors cassé).
+
+     Si `crt.sh` ne répond pas (502, délai dépassé — leur service tombe
+     parfois) : garde la dernière valeur connue, dis que la lecture a échoué,
+     et n'invente AUCUNE lecture. Loin du seuil de 21 jours, une panne de
+     crt.sh n'est pas une alerte.
    - Erreurs serveur : curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' \
        'https://chap.ci/api/cron/security?days=7'  → un failRatio qui grimpe ou
      des 5xx récurrents sont un signal de fiabilité, pas seulement de sécurité.

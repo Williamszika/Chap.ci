@@ -2127,6 +2127,28 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   « Demander un accès en production » affiche-t-il 10 ou 11 ? Le seuil compte des
   inscriptions, pas des installations — l'ami peut compter sans avoir pu installer.
 
+### 2026-08-16 08:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+> *Versée en retard le 18/08 : cette ronde n'existait que sur la branche
+> `claude/gracious-darwin-1tpbxd`, jamais rapatriée. Récupérée telle quelle.*
+- **Fait** : ronde du matin, **tout vert**. Santé : accueil 200 (1,10 s) · `/api/health`
+  200, PHP 8.5.8 · sitemap 200. Trois empreintes vérifiées PAR BUILD (`npm ci && npm run
+  build`, pas seulement supposées) et identiques à la production : API `ded614e363a6`,
+  seo `c57f0f1c6e55`, site `cb81c68a9596` — aucun commit sur `server/`, `web/seo.php`,
+  `src/` ni `flutter_app/` depuis `617edc8`. Sécurité 24 h : `suspiciousIps: []`,
+  `rateLimited: 0`, `adminUnlockFail: 0`, `adminsIntegrity: ok`. `cron_fail: 3` et
+  `mtoken_fail: 3`, **inchangés depuis la ronde de 00:47** — mêmes événements (tests de
+  cloisonnement des rondes précédentes), toujours « sans-clé »/« missing », aucune tâche
+  cPanel en cause. `derniersPassages` : les 13 tâches cohérentes ; `suggestions` (dernier
+  passage 13/08, un jeudi) est **normal** — planifiée 2×/semaine (lundi/jeudi, cf.
+  `CRON-TPE.md`), prochaine échéance demain lundi 17/08 ; `report` toujours au 01/08,
+  mensuelle, déjà élucidé. CSP : `api.bigdatacloud.net`, question tranchée, non rouverte.
+  Ménage : 0 purge. Scan code serveur (JWT/session_version, bcrypt, buyer_id/seller_id
+  isolés dans `orders`) : RAS, rien de neuf depuis la dernière revue. Scan app Flutter :
+  `api_client.dart` pointe toujours vers `https://chap.ci/api`, aucun commit sur
+  `flutter_app/`. Modération : file vide (0 signalement, 0 récente), cloisonnement
+  re-testé (403 / 401), digest envoyé (`skipped: true`, aucun e-mail).
+- **Problèmes ouverts** : aucun. **Propositions au Patron** : aucune.
+
 ### 2026-08-16 15:47 — [Confiance & Sécurité] 🛡️ Le Gardien
 - **Fait** : ronde de milieu de journée, **tout vert**. Santé : accueil 200 (0,91 s) ·
   `/api/health` 200, PHP 8.5.8 · sitemap 200. Trois empreintes **inchangées** depuis la
@@ -2212,6 +2234,94 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **En ligne maintenant** : cibles tactiles de 44 et 48 px sur la bannière d'installation
   et le bandeau cookies, quatre textes porteurs de sens repassés au-dessus du seuil AA,
   et le bandeau cookies qui entre en fondu au lieu de surgir.
+
+### 2026-08-16 20:48 — [Confiance & Sécurité] 🛡️ Le Gardien
+> *Versée en retard le 18/08 : cette ronde n'existait que sur la branche
+> `claude/gracious-darwin-3mdd6v`, jamais rapatriée. Récupérée telle quelle.*
+- **Fait** : ronde de fin de journée, **tout vert**. Santé : accueil 200 (1,18 s) ·
+  `/api/health` 200, PHP 8.5.8 · sitemap 200. **Trois empreintes vérifiées par
+  construction** (`npm ci && npm run build`, pas supposées) : API `ded614e363a6`, seo
+  `c57f0f1c6e55`, site `bbbaa08d5db0` — **identiques** à celles servies en production.
+  Le déploiement de 18:45 (correctifs cibles tactiles/contraste de l'Atelier) est donc
+  **confirmé en ligne**, `empreinteSite` bien passée de `cb81c68a9596` à `bbbaa08d5db0`.
+  Aucun commit sur `server/`, `web/seo.php` ni `flutter_app/` depuis `617edc8` : rien de
+  nouveau à scanner côté code, périmètre déjà passé en revue lors des rondes précédentes.
+  Sécurité 24 h : `suspiciousIps: []`, `rateLimited: 0`, `adminUnlockFail: 0` (1 code
+  envoyé, 1 déverrouillage réussi — friction normale), `adminsIntegrity: ok`,
+  `adminsTampered: false`. `cron_fail: 5` et `mtoken_fail: 5` — **inchangés depuis la
+  ronde de 15:47** (même détail : 4× « cron/stats · sans-cle », 1× « cron/security ·
+  sans-cle » ; 5× « missing »), donc les mêmes événements, pas de nouveaux. Les 13 tâches
+  cron ont un `dernierPassage` cohérent avec leur cadence (`report` toujours au 01/08,
+  mensuelle, déjà élucidée — non re-signalée). CSP : seule origine `api.bigdatacloud.net`,
+  question tranchée le 15/08, non rouverte. Ménage : 0 purge. Modération : file vide
+  (0 signalement, 0 récent), cloisonnement re-testé (jeton sur `/cron/stats` → 403, clé
+  cron sur `/mod/queue` → 401), digest `skipped: true`, aucun e-mail.
+- **Problèmes ouverts** : aucun.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : rien de nouveau côté sécurité/code. Le seul chantier
+  ouvert reste celui du Développement (Play Store, testeurs).
+
+### 2026-08-17 00:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+> *Versée en retard le 18/08 : cette ronde n'existait que sur la branche
+> `claude/gracious-darwin-sc8u2u`, jamais rapatriée. Récupérée telle quelle.*
+- **Fait** : ronde du matin, **tout vert**. Santé : accueil 200 (1,03 s) · `/api/health`
+  200, PHP 8.5.8 · sitemap 200. **Trois empreintes vérifiées, pas supposées** : API
+  `ded614e363a6` et seo `c57f0f1c6e55` identiques au dépôt (`md5sum` direct) ; site
+  `bbbaa08d5db0` — `npm ci && npm run build` relancé, `dist/index.html` reconstruit donne
+  exactement la même empreinte que celle servie. Aucun commit touchant `server/`,
+  `web/seo.php`, `src/` ou `flutter_app/` depuis `617edc8` (14/08), à l'exception de
+  `b14c78c` (16/08, six correctifs de l'Atelier) — déjà déployé et vérifié en ligne à 18:45
+  hier. Scan code Flutter : `api_client.dart` pointe toujours vers `https://chap.ci/api`,
+  rien de changé depuis le dernier scan.
+- **Sécurité 24 h** : `suspiciousIps: []`, `rateLimited: 0`, `adminUnlockFail: 0`,
+  `adminsIntegrity: ok`, `adminsTampered: false`. `cron_fail: 4` (3× « cron/stats ·
+  sans-cle », 1× « cron/security · sans-cle ») et `mtoken_fail: 4` (« missing ») :
+  signature identique à mes propres tests de cloisonnement des rondes précédentes — net
+  après déduction : 0 échec réellement extérieur, aucune IP suspecte à l'appui.
+  `derniersPassages` : les 13 tâches cohérentes avec leur cadence déclarée dans
+  `AdminDashboard.tsx` (`CRON_JOBS`) — `suggestions` (lun/jeu 9h, `maxAgeH` 96) dernier
+  passage jeudi 13/08 08:00, à ~89 h, sous le seuil, prochain passage attendu ce lundi 9h ;
+  `stats` (lundi 7h, `maxAgeH` 192) dernier passage 15/08, à ~41 h, largement sous le
+  seuil ; `report` toujours 01/08, mensuel, déjà élucidé, non re-signalé ; `backup` (3h,
+  quotidien) dernier passage 16/08 02:00, dans la fenêtre. CSP : seule origine
+  `api.bigdatacloud.net` (22 sur 7 j), question tranchée le 15/08, non rouverte.
+- **Ménage** : 0 visite purgée, 0 événement sécurité purgé, 0 annonce expirée.
+- **Modération** : file vide (0 signalement, 0 récent). Cloisonnement re-testé : clé cron
+  sur `/mod/queue` → 401, jeton modération sur `/cron/stats` → 403. Digest envoyé sans
+  notes → `skipped: true`, aucun e-mail (comportement voulu, file vide).
+- **Problèmes ouverts** : aucun.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : rien de nouveau côté sécurité/code.
+
+### 2026-08-17 05:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+> *Versée en retard le 18/08 : cette ronde n'existait que sur la branche
+> `claude/gracious-darwin-6apbg3`, jamais rapatriée. Récupérée telle quelle.*
+- **Fait** : ronde du matin, **tout vert**. Santé : accueil 200 (0,97 s) · `/api/health`
+  200, PHP 8.5.8 · sitemap 200. Trois empreintes cohérentes avec le dépôt : API
+  `ded614e363a6` (inchangée depuis le 14/08, `server/index.php` non modifié depuis), seo
+  `c57f0f1c6e55`, site `bbbaa08d5db0` (déployé le 16/08 18:40, seul commit `src/` depuis
+  était `b14c78c`, déjà vérifié en production par le Développement). Aucun écart
+  dépôt/production.
+  Sécurité 24 h : `suspiciousIps: []`, `rateLimited: 0`, `adminUnlockFail: 0`
+  (2 déverrouillages réussis, 2 codes envoyés — friction normale), `adminsIntegrity: ok`,
+  `adminsTampered: false`. `cron_fail: 5` et `mtoken_fail: 5` **inchangés depuis la ronde
+  d'hier 15:47** (même détail : 4× « cron/stats · sans-cle », 1× « cron/security ·
+  sans-cle », 5× mtoken « missing ») — mêmes événements rejoués par la fenêtre de 24 h,
+  aucune tâche cPanel en cause, aucune IP suspecte. Les 13 tâches cron ont un
+  `dernierPassage` cohérent avec leur cadence (`backup` 17/08 02h00, `cleanup` 17/08
+  00h48, `report` toujours au 01/08 mensuel — déjà élucidé). CSP : toujours la seule
+  origine `api.bigdatacloud.net` (24 violations sur 7 j, Report-Only), question tranchée
+  le 15/08, non rouverte. Ménage : 0 purge. Cloisonnement re-testé : clé cron sur
+  `/mod/queue` → 401, jeton modération sur `/cron/stats` → 403.
+  Scan de code : `server/index.php` inchangé depuis le 14/08 (zones sensibles déjà
+  passées en revue lors des rondes précédentes, rien de nouveau à vérifier). Scan Flutter :
+  `api_client.dart`, `preparer_plateformes.dart` et `pubspec.yaml` inchangés depuis le
+  12/08 — base API toujours `https://chap.ci/api`, identifiant `ci.chap.app`, permissions
+  Internet/Caméra/Position inchangées, aucune dépendance nouvelle.
+  Modération : file vide (0 signalement, 0 récent), digest `skipped: true`, aucun e-mail.
+- **Problèmes ouverts** : aucun.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : rien de nouveau côté sécurité/code.
 
 ### 2026-08-17 05:55 — [Développement] Bannière de partage déployée + verdict sur une analyse extérieure
 - **Déployé et vérifié** : zip `chap-banniere-partage`. `empreinteSite`
@@ -2711,3 +2821,36 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   `claude/*`. Ce n'est pas un problème en soi — chaque session en ouvre une — mais cela
   confirme que la vérification systématique du Dev est nécessaire, et qu'un ménage des
   branches mortes serait utile un jour.
+
+### 2026-08-18 15:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de l'après-midi, **tout vert**. Santé 200 partout, PHP 8.5.8, trois
+  empreintes inchangées, `git log 114b97b..HEAD` sur les zones sensibles toujours vide
+  (les commits du jour ne touchent que le journal). Ménage 0 purge, CSP tranchée non
+  rouverte, scans code site et Flutter sans changement, modération vide, cloisonnement
+  re-testé (403 / 401).
+- **Sécurité 24 h** : tout à zéro, `adminsTampered` false. **Il déduit désormais ses
+  propres tests** : `cron_fail` 4 dont 2 les siens → 2 réellement externes
+  (`cle-differente, 65 car.`), `mtoken_fail` 4 dont 2 les siens → 2 externes (`unknown`) —
+  et il annonce d'avance que son test de cette ronde ajoutera +1/+1 à la prochaine
+  lecture. Le point de la clé de 65 caractères **reste ouvert mais stable depuis deux
+  rondes** — toujours à vérifier par le Patron dans claude.ai → Routines, sans urgence.
+- **Certificat TLS** : `crt.sh` injoignable cette ronde comme à 10:50 — pas de nouvelle
+  lecture, repli honnête sur la dernière valeur connue (17/08 : expiration 12/10/2026,
+  très au-dessus du seuil de 21 j). Aucune alerte, aucune lecture inventée.
+- **Problèmes ouverts** : le seul point mineur ci-dessus. Propositions : aucune.
+
+### 2026-08-18 16:40 — [Développement] Ronde versée, la panne crt.sh contre-vérifiée — et quatre rondes retrouvées sur des branches mortes
+- **La panne `crt.sh` est réelle, pas un défaut du bureau** : testée depuis ici,
+  `curl --max-time 40 'https://crt.sh/?q=chap.ci&output=json'` → code 000, 0 octet,
+  délai dépassé à 40 s. Le repli du Gardien sur la valeur du 17/08 était donc le bon
+  geste, pas une lacune. Une ligne de repli est ajoutée aux deux routines (sécurité,
+  performance) : si `crt.sh` ne répond pas, garder la dernière valeur connue et le dire —
+  n'inventer aucune lecture. Elle ne prendra effet qu'au prochain recollage des prompts.
+- **Le recollage du 17/08 11:55 est confirmé dans les faits** : troisième ronde d'affilée
+  où le Gardien déduit ses propres tests des compteurs et utilise la méthode `crt.sh`.
+- ⚠️ **Quatre rondes du Gardien dormaient sur des branches jamais rapatriées** :
+  16/08 08:47 (`gracious-darwin-1tpbxd`), 16/08 20:48 (`-3mdd6v`), 17/08 00:50
+  (`-sc8u2u`), 17/08 05:47 (`-6apbg3`). Chacune : un commit de journal, tout vert.
+  Versées ce jour à leur place chronologique, marquées « versée en retard ». Le journal
+  est enfin complet — la vérification systématique des branches, désormais faite par
+  `git fetch --prune` + comptage des commits d'avance, a précisément servi à cela.

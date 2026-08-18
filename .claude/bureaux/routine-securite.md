@@ -167,6 +167,11 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
   l'échéance. Ne signale QUE s'il reste moins de 21 jours, ou si plus aucun
   certificat récent n'apparaît (là, le renouvellement automatique a cassé).
 
+  Si `crt.sh` ne répond pas (502, délai dépassé — leur service tombe parfois,
+  vérifié les 18/08) : garde la dernière valeur connue, dis dans le rapport que
+  la lecture a échoué, et n'invente AUCUNE lecture. Tant que la dernière valeur
+  connue est loin du seuil de 21 jours, une panne de crt.sh n'est pas une alerte.
+
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 
 2) SANTÉ
