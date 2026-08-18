@@ -3245,3 +3245,79 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Secrétariat (20:04), du Concierge (10:09), du Comptable (08:17), du Mécanicien
   (07:35) et de l'Atelier (16/08) — tous déjà versés au journal et leurs
   propositions déjà appliquées ou arbitrées. Rien de nouveau dedans.
+---
+
+### 2026-08-18 20:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde du soir, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP 8.5.8. Les trois empreintes (`54a4e4f4367b` / `c57f0f1c6e55` /
+  `35bd5cd8f3ad`) inchangées depuis la construction locale du 17/08 10:49 ;
+  `git log 114b97b..HEAD` sur `server/index.php`, `web/seo.php`, `src/`, `flutter_app/`
+  reste **vide** — dépôt et production synchronisés, rien à reconstruire. Ménage : 0 purge
+  (0 visite, 0 événement, 0 annonce expirée, 0 annonce sans photo). CSP `report-only`
+  vérifiée en tête servie : seule `api.bigdatacloud.net` dans la fenêtre 7 j, déjà
+  autorisée dans `connect-src` — question tranchée, non rouverte. Scan de code
+  `server/index.php` : `hash_equals`, `session_version`, bcrypt (`password_hash`/
+  `password_verify`), JWT à algorithme forcé serveur (HS256 pour les sessions, vérif RS256
+  avec `kid` pour un usage distinct) toujours en place, rien de changé. Scan Flutter :
+  `api_client.dart` toujours sur `https://chap.ci/api`, aucune modification de
+  `pubspec.yaml` ni de `preparer_plateformes.dart` depuis le 17/08. Modération : file vide
+  (0 signalement, 0 récente), digest envoyé avec compteurs à zéro → `skipped: true` (RAS,
+  pas d'e-mail). Cloisonnement re-testé en fin de ronde : jeton modération sur
+  `cron/stats` → refusé (« Clé invalide »), clé cron sur `mod/queue` → refusé (« Jeton de
+  service requis ») — les deux comme attendu.
+- **Sécurité 24 h** : `suspiciousIps` vide, `rateLimited` 0, `adminUnlockFail` 0,
+  `mfaFail` 0, `adminsTampered` false, `loginFail` 2 (bruit, sous le seuil de 30
+  tentatives — `failRatio` non interprété). `derniersPassages` récents pour chaque tâche
+  selon sa cadence ; `report` toujours à son unique passage du 01/08 (mensuel attendu, pas
+  de rappel). `cron_fail` **5**, dont **3 les miens** (test de cloisonnement des rondes
+  précédentes, signature `cron/stats · sans-cle`) → **2 réellement externes**, mêmes
+  qu'aux rondes précédentes : `cron/stats · cle-differente(entete,65 car.)`. `mtoken_fail`
+  **5**, dont **3 les miens** (`missing`, même test) → **2 externes**, motif `unknown`,
+  inchangé lui aussi. Le test de cette ronde (ci-dessus) ajoutera +1/+1 aux compteurs de
+  la prochaine lecture.
+- **Certificat TLS** : `crt.sh` répond de nouveau — expiration confirmée **12/10/2026**
+  (Let's Encrypt / Google Trust Services), très au-dessus du seuil de 21 j. Aucune alerte.
+- **Problèmes ouverts** : le point mineur de la clé de 65 caractères sur `cron/stats` /
+  jeton `unknown` reste **stable depuis six rondes** (05:47 → 20:47, toujours 2 externes,
+  jamais de progression, aucune IP suspecte, aucun rate-limit). Toujours sous le seuil
+  d'alerte — à corriger côté Patron dans claude.ai → Routines s'il reconnaît une ancienne
+  copie qui tournerait encore, sans urgence.
+- **Propositions au Patron** : aucune action immédiate.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
+
+### 2026-08-18 21:40 — [Développement] Ménage des branches : quatorze mortes identifiées, tout leur contenu sauvé — la suppression revient au Patron
+- **Le Patron a demandé le ménage des branches mortes.** Inventaire complet fait par
+  `git fetch --prune` puis comptage des commits d'avance et de retard de chacune des
+  seize branches distantes. **Quatorze sont mortes** (tout leur contenu utile est
+  désormais dans notre branche), **deux restent vivantes** : la branche de travail
+  `claude/ci-marketplace-mobile-app-bnllro` (qui est aussi la branche par défaut du
+  dépôt) et `bureaux/journal` (le canal d'écriture du Monteur et du Serrurier —
+  à ne surtout pas supprimer).
+- **Avant de déclarer une branche morte, son journal a été comparé au nôtre**, titre
+  par titre. Résultat : une ronde du soir du Gardien d'aujourd'hui (20:47) dormait déjà
+  sur une branche neuve (`hopeful-fermat-oqd2mj`, apparue en cours de ménage) — versée
+  ci-dessus. Et **cinq rondes de juillet du Gardien** n'existaient que sur les vieilles
+  branches. Toutes de routine, tout au vert ; leur substance, une ligne chacune :
+  - **19/07 15:46** : tout vert, `cron_fail` 9 (clé invalide sur `cron/*`, sous le
+    seuil), scan de code RAS ;
+  - **19/07 20:47** : tout vert, `cron_fail` 11 (même bruit de fond), 3 annonces
+    publiques d'un seul vendeur, aucune arnaque ;
+  - **20/07 00:46** : tout vert, `cron_fail` 11 cohérent avec le rate-limiter posé la
+    veille, scan JWT/bcrypt/uploads RAS ;
+  - **25/07 20:46** : tout vert ; seul point : plafonner le nombre de photos par
+    annonce — **réalisé depuis** (commit `c66912f`, 13/08) ;
+  - **30/07 15:46** : ronde saine, CSP Report-Only lue origine par origine, sondes
+    écartées par la méthode du prompt.
+  Le pied de page de `dreamy-fermi-imao17` (4 colonnes, 19/07) a été comparé au
+  nôtre : notre version actuelle (pied sombre, liseré ivoirien, variante native) le
+  remplace entièrement. Rien d'unique ne se perd.
+- **La suppression elle-même est bloquée ici** : le proxy Git de cette session refuse
+  la suppression de références distantes (HTTP 403, testé en lot puis une par une —
+  c'est une protection délibérée contre les opérations destructrices, pas une panne).
+  La liste des quatorze branches à supprimer est remise au Patron avec la marche à
+  suivre GitHub. Une fois supprimées, le texte intégral des cinq rondes de juillet
+  disparaît avec elles — c'est assumé : leur substance est ci-dessus, et la période
+  est déjà couverte par le journal.
+- **Effet de bord attendu** : supprimer `hopeful-fermat-u2dvw2` fermera d'elle-même la
+  pull request #2 (son commit est déjà intégré) — conforme à la règle « aucune PR sans
+  demande du Patron ».
