@@ -3348,3 +3348,35 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Monteur/Serrurier, une du soir même) a été versée au journal AVANT la suppression.
   C'est la marche à suivre pour tout futur ménage : comparer les journaux titre par
   titre d'abord, supprimer ensuite.
+
+### 2026-08-18 23:10 — [Développement] Deux consignes tirées d'un dépôt de skills sécurité — adaptées, pas adoptées
+- **Contexte** : le Patron a demandé d'analyser le dépôt public
+  `mukul975/Anthropic-Cybersecurity-Skills` (817 skills de cybersécurité au format
+  plugin Claude Code) et de dire en quoi il peut nous aider. Verdict : **ne pas
+  l'installer** — ce n'est pas un dépôt officiel d'Anthropic malgré son nom (auteur
+  tiers, Apache-2.0), la qualité du corps des skills est mince (gabarit généré), et
+  le catalogue vise l'entreprise/cloud (AWS, Azure, K8s, Splunk), pas une pile PHP sur
+  cPanel mutualisé. Installer 817 dossiers de code tiers non audité noierait aussi la
+  liste soignée des bureaux et risquerait de mal se déclencher. **Mais** trois ou
+  quatre skills contenaient des idées transposables — dont, amusant, la
+  transparence des certificats (`crt.sh`) que le Gardien utilise déjà : validation que
+  notre méthode est un standard du métier.
+- **Fait — deux extractions, réécrites dans notre registre** (français, « tu »
+  impératif des routines, spécifiques PHP/cPanel) :
+  - **Gardien** (`routine-securite.md`, §3) — un bloc « SI UNE IP EST DÉJÀ SUSPECTE »
+    listant les signatures d'attaque web à reconnaître : LFI/exécution PHP
+    (`php://filter`, `../`, `/etc/passwd` — les seules vraiment spécifiques à nous),
+    injection SQL, XSS, User-Agents de scanners (`sqlmap`, `nikto`…), force brute
+    (>50 POST/5 min sur `/auth/login`, recoupé avec `rateLimited`). Cadré par la
+    culture maison : le Gardien n'a pas d'accès shell, il fait CHERCHER ces motifs au
+    Patron dans cPanel → Journaux d'accès bruts, et ne conclut jamais à une attaque
+    sans IP suspecte. Aide-mémoire de reconnaissance, pas liste blanche.
+  - **Serrurier** (`routine-serrurier.md`, §4) — deux ajouts : (a) une vraie méthode
+    pour vérifier les dix dépendances Flutter (Dart absent de la session → contrôle
+    web des avis GitHub/pub.dev, une vérification qui peut échouer) ; (b) une règle de
+    priorité — CVSS ≥ 9 = critique, ≥ 7 = haute, ET **exploitation active (CISA KEV)
+    prime sur le score brut** : une faille exploitée dehors bat une faille théorique.
+- **Effet différé** : comme la consigne `crt.sh`, ces ajouts ne s'appliqueront qu'au
+  prochain recollage des prompts du Gardien et du Serrurier dans claude.ai.
+- **Ce qu'on n'a PAS fait, à dessein** : aucun code du dépôt tiers n'entre chez nous,
+  aucun script exécuté, aucun paquet installé. On a pris l'idée, jeté l'emballage.

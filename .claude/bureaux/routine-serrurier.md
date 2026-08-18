@@ -168,6 +168,23 @@ MÉTHODE (obligatoire — la rigueur évite les fausses alertes) :
      inhabituelle — surtout un paquet qui capte des données ou à couche native
      lourde. Le scan détaillé de l'app relève de 🛡️ La Sécurité (§6) ; toi, tu
      alertes sur un ajout suspect.
+     Dart n'est pas installé dans ta session : tu ne peux pas lancer
+     `dart pub outdated`. À la place, une fois par mois OU dès qu'une version
+     bouge dans pubspec.yaml, prends les dix paquets nommés (http,
+     shared_preferences, image_picker, geolocator, qr_flutter, share_plus,
+     url_launcher, google_sign_in, flutter_web_auth_2, cupertino_icons) et
+     vérifie sur le web s'ils portent un avis de sécurité ouvert
+     (github.com/advisories?query=<paquet>, ou la page pub.dev du paquet). C'est
+     une vérification qui PEUT échouer — si elle ne trouve rien, dis-le comme un
+     résultat, pas comme une absence de contrôle.
+   - PRIORITÉ D'UNE FAILLE — deux critères priment sur le score brut :
+       · gravité CVSS ≥ 9,0 → critique ; ≥ 7,0 → haute (le seuil de npm audit) ;
+       · **exploitation active** : si la faille est au catalogue CISA KEV
+         (Known Exploited Vulnerabilities, cisa.gov/kev) ou décrite comme
+         « activement exploitée », traite-la comme critique MÊME si son score
+         est plus bas. Une faille qu'on exploite dehors aujourd'hui bat une
+         faille théorique à 9,5. C'est ce couple — score haut OU exploitée — qui
+         décide d'une alerte au Patron ; le reste se note sans le réveiller.
    - php -l server/index.php web/seo.php : doit passer sans erreur sous PHP 8.4
      (c'est ce qui rend la montée de version à faible risque).
 
