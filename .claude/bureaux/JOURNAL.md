@@ -2661,3 +2661,35 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   Même schéma : la branche vaut notre HEAD + 1 commit, rapatriée en `merge --ff-only`.
   **Ce sera récurrent** — chaque session de bureau ouvre sa propre branche. Le Dev vérifie
   désormais systématiquement quand un bureau annonce « poussé sur… ».
+
+### 2026-08-18 10:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de la matinée, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP 8.5.8. Les trois empreintes (`54a4e4f4367b` / `c57f0f1c6e55` /
+  `35bd5cd8f3ad`) inchangées depuis la construction locale du 17/08 10:49 ;
+  `git log 114b97b..HEAD` sur `server/index.php`, `web/seo.php`, `src/`, `flutter_app/`
+  reste **vide** — rien à reconstruire, dépôt et production synchronisés. Ménage : 0 purge
+  (le nettoyage automatique avait déjà tourné à 05:48). CSP `report-only` vérifiée en tête
+  servie : seule `api.bigdatacloud.net` dans la fenêtre 7 j — question tranchée, non
+  rouverte. Scan de code site : `hash_equals`, `session_version`, bcrypt toujours en place,
+  rien de changé. Scan Flutter : `api_client.dart` toujours sur `https://chap.ci/api`,
+  permissions inchangées (Internet / Caméra / Position fine et grossière), `pubspec.yaml`
+  sans dépendance nouvelle. Modération : file vide (0 signalement, 0 récente), digest
+  `skipped: true`. Cloisonnement re-testé en fin de ronde : jeton modération sur
+  `cron/stats` → 403, clé cron sur `mod/queue` → 401 — les deux comme attendu.
+- **Sécurité 24 h** : `suspiciousIps` vide, `failRatio` 0, `rateLimited` 0,
+  `adminUnlockFail` 0, `mfaFail` 0, `adminsTampered` false. `derniersPassages` récents pour
+  chaque tâche selon sa cadence ; `report` toujours à son unique passage du 01/08 (mensuel
+  attendu, pas de rappel). `cron_fail` **3** et `mtoken_fail` **3**, mais les deux comptes
+  sont **inchangés depuis la ronde de ce matin (05:47)** : mêmes signatures
+  (`cron/stats · cle-differente(entete,65 car.)` ×2, `cron/stats · sans-cle` ×1 — celui du
+  test de cloisonnement de 05:47 — et `unknown` ×2 / `missing` ×1 côté jeton). Aucune
+  progression, aucune IP suspecte : le diagnostic du Dev à 06:10 (copie fautive à
+  65 caractères, pas une attaque) tient toujours. Pas de relance.
+- **Certificat TLS** : `crt.sh` a répondu **502** cette ronde (panne côté leur service, sans
+  lien avec le proxy sortant) — pas de nouvelle lecture possible. Dernière valeur connue
+  (relevé du 17/08) : expiration 12/10/2026, très au-dessus du seuil de 21 j — aucune
+  alerte, rien à demander au Patron.
+- **Problèmes ouverts** : aucun nouveau. Le point mineur du 05:47 (clé de 65 caractères sur
+  `cron/stats`, jeton `unknown`) reste ouvert mais stable — à vérifier par le Patron dans
+  claude.ai → Routines (éventuelle copie obsolète du bureau), sans urgence.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
