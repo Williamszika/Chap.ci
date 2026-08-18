@@ -2584,3 +2584,49 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
 - **Le recollage du prompt du Gardien a pris** : les trois signes attendus sont là — plus de
   question sur `cron/report`, ses propres tests déduits, aucun rappel de certificat adressé
   au Patron, et aucun 403 inattendu.
+
+### 2026-08-18 05:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde du matin. Santé 200 partout (accueil, `/api/health`, `sitemap.xml`),
+  PHP 8.5.8. Les trois empreintes (`54a4e4f4367b` / `c57f0f1c6e55` / `35bd5cd8f3ad`)
+  inchangées depuis la construction locale du 17/08 10:49 ; `git diff 114b97b..HEAD` sur
+  `server/index.php`, `web/seo.php`, `src/`, `flutter_app/` est **vide** — les quatre
+  commits arrivés depuis ne touchent que le journal et `routine-securite.md`. Rien à
+  reconstruire, dépôt et production synchronisés. Ménage : 0 purge (déjà fait à 00:47).
+  CSP : `content-security-policy-report-only` vérifiée en tête servie, `api.bigdatacloud.net`
+  déjà dedans — question tranchée, non rouverte. Scan de code site et app Flutter : aucune
+  régression, `api_client.dart` toujours sur `https://chap.ci/api`, aucun fichier de config
+  touché depuis la dernière vérification. Modération : file vide (0 signalement, 0 récente),
+  digest `skipped: true`. Cloisonnement re-testé en fin de ronde : jeton modération sur
+  `cron/stats` → 403, clé cron sur `mod/queue` → 401 — les deux comme attendu.
+- **Sécurité 24 h** : `suspiciousIps` vide, `failRatio` 0, `rateLimited` 0,
+  `adminUnlockFail` 0, `mfaFail` 0, `adminsTampered` false. Toutes les tâches cron ont un
+  `derniersPassages` récent pour leur cadence (`cleanup` 00:47, `backup` 02:00, `alerts`
+  05:00, `security` à l'instant) ; `report` reste à son unique passage du 01/08, cadence
+  mensuelle attendue — pas de rappel.
+  `cron_fail` **3**, dont **1 le mien** (mon propre test de cloisonnement de la ronde de
+  00:50, signature `cron/stats · sans-cle`) → **2 réellement externes**, les deux
+  `cron/stats · cle-différente(entête, 65 car.)` — même signature que celle notée « à
+  surveiller sans conclure » à 00:50 (alors à 1 occurrence, maintenant 2). Cette clé fait
+  **65 caractères, soit un de plus que la clé cron actuelle (64 car.)** : ni trop courte
+  pour être « jamais-valide », ni marquée « local ». `mtoken_fail` **3**, dont **1 le
+  mien** (`missing`, même test) → **2 externes**, motif `unknown` (un jeton présenté, non
+  reconnu) — aucune route précisée par `byDetail` pour ce motif.
+- **Problèmes ouverts** (gravité : mineur, tendance à surveiller) :
+  - `cron/stats` reçoit une clé de 65 caractères qui n'est ni la clé actuelle (64 car.) ni
+    une valeur « jamais-valide » — 1 occurrence à 00:50, 2 à 05:47. Aucune IP suspecte,
+    aucun `rateLimited` en regard : ce n'est pas (encore) le signe d'un balayage. Ordre de
+    probabilité : (1) une routine de bureau qui appelle `cron/stats` avec une clé mal
+    recopiée (régénération passée, chevrons, caractère parasite) plutôt qu'une clé cPanel
+    obsolète — si c'était une clé cPanel régénérée, *toutes* les tâches cPanel échoueraient,
+    pas seulement `cron/stats` ; (2) une sonde externe testant spécifiquement cette route.
+    Reproduction : `curl -sS -H 'X-Cron-Key: 1697740b5402f14d40600c30dc53d07c75599cce03393009f1e4eaeba0788a67' 'https://chap.ci/api/cron/security?days=1'` puis lire
+    `byDetail.cron_fail`.
+  - 2 `mtoken_fail « unknown »` sur les jetons de modération (un jeton présenté mais non
+    reconnu par le serveur) — sans IP suspecte ni rate-limit associé. À recouper à la
+    prochaine ronde : si le compte reste à 2 (stable), c'est probablement lié au même
+    appelant que ci-dessus ; s'il monte, ce sera le signal d'un tâtonnement de jeton.
+- **Propositions au Patron** : aucune action immédiate — ces deux points sont sous le seuil
+  d'alerte (pas d'IP suspecte, pas de rate-limited). Si le Patron reconnaît une routine ou
+  une tâche cPanel qui appellerait `cron/stats` avec une ancienne clé, la corriger éteindrait
+  la seule anomalie de la ronde.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
