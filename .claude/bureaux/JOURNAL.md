@@ -3337,3 +3337,14 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Reste à supprimer** (sept branches, tout leur contenu déjà au journal) :
   `claude/gracious-darwin-1tpbxd`, `-3mdd6v`, `-6apbg3`, `-6sn446`, `-sc8u2u`,
   `claude/hopeful-fermat-h84zy7`, `claude/hopeful-fermat-oqd2mj`.
+
+### 2026-08-18 22:20 — [Développement] Ménage des branches terminé
+- **Les sept dernières branches mortes sont supprimées.** Le dépôt ne compte plus que
+  ses deux branches vivantes : `claude/ci-marketplace-mobile-app-bnllro` (travail,
+  branche par défaut) et `bureaux/journal` (canal du Monteur et du Serrurier,
+  restaurée intacte après l'erreur de 22:05). Vérifié par `git ls-remote`.
+- Seize branches au départ, quatorze mortes, zéro perte : chaque ronde qui n'existait
+  que sur une branche (quatre du Gardien d'août, cinq de juillet, deux du
+  Monteur/Serrurier, une du soir même) a été versée au journal AVANT la suppression.
+  C'est la marche à suivre pour tout futur ménage : comparer les journaux titre par
+  titre d'abord, supprimer ensuite.
