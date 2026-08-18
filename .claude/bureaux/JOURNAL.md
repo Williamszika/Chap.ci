@@ -2510,3 +2510,77 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   - aucun rappel de contrôle du certificat adressé au Patron ; expiration citée depuis
     `crt.sh` (12/10/2026 au dernier relevé).
   - et, comme toujours, **aucun 403** : signe que les deux secrets ont bien été substitués.
+
+### 2026-08-17 10:09 — [Support & Expérience] 🤝 Le Concierge
+> ⚠️ **Versée en retard le 18/08.** Cette ronde a bien eu lieu le 17/08 au matin ; le Dev a
+> appliqué ses trois propositions (commit `114b97b`) mais a **oublié de la consigner**. Le
+> Secrétariat, qui lit le journal, a donc conclu à un bureau muet depuis le 26/07. Voir la
+> réponse du Développement plus bas.
+- **Fait** : entonnoir 30 j recoupé indépendamment — **142 visiteurs / 13 comptes / 5 ayant
+  publié (38 %) / 9 annonces**, contre 84 / 6 / 1 (17 %) / 3 le 26/07. **La marche
+  compte → vendeur s'améliore nettement** (17 % → 38 %) ; la marche visiteur → compte, elle,
+  **est plate** (7 % aux deux dates). Réserve méthodologique posée d'emblée : il refuse de
+  comparer le volume brut de visites, le comptage ayant changé les 9-10/08.
+- **Troisième bureau à converger** sur 9 / 5 / 5 / 5, recompté par ses soins depuis
+  `/api/listings` (sellerId, commune, categoryId) et non relayé.
+- **A lu l'entonnoir `publier_etapes`** déployé la veille : `arrivee:1`, tout le reste à 0 —
+  et l'a correctement identifié comme **l'événement témoin du Développement**, en demandant
+  qu'on n'en tire rien avant une semaine. C'est la vérification que le Dev ne pouvait pas
+  faire lui-même, faute de clé cron.
+- **Vérification de sécurité de routine** : `sellerPhone` reste `null` sur toutes les
+  annonces publiques — le correctif du 26/07 tient.
+- **Audits** : FAQ relue en entier (24 questions), réassurance anti-arnaque présente **en
+  tête de conversation** et pas seulement en FAQ, mur de connexion `/publier` jugé bon,
+  liaison `label`/`htmlFor` du 26/07 vérifiée appliquée (13 champs) — point fermé.
+- **3 propositions, toutes appliquées le jour même** par le Dev : la promesse « moins de
+  2 minutes » contredite par le formulaire réel, l'absence d'explication du « pourquoi un
+  compte », et la question manquante dans la FAQ.
+- **Problème ouvert** : la marche visiteur → compte n'a pas bougé depuis le 27/07.
+
+### 2026-08-18 00:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de nuit, **tout vert**. Santé 200 partout (PHP 8.5.8). Les trois
+  empreintes inchangées depuis la construction locale du 17/08 10:49, et
+  `git log 114b97b..HEAD -- server/index.php web/seo.php src/` **vide** : rien à
+  reconstruire. Sécurité 24 h : `suspiciousIps` vide, `failRatio` 0, `rateLimited` 0,
+  `adminUnlockFail` 0, `adminsTampered` false. CSP : `api.bigdatacloud.net` seule,
+  question tranchée, non rouverte. Ménage : 0 purge. Cloisonnement re-testé (403 / 403).
+  Modération : file vide, digest `skipped: true`.
+- **Il déduit désormais ses propres tests** : il note que ses deux appels de fin de ronde
+  « ajoutent +1/+1 aux compteurs de demain ». C'est exactement la consigne du 16/08.
+- **Un détail nouveau et honnête** : parmi les `cron_fail`, **un appel avec une clé
+  DIFFÉRENTE de 65 caractères** — ce n'est pas sa signature à lui (ses tests n'envoient
+  aucune clé). Aucune IP suspecte à l'appui. À surveiller sans conclure.
+- **Problèmes ouverts** : aucun.
+
+### 2026-08-17 20:04 — [Secrétariat] 🗂️ Le Secrétaire Général
+> Bloc remis par le Secrétariat, collé par le Dev. **Les adresses e-mail nominatives ont été
+> retirées** : l'historique Git est permanent, et elles n'ajoutent rien (même règle que le 10/08).
+- **Fait** : synthèse hebdomadaire (10-17 août) rassemblée depuis le journal et les données
+  serveur, **envoyée aux 3 adresses de diffusion** (Patron, son associé, contact@chap.ci) —
+  les trois confirmées « sent: true ». Chiffre retenu : **9 annonces actives, stables depuis
+  8-10 jours** malgré +6 entre le 27/07 et le 07/08 — la croissance s'est arrêtée net.
+- **Note de méthode, et elle est juste** : pas de bloc « à coller » par bureau cette semaine,
+  chaque ronde étant déjà versée au fil de l'eau par le Développement. Dupliquer aurait
+  cassé le principe « le Patron ne doit lire un point qu'une seule fois ».
+- **Problèmes ouverts** : 🤝 Le Concierge et 🔨 Le Monteur signalés muets depuis trois
+  semaines. À vérifier : ces routines tournent-elles encore ?
+- **Propositions au Patron** : P1 recruter les 2 derniers testeurs Play Store ; P2 vérifier
+  Concierge et Monteur ; P3 attendre une semaine avant de juger l'entonnoir de publication.
+
+### 2026-08-18 01:05 — [Développement] Le Concierge n'était pas muet — c'est moi qui n'avais pas écrit
+- **Erreur de ma part, et elle a coûté un faux signal.** Le Secrétariat conclut que le
+  Concierge est muet depuis le 26/07 et propose au Patron d'aller vérifier sa routine.
+  **Sa lecture du journal était exacte ; sa conclusion est fausse** — le Concierge a produit
+  une ronde complète le 17/08 à 10:09, dont j'ai appliqué les trois propositions le jour même
+  (`114b97b`). **Je ne l'ai jamais versée.** Elle l'est maintenant, datée de son heure réelle
+  et marquée « versée en retard ».
+- **Ce que ça enseigne** : le Secrétariat ne voit QUE le journal. Une ronde que le Dev traite
+  sans consigner devient, pour lui, un bureau en panne — et fait chercher au Patron une
+  routine débranchée qui tourne très bien. **Appliquer un rapport ne remplace pas le verser.**
+- **Le Monteur, en revanche, est bien muet** : sa dernière entrée date du 28/07. Et le
+  constat du Secrétariat est sévère mais exact — tout le travail v1.20 (build, téléversement,
+  examen, testeurs) est passé par le Patron et le Dev, **jamais par une ronde du Monteur**,
+  alors qu'il porte le chantier critique. Cette question-là mérite d'être posée.
+- **Le recollage du prompt du Gardien a pris** : les trois signes attendus sont là — plus de
+  question sur `cron/report`, ses propres tests déduits, aucun rappel de certificat adressé
+  au Patron, et aucun 403 inattendu.
