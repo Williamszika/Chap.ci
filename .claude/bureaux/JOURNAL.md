@@ -2630,3 +2630,34 @@ Sans lui, le pays s'affiche quand même (toujours fourni), mais pas la ville.
   une tâche cPanel qui appellerait `cron/stats` avec une ancienne clé, la corriger éteindrait
   la seule anomalie de la ronde.
 - **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
+
+### 2026-08-18 06:10 — [Développement] La clé de 65 caractères : une copie fautive, pas une attaque
+- **Le recollage du prompt du Gardien est pleinement confirmé** par cette ronde : il déduit
+  ses propres tests (« `cron_fail` 3, dont 1 le mien → 2 réellement externes »), ne
+  redemande plus la cadence de `cron/report` (« mensuelle attendue — pas de rappel »), et
+  n'adresse plus aucun rappel de certificat au Patron. Les quatre signes posés le 17/08 à
+  11:55 sont au vert.
+- **Sa trouvaille, et elle est bonne** : la clé qui échoue sur `cron/stats` fait
+  **65 caractères**. Vérifié côté serveur — la clé cron est générée par
+  `bin2hex(random_bytes(32))`, soit **exactement 64**. Il y a donc **un caractère de trop**.
+- **Diagnostic : ce n'est pas une attaque, c'est une copie fautive.** Un balayeur n'envoie
+  pas une clé de la bonne longueur à un caractère près, dans le bon en-tête. La routine du
+  Gardien nomme précisément ce cas (§ « cron_fail », cause n°2) : *« une routine de bureau
+  appelle avec une clé mal recopiée — chevrons, guillemets doubles, espace ou retour à la
+  ligne parasite »*. **65 = 64 + 1 caractère parasite** : une espace, un retour à la ligne,
+  un chevron resté collé au secret.
+- **Le `mtoken_fail` motif `unknown` pointe la même chose** : un jeton A ÉTÉ présenté, mais
+  n'est pas reconnu. Or le jeton de modération n'est censé vivre que dans la routine du
+  Gardien — dont les appels réussissent. **Quelqu'un d'autre présente donc un jeton périmé.**
+- **Hypothèse la plus économique, à vérifier par le Patron** : une **ancienne copie d'une
+  routine tourne encore** dans claude.ai à côté de la nouvelle — avec l'ancien jeton et une
+  clé mal recopiée. Le rythme le suggère : 1 occurrence à 00:50, 2 à 05:47, soit une par
+  passage. À trancher en ouvrant claude.ai → Routines et en comptant les entrées.
+- **Ce que ce n'est pas** : aucune IP suspecte, aucun rate-limit, `adminsTampered` false.
+  Rien qui ressemble à une intrusion. Le Gardien a eu raison de le classer « mineur,
+  tendance à surveiller » plutôt que d'alerter.
+- ⚠️ **Fragmentation du journal, deuxième fois** : cette ronde était sur
+  `claude/hopeful-fermat-h84zy7`, comme celle du 16/08 sur `claude/gracious-darwin-6sn446`.
+  Même schéma : la branche vaut notre HEAD + 1 commit, rapatriée en `merge --ff-only`.
+  **Ce sera récurrent** — chaque session de bureau ouvre sa propre branche. Le Dev vérifie
+  désormais systématiquement quand un bureau annonce « poussé sur… ».
