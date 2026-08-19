@@ -3414,3 +3414,46 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   à regrouper avec le prochain envoi.
 - **Rappels non traités** (arbitrage/mémoire) : chantier `hover:` sans `md:` toujours en
   attente du Patron ; prochain lot `text-gray-400` suggéré `TopNav.tsx` + `NotificationBell.tsx`.
+
+### 2026-08-19 10:46 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde du matin, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP 8.5.8. `empreinte` (`54a4e4f4367b`) et `empreinteSeo` (`c57f0f1c6e55`)
+  confirmées : `git diff` entre le commit déployé retrouvé (`a717439`) et `HEAD` sur
+  `server/index.php` et `web/seo.php` est **vide** — rien de nouveau à scanner, les zones
+  sensibles (JWT, bcrypt, `hash_equals`, uploads, jeton de modération) restent celles déjà
+  vérifiées. `empreinteSite` (`35bd5cd8f3ad`) correspond au build local du 17/08 10:28
+  (`114b97b`, vérifié par les rondes précédentes) ; **non reconstruite ce tour** — un commit
+  front est arrivé depuis (`bcbbb03`, 19/08, cibles tactiles de `DealCard.tsx`) mais il est
+  **déjà documenté par le Développement comme en attente du prochain zip**, ce n'est pas une
+  nouveauté de ma part. Scan Flutter : `api_client.dart` toujours sur `https://chap.ci/api`,
+  `pubspec.yaml` et `preparer_plateformes.dart` inchangés depuis le 12/08 (dernier commit
+  connu). Ménage : 0 purge (0 visite, 0 événement, 0 annonce expirée, 0 annonce sans photo).
+  CSP `report-only` vérifiée en tête servie : seule `api.bigdatacloud.net` dans la fenêtre
+  7 j, déjà autorisée dans `connect-src` — question tranchée, non rouverte. Modération : file
+  vide (0 signalement, 0 récente), digest envoyé avec compteurs à zéro → `skipped: true` (RAS,
+  pas d'e-mail). Cloisonnement re-testé en fin de ronde : jeton modération sur `cron/stats` →
+  refusé (« Clé invalide »), clé cron sur `mod/queue` → refusé (« Jeton de service requis »).
+- **Sécurité 24 h** : `suspiciousIps` vide, `rateLimited` 0, `adminUnlockFail` 0, `mfaFail` 0,
+  `adminsTampered` false, `loginFail` 2 (bruit, sous le seuil — `failRatio` non interprété).
+  `derniersPassages` récents pour chaque tâche selon sa cadence ; `report` toujours à son
+  unique passage du 01/08 (mensuel attendu). `cron_fail` **5**, `byDetail` montre uniquement
+  `cron/stats · sans-cle` × 5 — la signature de mon propre test de cloisonnement, accumulée sur
+  la fenêtre glissante de 24 h. `mtoken_fail` **5**, uniquement `missing` × 5 — même origine
+  (clé cron sur `mod/queue`). **Point notable** : le signal externe stable depuis six rondes
+  (`cle-differente(entete,65 car.)` sur `cron/stats`, et son pendant `mtoken_fail` motif
+  `unknown`) **n'apparaît plus du tout dans cette fenêtre** — ni l'un ni l'autre. Si ce silence
+  se confirme à la prochaine ronde, le point pourra être classé résolu ; pour l'instant je le
+  note sans conclure, une seule fenêtre ne suffit pas.
+  Nouveau champ observé : `admin_code_emailed` 6 sur 24 h, avec `adminUnlockOk` 2 et
+  `adminUnlockFail` 0 — cohérent avec un admin qui redemande le code par e-mail plusieurs fois
+  dans la journée (verrou en `sessionStorage`, un nouvel onglet le referme) plutôt qu'un signe
+  de compromission ; aucune IP suspecte, aucun échec de déverrouillage. Je le signale une fois
+  pour mémoire, sans alerte.
+- **Certificat TLS** : `crt.sh` injoignable ce tour (502, réponse vide) — repli honnête sur la
+  dernière valeur connue (17/08 : expiration 12/10/2026, Let's Encrypt / Google Trust
+  Services), très au-dessus du seuil de 21 j. Aucune lecture inventée.
+- **Problèmes ouverts** : aucun nouveau. Le point de la clé de 65 caractères reste ouvert mais
+  n'a produit aucun événement cette fenêtre (voir ci-dessus) — à recroiser à la prochaine ronde
+  avant de le classer.
+- **Propositions au Patron** : aucune action immédiate.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
