@@ -3414,3 +3414,41 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   à regrouper avec le prochain envoi.
 - **Rappels non traités** (arbitrage/mémoire) : chantier `hover:` sans `md:` toujours en
   attente du Patron ; prochain lot `text-gray-400` suggéré `TopNav.tsx` + `NotificationBell.tsx`.
+
+### 2026-08-19 20:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde du soir, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP 8.5.8. Trois empreintes (`54a4e4f4367b` / `c57f0f1c6e55` /
+  `35bd5cd8f3ad`) : `server/index.php` et `web/seo.php` **confirmées identiques** au
+  dépôt (md5 local = empreinte servie, aucun commit sur ces deux fichiers depuis le
+  déploiement du 17/08). `empreinteSite` non reconstruite cette ronde, mais
+  `deposeSite` (17/08 10:28) et le commit `bcbbb03` (19/08, `DealCard.tsx` +
+  `SellerProfile.tsx`) confirment un **front en attente de déploiement, connu et
+  documenté** (journal du Développement, 17:05) — rien de nouveau à signaler.
+  Ménage : 0 purge partout. CSP `report-only` re-vérifiée en tête servie :
+  `api.bigdatacloud.net` déjà présente dans `connect-src` — question tranchée,
+  non rouverte. Scan Flutter : `api_client.dart` toujours sur `https://chap.ci/api`,
+  aucun changement de `pubspec.yaml` ni `preparer_plateformes.dart` depuis le 17/08.
+  Modération : file vide (0 signalement, 0 récente), digest à compteurs zéro →
+  `skipped: true` (RAS, pas d'e-mail). Cloisonnement re-testé en fin de ronde : jeton
+  modération sur `cron/stats` → 403 « Clé invalide », clé cron sur `mod/queue` → 401
+  « Jeton de service requis » — les deux comme attendu.
+- **Sécurité 24 h** : `suspiciousIps` vide, `rateLimited` 0, `adminUnlockFail` 0,
+  `mfaFail` 0, `adminsTampered` false, `loginFail` 0. `derniersPassages` récents pour
+  chaque tâche selon sa cadence ; `report` toujours à son unique passage du 01/08
+  (mensuel attendu). `cron_fail` **5** et `mtoken_fail` **5**, **les deux entièrement
+  miens** (signatures `cron/stats · sans-cle` et `missing`, exactement le test de
+  cloisonnement des rondes précédentes dans cette fenêtre de 24 h) → **0 réellement
+  externes** cette fenêtre. Point notable : la signature externe stable depuis six
+  rondes (`cron/stats · cle-differente, 65 car.`) **a disparu** de cette fenêtre — pas
+  de dégradation, une amélioration silencieuse ; à confirmer sur la prochaine ronde
+  avant de la déclarer close. Nouveaux compteurs observés sans motif d'alarme :
+  `admin_code_emailed` 6, `admin_unlock_ok` 2, `login_ok` 1 — aucun échec associé
+  (`adminUnlockFail` 0), cohérent avec une session de travail du Patron sur le
+  tableau de bord (le jeton de déverrouillage se re-referme à chaque nouvel onglet).
+- **Certificat TLS** : `crt.sh` injoignable cette ronde (502 Bad Gateway) — repli
+  honnête sur la dernière valeur connue (17/08 : expiration 12/10/2026, très au-dessus
+  du seuil de 21 j). Aucune alerte, aucune lecture inventée.
+- **Problèmes ouverts** : aucun. La disparition de la clé de 65 caractères est à
+  confirmer, pas encore à classer.
+- **Propositions au Patron** : aucune action immédiate.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
