@@ -3380,3 +3380,37 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   prochain recollage des prompts du Gardien et du Serrurier dans claude.ai.
 - **Ce qu'on n'a PAS fait, à dessein** : aucun code du dépôt tiers n'entre chez nous,
   aucun script exécuté, aucun paquet installé. On a pris l'idée, jeté l'emballage.
+
+### 2026-08-19 05:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde du matin, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP 8.5.8. Les trois empreintes (`54a4e4f4367b` / `c57f0f1c6e55` /
+  `35bd5cd8f3ad`) inchangées depuis la construction locale du 17/08 10:49 ;
+  `git log 114b97b..origin/claude/ci-marketplace-mobile-app-bnllro` sur `server/index.php`,
+  `web/seo.php`, `src/`, `flutter_app/` reste **vide** — les six commits arrivés depuis (le
+  ménage des branches, la note sécurité du dépôt tiers) ne touchent que le journal et les
+  routines. Dépôt et production toujours synchronisés, rien à reconstruire. Ménage : 0 purge
+  (0 visite, 0 événement, 0 annonce expirée, 0 sans photo). Scan de code `server/index.php` :
+  `hash_equals`, `session_version`, bcrypt, jeton de service haché en base et lu uniquement en
+  en-tête — inchangés. Scan Flutter : aucune modification depuis la dernière vérification
+  (même diff vide ci-dessus). Modération : file vide (0 signalement, 0 récente), digest
+  `skipped: true` (RAS, pas d'e-mail). Cloisonnement re-testé en fin de ronde : jeton
+  modération sur `cron/stats` → 403, clé cron sur `mod/queue` → 401 — les deux comme attendu.
+- **Sécurité 24 h** : `suspiciousIps` vide, `rateLimited` 0, `adminUnlockFail` 0, `mfaFail` 0,
+  `adminsTampered` false, `loginFail` 2 (bruit, sous le seuil — `failRatio` non interprété).
+  `derniersPassages` récents pour chaque tâche selon sa cadence ; `report` toujours à son
+  unique passage du 01/08 (mensuel attendu, pas de rappel) ; `stats` au 17/08 (lundi, cadence
+  hebdomadaire respectée).
+- ✅ **Le point mineur ouvert depuis six rondes (05:47 → 20:47 le 18/08) a disparu de la
+  fenêtre 24 h.** `cron_fail` **5** et `mtoken_fail` **5** — mais `byDetail` ne montre plus
+  QUE la signature de mon propre test de cloisonnement (`cron/stats · sans-cle` et
+  `missing`) : **aucune** entrée `cle-differente(entête, 65 car.)` ni `unknown` cette ronde,
+  alors qu'elles étaient stables à 2 par ronde depuis le 18/08 05:47. Le porteur de cette clé
+  de 65 caractères a cessé d'appeler entre 20:47 le 18/08 et maintenant — que ce soit une
+  routine corrigée côté Patron ou une ancienne copie enfin arrêtée, la piste peut être
+  refermée. Je la rouvrirai si la signature réapparaît.
+- **Certificat TLS** : `crt.sh` injoignable cette ronde (502 nginx, retesté une fois) — repli
+  honnête sur la dernière valeur connue (17/08 : expiration 12/10/2026, très au-dessus du
+  seuil de 21 j). Aucune alerte, aucune lecture inventée.
+- **Problèmes ouverts** : aucun.
+- **Propositions au Patron** : aucune action immédiate.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
