@@ -3380,3 +3380,42 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   prochain recollage des prompts du Gardien et du Serrurier dans claude.ai.
 - **Ce qu'on n'a PAS fait, à dessein** : aucun code du dépôt tiers n'entre chez nous,
   aucun script exécuté, aucun paquet installé. On a pris l'idée, jeté l'emballage.
+
+### 2026-08-19 00:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de nuit, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP 8.5.8. Empreintes `54a4e4f4367b` (API) et `c57f0f1c6e55` (seo.php)
+  vérifiées identiques au dépôt (`origin/claude/ci-marketplace-mobile-app-bnllro`) ;
+  `git log 114b97b..HEAD` sur `server/index.php`, `web/seo.php`, `src/`, `flutter_app/`
+  reste **vide** — rien à reconstruire, dépôt et production synchronisés depuis la
+  construction locale du 17/08. Ménage : 0 purge (visites, événements sécurité, annonces
+  expirées, annonces sans photo). CSP `report-only` vérifiée en tête servie : seule
+  `api.bigdatacloud.net` dans la fenêtre 7 j, déjà autorisée dans `connect-src` — question
+  tranchée, non rouverte. Scan de code `server/index.php` (spot-check contre le dépôt,
+  aucun diff depuis la dernière revue complète) : `hash_equals` (19), `session_version`
+  (8), bcrypt `password_hash`/`password_verify` (33), jeton de service en en-tête (5) —
+  tout en place. Modération : file vide (0 signalement, 0 récente), digest `skipped: true`
+  (RAS, pas d'e-mail). Cloisonnement re-testé en fin de ronde : jeton modération sur
+  `cron/stats` → 403, clé cron sur `mod/queue` → 401 — les deux comme attendu.
+- **Sécurité 24 h** : `suspiciousIps` vide, `rateLimited` 0, `adminUnlockFail` 0,
+  `mfaFail` 0, `adminsTampered` false, `loginFail` 2 (bruit, sous le seuil — `failRatio`
+  non interprété). `derniersPassages` cohérents avec la cadence de chaque tâche
+  (`suggestions` lun/jeu : dernier passage lundi 17/08 08:00, ~41 h, sous le seuil de
+  96 h ; `report` toujours à son unique passage du 01/08, mensuel attendu). `cron_fail`
+  **5**, dont **4 les miens** (mes propres tests de cloisonnement des 4 rondes
+  précédentes dans la fenêtre 24 h, signature `cron/stats · sans-cle`) → **1 seul
+  réellement externe** (`cle-differente(entete,65 car.)`), en baisse par rapport aux
+  2 des rondes précédentes. `mtoken_fail` **5**, dont **4 les miens** (`missing`, même
+  test) → **1 externe** (`unknown`), même baisse. Le point mineur de la clé de
+  65 caractères reste stable, sans progression, sans IP suspecte — toujours sous le
+  seuil d'alerte.
+- **Certificat TLS** : `crt.sh` de nouveau injoignable (réponse vide, comme au 18/08
+  10:50 et 15:47) — repli honnête sur la dernière valeur connue (17/08 : expiration
+  12/10/2026, Let's Encrypt / Google Trust Services), très au-dessus du seuil de 21 j.
+  Aucune alerte, aucune lecture inventée.
+- **Problèmes ouverts** : le point mineur de la clé de 65 caractères sur `cron/stats` /
+  jeton `unknown` — désormais 1 occurrence externe par fenêtre de 24 h au lieu de 2,
+  toujours sans IP suspecte ni rate-limit. À corriger côté Patron dans
+  claude.ai → Routines s'il reconnaît une ancienne copie qui tournerait encore, sans
+  urgence.
+- **Propositions au Patron** : aucune action immédiate.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
