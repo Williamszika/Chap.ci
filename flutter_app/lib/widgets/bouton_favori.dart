@@ -42,7 +42,14 @@ class BoutonFavori extends StatelessWidget {
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => Favoris.instance.basculer(listingId),
-          child: enfant,
+          // Cible tactile de 48 dp (minimum Material) SANS changer la taille
+          // visible du cœur : la SizedBox invisible entoure l'icône, centrée.
+          // Le geste le plus répété de l'app (favori, au pouce) devient fiable.
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Center(child: enfant),
+          ),
         );
       },
     );

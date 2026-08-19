@@ -3380,3 +3380,37 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   prochain recollage des prompts du Gardien et du Serrurier dans claude.ai.
 - **Ce qu'on n'a PAS fait, à dessein** : aucun code du dépôt tiers n'entre chez nous,
   aucun script exécuté, aucun paquet installé. On a pris l'idée, jeté l'emballage.
+
+### 2026-08-19 17:00 — [Design & Typographie] 🎨 L'Atelier
+- **Fait** : ronde d'audit de code (navigateur indisponible, dit explicitement). A
+  découvert un cluster jamais audité : `DealCard.tsx`, la carte de suivi de transaction
+  en tête de conversation (déclarer un achat, confirmer réception, marquer vendu, noter).
+  Quatre propositions site (CSS/texte, risque nul) + une Flutter. Lot `text-gray-400` :
+  150 restantes (2 fichiers traités ce tour).
+
+### 2026-08-19 17:05 — [Développement] Les 5 correctifs de l'Atelier appliqués — le flux d'argent redevient tapable au pouce
+- **Vérifié avant d'appliquer** : chaque `fichier:ligne` cité par l'Atelier ouvert et
+  confirmé (les numéros étaient exacts). Le diagnostic tient : `.btn-primary`/`.btn-outline`
+  sont bien calibrés à 44 px dans `index.css:100-108` ; l'écart venait d'un écrasement
+  LOCAL du padding vertical dans `DealCard.tsx`, sur un seul fichier jamais passé en revue.
+- **Appliqué — `src/components/DealCard.tsx`** : les six boutons de la carte de transaction
+  (« Noter », « Bien reçu », « J'ai acheté », « Marquer vendu », « Publier l'avis »,
+  « Annuler » outline) perdent leur `py-1.5`/`py-2` et retombent sur le `py-3` de la classe
+  de base → **44 px réels**. Les cinq étoiles de notation (28 px, tapables 28×28) sont
+  enveloppées dans `grid h-11 w-11 place-items-center` → cible **44×44 sans changer la
+  taille visible**. Le lien « Annuler » passe de `text-gray-400` à `text-gray-500` (contraste
+  AA sur fond clair). C'est le flux le plus sensible du site — déclarer un achat, confirmer
+  une réception — et c'étaient les plus petites cibles du dépôt.
+- **Appliqué — `src/pages/SellerProfile.tsx`** : les deux messages d'état vide (« Aucune
+  annonce active. », « Aucun avis pour le moment. ») reçoivent `text-gray-500` explicite —
+  le même correctif que `Notifications.tsx` avait déjà, ce profil avait un trou.
+- **Appliqué — `flutter_app/lib/widgets/bouton_favori.dart`** : le cœur (favori, le geste le
+  plus répété de l'app) est enveloppé dans une `SizedBox(48, 48)` centrée → cible Material
+  48 dp sans changer la taille visible (18/24 dp). **Non construit** (Dart absent de la
+  session) : partira au prochain build de l'app, à vérifier au rendu.
+- **`npm run lint` vert.** Changements front = CSS/texte pur, aucune logique touchée.
+- **À déployer** : ces correctifs sont dans `dist/` — ils atteindront la production au
+  prochain zip. Pas de déploiement séparé lancé (le chantier e-mail/SMTP est prioritaire) :
+  à regrouper avec le prochain envoi.
+- **Rappels non traités** (arbitrage/mémoire) : chantier `hover:` sans `md:` toujours en
+  attente du Patron ; prochain lot `text-gray-400` suggéré `TopNav.tsx` + `NotificationBell.tsx`.

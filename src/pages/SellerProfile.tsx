@@ -223,7 +223,7 @@ export function SellerProfile() {
         sellerListings.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-400">
             <Package size={36} />
-            <p className="text-sm">Aucune annonce active.</p>
+            <p className="text-sm text-gray-500">Aucune annonce active.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-3 lg:grid-cols-4">
@@ -236,7 +236,7 @@ export function SellerProfile() {
         reviews.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-400">
             <Store size={36} />
-            <p className="text-sm">Aucun avis pour le moment.</p>
+            <p className="text-sm text-gray-500">Aucun avis pour le moment.</p>
           </div>
         ) : (
           <div className="space-y-3 px-4 py-4">

@@ -77,7 +77,7 @@ export function DealCard({ convId, userId }: { convId: string; userId: string })
           <p className="font-semibold">Comment s’est passée la transaction&nbsp;?</p>
           <p className="text-xs opacity-80">Notez {isBuyer ? 'le vendeur' : "l’acheteur"} pour aider la communauté.</p>
         </div>
-        <button onClick={() => setReviewing(true)} className="btn-primary shrink-0 px-3 py-2 text-sm">
+        <button onClick={() => setReviewing(true)} className="btn-primary shrink-0 px-3 text-sm">
           <Star size={16} /> Noter
         </button>
       </Row>
@@ -91,10 +91,10 @@ export function DealCard({ convId, userId }: { convId: string; userId: string })
             <p className="text-xs opacity-80">Confirmez la réception pour finaliser et laisser un avis.</p>
           </div>
           <div className="flex shrink-0 flex-col gap-1">
-            <button onClick={() => act('received')} disabled={busy} className="btn-primary px-3 py-1.5 text-sm">
+            <button onClick={() => act('received')} disabled={busy} className="btn-primary px-3 text-sm">
               {busy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} Bien reçu
             </button>
-            <button onClick={() => act('cancel')} disabled={busy} className="text-[11px] text-gray-400 hover:text-red-500">
+            <button onClick={() => act('cancel')} disabled={busy} className="text-[11px] text-gray-500 hover:text-red-500">
               Annuler
             </button>
           </div>
@@ -107,7 +107,7 @@ export function DealCard({ convId, userId }: { convId: string; userId: string })
             <p className="font-semibold">Vous avez acheté cet article&nbsp;?</p>
             <p className="text-xs opacity-80">Confirmez pour suivre votre achat et pouvoir noter le vendeur.</p>
           </div>
-          <button onClick={() => act('bought')} disabled={busy} className="btn-primary shrink-0 px-3 py-2 text-sm">
+          <button onClick={() => act('bought')} disabled={busy} className="btn-primary shrink-0 px-3 text-sm">
             {busy ? <Loader2 size={15} className="animate-spin" /> : <ShoppingBag size={16} />} J’ai acheté
           </button>
         </Row>
@@ -121,7 +121,7 @@ export function DealCard({ convId, userId }: { convId: string; userId: string })
           <p className="font-semibold">Vous avez vendu à {deal.otherName}&nbsp;?</p>
           <p className="text-xs opacity-80">Marquez l’annonce vendue et notez l’acheteur.</p>
         </div>
-        <button onClick={() => act('sold')} disabled={busy} className="btn-primary shrink-0 px-3 py-2 text-sm">
+        <button onClick={() => act('sold')} disabled={busy} className="btn-primary shrink-0 px-3 text-sm">
           {busy ? <Loader2 size={15} className="animate-spin" /> : <BadgeCheck size={16} />} Marquer vendu
         </button>
       </Row>
@@ -194,7 +194,7 @@ function ReviewForm({
       </p>
       <div className="mb-2 flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((n) => (
-          <button key={n} onClick={() => setRating(n)} aria-label={`${n} étoile${n > 1 ? 's' : ''}`}>
+          <button key={n} onClick={() => setRating(n)} aria-label={`${n} étoile${n > 1 ? 's' : ''}`} className="grid h-11 w-11 place-items-center">
             <Star
               size={28}
               className={n <= rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}
@@ -211,10 +211,10 @@ function ReviewForm({
         className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-400"
       />
       <div className="mt-2 flex gap-2">
-        <button onClick={submit} disabled={busy} className="btn-primary flex-1 py-2 text-sm">
+        <button onClick={submit} disabled={busy} className="btn-primary flex-1 text-sm">
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Star size={15} />} Publier l’avis
         </button>
-        <button onClick={onCancel} className="btn-outline px-3 py-2 text-sm">
+        <button onClick={onCancel} className="btn-outline px-3 text-sm">
           Annuler
         </button>
       </div>
