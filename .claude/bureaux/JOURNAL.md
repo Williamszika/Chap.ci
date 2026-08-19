@@ -3414,3 +3414,36 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   à regrouper avec le prochain envoi.
 - **Rappels non traités** (arbitrage/mémoire) : chantier `hover:` sans `md:` toujours en
   attente du Patron ; prochain lot `text-gray-400` suggéré `TopNav.tsx` + `NotificationBell.tsx`.
+
+### 2026-08-19 15:46 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de l'après-midi, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP 8.5.8. Les trois empreintes (`54a4e4f4367b` / `c57f0f1c6e55` /
+  `35bd5cd8f3ad`) inchangées depuis la construction locale du 17/08 09:16 ;
+  `git log 114b97b..origin/claude/ci-marketplace-mobile-app-bnllro` sur `server/index.php`,
+  `web/seo.php`, `src/`, `flutter_app/` reste **vide** — dépôt et production synchronisés,
+  rien à reconstruire. Ménage : 0 purge (le passage automatique de 10:47 avait déjà tout
+  nettoyé). CSP `report-only` vérifiée en tête servie : seule `api.bigdatacloud.net` dans
+  la fenêtre 7 j, déjà autorisée dans `connect-src` — question tranchée, non rouverte. Scan
+  de code `server/index.php` et Flutter : aucun commit sur les zones sensibles depuis la
+  dernière ronde vérifiée en détail (18/08 20:47) — `hash_equals`, `session_version`,
+  bcrypt, JWT, `api_client.dart` sur `https://chap.ci/api` restent tels quels. Modération :
+  file vide (0 signalement, 0 récente), digest `skipped: true` (RAS, pas d'e-mail).
+  Cloisonnement re-testé en fin de ronde : jeton modération sur `cron/stats` → 403, clé
+  cron sur `mod/queue` → 401 — les deux comme attendu.
+- **Sécurité 24 h** : `suspiciousIps` vide, `failRatio` 0, `rateLimited` 0,
+  `adminUnlockFail` 0, `mfaFail` 0, `adminsTampered` false, `newSignups` 0. `derniersPassages`
+  récents pour chaque tâche selon sa cadence ; `report` toujours à son unique passage du
+  01/08 (mensuel attendu, pas de rappel). `cron_fail` **5** et `mtoken_fail` **5**, mais les
+  `byDetail` montrent que la fenêtre de 24 h a désormais glissé **au-delà** du point mineur
+  suivi depuis six rondes (`cle-differente`, clé de 65 caractères) : les 5+5 restants portent
+  **exclusivement** la signature de nos propres tests de cloisonnement des rondes
+  précédentes (`cron/stats · sans-cle` / `missing`) — **0 échec réellement externe** cette
+  fois. Le point mineur peut être considéré éteint sauf réapparition ; rien à demander au
+  Patron pour l'instant.
+- **Certificat TLS** : `crt.sh` injoignable cette ronde (JSON vide, même panne que les 10:50
+  et 15:47 du 18/08) — repli honnête sur la dernière valeur connue (17/08 : expiration
+  12/10/2026, Let's Encrypt / Google Trust Services), très au-dessus du seuil de 21 j. Aucune
+  alerte, aucune lecture inventée.
+- **Problèmes ouverts** : aucun.
+- **Propositions au Patron** : aucune action immédiate.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
