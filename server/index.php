@@ -5852,6 +5852,19 @@ try {
          : ($conv['seller_id'] === $u['id'] ? 'seller_pinned_at' : null);
     if ($col === null) jerr('Non autorisé.', 403);
     $epingler = (bool) (body()['pinned'] ?? true);
+    // Au plus 5 conversations épinglées par personne. On compte celles déjà
+    // épinglées de MON côté (acheteur OU vendeur selon le rôle), en excluant
+    // celle-ci pour rester idempotent.
+    if ($epingler) {
+      $cnt = $pdo->prepare(
+        'SELECT COUNT(*) FROM conversations WHERE id <> ? AND ' .
+        '((buyer_id = ? AND buyer_pinned_at IS NOT NULL) OR (seller_id = ? AND seller_pinned_at IS NOT NULL))'
+      );
+      $cnt->execute([$seg[1], $u['id'], $u['id']]);
+      if ((int) $cnt->fetchColumn() >= 5) {
+        jerr('Vous pouvez épingler 5 conversations au maximum. Désépinglez-en une d’abord.', 422);
+      }
+    }
     $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([$epingler ? now_iso() : null, $seg[1]]);
     jout(['ok' => true, 'pinned' => $epingler]);
   }

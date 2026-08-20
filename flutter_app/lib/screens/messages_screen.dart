@@ -230,7 +230,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ],
       ),
-      child: tuile,
+      // Une conversation épinglée se pose sur un fond plus foncé pour la
+      // repérer d'un coup d'œil (elle est déjà remontée en tête par le tri).
+      child: Container(
+        color: c.pinned ? ChapColors.line2 : null,
+        child: tuile,
+      ),
     );
   }
 
@@ -240,6 +245,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       await Conversation.epingler(c.id, !c.pinned);
       await _recharger();
+    } on ApiException catch (e) {
+      _echec(e.message); // ex. « Vous pouvez épingler 5 conversations au maximum. »
     } catch (_) {
       _echec();
     }
@@ -249,6 +256,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       await Conversation.archiver(c.id, !c.archived);
       await _recharger();
+    } on ApiException catch (e) {
+      _echec(e.message);
     } catch (_) {
       _echec();
     }
@@ -258,6 +267,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       await Conversation.bloquer(c.id, !c.blockedByMe);
       await _recharger();
+    } on ApiException catch (e) {
+      _echec(e.message);
     } catch (_) {
       _echec();
     }
@@ -285,15 +296,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       await Conversation.supprimer(c.id);
       await _recharger();
+    } on ApiException catch (e) {
+      _echec(e.message);
     } catch (_) {
       _echec();
     }
   }
 
-  void _echec() {
+  void _echec([String? message]) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Action impossible pour le moment.')),
+      SnackBar(content: Text(message ?? 'Action impossible pour le moment.')),
     );
   }
 
