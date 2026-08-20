@@ -3531,3 +3531,23 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Suite — Phase 2** : les « rings » (Près de vous : votre commune → communes de la ville →
   votre ville → ailleurs), sur l'app ET le site, à partir de `commune/city_id/region_id`
   existants + la distance pour l'ordre. Aucune donnée nouvelle à créer.
+
+### 2026-08-20 15:00 — [Développement] Messagerie (Phase B) : appui long dans l'app, menu complet
+- **Fait (app Flutter)** : l'appui long sur un message ouvre un menu — **Supprimer le
+  message** (ses propres messages, pour tout le monde ; le message devient « Message
+  supprimé »), **Archiver / Désarchiver la conversation**, **Bloquer / Débloquer la
+  personne**, **Signaler** (feuille avec cases à cocher : Spam · Harcèlement · Arnaque/
+  fraude · Contenu choquant · Autre, + détail libre → modération), **Supprimer la
+  conversation** (de son côté). Barre de blocage quand j'ai bloqué (envoi coupé, bouton
+  « Débloquer »). La liste des messages sépare **actives / archivées** (accès « Conversations
+  archivées (N) »), passe l'état blocage/archive à l'écran, et se rafraîchit au retour.
+- **Correctif serveur repéré en relisant** : un signalement de conversation insère
+  `listing_id = NULL` — sinon il gonflerait le compteur d'auto-masquage (seuil 3) d'une
+  annonce innocente. La cible est la conversation (`target_id`).
+- **Non construit** (Dart absent de la session) : `flutter analyze`/build côté Mac. Une
+  dépendance neuve côté messagerie : aucune (tout via l'API existante).
+- **⚠️ Pour tester sur le téléphone** : l'app parle à `chap.ci/api` en production → il faut
+  **déployer d'abord l'API** (les nouvelles routes), PUIS reconstruire l'app. Sinon les
+  boutons renverront 404.
+- **Reste — Phase C** : les mêmes gestes sur le SITE (React), et un affichage propre des
+  signalements de conversation dans la modération admin.

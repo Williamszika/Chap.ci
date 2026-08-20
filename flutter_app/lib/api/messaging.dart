@@ -12,6 +12,9 @@ class Conversation {
   final String? lastMessage;
   final int? lastAt;
   final String? lastSenderId;
+  final bool archived; // archivée de MON côté
+  final bool blockedByMe; // j'ai bloqué l'autre
+  final bool blockedMe; // l'autre m'a bloqué
 
   const Conversation({
     required this.id,
@@ -22,6 +25,9 @@ class Conversation {
     this.lastMessage,
     this.lastAt,
     this.lastSenderId,
+    this.archived = false,
+    this.blockedByMe = false,
+    this.blockedMe = false,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> j) => Conversation(
@@ -33,7 +39,35 @@ class Conversation {
         lastMessage: j['lastMessage']?.toString(),
         lastAt: (j['lastAt'] is num) ? (j['lastAt'] as num).toInt() : null,
         lastSenderId: j['lastSenderId']?.toString(),
+        archived: j['archived'] == true,
+        blockedByMe: j['blockedByMe'] == true,
+        blockedMe: j['blockedMe'] == true,
       );
+
+  /// Supprime la conversation de MON côté (l'autre garde la sienne).
+  static Future<void> supprimer(String id) async {
+    await ApiClient.instance.delete('/conversations/$id');
+  }
+
+  /// Archive ou désarchive de MON côté.
+  static Future<void> archiver(String id, bool archiver) async {
+    await ApiClient.instance
+        .post('/conversations/$id/archive', {'archived': archiver});
+  }
+
+  /// Bloque ou débloque l'autre participant ; renvoie l'état résultant.
+  static Future<bool> bloquer(String id, bool bloquer) async {
+    final d = await ApiClient.instance
+        .post('/conversations/$id/block', {'block': bloquer});
+    return (d is Map && d['blocked'] == true);
+  }
+
+  /// Signale la conversation à la modération (motifs cochés + détail libre).
+  static Future<void> signaler(
+      String id, List<String> motifs, String details) async {
+    await ApiClient.instance
+        .post('/conversations/$id/report', {'reasons': motifs, 'details': details});
+  }
 
   /// Mes conversations.
   static Future<List<Conversation>> mes() async {
@@ -67,6 +101,7 @@ class Msg {
   final String senderId;
   final String body;
   final int createdAt;
+  final bool deleted; // supprimé pour tout le monde
 
   const Msg({
     required this.id,
@@ -74,6 +109,7 @@ class Msg {
     required this.senderId,
     required this.body,
     required this.createdAt,
+    this.deleted = false,
   });
 
   factory Msg.fromJson(Map<String, dynamic> j) => Msg(
@@ -83,7 +119,14 @@ class Msg {
         body: (j['body'] ?? '').toString(),
         createdAt:
             (j['createdAt'] is num) ? (j['createdAt'] as num).toInt() : 0,
+        deleted: j['deleted'] == true,
       );
+
+  /// Supprime un de MES messages (pour tout le monde).
+  static Future<void> supprimer(String conversationId, String messageId) async {
+    await ApiClient.instance
+        .delete('/conversations/$conversationId/messages/$messageId');
+  }
 
   static Future<List<Msg>> pour(String conversationId) async {
     final d = await ApiClient.instance

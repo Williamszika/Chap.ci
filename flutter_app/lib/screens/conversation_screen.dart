@@ -12,10 +12,14 @@ import '../theme.dart';
 class ConversationScreen extends StatefulWidget {
   final String conversationId;
   final String titre; // nom de l'autre, ou titre de l'annonce
+  final bool bloqueInitial; // l'autre est-il déjà bloqué par moi ?
+  final bool archiveInitial; // la conversation est-elle déjà archivée ?
   const ConversationScreen({
     super.key,
     required this.conversationId,
     required this.titre,
+    this.bloqueInitial = false,
+    this.archiveInitial = false,
   });
 
   @override
@@ -30,10 +34,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
   bool _envoi = false;
   String? _erreur;
   Timer? _minuteur;
+  late bool _bloque;
+  late bool _archive;
 
   @override
   void initState() {
     super.initState();
+    _bloque = widget.bloqueInitial;
+    _archive = widget.archiveInitial;
     _demarrer();
   }
 
@@ -123,7 +131,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                   style: const TextStyle(
                       color: Color(0xFFB42318), fontSize: 12.5)),
             ),
-          _saisieBarre(),
+          _bloque ? _barreBloque() : _saisieBarre(),
         ],
       ),
     );
@@ -132,34 +140,286 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Widget _bulle(Msg m, bool mien) {
     return Align(
       alignment: mien ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.76),
-        decoration: BoxDecoration(
-          color: mien ? ChapColors.orange : ChapColors.cream,
-          border: mien ? null : Border.all(color: ChapColors.line),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(mien ? 14 : 4),
-            bottomRight: Radius.circular(mien ? 4 : 14),
+      child: GestureDetector(
+        // Appui long : le menu d'actions (supprimer, archiver, bloquer, signaler).
+        onLongPress: () => _menuMessage(m, mien),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+          constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.76),
+          decoration: BoxDecoration(
+            color: mien ? ChapColors.orange : ChapColors.cream,
+            border: mien ? null : Border.all(color: ChapColors.line),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(14),
+              topRight: const Radius.circular(14),
+              bottomLeft: Radius.circular(mien ? 14 : 4),
+              bottomRight: Radius.circular(mien ? 4 : 14),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              m.deleted
+                  ? Text('Message supprimé',
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          fontStyle: FontStyle.italic,
+                          color: mien ? Colors.white70 : ChapColors.gray500))
+                  : Text(m.body,
+                      style: TextStyle(
+                          fontSize: 14.5,
+                          height: 1.3,
+                          color: mien ? Colors.white : ChapColors.gray900)),
+              const SizedBox(height: 2),
+              Text(heureCourte(m.createdAt),
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: mien ? Colors.white70 : ChapColors.gray500)),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ---- Appui long sur un message : le menu d'actions -----------------------
+  void _menuMessage(Msg m, bool mien) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(m.body,
-                style: TextStyle(
-                    fontSize: 14.5,
-                    height: 1.3,
-                    color: mien ? Colors.white : ChapColors.gray900)),
-            const SizedBox(height: 2),
-            Text(heureCourte(m.createdAt),
-                style: TextStyle(
-                    fontSize: 10,
-                    color: mien ? Colors.white70 : ChapColors.gray500)),
+            const SizedBox(height: 8),
+            // On ne supprime QUE ses propres messages, et pas un déjà supprimé.
+            if (mien && !m.deleted)
+              _option(Icons.delete_outline, 'Supprimer le message', () {
+                Navigator.pop(ctx);
+                _supprimerMessage(m);
+              }),
+            _option(
+                _archive ? Icons.unarchive_outlined : Icons.archive_outlined,
+                _archive
+                    ? 'Désarchiver la conversation'
+                    : 'Archiver la conversation', () {
+              Navigator.pop(ctx);
+              _basculerArchive();
+            }),
+            _option(
+                _bloque ? Icons.lock_open_outlined : Icons.block_outlined,
+                _bloque ? 'Débloquer la personne' : 'Bloquer la personne', () {
+              Navigator.pop(ctx);
+              _basculerBlocage();
+            }),
+            _option(Icons.flag_outlined, 'Signaler la conversation', () {
+              Navigator.pop(ctx);
+              _signaler();
+            }, danger: true),
+            _option(Icons.delete_sweep_outlined, 'Supprimer la conversation',
+                () {
+              Navigator.pop(ctx);
+              _supprimerConversation();
+            }, danger: true),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _option(IconData icone, String texte, VoidCallback onTap,
+      {bool danger = false}) {
+    final couleur = danger ? const Color(0xFFB42318) : ChapColors.gray900;
+    return ListTile(
+      leading: Icon(icone, color: couleur),
+      title: Text(texte, style: TextStyle(color: couleur)),
+      onTap: onTap,
+    );
+  }
+
+  Future<bool> _confirmer(String titre, String message, String bouton) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(titre),
+        content: Text(message),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(bouton,
+                  style: const TextStyle(color: Color(0xFFB42318)))),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  void _toast(String texte) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texte)));
+  }
+
+  Future<void> _supprimerMessage(Msg m) async {
+    if (!await _confirmer('Supprimer le message',
+        'Il disparaîtra pour vous et pour l’autre personne.', 'Supprimer')) {
+      return;
+    }
+    try {
+      await Msg.supprimer(widget.conversationId, m.id);
+      await _rafraichir();
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  Future<void> _supprimerConversation() async {
+    if (!await _confirmer(
+        'Supprimer la conversation',
+        'Elle disparaîtra de VOTRE côté. L’autre personne garde la sienne.',
+        'Supprimer')) {
+      return;
+    }
+    try {
+      await Conversation.supprimer(widget.conversationId);
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  Future<void> _basculerArchive() async {
+    final nouvel = !_archive;
+    try {
+      await Conversation.archiver(widget.conversationId, nouvel);
+      _toast(nouvel ? 'Conversation archivée.' : 'Conversation désarchivée.');
+      // On revient à la liste, qui se retrie (archivées vs actives).
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  Future<void> _basculerBlocage() async {
+    try {
+      final etat = await Conversation.bloquer(widget.conversationId, !_bloque);
+      if (mounted) setState(() => _bloque = etat);
+      _toast(etat ? 'Personne bloquée.' : 'Personne débloquée.');
+    } on ApiException catch (e) {
+      _toast(e.message);
+    }
+  }
+
+  // ---- Signalement : cases à cocher + détail libre → modération ------------
+  void _signaler() {
+    final motifs = <String, bool>{
+      'Spam': false,
+      'Harcèlement': false,
+      'Arnaque / fraude': false,
+      'Contenu choquant': false,
+      'Autre': false,
+    };
+    final detail = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 18, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+        child: StatefulBuilder(
+          builder: (ctx, setSheet) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Signaler la conversation',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Choisissez un ou plusieurs motifs.',
+                  style: TextStyle(color: ChapColors.gray600)),
+              const SizedBox(height: 8),
+              for (final k in motifs.keys)
+                CheckboxListTile(
+                  value: motifs[k],
+                  onChanged: (v) => setSheet(() => motifs[k] = v ?? false),
+                  title: Text(k),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  dense: true,
+                  activeColor: ChapColors.orange,
+                ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: detail,
+                minLines: 2,
+                maxLines: 4,
+                maxLength: 500,
+                decoration: const InputDecoration(
+                  hintText: 'Détails (facultatif)…',
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final choisis = motifs.entries
+                        .where((e) => e.value)
+                        .map((e) => e.key)
+                        .toList();
+                    if (choisis.isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                          content: Text('Choisissez au moins un motif.')));
+                      return;
+                    }
+                    Navigator.pop(ctx);
+                    try {
+                      await Conversation.signaler(
+                          widget.conversationId, choisis, detail.text.trim());
+                      _toast('Signalement envoyé. Merci.');
+                    } on ApiException catch (e) {
+                      _toast(e.message);
+                    }
+                  },
+                  child: const Text('Envoyer le signalement'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _barreBloque() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: const BoxDecoration(
+          color: ChapColors.cream,
+          border: Border(top: BorderSide(color: ChapColors.line)),
+        ),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                  'Vous avez bloqué cette personne. Débloquez-la pour lui écrire.',
+                  style: TextStyle(fontSize: 12.5, color: ChapColors.gray600)),
+            ),
+            TextButton(
+                onPressed: _basculerBlocage, child: const Text('Débloquer')),
           ],
         ),
       ),

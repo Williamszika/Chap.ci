@@ -5862,8 +5862,11 @@ try {
     $reason = substr(trim(implode(', ', array_map(fn($r) => (string) $r, $motifs))), 0, 80);
     $details = substr(trim((string) ($b['details'] ?? '')), 0, 500);
     if ($reason === '') jerr('Signalement incomplet (choisissez au moins un motif).');
+    // listing_id reste NULL : un signalement de CONVERSATION ne doit jamais
+    // compter dans l'auto-masquage d'une annonce (seuil de 3). La cible est la
+    // conversation (`target_id`) ; l'annonce n'est qu'un contexte pour l'e-mail.
     $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at,kind,target_id) VALUES (?,?,?,?,?,?,?,?,?)')
-        ->execute([uuid(), $conv['listing_id'] ?: null, $u['id'], $reason, $details ?: null, 'open', now_iso(), 'conversation', $seg[1]]);
+        ->execute([uuid(), null, $u['id'], $reason, $details ?: null, 'open', now_iso(), 'conversation', $seg[1]]);
     send_report_email($config, (string) ($u['email'] ?? ''), 'Conversation signalée', (string) ($conv['listing_id'] ?? ''), $reason, $details);
     log_security_event($pdo, 'conversation_reported', $u['email'] ?? null, $reason);
     jout(['ok' => true]);

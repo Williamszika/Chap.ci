@@ -60,11 +60,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       child: CircularProgressIndicator(
                           color: ChapColors.orange));
                 }
-                final convs = snap.data ?? const <Conversation>[];
+                final all = snap.data ?? const <Conversation>[];
+                final active = all.where((c) => !c.archived).toList();
+                final archivees = all.where((c) => c.archived).toList();
+                final aArchives = archivees.isNotEmpty;
                 return RefreshIndicator(
                   color: ChapColors.orange,
                   onRefresh: _recharger,
-                  child: convs.isEmpty
+                  child: (active.isEmpty && !aArchives)
                       ? ListView(children: const [
                           SizedBox(height: 120),
                           Icon(Icons.forum_outlined,
@@ -87,10 +90,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           ),
                         ])
                       : ListView.separated(
-                          itemCount: convs.length,
+                          itemCount: active.length + (aArchives ? 1 : 0),
                           separatorBuilder: (_, __) => const Divider(
                               height: 1, color: ChapColors.line),
-                          itemBuilder: (context, i) => _ligne(convs[i]),
+                          itemBuilder: (context, i) {
+                            if (aArchives && i == 0) {
+                              return _tuileArchives(archivees);
+                            }
+                            return _ligne(active[i - (aArchives ? 1 : 0)]);
+                          },
                         ),
                 );
               },
@@ -151,10 +159,44 @@ class _MessagesScreenState extends State<MessagesScreen> {
       ),
       onTap: () async {
         await Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) =>
-              ConversationScreen(conversationId: c.id, titre: titre),
+          builder: (_) => ConversationScreen(
+            conversationId: c.id,
+            titre: titre,
+            bloqueInitial: c.blockedByMe,
+            archiveInitial: c.archived,
+          ),
         ));
-        _recharger(); // au retour, le dernier message a pu changer
+        _recharger(); // au retour, le dernier message / l'état a pu changer
+      },
+    );
+  }
+
+  /// Accès aux conversations archivées (masquées de la liste principale).
+  Widget _tuileArchives(List<Conversation> archivees) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      leading: const SizedBox(
+        width: 48,
+        height: 48,
+        child: Icon(Icons.archive_outlined, color: ChapColors.gray600),
+      ),
+      title: Text('Conversations archivées (${archivees.length})',
+          style: const TextStyle(
+              fontWeight: FontWeight.w700, color: ChapColors.gray900)),
+      trailing: const Icon(Icons.chevron_right, color: ChapColors.gray500),
+      onTap: () async {
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Archivées')),
+            body: ListView.separated(
+              itemCount: archivees.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: ChapColors.line),
+              itemBuilder: (context, i) => _ligne(archivees[i]),
+            ),
+          ),
+        ));
+        _recharger();
       },
     );
   }
