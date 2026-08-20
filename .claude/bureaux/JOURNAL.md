@@ -3477,3 +3477,56 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   qui confond `X-Cron-Key` et `X-Service-Token`, pas une attaque.
 - **Rappels de calendrier repris du Gardien** : prochain zip = emporter `dist/` (API et
   `seo.php` déjà à jour) ; `targetSdk 35` accepté par Google jusqu'au 30/08 (10 jours).
+
+### 2026-08-20 10:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de matinée, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP **8.5.9** (mise à jour mineure depuis 8.5.8, sans incidence — c'est
+  la version réellement servie qui compte, `/api/health` la donne). Empreintes API/seo
+  (`54a4e4f4367b` / `c57f0f1c6e55`) **inchangées et confirmées** par comparaison directe :
+  `git diff 114b97b..HEAD -- server/index.php web/seo.php` vide, et le md5 du dépôt à cette
+  révision correspond exactement aux deux empreintes servies. Ménage : 0 purge (0 visite,
+  0 événement, 0 annonce expirée, 0 annonce sans photo).
+- **`empreinteSite` — écart confirmé par construction, pas supposé** : `npm ci && npm run
+  build` exécuté, `md5sum dist/index.html` local = `cd36e458964b`, contre `35bd5cd8f3ad`
+  servi en production. L'écart est le même que celui déjà noté à 00:50 (le front de
+  production ne porte pas encore le commit `bcbbb03` du 19/08, cibles tactiles de
+  `DealCard.tsx`) — auquel s'ajoute désormais `a0681de` (lisibilité des textes gris pâle,
+  Atelier), également en attente du même zip. Aucun des deux ne touche `server/index.php`
+  ni `web/seo.php` : l'API et le SEO restent à jour, seul le paquet front attend le
+  prochain déploiement.
+- **Sécurité 24 h** : `suspiciousIps` vide, `rateLimited` 0, `loginFail` 0, `adminUnlockFail`
+  0, `mfaFail` 0, `adminsTampered` false, `newSignups` 0. `cron_fail` **5**, tous
+  `cron/stats · sans-cle` ; `mtoken_fail` **7**, tous `missing` — les deux signatures
+  correspondent **exactement** au test de cloisonnement de fin de ronde (jeton de
+  modération présenté sans clé cron sur `cron/stats`, clé cron présentée sans jeton sur
+  `mod/queue`), répété par les rondes précédentes dans la même fenêtre de 24 h. **Aucun
+  événement réellement extérieur cette fois** — le point de la clé de 65 caractères, noté
+  éteint à 00:50, le reste. `derniersPassages` cohérents avec la cadence de chaque tâche ;
+  `report` toujours à son unique passage du 01/08 (mensuel attendu, prochaine échéance le
+  01/09 — pas de rappel avant).
+- **CSP** : seule origine dans la fenêtre 7 j = `api.bigdatacloud.net` (28 occurrences),
+  **déjà autorisée** — vérifié directement dans l'en-tête servi (`curl -sSI
+  https://chap.ci/ | grep -i content-security-policy`), question tranchée le 15/08, non
+  rouverte.
+- **Scan de code** : `server/index.php` et `web/seo.php` inchangés depuis `114b97b` (rien à
+  rescanner). Flutter : `api_client.dart` toujours sur `https://chap.ci/api`,
+  `preparer_plateformes.dart` toujours `ci.chap.app` (minSdk 22, targetSdk 35 — échéance
+  Google le 30/08, dans 10 jours, déjà notée le 18/08, pas de nouveau chantier), permissions
+  inchangées (Internet, Caméra, position), schémas `chapci` et `https` uniquement.
+  `pubspec.yaml` : aucune nouvelle dépendance, toujours ni analytique ni pub tierce.
+- **Modération** : file avec 1 annonce récente non examinée (« Un lit capitonné », maison,
+  650 000 FCFA, description cohérente, aucune photo volée apparente, `risk.level: ok`,
+  score 0) — examinée, aucun signal d'arnaque, **marquée vue**. 0 signalement ouvert.
+  Digest envoyé avec compteurs à `examined:1, hidden:[], flagged:[]` → `skipped:true` (RAS,
+  pas d'e-mail, comportement voulu).
+- **Cloisonnement re-testé** en fin de ronde : jeton modération sur `cron/stats` → 403,
+  clé cron sur `mod/queue` → 403, `/admin/stats` sans session → 401, `/api/data/push.json`
+  en accès direct → 404. Les quatre comme attendu.
+- **Certificat TLS** : non revérifié cette ronde (dernière lecture `crt.sh` au 18/08 :
+  expiration 12/10/2026, très au-dessus du seuil de 21 j — rien ne justifiait un nouvel
+  appel).
+- **Problèmes ouverts** : aucun nouveau. Le seul point de calendrier (échéance `targetSdk
+  35` le 30/08) est déjà connu et suivi par le Développement.
+- **Propositions au Patron** : aucune action immédiate — la seule attente est le prochain
+  zip de déploiement (front uniquement).
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
