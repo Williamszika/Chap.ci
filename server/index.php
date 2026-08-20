@@ -1603,6 +1603,12 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS messages (
       id $id PRIMARY KEY, conversation_id $id, sender_id $id, body $txt, created_at $ts
     )$eng",
+    // Blocages entre membres : `blocker_id` a bloqué `blocked_id`. Tant que la
+    // ligne existe, aucun des deux ne peut écrire à l'autre. Débloquer = la
+    // supprimer.
+    "CREATE TABLE IF NOT EXISTS blocks (
+      id $id PRIMARY KEY, blocker_id $id, blocked_id $id, created_at $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS orders (
       id $id PRIMARY KEY, buyer_id $id, seller_id $id, conversation_id $id, status $txt, created_at $ts
     )$eng",
@@ -2016,6 +2022,21 @@ function migrate(PDO $pdo): void {
   // personne (voir touch_last_seen) — jamais à chaque requête. Sert au tableau
   // de bord à dire qui est en ligne, et nulle part ailleurs.
   try { $pdo->exec("ALTER TABLE users ADD COLUMN last_seen_at $ts"); } catch (Throwable $e) {}
+  // --- Messagerie : suppression, archivage, signalement (20/08) --------------
+  // Une conversation a EXACTEMENT deux personnes (buyer/seller) : on garde donc
+  // l'état « archivée » et « supprimée » de CHAQUE côté en colonnes, plutôt qu'en
+  // table séparée. Supprimer une conversation la cache de MON côté ; l'autre
+  // garde la sienne, et un message plus récent la fait réapparaître.
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN buyer_archived_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_archived_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN buyer_deleted_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_deleted_at $ts"); } catch (Throwable $e) {}
+  // Un message supprimé « pour tout le monde » : le corps est vidé, la ligne
+  // reste (le fil garde sa cohérence), affichée « message supprimé ».
+  try { $pdo->exec("ALTER TABLE messages ADD COLUMN deleted_at $ts"); } catch (Throwable $e) {}
+  // Signalement : un motif peut viser une annonce (défaut) OU une conversation.
+  try { $pdo->exec("ALTER TABLE reports ADD COLUMN kind VARCHAR(16)"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE reports ADD COLUMN target_id $id"); } catch (Throwable $e) {}
   // La reprise de l'existant se fait ailleurs (backfill_email_verifie), APRES
   // migrate() : elle doit s'exécuter UNE SEULE FOIS, et migrate() tourne à
   // chaque requête. Premier essai le 29/07 : la clause « created_at <=
@@ -5643,27 +5664,48 @@ try {
   // ---------- CONVERSATIONS & MESSAGES ----------
   if ($path === 'conversations' && $method === 'GET') {
     $u = require_user($pdo, $secret); $id = $u['id'];
+    // Blocages me concernant, chargés une fois (petit volume).
+    $bl = $pdo->prepare('SELECT blocker_id, blocked_id FROM blocks WHERE blocker_id = ? OR blocked_id = ?');
+    $bl->execute([$id, $id]);
+    $jaiBloque = []; $maBloque = [];
+    foreach ($bl->fetchAll() as $r) {
+      if ((string) $r['blocker_id'] === (string) $id) $jaiBloque[(string) $r['blocked_id']] = true;
+      else $maBloque[(string) $r['blocker_id']] = true;
+    }
     $st = $pdo->prepare('SELECT * FROM conversations WHERE buyer_id = ? OR seller_id = ? ORDER BY created_at DESC');
     $st->execute([$id, $id]); $convs = $st->fetchAll();
     $out = [];
     foreach ($convs as $c) {
-      $otherId = $c['buyer_id'] === $id ? $c['seller_id'] : $c['buyer_id'];
+      $estAcheteur = $c['buyer_id'] === $id;
+      $otherId = $estAcheteur ? $c['seller_id'] : $c['buyer_id'];
+      $supprLe = $estAcheteur ? ($c['buyer_deleted_at'] ?? null) : ($c['seller_deleted_at'] ?? null);
+      $archLe  = $estAcheteur ? ($c['buyer_archived_at'] ?? null) : ($c['seller_archived_at'] ?? null);
+      $lm = $pdo->prepare('SELECT body,sender_id,created_at,deleted_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+      $lm->execute([$c['id']]); $last = $lm->fetch();
+      $lastAt = $last['created_at'] ?? $c['created_at'];
+      // Supprimée de MON côté et aucun message plus récent que ma suppression :
+      // on la cache. Un message postérieur la fait réapparaître.
+      if ($supprLe && strtotime((string) $lastAt) <= strtotime((string) $supprLe)) continue;
+      // Archivée pareil : le reste tant qu'aucun message n'est plus récent.
+      $archivee = $archLe && strtotime((string) $lastAt) <= strtotime((string) $archLe);
       $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$otherId]);
       $otherName = $pn->fetch()['full_name'] ?? 'Utilisateur';
-      $lm = $pdo->prepare('SELECT body,sender_id,created_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
-      $lm->execute([$c['id']]); $last = $lm->fetch();
       $li = null; $lt = null;
       if ($c['listing_id']) {
         $ls = $pdo->prepare('SELECT title,images FROM listings WHERE id = ?'); $ls->execute([$c['listing_id']]);
         if ($lr = $ls->fetch()) { $lt = $lr['title']; $imgs = json_decode($lr['images'] ?: '[]', true); $li = $imgs[0] ?? null; }
       }
+      $apercu = $last ? (!empty($last['deleted_at']) ? 'Message supprimé' : $last['body']) : null;
       $out[] = [
         'id' => $c['id'], 'listingId' => $c['listing_id'], 'buyerId' => $c['buyer_id'],
         'sellerId' => $c['seller_id'], 'createdAt' => iso_to_ms($c['created_at']),
         'listingTitle' => $lt, 'listingImage' => $li, 'otherName' => $otherName ?: 'Utilisateur',
-        'lastMessage' => $last['body'] ?? null,
-        'lastAt' => iso_to_ms($last['created_at'] ?? $c['created_at']),
+        'lastMessage' => $apercu,
+        'lastAt' => iso_to_ms($lastAt),
         'lastSenderId' => $last['sender_id'] ?? null,
+        'archived' => (bool) $archivee,
+        'blockedByMe' => isset($jaiBloque[(string) $otherId]),
+        'blockedMe' => isset($maBloque[(string) $otherId]),
       ];
     }
     jout($out);
@@ -5703,12 +5745,24 @@ try {
       $ms->execute([$convId]);
       jout(array_map(fn($m) => [
         'id' => $m['id'], 'conversationId' => $m['conversation_id'], 'senderId' => $m['sender_id'],
-        'body' => $m['body'], 'createdAt' => iso_to_ms($m['created_at']),
+        'body' => empty($m['deleted_at']) ? $m['body'] : null,
+        'deleted' => !empty($m['deleted_at']),
+        'createdAt' => iso_to_ms($m['created_at']),
       ], $ms->fetchAll()));
     }
     if ($method === 'POST') {
       $b = body(); $bodyTxt = trim($b['body'] ?? '');
       if (!$bodyTxt) jerr('Message vide.');
+      // Blocage : si l'un OU l'autre a bloqué, plus aucun message ne passe.
+      $autreB = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+      $bk = $pdo->prepare('SELECT blocker_id FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)');
+      $bk->execute([$u['id'], $autreB, $autreB, $u['id']]);
+      if ($brow = $bk->fetch()) {
+        $jeBloque = (string) $brow['blocker_id'] === (string) $u['id'];
+        jerr($jeBloque
+          ? 'Vous avez bloqué cette personne. Débloquez-la pour lui écrire.'
+          : 'Vous ne pouvez plus écrire dans cette conversation.', 403);
+      }
       // Modération du chat : on bloque le contenu clairement illégal (drogue,
       // sexe, services de plaisir…), pas les questions de paiement légitimes.
       $mod = moderate_text($bodyTxt);
@@ -5729,6 +5783,90 @@ try {
         $senderName . ' vous a envoyé un message.', '#/messages/' . $convId);
       jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'], 'body' => $bodyTxt, 'createdAt' => iso_to_ms($ts)]);
     }
+  }
+
+  // ---- Supprimer un de MES messages (pour tout le monde) --------------------
+  if (count($seg) === 4 && $seg[0] === 'conversations' && $seg[2] === 'messages' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret); $convId = $seg[1]; $msgId = $seg[3];
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$convId]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $ms = $pdo->prepare('SELECT sender_id FROM messages WHERE id = ? AND conversation_id = ?'); $ms->execute([$msgId, $convId]);
+    $m = $ms->fetch();
+    if (!$m) jerr('Message introuvable.', 404);
+    // On ne supprime QUE ses propres messages (suppression pour tout le monde).
+    if ((string) $m['sender_id'] !== (string) $u['id']) jerr('Vous ne pouvez supprimer que vos propres messages.', 403);
+    $pdo->prepare('UPDATE messages SET deleted_at = ?, body = ? WHERE id = ?')->execute([now_iso(), '', $msgId]);
+    jout(['ok' => true]);
+  }
+
+  // ---- Supprimer une conversation (de MON côté seulement) -------------------
+  if (count($seg) === 2 && $seg[0] === 'conversations' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    // Colonne choisie dans une liste FIXE (jamais une entrée utilisateur).
+    $col = $conv['buyer_id'] === $u['id'] ? 'buyer_deleted_at'
+         : ($conv['seller_id'] === $u['id'] ? 'seller_deleted_at' : null);
+    if ($col === null) jerr('Non autorisé.', 403);
+    $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([now_iso(), $seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---- Archiver / désarchiver une conversation (de MON côté) ----------------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'archive' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $col = $conv['buyer_id'] === $u['id'] ? 'buyer_archived_at'
+         : ($conv['seller_id'] === $u['id'] ? 'seller_archived_at' : null);
+    if ($col === null) jerr('Non autorisé.', 403);
+    $archiver = (bool) (body()['archived'] ?? true);
+    $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([$archiver ? now_iso() : null, $seg[1]]);
+    jout(['ok' => true, 'archived' => $archiver]);
+  }
+
+  // ---- Bloquer / débloquer l'autre participant ------------------------------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'block' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $autre = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+    $bloquer = (bool) (body()['block'] ?? true);
+    if ($bloquer) {
+      $ex = $pdo->prepare('SELECT id FROM blocks WHERE blocker_id = ? AND blocked_id = ?'); $ex->execute([$u['id'], $autre]);
+      if (!$ex->fetch()) {
+        $pdo->prepare('INSERT INTO blocks (id,blocker_id,blocked_id,created_at) VALUES (?,?,?,?)')
+            ->execute([uuid(), $u['id'], $autre, now_iso()]);
+      }
+    } else {
+      $pdo->prepare('DELETE FROM blocks WHERE blocker_id = ? AND blocked_id = ?')->execute([$u['id'], $autre]);
+    }
+    log_security_event($pdo, $bloquer ? 'user_blocked' : 'user_unblocked', $u['email'] ?? null);
+    jout(['ok' => true, 'blocked' => $bloquer]);
+  }
+
+  // ---- Signaler une conversation (cases à cocher + détail) → modération ------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'report' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id, listing_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $motifs = is_array($b['reasons'] ?? null) ? $b['reasons'] : (isset($b['reason']) ? [$b['reason']] : []);
+    $reason = substr(trim(implode(', ', array_map(fn($r) => (string) $r, $motifs))), 0, 80);
+    $details = substr(trim((string) ($b['details'] ?? '')), 0, 500);
+    if ($reason === '') jerr('Signalement incomplet (choisissez au moins un motif).');
+    $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at,kind,target_id) VALUES (?,?,?,?,?,?,?,?,?)')
+        ->execute([uuid(), $conv['listing_id'] ?: null, $u['id'], $reason, $details ?: null, 'open', now_iso(), 'conversation', $seg[1]]);
+    send_report_email($config, (string) ($u['email'] ?? ''), 'Conversation signalée', (string) ($conv['listing_id'] ?? ''), $reason, $details);
+    log_security_event($pdo, 'conversation_reported', $u['email'] ?? null, $reason);
+    jout(['ok' => true]);
   }
 
   // ==========================================================================
