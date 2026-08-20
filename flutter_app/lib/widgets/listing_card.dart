@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../api/geo.dart';
 import '../api/models.dart';
+import '../data/coords.dart';
 import '../format.dart';
 import '../theme.dart';
 import 'bouton_favori.dart';
@@ -11,7 +13,13 @@ import 'bouton_favori.dart';
 class ListingCard extends StatelessWidget {
   final Listing annonce;
   final VoidCallback? onTap;
-  const ListingCard({super.key, required this.annonce, this.onTap});
+
+  /// Position de l'utilisateur, si connue (tri « Près de moi »). Quand elle est
+  /// fournie et que l'annonce a une position, la carte montre « · à 3 km ».
+  final Coords? origine;
+
+  const ListingCard(
+      {super.key, required this.annonce, this.onTap, this.origine});
 
   @override
   Widget build(BuildContext context) {
@@ -80,23 +88,50 @@ class ListingCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    [
-                      if (annonce.commune != null && annonce.commune!.isNotEmpty)
-                        annonce.commune,
-                      annonce.condition == 'neuf' ? 'Neuf' : 'Occasion',
-                    ].where((e) => e != null).join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 11.5, color: ChapColors.gray600),
-                  ),
+                  _ligneLieu(),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// La ligne « Commune · État », suivie de « · à 3 km » en orange quand la
+  /// position de l'utilisateur est connue et l'annonce situable (< 500 km).
+  Widget _ligneLieu() {
+    final base = [
+      if (annonce.commune != null && annonce.commune!.isNotEmpty)
+        annonce.commune!,
+      annonce.condition == 'neuf' ? 'Neuf' : 'Occasion',
+    ].join(' · ');
+
+    double? km;
+    final pos = annonce.position;
+    if (origine != null && pos != null) {
+      final d = distanceKm(origine!, pos);
+      if (d < 500) km = d;
+    }
+
+    const style = TextStyle(fontSize: 11.5, color: ChapColors.gray600);
+    if (km == null) {
+      return Text(base,
+          maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+    }
+    return Row(
+      children: [
+        Flexible(
+          child: Text(base,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+        ),
+        const SizedBox(width: 4),
+        Text('· ${formatDistance(km)}',
+            style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: ChapColors.orange)),
+      ],
     );
   }
 }

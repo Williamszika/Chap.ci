@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
+import '../data/coords.dart';
 
 /// Une annonce, telle que la renvoie `GET /api/listings`.
 ///
@@ -19,6 +20,10 @@ class Listing {
   final String condition; // 'neuf' | 'occasion'
   final List<String> images;
   final String? commune;
+  final String? regionId;
+  final String? cityId;
+  final double? lat;
+  final double? lng;
   final String sellerName;
   final String? sellerId; // le compte vendeur (pour ouvrir une conversation)
   final bool sellerVerified;
@@ -50,6 +55,10 @@ class Listing {
     this.sellerId,
     this.subcategory,
     this.commune,
+    this.regionId,
+    this.cityId,
+    this.lat,
+    this.lng,
     this.sellerVerified = false,
     this.delivery = false,
     this.featured = false,
@@ -73,6 +82,15 @@ class Listing {
 
   bool get enPromo => prixAffiche != price;
 
+  /// La meilleure position connue pour situer l'annonce : ses coordonnées GPS
+  /// si le vendeur les a fournies, sinon le centre de sa commune (ou de sa
+  /// ville). `null` si on ne sait rien — l'annonce ne comptera pas dans un tri
+  /// par distance plutôt que d'être placée n'importe où.
+  Coords? get position {
+    if (lat != null && lng != null) return Coords(lat!, lng!);
+    return coordsFor(cityId, commune);
+  }
+
   factory Listing.fromJson(Map<String, dynamic> j) {
     return Listing(
       id: (j['id'] ?? '').toString(),
@@ -87,6 +105,10 @@ class Listing {
           ? (j['images'] as List).map((e) => e.toString()).toList()
           : const [],
       commune: j['commune']?.toString(),
+      regionId: j['regionId']?.toString(),
+      cityId: j['cityId']?.toString(),
+      lat: (j['lat'] is num) ? (j['lat'] as num).toDouble() : null,
+      lng: (j['lng'] is num) ? (j['lng'] as num).toDouble() : null,
       sellerName: (j['sellerName'] ?? 'Vendeur').toString(),
       sellerId: j['sellerId']?.toString(),
       sellerVerified: j['sellerVerified'] == true,

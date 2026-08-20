@@ -25,6 +25,24 @@ class Fix {
   Coords get coords => Coords(lat, lng);
 }
 
+/// Distance en kilomètres entre deux points — même rôle que `haversineKm` du
+/// site, mais on s'appuie sur geolocator (déjà présent) plutôt que de recopier
+/// la formule.
+double distanceKm(Coords a, Coords b) =>
+    Geolocator.distanceBetween(a.lat, a.lng, b.lat, b.lng) / 1000;
+
+/// Formate une distance pour l'affichage (m / km) — mêmes seuils que le site
+/// (`formatDistance` de src/lib/geo.ts).
+String formatDistance(double km) {
+  if (km < 1) {
+    final m = (km * 1000 / 50).round() * 50;
+    return 'à ${m < 50 ? 50 : m} m';
+  }
+  if (km < 10) return 'à ${km.toStringAsFixed(1).replaceAll('.', ',')} km';
+  if (km < 500) return 'à ${km.round()} km';
+  return 'loin';
+}
+
 /// Une adresse déduite d'une position (les champs utiles au rapprochement).
 class GeoAddress {
   final String? address;

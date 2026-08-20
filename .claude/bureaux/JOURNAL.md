@@ -3507,3 +3507,27 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   dépendance) puis rebuild/run par Xcode (▶) ou `flutter run`. Version laissée à
   `1.20.0+21` (rien ne part au Play Store maintenant, v1.20 en examen ; bump à +22 seulement
   le jour d'un envoi Play).
+
+### 2026-08-20 12:30 — [Développement] Proximité dans l'app (Phase 1) : distance + tri « Près de moi »
+- **Demande du Patron** : dans l'app, calculer les distances des annonces et proposer
+  celles près de lui (commune, communes/villes voisines, pays). Puis « aussi sur le site ».
+  Constat : **le site fait déjà l'essentiel** (`geo.ts` haversine, distance sur les cartes,
+  onglet « Près de moi » `tri=distance`). **L'app, non** : son modèle ne recevait même pas
+  `lat/lng`, et aucun tri par distance. Ordre validé : 1) l'app, 2) les « rings » sur les deux.
+- **Phase 1 faite (app Flutter)** :
+  - `models.dart` : l'annonce capte enfin `regionId/cityId/lat/lng` (l'API les renvoyait
+    déjà) et expose un getter `position` — GPS de l'annonce, sinon centre de sa commune/ville
+    (`coords.dart`), sinon `null` (elle finit en queue d'un tri par distance, jamais placée
+    au hasard).
+  - `geo.dart` : `distanceKm()` (via `Geolocator.distanceBetween`) et `formatDistance()`
+    (mêmes seuils m/km que le site).
+  - `listing_card.dart` : nouveau paramètre `origine` ; quand la position de l'utilisateur
+    est connue et l'annonce situable (< 500 km), la carte affiche « · à 3 km » en orange.
+  - `browse_screen.dart` : tri **« Près de moi 📍 »** dans les filtres. Le GPS n'est lu
+    **qu'à la demande** (jamais au démarrage) ; un refus revient au tri récent avec un message
+    clair, la position `null` renvoyée par un réseau instable ne bloque rien.
+- **Non construit** (Dart/Flutter absents de la session) : `flutter analyze`/build à faire
+  côté Mac du Patron. Aucune dépendance nouvelle (geolocator était déjà là).
+- **Suite — Phase 2** : les « rings » (Près de vous : votre commune → communes de la ville →
+  votre ville → ailleurs), sur l'app ET le site, à partir de `commune/city_id/region_id`
+  existants + la distance pour l'ordre. Aucune donnée nouvelle à créer.

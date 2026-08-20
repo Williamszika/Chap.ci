@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../api/geo.dart';
 import '../api/models.dart';
 import '../data/categories.dart';
+import '../data/coords.dart';
 import '../data/formulaires/registre.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
@@ -26,7 +28,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
   String? _categorie; // null = toutes
   String _condition = 'tous'; // tous | neuf | occasion
   String? _commune; // null = toutes
-  String _tri = 'recent'; // recent | prixAsc | prixDesc
+  String _tri = 'recent'; // recent | prixAsc | prixDesc | proche
+  Coords? _position; // position de l'utilisateur (tri « Près de moi »)
+  bool _localisation = false; // lecture GPS en cours
 
   @override
   void initState() {
@@ -43,6 +47,40 @@ class _BrowseScreenState extends State<BrowseScreen> {
   Future<void> _recharger() async {
     setState(() => _futur = Listing.toutes());
     await _futur;
+  }
+
+  /// Active le tri « Près de moi » : lit la position GPS (à la demande, jamais
+  /// au démarrage — l'autorisation n'est demandée que si l'utilisateur choisit
+  /// ce tri), puis retrie par distance. Un refus revient au tri récent avec un
+  /// message clair.
+  Future<void> _activerProximite() async {
+    if (_localisation) return;
+    setState(() => _localisation = true);
+    try {
+      final fix = await getBestPosition();
+      if (!mounted) return;
+      setState(() {
+        _position = fix.coords;
+        _tri = 'proche';
+        _localisation = false;
+      });
+    } on GeoRefus catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _localisation = false;
+        if (_position == null) _tri = 'recent';
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _localisation = false;
+        if (_position == null) _tri = 'recent';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Position introuvable. Réessayez à l’air libre.')));
+    }
   }
 
   // Minuscule + sans accents, pour une recherche indulgente.
@@ -91,6 +129,20 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }).toList();
 
     switch (_tri) {
+      case 'proche':
+        if (_position != null) {
+          final o = _position!;
+          double d(Listing l) {
+            final p = l.position;
+            // Une annonce sans position connue part à la fin, pas au hasard.
+            return p == null ? double.infinity : distanceKm(o, p);
+          }
+
+          r.sort((a, b) => d(a).compareTo(d(b)));
+        } else {
+          r.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        }
+        break;
       case 'prixAsc':
         r.sort((a, b) => a.prixAffiche.compareTo(b.prixAffiche));
         break;
@@ -157,6 +209,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                           itemCount: resultats.length,
                           itemBuilder: (context, i) => ListingCard(
                             annonce: resultats[i],
+                            origine: _position,
                             onTap: () => Navigator.of(context).push(
                                 MaterialPageRoute(
                                     builder: (_) => ListingDetailScreen(
@@ -343,13 +396,23 @@ class _BrowseScreenState extends State<BrowseScreen> {
                       DropdownMenuItem(
                           value: 'recent', child: Text('Plus récentes')),
                       DropdownMenuItem(
-                          value: 'prixAsc',
-                          child: Text('Prix croissant')),
+                          value: 'proche', child: Text('Près de moi 📍')),
                       DropdownMenuItem(
-                          value: 'prixDesc',
-                          child: Text('Prix décroissant')),
+                          value: 'prixAsc', child: Text('Prix croissant')),
+                      DropdownMenuItem(
+                          value: 'prixDesc', child: Text('Prix décroissant')),
                     ],
-                    onChanged: (v) => maj(() => _tri = v ?? 'recent'),
+                    onChanged: (v) {
+                      final val = v ?? 'recent';
+                      // « Près de moi » sans position encore lue : on ferme la
+                      // feuille et on demande le GPS (le tri s'applique ensuite).
+                      if (val == 'proche' && _position == null) {
+                        Navigator.pop(context);
+                        _activerProximite();
+                        return;
+                      }
+                      maj(() => _tri = val);
+                    },
                   ),
                   const SizedBox(height: 20),
                   SizedBox(
@@ -374,9 +437,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text(
-          n == 0
-              ? 'Aucun résultat'
-              : '$n annonce${n > 1 ? 's' : ''}',
+          _localisation
+              ? 'Localisation…'
+              : (n == 0 ? 'Aucun résultat' : '$n annonce${n > 1 ? 's' : ''}'),
           style: const TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
