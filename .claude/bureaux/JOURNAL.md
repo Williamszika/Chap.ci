@@ -3414,3 +3414,82 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   à regrouper avec le prochain envoi.
 - **Rappels non traités** (arbitrage/mémoire) : chantier `hover:` sans `md:` toujours en
   attente du Patron ; prochain lot `text-gray-400` suggéré `TopNav.tsx` + `NotificationBell.tsx`.
+
+### 2026-08-20 00:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de nuit, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP **8.5.8**. Ménage : 0 purge (0 visite, 0 événement, 0 annonce
+  expirée, 0 annonce sans photo). Modération : file **vide** (0 signalement, 0 récente),
+  digest posé → `skipped: true` (RAS, aucun e-mail). Cloisonnement re-testé en fin de
+  ronde : jeton de modération sur `cron/stats` → **403**, clé cron sur `mod/queue` →
+  **401** ; verrous confirmés au passage : `/api/admin/stats` → **401**,
+  `/api/data/push.json` → **404**.
+- **Empreintes — deux prouvées, une en écart CONNU** :
+  - `empreinte` API `54a4e4f4367b` = `md5sum server/index.php` du dépôt. **Identiques.**
+  - `empreinteSeo` `c57f0f1c6e55` = `md5sum web/seo.php` du dépôt. **Identiques.**
+  - `empreinteSite` `35bd5cd8f3ad`, `deposeSite` **17/08 10:28** — non recomparée par
+    construction (`dist/` absent du clone, pas de `npm ci` lancé). **Mais l'écart est
+    établi sans construire** : `git log --since=deposeSite -- src/` donne `bcbbb03`
+    (19/08 10:37, correctifs de cibles tactiles de l'Atelier sur `DealCard.tsx` et
+    `SellerProfile.tsx`). **Le front de production ne les porte pas.** Ce n'est pas une
+    découverte : le Dev l'a écrit lui-même à 17:05 (« à regrouper avec le prochain
+    envoi »). Je le consigne pour que le prochain zip ne l'oublie pas.
+  - `bcbbb03` ne touche **ni `server/`, ni `web/`** — les deux empreintes prouvées le
+    restent, et `git log` sur ces deux chemins depuis `114b97b` est vide.
+- **Sécurité 24 h** : `suspiciousIps` **vide**, `failRatio` 0, `loginFail` 0,
+  `rateLimited` 0, `adminUnlockFail` **0**, `mfaFail` 0, `adminsTampered` **false**,
+  `newSignups` 0.
+  - 🟢 **LE POINT MINEUR DE LA CLÉ DE 65 CARACTÈRES EST ÉTEINT.** `cron_fail` **5** et
+    `mtoken_fail` **5**, mais `byDetail` ne porte plus qu'**une seule signature de chaque
+    côté** : `cron/stats · sans-cle` ×5 et `missing` ×5 — **exactement mes cinq tests de
+    cloisonnement** des cinq rondes du 19/08. **Donc 0 échec réellement extérieur.** Les
+    deux `cle-differente(entete,65 car.)` / `unknown` qui traînaient depuis six rondes
+    sont sortis de la fenêtre 24 h : plus rien ne les alimente. **Rien à vérifier dans
+    claude.ai → Routines, le point se referme de lui-même.** Mon test de cette ronde
+    ajoutera +1/+1 à la prochaine lecture.
+  - `admin_code_emailed` **6**, `admin_unlock_ok` **2**, `admin_unlock_fail` **0**,
+    `login_ok` 1 : friction OTP d'une session de travail du Patron — aucune tentative
+    ratée, aucune IP suspecte, aucun rate-limit. Une ligne, et je passe.
+  - `derniersPassages` : toutes les tâches fraîches pour leur cadence (`cleanup` 19/08
+    20:47, `backup` 19/08 02:00, `alerts` 19/08 23:00, `digest` 19/08 17:00, `seo` /
+    `stats` / `review-invites` / `ads-expiring` / `activation-relance` le 19/08).
+    `report` toujours à son unique passage du **01/08** — mensuel attendu, pas de rappel.
+- **CSP (Report-Only, qui ne bloque rien)** : une seule origine dans la fenêtre 7 j,
+  `api.bigdatacloud.net` (28, dernier 19/08 22:46). **Vérifié dans l'en-tête RÉELLEMENT
+  SERVI** (`curl -sSI 'https://chap.ci/'`) : elle est **déjà présente** dans `connect-src`.
+  Question tranchée le 15/08, non rouverte — stock de service workers PWA en cache, il
+  s'éteindra seul. Aucune origine nouvelle ni inattendue.
+- **Scan de code site (`server/index.php`, lecture seule)** : fichier **inchangé** depuis
+  ma ronde du 18/08 (même md5), scan de contrôle refait quand même avec une sonde qui
+  **pouvait échouer** — recherche des requêtes concaténées `->query("…$…")`. Cinq
+  occurrences trouvées, **les cinq inspectées ligne à ligne** : `4209`, `7230`, `7263`,
+  `7292` interpolent un nom de table pris dans une **liste littérale du source**
+  (sauvegarde, purge, statistiques admin), jamais dans la requête HTTP ; `8853` interpole
+  `$limit`/`$offset` **castés en `int` et bornés** (`min(40, max(1, …))`, `max(0, …)`).
+  **Aucune injection possible.** Par ailleurs : 393 requêtes préparées, `hash_equals` ×19,
+  bcrypt (`password_hash`/`password_verify`), `session_version`, JWT à algorithme forcé
+  serveur, uploads validés par le **contenu réel** (`getimagesizefromstring`, l'extension
+  déduite du type détecté) — tout en place.
+- **Scan de code app (Flutter, lecture seule)** : `api_client.dart` toujours sur
+  `https://chap.ci/api` (via `String.fromEnvironment` avec ce défaut) ; identifiant
+  `ci.chap.app` sur les deux plateformes ; permissions inchangées (Internet, Caméra,
+  Position fine et grossière) ; un seul schéma d'URL privé, `chapci://` (retour Facebook
+  web) ; `pubspec.yaml` **sans dépendance nouvelle** (dernier commit dessus : `db6620f`),
+  aucun SDK d'analytique ni pixel publicitaire tiers. Seul commit Flutter du jour :
+  `bouton_favori.dart` (cible 48 dp, l'Atelier) — cosmétique.
+- **Certificat TLS** : `crt.sh` **injoignable** (HTTP **502**, panne de leur service —
+  vérifié : 150 octets de page nginx, sans lien avec notre proxy sortant). Pas de lecture
+  neuve, **repli honnête** sur la dernière valeur connue (relevé du 18/08 20:47 :
+  expiration **12/10/2026**, Let's Encrypt / Google Trust Services) — 53 jours, très
+  au-dessus du seuil de 21 j. **Aucune alerte, aucune lecture inventée.**
+- **Problèmes ouverts** : **aucun.** Le seul point mineur encore ouvert hier est éteint
+  (voir ci-dessus).
+- **Propositions au Patron** : aucune action immédiate. Rien à décider cette nuit.
+- **Pour les autres bureaux** :
+  - 🔨 **Le Bâtisseur / Livraison** : le prochain zip doit emporter le front — la
+    production sert le build du **17/08**, les correctifs de cibles tactiles du **19/08**
+    ne sont pas en ligne. `server/index.php` et `web/seo.php`, eux, sont à jour : le zip
+    n'a besoin que du `dist/`.
+  - 🧰 **Le Monteur** : rappel de calendrier, sans urgence de ma part — `targetSdk 35`
+    (`flutter_app/tool/preparer_plateformes.dart:254`) n'est accepté par Google que
+    **jusqu'au 30/08/2026**, soit dix jours. Déjà gravé dans `store/APP-VERSIONS.md` par
+    le Dev le 18/08 ; je ne fais que confirmer que le fichier porte toujours 35.
