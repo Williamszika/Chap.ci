@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
@@ -45,8 +46,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Connexion faite après l'ouverture de l'onglet (IndexedStack garde l'écran
-    // en vie) : on initialise la liste au premier build connecté.
+    // Connexion faite après l'ouverture de l'onglet (la page est gardée en vie
+    // par le PageView) : on initialise la liste au premier build connecté.
     if (ApiClient.instance.connecte && _futur == null) _charger();
     return Scaffold(
       appBar: AppBar(title: const Text('Messages')),
@@ -89,16 +90,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ),
                           ),
                         ])
-                      : ListView.separated(
-                          itemCount: active.length + (aArchives ? 1 : 0),
-                          separatorBuilder: (_, __) => const Divider(
-                              height: 1, color: ChapColors.line),
-                          itemBuilder: (context, i) {
-                            if (aArchives && i == 0) {
-                              return _tuileArchives(archivees);
-                            }
-                            return _ligne(active[i - (aArchives ? 1 : 0)]);
-                          },
+                      : SlidableAutoCloseBehavior(
+                          child: ListView.separated(
+                            itemCount: active.length + (aArchives ? 1 : 0),
+                            separatorBuilder: (_, __) => const Divider(
+                                height: 1, color: ChapColors.line),
+                            itemBuilder: (context, i) {
+                              if (aArchives && i == 0) {
+                                return _tuileArchives(archivees);
+                              }
+                              return _ligne(active[i - (aArchives ? 1 : 0)]);
+                            },
+                          ),
                         ),
                 );
               },
@@ -116,17 +119,27 @@ class _MessagesScreenState extends State<MessagesScreen> {
         _monId != null &&
         c.lastSenderId != _monId;
 
-    return ListTile(
+    final tuile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: SizedBox(width: 48, height: 48, child: _vignette(c)),
       ),
-      title: Text(titre,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-              fontWeight: FontWeight.w700, color: ChapColors.gray900)),
+      title: Row(
+        children: [
+          if (c.pinned) ...[
+            const Icon(Icons.push_pin, size: 14, color: ChapColors.orange),
+            const SizedBox(width: 4),
+          ],
+          Expanded(
+            child: Text(titre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, color: ChapColors.gray900)),
+          ),
+        ],
+      ),
       subtitle: Text(
         c.lastMessage?.trim().isNotEmpty == true
             ? c.lastMessage!
@@ -171,6 +184,117 @@ class _MessagesScreenState extends State<MessagesScreen> {
         _recharger(); // au retour, le dernier message / l'état a pu changer
       },
     );
+
+    // Glisser à droite → épingler ; glisser à gauche → archiver, bloquer,
+    // supprimer. Chaque volet garde une largeur mesurée pour rester lisible.
+    return Slidable(
+      key: ValueKey(c.id),
+      groupTag: 'conversations',
+      startActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.25,
+        children: [
+          SlidableAction(
+            onPressed: (_) => _epingler(c),
+            backgroundColor: ChapColors.orange,
+            foregroundColor: Colors.white,
+            icon: c.pinned ? Icons.push_pin_outlined : Icons.push_pin,
+            label: c.pinned ? 'Désépingler' : 'Épingler',
+          ),
+        ],
+      ),
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.75,
+        children: [
+          SlidableAction(
+            onPressed: (_) => _archiver(c),
+            backgroundColor: ChapColors.gray600,
+            foregroundColor: Colors.white,
+            icon: c.archived ? Icons.unarchive_outlined : Icons.archive_outlined,
+            label: c.archived ? 'Désarchiver' : 'Archiver',
+          ),
+          SlidableAction(
+            onPressed: (_) => _bloquer(c),
+            backgroundColor: const Color(0xFF6B7280),
+            foregroundColor: Colors.white,
+            icon: c.blockedByMe ? Icons.lock_open_outlined : Icons.block,
+            label: c.blockedByMe ? 'Débloquer' : 'Bloquer',
+          ),
+          SlidableAction(
+            onPressed: (_) => _supprimer(c),
+            backgroundColor: const Color(0xFFDC2626),
+            foregroundColor: Colors.white,
+            icon: Icons.delete_outline,
+            label: 'Supprimer',
+          ),
+        ],
+      ),
+      child: tuile,
+    );
+  }
+
+  // ---- Actions de glissement -------------------------------------------------
+
+  Future<void> _epingler(Conversation c) async {
+    try {
+      await Conversation.epingler(c.id, !c.pinned);
+      await _recharger();
+    } catch (_) {
+      _echec();
+    }
+  }
+
+  Future<void> _archiver(Conversation c) async {
+    try {
+      await Conversation.archiver(c.id, !c.archived);
+      await _recharger();
+    } catch (_) {
+      _echec();
+    }
+  }
+
+  Future<void> _bloquer(Conversation c) async {
+    try {
+      await Conversation.bloquer(c.id, !c.blockedByMe);
+      await _recharger();
+    } catch (_) {
+      _echec();
+    }
+  }
+
+  Future<void> _supprimer(Conversation c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Supprimer la conversation ?'),
+        content: const Text(
+            'Elle disparaîtra de votre liste. L’autre personne garde la sienne.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Supprimer',
+                  style: TextStyle(color: Color(0xFFDC2626)))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await Conversation.supprimer(c.id);
+      await _recharger();
+    } catch (_) {
+      _echec();
+    }
+  }
+
+  void _echec() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Action impossible pour le moment.')),
+    );
   }
 
   /// Accès aux conversations archivées (masquées de la liste principale).
@@ -190,11 +314,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
         await Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => Scaffold(
             appBar: AppBar(title: const Text('Archivées')),
-            body: ListView.separated(
-              itemCount: archivees.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: ChapColors.line),
-              itemBuilder: (context, i) => _ligne(archivees[i]),
+            body: SlidableAutoCloseBehavior(
+              child: ListView.separated(
+                itemCount: archivees.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: ChapColors.line),
+                itemBuilder: (context, i) => _ligne(archivees[i]),
+              ),
             ),
           ),
         ));

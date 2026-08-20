@@ -2031,6 +2031,9 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_archived_at $ts"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE conversations ADD COLUMN buyer_deleted_at $ts"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_deleted_at $ts"); } catch (Throwable $e) {}
+  // Épinglée en tête de MA liste (indépendant pour chaque côté).
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN buyer_pinned_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_pinned_at $ts"); } catch (Throwable $e) {}
   // Un message supprimé « pour tout le monde » : le corps est vidé, la ligne
   // reste (le fil garde sa cohérence), affichée « message supprimé ».
   try { $pdo->exec("ALTER TABLE messages ADD COLUMN deleted_at $ts"); } catch (Throwable $e) {}
@@ -5680,6 +5683,7 @@ try {
       $otherId = $estAcheteur ? $c['seller_id'] : $c['buyer_id'];
       $supprLe = $estAcheteur ? ($c['buyer_deleted_at'] ?? null) : ($c['seller_deleted_at'] ?? null);
       $archLe  = $estAcheteur ? ($c['buyer_archived_at'] ?? null) : ($c['seller_archived_at'] ?? null);
+      $epingle = (bool) ($estAcheteur ? ($c['buyer_pinned_at'] ?? null) : ($c['seller_pinned_at'] ?? null));
       $lm = $pdo->prepare('SELECT body,sender_id,created_at,deleted_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
       $lm->execute([$c['id']]); $last = $lm->fetch();
       $lastAt = $last['created_at'] ?? $c['created_at'];
@@ -5704,10 +5708,19 @@ try {
         'lastAt' => iso_to_ms($lastAt),
         'lastSenderId' => $last['sender_id'] ?? null,
         'archived' => (bool) $archivee,
+        'pinned' => $epingle,
         'blockedByMe' => isset($jaiBloque[(string) $otherId]),
         'blockedMe' => isset($maBloque[(string) $otherId]),
       ];
     }
+    // Ordre : épinglées d'abord, puis par message le plus récent. (La liste
+    // n'était triée que par date de création — le dernier message pouvait se
+    // retrouver en bas.)
+    usort($out, function ($a, $b) {
+      $pa = $a['pinned'] ? 1 : 0; $pb = $b['pinned'] ? 1 : 0;
+      if ($pa !== $pb) return $pb - $pa;
+      return ($b['lastAt'] ?? 0) <=> ($a['lastAt'] ?? 0);
+    });
     jout($out);
   }
 
@@ -5827,6 +5840,20 @@ try {
     $archiver = (bool) (body()['archived'] ?? true);
     $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([$archiver ? now_iso() : null, $seg[1]]);
     jout(['ok' => true, 'archived' => $archiver]);
+  }
+
+  // ---- Épingler / désépingler une conversation (de MON côté) ----------------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'pin' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $col = $conv['buyer_id'] === $u['id'] ? 'buyer_pinned_at'
+         : ($conv['seller_id'] === $u['id'] ? 'seller_pinned_at' : null);
+    if ($col === null) jerr('Non autorisé.', 403);
+    $epingler = (bool) (body()['pinned'] ?? true);
+    $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([$epingler ? now_iso() : null, $seg[1]]);
+    jout(['ok' => true, 'pinned' => $epingler]);
   }
 
   // ---- Bloquer / débloquer l'autre participant ------------------------------

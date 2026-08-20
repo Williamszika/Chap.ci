@@ -67,6 +67,8 @@ class AccueilShell extends StatefulWidget {
 
 class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver {
   late int _onglet = widget.initialTab;
+  late final PageController _pages =
+      PageController(initialPage: widget.initialTab);
 
   @override
   void initState() {
@@ -77,7 +79,17 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _pages.dispose();
     super.dispose();
+  }
+
+  /// Aller à un onglet, que ce soit par la barre du bas ou par un bouton
+  /// interne (« Voir tout », « Aller à mon compte »). On saute directement à
+  /// la page (jumpToPage) pour ne pas défiler à travers les onglets voisins.
+  void _aller(int i) {
+    if (!mounted) return;
+    setState(() => _onglet = i);
+    if (_pages.hasClients) _pages.jumpToPage(i);
   }
 
   @override
@@ -90,7 +102,7 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
 
   Future<void> _publier() async {
     if (!ApiClient.instance.connecte) {
-      setState(() => _onglet = 3); // vers Compte pour se connecter
+      _aller(3); // vers Compte pour se connecter
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Connectez-vous pour publier une annonce.')));
       return;
@@ -108,14 +120,21 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(onVoirTout: () => setState(() => _onglet = 1)),
+      HomeScreen(onVoirTout: () => _aller(1)),
       const BrowseScreen(),
-      MessagesScreen(onVersCompte: () => setState(() => _onglet = 3)),
+      MessagesScreen(onVersCompte: () => _aller(3)),
       const AccountScreen(),
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _onglet, children: pages),
+      // On glisse de gauche à droite pour changer d'onglet. Chaque page est
+      // gardée en vie (comme le faisait l'IndexedStack) pour ne pas se
+      // recharger à chaque passage.
+      body: PageView(
+        controller: _pages,
+        onPageChanged: (i) => setState(() => _onglet = i),
+        children: [for (final p in pages) _Vivante(child: p)],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _publier,
         backgroundColor: ChapColors.orange,
@@ -125,7 +144,7 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _onglet,
-        onDestinationSelected: (i) => setState(() => _onglet = i),
+        onDestinationSelected: _aller,
         backgroundColor: ChapColors.cream,
         indicatorColor: ChapColors.cream100,
         destinations: const [
@@ -149,5 +168,26 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
         ],
       ),
     );
+  }
+}
+
+/// Garde une page vivante quand le PageView la fait sortir de l'écran — sinon
+/// chaque glissement rechargerait l'onglet (liste, position de défilement…).
+class _Vivante extends StatefulWidget {
+  final Widget child;
+  const _Vivante({required this.child});
+  @override
+  State<_Vivante> createState() => _VivanteState();
+}
+
+class _VivanteState extends State<_Vivante>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

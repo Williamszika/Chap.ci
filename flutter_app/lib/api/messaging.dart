@@ -15,6 +15,7 @@ class Conversation {
   final int? lastAt;
   final String? lastSenderId;
   final bool archived; // archivée de MON côté
+  final bool pinned; // épinglée de MON côté (remonte en haut de la liste)
   final bool blockedByMe; // j'ai bloqué l'autre
   final bool blockedMe; // l'autre m'a bloqué
 
@@ -30,6 +31,7 @@ class Conversation {
     this.lastAt,
     this.lastSenderId,
     this.archived = false,
+    this.pinned = false,
     this.blockedByMe = false,
     this.blockedMe = false,
   });
@@ -46,6 +48,7 @@ class Conversation {
         lastAt: (j['lastAt'] is num) ? (j['lastAt'] as num).toInt() : null,
         lastSenderId: j['lastSenderId']?.toString(),
         archived: j['archived'] == true,
+        pinned: j['pinned'] == true,
         blockedByMe: j['blockedByMe'] == true,
         blockedMe: j['blockedMe'] == true,
       );
@@ -59,6 +62,12 @@ class Conversation {
   static Future<void> archiver(String id, bool archiver) async {
     await ApiClient.instance
         .post('/conversations/$id/archive', {'archived': archiver});
+  }
+
+  /// Épingle ou désépingle de MON côté (remonte la conversation en haut).
+  static Future<void> epingler(String id, bool epingler) async {
+    await ApiClient.instance
+        .post('/conversations/$id/pin', {'pinned': epingler});
   }
 
   /// Bloque ou débloque l'autre participant ; renvoie l'état résultant.

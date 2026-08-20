@@ -31,6 +31,9 @@ dependencies:
   webview_flutter: ^4.7.0
   google_sign_in: ^6.2.1
   flutter_web_auth_2: ^3.1.2
+  # Glisser une conversation à gauche/droite pour révéler des actions
+  # (épingler, archiver, bloquer, supprimer).
+  flutter_slidable: ^3.1.0
 
 dev_dependencies:
   flutter_test:
