@@ -3638,3 +3638,13 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   sien) + ces mêmes actions. Socle de feuille partagé (`_feuille`, `_optionsConversation`)
   pour ne pas dupliquer. Changement app pur — **rebuild de l'app** pour le voir, rien à
   déployer côté serveur.
+
+### 2026-08-20 23:20 — [Développement] App : en-tête de conversation façon vraie messagerie (avatar + nom)
+- **Demande du Patron** (croquis à l'appui) : la messagerie de l'app doit ressembler à une
+  vraie discussion — l'en-tête ne montrait que le nom en texte brut.
+- **Fait** (`conversation_screen.dart`) : l'`AppBar` porte maintenant un **avatar rond**
+  (dégradé vert de la marque + initiale du nom) à côté du nom, comme sur le site. Le bouton
+  « ⋮ » reste à droite.
+- **Côté site** : **déjà en place** (`Conversation.tsx:258` — avatar vert + initiale + nom +
+  « ⋮ »), déployé en production. Rien à refaire ; l'app rejoint simplement le site.
+- Changement app pur — rebuild pour le voir.

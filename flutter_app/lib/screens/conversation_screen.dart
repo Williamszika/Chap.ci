@@ -90,8 +90,21 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.titre.isEmpty ? 'Discussion' : widget.titre,
-            maxLines: 1, overflow: TextOverflow.ellipsis),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            _avatar(),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                widget.titre.isEmpty ? 'Discussion' : widget.titre,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert),
@@ -140,6 +153,35 @@ class _ConversationScreenState extends State<ConversationScreen> {
             ),
           _bloque ? _barreBloque() : _saisieBarre(),
         ],
+      ),
+    );
+  }
+
+  /// L'avatar rond de l'en-tête : dégradé vert de la marque + initiale du nom,
+  /// comme sur le site — pour que la conversation ressemble à une vraie
+  /// messagerie plutôt qu'à un simple titre.
+  Widget _avatar() {
+    final nom = widget.titre.trim();
+    final initiale = (nom.isEmpty ? '?' : nom[0]).toUpperCase();
+    return Container(
+      width: 38,
+      height: 38,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [ChapColors.green, ChapColors.greenDark],
+        ),
+      ),
+      child: Text(
+        initiale,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 16,
+        ),
       ),
     );
   }
