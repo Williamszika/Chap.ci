@@ -3551,3 +3551,20 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   boutons renverront 404.
 - **Reste — Phase C** : les mêmes gestes sur le SITE (React), et un affichage propre des
   signalements de conversation dans la modération admin.
+
+### 2026-08-20 16:30 — [Développement] Messagerie (Phase C) : les mêmes gestes sur le SITE
+- **Fait (site React)** : parité avec l'app. Sur `/messages/:id` — un bouton « ⋮ » de
+  conversation (Archiver/Désarchiver · Bloquer/Débloquer · Signaler · Supprimer la
+  conversation), un « ⋮ » sur chacun de MES messages (Supprimer, pour tout le monde →
+  « Message supprimé » en italique), une **fenêtre de signalement à cases à cocher** (mêmes
+  motifs que l'app), et une **barre de blocage** qui remplace la saisie quand j'ai bloqué.
+  Sur `/messages` — la liste sépare **actives** et une section repliable **« Conversations
+  archivées (N) »**. API front ajoutée dans `php.ts` (supprimer/archiver/bloquer/signaler),
+  types `Message.deleted` et `Conversation.archived/blockedByMe/blockedMe`.
+- **`npm run lint` (tsc) vert, `npm run build` OK.** Les trois surfaces (serveur, app, site)
+  parlent aux mêmes routes.
+- **Reste, petit** : afficher distinctement les signalements de conversation dans la
+  modération admin (ils arrivent déjà en base + e-mail au Gardien ; c'est un raffinement
+  d'affichage, pas un manque fonctionnel).
+- **À déployer ensemble** : la nouvelle API (Phase A) + le nouveau `dist/` (Phase C + les
+  cibles tactiles du 19/08). Zip en préparation.

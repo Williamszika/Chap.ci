@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { mediaUrl } from '../lib/native'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MessageCircle, LogIn } from 'lucide-react'
+import { ArrowLeft, MessageCircle, LogIn, ChevronDown } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { timeAgo } from '../lib/format'
+import type { Conversation } from '../types'
 
 /** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
 function avatarInitial(name?: string): string {
@@ -16,10 +17,61 @@ export function ConversationList({ activeId }: { activeId?: string }) {
   const navigate = useNavigate()
   const { user, enabled, loading: authLoading } = useAuth()
   const { conversations: convs, loading, unreadConvIds, refresh } = useNotifications()
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
     if (user) refresh()
   }, [user, refresh])
+
+  const activeConvs = convs.filter((c) => !c.archived)
+  const archivedConvs = convs.filter((c) => c.archived)
+
+  const renderRow = (c: Conversation) => {
+    const unread = unreadConvIds.has(c.id)
+    const isActive = c.id === activeId
+    return (
+      <Link
+        key={c.id}
+        to={`/messages/${c.id}`}
+        className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-cream-100 ${
+          isActive ? 'bg-primary-50' : unread ? 'bg-primary-50/50' : ''
+        }`}
+      >
+        <div className="relative shrink-0">
+          {c.listingImage ? (
+            <img
+              src={mediaUrl(c.listingImage)}
+              alt=""
+              className="h-14 w-14 rounded-full object-cover ring-1 ring-line"
+            />
+          ) : (
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-lg font-bold text-white">
+              {avatarInitial(c.otherName)}
+            </div>
+          )}
+          {unread && (
+            <span className="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full bg-primary-500 ring-2 ring-white" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className={`truncate font-display text-gray-900 ${unread ? 'font-extrabold' : 'font-bold'}`}>
+              {c.otherName}
+            </p>
+            <span className={`shrink-0 text-[11px] ${unread ? 'font-bold text-primary-600' : 'text-gray-500'}`}>
+              {c.lastAt ? timeAgo(c.lastAt) : ''}
+            </span>
+          </div>
+          {c.listingTitle && (
+            <p className="truncate text-xs font-medium text-primary-600">{c.listingTitle}</p>
+          )}
+          <p className={`truncate text-sm ${unread ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
+            {c.lastMessage ?? 'Nouvelle conversation'}
+          </p>
+        </div>
+      </Link>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -46,7 +98,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
           </div>
         ) : loading || authLoading ? (
           <div className="py-24 text-center text-sm text-gray-500">Chargement…</div>
-        ) : convs.length === 0 ? (
+        ) : activeConvs.length === 0 && archivedConvs.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-24 text-center">
             <div className="text-5xl">💬</div>
             <p className="text-lg font-bold text-gray-800">Aucune conversation</p>
@@ -59,52 +111,19 @@ export function ConversationList({ activeId }: { activeId?: string }) {
           </div>
         ) : (
           <div className="divide-y divide-line bg-white md:rounded-b-3xl">
-            {convs.map((c) => {
-              const unread = unreadConvIds.has(c.id)
-              const active = c.id === activeId
-              return (
-                <Link
-                  key={c.id}
-                  to={`/messages/${c.id}`}
-                  className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-cream-100 ${
-                    active ? 'bg-primary-50' : unread ? 'bg-primary-50/50' : ''
-                  }`}
+            {activeConvs.map(renderRow)}
+            {archivedConvs.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowArchived((s) => !s)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-gray-600 transition hover:bg-cream-100"
                 >
-                  <div className="relative shrink-0">
-                    {c.listingImage ? (
-                      <img
-                        src={mediaUrl(c.listingImage)}
-                        alt=""
-                        className="h-14 w-14 rounded-full object-cover ring-1 ring-line"
-                      />
-                    ) : (
-                      <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-lg font-bold text-white">
-                        {avatarInitial(c.otherName)}
-                      </div>
-                    )}
-                    {unread && (
-                      <span className="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full bg-primary-500 ring-2 ring-white" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className={`truncate font-display text-gray-900 ${unread ? 'font-extrabold' : 'font-bold'}`}>
-                        {c.otherName}
-                      </p>
-                      <span className={`shrink-0 text-[11px] ${unread ? 'font-bold text-primary-600' : 'text-gray-500'}`}>
-                        {c.lastAt ? timeAgo(c.lastAt) : ''}
-                      </span>
-                    </div>
-                    {c.listingTitle && (
-                      <p className="truncate text-xs font-medium text-primary-600">{c.listingTitle}</p>
-                    )}
-                    <p className={`truncate text-sm ${unread ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
-                      {c.lastMessage ?? 'Nouvelle conversation'}
-                    </p>
-                  </div>
-                </Link>
-              )
-            })}
+                  <span>Conversations archivées ({archivedConvs.length})</span>
+                  <ChevronDown size={18} className={showArchived ? 'rotate-180' : ''} />
+                </button>
+                {showArchived && archivedConvs.map(renderRow)}
+              </>
+            )}
           </div>
         )}
       </div>

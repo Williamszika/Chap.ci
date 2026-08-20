@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { mediaUrl } from '../lib/native'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Send, Tag, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Send, Tag, ShieldCheck, MoreVertical, Trash2, Archive, Ban, Flag, X } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
 import {
@@ -10,8 +10,77 @@ import {
   sendMessage,
   subscribeMessages,
 } from '../lib/messages'
+import {
+  phpDeleteMessage,
+  phpDeleteConversation,
+  phpArchiveConversation,
+  phpBlockConversation,
+  phpReportConversation,
+} from '../lib/php'
 import { DealCard } from '../components/DealCard'
 import type { Conversation as Conv, Message } from '../types'
+
+/** Une ligne du menu d'actions (feuille du bas). */
+function MenuItem({ icon, label, onClick, danger }: { icon: ReactNode; label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-[15px] transition hover:bg-cream-100 ${danger ? 'text-red-600' : 'text-gray-800'}`}
+    >
+      {icon} {label}
+    </button>
+  )
+}
+
+const REPORT_REASONS = ['Spam', 'Harcèlement', 'Arnaque / fraude', 'Contenu choquant', 'Autre']
+
+/** Feuille de signalement — cases à cocher + détail libre. */
+function ReportModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (reasons: string[], details: string) => void }) {
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [details, setDetails] = useState('')
+  const chosen = REPORT_REASONS.filter((r) => checked[r])
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div className="w-full max-w-md rounded-t-3xl bg-white p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold text-gray-900">Signaler la conversation</h2>
+          <button onClick={onClose} aria-label="Fermer" className="grid h-9 w-9 place-items-center rounded-full text-gray-500 transition hover:bg-cream-100">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="mb-3 text-sm text-gray-600">Choisissez un ou plusieurs motifs.</p>
+        <div className="space-y-1">
+          {REPORT_REASONS.map((r) => (
+            <label key={r} className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-cream-100">
+              <input
+                type="checkbox"
+                checked={!!checked[r]}
+                onChange={(e) => setChecked((c) => ({ ...c, [r]: e.target.checked }))}
+                className="h-5 w-5 accent-primary-500"
+              />
+              <span className="text-[15px] text-gray-800">{r}</span>
+            </label>
+          ))}
+        </div>
+        <textarea
+          value={details}
+          onChange={(e) => setDetails(e.target.value)}
+          maxLength={500}
+          rows={3}
+          placeholder="Détails (facultatif)…"
+          className="input mt-3"
+        />
+        <button
+          disabled={chosen.length === 0}
+          onClick={() => onSubmit(chosen, details.trim())}
+          className="btn-primary mt-4 w-full disabled:opacity-40"
+        >
+          Envoyer le signalement
+        </button>
+      </div>
+    </div>
+  )
+}
 
 /** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
 function initial(name?: string): string {
@@ -33,6 +102,10 @@ export function Conversation() {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [menu, setMenu] = useState<null | { kind: 'conv' } | { kind: 'msg'; id: string }>(null)
+  const [reporting, setReporting] = useState(false)
+  const [blocked, setBlocked] = useState(false)
+  const [archived, setArchived] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -44,6 +117,8 @@ export function Conversation() {
         if (!active) return
         setConv(c)
         setMessages(m)
+        setBlocked(!!c?.blockedByMe)
+        setArchived(!!c?.archived)
       })
       .finally(() => active && setLoading(false))
 
@@ -102,6 +177,65 @@ export function Conversation() {
     }
   }
 
+  async function delMessage(mid: string) {
+    setMenu(null)
+    if (!id || !window.confirm('Supprimer ce message ? Il disparaîtra pour tout le monde.')) return
+    try {
+      await phpDeleteMessage(id, mid)
+      setMessages((prev) => prev.map((m) => (m.id === mid ? { ...m, deleted: true, body: '' } : m)))
+    } catch (e) {
+      window.alert((e as Error).message)
+    }
+  }
+
+  async function delConv() {
+    setMenu(null)
+    if (!id || !window.confirm('Supprimer cette conversation de votre côté ? L’autre personne garde la sienne.')) return
+    try {
+      await phpDeleteConversation(id)
+      refresh()
+      navigate('/messages')
+    } catch (e) {
+      window.alert((e as Error).message)
+    }
+  }
+
+  async function toggleArchive() {
+    setMenu(null)
+    if (!id) return
+    const next = !archived
+    try {
+      await phpArchiveConversation(id, next)
+      setArchived(next)
+      refresh()
+      if (next) navigate('/messages') // archivée → on quitte le fil
+    } catch (e) {
+      window.alert((e as Error).message)
+    }
+  }
+
+  async function toggleBlock() {
+    setMenu(null)
+    if (!id) return
+    try {
+      const b = await phpBlockConversation(id, !blocked)
+      setBlocked(b)
+    } catch (e) {
+      window.alert((e as Error).message)
+    }
+  }
+
+  async function submitReport(reasons: string[], details: string) {
+    if (!id) return
+    try {
+      await phpReportConversation(id, reasons, details)
+      setReporting(false)
+      window.alert('Signalement envoyé. Merci.')
+    } catch (e) {
+      window.alert((e as Error).message)
+    }
+  }
+
   if (!user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-cream-200 p-6 text-center">
@@ -146,6 +280,13 @@ export function Conversation() {
                 )}
               </Link>
             )}
+            <button
+              onClick={() => setMenu({ kind: 'conv' })}
+              aria-label="Options de la conversation"
+              className="-mr-1 grid h-11 w-11 shrink-0 place-items-center rounded-full transition md:hover:bg-cream-100"
+            >
+              <MoreVertical size={20} />
+            </button>
           </header>
 
           {/* Suivi de transaction (achat / réception / avis) */}
@@ -177,7 +318,16 @@ export function Conversation() {
               messages.map((m) => {
                 const mine = m.senderId === user.id
                 return (
-                  <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                  <div key={m.id} className={`group flex items-center gap-1 ${mine ? 'justify-end' : 'justify-start'}`}>
+                    {mine && !m.deleted && !m.id.startsWith('tmp-') && (
+                      <button
+                        onClick={() => setMenu({ kind: 'msg', id: m.id })}
+                        aria-label="Options du message"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-gray-400 opacity-60 transition hover:bg-cream-100 md:opacity-0 md:group-hover:opacity-100"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                    )}
                     <div
                       className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] md:max-w-[66%] ${
                         mine
@@ -185,7 +335,11 @@ export function Conversation() {
                           : 'rounded-bl-md border border-line bg-white text-gray-800 shadow-card'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      {m.deleted ? (
+                        <p className={`whitespace-pre-wrap break-words italic ${mine ? 'text-white/80' : 'text-gray-500'}`}>Message supprimé</p>
+                      ) : (
+                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      )}
                       <div className={`mt-1 text-[11px] ${mine ? 'text-white/75' : 'text-gray-500'}`}>
                         {hhmm(m.createdAt)}
                       </div>
@@ -197,26 +351,55 @@ export function Conversation() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Saisie */}
-          <form
-            onSubmit={send}
-            className="safe-bottom sticky bottom-0 flex items-center gap-2 border-t border-line bg-white px-3 py-3 md:rounded-b-3xl"
-          >
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Votre message…"
-              className="flex-1 rounded-full border border-line bg-cream-200 px-4 py-3 text-[15px] outline-none transition focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-100"
-            />
-            <button
-              type="submit"
-              disabled={sending || !text.trim()}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(247,127,0,0.5)] transition active:scale-95 disabled:opacity-40 disabled:shadow-none"
-              aria-label="Envoyer"
+          {/* Saisie — ou barre de blocage si j'ai bloqué la personne */}
+          {blocked ? (
+            <div className="safe-bottom sticky bottom-0 flex items-center justify-between gap-3 border-t border-line bg-white px-4 py-3 md:rounded-b-3xl">
+              <p className="text-sm text-gray-600">Vous avez bloqué cette personne.</p>
+              <button onClick={toggleBlock} className="btn-outline px-3 py-1.5 text-sm">
+                Débloquer
+              </button>
+            </div>
+          ) : (
+            <form
+              onSubmit={send}
+              className="safe-bottom sticky bottom-0 flex items-center gap-2 border-t border-line bg-white px-3 py-3 md:rounded-b-3xl"
             >
-              <Send size={18} />
-            </button>
-          </form>
+              <input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Votre message…"
+                className="flex-1 rounded-full border border-line bg-cream-200 px-4 py-3 text-[15px] outline-none transition focus:border-primary-400 focus:bg-white focus:ring-2 focus:ring-primary-100"
+              />
+              <button
+                type="submit"
+                disabled={sending || !text.trim()}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(247,127,0,0.5)] transition active:scale-95 disabled:opacity-40 disabled:shadow-none"
+                aria-label="Envoyer"
+              >
+                <Send size={18} />
+              </button>
+            </form>
+          )}
+
+          {/* Feuille d'actions — appui sur « ⋮ » d'un message ou de la conversation */}
+          {menu && (
+            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setMenu(null)}>
+              <div className="w-full max-w-md rounded-t-3xl bg-white p-2 pb-6" onClick={(e) => e.stopPropagation()}>
+                {menu.kind === 'msg' ? (
+                  <MenuItem icon={<Trash2 size={18} />} label="Supprimer le message" danger onClick={() => delMessage(menu.id)} />
+                ) : (
+                  <>
+                    <MenuItem icon={<Archive size={18} />} label={archived ? 'Désarchiver la conversation' : 'Archiver la conversation'} onClick={toggleArchive} />
+                    <MenuItem icon={<Ban size={18} />} label={blocked ? 'Débloquer la personne' : 'Bloquer la personne'} onClick={toggleBlock} />
+                    <MenuItem icon={<Flag size={18} />} label="Signaler la conversation" danger onClick={() => { setMenu(null); setReporting(true) }} />
+                    <MenuItem icon={<Trash2 size={18} />} label="Supprimer la conversation" danger onClick={delConv} />
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {reporting && <ReportModal onClose={() => setReporting(false)} onSubmit={submitReport} />}
       </div>
     </div>
   )

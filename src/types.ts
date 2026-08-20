@@ -89,6 +89,11 @@ export interface Conversation {
   lastAt?: number
   /** id de l'expéditeur du dernier message (pour détecter les non-lus) */
   lastSenderId?: string
+  /** Archivée de MON côté (masquée de la liste principale). */
+  archived?: boolean
+  /** J'ai bloqué l'autre / l'autre m'a bloqué. */
+  blockedByMe?: boolean
+  blockedMe?: boolean
 }
 
 export interface Message {
@@ -97,6 +102,8 @@ export interface Message {
   senderId: string
   body: string
   createdAt: number
+  /** Supprimé pour tout le monde (le corps est vidé). */
+  deleted?: boolean
 }
 
 // — Panier & commandes —

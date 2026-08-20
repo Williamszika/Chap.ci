@@ -450,6 +450,27 @@ export async function phpFetchMessages(conversationId: string): Promise<Message[
 export async function phpSendMessage(conversationId: string, body: string): Promise<Message> {
   return req<Message>(`/conversations/${conversationId}/messages`, { method: 'POST', body: { body } })
 }
+/** Supprime un de MES messages (pour tout le monde). */
+export async function phpDeleteMessage(conversationId: string, messageId: string): Promise<void> {
+  await req(`/conversations/${conversationId}/messages/${messageId}`, { method: 'DELETE' })
+}
+/** Supprime la conversation de MON côté (l'autre garde la sienne). */
+export async function phpDeleteConversation(conversationId: string): Promise<void> {
+  await req(`/conversations/${conversationId}`, { method: 'DELETE' })
+}
+/** Archive ou désarchive de MON côté. */
+export async function phpArchiveConversation(conversationId: string, archived: boolean): Promise<void> {
+  await req(`/conversations/${conversationId}/archive`, { method: 'POST', body: { archived } })
+}
+/** Bloque ou débloque l'autre participant ; renvoie l'état résultant. */
+export async function phpBlockConversation(conversationId: string, block: boolean): Promise<boolean> {
+  const d = await req<{ blocked: boolean }>(`/conversations/${conversationId}/block`, { method: 'POST', body: { block } })
+  return !!d.blocked
+}
+/** Signale la conversation à la modération (motifs cochés + détail libre). */
+export async function phpReportConversation(conversationId: string, reasons: string[], details: string): Promise<void> {
+  await req(`/conversations/${conversationId}/report`, { method: 'POST', body: { reasons, details } })
+}
 
 /** « Temps réel » par polling : émet les nouveaux messages d'une conversation. */
 export function phpPollMessages(conversationId: string, onInsert: (m: Message) => void): () => void {
