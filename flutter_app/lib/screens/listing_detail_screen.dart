@@ -534,8 +534,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       final convId = await Conversation.ouvrirAvec(a.id, a.sellerId!);
       if (!mounted) return;
       Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) =>
-            ConversationScreen(conversationId: convId, titre: a.sellerName),
+        builder: (_) => ConversationScreen(
+            conversationId: convId, titre: a.sellerName, autreId: a.sellerId),
       ));
     } on ApiException catch (e) {
       if (mounted) _info(context, e.message);

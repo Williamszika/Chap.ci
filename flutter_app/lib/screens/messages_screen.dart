@@ -164,6 +164,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
             titre: titre,
             bloqueInitial: c.blockedByMe,
             archiveInitial: c.archived,
+            // L'autre personne = celui des deux participants qui n'est pas moi.
+            autreId: c.buyerId == _monId ? c.sellerId : c.buyerId,
           ),
         ));
         _recharger(); // au retour, le dernier message / l'état a pu changer

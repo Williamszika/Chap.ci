@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../format.dart';
 import '../theme.dart';
+import 'vendeur_screen.dart';
 
 /// La conversation (le fil de discussion) acheteur ↔ vendeur.
 ///
@@ -14,12 +15,14 @@ class ConversationScreen extends StatefulWidget {
   final String titre; // nom de l'autre, ou titre de l'annonce
   final bool bloqueInitial; // l'autre est-il déjà bloqué par moi ?
   final bool archiveInitial; // la conversation est-elle déjà archivée ?
+  final String? autreId; // l'id de l'autre personne (pour ouvrir son profil)
   const ConversationScreen({
     super.key,
     required this.conversationId,
     required this.titre,
     this.bloqueInitial = false,
     this.archiveInitial = false,
+    this.autreId,
   });
 
   @override
@@ -91,19 +94,25 @@ class _ConversationScreenState extends State<ConversationScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Row(
-          children: [
-            _avatar(),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                widget.titre.isEmpty ? 'Discussion' : widget.titre,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+        title: InkWell(
+          // En-tête cliquable → profil public de la personne.
+          onTap: (widget.autreId != null && widget.autreId!.isNotEmpty)
+              ? _ouvrirProfil
+              : null,
+          child: Row(
+            children: [
+              _avatar(),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.titre.isEmpty ? 'Discussion' : widget.titre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -155,6 +164,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
         ],
       ),
     );
+  }
+
+  /// Ouvre le profil public de l'autre personne (au toucher de l'en-tête).
+  void _ouvrirProfil() {
+    final id = widget.autreId;
+    if (id == null || id.isEmpty) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => VendeurScreen(sellerId: id, sellerName: widget.titre),
+    ));
   }
 
   /// L'avatar rond de l'en-tête : dégradé vert de la marque + initiale du nom,

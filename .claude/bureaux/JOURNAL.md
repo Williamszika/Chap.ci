@@ -3648,3 +3648,14 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Côté site** : **déjà en place** (`Conversation.tsx:258` — avatar vert + initiale + nom +
   « ⋮ »), déployé en production. Rien à refaire ; l'app rejoint simplement le site.
 - Changement app pur — rebuild pour le voir.
+
+### 2026-08-20 23:40 — [Développement] App : en-tête de conversation cliquable → profil public
+- **Demande du Patron** : toucher l'en-tête de la conversation ouvre le profil public de
+  l'autre personne.
+- **Fait** : l'en-tête (avatar + nom) est enveloppé dans un `InkWell` → ouvre `VendeurScreen`
+  avec l'id de l'autre. Le modèle `Conversation` capte désormais `buyerId`/`sellerId` (le
+  serveur les renvoyait déjà) ; les trois points d'ouverture d'une conversation passent
+  l'`autreId` : fiche annonce (`a.sellerId`), profil vendeur (`widget.sellerId`), liste des
+  messages (celui des deux participants qui n'est pas moi). En-tête non cliquable si l'id
+  est inconnu. Import mutuel conversation↔vendeur : légal en Dart.
+- Changement app pur — un dernier `flutter run --release` pour le voir.

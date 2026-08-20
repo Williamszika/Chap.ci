@@ -6,6 +6,8 @@ import 'api_client.dart';
 class Conversation {
   final String id;
   final String? listingId;
+  final String? buyerId;
+  final String? sellerId;
   final String? listingTitle;
   final String? listingImage;
   final String? otherName;
@@ -19,6 +21,8 @@ class Conversation {
   const Conversation({
     required this.id,
     this.listingId,
+    this.buyerId,
+    this.sellerId,
     this.listingTitle,
     this.listingImage,
     this.otherName,
@@ -33,6 +37,8 @@ class Conversation {
   factory Conversation.fromJson(Map<String, dynamic> j) => Conversation(
         id: (j['id'] ?? '').toString(),
         listingId: j['listingId']?.toString(),
+        buyerId: j['buyerId']?.toString(),
+        sellerId: j['sellerId']?.toString(),
         listingTitle: j['listingTitle']?.toString(),
         listingImage: j['listingImage']?.toString(),
         otherName: j['otherName']?.toString(),

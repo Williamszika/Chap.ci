@@ -517,7 +517,8 @@ class _VendeurScreenState extends State<VendeurScreen> {
           await Conversation.ouvrirAvec(annonces.first.id, widget.sellerId);
       if (!mounted) return;
       Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ConversationScreen(conversationId: convId, titre: _nom),
+        builder: (_) => ConversationScreen(
+            conversationId: convId, titre: _nom, autreId: widget.sellerId),
       ));
     } on ApiException catch (e) {
       if (mounted) _info(e.message);
