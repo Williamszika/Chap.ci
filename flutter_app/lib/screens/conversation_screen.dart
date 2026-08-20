@@ -92,6 +92,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
       appBar: AppBar(
         title: Text(widget.titre.isEmpty ? 'Discussion' : widget.titre,
             maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'Options de la conversation',
+            onPressed: _menuConversation,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -184,8 +191,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 
-  // ---- Appui long sur un message : le menu d'actions -----------------------
-  void _menuMessage(Msg m, bool mien) {
+  // ---- Feuille d'actions (bas d'écran) : socle partagé ---------------------
+  void _feuille(List<Widget> Function(BuildContext) contenu) {
     showModalBottomSheet(
       context: context,
       backgroundColor: ChapColors.cream,
@@ -196,41 +203,53 @@ class _ConversationScreenState extends State<ConversationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            // On ne supprime QUE ses propres messages, et pas un déjà supprimé.
-            if (mien && !m.deleted)
-              _option(Icons.delete_outline, 'Supprimer le message', () {
-                Navigator.pop(ctx);
-                _supprimerMessage(m);
-              }),
-            _option(
-                _archive ? Icons.unarchive_outlined : Icons.archive_outlined,
-                _archive
-                    ? 'Désarchiver la conversation'
-                    : 'Archiver la conversation', () {
-              Navigator.pop(ctx);
-              _basculerArchive();
-            }),
-            _option(
-                _bloque ? Icons.lock_open_outlined : Icons.block_outlined,
-                _bloque ? 'Débloquer la personne' : 'Bloquer la personne', () {
-              Navigator.pop(ctx);
-              _basculerBlocage();
-            }),
-            _option(Icons.flag_outlined, 'Signaler la conversation', () {
-              Navigator.pop(ctx);
-              _signaler();
-            }, danger: true),
-            _option(Icons.delete_sweep_outlined, 'Supprimer la conversation',
-                () {
-              Navigator.pop(ctx);
-              _supprimerConversation();
-            }, danger: true),
+            ...contenu(ctx),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
+
+  // Actions au niveau de la CONVERSATION (archiver, bloquer, signaler, supprimer).
+  List<Widget> _optionsConversation(BuildContext ctx) => [
+        _option(
+            _archive ? Icons.unarchive_outlined : Icons.archive_outlined,
+            _archive
+                ? 'Désarchiver la conversation'
+                : 'Archiver la conversation', () {
+          Navigator.pop(ctx);
+          _basculerArchive();
+        }),
+        _option(
+            _bloque ? Icons.lock_open_outlined : Icons.block_outlined,
+            _bloque ? 'Débloquer la personne' : 'Bloquer la personne', () {
+          Navigator.pop(ctx);
+          _basculerBlocage();
+        }),
+        _option(Icons.flag_outlined, 'Signaler la conversation', () {
+          Navigator.pop(ctx);
+          _signaler();
+        }, danger: true),
+        _option(Icons.delete_sweep_outlined, 'Supprimer la conversation', () {
+          Navigator.pop(ctx);
+          _supprimerConversation();
+        }, danger: true),
+      ];
+
+  // Bouton « ⋮ » de l'en-tête : les actions de conversation, sans viser un message.
+  void _menuConversation() => _feuille(_optionsConversation);
+
+  // Appui long sur un message : « Supprimer le message » (le sien) + les actions
+  // de conversation.
+  void _menuMessage(Msg m, bool mien) => _feuille((ctx) => [
+        if (mien && !m.deleted)
+          _option(Icons.delete_outline, 'Supprimer le message', () {
+            Navigator.pop(ctx);
+            _supprimerMessage(m);
+          }),
+        ..._optionsConversation(ctx),
+      ]);
 
   Widget _option(IconData icone, String texte, VoidCallback onTap,
       {bool danger = false}) {

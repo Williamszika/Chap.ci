@@ -3628,3 +3628,13 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   de critique — juste le zip corrigé à extraire.
 - **Rien à faire de neuf** : le seul reste est que le Patron ré-extraie le **zip corrigé**
   (empreinte cible `db4f5d0caa53`), déjà envoyé.
+
+### 2026-08-20 21:30 — [Développement] App : les actions de conversation aussi dans l'en-tête
+- **Remarque du Patron** : dans l'app, le menu n'apparaissait qu'à l'appui long sur un
+  message — donc invisible si on ne « touchait » pas un message.
+- **Fait** (`conversation_screen.dart`) : un bouton **« ⋮ »** dans l'`AppBar` ouvre les
+  actions de conversation (Archiver/Désarchiver · Bloquer/Débloquer · Signaler · Supprimer
+  la conversation) sans viser un message. L'appui long garde « Supprimer le message » (le
+  sien) + ces mêmes actions. Socle de feuille partagé (`_feuille`, `_optionsConversation`)
+  pour ne pas dupliquer. Changement app pur — **rebuild de l'app** pour le voir, rien à
+  déployer côté serveur.
