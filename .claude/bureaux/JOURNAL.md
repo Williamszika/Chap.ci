@@ -3701,3 +3701,21 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
     « maximum 5 » au lieu du générique).
 - `php -l` : OK. **Nouvelle empreinte `455e1d37b051`** — `index.php` renvoyé au Patron. C'est
   ce téléversement qui débloque l'épinglage.
+
+### 2026-08-21 00:40 — [Développement] Déploiement du back : réglé, mais après trois faux départs
+- Le téléversement a buté trois fois sur le **même piège** : le navigateur du Mac enregistre
+  un second `index.php` sous « index (1).php », et c'est le doublon qui remontait — l'ancien
+  `index.php` restait actif. Symptômes lus au curl : empreinte figée à `db4f5d0caa53` puis
+  `14c724455e37` (version 1, sans la limite des 5), route `pin` d'abord en 404 puis 401.
+- **Diagnostic** : l'empreinte de `/api/health` est un `md5(file_get_contents(__FILE__))`
+  calculé en direct — donc fiable à l'octet près, aucun cache. Le sondage HTTP des noms de
+  fichiers (`index-max5.php`…) est en revanche **aveugle** : le `api/.htaccess` renvoie tout
+  vers `index.php`, donc un 404 ne prouve pas l'absence du fichier.
+- **Ce qui a marché** : abandonner le renommage. Vider d'abord le dossier Téléchargements du
+  Mac (pour un download propre `index.php` sans « (1) »), puis **Téléverser avec « Écraser les
+  fichiers existants »** — remplacement direct, sans renommer. Empreinte passée à
+  **`455e1d37b051`** ✓, route `pin` en 401 ✓.
+- **Leçon** (déjà dans CLAUDE.md, confirmée) : pour ce Patron, le déploiement fiable d'un
+  fichier unique se fait par **écrasement à l'upload**, jamais par renommage côté cPanel.
+- Reste : le Patron rebâtit l'app (`git pull` + `flutter run --release`) pour le fond foncé et
+  le message « maximum 5 ». Le code app est poussé (commit `9178479`), branche synchronisée.
