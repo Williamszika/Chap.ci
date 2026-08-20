@@ -3414,3 +3414,38 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   à regrouper avec le prochain envoi.
 - **Rappels non traités** (arbitrage/mémoire) : chantier `hover:` sans `md:` toujours en
   attente du Patron ; prochain lot `text-gray-400` suggéré `TopNav.tsx` + `NotificationBell.tsx`.
+
+### 2026-08-19 17:30 — [Développement] Panne e-mail résolue : le relais sortant de l'hébergeur était tombé — diagnostic complet
+- **Symptôme (Patron)** : « je demande le code admin, je ne le reçois pas ». Impossible
+  d'entrer dans le tableau de bord (pour le propriétaire, SEUL le code par e-mail ouvre la
+  serrure — le vieux code fixe `chapci_admin_code` est défini mais jamais appelé).
+- **Boucle rouge/vert (sans deviner)** : le signal était déjà à l'écran. `AdminDashboard.tsx`
+  affiche « Code envoyé par email » si le serveur renvoie `sent>0`, sinon « Envoi
+  impossible ». Croisé avec « les autres e-mails arrivent-ils ? » → **aucun n'arrivait**.
+  Donc : le serveur croit envoyer, mais rien ne sort. Ni un bug du code, ni le compte admin.
+- **La cause, lue dans cPanel → Suivi de la remise** (le signal décisif) : les e-mails vers
+  `@gmail.com` échouaient tous sur
+  `Connection timed out H=gateway1.enmail.co [213.5.176.100]: SMTP timeout after initial
+  connection`, puis `retry time not reached`. Les e-mails vers `@chap.ci` (livraison locale)
+  passaient. **L'hébergeur route tout le courrier sortant externe par un relais
+  (`gateway1.enmail.co`) qui ne répondait plus.** Quotas vérifiés : toutes les boîtes loin
+  du plafond, aucune restreinte — écarté. SPF/DKIM écarté aussi (l'e-mail n'atteignait
+  jamais Gmail pour être vérifié). Panne d'infrastructure côté hébergeur, pas le site.
+- **Confirmation par le retard** : quand le relais s'est rétabli, une dizaine de vieux codes
+  (générés sur 2 jours, chacun expirant en 60 s) sont arrivés d'un coup — le sac postal qui
+  se vide. Preuve que le relais avait bien été le point bloquant, et qu'il est instable.
+- **Résolution** : le relais est revenu (de lui-même ou côté hébergeur) ; e-mails et code
+  admin fonctionnent de nouveau, entrée admin OK.
+- **Ce qui aurait empêché la panne — et reste à faire** : ne plus dépendre du relais de
+  l'hébergeur. Option B préparée : un SMTP externe authentifié (Brevo, gratuit 300/j) dans
+  `api/data/smtp.json` via l'écran Admin → Réglages SMTP → `send_mail()` enverrait en direct
+  (`smtp_send`), contournant `gateway1.enmail.co`, avec SPF/DKIM propres pour Gmail. **Plus
+  urgent maintenant que ça remarche, mais à faire AVANT CinetPay** — les reçus de paiement
+  ne peuvent pas dépendre d'un relais qui tombe deux jours.
+- **Leçon durable** : une panne d'envoi d'e-mail est **invisible depuis le site** (le serveur
+  répond « envoyé » alors que le message meurt dans la file). Le seul endroit où elle se lit
+  est **cPanel → Suivi de la remise**. À vérifier EN PREMIER si quelqu'un signale « je ne
+  reçois pas d'e-mail », avant de soupçonner le code.
+- ⚠️ **Sécurité — à nettoyer** : la porte de secours proposée pendant la panne
+  (`api/data/.admin_otp` = `123456|9999999999`) est un code admin permanent si elle a été
+  créée et non consommée. À supprimer par le Patron s'il l'a posée.
