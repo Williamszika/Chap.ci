@@ -3449,3 +3449,31 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - ⚠️ **Sécurité — à nettoyer** : la porte de secours proposée pendant la panne
   (`api/data/.admin_otp` = `123456|9999999999`) est un code admin permanent si elle a été
   créée et non consommée. À supprimer par le Patron s'il l'a posée.
+
+### 2026-08-20 00:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde de nuit, **tout vert**. Santé 200 partout (PHP 8.5.8), ménage 0 purge,
+  modération vide, cloisonnement re-testé (403/401) + verrous `/admin/stats` 401 et
+  `/api/data/push.json` 404. Empreintes API/seo prouvées inchangées ; `empreinteSite` en
+  écart **connu** (le front de prod ne porte pas encore `bcbbb03`, les cibles tactiles du
+  19/08 — à emporter au prochain zip). Scans code serveur (5 `query()` concaténées
+  ré-inspectées une à une, tables littérales, `$limit/$offset` castés/bornés — RAS) et
+  Flutter inchangés. CSP RAS. `crt.sh` 502 → repli honnête sur 12/10/2026 (53 j).
+- **Le point de la clé de 65 caractères s'est éteint** : les deux appels externes sont
+  sortis de la fenêtre 24 h, plus rien à chercher dans claude.ai → Routines. `cron_fail`/
+  `mtoken_fail` = uniquement ses propres tests de cloisonnement. `admin_code_emailed` 6 /
+  `admin_unlock_ok` 2 / `admin_unlock_fail` 0 — friction OTP normale (c'est la session du
+  Patron pendant la panne e-mail du 19/08 ; le Gardien l'ignore, sa lecture reste juste).
+- **Problèmes ouverts** : aucun. Propositions : aucune.
+
+### 2026-08-20 01:00 — [Développement] La clé de 65 caractères : source probable identifiée, pour mémoire
+- Le point s'est refermé de lui-même (sorti de la fenêtre), mais je consigne ce que j'ai
+  trouvé en lisant `server/index.php` pour la panne e-mail, **au cas où il réapparaîtrait** :
+  le **jeton de modération** vaut `'cmst_' . bin2hex(random_bytes(30))` (index.php:~7183) =
+  `cmst_` + 60 hex = **exactement 65 caractères**. La signature que le Gardien traquait était
+  `cron/stats · cle-differente(entete, 65 car.)`. Hypothèse la plus simple : un appelant
+  (une vieille routine, un script) envoyait le **jeton de modération dans l'en-tête
+  `X-Cron-Key`** au lieu de la clé cron — d'où « clé différente, 65 car. ». Bénin (cron/stats
+  rejette, 403) et éteint aujourd'hui. Si la signature 65-car. revient : chercher un appelant
+  qui confond `X-Cron-Key` et `X-Service-Token`, pas une attaque.
+- **Rappels de calendrier repris du Gardien** : prochain zip = emporter `dist/` (API et
+  `seo.php` déjà à jour) ; `targetSdk 35` accepté par Google jusqu'au 30/08 (10 jours).
