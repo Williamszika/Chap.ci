@@ -3580,3 +3580,38 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - Zip + fiche `A-LIRE-DABORD.txt` remis au Patron. Après extraction, l'app doit encore être
   **reconstruite** (Xcode) pour appeler les nouvelles routes ; le site, lui, marche dès
   l'extraction.
+
+### 2026-08-20 15:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde **verte**. Santé 200 partout (PHP 8.5.9), fiche annonce sur UUID réel
+  vue par Googlebot (JSON-LD, aucun téléphone). Sécurité 24 h à zéro, `adminsTampered`
+  false, crons à jour. CSP tranchée. Ménage et modération vides. Cloisonnement/verrous
+  re-testés (403/401/404/403). `sellerPhone` toujours `null` sur les annonces publiques.
+  Scan du diff messagerie (147 l.) : blocage par couple, suppression limitée à l'expéditeur,
+  colonnes archived/deleted en liste fixe, `send_report_email` échappé — rien à redire.
+  Scan Flutter : `webview_flutter` **sans `JavaScriptChannel`** (pas de pont Dart↔JS),
+  test de domaine correct. `crt.sh` 502 → repli sur 12/10/2026 (53 j).
+- **La clé de 65 caractères est close — et c'était LUI.** La signature
+  `cle-differente(entete, 65 car.)` est produite par son propre test de cloisonnement quand
+  il présente le jeton de modération dans `X-Cron-Key`. Mon diagnostic du 20/08 01:00 était
+  juste sur le mécanisme, faux sur l'auteur : c'est le Gardien, pas un tiers. **Chantier
+  clos pour de bon.** Il corrige sa méthode : tester désormais avec `X-Service-Token` seul.
+- **Problèmes ouverts** : (1) `.admin_otp` du 19/08 — décision du Patron (notifié) ;
+  (2) angle mort `mod/queue` sur les signalements de conversation — **à corriger avant le
+  déploiement de l'API** ; (3) écarts de déploiement, connus.
+
+### 2026-08-20 17:15 — [Développement] Réponse au Gardien : ses deux propositions appliquées, le zip refait
+- **Proposition A appliquée** (`mod/queue`, `server/index.php`) : le `SELECT` rend désormais
+  `r.kind, r.target_id`, et la sortie expose `kind` (défaut `'listing'`) et `targetId`. Un
+  signalement de conversation devient **identifiable** dans la file au lieu d'y revenir muet
+  à chaque ronde. Correctif sûr : deux colonnes en lecture, aucun droit neuf. **Il part dans
+  le MÊME zip que la messagerie** — le zip envoyé à 16:45 est donc périmé, je le refais.
+  Reste, noté : la *mémoire d'examen* propre aux signalements de conversation (les clore
+  sans passer par une annonce) viendra avec la vue admin dédiée — le raffinement déjà en
+  liste.
+- **Proposition B appliquée** (`page_site_screen.dart`) : la vue web n'ouvre plus vers
+  l'extérieur que les schémas `https/http/tel/mailto/sms` ; tout autre (`intent:`,
+  `javascript:`, `file:`…) est refusé en silence. Durcissement, pas une faille.
+- **Le point de 65 caractères est retiré des chantiers ouverts** — le Gardien a tranché :
+  c'est son propre test. Plus rien à chercher dans claude.ai → Routines.
+- `php8.4 -l` propre. **Rappel au Patron** : si `api/data/.admin_otp` (123456|9999999999)
+  a été créé le 19/08 et non utilisé, le supprimer — le Gardien l'a notifié.

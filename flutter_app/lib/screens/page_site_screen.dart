@@ -45,8 +45,11 @@ class _PageSiteScreenState extends State<PageSiteScreen> {
           final surChapci = host == 'chap.ci' || host.endsWith('.chap.ci');
           if (surChapci) return NavigationDecision.navigate;
           // Lien externe : hors de la vue de confiance → navigateur/app du
-          // téléphone, jamais chargé ici.
-          if (uri != null) {
+          // téléphone. On n'ouvre QUE des schémas attendus (web, tel, mail,
+          // sms) ; tout autre (intent:, javascript:, file:…) est refusé en
+          // silence — durcissement, même si le contenu vient de notre site.
+          const schemasOk = {'https', 'http', 'tel', 'mailto', 'sms'};
+          if (uri != null && schemasOk.contains(uri.scheme)) {
             launchUrl(uri, mode: LaunchMode.externalApplication);
           }
           return NavigationDecision.prevent;

@@ -9443,7 +9443,7 @@ try {
       ];
     };
     // 1) Signalements ouverts (priorité) + l'annonce liée.
-    $rp = $pdo->query("SELECT r.id AS report_id, r.listing_id, r.reason, r.details, r.created_at AS reported_at,
+    $rp = $pdo->query("SELECT r.id AS report_id, r.listing_id, r.kind, r.target_id, r.reason, r.details, r.created_at AS reported_at,
         l.id, l.title, l.description, l.price, l.category_id, l.images, l.hidden, l.user_id, l.created_at
       FROM reports r LEFT JOIN listings l ON l.id = r.listing_id
       WHERE r.status = 'open' ORDER BY r.created_at DESC LIMIT 200")->fetchAll();
@@ -9484,6 +9484,12 @@ try {
       return [
         'reportId'   => $r['report_id'],
         'listingId'  => $r['listing_id'],
+        // 'listing' (défaut) ou 'conversation' : un signalement de conversation
+        // n'a pas de listing_id (pour ne pas gonfler l'auto-masquage), mais il
+        // DOIT rester identifiable dans la file — sinon il y revient à chaque
+        // ronde sans contexte. Sa cible est la conversation (`targetId`).
+        'kind'       => $r['kind'] ?: 'listing',
+        'targetId'   => $r['target_id'] ?? null,
         'reason'     => $r['reason'],
         'details'    => $r['details'],
         'reportedAt' => $signaleLe,
