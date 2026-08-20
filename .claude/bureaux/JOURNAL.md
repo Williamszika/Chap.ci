@@ -3568,3 +3568,15 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   d'affichage, pas un manque fonctionnel).
 - **À déployer ensemble** : la nouvelle API (Phase A) + le nouveau `dist/` (Phase C + les
   cibles tactiles du 19/08). Zip en préparation.
+
+### 2026-08-20 16:45 — [Développement] Zip « chap-messagerie » construit (API + site) — prêt à extraire
+- **Un seul zip** qui met à jour l'API **et** le site en une extraction dans `public_html` :
+  `api/index.php` (routes de messagerie) + tout `dist/` (affichage web + cibles tactiles du
+  19/08). Contrôlé : **aucun** `.htaccess`, `config.php`, `api/data/`, `uploads/` dedans ;
+  le dossier `api/` du zip ne contient que `index.php`.
+- **Empreintes** (à vérifier sur `/api/health` après extraction) : `empreinte`
+  **8cfed3391c00** (avant 54a4e4f4367b) · `empreinteSite` **f845ff9b6932** (avant
+  35bd5cd8f3ad) · `empreinteSeo` **c57f0f1c6e55** inchangée (ne doit pas bouger).
+- Zip + fiche `A-LIRE-DABORD.txt` remis au Patron. Après extraction, l'app doit encore être
+  **reconstruite** (Xcode) pour appeler les nouvelles routes ; le site, lui, marche dès
+  l'extraction.
