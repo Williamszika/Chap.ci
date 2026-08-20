@@ -3477,3 +3477,38 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   qui confond `X-Cron-Key` et `X-Service-Token`, pas une attaque.
 - **Rappels de calendrier repris du Gardien** : prochain zip = emporter `dist/` (API et
   `seo.php` déjà à jour) ; `targetSdk 35` accepté par Google jusqu'au 30/08 (10 jours).
+
+### 2026-08-20 05:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde du matin, **tout vert**. Santé 200 partout (accueil, `/api/health`,
+  `sitemap.xml`), PHP **8.5.9** (chantier PHP clos, aucun rappel). Ménage : 0 purge partout.
+  Verrous testés : `/api/admin/stats` 401, `/api/data/` 404, `mod/queue` sans jeton 401.
+  Cloisonnement croisé re-testé : jeton modération sur `cron/stats` → « Clé invalide »,
+  clé cron sur `mod/queue` → « Jeton de service requis » — les deux comme attendu.
+- **Les trois empreintes** : `empreinte` (54a4e4f4367b) et `empreinteSeo` (c57f0f1c6e55)
+  identiques au commit HEAD du dépôt (`5122e17`) — vérifié par `md5sum` sur le contenu Git,
+  API et `seo.php` à jour. `empreinteSite` : **construit** localement (`npm ci && npm run
+  build`) → `cd36e458964b`, différent du servi `35bd5cd8f3ad`. **Écart connu, inchangé** :
+  le commit `bcbbb03` (cibles tactiles de `DealCard.tsx`, 19/08) n'est pas encore dans le
+  zip déployé ; `deposeSite` toujours au 17/08 10:28. Rien de nouveau à signaler, même
+  écart que la ronde de 00:50 — à emporter au prochain zip, sans urgence.
+- **Scan de code** : `git log 5122e17..HEAD` sur `server/index.php`, `web/seo.php`,
+  `flutter_app/` **vide** — aucun commit sensible depuis la ronde précédente, rien à
+  rescanner. `api_client.dart`/`pubspec.yaml`/`preparer_plateformes.dart` inchangés.
+- **Sécurité 24 h** : `suspiciousIps` vide, `rateLimited` 0, `adminUnlockFail` 0, `mfaFail`
+  0, `adminsTampered` false, `loginFail` 0, `newSignups` 0. `cron_fail` 5, `mtoken_fail` 5 —
+  **tous** portent la signature exacte du test de cloisonnement du Gardien (`cron/stats ·
+  sans-cle` / `missing`), accumulés sur la fenêtre 24 h à travers plusieurs rondes : **zéro
+  externe** cette fois. Le point de la clé de 65 caractères reste éteint (comme constaté à
+  00:50), rien à rouvrir. `derniersPassages` : toutes les tâches à jour selon leur cadence
+  (`report` toujours à son unique passage du 01/08, mensuel attendu).
+- **CSP** : fenêtre 7 j = uniquement `api.bigdatacloud.net` (28), déjà présent dans l'en-tête
+  `content-security-policy-report-only` servi (`connect-src`) — vérifié directement,
+  question tranchée le 15/08, non rouverte.
+- **Certificat TLS** : `crt.sh` répond 502 cette ronde encore — repli honnête sur la
+  dernière valeur connue (17/08) : expiration **12/10/2026**, largement au-dessus du
+  seuil de 21 j. Aucune alerte, aucune lecture inventée.
+- **Modération** : file vide (0 signalement, 0 récente). Digest envoyé, compteurs à
+  zéro → `skipped: true` (RAS, pas d'e-mail).
+- **Problèmes ouverts** : aucun nouveau. Seul point connu — `empreinteSite` en attente du
+  prochain zip (voir ci-dessus). **Propositions au Patron** : aucune action immédiate.
+- **Pour les autres bureaux** : rien de neuf ; RAS ailleurs.
