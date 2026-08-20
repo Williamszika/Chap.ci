@@ -3683,3 +3683,21 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Le Patron** : (1) téléverser `index.php` dans `public_html/api/` puis vérifier l'empreinte
   `14c724455e37` ; (2) `flutter run --release` (le `pub get` du nouveau paquet est
   automatique) pour rebâtir l'app.
+
+### 2026-08-21 00:10 — [Développement] Épinglage : « Action impossible » diagnostiqué, + max 5 + ligne foncée
+- **Signal du Patron** : capture montrant le bandeau « Action impossible pour le moment » en
+  épinglant. L'app était donc bien à jour (ce bandeau est du code neuf) — mais l'action
+  échouait.
+- **Boucle rouge/vert** (curl, cache-buster) : `GET /api/health` renvoyait l'empreinte
+  **`db4f5d0caa53`** (ancienne) et `POST /conversations/zzz/pin` répondait **404**. Conclusion
+  nette : le back `14c724455e37` n'avait **pas** été téléversé ; la route `pin` n'existait pas
+  en production. Pas une panne de code — un déploiement manquant.
+- **Deux ajouts demandés** en même temps :
+  - **Max 5 épinglés** (`server/index.php`, route `pin`) : compte les conversations déjà
+    épinglées de mon côté (acheteur OU vendeur) et refuse la 6e (422, message français).
+  - **Ligne foncée** (`messages_screen.dart`) : fond `line2` sur une conversation épinglée,
+    en plus de la remontée en tête.
+  - Les actions de glissement affichent désormais le **message exact du serveur** (le
+    « maximum 5 » au lieu du générique).
+- `php -l` : OK. **Nouvelle empreinte `455e1d37b051`** — `index.php` renvoyé au Patron. C'est
+  ce téléversement qui débloque l'épinglage.
