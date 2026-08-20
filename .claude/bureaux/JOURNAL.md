@@ -3615,3 +3615,16 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   c'est son propre test. Plus rien à chercher dans claude.ai → Routines.
 - `php8.4 -l` propre. **Rappel au Patron** : si `api/data/.admin_otp` (123456|9999999999)
   a été créé le 19/08 et non utilisé, le supprimer — le Gardien l'a notifié.
+
+### 2026-08-20 20:48 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Ronde verte.** Santé 200 partout (PHP 8.5.9), sécurité 24 h à zéro (`adminsTampered`
+  false, aucune IP suspecte), ménage et modération vides, CSP tranchée, verrous re-testés
+  (401/404/403). `cron_fail`/`mtoken_fail` = uniquement ses propres tests de cloisonnement
+  (65 caractères inclus — chapitre clos). Scans site et app RAS.
+- **Confirme l'écart de déploiement** : en ligne = zip de 16:45 (empreinte `8cfed3391c00`,
+  commit `56e73a2`) ; le correctif `mod/queue` (kind/targetId) + durcissement webview (HEAD
+  `2c3c7f0`, empreinte `db4f5d0caa53`) **pas encore extrait**. Il a vérifié les deux
+  correctifs par `git diff` : sûrs (2 colonnes en lecture ; liste blanche de schémas). Rien
+  de critique — juste le zip corrigé à extraire.
+- **Rien à faire de neuf** : le seul reste est que le Patron ré-extraie le **zip corrigé**
+  (empreinte cible `db4f5d0caa53`), déjà envoyé.
