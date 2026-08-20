@@ -3659,3 +3659,27 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   messages (celui des deux participants qui n'est pas moi). En-tête non cliquable si l'id
   est inconnu. Import mutuel conversation↔vendeur : légal en Dart.
 - Changement app pur — un dernier `flutter run --release` pour le voir.
+
+### 2026-08-20 23:55 — [Développement] Messagerie : glisser une conversation (épingler/archiver/bloquer/supprimer) + onglets au doigt
+- **Demande du Patron** : « glisser à gauche et à droite » sur une conversation pour avoir
+  Supprimer, Archiver, Bloquer, Épingler, Désépingler ; et changer de section de l'app en
+  glissant de gauche à droite.
+- **Épinglage — nouveau, côté serveur** (`server/index.php`) : propre à chaque participant,
+  comme l'archivage. Migration `buyer_pinned_at` / `seller_pinned_at` (déjà posée) ;
+  `GET /conversations` calcule `pinned` et **trie enfin la liste** (épinglées d'abord, puis
+  par récence — corrige au passage la conversation « 8 min » vue coincée en bas) ;
+  nouvelle route `POST /conversations/{id}/pin` (corps `{pinned:bool}`, whitelist de colonne).
+  `php -l` : OK. **Empreinte `14c724455e37`** — `index.php` envoyé au Patron pour
+  téléversement dans `public_html/api/`.
+- **App** (`messages_screen.dart`) : chaque ligne enveloppée dans un `Slidable`
+  (paquet `flutter_slidable` ajouté au `pubspec`). Glisser→droite = Épingler/Désépingler
+  (orange, épingle affichée à côté du nom) ; glisser→gauche = Archiver, Bloquer, Supprimer
+  (Supprimer confirme d'abord). `SlidableAutoCloseBehavior` : ouvrir une ligne referme les
+  autres. Modèle `Conversation` : champ `pinned` + méthode `epingler()`.
+- **Onglets au doigt** (`main.dart`) : l'`IndexedStack` devient un `PageView` — on glisse
+  entre Accueil · Explorer · Messages · Compte. Chaque page gardée en vie
+  (`AutomaticKeepAliveClientMixin`) pour ne pas se recharger ; la barre du bas et les boutons
+  internes (« Voir tout », « Aller à mon compte ») sautent à la page via un `PageController`.
+- **Le Patron** : (1) téléverser `index.php` dans `public_html/api/` puis vérifier l'empreinte
+  `14c724455e37` ; (2) `flutter run --release` (le `pub get` du nouveau paquet est
+  automatique) pour rebâtir l'app.
