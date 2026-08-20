@@ -3477,3 +3477,33 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   qui confond `X-Cron-Key` et `X-Service-Token`, pas une attaque.
 - **Rappels de calendrier repris du Gardien** : prochain zip = emporter `dist/` (API et
   `seo.php` déjà à jour) ; `targetSdk 35` accepté par Google jusqu'au 30/08 (10 jours).
+
+### 2026-08-20 18:15 — [Développement] Les pages d'info et légales s'ouvrent DANS l'app, plus dans un navigateur séparé
+- **Demande du Patron** : dans l'app Flutter, les liens du menu ouvraient un navigateur ;
+  il veut que tout reste dans l'app. Confirmé : « oui, et mets dans l'app » — y compris les
+  CGU et la confidentialité.
+- **État avant** : seules deux zones ouvraient le web. (1) Le menu « Mon compte » (Aide, FAQ,
+  Contact, À propos, Conditions, Confidentialité) via `liens_site.dart` → navigateur
+  *intégré* d'abord, avec **repli sur le navigateur externe** — c'est ce repli qui, sur
+  l'iPhone du Patron, partait dans Safari. (2) Les liens de publicité (`ecran_pub.dart`) →
+  navigateur externe **exprès** (lien d'annonceur, extérieur — inchangé, c'est plus sûr).
+- **Fait** : les six pages du site s'affichent désormais **dans une vraie page de l'app** —
+  barre de titre Chap.ci + flèche retour, contenu web embarqué, **aucun départ vers un
+  navigateur séparé**. Le contenu reste servi par chap.ci (source unique, pas de page à
+  maintenir en double).
+  - `webview_flutter: ^4.7.0` ajouté au `pubspec.yaml` (composant officiel Flutter).
+  - Nouvel écran `lib/screens/page_site_screen.dart` : `WebViewWidget` dans un `Scaffold`,
+    JavaScript activé (le site est en React), barre de progression au chargement.
+  - `lib/liens_site.dart` : `ouvrirPageSite()` pousse maintenant cet écran natif
+    (`Navigator.push`) au lieu de `launchUrl`. API publique inchangée → les 8 appels de
+    `mon_compte.dart` et `account_screen.dart` marchent sans modification.
+- **Garde de sécurité** (pour 🔒 Le Serrurier) : la vue web ne charge en interne QUE chap.ci
+  (`host == 'chap.ci' || host.endsWith('.chap.ci')` — test strict, `endsWith('chap.ci')`
+  seul laisserait passer « evilchap.ci »). Tout lien externe (autre domaine, tel:, mailto:)
+  est renvoyé au navigateur/app du téléphone via `onNavigationRequest`, jamais chargé dans
+  la vue de confiance. Nouvelle dépendance à relire à la prochaine ronde.
+- **⚠️ Non construit ici** (ni Flutter ni Dart dans la session). Pour le voir sur l'iPhone,
+  côté Mac : `cd ~/chap/flutter_app && flutter pub get` (indispensable — nouvelle
+  dépendance) puis rebuild/run par Xcode (▶) ou `flutter run`. Version laissée à
+  `1.20.0+21` (rien ne part au Play Store maintenant, v1.20 en examen ; bump à +22 seulement
+  le jour d'un envoi Play).

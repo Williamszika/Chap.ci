@@ -25,6 +25,10 @@ dependencies:
   share_plus: ^13.3.0
   # Ouvrir le lien « En savoir plus » d'une publicité (navigateur / lien externe).
   url_launcher: ^6.3.0
+  # Pages d'info et légales (aide, FAQ, CGU…) affichées DANS l'app, en vue web
+  # embarquée : le contenu reste servi par chap.ci (source unique), mais
+  # l'utilisateur ne part jamais dans un navigateur séparé.
+  webview_flutter: ^4.7.0
   google_sign_in: ^6.2.1
   flutter_web_auth_2: ^3.1.2
 
