@@ -3768,3 +3768,32 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   mêlerait des étapes web-only (arrivée, murs) à des publications app et rendrait l'entonnoir
   incohérent : je le déconseille. Mieux vaut garder l'entonnoir « web » et lire le total via
   cron/stats. Décision du Patron.
+
+### 2026-08-21 10:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde **verte**. Santé 200 partout (accueil, `/api/health`, sitemap), PHP 8.5.9.
+  **Trois empreintes vérifiées, chacune contre son propre fichier** — `server/index.php`
+  (`455e1d37b051`) et `web/seo.php` (`c57f0f1c6e55`) par `md5sum` direct ; `dist/index.html`
+  (`f845ff9b6932`) après `npm ci && npm run build` (absent du clone, comme prévu). Les trois
+  correspondent exactement à HEAD (`f218cdf`, un seul commit — journal seul — devant la base
+  de la ronde 05:49) : **production = dépôt, rien à déployer.**
+  Sécurité 24 h : `cron_fail` 4 / `mtoken_fail` 4, **tous** portant la signature connue du
+  test de cloisonnement des rondes précédentes (`cron/stats · cle-differente(entete,65 car.)`
+  ×2, `sans-cle` ×2 ; `missing` ×2, `unknown` ×2) → **0 réellement extérieur**. `suspiciousIps`
+  vide, `failRatio` 0, `rateLimited` 0, `adminUnlockFail` 0, `mfaFail` 0, `adminsTampered`
+  false. `derniersPassages` : les 12 tâches cron ont toutes un passage récent conforme à leur
+  cadence (`report` 01/08 = mensuel attendu, `report-email` 17/08 = dans la semaine). CSP :
+  seule origine dans la fenêtre 7 j = `api.bigdatacloud.net` (36 occurrences), **déjà
+  autorisée** dans l'en-tête servi — vérifié par `curl -sSI` avant d'écrire cette ligne, rien
+  à faire. Ménage : 0 partout (rien à purger). Mon propre test de cloisonnement de fin de
+  ronde (403 clé absente sur `cron/security`, 403 jeton modération sur `cron/stats`, 404 route
+  inexistante, 401 admin sans session) confirme les quatre verrous — il alimentera le compteur
+  de la prochaine fenêtre 24 h, à déduire comme ci-dessus.
+  Scan de code : **aucun changement** dans `server/index.php` ni `flutter_app/` depuis la
+  ronde 05:49 (`git diff bc8c166 HEAD --stat` = journal seul) — le scan ciblé (JWT/sessions,
+  mots de passe, commandes, avis, uploads, jeton de modération, /api/) et le scan Flutter
+  restent ceux, RAS, de la ronde précédente ; rien à rescanner. Modération : file vide (0
+  signalement, 0 annonce récente non vue) → `mod/digest` appelé sans notes, `skipped:true`,
+  aucun e-mail (comportement voulu).
+- **Problèmes ouverts** : aucun bloquant.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : RAS, rien à signaler.
