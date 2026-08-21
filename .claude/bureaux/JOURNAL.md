@@ -3719,3 +3719,52 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   fichier unique se fait par **écrasement à l'upload**, jamais par renommage côté cPanel.
 - Reste : le Patron rebâtit l'app (`git pull` + `flutter run --release`) pour le fond foncé et
   le message « maximum 5 ». Le code app est poussé (commit `9178479`), branche synchronisée.
+
+### 2026-08-21 05:49 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Fait** : tout vert. Santé 200 (PHP 8.5.9), sitemap 200. **Les trois empreintes = HEAD
+  `bc8c166` construit** : `455e1d37b051` / `c57f0f1c6e55` / `f845ff9b6932` — rien à déployer,
+  l'épinglage (max 5) et la messagerie sont bien en ligne. Sécurité 24 h propre
+  (`suspiciousIps` vide, `failRatio` 0, `adminsTampered` false). `cron_fail` 4 et 4 des 6
+  `mtoken_fail` = signature connue du test de cloisonnement des rondes du 20/08. **2
+  `mtoken_fail` « unknown »** (un jeton présenté mais non reconnu, pas une absence) hors
+  patron connu — sans IP suspecte ni rate-limit : **à surveiller, pas d'alerte**. Scan du
+  diff `2c3c7f0`→HEAD : route `pin` relue — `require_user`, propriété stricte (colonne parmi
+  2 littéraux), plafond 5 côté serveur non contournable, requêtes préparées. RAS. Scan
+  Flutter : `flutter_slidable ^3.1.0` = paquet UI pur, aucune couche native ni traçage.
+  Cloisonnement re-testé (403/401/404 attendus). TLS : `crt.sh` injoignable, repli sur
+  dernière valeur connue (12/10/2026, >21 j).
+- **Problèmes ouverts** : aucun bloquant.
+
+### 2026-08-21 08:10 — [Croissance] 📣 Le Crieur (versé par le Dev)
+- **Fait** : catalogue 10/5/5/5 (annonces/vendeurs/communes/catégories), +1 en 3 jours (« Un
+  Lit capitonné », Treichville, 20/08) — mais **même vendeur** que « Lit en mélanine » :
+  profondeur, pas diversification. 30 j : 19 utilisateurs (16 nouveaux), 9 créées / 1 vendue /
+  1 masquée, 2 799 visites, 151 visiteurs uniques (+8). SEO tout vert (JSON-LD Product/Offer
+  XOF cohérent, sitemap 380 URLs, 3 pixels dans le bundle servi). 9 mots-clés + 3 messages
+  prêts.
+- **Signal remonté au Dev — l'entonnoir `/publier`** (déployé le 17/08) : `arrivee: 5,
+  mur_connexion: 3, mur_email: 1, formulaire: 2, echec: 0, publiee: 0` — alors qu'1 annonce
+  réelle est apparue le 20/08. Écart signalé sans diagnostic (hors périmètre Croissance).
+
+### 2026-08-21 08:30 — [Développement] Diagnostic de l'écart entonnoir : pas un bug — l'app ne feed pas l'entonnoir
+- **Question** : l'entonnoir web montre `publiee: 0` mais une vraie annonce est née le 20/08.
+- **Boucle de vérité, côté code** (pas d'hypothèse) : (1) le web tire bien
+  `trackEtapePublier('publiee')` sur le chemin de succès — `PostAd.tsx:626`, juste après la
+  création, quand `!editing`. L'instrumentation web est **correcte**. (2) L'app Flutter
+  (`publier_screen.dart`) n'a **aucun** appel de suivi d'entonnoir — vérifié, zéro occurrence.
+- **Conclusion** : l'entonnoir est un diagnostic **du formulaire web**, par conception. Une
+  publication faite **depuis l'app** ne produit aucun de ses six repères. Donc `publiee: 0`
+  ne veut pas dire « personne n'a publié » mais « personne n'a publié **par le formulaire
+  web** » — l'annonce du 20/08 vient de l'app. **Aucun bug à corriger.** Le total réel des
+  publications se lit ailleurs (cron/stats « annonces créées » = 9 sur 30 j).
+- **Le vrai signal, lui, mérite l'œil du Patron** : sur 5 arrivées web, **3 bloquées au mur de
+  connexion, 1 au mur e-mail**, 2 seulement au formulaire, et ces 2 l'ont abandonné (0 échec,
+  0 publiée). Ce sont les **murs d'entrée** (créer un compte, confirmer l'e-mail) qui coupent
+  la publication web, pas les champs du formulaire. À rapprocher de l'idée en attente
+  « vérification e-mail obligatoire à l'inscription » : elle **aggraverait** `mur_email`,
+  surtout au sortir de la panne d'e-mail de cette semaine.
+- **Propositions au Patron** : (a) laisser l'entonnoir tel quel (il fait son travail : diagnostic
+  web) ; (b) si l'on veut un `publiee` total web+app, instrumenter aussi l'app — mais cela
+  mêlerait des étapes web-only (arrivée, murs) à des publications app et rendrait l'entonnoir
+  incohérent : je le déconseille. Mieux vaut garder l'entonnoir « web » et lire le total via
+  cron/stats. Décision du Patron.
