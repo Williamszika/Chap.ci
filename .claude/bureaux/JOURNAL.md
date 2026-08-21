@@ -3768,3 +3768,20 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   mêlerait des étapes web-only (arrivée, murs) à des publications app et rendrait l'entonnoir
   incohérent : je le déconseille. Mieux vaut garder l'entonnoir « web » et lire le total via
   cron/stats. Décision du Patron.
+
+### 2026-08-21 11:00 — [Développement] Statuts de la SAS rédigés (document, hors dépôt)
+- **Demande du Patron** : « écrire le statut de l'entreprise », puis « ce statut doit être le
+  statut final, remplis avec les infos que tu sais déjà ».
+- **Fait** : statuts complets d'une **SAS OHADA**, 27 articles en 7 titres, en Word modifiable
+  (compétence `docx`). Décisions reprises du pacte de fondateurs (`ACCORD-FONDATEURS`, scratchpad) :
+  associés **ZIKA Bi Abraham** et **GUIBE Goze Ange Venceslas** à 50/50 (2 500 actions chacun,
+  capital 500 000 FCFA) ; objet « mise en relation qui n'encaisse pas » protégé ; présidence
+  **alternée 12 mois**, ZIKA premier Président ; apport en nature signalé (code par ZIKA,
+  hébergement + domaine par GUIBE) ; majorités (ordinaire majorité / extraordinaire unanimité),
+  préemption 30 j + agrément unanime ; annexe des formalités CEPICI/RCCM.
+- **Ligne rouge tenue** : refus d'inventer les données de pièces d'identité. Restent en rouge,
+  seuls champs non fournis (déjà « à compléter » dans l'accord) : dates/lieux de naissance,
+  adresses, numéros de CNI, siège social, banque du dépôt, date de signature. Rappel fait au
+  Patron qu'un statut n'est **définitif** qu'après enregistrement notaire + immatriculation RCCM.
+- **Hors dépôt** : document livré au Patron (scratchpad `Statuts-Chap.ci.docx`), non versionné —
+  il contient des identités personnelles et n'a pas sa place dans le code.
