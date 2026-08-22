@@ -3785,3 +3785,43 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Patron qu'un statut n'est **définitif** qu'après enregistrement notaire + immatriculation RCCM.
 - **Hors dépôt** : document livré au Patron (scratchpad `Statuts-Chap.ci.docx`), non versionné —
   il contient des identités personnelles et n'a pas sa place dans le code.
+
+### 2026-08-22 00:49 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : tout vert. Accueil 200, `/api/health` 200 (PHP 8.5.9), sitemap 200. **Les trois
+  empreintes = HEAD `d1b1906` construit** : `455e1d37b051` / `c57f0f1c6e55` / `f845ff9b6932`
+  (dist/index.html reconstruit avec `npm ci && npm run build` puis comparé, pas deviné) — rien
+  à déployer, back/seo/site à jour avec le dépôt. Ménage : rien à purger (visites, événements
+  sécurité, annonces expirées à zéro). Sécurité 24 h propre : `suspiciousIps` vide, `failRatio`
+  0, `loginFail`/`mfaFail`/`rateLimited` 0, `adminsTampered` false (`currentAdmins: []` est le
+  résultat attendu). `derniersPassages` confirme les 13 tâches cron à jour, aucune n'a dépassé
+  sa périodicité — donc pas de clé cPanel périmée, cause n°1 écartée d'emblée.
+  `cron_fail` 4 / `mtoken_fail` 2, comptés bruts puis retraités : la ronde du 21/08 05:49 avait
+  lancé son propre test de cloisonnement dans cette même fenêtre de 24 h et y a laissé sa
+  signature connue (1× `cron/stats · sans-clé` + 1× `mtoken missing`). Après déduction, il reste
+  **3 événements réellement extérieurs** : 1× `cron/stats · sans-clé`, 1× `cron/security ·
+  sans-clé`, 1× `cron/stats · clé-différente(entête,65 car.)`, et 1× `mtoken unknown` — aucun
+  avec IP suspecte ni rate-limit associé. Le cas `clé-différente(entête,65 car.)` mérite l'œil
+  du Patron sans être une alerte : la clé est passée par en-tête (bonne méthode) et fait 65
+  caractères contre 64 pour la vraie — plus proche d'une clé mal recopiée quelque part que d'un
+  balayage. Un seul événement, pas de récidive constatée. CSP Report-Only : une seule origine en
+  violation sur 7 j, `api.bigdatacloud.net` (36 occurrences, `last_at` 21/08) — question déjà
+  tranchée le 15/08, déjà autorisée dans `htaccess-root` (vérifié dans l'en-tête
+  `content-security-policy-report-only` réellement servi, pas dans le dépôt). TLS : `crt.sh`
+  injoignable cette ronde (timeout), repli sur dernière valeur connue (expiration 12/10/2026,
+  encore largement >21 j). Scan de code : **aucun commit ne touche `server/index.php`,
+  `web/seo.php` ni `flutter_app/` depuis le dernier scan sécurité (`bc8c166`, ronde du 21/08
+  05:49)** — les deux commits nouveaux ne sont que des entrées de journal ; périmètre déjà
+  couvert, rien à relire. Modération : file vide (0 signalement ouvert, 0 annonce récente non
+  vue) — digest posté (`skipped:true`, RAS, aucun e-mail, comportement voulu). Cloisonnement
+  re-testé en fin de ronde à 00:49 (403 jeton modération sur `cron/stats`, 401 clé cron sur
+  `mod/queue`) : à déduire de la lecture `cron_fail`/`mtoken_fail` de **demain**, pas
+  aujourd'hui, comme ci-dessus.
+- **Problèmes ouverts** : aucun bloquant. À surveiller sans alerte : `cron/stats ·
+  clé-différente(entête,65 car.)`, un seul événement (commande de reproduction :
+  `curl -sS -H 'X-Cron-Key: <clé + 1 caractère>' 'https://chap.ci/api/cron/stats'`).
+- **Propositions au Patron** : aucune action requise aujourd'hui. Si l'événement
+  `clé-différente(entête,65 car.)` se répète dans les prochaines rondes, comparer la commande
+  de cPanel → Tâches cron avec le bouton « Commande cPanel » de Admin → Tâches auto — une clé
+  copiée avec un caractère en trop (espace, retour à la ligne) donnerait exactement ce
+  symptôme.
+- **Pour les autres bureaux** : rien à signaler.
