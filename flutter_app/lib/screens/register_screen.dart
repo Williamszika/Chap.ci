@@ -64,7 +64,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Créer un compte')),
-      body: SingleChildScrollView(
+      // Plafond de largeur : sur tablette, le formulaire ne s'étire pas sur
+      // toute la largeur (cohérent avec l'écran « modifier le profil »).
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         child: Form(
           key: _formKey,
@@ -196,6 +201,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ],
           ),
+        ),
+      ),
         ),
       ),
     );

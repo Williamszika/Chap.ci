@@ -52,8 +52,8 @@ function Chiffre({ value, label, sub }: { value: string; label: string; sub?: st
   return (
     <div className="rounded-2xl border border-line bg-white px-3 py-3.5 text-center shadow-card">
       <p className="tnum font-display text-lg font-extrabold leading-none text-ink md:text-xl">{value}</p>
-      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
-      {sub && <p className="mt-0.5 text-[10.5px] text-gray-400">{sub}</p>}
+      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      {sub && <p className="mt-0.5 text-[10.5px] text-gray-500">{sub}</p>}
     </div>
   )
 }
@@ -154,7 +154,7 @@ export function MyAdsPanel() {
                       </span>
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${cls}`}>{label}</span>
                     </p>
-                    <p className="mt-0.5 text-[11.5px] text-gray-400">
+                    <p className="mt-0.5 text-[11.5px] text-gray-500">
                       <b className="tnum text-gray-600">{formatFCFA(a.price)}</b> · {a.qty} {a.qty > 1 ? up : u}
                       {st === 'active' && a.expiresAt && <> · fin le <b className="text-gray-600">{dateHeure(a.expiresAt)}</b></>}
                       {st === 'expired' && a.expiresAt && <> · terminée le {dateCourte(a.expiresAt)}</>}

@@ -3785,3 +3785,48 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Patron qu'un statut n'est **définitif** qu'après enregistrement notaire + immatriculation RCCM.
 - **Hors dépôt** : document livré au Patron (scratchpad `Statuts-Chap.ci.docx`), non versionné —
   il contient des identités personnelles et n'a pas sa place dans le code.
+
+### 2026-08-22 06:00 — [Développement] Test de charge (site puis app) + bug d'annonce trouvé et corrigé
+- **Demande du Patron** : « simuler 10 000 personnes en même temps », puis « essaye sur l'app ».
+  Outils qu'il conseille : ApacheBench et **k6** (il a raison de préférer k6). Consigne : ne pas
+  écrouler la prod pour ses vrais utilisateurs.
+- **Méthode « mesurer sans casser »** : refus d'inonder la prod (10 000 connexions = déni de
+  service, suspension probable du mutualisé). Mesures réelles + k6 v0.49 (installé) en montée
+  **plafonnée à 40 VUs**, puis **modélisation** des 10 000.
+- **Résultat site** : 40 VUs → **558 req, 0 erreur**, p95 378 ms. Verdict : sain à des dizaines ;
+  le **statique** passe par Cloudflare (tiendrait des milliers), mais le **dynamique PHP** sur le
+  mutualisé sature vers **quelques centaines à ~1 000 utilisateurs actifs** (limite « entry
+  processes »). 10 000 → non sans VPS. Rapport livré (artifact) + script `loadtest.js`.
+- **Résultat app** : la session app tape l'API **sans Cloudflare** (chaque écran = appel direct
+  à l'origine). Le test a révélé un **vrai bug, pas une limite** : `GET /listings/{id}` renvoyait
+  **404 « Route inconnue »** à 100 %. En cause : cette route de **lecture d'une annonce seule
+  n'existait pas** côté serveur, alors que l'app l'appelle via `Listing.parId` depuis
+  **notifications_screen** et **moderation_screen** (le fil → détail marchait car il passe l'objet
+  déjà chargé).
+- **Correctif** (`server/index.php`, commit `de960b2`) : ajout de `GET /listings/{id}` via
+  `listing_out` (même forme que le fil, sans téléphone), 404 si id inconnu. **Serveur pur —
+  l'app guérit sans être rebâtie.** `php -l` OK. Nouvelle empreinte **`aad460a3b6b3`**, `index.php`
+  envoyé au Patron (méthode « écraser à l'upload »). Gardien a relu la route : saine.
+
+### 2026-08-22 15:50 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Fait** : ronde entièrement verte. Empreinte API encore `455e1d37b051` (= `9178479`) —
+  **confirme que le correctif `de960b2` n'est pas encore déployé** ; `empreinteSeo`/`Site`
+  inchangées (seuls `JOURNAL.md` + `server/index.php` ont bougé). Sécurité 24 h propre
+  (`cron_fail`/`mtoken_fail` = signatures de tests internes connues, `adminsTampered` false).
+  A relu `GET /listings/{id}` (`de960b2`) : lecture publique par UUID non énumérable, pas de
+  téléphone exposé, `hidden`/`sold` renvoyés tels quels — **RAS**. Modération : file vide.
+- **Pour le Dev** : la route `/listings/{id}` attend son déploiement (mineur, lecture seule).
+
+### 2026-08-22 09:06 — [Design & Typographie] 🎨 L'Atelier (versé + APPLIQUÉ par le Dev)
+- **Constat** : chantier `text-gray-400` toujours ouvert (150 occurrences / 34 fichiers) ; app
+  Flutter saine (19 écrans SafeArea/AppBar OK, grilles tablette déjà en `MaxCrossAxisExtent`).
+- **5 propositions, toutes appliquées** ce tour :
+  - Contraste site (P1) : `NotificationBell.tsx:223` (corps de notif lue), `MyAdsPanel.tsx:55-56`
+    (libellés du bandeau annonceur, composant `Chiffre` → corrige les 4 stats d'un coup) et
+    `MyAdsPanel.tsx:157` (ligne de statut d'annonce sponsorisée) : `text-gray-400 → text-gray-500`
+    (passe le seuil AA). Classes pures, risque nul. **Shippent au prochain `npm run build`.**
+  - Confort app (P3) : `register_screen.dart` et le formulaire de connexion d'`account_screen.dart`
+    reçoivent un plafond de largeur (`ConstrainedBox maxWidth: 480`, comme `modifier_profil`) —
+    les champs ne s'étirent plus sur tablette. **Shippe au prochain `flutter run`.**
+- **Prochain lot `text-gray-400` suggéré** par l'Atelier : `Conversation.tsx` (reste à vérifier) et
+  `Browse.tsx`.

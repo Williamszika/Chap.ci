@@ -220,7 +220,7 @@ export function NotificationBell({
                         </span>
                         <span
                           className={`block truncate text-[13px] leading-snug ${
-                            n.read ? 'text-gray-400' : 'text-gray-600'
+                            n.read ? 'text-gray-500' : 'text-gray-600'
                           }`}
                         >
                           {n.body}

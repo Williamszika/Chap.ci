@@ -132,7 +132,12 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _vueConnexion() {
-    return SingleChildScrollView(
+    // Plafond de largeur : sur tablette, le formulaire ne s'étire pas sur toute
+    // la largeur (cohérent avec l'écran « modifier le profil »).
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       child: Form(
         key: _formKey,
@@ -266,7 +271,7 @@ class _AccountScreenState extends State<AccountScreen> {
           ],
         ),
       ),
-    );
+    )));
   }
 
   static final ButtonStyle _lienLegalStyle = TextButton.styleFrom(
