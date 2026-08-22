@@ -5400,6 +5400,22 @@ try {
     jout(array_map(fn($r) => listing_out($r, true), $st->fetchAll()));
   }
 
+  // Lire UNE annonce par son id. Le fil `/listings` renvoie déjà l'objet
+  // complet, donc le parcours « liste → détail » n'a pas besoin de cette route ;
+  // mais l'app ouvre aussi une annonce à partir de son seul id — depuis une
+  // notification et depuis la modération (`Listing.parId`). Sans cette route,
+  // ces deux écrans recevaient « Route inconnue » (404). Lecture publique par
+  // id exact (non énumérable) ; l'objet porte ses drapeaux `hidden`/`sold` pour
+  // que l'écran affiche le bon état. Pas de téléphone (forme publique).
+  if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'GET') {
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified FROM listings l
+      LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?');
+    $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    jout(listing_out($row));
+  }
+
   // Statistiques du tableau de bord vendeur : vues (avec tendance vs période
   // précédente), annonces actives, demandes reçues, ventes, et série des vues
   // sur les 7 derniers jours (pour le graphique). Chiffres 100 % réels.
