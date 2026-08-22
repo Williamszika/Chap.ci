@@ -3830,3 +3830,14 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
     les champs ne s'étirent plus sur tablette. **Shippe au prochain `flutter run`.**
 - **Prochain lot `text-gray-400` suggéré** par l'Atelier : `Conversation.tsx` (reste à vérifier) et
   `Browse.tsx`.
+
+### 2026-08-22 19:30 — [Développement] Back déployé (zip) : la fiche d'annonce répond enfin 200
+- Le Patron a extrait `chap-back.zip` dans `public_html` (format habituel, avec `A-LIRE-DABORD.txt`).
+  Déploiement réussi du premier coup.
+- **Vérifié au curl** : empreinte API = **`aad460a3b6b3`** ✓ ; `GET /api/listings/{id}` = **200**
+  (renvoie l'annonce complète) ✓ ; id inconnu = **404** propre ✓.
+- **Effet** : dans l'app, ouvrir une annonce depuis une notification et depuis la modération
+  refonctionne — **sans rebuild de l'app**, correctif serveur pur. Bug clos.
+- **Reste en attente d'un `flutter run`** (non urgent, finition app) : fond foncé des conversations
+  épinglées, message « maximum 5 », plafond de largeur des formulaires connexion/inscription.
+  Et au prochain `npm run build` du site : les 3 correctifs de contraste de l'Atelier.
