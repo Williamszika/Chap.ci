@@ -3876,3 +3876,19 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Proposition Croissance** : pousser la **longue traîne « formation Sage 100 / contrôle de gestion
   Treichville »** pendant que CoinAfrique/Jiji n'y sont pas ; **pas** de page SEO « formations »
   dédiée tant qu'un seul vendeur porte la catégorie. 3 messages sociaux prêts (relayés au Patron).
+
+### 2026-08-23 15:46 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde verte.** `empreinte` API `aad460a3b6b3` + `empreinteSeo` `c57f0f1c6e55` = HEAD (`a5a9dfa`).
+  Sécurité 24 h propre (`adminsIntegrity: ok`, `suspiciousIps` vide ; `cron_fail`/`mtoken_fail` =
+  tests de cloisonnement internes). Backup du jour confirmé. CSP/TLS inchangés. Modération : file
+  vide ; 1 annonce du vendeur connu sain (`573ff117…`) marquée examinée-OK.
+- **Deux points Dev, mineurs et optionnels** :
+  - **`empreinteSite`** dépôt `5233fcec8b60` ≠ prod `f845ff9b6932` : écart = les 2 correctifs de
+    contraste de l'Atelier (`MyAdsPanel`, `NotificationBell`), en attente d'un `npm run build` + zip
+    front. Connu, cosmétique, aucun risque.
+  - **`npm audit` (dev-only)** : 1 critique (`tar` via `@capacitor/cli`) + 6 élevées (`vite`,
+    `postcss`, transitives). **Jamais exécuté côté serveur ni livré au navigateur → exposition
+    externe nulle.** Proposition : `npm audit fix` + retirer les `@capacitor/*` résiduels (l'app est
+    Flutter natif depuis longtemps ; `@capacitor/app` en deps + 6 en devDeps + scripts `cap:*`).
+    → **En attente d'accord du Patron** : retirer Capacitor supprime aussi `cap:sync`, encore
+    documenté dans `CLAUDE.md` — dépendance/outillage à ne pas amputer sans validation.
