@@ -28,7 +28,6 @@ npm run build      # tsc -b && vite build  ->  dist/
 npm run lint       # tsc -b --noEmit
 npm run banc       # banc de test des 101 schémas de sous-catégories
 npm run banc:push  # notifications push : vecteur RFC 8291 + contrat serveur ↔ service worker
-npm run cap:sync   # build + cap sync + android-slim.mjs
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
 
