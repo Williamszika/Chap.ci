@@ -3854,3 +3854,10 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   aucune dépendance ni permission ajoutée, `api_client.dart` inchangé.
 - Modération : file vide ; 5 annonces d'un même vendeur (formations Excel/SQL/Power BI/Sage),
   distinctes, `risk.score` 0 → marquées examinées-OK.
+
+### 2026-08-23 05:47 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde verte, RAS.** Trois empreintes toujours = HEAD (seul `JOURNAL.md` a bougé depuis 00:46).
+  Sécurité 24 h propre (`adminsIntegrity: ok`, `suspiciousIps` vide ; `cron_fail`/`mtoken_fail` =
+  tests de cloisonnement internes). CSP et TLS inchangés (crt.sh injoignable → repli, exp.
+  12/10/2026). Modération : file vide ; 4 annonces d'un même vendeur (`573ff117…`, formation/conseil
+  COSO/contrôle de gestion/Power BI), `risk.score` 0 → marquées examinées-OK.
