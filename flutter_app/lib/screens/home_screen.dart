@@ -249,12 +249,24 @@ class _HomeScreenState extends State<HomeScreen> {
             childAspectRatio: 0.66,
           ),
           delegate: SliverChildBuilderDelegate(
-            (context, i) => ListingCard(
-              annonce: _annonces[i],
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) =>
-                      ListingDetailScreen(annonce: _annonces[i]))),
-            ),
+            (context, i) {
+              // Précharge la page suivante dès qu'on CONSTRUIT une carte proche
+              // de la fin de la liste. Plus fiable que le calcul de position sur
+              // une grille paresseuse (dont l'étendue n'est qu'estimée) : ici le
+              // déclenchement suit exactement ce que Flutter est en train de
+              // bâtir. `_chargerPlus` se garde contre les appels en double.
+              if (i >= _annonces.length - 8) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _chargerPlus();
+                });
+              }
+              return ListingCard(
+                annonce: _annonces[i],
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) =>
+                        ListingDetailScreen(annonce: _annonces[i]))),
+              );
+            },
             childCount: _annonces.length,
           ),
         ),
