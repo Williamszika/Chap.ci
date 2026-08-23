@@ -126,9 +126,22 @@ class Listing {
     );
   }
 
-  /// Récupère la liste des annonces publiques.
+  /// Récupère la liste des annonces publiques (jusqu'à 500 d'un coup).
   static Future<List<Listing>> toutes() async {
     final data = await ApiClient.instance.get('/listings');
+    if (data is! List) return const [];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(Listing.fromJson)
+        .toList();
+  }
+
+  /// Une PAGE d'annonces (`GET /listings?limit=&offset=`) pour le défilement
+  /// infini de l'accueil. Le serveur exclut déjà les annonces masquées et
+  /// vendues ; une page plus courte que `limit` signale la fin du catalogue.
+  static Future<List<Listing>> page({int offset = 0, int limit = 20}) async {
+    final data =
+        await ApiClient.instance.get('/listings?limit=$limit&offset=$offset');
     if (data is! List) return const [];
     return data
         .whereType<Map<String, dynamic>>()

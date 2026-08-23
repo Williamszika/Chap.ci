@@ -5290,10 +5290,24 @@ try {
   if ($path === 'listings' && $method === 'GET') {
     // Le public ne voit pas les annonces masquées (par le vendeur ou la modération).
     // Jointure users.verified → badge « vendeur vérifié » affiché sur la carte.
-    $rows = $pdo->query('SELECT l.*, u.verified AS seller_verified FROM listings l
+    //
+    // Pagination OPTIONNELLE : ?limit=20&offset=40 renvoie une page (pour le
+    // défilement infini de l'app). Sans ces paramètres, on garde le comportement
+    // historique (jusqu'à 500 d'un coup) — le site consomme cette route sans
+    // pagination, la réponse reste un simple tableau dans les deux cas. Le client
+    // sait qu'il a atteint la fin quand une page renvoie moins que `limit`.
+    if (isset($_GET['limit']) || isset($_GET['offset'])) {
+      $limit  = max(1, min(100, (int) ($_GET['limit'] ?? 20)));   // borne dure : 100
+      $offset = max(0, (int) ($_GET['offset'] ?? 0));
+    } else {
+      $limit = 500; $offset = 0;
+    }
+    // $limit et $offset sont des entiers déjà bornés (jamais des chaînes) :
+    // interpolation sûre, et on évite le piège du binding LIMIT/OFFSET en PDO.
+    $rows = $pdo->query("SELECT l.*, u.verified AS seller_verified FROM listings l
       LEFT JOIN users u ON u.id = l.user_id
       WHERE (l.hidden IS NULL OR l.hidden = 0) AND (l.sold IS NULL OR l.sold = 0)
-      ORDER BY l.created_at DESC LIMIT 500')->fetchAll();
+      ORDER BY l.created_at DESC LIMIT $limit OFFSET $offset")->fetchAll();
     jout(array_map('listing_out', $rows));
   }
 

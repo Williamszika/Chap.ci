@@ -9,8 +9,9 @@ import 'favoris_screen.dart';
 import 'listing_detail_screen.dart';
 
 /// Accueil — l'en-tête de marque, une barre de recherche (qui mène à Explorer),
-/// **l'écran publicitaire** (bannière animée), et les dernières annonces. C'est
-/// la première impression : elle doit charger vite et parler ivoirien.
+/// **l'écran publicitaire** (bannière animée), et **toutes les annonces** en
+/// défilement infini. C'est la première impression : elle doit charger vite et
+/// parler ivoirien.
 class HomeScreen extends StatefulWidget {
   /// Pour envoyer l'utilisateur vers l'onglet Explorer quand il touche la barre.
   final VoidCallback? onVoirTout;
@@ -25,14 +26,83 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<Listing>> _futur;
+  /// Combien d'annonces on demande à chaque « page ». Petit = accueil léger et
+  /// bon marché en data, même quand le catalogue grossit.
+  static const int _pas = 20;
+
+  final List<Listing> _annonces = [];
+  final ScrollController _scroll = ScrollController();
+  int _offset = 0;
+  bool _chargeEnCours = false;
+  bool _finCatalogue = false; // plus rien à charger
+  bool _erreur = false; // le dernier chargement a échoué
+  bool _premierFait = false; // la première page est arrivée (ou a échoué)
 
   @override
   void initState() {
     super.initState();
-    _futur = widget.apercuAnnonces != null
-        ? Future.value(widget.apercuAnnonces!)
-        : Listing.toutes();
+    if (widget.apercuAnnonces != null) {
+      // Mode aperçu (captures / tests) : liste fournie, pas de réseau.
+      _annonces.addAll(widget.apercuAnnonces!);
+      _finCatalogue = true;
+      _premierFait = true;
+    } else {
+      _scroll.addListener(_surDefilement);
+      _chargerPlus();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Quand il reste moins de 600 px avant le bas, on précharge la page suivante
+  /// — l'utilisateur ne voit jamais le fond de la liste.
+  void _surDefilement() {
+    if (!_scroll.hasClients) return;
+    if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 600) {
+      _chargerPlus();
+    }
+  }
+
+  Future<void> _chargerPlus() async {
+    if (_chargeEnCours || _finCatalogue) return;
+    setState(() {
+      _chargeEnCours = true;
+      _erreur = false;
+    });
+    try {
+      final page = await Listing.page(offset: _offset, limit: _pas);
+      if (!mounted) return;
+      setState(() {
+        _annonces.addAll(page);
+        _offset += page.length;
+        if (page.length < _pas) _finCatalogue = true; // page courte = fin
+        _premierFait = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _erreur = true;
+        _premierFait = true;
+      });
+    } finally {
+      if (mounted) setState(() => _chargeEnCours = false);
+    }
+  }
+
+  /// Tirer pour rafraîchir : on repart de la première page.
+  Future<void> _rafraichir() async {
+    setState(() {
+      _annonces.clear();
+      _offset = 0;
+      _finCatalogue = false;
+      _erreur = false;
+      _premierFait = false;
+    });
+    await _chargerPlus();
   }
 
   @override
@@ -41,11 +111,9 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           color: ChapColors.orange,
-          onRefresh: () async {
-            setState(() => _futur = Listing.toutes());
-            await _futur;
-          },
+          onRefresh: _rafraichir,
           child: CustomScrollView(
+            controller: _scroll,
             slivers: [
               // En-tête : le nom de marque « Chap » orange + « .ci » vert.
               SliverToBoxAdapter(
@@ -129,66 +197,112 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              FutureBuilder<List<Listing>>(
-                future: _futur,
-                builder: (context, snap) {
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 60),
-                        child: Center(
-                            child: CircularProgressIndicator(
-                                color: ChapColors.orange)),
-                      ),
-                    );
-                  }
-                  // Toutes les annonces (sauf les vendues), pas seulement un
-                  // aperçu : la grille est construite paresseusement
-                  // (SliverChildBuilderDelegate ne bâtit que les cases visibles),
-                  // donc l'accueil reste fluide même avec des centaines d'annonces.
-                  final annonces = (snap.data ?? const <Listing>[])
-                      .where((a) => !a.sold)
-                      .toList();
-                  if (annonces.isEmpty) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 50, horizontal: 24),
-                        child: Text(
-                          'Aucune annonce pour le moment. Revenez bientôt !',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: ChapColors.gray600),
-                        ),
-                      ),
-                    );
-                  }
-                  return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 220,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 0.66,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) => ListingCard(
-                          annonce: annonces[i],
-                          onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => ListingDetailScreen(
-                                      annonce: annonces[i]))),
-                        ),
-                        childCount: annonces.length,
-                      ),
-                    ),
-                  );
-                },
-              ),
+              ..._corps(),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// Le corps sous l'en-tête : première page en cours, liste vide, ou la grille
+  /// + son pied (chargement de la suite / réessayer).
+  List<Widget> _corps() {
+    // Première page pas encore arrivée : un grand indicateur (ou une erreur).
+    if (!_premierFait) {
+      return [
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 60),
+            child: Center(
+                child: CircularProgressIndicator(color: ChapColors.orange)),
+          ),
+        ),
+      ];
+    }
+    // Première page arrivée mais rien à montrer.
+    if (_annonces.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 24),
+            child: _erreur
+                ? _blocErreur()
+                : const Text(
+                    'Aucune annonce pour le moment. Revenez bientôt !',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: ChapColors.gray600),
+                  ),
+          ),
+        ),
+      ];
+    }
+    // La grille + le pied de liste.
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 220,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.66,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, i) => ListingCard(
+              annonce: _annonces[i],
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) =>
+                      ListingDetailScreen(annonce: _annonces[i]))),
+            ),
+            childCount: _annonces.length,
+          ),
+        ),
+      ),
+      SliverToBoxAdapter(child: _pied()),
+    ];
+  }
+
+  /// Pied de la liste : indicateur pendant qu'on charge la suite, bouton
+  /// « Réessayer » si le dernier chargement a échoué, sinon un simple espace.
+  Widget _pied() {
+    if (_erreur) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+        child: _blocErreur(),
+      );
+    }
+    if (_chargeEnCours) {
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(0, 16, 0, 28),
+        child: Center(
+          child: SizedBox(
+            height: 26,
+            width: 26,
+            child: CircularProgressIndicator(
+                strokeWidth: 2.4, color: ChapColors.orange),
+          ),
+        ),
+      );
+    }
+    // Fin du catalogue atteinte, ou en attente du prochain défilement.
+    return const SizedBox(height: 24);
+  }
+
+  Widget _blocErreur() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Impossible de charger les annonces.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: ChapColors.gray600)),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _chargerPlus,
+          icon: const Icon(Icons.refresh, size: 18),
+          label: const Text('Réessayer'),
+        ),
+      ],
     );
   }
 }
