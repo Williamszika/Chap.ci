@@ -3841,3 +3841,16 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Reste en attente d'un `flutter run`** (non urgent, finition app) : fond foncé des conversations
   épinglées, message « maximum 5 », plafond de largeur des formulaires connexion/inscription.
   Et au prochain `npm run build` du site : les 3 correctifs de contraste de l'Atelier.
+
+### 2026-08-23 00:46 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde entièrement verte, rien d'actionnable.** Les **trois empreintes = HEAD `1806fb7`**
+  (`aad460a3b6b3` / `c57f0f1c6e55` / `f845ff9b6932`) : dépôt = production, rien à déployer. Le
+  correctif `GET /listings/{id}` (`de960b2`) est confirmé en ligne.
+- Sécurité 24 h propre : `adminsIntegrity: ok`, `suspiciousIps` vide, `failRatio` 0 ; `cron_fail`/
+  `mtoken_fail` = signatures des tests de cloisonnement internes. Tâches cron toutes à jour. CSP :
+  seule origine `api.bigdatacloud.net` (déjà autorisée). TLS : repli sur dernière valeur (exp.
+  12/10/2026).
+- A relu le seul commit app depuis `f5a2ba8` (plafond 480 px des formulaires) : cosmétique pur,
+  aucune dépendance ni permission ajoutée, `api_client.dart` inchangé.
+- Modération : file vide ; 5 annonces d'un même vendeur (formations Excel/SQL/Power BI/Sage),
+  distinctes, `risk.score` 0 → marquées examinées-OK.
