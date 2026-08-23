@@ -115,14 +115,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Dernières annonces',
+                      const Text('Toutes les annonces',
                           style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: ChapColors.gray900)),
                       TextButton(
                         onPressed: widget.onVoirTout,
-                        child: const Text('Tout voir',
+                        child: const Text('Filtrer',
                             style: TextStyle(color: ChapColors.orangeDark)),
                       ),
                     ],
@@ -142,9 +142,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   }
+                  // Toutes les annonces (sauf les vendues), pas seulement un
+                  // aperçu : la grille est construite paresseusement
+                  // (SliverChildBuilderDelegate ne bâtit que les cases visibles),
+                  // donc l'accueil reste fluide même avec des centaines d'annonces.
                   final annonces = (snap.data ?? const <Listing>[])
                       .where((a) => !a.sold)
-                      .take(8)
                       .toList();
                   if (annonces.isEmpty) {
                     return const SliverToBoxAdapter(
