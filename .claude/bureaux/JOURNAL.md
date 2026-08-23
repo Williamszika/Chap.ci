@@ -3925,3 +3925,20 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   extraction complète, aucune référence cassée.
 - **Dépôt = production sur les trois empreintes** — l'écart `empreinteSite` signalé à chaque ronde
   du Gardien est refermé. Correctifs de contraste + ménage Capacitor (tar critique éliminé) en ligne.
+
+### 2026-08-23 21:55 — [Développement] Accueil de l'app : toutes les annonces, puis défilement infini
+- **Demande du Patron** : « quand il y a beaucoup d'annonces, toutes doivent apparaître sur
+  l'accueil ». D'abord retrait du `.take(8)` (`home_screen.dart`) → l'accueil montrait tout mais
+  d'un coup, plafonné à 500 et coûteux en data. Le Patron a ensuite validé le **défilement infini**.
+- **Serveur** (`server/index.php`, GET /listings) : pagination **optionnelle** `?limit=&offset=`
+  (borne dure 100), **rétro-compatible** — sans paramètre, comportement historique (jusqu'à 500),
+  réponse toujours un simple tableau (le site n'est pas impacté). LIMIT/OFFSET interpolés depuis des
+  entiers bornés (sûr, évite le piège du binding PDO). `php -l` OK. **Empreinte `c73c5bfc40cf`**,
+  zip back livré.
+- **App** : `Listing.page(offset, limit)` (`models.dart`) ; `home_screen.dart` réécrit en défilement
+  infini (pages de 20, préchargement à 600 px du bas, indicateur, tirer-pour-rafraîchir, bouton
+  « Réessayer »). Fin détectée quand une page renvoie < 20. Grille toujours paresseuse. Titre
+  « Toutes les annonces », bouton « Filtrer » → Explorer.
+- **Explorer/Browse inchangé** (`toutes()`, jusqu'à 500, filtres client) — à paginer aussi le jour où
+  le catalogue dépasse 500.
+- Reste : déploiement serveur (zip) + `flutter run` (groupe la finition en attente).
