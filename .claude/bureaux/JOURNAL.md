@@ -3841,3 +3841,38 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Reste en attente d'un `flutter run`** (non urgent, finition app) : fond foncé des conversations
   épinglées, message « maximum 5 », plafond de largeur des formulaires connexion/inscription.
   Et au prochain `npm run build` du site : les 3 correctifs de contraste de l'Atelier.
+
+### 2026-08-22 20:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde entièrement verte.
+  - **Santé** : accueil/sitemap 200, `/api/health` 200 (PHP 8.5.9). **Empreinte API
+    `aad460a3b6b3`** et **empreinteSeo `c57f0f1c6e55`** — comparées au `md5sum` local sur HEAD
+    (`1806fb7`) : identiques à l'octet près, `GET /listings/{id}` (`de960b2`) bien déployé.
+    **empreinteSite** : construite en local (`npm ci && npm run build`) → `5233fcec8b60`, ≠
+    production (`f845ff9b6932`). Écart identifié et attendu : `f5a2ba8` (contraste
+    NotificationBell/MyAdsPanel) poussé ce jour, pas encore extrait côté front — mineur, déjà
+    signalé par l'Atelier/le Dev, rien de neuf à ouvrir.
+  - **Sécurité 24 h** : `suspiciousIps` vide, `failRatio` 0, `rateLimited` 0, `adminUnlockFail` 0,
+    `mfaFail` 0, `adminsTampered` false (`currentAdmins` vide = normal), aucune alerte. `cron_fail`
+    4 et `mtoken_fail` 7, **tous** à la signature connue des tests de cloisonnement de rondes
+    (`sans-cle`, `missing`, `cle-differente(entete,65 car.)`) — aucune tâche cPanel en cause,
+    aucune IP à l'appui. `derniersPassages` : les 11 tâches ont un passage conforme à leur
+    cadence (quotidiennes passées aujourd'hui ; `stats` lundi/jeudi, dernier jeudi 20/08 <96 h ;
+    `report` mensuel, dernier 01/08, normal avant le 01/09 ; `report-email` hebdo, dernier 17/08).
+    Rien à réparer. CSP (7 j) : une seule origine, `api.bigdatacloud.net` (36, dernier 21/08) —
+    question déjà tranchée le 15/08 (code légitime, déjà autorisée dans `htaccess-root`, résidu
+    de cache PWA en extinction). TLS : `crt.sh` injoignable ce tour, repli sur dernière valeur
+    connue (12/10/2026, >21 j) — rien à signaler.
+  - **Ménage** : 0 visite / 0 événement / 0 annonce à purger.
+  - **Scan code serveur** : seul commit touchant `server/index.php` depuis le dernier scan complet
+    = `de960b2` (`GET /listings/{id}`), déjà relu par la ronde de 15:50 — reconfirmé : requête
+    préparée, id non énumérable, `listing_out` sans téléphone, 404 propre sur id inconnu. RAS.
+  - **Scan code app** : seul commit = `f5a2ba8` (`ConstrainedBox maxWidth 480` sur connexion/
+    inscription) — UI pure, aucune dépendance/permission/URL nouvelle. RAS.
+  - **Modération** : 0 signalement ouvert. 10 annonces récentes examinées (même vendeur,
+    formations Excel/Sage 100/comptabilité OHADA — contenu détaillé, prix cohérents, paiement
+    Orange/MTN/Wave normal en CI), `risk.level: ok` pour toutes → marquées vues. Digest envoyé,
+    RAS (pas d'e-mail, voulu). Cloisonnement re-testé : jeton modération sur `cron/stats` → 403 ;
+    clé cron sur `mod/queue` → 401 ; fichier hors liste dans `/api/` → 404.
+- **Problèmes ouverts** : aucun bloquant.
+- **Pour les autres bureaux** : rien d'urgent. Le front (`f5a2ba8`) attend le prochain
+  `npm run build` + déploiement — déjà noté par le Dev.
