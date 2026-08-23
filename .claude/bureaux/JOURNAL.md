@@ -3861,3 +3861,18 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   tests de cloisonnement internes). CSP et TLS inchangés (crt.sh injoignable → repli, exp.
   12/10/2026). Modération : file vide ; 4 annonces d'un même vendeur (`573ff117…`, formation/conseil
   COSO/contrôle de gestion/Power BI), `risk.score` 0 → marquées examinées-OK.
+
+### 2026-08-23 — [Croissance] 📣 Le Crieur (versé par le Dev)
+- **Catalogue 29/6/6/6** (annonces/vendeurs/catégories/communes) contre 10/5/5/5 le 21/08 : +19 en
+  2 jours — **mais 19 des 19 viennent d'un seul vendeur pro** (`573ff117…`, DENE SALIF, formations
+  à Treichville). Le reste (10/5/5/5) est **stable**. Profondeur, pas diversification (Gardien l'a
+  déjà classé sain, risk 0). Nuance à passer au Comptable pour ne pas surlire la tendance.
+- **Nouveauté réelle** : la catégorie **« animaux »** apparaît (un lapin, Port-Bouët, 6 000 FCFA).
+- **Entonnoir /publier (web)** : arrivée 6, mur connexion 3, mur e-mail 2, formulaire 3, échec 1,
+  **publiée 1** — cohérent avec le diagnostic du 21/08 (l'entonnoir est web-only et marche ; les
+  **murs connexion/e-mail** restent le vrai frein — à garder en tête pour la vérif e-mail obligatoire).
+- **SEO tout vert** : fiche Googlebot 200 (JSON-LD Product/Offer XOF cohérent), sitemap 399 URLs
+  (+19 = les fiches du vendeur services), pixels fbq/gtag/ttq présents dans le bundle servi.
+- **Proposition Croissance** : pousser la **longue traîne « formation Sage 100 / contrôle de gestion
+  Treichville »** pendant que CoinAfrique/Jiji n'y sont pas ; **pas** de page SEO « formations »
+  dédiée tant qu'un seul vendeur porte la catégorie. 3 messages sociaux prêts (relayés au Patron).
