@@ -3948,3 +3948,20 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   (offset=20) = 10, pages distinctes (aucun chevauchement) ; `offset=1000` = 0 (signal de fin) ;
   `limit=9999` plafonné (borne 100) ; sans paramètre = 30 d'un coup (site intact). Reste :
   `flutter run` pour voir le défilement infini côté app (groupe la finition en attente).
+
+### 2026-08-24 ~01:00 — [Développement] App relancée sur iPhone : tout marche (leçon iOS 26)
+- Longue session de build sur le Mac du Patron. Obstacles franchis dans l'ordre : appareil vu
+  seulement en Wi-Fi → **câble + Mode développeur** (se désactive à chaque redémarrage iOS) ;
+  écran blanc en Debug → permission **« Réseau local »** ; bruit de build → **`flutter clean`** ;
+  erreur **« Exited with status code 127 »** (fichiers `Generated.xcconfig` /
+  `flutter_export_environment.sh` supprimés par le clean, qu'Xcode lit pour trouver Flutter) →
+  régénérés par `flutter build ios`.
+- **Cause finale du blocage** : **incompatibilité iOS 26 ↔ version de Flutter** installée. Le
+  message pointait `docs.flutter.dev/release/breaking-changes/uiscenedelegate` (nouveau cycle de
+  vie **UISceneDelegate** d'iOS 26). **`flutter upgrade`** puis rebuild → **résolu, tout marche**.
+- **Leçon pour la prochaine fois** : sur un iPhone en **iOS 26**, l'app doit être bâtie avec une
+  **version de Flutter à jour** (les anciennes ne gèrent pas le cycle UIScene → écran blanc / app
+  « killed »). Rien à voir avec notre code — les fonctionnalités étaient correctes et poussées.
+- **En ligne côté app maintenant** (build sur l'iPhone du Patron) : défilement infini de l'accueil,
+  messagerie glissable (épingler max 5 + fond foncé), onglets au doigt, en-tête de conversation
+  cliquable, formulaires bornés sur tablette, ouverture d'annonce depuis notification/modération.
