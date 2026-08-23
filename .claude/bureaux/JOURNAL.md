@@ -3942,3 +3942,9 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Explorer/Browse inchangé** (`toutes()`, jusqu'à 500, filtres client) — à paginer aussi le jour où
   le catalogue dépasse 500.
 - Reste : déploiement serveur (zip) + `flutter run` (groupe la finition en attente).
+
+### 2026-08-23 22:10 — [Développement] Pagination déployée et vérifiée au curl
+- Empreinte API **`c73c5bfc40cf`** ✓. Pagination confirmée : page 1 (limit=20) = 20, page 2
+  (offset=20) = 10, pages distinctes (aucun chevauchement) ; `offset=1000` = 0 (signal de fin) ;
+  `limit=9999` plafonné (borne 100) ; sans paramètre = 30 d'un coup (site intact). Reste :
+  `flutter run` pour voir le défilement infini côté app (groupe la finition en attente).
