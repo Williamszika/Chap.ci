@@ -3917,3 +3917,11 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   — **en cours de comblement par le Dev, zip front livré ce tour**. Sécurité 24 h propre, ménage à
   zéro, scans serveur/app RAS. Modération : 10 annonces examinées et classées saines, 0 signalement.
   (Ronde poussée sur la branche du Gardien `claude/hopeful-fermat-tn5nn3`.)
+
+### 2026-08-23 21:40 — [Développement] Front déployé (zip) : les trois empreintes = dépôt
+- Le Patron a extrait `chap-front.zip` dans `public_html`. **Vérifié au curl** : `empreinteSite` =
+  **`92f59efa6e60`** ✓ (API `aad460a3b6b3` + SEO `c57f0f1c6e55` inchangées). Accueil 200, sitemap
+  200, et l'`index.html` servi référence bien son bundle (`/assets/index-BkBtg-D3.js` → 200) :
+  extraction complète, aucune référence cassée.
+- **Dépôt = production sur les trois empreintes** — l'écart `empreinteSite` signalé à chaque ronde
+  du Gardien est refermé. Correctifs de contraste + ménage Capacitor (tar critique éliminé) en ligne.
