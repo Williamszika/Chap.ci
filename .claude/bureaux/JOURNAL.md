@@ -3892,3 +3892,28 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
     Flutter natif depuis longtemps ; `@capacitor/app` en deps + 6 en devDeps + scripts `cap:*`).
     → **En attente d'accord du Patron** : retirer Capacitor supprime aussi `cap:sync`, encore
     documenté dans `CLAUDE.md` — dépendance/outillage à ne pas amputer sans validation.
+
+### 2026-08-23 21:15 — [Développement] Zip front (contraste) livré + ménage Capacitor (accord du Patron : les deux)
+- **Le Patron a validé les deux entretiens.**
+- **Build front** : `npm run build` reproductible — `empreinteSite` de référence **`5233fcec8b60`**,
+  exactement la valeur calculée par le Gardien. Les 3 correctifs de contraste de l'Atelier sont dedans.
+- **Vérification qui a tout conditionné** : le **site web importe encore Capacitor au build**
+  (`src/lib/native.ts` → `@capacitor/core`, `NativeShell.tsx` → `@capacitor/app`/`status-bar`/
+  `splash-screen`). Retirer **tout** Capacitor casserait le build → ce serait un remaniement, pas
+  un ménage. **Ménage sûr fait** : retrait de `@capacitor/cli` + `android` + `ios` (dev-only, non
+  importés, porteurs du `tar` critique) et des scripts `cap:*`/`assets`. **Conservé** : core, app,
+  status-bar, splash-screen, geolocation (le site les importe).
+- **Sécurité** : `tar` critique **éliminé**. `npm audit fix` (sans `--force`) : **8 → 4**
+  vulnérabilités. Les 4 restantes (react-router-dom + transitives) n'ont de correctif qu'en passant
+  **react-router 6 → 7 (majeur, cassant)** — **non fait** sans migration dédiée (app en HashRouter
+  côté client, risque faible). `package-lock` −929 lignes. `build` + `tsc` OK.
+- **Livré** : `chap-front.zip` (14 Mo) à extraire dans `public_html` — ne touche ni `api/`, ni
+  `uploads/`, ni `seo.php`. Après extraction, `empreinteSite` cible **`92f59efa6e60`** (bundle
+  reconstruit après `audit fix`). `CLAUDE.md` : ligne `cap:sync` retirée. Commits `f5a2ba8`
+  (contraste) déjà en ligne côté source ; `8f105c2` (ménage deps).
+
+### 2026-08-23 ~21:00 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- Ronde verte. API + SEO = dépôt ; **`empreinteSite` en écart connu** (les correctifs de contraste)
+  — **en cours de comblement par le Dev, zip front livré ce tour**. Sécurité 24 h propre, ménage à
+  zéro, scans serveur/app RAS. Modération : 10 annonces examinées et classées saines, 0 signalement.
+  (Ronde poussée sur la branche du Gardien `claude/hopeful-fermat-tn5nn3`.)
