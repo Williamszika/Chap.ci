@@ -4018,3 +4018,18 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   jour. **Trouvaille mineure** : dans l'app, l'épinglage d'une conversation n'est accessible que par
   **glissement**, sans entrée dans le menu « ⋮ ». Mineur — à ajouter au menu long-press si on veut
   le rendre découvrable.
+
+### 2026-08-24 — [Développement] Vignettes de grille (proposition Mécanicien P2) — accord Patron « vas y »
+- **Fait** : le serveur génère à la publication une vignette `<base>_min.jpg` (~480 px, JPEG q72,
+  après le filigrane) via l'outillage GD déjà là (`make_thumb`/`thumb_path` dans `save_data_uri`,
+  photos d'annonce raster uniquement). Site (`native.ts thumbUrl` + `ListingCard.tsx`) et app
+  (`listing_card.dart`) servent la vignette pour la **grille**, avec repli sur l'image pleine si la
+  vignette n'existe pas (anciennes photos), puis sur le placeholder. **La fiche détail garde la
+  photo pleine.** Gain : **~233 Ko → ~25 Ko par carte (−90 %)**, cumulatif sur le défilement infini.
+- **Aucune migration de base, aucune donnée touchée** : le gain vaut pour les **nouvelles**
+  publications ; les ~30 photos existantes continuent en image pleine (repli), jusqu'à re-upload
+  ou backfill éventuel. Feed « plus récent d'abord » → les cartes du haut auront vite des vignettes.
+- `php -l` OK, `npm run build` OK. **Empreintes : API `07a872eade8f`, Site `a6a28076bd84`.** Deux
+  zips livrés (back + front). L'app profite du gain au prochain `flutter run` (code déjà poussé).
+- **Piste ouverte** (non faite) : backfill des ~30 vignettes existantes (route admin ou cron) pour
+  éviter le petit 404 de repli sur les anciennes photos — à faire si le Patron le souhaite.
