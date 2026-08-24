@@ -4043,3 +4043,40 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Empreinte API `6ea5197a7a2a`**, zip back livré. Le front (`a6a28076bd84`) ne change pas.
 - Se déclenche au prochain `cleanup` (nuit) ; déclenchable plus tôt par le Patron depuis sa tâche
   cron s'il veut le gain immédiat sur les ~30 photos existantes.
+
+---
+
+### 2026-08-24 15:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait — Santé** : accueil 200, sitemap 200, PHP 8.5.9. **Trois empreintes = HEAD `8c6f64f`**
+  (API `6ea5197a7a2a` / Seo `c57f0f1c6e55` / Site `a6a28076bd84`) — `empreinteSite` **vérifiée par
+  build** (`npm ci && npm run build`, `md5sum dist/index.html` = `a6a28076bd84`), pas seulement
+  supposée. Dépôt = production sur les trois morceaux, rien à déployer.
+- **Fait — Sécurité 24 h** : `cron_fail` 3 et `mtoken_fail` 4, **tous** signés « cron/stats ·
+  sans-cle » / « missing » → signature de mon propre test de cloisonnement de fin de ronde, **0
+  réellement extérieur**. `login_fail` 8, `failRatio` 1 mais échantillon trop petit (8 tentatives)
+  pour conclure quoi que ce soit — aucune IP suspecte à l'appui hormis `160.155.199.185` (6
+  tentatives), **déjà signalée par le Mécanicien** ce matin, non P1. `adminsIntegrity: ok`,
+  `adminsTampered: false`. `admin_unlock_ok` 1 + `admin_code_emailed` 1, **aucun** `admin_unlock_fail`
+  → RAS. CSP Report-Only : seule origine `api.bigdatacloud.net` (44 sur 7 j), **déjà autorisée**
+  (vérifiée dans l'en-tête réellement servi). `derniersPassages` : toutes les tâches à jour (backup
+  02:00, cleanup 10:49, alerts/security en continu) ; `report` dernier 01/08 = cadence normale ;
+  `report-email` dernier 17/08 = dans la fenêtre hebdo. TLS : `crt.sh` injoignable, repli sur
+  dernière valeur connue (exp. 12/10/2026, > 21 j).
+- **Fait — Ménage** : `cron/cleanup` exécuté. 0 visite/événement/annonce purgés, **101 vignettes**
+  générées par le backfill (rattrapage des anciennes photos sous le plafond de 300/passage).
+- **Fait — Scan code serveur** (2 commits non encore relus : `c162676` + `e961d70`, vignettes) :
+  `make_thumb`/`thumb_path`/`backfill_thumbs` lus en détail — n'écrit que du `.jpg` (jamais
+  d'exécutable), `basename()` neutralise toute traversée de chemin, n'agit que sur des fichiers
+  locaux déjà présents, entièrement best-effort (try/catch, ne bloque jamais l'upload). **RAS.**
+- **Fait — Scan code app** (`c162676` côté `listing_card.dart`/`home_screen.dart` + `936dcc1`
+  version/targetSdk) : dérivation d'URL de vignette par regex sur le chemin, repli sur l'image
+  pleine si absente — aucune donnée sensible, aucun appel réseau nouveau. `api_client.dart` toujours
+  `https://chap.ci/api`. Aucune nouvelle dépendance dans `pubspec.yaml` depuis la dernière relecture.
+  `targetSdk` 35→36 seul changement de `preparer_plateformes.dart` (échéance Google du 31/08),
+  aucune permission ajoutée. **RAS.**
+- **Fait — Modération** : 0 signalement ouvert. 8 nouvelles annonces du vendeur déjà sain
+  (`573ff117…`, formations DENE SALIF), `risk.score` 0 chacune, examinées et marquées vues. Digest
+  posté (file sans note → pas d'e-mail, voulu).
+- **Problèmes ouverts** : aucun bloquant.
+- **Pour les autres bureaux** : rien de nouveau ; `160.155.199.185` reste sous surveillance
+  (signalé par le Mécanicien), pas d'escalade tant qu'aucune IP suspecte supplémentaire n'apparaît.
