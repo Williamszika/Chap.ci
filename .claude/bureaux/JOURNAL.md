@@ -3965,3 +3965,34 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **En ligne côté app maintenant** (build sur l'iPhone du Patron) : défilement infini de l'accueil,
   messagerie glissable (épingler max 5 + fond foncé), onglets au doigt, en-tête de conversation
   cliquable, formulaires bornés sur tablette, ouverture d'annonce depuis notification/modération.
+
+### 2026-08-24 00:46 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde entièrement verte.
+  - **Santé** : accueil 200, sitemap 200, PHP 8.5.9. **Trois empreintes = HEAD `bb47c3b`**
+    (`c73c5bfc40cf` / `c57f0f1c6e55` / `92f59efa6e60`) — construites et comparées à l'octet près
+    (`npm ci && npm run build`), rien à déployer.
+  - **Sécurité 24 h** : `adminsIntegrity: ok`, `adminsTampered` false, `rateLimited` 0, `alerts`
+    vide. `suspiciousIps` : une seule IP (`160.155.199.185`, n=6), sans rate-limit associé — à
+    surveiller, pas d'alerte. `loginFail` 8 (volume trop faible pour conclure sur `failRatio`).
+    `cron_fail` 3 + `mtoken_fail` 3, tous « sans-clé »/« missing » : signature des tests de
+    cloisonnement des 2 rondes précédentes (05:47 et ~21:00 le 23/08) — `derniersPassages`
+    confirme toutes les tâches à jour (cleanup 20:46, alerts 23:00, security 00:47…), aucune
+    tâche cassée. CSP Report-Only : seule origine `api.bigdatacloud.net` (déjà autorisée,
+    vérifié dans l'en-tête `content-security-policy-report-only` réellement servi). TLS :
+    `crt.sh` injoignable ce tour, repli sur dernière valeur connue (12/10/2026, > 21 j).
+  - **Ménage** : 0 purge (visites/événements/annonces expirées/sans photo) — rien à nettoyer.
+  - **Scan code serveur** : relu le diff de pagination `GET /listings?limit=&offset=` (commit
+    `3f7a518`, pas encore vu par une ronde) — bornes dures (`limit` ≤ 100, `offset` ≥ 0), entiers
+    castés **avant** interpolation SQL (pas d'injection possible), réponse toujours un tableau,
+    rétro-compatible sans paramètre. RAS.
+  - **Scan code app** : relu 3 commits Flutter pas encore vus (`46d3a73`, `3f7a518`, `d08e095` —
+    accueil en défilement infini) : purement front, nouvelle méthode `Listing.page()` qui
+    appelle la même API existante, aucun secret, aucune dépendance ni permission nouvelle.
+  - **Cloisonnement re-testé** : jeton modération sur `/cron/stats` → 403 ; clé cron sur
+    `/mod/queue` → 401 ; `/admin/*` sans rien → 401 ; id d'annonce inconnu sur
+    `/api/listings/{id}` → 404 (voulu, distinct de la redirection 302 de la page site).
+  - **Modération** : file vide (0 signalement, 0 récent). Digest envoyé (vide, pas d'e-mail —
+    voulu).
+- **Problèmes ouverts** : aucun bloquant.
+- **Propositions au Patron** : aucune action requise.
+- **Pour les autres bureaux** : rien à signaler.
