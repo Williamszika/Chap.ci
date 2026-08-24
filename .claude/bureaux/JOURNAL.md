@@ -3986,3 +3986,59 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   15/08) n'a pas son verdict** — remplacer une version en examen relance l'examen à zéro. Vérifier
   la Play Console d'abord. Le build lui-même reste une action du Patron (Android Studio + keystore).
 - **iOS** : toujours bloqué côté boutique (pas de compte App Store, pas de CI Mac).
+
+---
+
+### 2026-08-24 10:08 — [Support & Expérience] 🤝 Le Concierge
+- **Entonnoir 30 j (mesuré ce jour, `cron/stats` + `/api/listings` recompté)** : **154 visiteurs
+  → 17 nouveaux comptes (11 %) → 6 vendeurs actifs distincts (35 % des comptes) → 30 annonces
+  actives**. Tendance depuis le 17/08 (142 / 13 / 5 (38 %) / 9) : la marche visiteur → compte
+  progresse légèrement (9 % → 11 %) ; la marche compte → vendeur, elle, **se stabilise après sa
+  forte hausse** (38 % → 35 %, écart non significatif vu les petits volumes) — pas de rechute.
+  Catalogue **30/6/6/6** (annonces/vendeurs/communes/catégories), cohérent avec le 29/6/6/6 du
+  Crieur le 23/08 (+1 annonce). **Réserve déjà posée le 17/08, toujours valable** : le
+  dénominateur « comptes » (nouveaux sur 30 j) et « vendeurs actifs » (total, toutes dates) ne se
+  comparent pas à la marge près — le ratio est indicatif, pas un pourcentage exact.
+- **Entonnoir web `/publier` (30 j, recoupé indépendamment)** : arrivée 6, mur connexion 3 (50 %),
+  mur e-mail 2 (33 %), formulaire 3, échec 1, publiée 1 — identique au relevé du Crieur le 23/08.
+  **Toujours les murs d'entrée (connexion + e-mail) qui coupent le plus**, pas le formulaire.
+  Sujet déjà pris en charge par le Développement le 21/08 (diagnostic fait, décision de ne pas
+  ajouter de vérification e-mail obligatoire à l'inscription) — rien de neuf à en tirer ce tour,
+  je le note pour la tendance seulement.
+- **Fait** : journal relu. Vérification de sécurité de routine — `sellerPhone` reste `null` sur
+  les 30 annonces publiques (correctif du 26/07 tient toujours). Écrans `/publier` (mur connexion,
+  mur e-mail) et `/bienvenue` relus dans le code (`PostAd.tsx:683-726`, `:1564-1601`,
+  `Welcome.tsx`) : les **3 propositions appliquées le 17/08** (texte « pourquoi un compte »,
+  promesse de délai retirée, question FAQ ajoutée) sont bien en ligne et se lisent clairement.
+  FAQ recomptée : **27 questions** (+3 depuis le 17/08) — paiement Mobile Money, sécurité,
+  livraison, litiges et différence site/PWA/app déjà couverts, rien à ajouter ce tour. Page
+  `/suppression-compte` relue en entier : conforme, claire, honnête sur ce qui est conservé et
+  pourquoi. Comptes de test (`test`/`test2`, créés le 17/08) toujours sans mot de passe accessible
+  depuis cette session automatisée (le Patron le transmet de vive voix) — parcours connectés
+  audités sur le code, comme la règle du bureau le demande dans ce cas.
+- **Application (Flutter)** : relu le code des écrans touchés depuis le 17/08 — accueil en
+  défilement infini (`home_screen.dart`, état d'erreur « Réessayer » déjà géré), formulaire de
+  publication (`publier_screen.dart`), et le client API (`api_client.dart`). **Bon point vérifié** :
+  une coupure réseau en cours de publication est bien interceptée et traduite en français
+  (« Pas de connexion. Vérifiez votre réseau. » / « Connexion trop lente. Réessayez. »,
+  `api_client.dart:107-169`) — aucun écran ne reste bloqué sans message, contrairement à ce que
+  je craignais en lisant `publier_screen.dart:221` seul.
+- **Problème ouvert, nouveau** : dans l'app, **épingler une conversation n'est accessible que par
+  glissement** sur la liste (`messages_screen.dart:190-232`, ajouté le 20/08). Le menu **« ⋮ » de
+  la conversation ouverte** (`conversation_screen.dart:275-298`, `_optionsConversation`) propose
+  Archiver / Bloquer / Signaler / Supprimer — mais **pas Épingler**. Un utilisateur qui ne
+  découvre pas le geste de glissement (fréquent chez qui est moins à l'aise avec le smartphone)
+  n'a **aucun autre moyen** d'épingler ou désépingler, alors que la fonctionnalité existe et est
+  utile (max 5, mise en avant visuelle).
+- **Proposition au Patron** (effort petit) : ajouter « Épingler / Désépingler » à
+  `_optionsConversation` dans `conversation_screen.dart` (même appel `Conversation.epingler` déjà
+  utilisé par `messages_screen.dart`), pour donner une seconde porte d'entrée à côté du
+  glissement — pas un remplacement.
+- **Observation, sans proposition** : 0 avis (30 j) pour 6 commandes — probablement le volume qui
+  manque plutôt qu'une friction (l'exigence `seller_confirmed` du 19/07 tient toujours), à
+  surveiller si le volume de ventes augmente.
+- **Pour les autres bureaux** : 📣 Le Crieur — rien de neuf sur la concentration catalogue (déjà
+  votre constat du 23/08), je le confirme seulement. 🛡️ Le Gardien — `sellerPhone` toujours
+  masqué, routine sans surprise.
+- Rapport complet, remis directement au journal (accès en écriture disponible ce tour, comme pour
+  les autres bureaux récemment) — aucune modification de code, seule cette entrée est ajoutée.
