@@ -4,8 +4,8 @@ publish_to: "none"
 
 # La version affichée + le versionCode Android (après le +).
 # ⚠️ Le nombre après le + DOIT être supérieur au dernier versionCode téléversé
-#    sur le Play Store. Dernier connu : 20 (v1.19). Donc on démarre à 21.
-version: 1.20.0+21
+#    sur le Play Store. Dernier téléversé : 21 (v1.20, en examen). Donc 22.
+version: 1.21.0+22
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

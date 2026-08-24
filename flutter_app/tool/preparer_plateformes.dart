@@ -9,7 +9,7 @@
 //   • identifiant `ci.chap.app` — le MÊME que l'app actuelle sur les stores, pour
 //     que ce soit une MISE À JOUR et non une nouvelle app (applicationId Android
 //     ET bundle identifier iOS) ;
-//   • Android : minSdk 22, targetSdk 35 ; iOS : nom + permissions ;
+//   • Android : minSdk 22, targetSdk 36 ; iOS : nom + permissions ;
 //   • le nom affiché « Chap.ci » et les autorisations réellement utilisées
 //     (Internet, appareil photo, position) sur les deux plateformes ;
 //   • l'icône de lancement, générée depuis le logo (`assets/icon/`) ;
@@ -53,7 +53,7 @@ void main() {
 // ───────────────────────────── Android ──────────────────────────────────────
 
 void _configurerAndroid() {
-  _etape('Android : build.gradle.kts (ci.chap.app, minSdk 22, targetSdk 35)…');
+  _etape('Android : build.gradle.kts (ci.chap.app, minSdk 22, targetSdk 36)…');
   File('android/app/build.gradle.kts').writeAsStringSync(_buildGradleKts);
 
   _etape('Android : MainActivity dans le paquet ci.chap.app…');
@@ -144,7 +144,7 @@ void _configurerIos() {
 
 void _rappels() {
   final aKey = File('android/key.properties').existsSync();
-  stdout.writeln('\n✅ android/ et ios/ prêts (ci.chap.app, minSdk 22, targetSdk 35).');
+  stdout.writeln('\n✅ android/ et ios/ prêts (ci.chap.app, minSdk 22, targetSdk 36).');
 
   stdout.writeln('\nANDROID → l’AAB à déposer sur le Play Store :');
   if (!aKey) {
@@ -251,8 +251,11 @@ android {
         // MÊME identifiant que l'app Play Store actuelle : c'est une MISE À JOUR.
         applicationId = "ci.chap.app"
         minSdk = 22
-        targetSdk = 35
-        // versionCode / versionName viennent de pubspec.yaml (`version: 1.20.0+21`).
+        // targetSdk 36 (Android 16) : OBLIGATOIRE pour tout dépôt à partir du
+        // 31/08/2026 — Google refuse targetSdk 35 après le 30/08. compileSdk
+        // vient de Flutter (36 depuis Flutter récent) et doit rester ≥ targetSdk.
+        targetSdk = 36
+        // versionCode / versionName viennent de pubspec.yaml (`version: 1.21.0+22`).
         // Le versionCode DOIT rester supérieur à celui déjà publié (20 pour la v1.19).
         versionCode = flutter.versionCode
         versionName = flutter.versionName
