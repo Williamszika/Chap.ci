@@ -4033,3 +4033,13 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   zips livrés (back + front). L'app profite du gain au prochain `flutter run` (code déjà poussé).
 - **Piste ouverte** (non faite) : backfill des ~30 vignettes existantes (route admin ou cron) pour
   éviter le petit 404 de repli sur les anciennes photos — à faire si le Patron le souhaite.
+
+### 2026-08-24 — [Développement] Backfill automatique des vignettes (accord Patron)
+- **Fait** : `backfill_thumbs()` génère les vignettes MANQUANTES des anciennes photos, **greffé sur
+  `cron/cleanup`** (déjà quotidien) — pas de nouvelle tâche cron. Borné à 300/passage, best-effort,
+  n'agit que sur des fichiers locaux présents, n'écrit que des `.jpg` (basename neutralise toute
+  traversée de chemin — respecte « le serveur n'écrit jamais d'exécutable »). Une fois rattrapé,
+  ≈ 0/passage. Le retour de cleanup expose `vignettes_generees: N`.
+- **Empreinte API `6ea5197a7a2a`**, zip back livré. Le front (`a6a28076bd84`) ne change pas.
+- Se déclenche au prochain `cleanup` (nuit) ; déclenchable plus tôt par le Patron depuis sa tâche
+  cron s'il veut le gain immédiat sur les ~30 photos existantes.
