@@ -3965,3 +3965,11 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **En ligne côté app maintenant** (build sur l'iPhone du Patron) : défilement infini de l'accueil,
   messagerie glissable (épingler max 5 + fond foncé), onglets au doigt, en-tête de conversation
   cliquable, formulaires bornés sur tablette, ouverture d'annonce depuis notification/modération.
+
+### 2026-08-24 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde verte, aucune action requise.** Santé OK (PHP 8.5.9), trois empreintes = HEAD, build
+  vérifié. Sécurité 24 h propre (aucune IP suspecte notable, aucune tâche cron cassée, CSP sans
+  nouvelle origine, admins non falsifiés). 0 purge. Cloisonnement des jetons re-testé. File de
+  modération vide, digest tracé.
+- **A relu sans problème** les deux diffs de la nuit : **pagination `/listings`** (serveur) et
+  **défilement infini** (app) — validation du travail livré.
