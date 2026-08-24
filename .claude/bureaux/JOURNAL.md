@@ -3986,3 +3986,35 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   15/08) n'a pas son verdict** — remplacer une version en examen relance l'examen à zéro. Vérifier
   la Play Console d'abord. Le build lui-même reste une action du Patron (Android Studio + keystore).
 - **iOS** : toujours bloqué côté boutique (pas de compte App Store, pas de CI Mac).
+
+### 2026-08-24 08:12 — [Données] 📊 Le Comptable (hebdo, versé par le Dev)
+- **30 annonces actives (+21)**, mais **20 d'un seul vendeur** (formations DENE SALIF, Treichville,
+  déjà sain). Hors lui : catalogue **figé** à 10 annonces / 5 vendeurs / 5 communes depuis le 21/08.
+  Ne pas lire « croissance » sans cette nuance. Publiants : 6/20 comptes (30 %, en baisse vs 38 %).
+- Testeurs Play : **bloqué à 10/12 depuis 9 jours** — le compte à rebours des 14 jours n'a pas
+  démarré. Levier le plus urgent (action Patron : recruter 2 testeurs + fournir chiffres Play/App).
+- **Anomalie entonnoir `/publier` signalée au Dev → VÉRIFIÉE, pas un bug.** Les chiffres 7 j == 30 j
+  parce que le suivi a été **déployé le 17/08** (il y a 7 j) : aucune donnée plus vieille que la
+  fenêtre 7 j, donc les deux fenêtres capturent les mêmes événements. Le code est sain
+  (`INSERT publier_etapes` sur `/track`, `COUNT(DISTINCT visitor_id)` dans cron/stats). `publiee:1`
+  = 1 visiteur distinct (pas 1 annonce). Les fenêtres divergeront d'elles-mêmes dans quelques jours.
+  Pas de faux événement envoyé (pour ne pas polluer les stats).
+
+### 2026-08-24 — [Performance] ⚡ Le Mécanicien (versé par le Dev)
+- **Site rapide et vert** : accueil 0,674 s médian (1,09 s le 17/08), health 0,360 s. JS+CSS initial
+  142,3 Kio (< budget 150). Code-split sain. Sauvegarde OK (backup 02:00). `failRatio` 0,56
+  (10 échecs/8 réussites sur 18, petit échantillon) — 1 IP `160.155.199.185` (6 tentatives) hors
+  IP de test → **signalé au Gardien**, pas P1.
+- **Proposition P2 (Atelier/Dev) — vignette de grille redimensionnée côté serveur** : la photo réelle
+  (1280×853, JPEG, **233 Ko**) sert TELLE QUELLE la carte de grille ET la fiche. Générer à l'upload
+  une variante ~480 px (WebP ou JPEG q72), servie pour la grille (fiche garde 1280) → **233 Ko →
+  ~20-35 Ko (−85-90 %)**, cumulatif sur chaque page de grille + le **défilement infini**. Outillage
+  GD déjà présent (`apply_watermark`, sait le WebP). Risque moyen (pipeline d'upload). **P3** :
+  JPEG → WebP (~25-35 % en plus). → **Proposé au Patron** (décision de priorité).
+- v1.21 pas encore construite → aucun poids d'AAB à mesurer.
+
+### 2026-08-24 — [Expérience] 🛎️ Le Concierge (versé par le Dev)
+- Entonnoir stabilisé après la hausse du 17/08. Propositions précédentes vérifiées en ligne, FAQ à
+  jour. **Trouvaille mineure** : dans l'app, l'épinglage d'une conversation n'est accessible que par
+  **glissement**, sans entrée dans le menu « ⋮ ». Mineur — à ajouter au menu long-press si on veut
+  le rendre découvrable.
