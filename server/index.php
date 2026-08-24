@@ -4545,6 +4545,36 @@ function make_thumb(string $file, string $ext, int $maxW = 480, int $quality = 7
   imagedestroy($src); imagedestroy($dst);
 }
 
+/** Génère les vignettes MANQUANTES des photos d'annonce déjà en ligne (celles
+ *  d'avant `make_thumb`). Appelée par le cron `cleanup` — donc sans nouvelle
+ *  tâche à créer. Best-effort, bornée par run ; n'agit que sur des fichiers
+ *  LOCAUX réellement présents, et n'écrit que des `.jpg` (jamais d'exécutable,
+ *  et dans le dossier uploads déjà interdit au script). `basename` neutralise
+ *  toute tentative de traversée de chemin. Une fois le retard rattrapé, chaque
+ *  passage fait ≈ 0 (les nouvelles photos ont déjà leur vignette à l'upload). */
+function backfill_thumbs(PDO $pdo, array $config, int $max = 300): int {
+  $dir = $config['uploads_dir'] ?? null;
+  if (!$dir || !is_dir($dir)) return 0;
+  $faites = 0;
+  foreach ($pdo->query("SELECT images FROM listings WHERE images IS NOT NULL AND images <> ''")->fetchAll() as $r) {
+    $imgs = json_decode((string) $r['images'], true);
+    if (!is_array($imgs)) continue;
+    foreach ($imgs as $u) {
+      if ($faites >= $max) return $faites;
+      if (!is_string($u) || !str_contains($u, '/uploads/')) continue;
+      $name = basename((string) (parse_url($u, PHP_URL_PATH) ?: $u));
+      $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+      if ($ext === 'jpeg') $ext = 'jpg';
+      if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true)) continue;
+      $file = $dir . '/' . $name;
+      if (!is_file($file) || is_file(thumb_path($file))) continue; // absente ou déjà faite
+      try { make_thumb($file, $ext); if (is_file(thumb_path($file))) $faites++; }
+      catch (Throwable $e) { /* best-effort */ }
+    }
+  }
+  return $faites;
+}
+
 function save_data_uri(array $config, string $dataUri, bool $watermark = false): ?string {
   // Déjà une URL (http/https ou /uploads/…) : on la garde telle quelle.
   if (str_starts_with($dataUri, 'http') || str_starts_with($dataUri, '/')) return $dataUri;
@@ -10042,6 +10072,9 @@ try {
     // sans photo n'a rien à montrer, la masquer reviendrait à la garder en base
     // pour rien. Voir listings_purge_sans_photo() pour les précautions.
     $done['annonces_sans_photo_effacees'] = listings_purge_sans_photo($pdo);
+    // Vignettes manquantes des anciennes photos (avant make_thumb) : générées
+    // par petits lots, sans nouvelle tâche cron. Une fois rattrapé, ≈ 0/passage.
+    $done['vignettes_generees'] = backfill_thumbs($pdo, $config);
     jout(['ok' => true, 'nettoyage' => $done]);
   }
 
