@@ -119,6 +119,35 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.21 — versionCode 22
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `936dcc1` — montée de version + `targetSdk 36`. Dernier commit touchant `flutter_app/` ; toutes les fonctionnalités et le correctif de sécurité ci-dessous y sont inclus. |
+| Date du build | **PAS ENCORE CONSTRUITE** — préparée le 24/08/2026 (verdict « construire » du bureau Livraison). |
+| Poids de l'AAB | — (inconnu tant que non construite) |
+| **minSdk 22 · targetSdk 36** | signature d'import `chapci` — `CN=Chap.ci, OU=Mobile, O=Chap.ci, L=Abidjan, ST=Abidjan, C=CI`, SHA-1 `84:98:BB:44:AF:0E:22:2B:F5:3F:1E:6B:C0:D7:18:EF:0F:C8:F4:84` (même clé que la v1.20). |
+| État Play | **À CONSTRUIRE — PAS TÉLÉVERSÉE. NON VÉRIFIÉ.** ⚠️ **NE PAS déposer tant que la v1.20 (code 21) n'a pas reçu son verdict d'examen** : remplacer une version en cours d'examen **relance l'examen à zéro**. Vérifier d'abord la Play Console. |
+
+**Ce qu'elle apporte depuis la v1.20** (14 commits Flutter accumulés depuis le 14/08) :
+défilement infini de l'accueil (adossé à la pagination serveur `/listings?limit=&offset=`) ;
+tri **« Près de moi »** ; messagerie **glissable** (épingler — 5 au maximum, fond foncé —
+archiver, bloquer, supprimer), **onglets au doigt**, en-tête de conversation cliquable vers
+le profil public ; **pages légales** (CGU, confidentialité, aide…) désormais DANS l'app ;
+et un **correctif de sécurité** : la vue web embarquée ne lance plus que les schémas de lien
+autorisés (`https`/`http`/`tel`/`mailto`/`sms`). Côté serveur (déjà en ligne, sans rapport
+avec ce build) : route `GET /listings/{id}` ajoutée, `/listings` paginé.
+
+> ⚠️ **`targetSdk` monté de 35 à 36** dans `tool/preparer_plateformes.dart` (qui le figeait
+> à 35) : Google refuse `targetSdk 35` pour tout dépôt **à partir du 31/08/2026**. C'est
+> exactement la correction annoncée sur la fiche v1.20. `compileSdk` vient de Flutter (36
+> depuis le `flutter upgrade` du 24/08) et reste ≥ `targetSdk`.
+
+> ⚠️ **iOS reste bloqué côté boutique** (pas de compte App Store, pas de Mac en CI) : l'app
+> tourne sur l'iPhone du Patron en local depuis le 24/08, mais aucun IPA n'est déposé.
+
+---
+
 ## v1.20 — versionCode 21
 
 | Champ | Valeur |

@@ -3973,3 +3973,16 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   modération vide, digest tracé.
 - **A relu sans problème** les deux diffs de la nuit : **pagination `/listings`** (serveur) et
   **défilement infini** (app) — validation du travail livré.
+
+### 2026-08-24 — [Livraison] 🚚 Verdict CONSTRUIRE v1.21 (code 22) — préparé par le Dev
+- **Verdict du bureau Livraison** : construire la v1.21. 14 commits Flutter accumulés depuis le
+  dernier build (v1.20, 14/08) — défilement infini, tri « Près de moi », messagerie glissable/
+  épinglable, pages légales embarquées, et un **correctif de sécurité** (schémas de lien de la vue
+  web restreints). Rien n'a atteint un testeur (pubspec restait à 1.20.0+21).
+- **Fait par le Dev** : `pubspec.yaml` → **1.21.0+22** ; `preparer_plateformes.dart` **targetSdk
+  35 → 36** (Google refuse 35 à partir du 31/08 — dans 6 jours) ; `store/APP-VERSIONS.md` : fiche
+  v1.21 ajoutée (commit `936dcc1`, targetSdk 36, État Play « à construire — NON VÉRIFIÉ »).
+- **Gate posé au Patron** : ⚠️ **ne pas déposer la v1.21 tant que la v1.20 (en examen depuis le
+  15/08) n'a pas son verdict** — remplacer une version en examen relance l'examen à zéro. Vérifier
+  la Play Console d'abord. Le build lui-même reste une action du Patron (Android Studio + keystore).
+- **iOS** : toujours bloqué côté boutique (pas de compte App Store, pas de CI Mac).
