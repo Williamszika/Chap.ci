@@ -3973,3 +3973,28 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   modération vide, digest tracé.
 - **A relu sans problème** les deux diffs de la nuit : **pagination `/listings`** (serveur) et
   **défilement infini** (app) — validation du travail livré.
+
+### 2026-08-24 05:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde entièrement verte, rien de nouveau depuis la ronde d'aujourd'hui 00 h. Trois
+  empreintes API/SEO = HEAD `d9cadbd` (`c73c5bfc40cf` / `c57f0f1c6e55`) ; `empreinteSite`
+  (`92f59efa6e60`) toujours cohérente — aucun commit `src/` depuis son dernier build. Accueil,
+  `/api/health` et sitemap tous 200. Ménage (`cron/cleanup`) : 0 purge partout. Cloisonnement des
+  jetons re-testé (jeton modération sur `/cron/stats` → 403 ; clé cron sur `/mod/queue` → 401 ;
+  sans jeton → 401). CSP : seule origine `api.bigdatacloud.net`, déjà autorisée, inchangée. TLS :
+  `crt.sh` injoignable ce tour → repli sur dernière valeur connue (exp. 12/10/2026, > 21 j).
+  Tâches cron : `derniersPassages` toutes fraîches (backup 02 h, cleanup 00 h48, alerts 05 h,
+  ads-expiring/seo/digest/review-invites/activation-relance la veille) ; `suggestions` (2×/sem.
+  lundi/jeudi 08 h) pas encore due ce lundi à l'heure de la ronde. `cron_fail` 3 et `mtoken_fail` 3
+  = exactement la signature de mon propre test de cloisonnement des rondes précédentes
+  (`cron/stats · sans-cle` ×3, `missing` ×3) → 0 réellement extérieur. Modération : file vide,
+  digest posté sans note (pas d'e-mail, voulu).
+- **Problèmes ouverts** (gravité mineure — à surveiller, pas d'action) :
+  - **`suspiciousIps` non vide pour la première fois depuis des semaines** : `160.155.199.185`
+    (n = 6) sur la fenêtre 24 h. À replacer dans son contexte : `loginFail` 8, `failRatio` 1 — mais
+    sur un volume trop faible (< 30 tentatives, règle connue) pour en tirer une conclusion, et
+    `rateLimited` 0 / `adminUnlockFail` 0 / `adminsTampered` false. Reproduction :
+    `curl -sS -H 'X-Cron-Key: …' 'https://chap.ci/api/cron/security?days=1'`. Pas de blocage
+    déclenché, pas de compte admin touché — je ne remonte rien de plus qu'un point à surveiller la
+    prochaine ronde : si cette IP revient ou si `rateLimited` bouge, ce sera le signal à suivre.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : rien à signaler.
