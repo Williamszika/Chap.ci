@@ -136,6 +136,21 @@ class ListingCard extends StatelessWidget {
   }
 }
 
+/// URL de la vignette de grille d'une image d'annonce : le serveur écrit
+/// `<base>_min.jpg` à côté de l'originale (voir `make_thumb`) — ~25 Ko au lieu de
+/// ~233 Ko, ce qui compte sur le défilement infini et un forfait à Abidjan. La
+/// carte s'en sert et se rabat sur l'image pleine si la vignette n'existe pas
+/// (anciennes photos). Les `data:`/`blob:` et images externes sans `/uploads/`
+/// sont laissées telles quelles.
+String _urlVignette(String url) {
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (!url.contains('/uploads/')) return url;
+  return url.replaceFirstMapped(
+    RegExp(r'\.(jpe?g|png|webp|gif)(\?.*)?$', caseSensitive: false),
+    (m) => '_min.jpg${m.group(2) ?? ''}',
+  );
+}
+
 class _Image extends StatelessWidget {
   final Listing annonce;
   const _Image({required this.annonce});
@@ -153,13 +168,20 @@ class _Image extends StatelessWidget {
     if (src.bytes != null) {
       img = Image.memory(src.bytes!, fit: BoxFit.cover);
     } else if (src.url != null) {
-      img = Image.network(
-        src.url!,
-        fit: BoxFit.cover,
-        loadingBuilder: (c, child, progress) =>
-            progress == null ? child : Container(color: ChapColors.cream100),
-        errorBuilder: (c, e, s) => vide,
-      );
+      Widget reseau(String u, Widget Function() surErreur) => Image.network(
+            u,
+            fit: BoxFit.cover,
+            loadingBuilder: (c, child, progress) => progress == null
+                ? child
+                : Container(color: ChapColors.cream100),
+            errorBuilder: (c, e, s) => surErreur(),
+          );
+      final plein = src.url!;
+      final vignette = _urlVignette(plein);
+      // Vignette d'abord ; si absente (ancienne photo) → image pleine → vide.
+      img = vignette == plein
+          ? reseau(plein, () => vide)
+          : reseau(vignette, () => reseau(plein, () => vide));
     } else {
       return vide;
     }

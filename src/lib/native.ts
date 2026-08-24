@@ -45,3 +45,18 @@ export function mediaUrl(src: string | null | undefined): string {
   if (/^(https?:|data:|blob:)/i.test(s)) return s
   return isNative ? SITE_ORIGIN + (s.startsWith('/') ? s : '/' + s) : s
 }
+
+/**
+ * Vignette de grille d'une photo d'annonce. Le serveur écrit `<base>_min.jpg`
+ * à côté de l'originale (voir `make_thumb`) : ~25 Ko au lieu de ~233 Ko, ce qui
+ * compte sur le défilement infini et un forfait à Abidjan. La carte s'en sert
+ * pour la grille et se rabat sur l'image pleine si la vignette n'existe pas
+ * (anciennes photos d'avant cette fonction). Les images embarquées (`data:`) ou
+ * externes sont rendues telles quelles — elles n'ont pas de vignette.
+ */
+export function thumbUrl(src: string | null | undefined): string {
+  const s = (src ?? '').trim()
+  if (!s || /^(data:|blob:)/i.test(s)) return s
+  if (!/\/uploads\//.test(s)) return s
+  return s.replace(/\.(jpe?g|png|webp|gif)(\?.*)?$/i, '_min.jpg$2')
+}

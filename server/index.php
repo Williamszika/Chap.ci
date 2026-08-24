@@ -4512,6 +4512,39 @@ function wm_apply_opacity($wm, float $opacity): void {
     }
   }
 }
+/** Chemin de la vignette d'une image : `<base>_min.jpg` (toujours JPEG). Même
+ *  règle côté client, qui dérive l'URL et se rabat sur l'image pleine si absente. */
+function thumb_path(string $file): string {
+  $dot = strrpos($file, '.');
+  $base = $dot === false ? $file : substr($file, 0, $dot);
+  return $base . '_min.jpg';
+}
+
+/** Génère une vignette ~480 px de large à côté de l'image d'annonce
+ *  (`<base>_min.jpg`, JPEG q72) : la carte de grille et le défilement infini la
+ *  servent au lieu de la photo pleine (≈ 233 Ko → ≈ 25 Ko, −90 % de data), la
+ *  fiche détail gardant l'originale. Best-effort : ne bloque jamais l'upload. */
+function make_thumb(string $file, string $ext, int $maxW = 480, int $quality = 72): void {
+  if (!function_exists('imagecreatetruecolor')) return;
+  $src = null;
+  if ($ext === 'jpg') $src = @imagecreatefromjpeg($file);
+  elseif ($ext === 'png') $src = @imagecreatefrompng($file);
+  elseif ($ext === 'webp' && function_exists('imagecreatefromwebp')) $src = @imagecreatefromwebp($file);
+  elseif ($ext === 'gif') $src = @imagecreatefromgif($file);
+  if (!$src) return;
+  $iw = imagesx($src); $ih = imagesy($src);
+  if ($iw < 1 || $ih < 1) { imagedestroy($src); return; }
+  // Jamais d'agrandissement : une petite image reste à sa taille, réencodée en JPEG.
+  $tw = $iw <= $maxW ? $iw : $maxW;
+  $th = max(1, (int) round($ih * $tw / $iw));
+  $dst = imagecreatetruecolor($tw, $th);
+  // Fond blanc : un PNG/GIF transparent devient un JPEG opaque propre.
+  imagefilledrectangle($dst, 0, 0, $tw, $th, imagecolorallocate($dst, 255, 255, 255));
+  imagecopyresampled($dst, $src, 0, 0, 0, 0, $tw, $th, $iw, $ih);
+  @imagejpeg($dst, thumb_path($file), $quality);
+  imagedestroy($src); imagedestroy($dst);
+}
+
 function save_data_uri(array $config, string $dataUri, bool $watermark = false): ?string {
   // Déjà une URL (http/https ou /uploads/…) : on la garde telle quelle.
   if (str_starts_with($dataUri, 'http') || str_starts_with($dataUri, '/')) return $dataUri;
@@ -4567,6 +4600,12 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
   if ($watermark && $ext !== 'svg' && !empty($config['watermark'])) {
     try { apply_watermark($full, $ext, __DIR__ . '/watermark.png'); }
     catch (Throwable $e) { /* le filigrane ne doit jamais bloquer l'upload */ }
+  }
+  // Vignette de grille (photos d'annonce uniquement), générée APRÈS le filigrane
+  // pour qu'elle le porte aussi. Best-effort : ne bloque jamais l'upload.
+  if ($watermark && $ext !== 'svg') {
+    try { make_thumb($full, $ext); }
+    catch (Throwable $e) { /* la vignette ne doit jamais bloquer l'upload */ }
   }
   return rtrim($config['uploads_path'], '/') . '/' . $name;
 }

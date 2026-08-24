@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { mediaUrl } from '../lib/native'
+import { mediaUrl, thumbUrl } from '../lib/native'
 import { Link } from 'react-router-dom'
 import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
 import { VerifiedBadge } from './VerifiedBadge'
@@ -70,14 +70,19 @@ export function ListingCard({ listing, rang = 99 }: { listing: Listing; rang?: n
             `rang` vient de la grille. Sa valeur par défaut (99) garde le
             comportement différé partout où l'appelant ne le passe pas. */}
         <img
-          src={mediaUrl(listing.images[0]) || fallbackImg}
+          src={mediaUrl(thumbUrl(listing.images[0])) || fallbackImg}
           alt={listing.title}
           loading={rang < 6 ? 'eager' : 'lazy'}
           fetchPriority={rang === 0 ? 'high' : undefined}
           className="h-full w-full object-cover"
           onError={(e) => {
             const img = e.currentTarget
-            if (img.src !== fallbackImg) img.src = fallbackImg
+            // Vignette absente (ancienne photo) → image pleine ; puis remplacement.
+            if (img.src.includes('_min.jpg')) {
+              img.src = mediaUrl(listing.images[0]) || fallbackImg
+            } else if (img.src !== fallbackImg) {
+              img.src = fallbackImg
+            }
           }}
         />
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
