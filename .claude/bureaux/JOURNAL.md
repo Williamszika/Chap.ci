@@ -4043,3 +4043,13 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Empreinte API `6ea5197a7a2a`**, zip back livré. Le front (`a6a28076bd84`) ne change pas.
 - Se déclenche au prochain `cleanup` (nuit) ; déclenchable plus tôt par le Patron depuis sa tâche
   cron s'il veut le gain immédiat sur les ~30 photos existantes.
+
+### 2026-08-24 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde verte.** Trois empreintes = HEAD (empreinteSite vérifiée par un vrai `npm run build`).
+  Sécurité 24 h propre (hors tests de cloisonnement internes), CSP sans nouvelle origine.
+- **`cleanup` a tourné et généré 101 vignettes de backfill** — tout le catalogue est optimisé.
+- **Revue de sécurité des 2 commits vignettes** (serveur + app) : écriture `.jpg` uniquement,
+  `basename()` anti-traversée de chemin → **RAS**.
+- Modération : file vide ; 8 annonces du vendeur formation (connu-sain) examinées.
+- **Vérifié au curl par le Dev** : sur une ancienne photo, vignette = **37 Ko** vs image pleine
+  **193 Ko** (−81 %). Fonctionnalité vignettes **complète et en ligne** (upload + backfill + site).
