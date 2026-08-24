@@ -2511,3 +2511,201 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   revues ci-dessus.
 
 ---
+
+### 2026-08-24 12:00 — [Livraison] 🔨 Le Monteur
+
+- **Repère vérifié, cohérent** : `flutter_app/pubspec.yaml` porte
+  `version: 1.20.0+21`, qui correspond à la tête de `store/APP-VERSIONS.md`
+  (v1.20 — versionCode 21, commit `617edc8`). Le commit existe bien dans
+  l'historique (`git cat-file -t 617edc8` → `commit`) et précède
+  correctement les versions antérieures. Rien à corriger sur ce repère.
+
+- **Version publiée sur chaque boutique, et depuis combien de temps**
+  (d'après le journal, **non confirmé par le Patron** — seul lui a accès à
+  la Play Console) :
+  - **Google Play** : la v1.20 (code 21) a été **envoyée à l'examen le
+    15/08/2026** sur le canal de test fermé — il y a 9 jours — verdict
+    de Google toujours en attente d'après le journal. En attendant, ce que
+    les testeurs ont réellement entre les mains reste la **v1.18 (code
+    19)**, en ligne depuis le 6 août (confirmée par le Patron le
+    10/08/2026 dans la console). **10 testeurs sur 12 requis** au dernier
+    relevé confirmé (15/08) ; le compte à rebours des 14 jours n'a pas
+    démarré.
+  - **App Store** : **aucune version publiée**. Le Mac + Xcode reste
+    **non disponible** — le volet iOS est **bloqué**. Pour le débloquer, il
+    faut un Mac avec Xcode et un compte Apple Developer (99 $/an). Aucune
+    instruction Xcode ci-dessous : elle ne servirait à personne cette
+    semaine.
+
+- **Ce que les utilisateurs de l'application n'ont PAS ENCORE** (14 commits
+  `flutter_app/` depuis `617edc8`, dernier commit embarqué dans un build,
+  le 14/08 — 9 chantiers accumulés en 10 jours) :
+  - **Accueil** : toutes les annonces au lieu des 8 premières, avec
+    **défilement infini** (pages de 20, tirer-pour-rafraîchir) — `46d3a73`,
+    `3f7a518`, `d08e095`.
+  - **Explorer** : tri **« Près de moi »** par distance — `74a2fc0`.
+  - **Messagerie** : glisser une conversation pour épingler/archiver/
+    bloquer/supprimer, onglets au doigt, en-tête avec avatar cliquable vers
+    le profil du vendeur, menu « ⋮ », appui long sur un message pour le
+    supprimer/signaler — `0c09f9e`, `9178479`, `675fc3e`, `2014068`,
+    `043f7d1`, `56e73a2`.
+  - **Aide, FAQ, contact, à propos, CGU, confidentialité** : s'ouvrent
+    désormais **dans l'application** (vue web embarquée, barre de titre
+    Chap.ci) au lieu de partir dans le navigateur du téléphone — `7053557`.
+  - **Correction de sécurité touchant l'interface** : la vue web embarquée
+    de l'app ne lance plus vers l'extérieur que les schémas attendus
+    (`https/http/tel/mailto/sms`) — un `intent:`/`javascript:`/`file:` est
+    refusé en silence — `2c3c7f0` (angle mort trouvé par le Gardien avant
+    déploiement).
+  - **Interface** : cibles tactiles agrandies (cœur de favori, 48 dp) —
+    `bcbbb03` ; contraste et formulaires connexion/inscription bornés sur
+    tablette — `f5a2ba8`.
+  - Rien de tout cela n'a atteint un testeur : le 24/08, le Patron a
+    reconstruit et relancé l'app en **debug** sur son iPhone (`flutter run`,
+    pas un AAB) pour vérifier que ça marche — ce n'est pas un
+    téléversement. `pubspec.yaml` n'a d'ailleurs pas bougé depuis `1.20.0+21`.
+
+- **Décalage serveur ↔ app repéré** : le commit `a717439` (17/08, côté
+  serveur) fait renvoyer le téléphone du compte par `/auth/me` pour
+  **pré-remplir automatiquement le champ téléphone** du formulaire de
+  publication — appliqué côté **site** (`PostAd.tsx`). Vérifié par lecture :
+  `flutter_app/lib/screens/publier_screen.dart` déclare bien un champ
+  `_tel` (ligne 380, « Téléphone (facultatif) ») mais son
+  `TextEditingController` n'est jamais initialisé depuis le compte — le
+  vendeur sur l'app retape encore son numéro à la main, alors que le site
+  ne le lui demande plus. Petit écran manquant, pas un bug ; à faire au
+  prochain lot.
+
+- **⚠️ Échéance qui pèse sur le calendrier de ce build** : `store/APP-VERSIONS.md`
+  signale que **`targetSdk 35` n'est accepté par Google que jusqu'au
+  30/08/2026** — dans **6 jours**. Or `flutter_app/tool/preparer_plateformes.dart`
+  fige toujours `targetSdk = 35` (ligne 254) : ce fichier **n'a pas bougé**
+  depuis `617edc8` (vérifié, diff vide). Si le build ci-dessous n'est pas
+  déposé avant le 30/08, il faudra d'abord monter le script à
+  `targetSdk 36` — sans quoi Google refusera le dépôt de l'AAB. Je ne
+  modifie pas ce fichier (hors mandat), mais le signale ici en tête,
+  puisqu'il conditionne l'urgence du verdict ci-dessous.
+
+- **Verdict : CONSTRUIRE — et vite, à cause de l'échéance ci-dessus.**
+  Deux conditions sur quatre suffisaient déjà seules :
+  - **(a) correction de sécurité touchant l'interface** : `2c3c7f0`,
+    la restriction des schémas lancés depuis la vue web embarquée.
+  - **(c) bien plus de trois fonctionnalités visibles/corrections
+    d'interface accumulées** : au moins neuf listées ci-dessus, en 10
+    jours seulement.
+  Le verdict vaut pour les deux boutiques (même code Flutter) ; seul le
+  volet iOS reste bloqué par le Mac indisponible.
+  ⚠️ **Avant de lancer ce build : vérifier dans la Play Console que la
+  v1.20 (code 21) a bien reçu un verdict de Google** (acceptée ou refusée).
+  Remplacer une release encore « en cours d'examen » relance l'examen à
+  zéro d'après le journal (leçon déjà notée pour la v1.19/v1.18) — je n'ai
+  aucun accès à la console pour vérifier ce point moi-même.
+
+- **Numéros de version proposés**, dans `flutter_app/pubspec.yaml` :
+  `version: 1.21.0+22`
+  — versionName **1.21.0** (incrément mineur : correctifs et nouveautés,
+  pas de refonte), versionCode **22** (dernier connu 21, +1, ne recule
+  jamais).
+
+- **Notes de version prêtes à coller** :
+
+  **Google Play — « Nouveautés » (367 caractères, sous la limite de 500)** :
+  > Toutes les annonces s'affichent sur l'accueil, avec un défilement
+  > fluide. Triez-les par distance grâce à « Près de moi ». Dans vos
+  > messages : épinglez vos conversations importantes et glissez pour
+  > archiver, bloquer ou supprimer. L'aide et les pages d'informations
+  > s'ouvrent maintenant dans l'application. Boutons plus faciles à
+  > toucher, meilleur contraste des textes.
+
+  **App Store — « Nouveautés de cette version »** :
+  > Vous pouvez désormais parcourir toutes les annonces sur l'accueil, avec
+  > un défilement fluide au fur et à mesure.
+  > Triez les annonces par distance grâce à « Près de moi », pour trouver
+  > ce qui est proche de chez vous.
+  > Dans vos messages, épinglez vos conversations importantes et glissez
+  > pour archiver, bloquer ou supprimer.
+  > L'aide et les pages d'informations (CGU, confidentialité, contact…)
+  > s'ouvrent désormais directement dans l'application.
+  > Boutons plus faciles à toucher et meilleur contraste des textes pour
+  > une lecture plus confortable.
+
+- **Captures à refaire** (comparées aux écrans réellement modifiés) :
+  - **Accueil** — périmée (toutes les annonces + défilement infini,
+    `46d3a73`/`3f7a518`) : téléphone, tablette 7", tablette 10".
+  - **Explorer** — périmée (tri « Près de moi » visible dans l'interface,
+    `74a2fc0`) : téléphone, tablette 7", tablette 10".
+  - **Aide** — périmée (l'écran entier change de nature : barre de titre
+    Chap.ci + flèche retour au lieu d'un saut vers le navigateur,
+    `7053557`) : téléphone, tablette 7", tablette 10".
+  - **Annonce** et **Vendeur** — conservées : les commits qui les touchent
+    (`675fc3e`, 3-4 lignes chacun) ne changent rien de visible sur ces
+    deux écrans.
+  Formats Play : téléphone (obligatoire), tablette 7", tablette 10".
+  Formats App Store : un jeu iPhone et un jeu iPad — bloqué de toute façon
+  tant que le Mac n'est pas disponible ; dimensions à lire dans App Store
+  Connect le jour du dépôt (À CONFIRMER, Apple les fait évoluer).
+
+- **Vérifications avant build** : Flutter **non installé dans cette
+  session** — `flutter analyze`, `flutter test` et
+  `dart run tool/preparer_plateformes.dart` n'ont pas pu être exécutés.
+  Vérifié par **lecture de code** à la place :
+  - `flutter_app/lib/api/api_client.dart:26` — `baseUrl` par défaut reste
+    `https://chap.ci/api` (https, bon domaine). Aucune alerte.
+  - `flutter_app/tool/preparer_plateformes.dart:252` — `applicationId` /
+    bundle iOS restent `ci.chap.app` sur les deux plateformes. Aucune alerte.
+  - Permissions et schémas déclarés (`preparer_plateformes.dart:170-193`) :
+    `INTERNET`, `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`,
+    `<queries>` https, schéma `chapci://` — fichier **inchangé** depuis
+    `617edc8` : aucune permission nouvelle à déclarer dans les boutiques.
+  - Deux dépendances ajoutées à `pubspec.yaml` : `webview_flutter ^4.7.0`
+    (plugin officiel de l'équipe Flutter, pour les pages légales
+    embarquées — pas de couche native lourde connue) et
+    `flutter_slidable ^3.1.0` (gestes de glissement, UI pure — déjà
+    examiné par le Gardien le 21/08 : « aucune couche native ni traçage »).
+    Aucune des deux n'exige de nouvelle autorisation.
+  - `pubspec.yaml` : champ `version` cohérent avec le §4 ci-dessus une
+    fois monté à `1.21.0+22`.
+  - **Non vérifié faute de Flutter** : absence d'avertissement à
+    `flutter analyze`, passage de la suite `flutter test` (24 fichiers dans
+    `flutter_app/test/`), succès de
+    `dart run tool/preparer_plateformes.dart`. À faire sur la machine du
+    Patron avant le build.
+
+- **Marche à suivre — Android / Google Play**, une fois le verdict de la
+  v1.20 confirmé et `pubspec.yaml` monté à `1.21.0+22` :
+  1. **D'abord**, dans `flutter_app/tool/preparer_plateformes.dart`, monter
+     `targetSdk = 35` à `targetSdk = 36` (ligne 254) — voir l'échéance du
+     30/08 signalée plus haut. Sans ce changement, Google refusera le
+     dépôt si l'upload a lieu après cette date.
+  2. Depuis `flutter_app/` :
+     ```
+     cd flutter_app
+     flutter pub get
+     dart run tool/preparer_plateformes.dart
+     flutter build appbundle --release
+     ```
+  3. AAB obtenu : `build/app/outputs/bundle/release/app-release.aab`
+     (~50 Mo attendus — normal, moteur Flutter embarqué ; le Play Store
+     ne fait télécharger que la tranche utile par appareil).
+  4. Play Console → Test fermé (même canal que la v1.18/v1.20) → Créer une
+     version → téléverser l'AAB → coller les notes de version Play
+     ci-dessus → remplacer les 9 captures périmées (accueil, explorer,
+     aide × 3 formats) → **Envoyer pour examen** (l'étape qu'on oublie).
+  La signature de production reste dans `android/key.properties`, sur la
+  machine du Patron uniquement — jamais demandée ici.
+
+- **Marche à suivre — iOS / App Store** : **bloquée**. Le Mac + Xcode
+  n'est pas disponible d'après `store/APP-VERSIONS.md`. Il faut un Mac
+  avec Xcode et un compte Apple Developer (99 $/an) pour débloquer ce
+  volet ; aucune instruction Xcode n'est donnée tant que ces deux
+  conditions ne sont pas réunies.
+
+- **Pour les autres bureaux** : **Gardien** — la correction de sécurité
+  `2c3c7f0` (restriction des schémas de la vue web embarquée) motive à
+  elle seule le build ci-dessus ; rien de neuf à vérifier au-delà de ce
+  qui a déjà été relu le 21/08. **Dev** — le champ téléphone non pré-rempli
+  dans `publier_screen.dart` (voir décalage serveur ↔ app ci-dessus) et le
+  script `preparer_plateformes.dart` à monter à `targetSdk 36` avant le
+  prochain build, sont deux petits chantiers pour le prochain lot.
+
+---
