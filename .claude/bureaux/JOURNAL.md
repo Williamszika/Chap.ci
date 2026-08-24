@@ -3986,3 +3986,34 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   15/08) n'a pas son verdict** — remplacer une version en examen relance l'examen à zéro. Vérifier
   la Play Console d'abord. Le build lui-même reste une action du Patron (Android Studio + keystore).
 - **iOS** : toujours bloqué côté boutique (pas de compte App Store, pas de CI Mac).
+
+---
+
+### 2026-08-24 10:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait** : ronde entièrement verte.
+  - **Santé** : accueil 200, `/api/health` 200 (PHP 8.5.9), sitemap 200.
+  - **Trois empreintes = HEAD (`54881d6`)** : API `c73c5bfc40cf`, SEO `c57f0f1c6e55`, Site
+    `92f59efa6e60` (construit avec `npm ci && npm run build` pour vérifier — dépôt = production,
+    rien à déployer).
+  - **Ménage** : rien à purger (visites, événements sécurité, annonces expirées : 0 partout).
+  - **Sécurité 24 h** : `adminsIntegrity: ok`, `adminsTampered: false` ; `rateLimited` 0 ;
+    `cron_fail` (3, `cron/stats · sans-cle`) et `mtoken_fail` (4, `missing`) = signatures des
+    tests de cloisonnement internes des rondes précédentes, pas de tâche cassée —
+    `derniersPassages` confirme les 13 tâches à jour (dont `report` 01/08, cadence mensuelle
+    attendue, et `cleanup`/`security` au sein de l'heure). CSP Report-Only : seule origine
+    `api.bigdatacloud.net` (40 violations), **déjà présente** dans l'en-tête servi
+    (`curl -sSI https://chap.ci/` vérifié) — rien à ajouter.
+  - **Scan app** (diff depuis la dernière ronde, `d9cadbd`→HEAD) : préparation v1.21
+    (`pubspec.yaml` 1.21.0+22, `targetSdk` 35→36) — config/version uniquement, identifiant
+    `ci.chap.app` inchangé, aucune permission ni dépendance nouvelle.
+  - **Modération** : file vide (0 signalement, 0 récente non vue). Digest posé (`emailed:0,
+    skipped:true` — RAS, pas d'e-mail, voulu).
+- **Problèmes ouverts** :
+  - Mineur, à surveiller sans alerte : `suspiciousIps` liste `160.155.199.185` (n=6) sur la
+    fenêtre 24 h — pas de `rate_limited` associé, `loginFail` 8 sur 24 h (sous le seuil des ~30
+    tentatives où `failRatio` devient lisible). Pas d'action, juste noté pour comparaison à la
+    prochaine ronde si l'IP revient avec un volume plus élevé.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : 🚚 Livraison — le scan confirme que la préparation v1.21
+  (targetSdk 36) ne touche rien d'autre que la config de build ; rien à ajouter au gate déjà posé
+  (attendre le verdict v1.20 avant de déposer).
