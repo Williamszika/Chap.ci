@@ -2406,3 +2406,108 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 `store/APP-VERSIONS.md`.
 
 ---
+
+### 2026-08-24 05:14 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff de la semaine revu ligne à ligne — **50 commits** depuis mon
+  dernier passage (`5662103`, 17/08). Sous-système fouillé à fond (rotation
+  semaine ISO 35 % 6 = 5) : **Messagerie & notifications** — coïncidence utile,
+  c'est justement le cœur de la semaine : suppression de message/conversation,
+  archivage, épinglage (max 5), blocage entre membres, signalement de
+  conversation, plus une nouvelle route `GET /listings/{id}`, la pagination de
+  `GET /listings`, et une vue web embarquée (`PageSiteScreen`) pour les pages
+  légales de l'app. CI et dépendances vérifiées · déploiement confirmé sur les
+  trois empreintes jusqu'au dernier commit.
+
+  **Messagerie — chaque nouvelle route vérifie la propriété avant d'écrire.**
+  Relues une à une (index.php, bloc `conversations/...`, ~5697-5851) :
+  suppression d'un message (`DELETE .../messages/{id}`) exige
+  `sender_id === u.id`, jamais la propriété de la conversation seule ;
+  suppression/archivage/épinglage de conversation choisissent la colonne à
+  écrire (`buyer_*` ou `seller_*`) dans une liste FIXE selon
+  `buyer_id`/`seller_id`, jamais depuis une entrée utilisateur — le motif
+  `$col = ... : null; if ($col === null) jerr(...)` revient partout, correct
+  à chaque fois. Le blocage est symétrique (l'un OU l'autre bloqué coupe
+  l'envoi dans les deux sens, testé par une clause OR sur les deux paires) et
+  posé AVANT `moderate_text()`, donc un message bloqué ne consomme même pas
+  le modérateur de texte. L'épinglage plafonne à 5 par un COMPTE qui exclut
+  la ligne courante (idempotent). Le signalement de conversation force
+  `listing_id = NULL` pour ne jamais compter dans l'auto-masquage à 3
+  signalements d'une annonce (bon réflexe, déjà vérifié utile par le Gardien
+  qui a corrigé `mod/queue` le 20/08 pour ces signalements — voir commit
+  `2c3c7f0`, rien à refaire ici). Toutes les requêtes sont préparées, aucune
+  concaténation de valeur utilisateur dans du SQL.
+
+  **`PageSiteScreen` (vue web embarquée, nouvelle cette semaine) et
+  `liens_site.dart` (durci le 20/08 par le Gardien, `2c3c7f0`) — vérifiés
+  ensemble.** La navigation intégrée reste bornée à `chap.ci`/`*.chap.ci`
+  (test `endsWith('.chap.ci')`, qui ne laisserait pas passer `evilchap.ci` —
+  vérifié par lecture) ; toute sortie de ce domaine ouvre le
+  navigateur/l'app externe, et seulement pour les schémas
+  `https/http/tel/mailto/sms` — un `intent:`/`javascript:`/`file:` est
+  rejeté en silence. Les six routes appelables (`PagesSite.aide`, `.faq`,
+  `.contact`, `.aPropos`, `.conditions`, `.confidentialite`) sont des
+  constantes de classe ; tous les appels (`account_screen.dart`,
+  `mon_compte.dart`) passent une constante, jamais une valeur reçue — la
+  vue ne peut donc jamais charger une URL choisie par un tiers. Solide.
+
+  **`pubspec.yaml`** : deux nouvelles dépendances, `webview_flutter` (plugin
+  officiel Flutter, cohérent avec `PageSiteScreen`) et `flutter_slidable`
+  (gestes de glissement sur la messagerie, aucune couche native lourde) —
+  rien d'inhabituel, rien qui capte de données au-delà de son rôle.
+
+- **Problèmes ouverts** :
+  - **Moyenne — `GET /listings/{id}` (server/index.php:5424-5430, nouvelle
+    cette semaine) ne filtre pas `hidden`.** Le scénario : une annonce est
+    masquée par la modération (contrefaçon, produit interdit, arnaque…) ;
+    quiconque connaît déjà son id (lien partagé avant le masquage,
+    signalement, capture d'écran) continue de recevoir le titre, la
+    description, le prix et les images en clair par cette route — sans
+    session, sans être le vendeur ni un administrateur. Comparé aux DEUX
+    autres endroits qui servent une annonce : `GET /listings` (juste
+    au-dessus, ligne ~5290) filtre `(l.hidden IS NULL OR l.hidden = 0)`, et
+    `web/seo.php:102` fait exactement la même chose pour la page de partage
+    publique. Cette troisième route, seule, ne le fait pas — l'asymétrie est
+    lisible dans le code, pas une hypothèse. Pas de téléphone exposé
+    (`listing_out()` sans `withPhone`), et l'id n'est pas énumérable (UUID),
+    donc ce n'est pas un moyen de DÉCOUVRIR des annonces masquées au hasard —
+    mais pour toute annonce dont l'id est déjà connu, le masquage de
+    modération devient cosmétique : le contenu retiré reste lisible par le
+    lien. Non rejoué contre une vraie annonce masquée en production (mandat
+    lecture seule : je ne vais pas en masquer une pour le test) — la faille
+    est démontrée par lecture du code et par comparaison avec les deux routes
+    sœurs, pas par une requête `curl` sur une donnée réelle.
+  - Aucun autre point, exploitable ou non, cette semaine. Les six routes de
+    messagerie neuves sont propres ; `PageSiteScreen`/`liens_site.dart`
+    tiennent la frontière de confiance ; aucune route `/admin/*` neuve ;
+    `git grep` secret/password/token/clé sur le diff de la semaine ne renvoie
+    que du texte de journal (comptes-rendus des rondes du Gardien) et des
+    identifiants de variables (`$secret` = le secret de session déjà connu,
+    passé en paramètre), rien de committé.
+
+- **Propositions au Patron** :
+  - `server/index.php:5424-5430` — Avant : la route renvoie l'annonce
+    telle quelle, masquée ou non. Après : si `hidden`, ne la renvoyer que si
+    l'appelant est le vendeur (`current_user()` optionnel, comparer
+    `u.id` à `l.user_id`) ou un administrateur (`is_admin()`) ; sinon,
+    404 « Annonce introuvable » — le même message que pour un id inexistant,
+    pour ne pas apprendre à un visiteur qu'une annonce EXISTE mais est
+    masquée. `Listing.parId()` est appelé par `notifications_screen.dart`
+    (le propriétaire consulte sa propre annonce) et
+    `moderation_screen.dart` (un admin en modération) — les deux usages
+    connus restent servis, aucune régression attendue. Risque du correctif :
+    faible, une condition ajoutée dans une route déjà isolée par un seul
+    `if`. Vérification : masquer une annonce de test, confirmer qu'un
+    `curl` sans cookie sur `/listings/{id}` renvoie 404, puis que le même
+    appel avec le cookie du vendeur ou d'un admin renvoie l'annonce.
+
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à remonter,
+  la ronde du 20/08 (`2c3c7f0`) avait déjà traité l'angle mort de
+  `mod/queue` sur les signalements de conversation, confirmé toujours bon.
+  **Dev** — le correctif `GET /listings/{id}` ci-dessus, format « Avant /
+  Après » prêt à appliquer. **Monteur** — rien de neuf côté build ; les deux
+  dépendances Flutter ajoutées cette semaine (`webview_flutter`,
+  `flutter_slidable`) sont à inclure normalement au prochain paquet, déjà
+  revues ci-dessus.
+
+---
