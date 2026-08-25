@@ -995,7 +995,7 @@ function MyAlerts() {
       </p>
 
       {loading ? (
-        <p className="py-2 text-sm text-gray-400">Chargement…</p>
+        <p className="py-2 text-sm text-gray-500">Chargement…</p>
       ) : alerts.length === 0 ? (
         <div className="rounded-xl bg-gray-50 px-3 py-4 text-center">
           <BellOff size={22} className="mx-auto mb-1.5 text-gray-300" />

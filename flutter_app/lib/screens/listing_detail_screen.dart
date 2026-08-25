@@ -505,8 +505,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       onPressed: _traductionEnCours ? null : () => _traduire(a),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        // Cible tactile 48×48 dp (Atelier 25/08) : le bouton visible ne change
+        // pas, la zone tapable si — repérable au pouce, en plein soleil.
+        minimumSize: const Size(48, 48),
+        tapTargetSize: MaterialTapTargetSize.padded,
         foregroundColor: ChapColors.orangeDark,
       ),
       icon: _traductionEnCours

@@ -35,7 +35,7 @@ export function AdTextControls({
           </span>
           <div className="flex gap-2 text-[11px] font-semibold">
             <button type="button" onClick={() => setAnims(AD_ANIMS.map((a) => a.key))} className="text-primary-600">Tout</button>
-            <button type="button" onClick={() => setAnims(['fondu'])} className="text-gray-400">Réinitialiser</button>
+            <button type="button" onClick={() => setAnims(['fondu'])} className="text-gray-500">Réinitialiser</button>
           </div>
         </div>
         <div className="flex max-h-40 flex-wrap content-start gap-1.5 overflow-y-auto rounded-xl border border-line2 bg-white p-2">

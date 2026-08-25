@@ -4087,3 +4087,26 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   `160.155.199.185` inchangée, pas P1). Ménage : rien à purger (backfill de la veille a tout couvert).
 - Scan : serveur RAS ; app = seul le commit `targetSdk 36`, aucune permission ni dépendance ajoutée.
   Modération : file vide.
+
+### 2026-08-25 — [Design & Typographie] 🎨 L'Atelier (versé par le Dev)
+- **Audit du cluster langue + traduction** (sélecteur 6 langues, bouton « Traduire ») : né
+  propre — `SafeArea`, lignes 56 dp, arabe RTL natif via `flutter_localizations`, aucune
+  régression de palette. Chantier `text-gray-400` : 146 restants (178 au départ) ; 7 fichiers
+  vérifiés dont 5 « décor pur » sans correctif (vérification qui a pu échouer honnêtement).
+- **3 correctifs livrés au Dev, appliqués le jour même** : P1 app — cible tactile du bouton
+  « Traduire » portée à 48×48 dp (`minimumSize` + `tapTargetSize.padded`, recette DealCard du
+  19/08) ; P1 site — « Chargement… » de `Profile.tsx` en `text-gray-500` (~2,6:1 → ~4,6:1) ;
+  P2 site — bouton « Réinitialiser » d'`AdTextControls.tsx` en `text-gray-500` (commande, pas
+  décor). `npm run build` OK. Les deux correctifs site partiront avec le prochain déploiement
+  du site ; le correctif app avec le prochain `flutter run`.
+- Prochain lot suggéré : `FoncierDossier.tsx` (5) et `ComptabiliteTab.tsx` (2).
+
+### 2026-08-25 ~11:00 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde verte, RAS.** Trois empreintes vérifiées contre un vrai build : API `d1d3397e6e6c`,
+  SEO `c57f0f1c6e55`, Site `a6a28076bd84` — les trois = HEAD au moment de la ronde. (Depuis,
+  le Dev a déployé les comptes Pro : l'API attendue est désormais `bba753c02457`.)
+- Sécurité 24 h propre (2×`cron_fail` et 2×`mtoken_fail` inexpliqués mais trop faibles pour
+  conclure — surveillés). Revue de la route `POST /traduire` déployée : cache par empreinte,
+  throttle 60/h/IP effectif, aucun service contrôlable par l'utilisateur, TLS vérifié — RAS.
+  App : `flutter_localizations` = SDK officiel, aucune permission nouvelle. Modération : file
+  vide, digest `skipped:true`.
