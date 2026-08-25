@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api/admin.dart';
 import '../api/api_client.dart';
 import '../liens_site.dart';
 import '../theme.dart';
 import 'admin/tableau_bord_screen.dart';
+import 'favoris_screen.dart';
 import 'modifier_profil_screen.dart';
 import 'mot_de_passe_screen.dart';
 import 'securite_2fa_screen.dart';
@@ -112,6 +115,49 @@ class _ParametresScreenState extends State<ParametresScreen> {
     if (r == true && mounted) _charger();
   }
 
+  Future<void> _mesFavoris() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const FavorisScreen()));
+  }
+
+  /// Partager l'application via la feuille de partage du téléphone.
+  /// `sharePositionOrigin` est requis sur iPad, sinon la feuille ne sait pas
+  /// d'où s'ancrer (même précaution que le partage d'une annonce).
+  Future<void> _partager() async {
+    final box = context.findRenderObject() as RenderBox?;
+    try {
+      await SharePlus.instance.share(ShareParams(
+        text: 'Découvrez Chap.ci, le marché en ligne ivoirien — '
+            'achetez et vendez près de chez vous : https://chap.ci',
+        subject: 'Chap.ci',
+        sharePositionOrigin:
+            box != null ? box.localToGlobal(Offset.zero) & box.size : null,
+      ));
+    } catch (_) {/* l'utilisateur a annulé, ou pas d'appli de partage */}
+  }
+
+  /// Ouvrir la fiche Play Store pour noter l'application. On tente d'abord
+  /// l'appli Play Store (`market://`), puis on se rabat sur le lien web.
+  Future<void> _noter() async {
+    final market = Uri.parse('market://details?id=ci.chap.app');
+    final web =
+        Uri.parse('https://play.google.com/store/apps/details?id=ci.chap.app');
+    try {
+      if (await canLaunchUrl(market)) {
+        await launchUrl(market, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {/* on tente le lien web ci-dessous */}
+    try {
+      await launchUrl(web, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Impossible d’ouvrir le Play Store.')));
+      }
+    }
+  }
+
   Future<void> _seDeconnecter() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -167,6 +213,18 @@ class _ParametresScreenState extends State<ParametresScreen> {
                         ),
                       ]),
                     ],
+
+                    _label('Mon activité'),
+                    _groupe([
+                      _ligne(
+                        icone: Icons.favorite_border,
+                        fond: const Color(0xFFFBE5E1),
+                        teinte: const Color(0xFFB42318),
+                        titre: 'Mes favoris',
+                        sous: 'Les annonces que vous avez enregistrées',
+                        onTap: _mesFavoris,
+                      ),
+                    ]),
 
                     _label('Compte'),
                     _groupe([
@@ -226,6 +284,26 @@ class _ParametresScreenState extends State<ParametresScreen> {
                         teinte: const Color(0xFF5B5344),
                         titre: 'Langue',
                         sous: 'Français',
+                      ),
+                    ]),
+
+                    _label('Faire connaître Chap.ci'),
+                    _groupe([
+                      _ligne(
+                        icone: Icons.ios_share,
+                        fond: const Color(0xFFDFF2E8),
+                        teinte: ChapColors.greenDark,
+                        titre: 'Partager l’application',
+                        sous: 'Envoyer le lien à un ami',
+                        onTap: _partager,
+                      ),
+                      _ligne(
+                        icone: Icons.star_border,
+                        fond: const Color(0xFFFFEAD1),
+                        teinte: const Color(0xFFB4600C),
+                        titre: 'Noter l’application',
+                        sous: 'Laisser un avis sur le Play Store',
+                        onTap: _noter,
                       ),
                     ]),
 
