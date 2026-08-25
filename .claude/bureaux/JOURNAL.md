@@ -4110,3 +4110,31 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   throttle 60/h/IP effectif, aucun service contrôlable par l'utilisateur, TLS vérifié — RAS.
   App : `flutter_localizations` = SDK officiel, aucune permission nouvelle. Modération : file
   vide, digest `skipped:true`.
+
+### 2026-08-25 ~15:40 — [Livraison] Pages du site traduites en 5 langues (déployé par le Patron)
+- Aide/FAQ, Contact, À propos, CGU et Confidentialité existent en **en/es/pt/ar/zh** ; l'app
+  passe `?lang=` au site (titres de barre traduits via les clés `item.*`), le site mémorise la
+  langue pour ses liens internes, l'arabe passe en RTL, et les pages légales traduites s'ouvrent
+  sur « seule la version française fait foi ». Traductions découpées par langue et par page,
+  chargées à la demande : le visiteur français ne télécharge rien de plus.
+- Zip `chapcipagestraduites.zip` (14 Mo) téléversé **et** extrait du premier coup par le Patron.
+  Trois empreintes vérifiées au curl : API `bba753c02457` (remise au niveau : champ Secteur Pro
+  40→60 — le zip extrait le matin à 11 h avait un cran de retard), SEO `c57f0f1c6e55`, Site
+  `a0b0e73b2a36`. Fichiers de traduction servis par la production (contrôle curl sur `en-*`/`ar-*`).
+
+### 2026-08-25 ~20:50 — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde verte, RAS.** Trois empreintes vérifiées contre un vrai build (`npm ci && npm run
+  build`) : API `bba753c02457`, SEO `c57f0f1c6e55`, Site `a0b0e73b2a36` — les trois = HEAD :
+  la production sert le dépôt, déploiement du jour confirmé indépendamment.
+- Sécurité 24 h propre (`failRatio 0`, aucune IP suspecte, `adminsTampered false`). **2e
+  apparition** des signaux faibles : 2×`cron_fail` sur `cron/stats` — cette fois qualifiés
+  « cle-differente, en-tête, 65 caractères » — et 2×`mtoken_fail` `unknown` (jeton de service
+  présenté mais inconnu). Tâche cPanel elle-même saine (passage réussi 08:06, 65 au total) :
+  ces appels viennent d'ailleurs. À surveiller ; si ça persiste, faire comparer au Patron les
+  commandes cPanel avec le bouton « Commande cPanel » de Admin → Tâches auto.
+- CSP : seule origine 7 j = `api.bigdatacloud.net` (déjà tranchée le 15/08). TLS : crt.sh
+  inaccessible ce tour (proxy) — dernière lecture fiable 17/08 : échéance 2026-10-12.
+- Revue du diff Pro (`pro/demande`, `pro/statut`, `admin/pro`, `admin/pro/decider`, badge
+  `sellerPro`) : trois portes admin en place, liste blanche des types, rate-limit 5/24 h,
+  requêtes préparées, fiche publique sans RCCM ni téléphone — **aucune faille identifiée**.
+  App : aucune permission ni dépendance nouvelle, aucun secret en dur. Modération : file vide.
