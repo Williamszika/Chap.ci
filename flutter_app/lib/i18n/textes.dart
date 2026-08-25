@@ -85,6 +85,33 @@ const Map<String, Map<String, String>> _t = {
   'home.filtrer': {'fr': "Filtrer", 'en': "Filter", 'es': "Filtrar", 'pt': "Filtrar", 'ar': "تصفية", 'zh': "筛选"},
   'home.vide': {'fr': "Aucune annonce pour le moment. Revenez bientôt !", 'en': "No listings yet. Check back soon!", 'es': "Aún no hay anuncios. ¡Vuelve pronto!", 'pt': "Ainda não há anúncios. Volte em breve!", 'ar': "لا توجد إعلانات بعد. عُد قريباً!", 'zh': "暂无商品，请稍后再来！"},
   'home.erreur': {'fr': "Impossible de charger les annonces.", 'en': "Couldn't load listings.", 'es': "No se pudieron cargar los anuncios.", 'pt': "Não foi possível carregar os anúncios.", 'ar': "تعذّر تحميل الإعلانات.", 'zh': "无法加载商品。"},
+
+  // Détail d'une annonce
+  'annonce.titre': {'fr': "Annonce", 'en': "Listing", 'es': "Anuncio", 'pt': "Anúncio", 'ar': "إعلان", 'zh': "商品"},
+  'annonce.details': {'fr': "Détails", 'en': "Details", 'es': "Detalles", 'pt': "Detalhes", 'ar': "التفاصيل", 'zh': "详情"},
+  'annonce.description': {'fr': "Description", 'en': "Description", 'es': "Descripción", 'pt': "Descrição", 'ar': "الوصف", 'zh': "描述"},
+  'annonce.sansDescription': {'fr': "Aucune description.", 'en': "No description.", 'es': "Sin descripción.", 'pt': "Sem descrição.", 'ar': "لا يوجد وصف.", 'zh': "暂无描述。"},
+  'annonce.negociable': {'fr': "négociable", 'en': "negotiable", 'es': "negociable", 'pt': "negociável", 'ar': "قابل للتفاوض", 'zh': "可议价"},
+  'annonce.prixAffiche': {'fr': "prix affiché", 'en': "listed price", 'es': "precio indicado", 'pt': "preço indicado", 'ar': "السعر المعروض", 'zh': "标价"},
+  'annonce.vendu': {'fr': "VENDU", 'en': "SOLD", 'es': "VENDIDO", 'pt': "VENDIDO", 'ar': "مُباع", 'zh': "已售"},
+  'annonce.etat': {'fr': "État", 'en': "Condition", 'es': "Estado", 'pt': "Estado", 'ar': "الحالة", 'zh': "成色"},
+  'annonce.livraison': {'fr': "Livraison", 'en': "Delivery", 'es': "Envío", 'pt': "Entrega", 'ar': "التوصيل", 'zh': "配送"},
+  'annonce.possible': {'fr': "Possible", 'en': "Available", 'es': "Posible", 'pt': "Possível", 'ar': "متاح", 'zh': "可以"},
+  'annonce.surPlace': {'fr': "Sur place", 'en': "In person", 'es': "En persona", 'pt': "No local", 'ar': "استلام شخصي", 'zh': "自取"},
+  'cond.neuf': {'fr': "Neuf", 'en': "New", 'es': "Nuevo", 'pt': "Novo", 'ar': "جديد", 'zh': "全新"},
+  'cond.occasion': {'fr': "Occasion", 'en': "Used", 'es': "Usado", 'pt': "Usado", 'ar': "مستعمل", 'zh': "二手"},
+  'bool.oui': {'fr': "Oui", 'en': "Yes", 'es': "Sí", 'pt': "Sim", 'ar': "نعم", 'zh': "是"},
+  'bool.non': {'fr': "Non", 'en': "No", 'es': "No", 'pt': "Não", 'ar': "لا", 'zh': "否"},
+  'action.partager': {'fr': "Partager", 'en': "Share", 'es': "Compartir", 'pt': "Partilhar", 'ar': "مشاركة", 'zh': "分享"},
+  'action.contacter': {'fr': "Contacter", 'en': "Contact", 'es': "Contactar", 'pt': "Contactar", 'ar': "تواصل", 'zh': "联系"},
+  'action.compris': {'fr': "J’ai compris", 'en': "Got it", 'es': "Entendido", 'pt': "Entendido", 'ar': "حسناً", 'zh': "知道了"},
+  'etat.venduCourt': {'fr': "Vendu", 'en': "Sold", 'es': "Vendido", 'pt': "Vendido", 'ar': "مُباع", 'zh': "已售"},
+  'vendeur.voir': {'fr': "Voir ses annonces et ses infos", 'en': "See their listings and info", 'es': "Ver sus anuncios e información", 'pt': "Ver os seus anúncios e informações", 'ar': "اطّلع على إعلاناته ومعلوماته", 'zh': "查看其商品和信息"},
+  'vendeur.sur': {'fr': "Vendeur sur Chap.ci", 'en': "Seller on Chap.ci", 'es': "Vendedor en Chap.ci", 'pt': "Vendedor no Chap.ci", 'ar': "بائع على Chap.ci", 'zh': "Chap.ci 上的卖家"},
+  'annonce.contacterConnexion': {'fr': "Connectez-vous depuis l’onglet Compte pour contacter le vendeur.", 'en': "Sign in from the Account tab to contact the seller.", 'es': "Inicia sesión desde la pestaña Cuenta para contactar al vendedor.", 'pt': "Inicie sessão no separador Conta para contactar o vendedor.", 'ar': "سجّل الدخول من تبويب الحساب للتواصل مع البائع.", 'zh': "请在“账户”标签登录后联系卖家。"},
+  'annonce.contacterImpossible': {'fr': "Ce vendeur ne peut pas être contacté dans l’application pour le moment.", 'en': "This seller can't be contacted in the app right now.", 'es': "No se puede contactar a este vendedor en la app por ahora.", 'pt': "Este vendedor não pode ser contactado na aplicação de momento.", 'ar': "لا يمكن التواصل مع هذا البائع في التطبيق حالياً.", 'zh': "目前无法在应用内联系该卖家。"},
+  'annonce.proprAnnonce': {'fr': "C’est votre propre annonce.", 'en': "This is your own listing.", 'es': "Este es tu propio anuncio.", 'pt': "Este é o seu próprio anúncio.", 'ar': "هذا إعلانك أنت.", 'zh': "这是您自己的商品。"},
+  'annonce.partageEchec': {'fr': "Le partage n’a pas pu s’ouvrir. Voici le lien de l’annonce : ", 'en': "Sharing couldn't open. Here's the listing link: ", 'es': "No se pudo abrir el menú de compartir. Aquí tienes el enlace: ", 'pt': "Não foi possível abrir a partilha. Aqui está o link: ", 'ar': "تعذّر فتح المشاركة. إليك رابط الإعلان: ", 'zh': "无法打开分享。这是商品链接："},
 };
 
 /// Le texte de la clé [cle] dans la langue de l'application.

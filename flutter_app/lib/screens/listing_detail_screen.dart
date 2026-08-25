@@ -6,6 +6,7 @@ import '../api/models.dart';
 import '../data/categories.dart';
 import '../data/formulaires/registre.dart';
 import '../format.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/bouton_favori.dart';
 import 'conversation_screen.dart';
@@ -52,7 +53,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final a = widget.annonce;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Annonce'),
+        title: Text(tr(context, 'annonce.titre')),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 4),
@@ -62,7 +63,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           Builder(
             builder: (btnContext) => IconButton(
               icon: const Icon(Icons.share_outlined),
-              tooltip: 'Partager',
+              tooltip: tr(context, 'action.partager'),
               onPressed: () => _partager(btnContext, a),
             ),
           ),
@@ -110,15 +111,15 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 ),
                 _detailsSection(a),
                 const Divider(height: 30, color: ChapColors.line),
-                const Text('Description',
-                    style: TextStyle(
+                Text(tr(context, 'annonce.description'),
+                    style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: ChapColors.gray900)),
                 const SizedBox(height: 6),
                 Text(
                   a.description.trim().isEmpty
-                      ? 'Aucune description.'
+                      ? tr(context, 'annonce.sansDescription')
                       : a.description,
                   style: const TextStyle(
                       fontSize: 14.5, height: 1.5, color: ChapColors.gray700),
@@ -179,8 +180,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 decoration: BoxDecoration(
                     color: Colors.black87,
                     borderRadius: BorderRadius.circular(8)),
-                child: const Text('VENDU',
-                    style: TextStyle(
+                child: Text(tr(context, 'annonce.vendu'),
+                    style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.5)),
@@ -233,8 +234,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ],
         if (a.negotiable) ...[
           const SizedBox(width: 8),
-          const Text('négociable',
-              style: TextStyle(fontSize: 13, color: ChapColors.gray600)),
+          Text(tr(context, 'annonce.negociable'),
+              style: const TextStyle(fontSize: 13, color: ChapColors.gray600)),
         ],
       ],
     );
@@ -253,12 +254,13 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        puce(a.condition == 'neuf' ? 'Neuf' : 'Occasion',
+        puce(tr(context, a.condition == 'neuf' ? 'cond.neuf' : 'cond.occasion'),
             ChapColors.cream100, ChapColors.ocreDark),
         if (a.commune != null && a.commune!.isNotEmpty)
           puce('📍 ${a.commune}', ChapColors.cream100, ChapColors.gray700),
         if (a.delivery)
-          puce('🚚 Livraison', const Color(0xFFE6F6EE), ChapColors.greenDark),
+          puce('🚚 ${tr(context, 'annonce.livraison')}',
+              const Color(0xFFE6F6EE), ChapColors.greenDark),
       ],
     );
   }
@@ -292,8 +294,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(height: 30, color: ChapColors.line),
-        const Text('Détails',
-            style: TextStyle(
+        Text(tr(context, 'annonce.details'),
+            style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: ChapColors.gray900)),
@@ -333,7 +335,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final schema = schemaPour(a.categoryId, a.subcategory);
 
     if (schema == null || schema.etat != false) {
-      items.add(('État', a.condition == 'neuf' ? 'Neuf' : 'Occasion'));
+      items.add((tr(context, 'annonce.etat'),
+          tr(context, a.condition == 'neuf' ? 'cond.neuf' : 'cond.occasion')));
     }
 
     String? fmt(dynamic v) {
@@ -345,7 +348,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             .join(', ');
         return s.isEmpty ? null : s;
       }
-      if (v is bool) return v ? 'Oui' : 'Non';
+      if (v is bool) return v ? tr(context, 'bool.oui') : tr(context, 'bool.non');
       final s = v.toString().trim();
       return s.isEmpty ? null : s;
     }
@@ -377,7 +380,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     }
 
     if (schema?.livraison == true) {
-      items.add(('Livraison', a.delivery ? 'Possible' : 'Sur place'));
+      items.add((tr(context, 'annonce.livraison'),
+          a.delivery ? tr(context, 'annonce.possible') : tr(context, 'annonce.surPlace')));
     }
     return items;
   }
@@ -417,8 +421,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               ),
               Text(
                   aVendeur
-                      ? 'Voir ses annonces et ses infos'
-                      : 'Vendeur sur Chap.ci',
+                      ? tr(context, 'vendeur.voir')
+                      : tr(context, 'vendeur.sur'),
                   style: const TextStyle(
                       fontSize: 12.5, color: ChapColors.gray600)),
             ],
@@ -461,8 +465,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       ));
     } catch (_) {
       if (mounted) {
-        _info(context,
-            'Le partage n’a pas pu s’ouvrir. Voici le lien de l’annonce : $url');
+        _info(context, '${tr(context, 'annonce.partageEchec')}$url');
       }
     }
   }
@@ -490,9 +493,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           fontSize: 17,
                           fontWeight: FontWeight.w900,
                           color: ChapColors.orangeDark)),
-                  const Text('prix affiché',
-                      style:
-                          TextStyle(fontSize: 11, color: ChapColors.gray500)),
+                  Text(tr(context, 'annonce.prixAffiche'),
+                      style: const TextStyle(
+                          fontSize: 11, color: ChapColors.gray500)),
                 ],
               ),
             ),
@@ -501,7 +504,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               child: ElevatedButton.icon(
                 onPressed: a.sold ? null : () => _contacter(a),
                 icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                label: Text(a.sold ? 'Vendu' : 'Contacter'),
+                label: Text(a.sold
+                    ? tr(context, 'etat.venduCourt')
+                    : tr(context, 'action.contacter')),
               ),
             ),
           ],
@@ -515,19 +520,17 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   /// propre annonce.
   Future<void> _contacter(Listing a) async {
     if (!ApiClient.instance.connecte) {
-      _info(context,
-          'Connectez-vous depuis l’onglet Compte pour contacter le vendeur.');
+      _info(context, tr(context, 'annonce.contacterConnexion'));
       return;
     }
     if (a.sellerId == null || a.sellerId!.isEmpty) {
-      _info(context,
-          'Ce vendeur ne peut pas être contacté dans l’application pour le moment.');
+      _info(context, tr(context, 'annonce.contacterImpossible'));
       return;
     }
     final monId = await ApiClient.instance.monId();
     if (!mounted) return;
     if (a.sellerId == monId) {
-      _info(context, 'C’est votre propre annonce.');
+      _info(context, tr(context, 'annonce.proprAnnonce'));
       return;
     }
     try {
@@ -564,7 +567,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               width: double.infinity,
               child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('J’ai compris')),
+                  child: Text(tr(context, 'action.compris'))),
             ),
           ],
         ),
