@@ -5552,15 +5552,26 @@ try {
             'cache' => true]);
     }
 
-    $moteur = rtrim((string) ($config['traduction_url'] ?? ''), '/');
-    if ($moteur === '') jerr('Traduction non configurée.', 503);
     // 60 traductions NEUVES par heure et par IP : de quoi lire beaucoup
     // d'annonces, pas de quoi pomper le moteur (le cache ne compte pas).
     rate_limit($pdo, 'traduire', null, 60, 3600);
     log_security_event($pdo, 'traduire', null, $langue);
 
-    $traduire = function (string $texte) use ($moteur, $config, $langue): ?string {
-      if (trim($texte) === '') return '';
+    // Trois moteurs, essayés dans l'ordre — le premier qui répond gagne :
+    //
+    //  1. LibreTranslate auto-hébergé, si `traduction_url` est rempli — le
+    //     choix de fond (nos données restent chez nous, pas de dépendance).
+    //  2. Le point de traduction public de Google (« client=gtx », celui des
+    //     outils libres) : gratuit et sans clé, mais NON officiel — certaines
+    //     IP le voient répondre 429. D'où le troisième :
+    //  3. MyMemory (api.mymemory.translated.net), API officielle et gratuite,
+    //     limitée à ~500 caractères par requête (on découpe aux phrases) et à
+    //     un quota journalier — suffisant ici parce que le cache réduit le
+    //     volume à presque rien : une annonce = une traduction par langue,
+    //     pour toujours.
+    $moteur = rtrim((string) ($config['traduction_url'] ?? ''), '/');
+
+    $viaLibre = function (string $texte) use ($moteur, $config, $langue): ?string {
       $corps = ['q' => $texte, 'source' => 'fr', 'target' => $langue, 'format' => 'text'];
       if (($config['traduction_cle'] ?? '') !== '') $corps['api_key'] = $config['traduction_cle'];
       $r = http_fetch($moteur . '/translate', [
@@ -5572,6 +5583,68 @@ try {
       $d = json_decode($r['body'], true);
       $t = is_array($d) ? ($d['translatedText'] ?? null) : null;
       return is_string($t) ? $t : null;
+    };
+
+    // Google gtx : POST en formulaire (les descriptions peuvent être longues,
+    // une URL GET déborderait). Réponse en segments [[["trad","orig",…],…],…]
+    // qu'on recolle dans l'ordre.
+    $viaGoogle = function (string $texte) use ($langue): ?string {
+      $r = http_fetch(
+        'https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl='
+          . rawurlencode($langue) . '&dt=t',
+        [
+          'method' => 'POST',
+          'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+          'body' => 'q=' . rawurlencode($texte),
+        ]
+      );
+      if ($r['status'] !== 200) return null;
+      $d = json_decode($r['body'], true);
+      if (!is_array($d) || !is_array($d[0] ?? null)) return null;
+      $out = '';
+      foreach ($d[0] as $seg) {
+        if (is_array($seg) && is_string($seg[0] ?? null)) $out .= $seg[0];
+      }
+      return $out === '' ? null : $out;
+    };
+
+    // MyMemory : ~500 caractères max par requête → on découpe aux fins de
+    // phrase (puis aux espaces si une « phrase » dépasse à elle seule).
+    $viaMyMemory = function (string $texte) use ($langue): ?string {
+      $morceaux = [];
+      $restant = $texte;
+      while (mb_strlen($restant) > 450) {
+        $tranche = mb_substr($restant, 0, 450);
+        $coupe = 0;
+        foreach (['. ', '! ', '? ', "\n", ', ', ' '] as $sep) {
+          $p = mb_strrpos($tranche, $sep);
+          if ($p !== false && $p > 0) { $coupe = $p + mb_strlen($sep); break; }
+        }
+        if ($coupe === 0) $coupe = 450;
+        $morceaux[] = mb_substr($restant, 0, $coupe);
+        $restant = mb_substr($restant, $coupe);
+      }
+      if ($restant !== '') $morceaux[] = $restant;
+      $out = [];
+      foreach ($morceaux as $m) {
+        $r = http_fetch('https://api.mymemory.translated.net/get?q=' . rawurlencode($m)
+          . '&langpair=' . rawurlencode('fr|' . $langue));
+        if ($r['status'] !== 200) return null;
+        $d = json_decode($r['body'], true);
+        $t = is_array($d) ? ($d['responseData']['translatedText'] ?? null) : null;
+        if (!is_string($t) || $t === '') return null;
+        $out[] = $t;
+      }
+      return implode(' ', $out);
+    };
+
+    $traduire = function (string $texte) use ($moteur, $viaLibre, $viaGoogle, $viaMyMemory): ?string {
+      if (trim($texte) === '') return '';
+      if ($moteur !== '') {
+        $t = $viaLibre($texte);
+        if ($t !== null) return $t;
+      }
+      return $viaGoogle($texte) ?? $viaMyMemory($texte);
     };
     $titreTr = $traduire($titre);
     $descTr = $traduire($description);
