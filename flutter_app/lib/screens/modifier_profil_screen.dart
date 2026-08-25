@@ -19,6 +19,7 @@ class ModifierProfilScreen extends StatefulWidget {
 
 class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   final _nom = TextEditingController();
+  final _tel = TextEditingController();
   final _bio = TextEditingController();
 
   bool _chargement = true;
@@ -36,6 +37,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   @override
   void dispose() {
     _nom.dispose();
+    _tel.dispose();
     _bio.dispose();
     super.dispose();
   }
@@ -46,6 +48,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
       final id = moi?['id'] as String?;
       _nom.text =
           (moi?['user_metadata']?['full_name'] as String?)?.trim() ?? '';
+      _tel.text = (moi?['phone'] as String?)?.trim() ?? '';
       if (id != null) {
         final p = await ApiClient.instance.get('/profile/$id');
         if (p is Map) {
@@ -92,6 +95,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
     try {
       final corps = <String, dynamic>{
         'full_name': _nom.text.trim(),
+        'phone': _tel.text.trim(),
         'bio': _bio.text.trim(),
       };
       final ph = _nouvellePhoto;
@@ -155,6 +159,18 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Nom complet',
                     prefixIcon: Icon(Icons.person_outline),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _tel,
+                  keyboardType: TextInputType.phone,
+                  autofillHints: const [AutofillHints.telephoneNumber],
+                  decoration: const InputDecoration(
+                    labelText: 'Téléphone (facultatif)',
+                    hintText: '07 07 07 07 07',
+                    helperText: 'Pré-remplit vos annonces. Jamais affiché publiquement.',
+                    prefixIcon: Icon(Icons.phone_outlined),
                   ),
                 ),
                 const SizedBox(height: 14),

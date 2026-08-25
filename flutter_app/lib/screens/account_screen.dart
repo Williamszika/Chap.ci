@@ -4,6 +4,7 @@ import '../liens_site.dart';
 import '../theme.dart';
 import '../widgets/social_buttons.dart';
 import 'mon_compte.dart';
+import 'parametres_screen.dart';
 import 'register_screen.dart';
 import 'verifier_2fa_screen.dart';
 
@@ -59,8 +60,11 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  Future<void> _seDeconnecter() async {
-    await ApiClient.instance.seDeconnecter();
+  Future<void> _ouvrirParametres() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const ParametresScreen()));
+    // Au retour, l'état a pu changer (déconnexion, suppression, e-mail
+    // confirmé…) : on redessine l'écran Compte.
     if (mounted) setState(() {});
   }
 
@@ -120,9 +124,9 @@ class _AccountScreenState extends State<AccountScreen> {
         actions: connecte
             ? [
                 IconButton(
-                  icon: const Icon(Icons.logout),
-                  tooltip: 'Se déconnecter',
-                  onPressed: _seDeconnecter,
+                  icon: const Icon(Icons.settings_outlined),
+                  tooltip: 'Paramètres',
+                  onPressed: _ouvrirParametres,
                 ),
               ]
             : null,

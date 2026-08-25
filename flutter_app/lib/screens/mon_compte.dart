@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
-import '../api/admin.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../format.dart';
-import '../liens_site.dart';
 import '../theme.dart';
-import 'admin/tableau_bord_screen.dart';
 import 'listing_detail_screen.dart';
 import 'modifier_profil_screen.dart';
-import 'securite_2fa_screen.dart';
-import 'supprimer_compte_screen.dart';
 import 'verifier_email_screen.dart';
 
-/// Le contenu de l'onglet Compte quand on est connecté : l'identité, et
-/// « Mes annonces » avec leur état (en ligne / masquée / vendue), leurs vues,
-/// et les actions vendeur (voir, masquer/afficher, supprimer).
+/// Le contenu de l'onglet Compte quand on est connecté : l'identité (avec l'état
+/// de vérification et le badge de confiance), trois chiffres clés, et
+/// « Mes annonces » avec leur état, leurs vues et les actions vendeur.
+///
+/// Tous les réglages (profil, mot de passe, 2FA, notifications, aide,
+/// suppression…) sont rassemblés dans l'écran Paramètres, atteint par
+/// l'engrenage de la barre du haut.
 class MonCompteView extends StatefulWidget {
   const MonCompteView({super.key});
   @override
@@ -24,20 +23,12 @@ class MonCompteView extends StatefulWidget {
 class _MonCompteViewState extends State<MonCompteView> {
   late Future<Map<String, dynamic>> _infos;
   late Future<List<Listing>> _annonces;
-  bool _estAdmin = false; // l'entrée du tableau de bord n'apparaît que pour eux
 
   @override
   void initState() {
     super.initState();
     _infos = _chargerInfos();
     _annonces = Listing.miennes();
-    _verifierAdmin();
-  }
-
-  Future<void> _verifierAdmin() async {
-    if (!ApiClient.instance.connecte) return;
-    final acces = await AdminApi.verifier();
-    if (mounted && acces.admin) setState(() => _estAdmin = true);
   }
 
   Future<void> _recharger() async {
@@ -48,7 +39,8 @@ class _MonCompteViewState extends State<MonCompteView> {
     await _annonces;
   }
 
-  /// Identité (nom, e-mail, e-mail confirmé) + photo de profil, en une fois.
+  /// Identité (nom, e-mail), photo de profil, et l'état de confiance
+  /// (e-mail confirmé, badge, ancienneté) — le tout en une passe.
   Future<Map<String, dynamic>> _chargerInfos() async {
     final moi = await ApiClient.instance.moi();
     String? avatar;
@@ -59,11 +51,19 @@ class _MonCompteViewState extends State<MonCompteView> {
         if (p is Map) avatar = p['avatarUrl'] as String?;
       } catch (_) {/* pas de profil, pas grave */}
     }
+    Map verif = const {};
+    try {
+      final v = await ApiClient.instance.get('/verify/status');
+      if (v is Map) verif = v;
+    } catch (_) {/* on se rabat sur /me */}
     return {
       'aCompte': moi != null,
       'nom': (moi?['user_metadata']?['full_name'] as String?)?.trim(),
       'email': moi?['email'] as String? ?? '',
-      'verifie': moi?['emailVerified'] == true,
+      'verifie': (verif['emailVerified'] ?? moi?['emailVerified']) == true,
+      'badge': (verif['badge'] ?? moi?['badge']) as String? ?? '',
+      'mois': (verif['mois'] as num?)?.toInt() ?? 0,
+      'moisRestants': (verif['moisRestants'] as num?)?.toInt() ?? 0,
       'avatarUrl': avatar,
     };
   }
@@ -74,6 +74,12 @@ class _MonCompteViewState extends State<MonCompteView> {
     if (ok == true) _recharger();
   }
 
+  Future<void> _ouvrirVerif() async {
+    final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const VerifierEmailScreen()));
+    if (ok == true) _recharger();
+  }
+
   /// Exécute une action vendeur, montre l'erreur éventuelle, puis recharge.
   Future<void> _action(Future<void> Function() op) async {
     try {
@@ -81,16 +87,10 @@ class _MonCompteViewState extends State<MonCompteView> {
       await _recharger();
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
-  }
-
-  Future<void> _ouvrirVerif() async {
-    final ok = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const VerifierEmailScreen()));
-    if (ok == true) _recharger();
   }
 
   Future<void> _supprimer(Listing a) async {
@@ -126,6 +126,17 @@ class _MonCompteViewState extends State<MonCompteView> {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           _entete(),
+          FutureBuilder<List<Listing>>(
+            future: _annonces,
+            builder: (context, snap) {
+              final annonces = snap.data ?? const <Listing>[];
+              if (snap.connectionState == ConnectionState.done &&
+                  annonces.isNotEmpty) {
+                return _chiffres(annonces);
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 18, 16, 6),
             child: Text('Mes annonces',
@@ -161,109 +172,51 @@ class _MonCompteViewState extends State<MonCompteView> {
               );
             },
           ),
-          _sectionAide(),
         ],
       ),
     );
   }
 
-  /// « Aide & informations » : les pages du site (FAQ, contact, mentions
-  /// légales…) ouvertes dans un navigateur intégré — donc toujours à jour avec
-  /// le site — puis la suppression de compte (exigée par les stores).
-  Widget _sectionAide() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 22, 16, 6),
-          child: Text('Aide & informations',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: ChapColors.gray900)),
-        ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: ChapColors.cream,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: ChapColors.line),
-          ),
-          child: Column(
-            children: [
-              _tuile(Icons.help_outline, 'Aide',
-                  () => ouvrirPageSite(context, PagesSite.aide)),
-              _sep(),
-              _tuile(Icons.quiz_outlined, 'Questions fréquentes (FAQ)',
-                  () => ouvrirPageSite(context, PagesSite.faq)),
-              _sep(),
-              _tuile(Icons.mail_outline, 'Nous contacter',
-                  () => ouvrirPageSite(context, PagesSite.contact)),
-              _sep(),
-              _tuile(Icons.info_outline, 'À propos',
-                  () => ouvrirPageSite(context, PagesSite.aPropos)),
-              _sep(),
-              _tuile(Icons.description_outlined, 'Conditions d’utilisation',
-                  () => ouvrirPageSite(context, PagesSite.conditions)),
-              _sep(),
-              _tuile(Icons.privacy_tip_outlined, 'Confidentialité',
-                  () => ouvrirPageSite(context, PagesSite.confidentialite)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: ChapColors.cream,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFF1C9C4)),
-          ),
-          child: _tuile(Icons.delete_outline, 'Supprimer mon compte',
-              _ouvrirSuppression,
-              danger: true),
-        ),
-      ],
-    );
-  }
-
-  Widget _tuile(IconData icone, String titre, VoidCallback onTap,
-      {bool danger = false}) {
-    final couleur = danger ? const Color(0xFFB42318) : ChapColors.gray900;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icone, size: 20, color: couleur),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(titre,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight:
-                          danger ? FontWeight.w600 : FontWeight.w500,
-                      color: couleur)),
+  /// Les trois chiffres clés du vendeur : en ligne, vendues, vues cumulées.
+  Widget _chiffres(List<Listing> annonces) {
+    final enLigne = annonces.where((a) => !a.hidden && !a.sold).length;
+    final vendues = annonces.where((a) => a.sold).length;
+    final vues = annonces.fold<int>(0, (s, a) => s + a.views);
+    Widget carte(String n, String libelle, Color couleur) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+            decoration: BoxDecoration(
+              color: ChapColors.cream,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: ChapColors.line),
             ),
-            Icon(Icons.chevron_right,
-                size: 20,
-                color: danger
-                    ? const Color(0xFFB42318)
-                    : ChapColors.gray500),
-          ],
-        ),
+            child: Column(
+              children: [
+                Text(n,
+                    style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        color: couleur)),
+                const SizedBox(height: 4),
+                Text(libelle,
+                    style: const TextStyle(
+                        fontSize: 11, color: ChapColors.gray600)),
+              ],
+            ),
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Row(
+        children: [
+          carte('$enLigne', 'En ligne', ChapColors.greenDark),
+          const SizedBox(width: 8),
+          carte('$vendues', 'Vendues', ChapColors.gray900),
+          const SizedBox(width: 8),
+          carte('$vues', 'Vues', ChapColors.orangeDark),
+        ],
       ),
     );
-  }
-
-  Widget _sep() =>
-      const Divider(height: 1, thickness: 1, color: ChapColors.line);
-
-  Future<void> _ouvrirSuppression() async {
-    await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => const SupprimerCompteScreen()));
-    if (mounted) setState(() {}); // le compte peut avoir été supprimé
   }
 
   Widget _entete() {
@@ -276,12 +229,20 @@ class _MonCompteViewState extends State<MonCompteView> {
         final verifie = d['verifie'] == true;
         final aCompte = d['aCompte'] == true;
         final avatarUrl = d['avatarUrl'] as String?;
+        final badge = d['badge'] as String? ?? '';
+        final mois = d['mois'] as int? ?? 0;
+        final moisRestants = d['moisRestants'] as int? ?? 0;
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: ChapColors.cream,
-            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [ChapColors.cream100, ChapColors.cream],
+              stops: [0, 0.7],
+            ),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: ChapColors.line),
           ),
           child: Column(
@@ -297,8 +258,8 @@ class _MonCompteViewState extends State<MonCompteView> {
                         Text(
                           (nom != null && nom.isNotEmpty) ? nom : 'Mon compte',
                           style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 16.5,
+                              fontWeight: FontWeight.w800,
                               color: ChapColors.gray900),
                         ),
                         if (email.isNotEmpty)
@@ -319,99 +280,14 @@ class _MonCompteViewState extends State<MonCompteView> {
                     ),
                 ],
               ),
-              if (aCompte && !verifie) ...[
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: _ouvrirVerif,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF4E0),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFF3D9A6)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.mark_email_unread_outlined,
-                            size: 18, color: ChapColors.ocreDark),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Confirmez votre e-mail pour pouvoir publier.',
-                            style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: ChapColors.ocreDark),
-                          ),
-                        ),
-                        Icon(Icons.chevron_right,
-                            size: 18, color: ChapColors.ocreDark),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
               if (aCompte) ...[
                 const SizedBox(height: 12),
-                InkWell(
-                  onTap: _ouvrirSecurite,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: ChapColors.line2),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.shield_outlined,
-                            size: 20, color: ChapColors.gray700),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text('Double authentification',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: ChapColors.gray900)),
-                        ),
-                        Icon(Icons.chevron_right,
-                            size: 20, color: ChapColors.gray600),
-                      ],
-                    ),
-                  ),
-                ),
+                _puces(verifie: verifie, badge: badge, mois: mois,
+                    moisRestants: moisRestants),
               ],
-              if (aCompte && _estAdmin) ...[
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: _ouvrirTableauBord,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: ChapColors.cream100.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: ChapColors.orange.withValues(alpha: 0.4)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.dashboard_outlined,
-                            size: 20, color: ChapColors.orangeDark),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text('Tableau de bord',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: ChapColors.orangeDark)),
-                        ),
-                        Icon(Icons.chevron_right,
-                            size: 20, color: ChapColors.orangeDark),
-                      ],
-                    ),
-                  ),
-                ),
+              if (aCompte && !verifie) ...[
+                const SizedBox(height: 12),
+                _banniereVerif(),
               ],
             ],
           ),
@@ -420,14 +296,104 @@ class _MonCompteViewState extends State<MonCompteView> {
     );
   }
 
-  Future<void> _ouvrirTableauBord() async {
-    await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const TableauBordScreen()));
+  /// Les puces d'état : e-mail confirmé, et le badge de confiance (l'ancienneté
+  /// que le serveur calcule déjà, ou « équipe » pour l'administration).
+  Widget _puces({
+    required bool verifie,
+    required String badge,
+    required int mois,
+    required int moisRestants,
+  }) {
+    final puces = <Widget>[];
+    if (verifie) {
+      puces.add(_puce('E-mail confirmé',
+          icone: Icons.check_circle,
+          fond: const Color(0xFFE6F6EE),
+          bord: const Color(0xFFBEE6D1),
+          couleur: ChapColors.greenDark));
+    }
+    if (badge == 'admin') {
+      puces.add(_puce('Équipe Chap.ci',
+          icone: Icons.verified,
+          fond: const Color(0xFFE7EDF5),
+          bord: const Color(0xFFC7D6E8),
+          couleur: const Color(0xFF3B5A80)));
+    } else if (badge == 'anciennete') {
+      puces.add(_puce(
+          mois > 0 ? 'Membre vérifié · $mois mois' : 'Membre vérifié',
+          icone: Icons.workspace_premium,
+          fond: const Color(0xFFFFF3E4),
+          bord: ChapColors.line2,
+          couleur: ChapColors.ocreDark));
+    } else if (verifie && moisRestants > 0) {
+      puces.add(_puce('Badge de confiance dans $moisRestants mois',
+          icone: Icons.schedule,
+          fond: ChapColors.cream100,
+          bord: ChapColors.line2,
+          couleur: ChapColors.gray600));
+    }
+    if (puces.isEmpty) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Wrap(spacing: 6, runSpacing: 6, children: puces),
+    );
   }
 
-  Future<void> _ouvrirSecurite() async {
-    await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const Securite2faScreen()));
+  Widget _puce(String libelle,
+      {required IconData icone,
+      required Color fond,
+      required Color bord,
+      required Color couleur}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: fond,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: bord),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icone, size: 13, color: couleur),
+          const SizedBox(width: 5),
+          Text(libelle,
+              style: TextStyle(
+                  fontSize: 11.5, fontWeight: FontWeight.w700, color: couleur)),
+        ],
+      ),
+    );
+  }
+
+  Widget _banniereVerif() {
+    return InkWell(
+      onTap: _ouvrirVerif,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF4E0),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFF3D9A6)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.mark_email_unread_outlined,
+                size: 18, color: ChapColors.ocreDark),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Confirmez votre e-mail pour pouvoir publier.',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: ChapColors.ocreDark),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: ChapColors.ocreDark),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _avatarWidget(String? url) {
@@ -442,7 +408,7 @@ class _MonCompteViewState extends State<MonCompteView> {
     }
     return const CircleAvatar(
       radius: 26,
-      backgroundColor: ChapColors.cream100,
+      backgroundColor: ChapColors.cream,
       child: Icon(Icons.person, color: ChapColors.orange, size: 28),
     );
   }

@@ -262,6 +262,24 @@ class ApiClient {
     await _enregistrerJeton(null);
   }
 
+  /// Change le mot de passe (`POST /auth/password`).
+  ///
+  /// Le serveur invalide les anciens jetons — ce qui déconnecte les AUTRES
+  /// appareils — et en renvoie un neuf pour la session courante : on le stocke
+  /// aussitôt, sinon l'application se déconnecterait elle-même au prochain appel.
+  /// [actuel] n'est envoyé que s'il est fourni : un compte créé par Google ou par
+  /// téléphone n'a pas de mot de passe et le serveur l'accepte sans.
+  Future<void> changerMotDePasse(String? actuel, String nouveau) async {
+    final d = await post('/auth/password', {
+      'password': nouveau,
+      if (actuel != null && actuel.isNotEmpty) 'currentPassword': actuel,
+    });
+    final token = (d is Map) ? d['token'] as String? : null;
+    if (token != null && token.isNotEmpty) {
+      await _enregistrerJeton(token);
+    }
+  }
+
   /// Supprime définitivement le compte courant (`POST /auth/delete`) puis ferme
   /// la session localement. Le serveur redemande le mot de passe si le compte
   /// en a un ; pour un compte Google/téléphone, le jeton suffit (mot de passe
