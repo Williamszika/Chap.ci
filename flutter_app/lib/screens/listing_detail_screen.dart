@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
@@ -35,6 +36,12 @@ class ListingDetailScreen extends StatefulWidget {
 class _ListingDetailScreenState extends State<ListingDetailScreen> {
   final _pageCtrl = PageController();
   int _page = 0;
+
+  // Traduction du contenu vendeur (titre + description). Chargée à la demande
+  // via POST /traduire, puis basculable avec « Voir l'original ».
+  Map<String, String>? _traduction;
+  bool _montreTraduction = false;
+  bool _traductionEnCours = false;
 
   @override
   void initState() {
@@ -78,7 +85,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(a.title,
+                Text(
+                    _montreTraduction &&
+                            (_traduction?['titre']?.isNotEmpty ?? false)
+                        ? _traduction!['titre']!
+                        : a.title,
                     style: const TextStyle(
                         fontSize: 20,
                         height: 1.2,
@@ -112,19 +123,37 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 ),
                 _detailsSection(a),
                 const Divider(height: 30, color: ChapColors.line),
-                Text(tr(context, 'annonce.description'),
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: ChapColors.gray900)),
+                Row(
+                  children: [
+                    Text(tr(context, 'annonce.description'),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: ChapColors.gray900)),
+                    const Spacer(),
+                    if (Localizations.localeOf(context).languageCode != 'fr')
+                      _boutonTraduire(a),
+                  ],
+                ),
                 const SizedBox(height: 6),
                 Text(
-                  a.description.trim().isEmpty
-                      ? tr(context, 'annonce.sansDescription')
-                      : a.description,
+                  _montreTraduction &&
+                          (_traduction?['description']?.isNotEmpty ?? false)
+                      ? _traduction!['description']!
+                      : (a.description.trim().isEmpty
+                          ? tr(context, 'annonce.sansDescription')
+                          : a.description),
                   style: const TextStyle(
                       fontSize: 14.5, height: 1.5, color: ChapColors.gray700),
                 ),
+                if (_montreTraduction) ...[
+                  const SizedBox(height: 6),
+                  Text('🌐 ${tr(context, 'annonce.traductionAuto')}',
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontStyle: FontStyle.italic,
+                          color: ChapColors.gray500)),
+                ],
                 const Divider(height: 30, color: ChapColors.line),
                 _vendeur(a),
               ],
@@ -451,6 +480,84 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         child: contenu,
       ),
     );
+  }
+
+  /// Le bouton « Traduire / Voir l'original », affiché quand la langue de
+  /// l'application n'est pas le français.
+  Widget _boutonTraduire(Listing a) {
+    return TextButton.icon(
+      onPressed: _traductionEnCours ? null : () => _traduire(a),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        foregroundColor: ChapColors.orangeDark,
+      ),
+      icon: _traductionEnCours
+          ? const SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: ChapColors.orangeDark))
+          : const Icon(Icons.translate, size: 15),
+      label: Text(
+          _montreTraduction
+              ? tr(context, 'annonce.voirOriginal')
+              : tr(context, 'annonce.traduire'),
+          style: const TextStyle(
+              fontSize: 12.5, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  /// Demande la traduction au serveur (`POST /traduire`, moteur auto-hébergé
+  /// avec cache). Tant que le moteur n'est pas configuré, le serveur répond
+  /// 503 : on se replie alors sur Google Traduction dans le navigateur.
+  Future<void> _traduire(Listing a) async {
+    if (_montreTraduction) {
+      setState(() => _montreTraduction = false);
+      return;
+    }
+    if (_traduction != null) {
+      setState(() => _montreTraduction = true);
+      return;
+    }
+    final langue = Localizations.localeOf(context).languageCode;
+    setState(() => _traductionEnCours = true);
+    try {
+      final d = await ApiClient.instance
+          .post('/traduire', {'listingId': a.id, 'langue': langue});
+      if (d is Map && mounted) {
+        setState(() {
+          _traduction = {
+            'titre': (d['titre'] as String?) ?? '',
+            'description': (d['description'] as String?) ?? '',
+          };
+          _montreTraduction = true;
+        });
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 503 || e.statusCode == 502 || e.statusCode == 404) {
+        // Pas (encore) de moteur — ou serveur pas encore déployé (404) :
+        // Google Traduction dans le navigateur.
+        _ouvrirGoogleTraduction(a, langue);
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _traductionEnCours = false);
+    }
+  }
+
+  Future<void> _ouvrirGoogleTraduction(Listing a, String langue) async {
+    final texte = '${a.title}\n\n${a.description}';
+    final coupe = texte.length > 1800 ? texte.substring(0, 1800) : texte;
+    final uri = Uri.parse(
+        'https://translate.google.com/?sl=fr&tl=$langue&op=translate&text=${Uri.encodeComponent(coupe)}');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {/* pas de navigateur : tant pis, sans casser l'écran */}
   }
 
   /// Ouvre la feuille de partage native (réseaux sociaux, WhatsApp, « Copier »…)

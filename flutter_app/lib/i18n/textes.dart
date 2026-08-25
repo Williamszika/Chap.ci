@@ -416,6 +416,11 @@ const Map<String, Map<String, String>> _t = {
   'param.playErreur': {'fr': "Impossible d’ouvrir le Play Store.", 'en': "Couldn't open the Play Store.", 'es': "No se pudo abrir Play Store.", 'pt': "Não foi possível abrir a Play Store.", 'ar': "تعذّر فتح Play Store.", 'zh': "无法打开 Play Store。"},
   'pub.enLigne': {'fr': "Votre annonce est en ligne 🎉", 'en': "Your listing is live 🎉", 'es': "Tu anuncio está en línea 🎉", 'pt': "O seu anúncio está online 🎉", 'ar': "إعلانك منشور الآن 🎉", 'zh': "您的商品已上架 🎉"},
   'prof.modifier': {'fr': "Modifier le profil", 'en': "Edit profile", 'es': "Editar perfil", 'pt': "Editar perfil", 'ar': "تعديل الملف الشخصي", 'zh': "编辑资料"},
+
+  // Traduction du contenu des annonces
+  'annonce.traduire': {'fr': "Traduire", 'en': "Translate", 'es': "Traducir", 'pt': "Traduzir", 'ar': "ترجمة", 'zh': "翻译"},
+  'annonce.voirOriginal': {'fr': "Voir l’original", 'en': "See original", 'es': "Ver original", 'pt': "Ver original", 'ar': "عرض النص الأصلي", 'zh': "查看原文"},
+  'annonce.traductionAuto': {'fr': "Traduction automatique", 'en': "Automatic translation", 'es': "Traducción automática", 'pt': "Tradução automática", 'ar': "ترجمة آلية", 'zh': "机器翻译"},
 };
 
 /// Le texte de la clé [cle] dans la langue de l'application.

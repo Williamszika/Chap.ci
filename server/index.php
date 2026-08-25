@@ -48,6 +48,15 @@ $config += [
   // panne sournoise en panne franche, et c'est tant mieux.
   'uploads_dir'          => getenv('CHAPCI_UPLOADS_DIR')  ?: __DIR__ . '/../uploads',
   'uploads_path'         => getenv('CHAPCI_UPLOADS_PATH') ?: '/uploads',
+  // TRADUCTION DES ANNONCES (titre + description écrits par les vendeurs).
+  //
+  // L'adresse d'un moteur LibreTranslate auto-hébergé (ex. « http://vps:5000 »).
+  // VIDE = pas de moteur : la route /traduire répond 503 et l'application se
+  // replie sur Google Traduction dans le navigateur. Le jour où le VPS existe,
+  // remplir ces deux valeurs dans api/config.php (ou en variables
+  // d'environnement) suffit — rien d'autre à redéployer.
+  'traduction_url'       => getenv('CHAPCI_TRADUCTION_URL') ?: '',
+  'traduction_cle'       => getenv('CHAPCI_TRADUCTION_CLE') ?: '',
   // SEUILS D'AFFICHAGE DES CHIFFRES PUBLICS.
   //
   // Un compteur n'attire que s'il impressionne. « Déjà 3 Ivoiriens sur Chap.ci »
@@ -1818,6 +1827,13 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS otp_codes (
       id $id PRIMARY KEY, phone $txt, code_hash $txt, attempts $intT, created_at $ts, expires_at $ts
     )$eng",
+    // Cache des traductions d'annonces : traduit une fois par le moteur, resservi
+    // à tous les lecteurs suivants. `hash` empreinte le texte source — si le
+    // vendeur modifie son annonce, la vieille traduction ne ressort pas.
+    "CREATE TABLE IF NOT EXISTS traductions (
+      id $id PRIMARY KEY, listing_id $id, langue $txt, hash $txt,
+      titre $txt, description $txt, created_at $ts
+    )$eng",
     // Favoris (côté serveur) : permet de notifier le vendeur.
     "CREATE TABLE IF NOT EXISTS favorites (
       user_id $id, listing_id $id, created_at $ts, PRIMARY KEY (user_id, listing_id)
@@ -2049,6 +2065,7 @@ function migrate(PDO $pdo): void {
 
   try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
   try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_traductions ON traductions (listing_id, langue)"); } catch (Throwable $e) {}
   // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
   try { $pdo->exec("CREATE INDEX idx_visits_visitor ON visits (visitor_id, created_at)"); } catch (Throwable $e) {}
   // Requêtes par plage de dates du tableau de bord vendeur.
@@ -5497,6 +5514,78 @@ try {
     $row = $st->fetch();
     if (!$row) jerr('Annonce introuvable.', 404);
     jout(listing_out($row));
+  }
+
+  // Traduire le titre et la description d'une annonce (texte écrit par le
+  // vendeur, donc intraduisible d'avance) vers la langue choisie dans l'app.
+  //
+  // Le moteur est un LibreTranslate auto-hébergé, pointé par le réglage
+  // `traduction_url`. Tant qu'il est vide, la route répond 503 et l'application
+  // se replie sur Google Traduction — le jour où le VPS existe, remplir le
+  // réglage suffit. Chaque traduction est mise en cache (table `traductions`,
+  // empreinte du texte source) : un texte n'est traduit qu'UNE fois, quel que
+  // soit le nombre de lecteurs — c'est ce qui rend le moteur bon marché.
+  //
+  // Route publique (les visiteurs lisent les annonces sans compte), throttlée
+  // par IP pour que personne n'en fasse un traducteur gratuit à volonté.
+  if ($path === 'traduire' && $method === 'POST') {
+    $b = body();
+    $listingId = (string) ($b['listingId'] ?? '');
+    $langue = (string) ($b['langue'] ?? '');
+    if (!in_array($langue, ['en', 'es', 'pt', 'ar', 'zh'], true)) {
+      jerr('Langue non prise en charge.');
+    }
+    $st = $pdo->prepare('SELECT title, description FROM listings WHERE id = ?');
+    $st->execute([$listingId]);
+    $a = $st->fetch();
+    if (!$a) jerr('Annonce introuvable.', 404);
+    $titre = (string) $a['title'];
+    $description = (string) $a['description'];
+    $hash = md5($titre . '|' . $description);
+
+    // Déjà traduit (et le texte source n'a pas changé) ? On ressert le cache.
+    $st = $pdo->prepare('SELECT titre, description FROM traductions
+      WHERE listing_id = ? AND langue = ? AND hash = ?');
+    $st->execute([$listingId, $langue, $hash]);
+    if ($cache = $st->fetch()) {
+      jout(['titre' => $cache['titre'], 'description' => $cache['description'],
+            'cache' => true]);
+    }
+
+    $moteur = rtrim((string) ($config['traduction_url'] ?? ''), '/');
+    if ($moteur === '') jerr('Traduction non configurée.', 503);
+    // 60 traductions NEUVES par heure et par IP : de quoi lire beaucoup
+    // d'annonces, pas de quoi pomper le moteur (le cache ne compte pas).
+    rate_limit($pdo, 'traduire', null, 60, 3600);
+    log_security_event($pdo, 'traduire', null, $langue);
+
+    $traduire = function (string $texte) use ($moteur, $config, $langue): ?string {
+      if (trim($texte) === '') return '';
+      $corps = ['q' => $texte, 'source' => 'fr', 'target' => $langue, 'format' => 'text'];
+      if (($config['traduction_cle'] ?? '') !== '') $corps['api_key'] = $config['traduction_cle'];
+      $r = http_fetch($moteur . '/translate', [
+        'method' => 'POST',
+        'headers' => ['Content-Type: application/json'],
+        'body' => json_encode($corps),
+      ]);
+      if ($r['status'] !== 200) return null;
+      $d = json_decode($r['body'], true);
+      $t = is_array($d) ? ($d['translatedText'] ?? null) : null;
+      return is_string($t) ? $t : null;
+    };
+    $titreTr = $traduire($titre);
+    $descTr = $traduire($description);
+    if ($titreTr === null || $descTr === null) {
+      jerr('Le moteur de traduction ne répond pas. Réessayez plus tard.', 502);
+    }
+    try {
+      $pdo->prepare('DELETE FROM traductions WHERE listing_id = ? AND langue = ?')
+          ->execute([$listingId, $langue]);
+      $pdo->prepare('INSERT INTO traductions (id, listing_id, langue, hash, titre, description, created_at)
+                     VALUES (?,?,?,?,?,?,?)')
+          ->execute([uuid(), $listingId, $langue, $hash, $titreTr, $descTr, now_iso()]);
+    } catch (Throwable $e) { /* cache raté = juste retraduit la prochaine fois */ }
+    jout(['titre' => $titreTr, 'description' => $descTr, 'cache' => false]);
   }
 
   // Statistiques du tableau de bord vendeur : vues (avec tendance vs période
