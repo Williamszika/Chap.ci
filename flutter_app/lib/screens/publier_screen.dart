@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../data/categories.dart';
 import '../i18n/categories_i18n.dart';
+import '../i18n/textes.dart';
 import '../data/coords.dart';
 import '../data/locations.dart';
 import '../data/formulaires/registre.dart';
@@ -92,14 +93,14 @@ class _PublierScreenState extends State<PublierScreen> {
             ListTile(
               leading: const Icon(Icons.photo_library_outlined,
                   color: ChapColors.orange),
-              title: const Text('Choisir dans la galerie'),
+              title: Text(tr(context, 'pub.galerie')),
               onTap: () =>
                   Navigator.pop(context, imgpick.ImageSource.gallery),
             ),
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined,
                   color: ChapColors.orange),
-              title: const Text('Prendre une photo'),
+              title: Text(tr(context, 'pub.prendrePhoto')),
               onTap: () => Navigator.pop(context, imgpick.ImageSource.camera),
             ),
           ],
@@ -126,8 +127,7 @@ class _PublierScreenState extends State<PublierScreen> {
       if (mounted) setState(() {});
     } catch (_) {
       if (mounted) {
-        _dialogue('Photo', 'Impossible d’accéder aux photos. '
-            'Vérifiez l’autorisation dans les réglages du téléphone.');
+        _dialogue(tr(context, 'pub.photo'), tr(context, 'pub.photoErreur'));
       }
     }
   }
@@ -143,34 +143,33 @@ class _PublierScreenState extends State<PublierScreen> {
   Future<void> _publier() async {
     if (!_formKey.currentState!.validate()) return;
     if (_categorie == null) {
-      _dialogue('Catégorie', 'Choisissez une catégorie.');
+      _dialogue(tr(context, 'pub.categorie'), tr(context, 'pub.choisirCategorie'));
       return;
     }
     if (sousDe(_categorie!).isNotEmpty && _sousCategorie == null) {
-      _dialogue('Sous-catégorie', 'Choisissez une sous-catégorie : le formulaire s’y adapte.');
+      _dialogue(tr(context, 'pub.sousCategorie'), tr(context, 'pub.choisirSous'));
       return;
     }
     if (_lieu.regionId == null) {
-      _dialogue('Localisation',
-          'Indiquez où se trouve l’objet : activez le GPS ou choisissez la région à la main.');
+      _dialogue(tr(context, 'pub.localisation'),
+          tr(context, 'pub.localisationAide'));
       return;
     }
     if (_photos.length < 3) {
-      _dialogue('Photos',
-          'Ajoutez au moins 3 photos de l’objet. Une annonce sans photo ne se vend pas — montrez-le sous plusieurs angles.');
+      _dialogue(tr(context, 'pub.photos'), tr(context, 'pub.photosAide'));
       return;
     }
     // Le formulaire détaillé : d'abord un éventuel refus (produit interdit,
     // périmé…), puis les champs requis manquants.
     final motif = _etatForm?.motifBloc;
     if (motif != null) {
-      _dialogue('Publication impossible', motif);
+      _dialogue(tr(context, 'pub.impossible'), motif);
       return;
     }
     final manquants = _etatForm?.manquants ?? const [];
     if (manquants.isNotEmpty) {
       _dialogue('À compléter',
-          'Ces informations manquent :\n\n• ${manquants.join('\n• ')}');
+          '${tr(context, 'pub.infosManquent')}\n\n• ${manquants.join('\n• ')}');
       return;
     }
 
@@ -221,7 +220,7 @@ class _PublierScreenState extends State<PublierScreen> {
       Navigator.of(context).pop(true); // le shell affiche la confirmation
     } on ApiException catch (e) {
       // Couvre : e-mail non confirmé, modération, moins de 3 photos retenues…
-      if (mounted) _dialogue('Publication', e.message);
+      if (mounted) _dialogue(tr(context, 'pub.publication'), e.message);
     } finally {
       if (mounted) setState(() => _envoi = false);
     }
@@ -237,7 +236,7 @@ class _PublierScreenState extends State<PublierScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('J’ai compris')),
+              child: Text(tr(context, 'action.compris'))),
         ],
       ),
     );
@@ -246,33 +245,34 @@ class _PublierScreenState extends State<PublierScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Publier une annonce')),
+      appBar: AppBar(title: Text(tr(context, 'pub.titre'))),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
           children: [
-            _titreSection('Photos'),
+            _titreSection(tr(context, 'pub.photos')),
             _photosSection(),
             const SizedBox(height: 18),
-            _titreSection('Détails'),
+            _titreSection(tr(context, 'pub.details')),
             TextFormField(
               controller: _titre,
               textCapitalization: TextCapitalization.sentences,
               maxLength: 80,
-              decoration: const InputDecoration(
-                labelText: 'Titre de l’annonce',
-                hintText: 'Ex : Robe wax taille 40, jamais portée',
+              decoration: InputDecoration(
+                labelText: tr(context, 'pub.titreAnnonce'),
+                hintText: tr(context, 'pub.titreExemple'),
               ),
               validator: (v) => (v == null || v.trim().length < 4)
-                  ? 'Donnez un titre clair'
+                  ? tr(context, 'pub.titreClair')
                   : null,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _categorie,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Catégorie'),
+              decoration:
+                  InputDecoration(labelText: tr(context, 'pub.categorie')),
               items: [
                 for (final c in categories)
                   DropdownMenuItem(
@@ -292,7 +292,8 @@ class _PublierScreenState extends State<PublierScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _sousCategorie,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Sous-catégorie'),
+                decoration: InputDecoration(
+                    labelText: tr(context, 'pub.sousCategorie')),
                 items: [
                   for (final s in sousDe(_categorie!))
                     DropdownMenuItem(
@@ -311,7 +312,7 @@ class _PublierScreenState extends State<PublierScreen> {
             // année…), quand il est porté. Sinon, le formulaire de base suffit.
             if (_schema != null) ...[
               const SizedBox(height: 16),
-              _titreSection('Détails de la sous-catégorie'),
+              _titreSection(tr(context, 'pub.sousDetails')),
               FormulaireDynamique(
                 key: _cleForm,
                 schema: _schema!,
@@ -327,8 +328,11 @@ class _PublierScreenState extends State<PublierScreen> {
               const SizedBox(height: 6),
               SegmentedButton<String>(
                 segments: const [
-                  ButtonSegment(value: 'neuf', label: Text('Neuf')),
-                  ButtonSegment(value: 'occasion', label: Text('Occasion')),
+                  ButtonSegment(
+                      value: 'neuf', label: Text(tr(context, 'cond.neuf'))),
+                  ButtonSegment(
+                      value: 'occasion',
+                      label: Text(tr(context, 'cond.occasion'))),
                 ],
                 selected: {_condition},
                 onSelectionChanged: (s) => setState(() => _condition = s.first),
@@ -341,12 +345,14 @@ class _PublierScreenState extends State<PublierScreen> {
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
-                labelText: _schema?.prixLabel ?? 'Prix',
+                labelText: _schema?.prixLabel ?? tr(context, 'pub.prix'),
                 suffixText: 'FCFA',
               ),
               validator: (v) {
                 final n = int.tryParse((v ?? '').replaceAll(RegExp(r'[^0-9]'), ''));
-                return (n == null || n <= 0) ? 'Indiquez un prix' : null;
+                return (n == null || n <= 0)
+                    ? tr(context, 'pub.indiquezPrix')
+                    : null;
               },
             ),
             CheckboxListTile(
@@ -355,10 +361,10 @@ class _PublierScreenState extends State<PublierScreen> {
               activeColor: ChapColors.orange,
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
-              title: const Text('Prix négociable'),
+              title: Text(tr(context, 'pub.prixNegociable')),
             ),
             const SizedBox(height: 12),
-            const Text('Localisation', style: _labelStyle),
+            Text(tr(context, 'pub.localisation'), style: _labelStyle),
             const SizedBox(height: 6),
             SelecteurLieu(
               valeur: _lieu,
@@ -373,20 +379,19 @@ class _PublierScreenState extends State<PublierScreen> {
               maxLines: 5,
               maxLength: 1500,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText:
-                    'État, marque, taille, raison de la vente… soyez précis et honnête.',
+              decoration: InputDecoration(
+                labelText: tr(context, 'pub.description'),
+                hintText: tr(context, 'pub.descriptionAide'),
                 alignLabelWithHint: true,
               ),
             ),
             TextFormField(
               controller: _tel,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Téléphone (facultatif)',
+              decoration: InputDecoration(
+                labelText: tr(context, 'pub.telephone'),
                 hintText: '07 …',
-                prefixIcon: Icon(Icons.phone_outlined),
+                prefixIcon: const Icon(Icons.phone_outlined),
               ),
             ),
             CheckboxListTile(
@@ -395,7 +400,7 @@ class _PublierScreenState extends State<PublierScreen> {
               activeColor: ChapColors.orange,
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
-              title: const Text('Livraison possible'),
+              title: Text(tr(context, 'pub.livraisonPossible')),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -406,7 +411,7 @@ class _PublierScreenState extends State<PublierScreen> {
                       width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Text('Publier mon annonce'),
+                  : Text(tr(context, 'pub.publierMonAnnonce')),
             ),
           ],
         ),
@@ -499,13 +504,14 @@ class _PublierScreenState extends State<PublierScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: ChapColors.line2),
         ),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_a_photo_outlined, color: ChapColors.orange),
-            SizedBox(height: 4),
-            Text('Ajouter',
-                style: TextStyle(fontSize: 11, color: ChapColors.gray600)),
+            const Icon(Icons.add_a_photo_outlined, color: ChapColors.orange),
+            const SizedBox(height: 4),
+            Text(tr(context, 'pub.ajouter'),
+                style:
+                    const TextStyle(fontSize: 11, color: ChapColors.gray600)),
           ],
         ),
       ),

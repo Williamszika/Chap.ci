@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../format.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import 'vendeur_screen.dart';
 
@@ -105,7 +106,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  widget.titre.isEmpty ? 'Discussion' : widget.titre,
+                  widget.titre.isEmpty ? tr(context, 'conv.discussion') : widget.titre,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
@@ -117,7 +118,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert),
-            tooltip: 'Options de la conversation',
+            tooltip: tr(context, 'conv.options'),
             onPressed: _menuConversation,
           ),
         ],
@@ -229,7 +230,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               m.deleted
-                  ? Text('Message supprimé',
+                  ? Text(tr(context, 'conv.msgSupprime'),
                       style: TextStyle(
                           fontSize: 13.5,
                           fontStyle: FontStyle.italic,
@@ -276,22 +277,24 @@ class _ConversationScreenState extends State<ConversationScreen> {
         _option(
             _archive ? Icons.unarchive_outlined : Icons.archive_outlined,
             _archive
-                ? 'Désarchiver la conversation'
-                : 'Archiver la conversation', () {
+                ? tr(context, 'conv.desarchiverConv')
+                : tr(context, 'conv.archiverConv'), () {
           Navigator.pop(ctx);
           _basculerArchive();
         }),
         _option(
             _bloque ? Icons.lock_open_outlined : Icons.block_outlined,
-            _bloque ? 'Débloquer la personne' : 'Bloquer la personne', () {
+            _bloque
+                ? tr(context, 'conv.debloquerPersonne')
+                : tr(context, 'conv.bloquerPersonne'), () {
           Navigator.pop(ctx);
           _basculerBlocage();
         }),
-        _option(Icons.flag_outlined, 'Signaler la conversation', () {
+        _option(Icons.flag_outlined, tr(context, 'conv.signalerConv'), () {
           Navigator.pop(ctx);
           _signaler();
         }, danger: true),
-        _option(Icons.delete_sweep_outlined, 'Supprimer la conversation', () {
+        _option(Icons.delete_sweep_outlined, tr(context, 'conv.supprimerConv'), () {
           Navigator.pop(ctx);
           _supprimerConversation();
         }, danger: true),
@@ -304,7 +307,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   // de conversation.
   void _menuMessage(Msg m, bool mien) => _feuille((ctx) => [
         if (mien && !m.deleted)
-          _option(Icons.delete_outline, 'Supprimer le message', () {
+          _option(Icons.delete_outline, tr(context, 'conv.supprimerMsg'), () {
             Navigator.pop(ctx);
             _supprimerMessage(m);
           }),
@@ -330,7 +333,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text(tr(context, 'action.annuler'))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(bouton,
@@ -347,8 +350,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
   }
 
   Future<void> _supprimerMessage(Msg m) async {
-    if (!await _confirmer('Supprimer le message',
-        'Il disparaîtra pour vous et pour l’autre personne.', 'Supprimer')) {
+    if (!await _confirmer(tr(context, 'conv.supprimerMsg'),
+        tr(context, 'conv.supprimerMsgCorps'), tr(context, 'action.supprimer'))) {
       return;
     }
     try {
@@ -361,9 +364,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   Future<void> _supprimerConversation() async {
     if (!await _confirmer(
-        'Supprimer la conversation',
-        'Elle disparaîtra de VOTRE côté. L’autre personne garde la sienne.',
-        'Supprimer')) {
+        tr(context, 'conv.supprimerConv'),
+        tr(context, 'conv.supprimerConvCorps'),
+        tr(context, 'action.supprimer'))) {
       return;
     }
     try {
@@ -378,7 +381,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final nouvel = !_archive;
     try {
       await Conversation.archiver(widget.conversationId, nouvel);
-      _toast(nouvel ? 'Conversation archivée.' : 'Conversation désarchivée.');
+      _toast(nouvel
+          ? tr(context, 'conv.archivee')
+          : tr(context, 'conv.desarchivee'));
       // On revient à la liste, qui se retrie (archivées vs actives).
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -390,10 +395,24 @@ class _ConversationScreenState extends State<ConversationScreen> {
     try {
       final etat = await Conversation.bloquer(widget.conversationId, !_bloque);
       if (mounted) setState(() => _bloque = etat);
-      _toast(etat ? 'Personne bloquée.' : 'Personne débloquée.');
+      _toast(etat ? tr(context, 'conv.bloquee') : tr(context, 'conv.debloquee'));
     } on ApiException catch (e) {
       _toast(e.message);
     }
+  }
+
+  /// L'étiquette traduite d'un motif de signalement. La CLÉ française reste ce
+  /// qui part au serveur.
+  static const Map<String, String> _clesMotifs = {
+    'Spam': 'conv.motif.spam',
+    'Harcèlement': 'conv.motif.harcelement',
+    'Arnaque / fraude': 'conv.motif.arnaque',
+    'Contenu choquant': 'conv.motif.choquant',
+    'Autre': 'conv.motif.autre',
+  };
+  String _motifTr(BuildContext context, String motifFr) {
+    final cle = _clesMotifs[motifFr];
+    return cle == null ? motifFr : tr(context, cle);
   }
 
   // ---- Signalement : cases à cocher + détail libre → modération ------------
@@ -420,17 +439,19 @@ class _ConversationScreenState extends State<ConversationScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Signaler la conversation',
+              Text(tr(context, 'conv.signalerConv'),
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              const Text('Choisissez un ou plusieurs motifs.',
+              Text(tr(context, 'conv.motifsChoisir'),
                   style: TextStyle(color: ChapColors.gray600)),
               const SizedBox(height: 8),
               for (final k in motifs.keys)
                 CheckboxListTile(
                   value: motifs[k],
                   onChanged: (v) => setSheet(() => motifs[k] = v ?? false),
-                  title: Text(k),
+                  // La clé française part au serveur (la modération la lit
+                  // en français) ; seule l'étiquette affichée est traduite.
+                  title: Text(_motifTr(context, k)),
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   dense: true,
@@ -442,8 +463,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 minLines: 2,
                 maxLines: 4,
                 maxLength: 500,
-                decoration: const InputDecoration(
-                  hintText: 'Détails (facultatif)…',
+                decoration: InputDecoration(
+                  hintText: tr(context, 'conv.detailsFacultatif'),
                   isDense: true,
                 ),
               ),
@@ -457,20 +478,20 @@ class _ConversationScreenState extends State<ConversationScreen> {
                         .map((e) => e.key)
                         .toList();
                     if (choisis.isEmpty) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                          content: Text('Choisissez au moins un motif.')));
+                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                          content: Text(tr(context, 'conv.auMoinsUnMotif'))));
                       return;
                     }
                     Navigator.pop(ctx);
                     try {
                       await Conversation.signaler(
                           widget.conversationId, choisis, detail.text.trim());
-                      _toast('Signalement envoyé. Merci.');
+                      _toast(tr(context, 'conv.signalementEnvoye'));
                     } on ApiException catch (e) {
                       _toast(e.message);
                     }
                   },
-                  child: const Text('Envoyer le signalement'),
+                  child: Text(tr(context, 'conv.envoyerSignalement')),
                 ),
               ),
             ],
@@ -492,13 +513,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
         ),
         child: Row(
           children: [
-            const Expanded(
-              child: Text(
-                  'Vous avez bloqué cette personne. Débloquez-la pour lui écrire.',
-                  style: TextStyle(fontSize: 12.5, color: ChapColors.gray600)),
+            Expanded(
+              child: Text(tr(context, 'conv.vousAvezBloque'),
+                  style: const TextStyle(
+                      fontSize: 12.5, color: ChapColors.gray600)),
             ),
             TextButton(
-                onPressed: _basculerBlocage, child: const Text('Débloquer')),
+                onPressed: _basculerBlocage,
+                child: Text(tr(context, 'conv.debloquer'))),
           ],
         ),
       ),
@@ -534,8 +556,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                 minLines: 1,
                 maxLines: 4,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  hintText: 'Votre message…',
+                decoration: InputDecoration(
+                  hintText: tr(context, 'conv.votreMessage'),
                   isDense: true,
                 ),
               ),
