@@ -6977,7 +6977,7 @@ try {
     $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
     if (mb_strlen($nom) < 2) jerr('Indiquez le nom de votre organisation.');
     $numero = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 60));
-    $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 40));
+    $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 60));
     $tel = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
     // Un compte déjà approuvé ne redépose pas de dossier ; un refusé peut
     // réessayer (le dossier remplace l'ancien) ; un dossier en attente se met

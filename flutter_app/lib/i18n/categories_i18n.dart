@@ -154,6 +154,44 @@ const Map<String, Map<String, String>> _sous = {
   'Autres objets': {'en': 'Other items', 'es': 'Otros objetos', 'pt': 'Outros objetos', 'ar': 'أغراض أخرى', 'zh': '其他物品'},
 };
 
+/// Secteurs propres aux comptes Pro qui n'existent ni comme catégorie ni comme
+/// sous-catégorie (métiers sans rayon dédié : immobilier, école, recruteur,
+/// association). Même principe : clé = nom français canonique (celui qui est
+/// ENREGISTRÉ avec le dossier), valeurs = affichage seulement.
+const Map<String, Map<String, String>> _secteursPro = {
+  'Vente immobilière': {'en': 'Property sales', 'es': 'Venta inmobiliaria', 'pt': 'Venda imobiliária', 'ar': 'بيع العقارات', 'zh': '房产销售'},
+  'Location & gestion': {'en': 'Rentals & management', 'es': 'Alquiler y gestión', 'pt': 'Arrendamento e gestão', 'ar': 'تأجير وإدارة', 'zh': '租赁与管理'},
+  'Terrains': {'en': 'Land', 'es': 'Terrenos', 'pt': 'Terrenos', 'ar': 'أراضٍ', 'zh': '土地'},
+  'Résidences meublées': {'en': 'Furnished residences', 'es': 'Residencias amuebladas', 'pt': 'Residências mobiladas', 'ar': 'شقق مفروشة', 'zh': '家具公寓'},
+  'Promotion immobilière': {'en': 'Property development', 'es': 'Promoción inmobiliaria', 'pt': 'Promoção imobiliária', 'ar': 'تطوير عقاري', 'zh': '房产开发'},
+  'École privée': {'en': 'Private school', 'es': 'Escuela privada', 'pt': 'Escola privada', 'ar': 'مدرسة خاصة', 'zh': '私立学校'},
+  'Soutien scolaire': {'en': 'Tutoring', 'es': 'Apoyo escolar', 'pt': 'Apoio escolar', 'ar': 'دروس دعم', 'zh': '课业辅导'},
+  'Formation professionnelle': {'en': 'Vocational training', 'es': 'Formación profesional', 'pt': 'Formação profissional', 'ar': 'تكوين مهني', 'zh': '职业培训'},
+  'Langues': {'en': 'Languages', 'es': 'Idiomas', 'pt': 'Línguas', 'ar': 'لغات', 'zh': '语言'},
+  'Cabinet de recrutement': {'en': 'Recruitment agency', 'es': 'Agencia de selección', 'pt': 'Agência de recrutamento', 'ar': 'مكتب توظيف', 'zh': '招聘机构'},
+  'Intérim & placement': {'en': 'Temp & placement', 'es': 'Trabajo temporal y colocación', 'pt': 'Trabalho temporário e colocação', 'ar': 'عمل مؤقت وتوظيف', 'zh': '临时用工与派遣'},
+  'Entreprise qui recrute': {'en': 'Hiring company', 'es': 'Empresa que contrata', 'pt': 'Empresa que recruta', 'ar': 'شركة توظّف', 'zh': '招聘企业'},
+  'Aide sociale & dons': {'en': 'Social aid & donations', 'es': 'Ayuda social y donaciones', 'pt': 'Ajuda social e doações', 'ar': 'مساعدات وتبرعات', 'zh': '社会救助与捐赠'},
+  'Éducation': {'en': 'Education', 'es': 'Educación', 'pt': 'Educação', 'ar': 'تعليم', 'zh': '教育'},
+  'Santé communautaire': {'en': 'Community health', 'es': 'Salud comunitaria', 'pt': 'Saúde comunitária', 'ar': 'صحة مجتمعية', 'zh': '社区健康'},
+  'Environnement': {'en': 'Environment', 'es': 'Medio ambiente', 'pt': 'Ambiente', 'ar': 'بيئة', 'zh': '环境'},
+  'Religieux & communautaire': {'en': 'Religious & community', 'es': 'Religioso y comunitario', 'pt': 'Religioso e comunitário', 'ar': 'ديني ومجتمعي', 'zh': '宗教与社区'},
+};
+
+/// Le nom d'un SECTEUR de compte Pro dans la langue de l'application.
+/// [nomFr] est le nom français canonique (celui enregistré avec le dossier).
+/// On cherche dans l'ordre : sous-catégorie connue, catégorie (par son nom),
+/// secteurs propres aux Pros — et on retombe sur le français sinon.
+String secteurProTr(BuildContext context, String nomFr) {
+  final code = Localizations.localeOf(context).languageCode;
+  if (code == 'fr') return nomFr;
+  if (_sous.containsKey(nomFr)) return _sous[nomFr]![code] ?? nomFr;
+  for (final c in categories) {
+    if (c.nom == nomFr) return _cats[c.id]?[code] ?? nomFr;
+  }
+  return _secteursPro[nomFr]?[code] ?? nomFr;
+}
+
 /// Le nom d'une catégorie dans la langue de l'application.
 String nomCategorieTr(BuildContext context, String id) {
   final code = Localizations.localeOf(context).languageCode;

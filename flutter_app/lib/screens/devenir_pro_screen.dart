@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
-import '../data/categories.dart';
 import '../i18n/categories_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
@@ -46,6 +45,55 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
     'services': '🛠️', 'formation': '🎓', 'emploi': '🏢',
     'voyage': '✈️', 'agro': '🌾', 'sante': '💊', 'association': '❤️',
   };
+  /// Les secteurs proposés PAR TYPE — chaque métier voit les siens, jamais la
+  /// liste générique des 16 catégories. Les valeurs sont les noms français
+  /// canoniques (sous-catégories réelles du site quand elles existent, secteurs
+  /// métier sinon) : c'est ce qui s'enregistre avec le dossier, l'affichage se
+  /// traduit via secteurProTr.
+  static const Map<String, List<String>> _secteursDuType = {
+    'boutique': [
+      'Électronique', 'Mode & Beauté', 'Maison & Meubles',
+      'École & Fournitures', 'Bébé & Enfant', 'Loisirs & Sport', 'Matériel Pro',
+    ],
+    'vehicules': [
+      'Voitures', 'Motos & Scooters', 'Camions & Utilitaires',
+      'Engins & Agricoles', 'Pièces & Accessoires', 'Bateaux', 'Location',
+    ],
+    'immobilier': [
+      'Vente immobilière', 'Location & gestion', 'Terrains',
+      'Résidences meublées', 'Promotion immobilière',
+    ],
+    'services': [
+      'BTP & Rénovation', 'Événementiel', 'Transport & Déménagement',
+      'Informatique & Digital', 'Couture & Artisanat', 'Réparation & Dépannage',
+    ],
+    'formation': [
+      'École privée', 'Soutien scolaire', 'Formation professionnelle',
+      'Langues', 'Cours & Formation', 'Informatique & Digital',
+    ],
+    'emploi': [
+      'Entreprise qui recrute', 'Cabinet de recrutement', 'Intérim & placement',
+      'Emploi maison', 'Freelance',
+    ],
+    'voyage': [
+      'Billets d’avion', 'Visas & formalités', 'Études à l’étranger',
+      'Travail à l’étranger', 'Séjours & circuits',
+    ],
+    'agro': [
+      'Produits vivriers', 'Fruits & Légumes', 'Céréales & Tubercules',
+      'Cacao & Café', 'Poisson & Produits de mer', 'Volaille',
+      'Bétail & Élevage', 'Semences & Intrants',
+    ],
+    'sante': [
+      'Compléments & Tisanes', 'Soins & Hygiène', 'Matériel médical de confort',
+      'Optique & Audition', 'Bien-être & Massage', 'Nutrition sportive',
+    ],
+    'association': [
+      'Aide sociale & dons', 'Éducation', 'Santé communautaire',
+      'Environnement', 'Religieux & communautaire',
+    ],
+  };
+
   static const Map<String, List<String>> _categoriesDuType = {
     'boutique': ['electronique', 'mode', 'maison', 'scolaire', 'bebe', 'loisirs', 'materiel-pro'],
     'vehicules': ['vehicules'],
@@ -89,7 +137,13 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
           } else if (_types.contains(d['type'])) {
             _type = d['type'] as String;
           }
-          if ((d['secteur'] as String?)?.isNotEmpty ?? false) _secteur = d['secteur'] as String?;
+          // Ne garder le secteur du dossier que s'il existe dans la liste du
+          // type (les tout premiers dossiers stockaient un id de catégorie).
+          final sec = d['secteur'] as String?;
+          _secteur = (sec != null &&
+                  (_secteursDuType[_type]?.contains(sec) ?? false))
+              ? sec
+              : null;
         });
       }
     } catch (_) {/* hors ligne : le formulaire reste utilisable */}
@@ -249,10 +303,10 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
                 child: InkWell(
                   onTap: () => setState(() {
                     _type = t;
-                    // Le secteur principal suit le type (modifiable ensuite).
-                    _secteur ??= _categoriesDuType[t]!.first;
-                    if (!(_categoriesDuType[t]!.contains(_secteur))) {
-                      _secteur = _categoriesDuType[t]!.first;
+                    // Chaque type a SES secteurs : on repart sur le premier
+                    // de sa liste (modifiable dans le menu juste en dessous).
+                    if (!(_secteursDuType[t]!.contains(_secteur))) {
+                      _secteur = _secteursDuType[t]!.first;
                     }
                   }),
                   borderRadius: BorderRadius.circular(12),
@@ -340,11 +394,9 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
                 prefixIcon: const Icon(Icons.category_outlined),
               ),
               items: [
-                for (final c in categories)
+                for (final sec in _secteursDuType[_type]!)
                   DropdownMenuItem(
-                      value: c.id,
-                      child: Text(
-                          '${c.emoji}  ${nomCategorieTr(context, c.id)}')),
+                      value: sec, child: Text(secteurProTr(context, sec))),
               ],
               onChanged: (v) => setState(() => _secteur = v),
             ),
