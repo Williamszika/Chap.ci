@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
 import '../format.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import 'conversation_screen.dart';
 
@@ -50,7 +51,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     // par le PageView) : on initialise la liste au premier build connecté.
     if (ApiClient.instance.connecte && _futur == null) _charger();
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(title: Text(tr(context, 'nav.messages'))),
       body: !ApiClient.instance.connecte
           ? _nonConnecte()
           : FutureBuilder<List<Conversation>>(
@@ -69,24 +70,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   color: ChapColors.orange,
                   onRefresh: _recharger,
                   child: (active.isEmpty && !aArchives)
-                      ? ListView(children: const [
-                          SizedBox(height: 120),
-                          Icon(Icons.forum_outlined,
+                      ? ListView(children: [
+                          const SizedBox(height: 120),
+                          const Icon(Icons.forum_outlined,
                               size: 46, color: ChapColors.line2),
-                          SizedBox(height: 12),
-                          Text('Aucune conversation',
+                          const SizedBox(height: 12),
+                          Text(tr(context, 'msg.aucune'),
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   color: ChapColors.gray900)),
-                          SizedBox(height: 6),
+                          const SizedBox(height: 6),
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 40),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 40),
                             child: Text(
-                              'Contactez un vendeur depuis une annonce pour démarrer une discussion.',
+                              tr(context, 'msg.contactez'),
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: ChapColors.gray600),
+                              style:
+                                  const TextStyle(color: ChapColors.gray600),
                             ),
                           ),
                         ])
@@ -114,7 +117,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ? c.otherName!
         : (c.listingTitle?.trim().isNotEmpty ?? false)
             ? c.listingTitle!
-            : 'Conversation';
+            : tr(context, 'msg.conversation');
     final nonLu = c.lastSenderId != null &&
         _monId != null &&
         c.lastSenderId != _monId;
@@ -143,7 +146,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       subtitle: Text(
         c.lastMessage?.trim().isNotEmpty == true
             ? c.lastMessage!
-            : (c.listingTitle ?? 'Nouvelle conversation'),
+            : (c.listingTitle ?? tr(context, 'msg.nouvelle')),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
@@ -199,7 +202,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             backgroundColor: ChapColors.orange,
             foregroundColor: Colors.white,
             icon: c.pinned ? Icons.push_pin_outlined : Icons.push_pin,
-            label: c.pinned ? 'Désépingler' : 'Épingler',
+            label: c.pinned ? tr(context, 'msg.desepingler') : tr(context, 'msg.epingler'),
           ),
         ],
       ),
@@ -212,21 +215,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
             backgroundColor: ChapColors.gray600,
             foregroundColor: Colors.white,
             icon: c.archived ? Icons.unarchive_outlined : Icons.archive_outlined,
-            label: c.archived ? 'Désarchiver' : 'Archiver',
+            label: c.archived ? tr(context, 'msg.desarchiver') : tr(context, 'msg.archiver'),
           ),
           SlidableAction(
             onPressed: (_) => _bloquer(c),
             backgroundColor: const Color(0xFF6B7280),
             foregroundColor: Colors.white,
             icon: c.blockedByMe ? Icons.lock_open_outlined : Icons.block,
-            label: c.blockedByMe ? 'Débloquer' : 'Bloquer',
+            label: c.blockedByMe ? tr(context, 'msg.debloquer') : tr(context, 'msg.bloquer'),
           ),
           SlidableAction(
             onPressed: (_) => _supprimer(c),
             backgroundColor: const Color(0xFFDC2626),
             foregroundColor: Colors.white,
             icon: Icons.delete_outline,
-            label: 'Supprimer',
+            label: tr(context, 'action.supprimer'),
           ),
         ],
       ),
@@ -278,16 +281,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer la conversation ?'),
-        content: const Text(
-            'Elle disparaîtra de votre liste. L’autre personne garde la sienne.'),
+        title: Text(tr(context, 'msg.supprimerTitre')),
+        content: Text(tr(context, 'msg.supprimerCorps')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: Text(tr(context, 'action.annuler'))),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Supprimer',
+              child: Text(tr(context, 'action.supprimer'),
                   style: TextStyle(color: Color(0xFFDC2626)))),
         ],
       ),
@@ -306,7 +308,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _echec([String? message]) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message ?? 'Action impossible pour le moment.')),
+      SnackBar(content: Text(message ?? tr(context, 'msg.actionImpossible'))),
     );
   }
 
@@ -319,14 +321,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
         height: 48,
         child: Icon(Icons.archive_outlined, color: ChapColors.gray600),
       ),
-      title: Text('Conversations archivées (${archivees.length})',
+      title: Text('${tr(context, 'msg.convArchivees')} (${archivees.length})',
           style: const TextStyle(
               fontWeight: FontWeight.w700, color: ChapColors.gray900)),
       trailing: const Icon(Icons.chevron_right, color: ChapColors.gray500),
       onTap: () async {
         await Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => Scaffold(
-            appBar: AppBar(title: const Text('Archivées')),
+            appBar: AppBar(title: Text(tr(context, 'msg.archivees'))),
             body: SlidableAutoCloseBehavior(
               child: ListView.separated(
                 itemCount: archivees.length,
@@ -370,9 +372,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           children: [
             const Icon(Icons.lock_outline, size: 46, color: ChapColors.line2),
             const SizedBox(height: 12),
-            const Text('Connectez-vous pour voir vos messages',
+            Text(tr(context, 'msg.connectezVoir'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: ChapColors.gray900)),
@@ -381,7 +383,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               width: 200,
               child: ElevatedButton(
                 onPressed: widget.onVersCompte,
-                child: const Text('Aller à mon compte'),
+                child: Text(tr(context, 'msg.allerCompte')),
               ),
             ),
           ],

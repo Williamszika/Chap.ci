@@ -5,6 +5,7 @@ import '../api/models.dart';
 import '../data/categories.dart';
 import '../data/coords.dart';
 import '../data/formulaires/registre.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
@@ -78,8 +79,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
         _localisation = false;
         if (_position == null) _tri = 'recent';
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Position introuvable. Réessayez à l’air libre.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(context, 'expl.posIntrouvable'))));
     }
   }
 
@@ -158,7 +159,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorer')),
+      appBar: AppBar(title: Text(tr(context, 'nav.explorer'))),
       body: FutureBuilder<List<Listing>>(
         future: _futur,
         builder: (context, snap) {
@@ -169,10 +170,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
           if (snap.hasError) {
             return _Message(
               icone: Icons.wifi_off_rounded,
-              titre: 'Impossible de charger les annonces',
+              titre: tr(context, 'expl.chargeErreur'),
               detail: snap.error is ApiException
                   ? (snap.error as ApiException).message
-                  : 'Vérifiez votre connexion.',
+                  : tr(context, 'expl.verifConnexion'),
               action: _recharger,
             );
           }
@@ -191,10 +192,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
                   color: ChapColors.orange,
                   onRefresh: _recharger,
                   child: resultats.isEmpty
-                      ? const _Message(
+                      ? _Message(
                           icone: Icons.search_off_rounded,
-                          titre: 'Aucune annonce ne correspond',
-                          detail: 'Essayez d’élargir votre recherche ou vos filtres.',
+                          titre: tr(context, 'expl.aucuneCorrespond'),
+                          detail: tr(context, 'expl.elargir'),
                         )
                       : GridView.builder(
                           padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
@@ -233,7 +234,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         onChanged: (v) => setState(() => _recherche = v),
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          hintText: 'Rechercher une annonce…',
+          hintText: tr(context, 'home.recherche'),
           prefixIcon: const Icon(Icons.search),
           isDense: true,
           suffixIcon: _recherche.isEmpty
@@ -259,7 +260,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
         children: [
           // Changer de catégorie remet l'état à « Tous » : la sélection
           // neuf/occasion est propre à chaque catégorie, elle ne se traîne pas.
-          _chip('Toutes', _categorie == null,
+          _chip(tr(context, 'expl.toutes'), _categorie == null,
               () => setState(() {
                     _categorie = null;
                     _condition = 'tous';
@@ -307,10 +308,14 @@ class _BrowseScreenState extends State<BrowseScreen> {
           if (_montrerEtat) ...[
             Expanded(
               child: SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'tous', label: Text('Tous')),
-                  ButtonSegment(value: 'neuf', label: Text('Neuf')),
-                  ButtonSegment(value: 'occasion', label: Text('Occasion')),
+                segments: [
+                  ButtonSegment(
+                      value: 'tous', label: Text(tr(context, 'expl.tous'))),
+                  ButtonSegment(
+                      value: 'neuf', label: Text(tr(context, 'cond.neuf'))),
+                  ButtonSegment(
+                      value: 'occasion',
+                      label: Text(tr(context, 'cond.occasion'))),
                 ],
                 selected: {_condition},
                 onSelectionChanged: (s) =>
@@ -330,7 +335,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
 
   Widget _menuFiltres(List<String> communes) {
     return IconButton(
-      tooltip: 'Commune et tri',
+      tooltip: tr(context, 'expl.communeTri'),
       icon: Badge(
         isLabelVisible: _commune != null || _tri != 'recent',
         smallSize: 8,
@@ -361,12 +366,12 @@ class _BrowseScreenState extends State<BrowseScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Filtres',
-                      style: TextStyle(
+                  Text(tr(context, 'expl.filtres'),
+                      style: const TextStyle(
                           fontSize: 17, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
-                  const Text('Commune',
-                      style: TextStyle(
+                  Text(tr(context, 'expl.commune'),
+                      style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: ChapColors.gray700)),
                   const SizedBox(height: 6),
@@ -375,16 +380,17 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     isExpanded: true,
                     decoration: const InputDecoration(isDense: true),
                     items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('Toutes les communes')),
+                      DropdownMenuItem(
+                          value: null,
+                          child: Text(tr(context, 'expl.toutesCommunes'))),
                       for (final c in communes)
                         DropdownMenuItem(value: c, child: Text(c)),
                     ],
                     onChanged: (v) => maj(() => _commune = v),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Trier par',
-                      style: TextStyle(
+                  Text(tr(context, 'expl.trierPar'),
+                      style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: ChapColors.gray700)),
                   const SizedBox(height: 6),
@@ -392,15 +398,19 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     initialValue: _tri,
                     isExpanded: true,
                     decoration: const InputDecoration(isDense: true),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
-                          value: 'recent', child: Text('Plus récentes')),
+                          value: 'recent',
+                          child: Text(tr(context, 'expl.plusRecentes'))),
                       DropdownMenuItem(
-                          value: 'proche', child: Text('Près de moi 📍')),
+                          value: 'proche',
+                          child: Text(tr(context, 'expl.presDeMoi'))),
                       DropdownMenuItem(
-                          value: 'prixAsc', child: Text('Prix croissant')),
+                          value: 'prixAsc',
+                          child: Text(tr(context, 'expl.prixCroissant'))),
                       DropdownMenuItem(
-                          value: 'prixDesc', child: Text('Prix décroissant')),
+                          value: 'prixDesc',
+                          child: Text(tr(context, 'expl.prixDecroissant'))),
                     ],
                     onChanged: (v) {
                       final val = v ?? 'recent';
@@ -419,7 +429,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Voir les résultats'),
+                      child: Text(tr(context, 'expl.voirResultats')),
                     ),
                   ),
                 ],
@@ -438,8 +448,10 @@ class _BrowseScreenState extends State<BrowseScreen> {
         alignment: Alignment.centerLeft,
         child: Text(
           _localisation
-              ? 'Localisation…'
-              : (n == 0 ? 'Aucun résultat' : '$n annonce${n > 1 ? 's' : ''}'),
+              ? tr(context, 'expl.localisation')
+              : (n == 0
+                  ? tr(context, 'expl.aucunResultat')
+                  : '$n ${tr(context, n > 1 ? 'expl.annonceN' : 'expl.annonce1')}'),
           style: const TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
@@ -489,7 +501,8 @@ class _Message extends StatelessWidget {
             child: SizedBox(
               width: 180,
               child: ElevatedButton(
-                  onPressed: () => action!(), child: const Text('Réessayer')),
+                  onPressed: () => action!(),
+                  child: Text(tr(context, 'action.reessayer'))),
             ),
           ),
         ],
