@@ -80,23 +80,23 @@ class _FavorisScreenState extends State<FavorisScreen> {
 
   Widget _vide() {
     return ListView(
-      children: const [
-        SizedBox(height: 120),
-        Icon(Icons.favorite_border, size: 48, color: ChapColors.line2),
-        SizedBox(height: 12),
+      children: [
+        const SizedBox(height: 120),
+        const Icon(Icons.favorite_border, size: 48, color: ChapColors.line2),
+        const SizedBox(height: 12),
         Text(tr(context, 'fav.aucun'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: ChapColors.gray900)),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Text(
             tr(context, 'fav.aucunDetail'),
             textAlign: TextAlign.center,
-            style: TextStyle(color: ChapColors.gray600),
+            style: const TextStyle(color: ChapColors.gray600),
           ),
         ),
       ],

@@ -324,10 +324,10 @@ class _PublierScreenState extends State<PublierScreen> {
             const SizedBox(height: 14),
             // Un service (réparation, cours…) n'est ni « neuf » ni « d'occasion ».
             if (_schema?.etat != false) ...[
-              const Text('État', style: _labelStyle),
+              Text(tr(context, 'annonce.etat'), style: _labelStyle),
               const SizedBox(height: 6),
               SegmentedButton<String>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                       value: 'neuf', label: Text(tr(context, 'cond.neuf'))),
                   ButtonSegment(
