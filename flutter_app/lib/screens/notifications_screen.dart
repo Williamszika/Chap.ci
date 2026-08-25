@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/models.dart';
-import '../format.dart';
+import '../i18n/formats_i18n.dart';
 import '../notifications.dart';
 import '../theme.dart';
 import 'listing_detail_screen.dart';
@@ -193,7 +193,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               fontSize: 13, height: 1.3, color: ChapColors.gray700)),
                     ],
                     const SizedBox(height: 4),
-                    Text(tempsEcoule(n.cree),
+                    Text(tempsEcouleTr(context, n.cree),
                         style: const TextStyle(fontSize: 11.5, color: ChapColors.gray500)),
                   ],
                 ),

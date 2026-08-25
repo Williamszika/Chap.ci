@@ -3,7 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
-import '../format.dart';
+import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import 'conversation_screen.dart';
@@ -160,7 +160,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (c.lastAt != null)
-            Text(tempsEcoule(c.lastAt!),
+            Text(tempsEcouleTr(context, c.lastAt!),
                 style:
                     const TextStyle(fontSize: 11, color: ChapColors.gray500)),
           if (nonLu) ...[

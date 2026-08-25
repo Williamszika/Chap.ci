@@ -3,6 +3,8 @@ import '../api/geo.dart';
 import '../api/models.dart';
 import '../data/coords.dart';
 import '../format.dart';
+import '../i18n/formats_i18n.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import 'bouton_favori.dart';
 
@@ -81,14 +83,14 @@ class ListingCard extends StatelessWidget {
                       ),
                       if (annonce.negotiable) ...[
                         const SizedBox(width: 5),
-                        const Text('négociable',
-                            style: TextStyle(
+                        Text(tr(context, 'annonce.negociable'),
+                            style: const TextStyle(
                                 fontSize: 10.5, color: ChapColors.gray500)),
                       ],
                     ],
                   ),
                   const SizedBox(height: 3),
-                  _ligneLieu(),
+                  _ligneLieu(context),
                 ],
               ),
             ),
@@ -100,11 +102,12 @@ class ListingCard extends StatelessWidget {
 
   /// La ligne « Commune · État », suivie de « · à 3 km » en orange quand la
   /// position de l'utilisateur est connue et l'annonce situable (< 500 km).
-  Widget _ligneLieu() {
+  Widget _ligneLieu(BuildContext context) {
     final base = [
       if (annonce.commune != null && annonce.commune!.isNotEmpty)
         annonce.commune!,
-      annonce.condition == 'neuf' ? 'Neuf' : 'Occasion',
+      tr(context,
+          annonce.condition == 'neuf' ? 'cond.neuf' : 'cond.occasion'),
     ].join(' · ');
 
     double? km;
@@ -126,7 +129,7 @@ class ListingCard extends StatelessWidget {
               maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
         ),
         const SizedBox(width: 4),
-        Text('· ${formatDistance(km)}',
+        Text('· ${formatDistanceTr(context, km)}',
             style: const TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
@@ -194,8 +197,8 @@ class _Image extends StatelessWidget {
           Container(
             color: Colors.black54,
             alignment: Alignment.center,
-            child: const Text('VENDU',
-                style: TextStyle(
+            child: Text(tr(context, 'annonce.vendu'),
+                style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 2)),

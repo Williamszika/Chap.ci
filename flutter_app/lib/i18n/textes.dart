@@ -189,6 +189,9 @@ const Map<String, Map<String, String>> _t = {
   'msg.convArchivees': {'fr': "Conversations archivées", 'en': "Archived conversations", 'es': "Conversaciones archivadas", 'pt': "Conversas arquivadas", 'ar': "المحادثات المؤرشفة", 'zh': "已归档的对话"},
   'msg.connectezVoir': {'fr': "Connectez-vous pour voir vos messages", 'en': "Sign in to see your messages", 'es': "Inicia sesión para ver tus mensajes", 'pt': "Inicie sessão para ver as suas mensagens", 'ar': "سجّل الدخول لعرض رسائلك", 'zh': "登录后查看您的消息"},
   'msg.allerCompte': {'fr': "Aller à mon compte", 'en': "Go to my account", 'es': "Ir a mi cuenta", 'pt': "Ir para a minha conta", 'ar': "الذهاب إلى حسابي", 'zh': "前往我的账户"},
+  'annonce.publie': {'fr': "Publié", 'en': "Posted", 'es': "Publicado", 'pt': "Publicado", 'ar': "نُشر", 'zh': "发布于"},
+  'vue.une': {'fr': "vue", 'en': "view", 'es': "vista", 'pt': "visualização", 'ar': "مشاهدة", 'zh': "次浏览"},
+  'vue.des': {'fr': "vues", 'en': "views", 'es': "vistas", 'pt': "visualizações", 'ar': "مشاهدات", 'zh': "次浏览"},
 };
 
 /// Le texte de la clé [cle] dans la langue de l'application.

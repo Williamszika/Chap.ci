@@ -3,7 +3,7 @@ import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
 import '../api/profil.dart';
-import '../format.dart';
+import '../i18n/formats_i18n.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import 'conversation_screen.dart';
@@ -445,7 +445,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
           ],
           if (a.createdAt > 0) ...[
             const SizedBox(height: 6),
-            Text(tempsEcoule(a.createdAt),
+            Text(tempsEcouleTr(context, a.createdAt),
                 style: const TextStyle(
                     fontSize: 11.5, color: ChapColors.gray500)),
           ],

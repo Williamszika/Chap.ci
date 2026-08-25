@@ -6,6 +6,7 @@ import '../api/models.dart';
 import '../data/formulaires/registre.dart';
 import '../format.dart';
 import '../i18n/categories_i18n.dart';
+import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/bouton_favori.dart';
@@ -95,7 +96,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     const Icon(Icons.schedule,
                         size: 14, color: ChapColors.gray500),
                     const SizedBox(width: 4),
-                    Text('Publié ${tempsEcoule(a.createdAt)}',
+                    Text('${tr(context, 'annonce.publie')} ${tempsEcouleTr(context, a.createdAt)}',
                         style: const TextStyle(
                             fontSize: 12.5, color: ChapColors.gray600)),
                     if (a.views > 0) ...[
@@ -103,7 +104,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       const Icon(Icons.visibility_outlined,
                           size: 14, color: ChapColors.gray500),
                       const SizedBox(width: 4),
-                      Text('${a.views} ${a.views == 1 ? 'vue' : 'vues'}',
+                      Text('${a.views} ${tr(context, a.views == 1 ? 'vue.une' : 'vue.des')}',
                           style: const TextStyle(
                               fontSize: 12.5, color: ChapColors.gray600)),
                     ],
