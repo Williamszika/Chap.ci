@@ -4053,3 +4053,20 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - Modération : file vide ; 8 annonces du vendeur formation (connu-sain) examinées.
 - **Vérifié au curl par le Dev** : sur une ancienne photo, vignette = **37 Ko** vs image pleine
   **193 Ko** (−81 %). Fonctionnalité vignettes **complète et en ligne** (upload + backfill + site).
+
+### 2026-08-24 20:10 — [Secrétariat] 🗂️ Le Secrétaire Général
+- **Fait** : synthèse hebdomadaire (17-24 août) rassemblée depuis le journal et les
+  données serveur, **envoyée aux 3 adresses de diffusion** (Patron, associé,
+  contact@chap.ci) — les trois confirmées « sent: true ». Chiffre retenu : **38 annonces
+  actives (+29 en 7 jours)**, mais la quasi-totalité de la hausse vient d'un seul
+  vendeur (formations, Treichville) — le catalogue « organique » reste figé à
+  10 / 5 / 5 / 5 depuis le 21/08.
+- **Note de méthode** : pas de bloc « à coller » par bureau cette semaine, chaque ronde
+  étant déjà versée au fil de l'eau par le Développement (même pratique que le 17/08) —
+  dupliquer casserait le principe « le Patron ne doit lire un point qu'une seule fois ».
+- **Problèmes ouverts** : testeurs Play Store bloqués à 10/12 depuis 9 jours (compte à
+  rebours des 14 jours toujours pas démarré) ; décision en attente sur la suppression de
+  `api/data/.admin_otp` (code temporaire posé pendant la panne e-mail du 19/08).
+- **Propositions au Patron** : P1 recruter les 2 derniers testeurs Play Store ; P2
+  vérifier le verdict d'examen de la v1.20 avant tout dépôt de la v1.21 (déjà prête) ;
+  P3 trancher sur `.admin_otp`.
