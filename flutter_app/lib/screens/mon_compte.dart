@@ -279,7 +279,7 @@ class _MonCompteViewState extends State<MonCompteView> {
                     IconButton(
                       icon: const Icon(Icons.edit_outlined,
                           size: 20, color: ChapColors.gray600),
-                      tooltip: 'Modifier le profil',
+                      tooltip: tr(context, 'prof.modifier'),
                       onPressed: _ouvrirProfil,
                     ),
                 ],

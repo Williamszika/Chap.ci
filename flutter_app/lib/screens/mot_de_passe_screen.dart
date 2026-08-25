@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// Changer son mot de passe — `POST /auth/password`.
@@ -33,11 +34,11 @@ class _MotDePasseScreenState extends State<MotDePasseScreen> {
   Future<void> _enregistrer() async {
     final nouveau = _nouveau.text;
     if (nouveau.length < 8) {
-      setState(() => _erreur = 'Le nouveau mot de passe doit faire au moins 8 caractères.');
+      setState(() => _erreur = tr(context, 'mdp.min8'));
       return;
     }
     if (nouveau != _confirme.text) {
-      setState(() => _erreur = 'Les deux mots de passe ne sont pas identiques.');
+      setState(() => _erreur = tr(context, 'mdp.differents'));
       return;
     }
     setState(() {
@@ -48,8 +49,8 @@ class _MotDePasseScreenState extends State<MotDePasseScreen> {
       await ApiClient.instance.changerMotDePasse(_actuel.text, nouveau);
       if (mounted) {
         Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Mot de passe modifié.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(context, 'mdp.modifie')),
           backgroundColor: ChapColors.greenDark,
         ));
       }
@@ -63,17 +64,16 @@ class _MotDePasseScreenState extends State<MotDePasseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mot de passe')),
+      appBar: AppBar(title: Text(tr(context, 'item.motDePasse'))),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
             children: [
-              const Text(
-                'Choisissez un mot de passe d’au moins 8 caractères. Le modifier '
-                'déconnectera vos autres appareils.',
-                style: TextStyle(color: ChapColors.gray600, height: 1.45),
+              Text(
+                tr(context, 'mdp.aide'),
+                style: const TextStyle(color: ChapColors.gray600, height: 1.45),
               ),
               const SizedBox(height: 20),
               TextField(
@@ -81,8 +81,8 @@ class _MotDePasseScreenState extends State<MotDePasseScreen> {
                 obscureText: !_voirActuel,
                 autofillHints: const [AutofillHints.password],
                 decoration: InputDecoration(
-                  labelText: 'Mot de passe actuel',
-                  helperText: 'Laissez vide si vous vous connectez avec Google.',
+                  labelText: tr(context, 'mdp.actuel'),
+                  helperText: tr(context, 'mdp.actuelAide'),
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(_voirActuel ? Icons.visibility_off : Icons.visibility),
@@ -96,7 +96,7 @@ class _MotDePasseScreenState extends State<MotDePasseScreen> {
                 obscureText: !_voirNouveau,
                 autofillHints: const [AutofillHints.newPassword],
                 decoration: InputDecoration(
-                  labelText: 'Nouveau mot de passe',
+                  labelText: tr(context, 'mdp.nouveau'),
                   prefixIcon: const Icon(Icons.lock_reset),
                   suffixIcon: IconButton(
                     icon: Icon(_voirNouveau ? Icons.visibility_off : Icons.visibility),
@@ -112,9 +112,9 @@ class _MotDePasseScreenState extends State<MotDePasseScreen> {
                 onSubmitted: (_) {
                   if (!_envoi) _enregistrer();
                 },
-                decoration: const InputDecoration(
-                  labelText: 'Confirmer le nouveau mot de passe',
-                  prefixIcon: Icon(Icons.lock_reset),
+                decoration: InputDecoration(
+                  labelText: tr(context, 'mdp.confirmer'),
+                  prefixIcon: const Icon(Icons.lock_reset),
                 ),
               ),
               if (_erreur != null) ...[
@@ -147,7 +147,7 @@ class _MotDePasseScreenState extends State<MotDePasseScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
-                    : const Text('Enregistrer'),
+                    : Text(tr(context, 'action.enregistrer')),
               ),
             ],
           ),

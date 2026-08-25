@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api/api_client.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// Deuxième étape de la connexion quand le compte a la double authentification.
@@ -33,8 +34,8 @@ class _Verifier2faScreenState extends State<Verifier2faScreen> {
     final assezLong = _secours ? code.length >= 6 : code.replaceAll(RegExp(r'[^0-9]'), '').length == 6;
     if (!assezLong) {
       setState(() => _erreur = _secours
-          ? 'Entrez un de vos codes de secours.'
-          : 'Entrez les 6 chiffres de l’application.');
+          ? tr(context, 'v2fa.entrezSecours')
+          : tr(context, 'v2fa.entrez6'));
       return;
     }
     setState(() {
@@ -54,7 +55,7 @@ class _Verifier2faScreenState extends State<Verifier2faScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Vérification en deux étapes')),
+      appBar: AppBar(title: Text(tr(context, 'v2fa.titre'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
         child: Column(
@@ -62,14 +63,14 @@ class _Verifier2faScreenState extends State<Verifier2faScreen> {
           children: [
             const Icon(Icons.shield_outlined, size: 52, color: ChapColors.orange),
             const SizedBox(height: 14),
-            const Text('Un dernier pas',
+            Text(tr(context, 'v2fa.dernierPas'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text(
               _secours
-                  ? 'Entrez l’un des codes de secours que vous avez conservés lors de l’activation.'
-                  : 'Ouvrez votre application d’authentification (Google Authenticator, Authy…) et entrez le code à 6 chiffres du compte Chap.ci.',
+                  ? tr(context, 'v2fa.secoursAide')
+                  : tr(context, 'v2fa.totpAide'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: ChapColors.gray600, height: 1.4),
             ),
@@ -111,7 +112,7 @@ class _Verifier2faScreenState extends State<Verifier2faScreen> {
                       width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Text('Vérifier'),
+                  : Text(tr(context, 'vmail.verifier')),
             ),
             const SizedBox(height: 6),
             TextButton(
@@ -125,7 +126,7 @@ class _Verifier2faScreenState extends State<Verifier2faScreen> {
               child: Text(
                   _secours
                       ? 'J’ai mon téléphone : entrer le code à 6 chiffres'
-                      : 'Je n’ai pas mon téléphone : utiliser un code de secours',
+                      : tr(context, 'v2fa.sansTel'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: ChapColors.gray700)),
             ),

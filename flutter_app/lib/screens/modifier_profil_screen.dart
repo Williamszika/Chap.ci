@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../api/models.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// Modifier son profil — nom, bio et photo.
@@ -78,14 +79,14 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _erreur =
-            'Impossible d’accéder aux photos. Vérifiez l’autorisation.');
+            tr(context, 'prof.photoErreur'));
       }
     }
   }
 
   Future<void> _enregistrer() async {
     if (_nom.text.trim().length < 2) {
-      setState(() => _erreur = 'Indiquez votre nom.');
+      setState(() => _erreur = tr(context, 'insc.indiquezNom'));
       return;
     }
     setState(() {
@@ -115,7 +116,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Modifier le profil')),
+      appBar: AppBar(title: Text(tr(context, 'prof.titre'))),
       body: _chargement
           ? const Center(
               child: CircularProgressIndicator(color: ChapColors.orange))
@@ -148,7 +149,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _choisirPhoto,
-                    child: const Text('Changer la photo',
+                    child: Text(tr(context, 'prof.changerPhoto'),
                         style: TextStyle(color: ChapColors.orangeDark)),
                   ),
                 ),
@@ -156,9 +157,9 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
                 TextField(
                   controller: _nom,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom complet',
-                    prefixIcon: Icon(Icons.person_outline),
+                  decoration: InputDecoration(
+                    labelText: tr(context, 'insc.nomComplet'),
+                    prefixIcon: const Icon(Icons.person_outline),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -166,11 +167,11 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
                   controller: _tel,
                   keyboardType: TextInputType.phone,
                   autofillHints: const [AutofillHints.telephoneNumber],
-                  decoration: const InputDecoration(
-                    labelText: 'Téléphone (facultatif)',
+                  decoration: InputDecoration(
+                    labelText: tr(context, 'pub.telephone'),
                     hintText: '07 07 07 07 07',
-                    helperText: 'Pré-remplit vos annonces. Jamais affiché publiquement.',
-                    prefixIcon: Icon(Icons.phone_outlined),
+                    helperText: tr(context, 'prof.telHelper'),
+                    prefixIcon: const Icon(Icons.phone_outlined),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -179,9 +180,9 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
                   maxLines: 4,
                   maxLength: 300,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Bio (facultatif)',
-                    hintText: 'Quelques mots sur vous ou votre commerce…',
+                  decoration: InputDecoration(
+                    labelText: tr(context, 'prof.bio'),
+                    hintText: tr(context, 'prof.bioHint'),
                     alignLabelWithHint: true,
                   ),
                 ),
@@ -199,7 +200,7 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : const Text('Enregistrer'),
+                      : Text(tr(context, 'action.enregistrer')),
                 ),
               ],
             ),

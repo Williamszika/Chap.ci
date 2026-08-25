@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/geo.dart';
 import '../data/coords.dart';
 import '../data/locations.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// Le résultat courant du sélecteur : le lieu choisi + d'éventuelles
@@ -59,16 +60,14 @@ class _SelecteurLieuState extends State<SelecteurLieu> {
         setState(() => _gps = gps);
         widget.onChange(ChoixLieu(_lieu, _gps));
         if (mounted) {
-          _toast(
-              'Position captée. Précisez la région à la main pour finir.');
+          _toast(tr(context, 'lieu.captee'));
         }
       }
     } on GeoRefus catch (e) {
       if (mounted) _toast(e.message);
     } catch (_) {
       if (mounted) {
-        _toast(
-            'Impossible d’obtenir votre position. Autorisez la localisation, puis réessayez.');
+        _toast(tr(context, 'lieu.gpsErreur'));
       }
     } finally {
       if (mounted) setState(() => _localisation = false);
@@ -110,8 +109,8 @@ class _SelecteurLieuState extends State<SelecteurLieu> {
                         ? locationLabel(
                             _lieu.regionId, _lieu.cityId, _lieu.commune)
                         : _localisation
-                            ? 'Détection de votre position…'
-                            : 'Choisir la localisation',
+                            ? tr(context, 'lieu.detection')
+                            : tr(context, 'lieu.choisir'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: a ? FontWeight.w600 : FontWeight.w400,
@@ -136,10 +135,10 @@ class _SelecteurLieuState extends State<SelecteurLieu> {
                       strokeWidth: 2, color: ChapColors.orange))
               : const Icon(Icons.my_location, size: 18),
           label: Text(_localisation
-              ? 'Localisation…'
+              ? tr(context, 'expl.localisation')
               : a
-                  ? 'Actualiser ma position (GPS)'
-                  : 'Activer ma position (GPS)'),
+                  ? tr(context, 'lieu.actualiser')
+                  : tr(context, 'lieu.activer')),
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(44),
             foregroundColor: ChapColors.orange,
@@ -147,10 +146,11 @@ class _SelecteurLieuState extends State<SelecteurLieu> {
           ),
         ),
         if (a && _gps != null)
-          const Padding(
-            padding: EdgeInsets.only(top: 6, left: 2),
-            child: Text('Position précise enregistrée ✓',
-                style: TextStyle(fontSize: 12, color: ChapColors.greenDark)),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 2),
+            child: Text(tr(context, 'lieu.precise'),
+                style: const TextStyle(
+                    fontSize: 12, color: ChapColors.greenDark)),
           ),
       ],
     );
@@ -205,10 +205,10 @@ class _FeuilleLieuState extends State<_FeuilleLieu> {
     final region = regionById(_regionId);
     final city = cityById(_cityId);
     final titre = _etape == _Etape.region
-        ? 'Choisir une région'
+        ? tr(context, 'lieu.choisirRegion')
         : _etape == _Etape.ville
-            ? (region?.name ?? 'Ville')
-            : (city?.name ?? 'Commune');
+            ? (region?.name ?? tr(context, 'lieu.ville'))
+            : (city?.name ?? tr(context, 'lieu.commune'));
 
     return SafeArea(
       child: Padding(
@@ -322,15 +322,15 @@ class _FeuilleLieuState extends State<_FeuilleLieu> {
       shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       children: [
-        _lignePleine('Toute la région ${region?.name ?? ''}'.trim(),
+        _lignePleine('${tr(context, 'lieu.touteRegion')} ${region?.name ?? ''}'.trim(),
             onTap: () => widget.onApply(Lieu(regionId: _regionId))),
         const SizedBox(height: 8),
         if (villes.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: Center(
-              child: Text('Aucune ville référencée pour cette région.',
-                  style: TextStyle(color: ChapColors.gray600)),
+              child: Text(tr(context, 'lieu.aucuneVille'),
+                  style: const TextStyle(color: ChapColors.gray600)),
             ),
           )
         else
@@ -368,7 +368,7 @@ class _FeuilleLieuState extends State<_FeuilleLieu> {
       shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       children: [
-        _lignePleine('Toute la ville de ${city?.name ?? ''}'.trim(),
+        _lignePleine('${tr(context, 'lieu.touteVille')} ${city?.name ?? ''}'.trim(),
             onTap: () =>
                 widget.onApply(Lieu(regionId: _regionId, cityId: _cityId))),
         const SizedBox(height: 8),

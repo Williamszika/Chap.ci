@@ -129,8 +129,8 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
     final ok = await Navigator.of(context)
         .push<bool>(MaterialPageRoute(builder: (_) => const PublierScreen()));
     if (ok == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Votre annonce est en ligne 🎉'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr(context, 'pub.enLigne')),
         backgroundColor: ChapColors.greenDark,
       ));
     }

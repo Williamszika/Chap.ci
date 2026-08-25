@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../notifications.dart';
 import '../screens/notifications_screen.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// La cloche de l'en-tête : une icône avec la pastille du nombre de non-lues.
@@ -22,7 +23,7 @@ class ClocheNotifs extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.notifications_none, color: ChapColors.gray700),
-              tooltip: 'Notifications',
+              tooltip: tr(context, 'section.notifications'),
               onPressed: () async {
                 await Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => const NotificationsScreen()));

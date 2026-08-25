@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// Suppression définitive du compte — exigée par l'App Store et le Play Store
@@ -33,17 +34,15 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer définitivement ?'),
-        content: const Text(
-            'Cette action est irréversible. Toutes vos annonces, messages, '
-            'favoris et avis seront effacés.'),
+        title: Text(tr(context, 'supp.confirmTitre')),
+        content: Text(tr(context, 'supp.confirmCorps')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler')),
+              child: Text(tr(context, 'action.annuler'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer',
+            child: Text(tr(context, 'action.supprimer'),
                 style: TextStyle(color: Color(0xFFB42318))),
           ),
         ],
@@ -63,12 +62,12 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
       if (!mounted) return;
       Navigator.of(context).popUntil((r) => r.isFirst); // session fermée
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Votre compte a été supprimé.')));
+          SnackBar(content: Text(tr(context, 'supp.supprime'))));
     } on ApiException catch (e) {
       if (mounted) setState(() => _erreur = e.message);
     } catch (_) {
       if (mounted) {
-        setState(() => _erreur = 'La suppression n’a pas abouti. Réessayez.');
+        setState(() => _erreur = tr(context, 'supp.echec'));
       }
     } finally {
       if (mounted) setState(() => _enCours = false);
@@ -78,7 +77,7 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Supprimer mon compte')),
+      appBar: AppBar(title: Text(tr(context, 'supp.titre'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         child: Column(
@@ -91,38 +90,37 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFF5C6C6)),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_amber_rounded,
+                  const Icon(Icons.warning_amber_rounded,
                       color: Color(0xFFB42318)),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'La suppression est définitive. Il n’est pas possible de '
-                      'récupérer le compte ensuite.',
-                      style: TextStyle(color: Color(0xFF8A2A21), height: 1.4),
+                      tr(context, 'supp.definitive'),
+                      style: const TextStyle(
+                          color: Color(0xFF8A2A21), height: 1.4),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 18),
-            const Text('Ce qui sera effacé',
+            Text(tr(context, 'supp.ceQuiEfface'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 8),
-            ..._puce('Toutes vos annonces (en ligne et masquées)'),
-            ..._puce('Vos conversations et messages'),
-            ..._puce('Vos favoris et vos avis'),
-            ..._puce('Votre profil et vos informations personnelles'),
+            ..._puce(tr(context, 'supp.p1')),
+            ..._puce(tr(context, 'supp.p2')),
+            ..._puce(tr(context, 'supp.p3')),
+            ..._puce(tr(context, 'supp.p4')),
             const SizedBox(height: 20),
             TextField(
               controller: _mdp,
               obscureText: !_voirMdp,
               decoration: InputDecoration(
-                labelText: 'Mot de passe',
-                helperText: 'Laissez vide si vous vous êtes inscrit avec '
-                    'Google ou par téléphone.',
+                labelText: tr(context, 'item.motDePasse'),
+                helperText: tr(context, 'supp.mdpAide'),
                 helperMaxLines: 2,
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
@@ -139,8 +137,7 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               activeColor: const Color(0xFFB42318),
-              title: const Text(
-                  'Je comprends que la suppression est définitive.'),
+              title: Text(tr(context, 'supp.comprends')),
             ),
             if (_erreur != null) ...[
               const SizedBox(height: 6),
@@ -156,7 +153,7 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.delete_forever),
-              label: const Text('Supprimer définitivement mon compte'),
+              label: Text(tr(context, 'supp.bouton')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFB42318),
                 foregroundColor: Colors.white,

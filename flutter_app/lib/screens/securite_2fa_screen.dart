@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../api/api_client.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// La double authentification (2FA), depuis « Mon compte ».
@@ -79,7 +80,7 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
   Future<void> _activer() async {
     final code = _code.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (code.length < 6) {
-      setState(() => _erreur = 'Entrez les 6 chiffres de l’application.');
+      setState(() => _erreur = tr(context, 'g2fa.entrezApp'));
       return;
     }
     setState(() {
@@ -105,7 +106,7 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
   Future<void> _desactiver() async {
     final code = _code.text.trim();
     if (code.length < 6) {
-      setState(() => _erreur = 'Entrez un code de l’application (ou un code de secours).');
+      setState(() => _erreur = tr(context, 'g2fa.entrezOuSecours'));
       return;
     }
     setState(() {
@@ -130,7 +131,7 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Double authentification')),
+      appBar: AppBar(title: Text(tr(context, 'item.doubleAuth'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
         child: switch (_etape) {
@@ -154,14 +155,12 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
       children: [
         const Icon(Icons.lock_outline, size: 52, color: ChapColors.orange),
         const SizedBox(height: 14),
-        const Text('Protégez votre compte',
+        Text(tr(context, 'g2fa.protegez'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
-        const Text(
-          'La double authentification demande, en plus de votre mot de passe, un '
-          'code à 6 chiffres généré par une application sur votre téléphone. Même '
-          'si quelqu’un a votre mot de passe, il ne peut pas entrer sans ce code.',
+        Text(
+          tr(context, 'g2fa.explication'),
           textAlign: TextAlign.center,
           style: TextStyle(color: ChapColors.gray600, height: 1.4),
         ),
@@ -172,7 +171,7 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
         ],
         ElevatedButton(
           onPressed: _enCours ? null : _preparer,
-          child: _enCours ? _spinner() : const Text('Activer'),
+          child: _enCours ? _spinner() : Text(tr(context, 'g2fa.activer')),
         ),
       ],
     );
@@ -186,10 +185,9 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
         const Text('1. Ajoutez Chap.ci à votre application',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        const Text(
-          'Ouvrez Google Authenticator, Authy ou Microsoft Authenticator, puis '
-          'scannez ce QR — ou entrez la clé à la main.',
-          style: TextStyle(color: ChapColors.gray600, height: 1.4),
+        Text(
+          tr(context, 'g2fa.scannez'),
+          style: const TextStyle(color: ChapColors.gray600, height: 1.4),
         ),
         const SizedBox(height: 16),
         if (_uri.isNotEmpty)
@@ -237,7 +235,7 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: _enCours ? null : _activer,
-          child: _enCours ? _spinner() : const Text('Vérifier et activer'),
+          child: _enCours ? _spinner() : Text(tr(context, 'g2fa.verifierActiver')),
         ),
       ],
     );
@@ -250,13 +248,12 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
       children: [
         const Icon(Icons.verified_outlined, size: 52, color: ChapColors.greenDark),
         const SizedBox(height: 14),
-        const Text('Double authentification activée',
+        Text(tr(context, 'g2fa.activeeTitre'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
-        const Text(
-          'Conservez ces codes de secours en lieu sûr. Chacun ouvre votre compte '
-          'UNE fois si vous perdez votre téléphone. Ils ne seront plus affichés.',
+        Text(
+          tr(context, 'g2fa.conservez'),
           textAlign: TextAlign.center,
           style: TextStyle(color: ChapColors.gray600, height: 1.4),
         ),
@@ -287,11 +284,11 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
         OutlinedButton.icon(
           onPressed: () {
             Clipboard.setData(ClipboardData(text: _codesSecours.join('\n')));
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Codes de secours copiés.')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(tr(context, 'g2fa.codesCopies'))));
           },
           icon: const Icon(Icons.copy, size: 18),
-          label: const Text('Copier les codes'),
+          label: Text(tr(context, 'g2fa.copierCodes')),
         ),
         const SizedBox(height: 16),
         ElevatedButton(
@@ -314,25 +311,26 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: ChapColors.greenDark.withValues(alpha: 0.4)),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.verified_user_outlined, color: ChapColors.greenDark),
-              SizedBox(width: 10),
+              const Icon(Icons.verified_user_outlined,
+                  color: ChapColors.greenDark),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text('La double authentification est activée sur votre compte.',
-                    style: TextStyle(color: ChapColors.greenDark, height: 1.3)),
+                child: Text(tr(context, 'g2fa.estActivee'),
+                    style: const TextStyle(
+                        color: ChapColors.greenDark, height: 1.3)),
               ),
             ],
           ),
         ),
         const SizedBox(height: 22),
-        const Text('Désactiver',
+        Text(tr(context, 'g2fa.desactiver'),
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
-        const Text(
-          'Pour désactiver, entrez un code de votre application (ou un code de '
-          'secours). Votre compte sera moins protégé.',
-          style: TextStyle(color: ChapColors.gray600, height: 1.4),
+        Text(
+          tr(context, 'g2fa.desactiverAide'),
+          style: const TextStyle(color: ChapColors.gray600, height: 1.4),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -359,7 +357,7 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
           ),
           child: _enCours
               ? _spinner(couleur: const Color(0xFFB42318))
-              : const Text('Désactiver la double authentification'),
+              : Text(tr(context, 'g2fa.desactiverBtn')),
         ),
       ],
     );
@@ -390,11 +388,11 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.copy, size: 18, color: ChapColors.gray700),
-            tooltip: 'Copier la clé',
+            tooltip: tr(context, 'g2fa.copierCle'),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: secret));
               ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Clé copiée.')));
+                  SnackBar(content: Text(tr(context, 'g2fa.cleCopiee'))));
             },
           ),
         ],

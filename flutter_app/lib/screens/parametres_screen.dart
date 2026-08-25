@@ -154,8 +154,8 @@ class _ParametresScreenState extends State<ParametresScreen> {
       await launchUrl(web, mode: LaunchMode.externalApplication);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Impossible d’ouvrir le Play Store.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr(context, 'param.playErreur'))));
       }
     }
   }

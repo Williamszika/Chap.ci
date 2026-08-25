@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../api/auth_social.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// Les boutons « Continuer avec Google / Facebook », partagés par la connexion
@@ -91,7 +92,7 @@ class _SocialButtonsState extends State<SocialButtons> {
                 children: [
                   SizedBox(width: 22, height: 22, child: Center(child: logo)),
                   const SizedBox(width: 10),
-                  Text('Continuer avec $fournisseur',
+                  Text('${tr(context, 'social.continuerAvec')} $fournisseur',
                       style: TextStyle(
                           color: texteCol,
                           fontSize: 14.5,
@@ -127,8 +128,8 @@ class _SocialButtonsState extends State<SocialButtons> {
       if (mounted) _erreur(e.message);
     } catch (_) {
       if (mounted) {
-        _erreur('La connexion $fournisseur n’a pas abouti. Réessayez, ou '
-            'créez un compte avec votre e-mail.');
+        _erreur(
+            "${tr(context, 'social.laConnexion')} $fournisseur ${tr(context, 'social.echec')}");
       }
     } finally {
       if (mounted) setState(() => _enCours = null);
@@ -153,15 +154,13 @@ class _SocialButtonsState extends State<SocialButtons> {
           children: [
             const Icon(Icons.info_outline, color: ChapColors.orange),
             const SizedBox(height: 10),
-            Text('Connexion $fournisseur — bientôt',
+            Text('$fournisseur — ${tr(context, 'social.bientot')}',
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              'Le serveur sait déjà gérer Facebook (comme sur le site). Dans '
-              'l’application, ce bouton s’activera une fois la configuration '
-              'terminée. En attendant, utilisez Google ou votre e-mail.',
-              style: TextStyle(
+            Text(
+              tr(context, 'social.fbBientot'),
+              style: const TextStyle(
                   fontSize: 14, height: 1.5, color: ChapColors.gray700),
             ),
             const SizedBox(height: 16),
@@ -169,7 +168,7 @@ class _SocialButtonsState extends State<SocialButtons> {
               width: double.infinity,
               child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('J’ai compris')),
+                  child: Text(tr(context, 'action.compris'))),
             ),
           ],
         ),

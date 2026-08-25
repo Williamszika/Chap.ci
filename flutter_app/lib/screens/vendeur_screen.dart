@@ -4,6 +4,7 @@ import '../api/messaging.dart';
 import '../api/models.dart';
 import '../api/profil.dart';
 import '../i18n/formats_i18n.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import 'conversation_screen.dart';
@@ -116,7 +117,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
   Widget build(BuildContext context) {
     final charge = _annonces == null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Vendeur')),
+      appBar: AppBar(title: Text(tr(context, 'vend.titre'))),
       body: charge
           ? const Center(
               child: CircularProgressIndicator(color: ChapColors.orange))
@@ -182,7 +183,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
               decoration: BoxDecoration(
                   color: ChapColors.cream100,
                   borderRadius: BorderRadius.circular(20)),
-              child: const Text('Nouveau vendeur',
+              child: Text(tr(context, 'vend.nouveau'),
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -270,7 +271,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
           child: ElevatedButton.icon(
             onPressed: _contacter,
             icon: const Icon(Icons.chat_bubble_outline, size: 18),
-            label: const Text('Contacter'),
+            label: Text(tr(context, 'action.contacter')),
           ),
         ),
         const SizedBox(width: 10),
@@ -280,7 +281,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
             icon: Icon(_suivi ? Icons.check : Icons.add,
                 size: 18,
                 color: _suivi ? ChapColors.greenDark : ChapColors.gray700),
-            label: Text(_suivi ? 'Suivi' : 'Suivre',
+            label: Text(_suivi ? tr(context, 'vend.suivi') : tr(context, 'vend.suivre'),
                 style: TextStyle(
                     color: _suivi ? ChapColors.greenDark : ChapColors.gray700)),
             style: OutlinedButton.styleFrom(
@@ -319,8 +320,8 @@ class _VendeurScreenState extends State<VendeurScreen> {
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
-          chip('annonces', 'Annonces · $annonces'),
-          chip('avis', 'Avis · $avis'),
+          chip('annonces', '${tr(context, 'vend.annonces')} · $annonces'),
+          chip('avis', '${tr(context, 'vend.avis')} · $avis'),
           chip('apropos', 'À propos'),
         ],
       ),
@@ -332,8 +333,9 @@ class _VendeurScreenState extends State<VendeurScreen> {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
-          child: _message(Icons.wifi_off_rounded, 'Connexion impossible',
-              'Tirez vers le bas pour réessayer.'),
+          child: _message(Icons.wifi_off_rounded,
+              tr(context, 'vend.connexionImpossible'),
+              tr(context, 'compte.tirezReessayer')),
         ),
       ];
     }
@@ -352,8 +354,9 @@ class _VendeurScreenState extends State<VendeurScreen> {
     if (a.isEmpty) {
       return [
         SliverToBoxAdapter(
-          child: _message(Icons.storefront_outlined, 'Aucune annonce en vente',
-              'Ce vendeur n’a pas d’annonce visible pour le moment.'),
+          child: _message(Icons.storefront_outlined,
+              tr(context, 'vend.aucuneAnnonce'),
+              tr(context, 'vend.aucuneAnnonceDetail')),
         ),
       ];
     }
@@ -385,8 +388,9 @@ class _VendeurScreenState extends State<VendeurScreen> {
     if (av.isEmpty) {
       return [
         SliverToBoxAdapter(
-          child: _message(Icons.reviews_outlined, 'Aucun avis pour le moment',
-              'Les avis laissés par les acheteurs apparaîtront ici.'),
+          child: _message(Icons.reviews_outlined,
+              tr(context, 'vend.aucunAvis'),
+              tr(context, 'vend.aucunAvisDetail')),
         ),
       ];
     }
@@ -463,7 +467,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
           child: Text(
             (bio != null && bio.trim().isNotEmpty)
                 ? bio
-                : 'Ce vendeur n’a pas encore ajouté de description.',
+                : tr(context, 'vend.sansDescription'),
             style: const TextStyle(
                 fontSize: 14.5, height: 1.5, color: ChapColors.gray700),
           ),
@@ -498,12 +502,12 @@ class _VendeurScreenState extends State<VendeurScreen> {
   /// annonce côté serveur : on rattache à la première annonce du vendeur.
   Future<void> _contacter() async {
     if (!ApiClient.instance.connecte) {
-      _info('Connectez-vous depuis l’onglet Compte pour contacter le vendeur.');
+      _info(tr(context, 'annonce.contacterConnexion'));
       return;
     }
     final annonces = _annonces ?? const <Listing>[];
     if (annonces.isEmpty) {
-      _info('Ce vendeur n’a pas d’annonce active à contacter pour le moment.');
+      _info(tr(context, 'vend.pasActive'));
       return;
     }
     final monId = await ApiClient.instance.monId();
@@ -531,8 +535,8 @@ class _VendeurScreenState extends State<VendeurScreen> {
     setState(() => _suivi = !_suivi);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_suivi
-            ? 'Vous suivez $_nom.'
-            : 'Vous ne suivez plus $_nom.')));
+            ? '${tr(context, 'vend.vousSuivez')} $_nom.'
+            : '${tr(context, 'vend.plusSuivre')} $_nom.')));
   }
 
   void _info(String message) {

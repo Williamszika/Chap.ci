@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api/models.dart';
 import '../api/pub.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// L'écran publicitaire de l'accueil — la bannière noire du site, portée dans
@@ -239,14 +240,14 @@ class _EcranPubState extends State<EcranPub> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('En savoir plus',
-                style: TextStyle(
+            Text(tr(context, 'ecpub.savoirPlus'),
+                style: const TextStyle(
                     color: ChapColors.ink, fontWeight: FontWeight.bold, fontSize: 13.5)),
-            SizedBox(width: 6),
-            Icon(Icons.arrow_forward, size: 15, color: ChapColors.ink),
+            const SizedBox(width: 6),
+            const Icon(Icons.arrow_forward, size: 15, color: ChapColors.ink),
           ],
         ),
       );
@@ -306,16 +307,16 @@ class _EcranPubState extends State<EcranPub> {
               children: [
                 _pastillePub(),
                 const SizedBox(height: 10),
-                const Text('Votre publicité ici 🧡',
+                Text(tr(context, 'ecpub.votrePub'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                         fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
                 const SizedBox(height: 6),
-                const Text(
-                  'Affichez votre boutique en tête de l’accueil, dès 2 000 FCFA la '
-                  'semaine, par Mobile Money.',
+                Text(
+                  tr(context, 'ecpub.detail'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, height: 1.3, color: Color(0xB3FFFFFF)),
+                  style: const TextStyle(
+                      fontSize: 13, height: 1.3, color: Color(0xB3FFFFFF)),
                 ),
                 const SizedBox(height: 12),
                 GestureDetector(
@@ -333,8 +334,8 @@ class _EcranPubState extends State<EcranPub> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text('Faire de la publicité',
-                        style: TextStyle(
+                    child: Text(tr(context, 'ecpub.faire'),
+                        style: const TextStyle(
                             color: ChapColors.ink,
                             fontWeight: FontWeight.bold,
                             fontSize: 13.5)),

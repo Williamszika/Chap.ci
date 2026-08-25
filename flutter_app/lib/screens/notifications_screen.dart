@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../i18n/formats_i18n.dart';
 import '../notifications.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import 'listing_detail_screen.dart';
 
@@ -60,8 +61,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           MaterialPageRoute(builder: (_) => ListingDetailScreen(annonce: annonce)));
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Cette annonce n’est plus disponible.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(tr(context, 'notif.plusDispo'))));
       }
     }
   }
@@ -71,13 +72,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: ChapColors.cream,
-        title: const Text('Tout effacer'),
-        content: const Text('Effacer toutes vos notifications ? Cette action est définitive.'),
+        title: Text(tr(context, 'notif.toutEffacer')),
+        content: Text(tr(context, 'notif.toutEffacerCorps')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: Text(tr(context, 'action.annuler'))),
           TextButton(
               onPressed: () => Navigator.pop(c, true),
-              child: const Text('Effacer', style: TextStyle(color: Color(0xFFB91C1C)))),
+              child: Text(tr(context, 'notif.effacer'),
+                  style: const TextStyle(color: Color(0xFFB91C1C)))),
         ],
       ),
     );
@@ -88,7 +92,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(tr(context, 'section.notifications')),
         actions: [
           AnimatedBuilder(
             animation: _notifs,
@@ -96,7 +100,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ? const SizedBox.shrink()
                 : IconButton(
                     icon: const Icon(Icons.delete_sweep_outlined),
-                    tooltip: 'Tout effacer',
+                    tooltip: tr(context, 'notif.toutEffacer'),
                     onPressed: _toutEffacer,
                   ),
           ),
@@ -133,21 +137,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         SizedBox(height: MediaQuery.of(context).size.height * 0.25),
         const Icon(Icons.notifications_none, size: 56, color: ChapColors.gray500),
         const SizedBox(height: 12),
-        const Center(
-          child: Text('Aucune notification',
-              style: TextStyle(
+        Center(
+          child: Text(tr(context, 'notif.aucune'),
+              style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: ChapColors.gray700)),
         ),
         const SizedBox(height: 6),
-        const Center(
+        Center(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              'Vos messages, vos favoris et les rappels s’afficheront ici.',
+              tr(context, 'notif.aucuneDetail'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: ChapColors.gray600),
+              style: const TextStyle(fontSize: 13, color: ChapColors.gray600),
             ),
           ),
         ),

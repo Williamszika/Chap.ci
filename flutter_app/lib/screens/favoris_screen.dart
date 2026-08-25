@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../favoris.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
@@ -31,7 +32,7 @@ class _FavorisScreenState extends State<FavorisScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes favoris')),
+      appBar: AppBar(title: Text(tr(context, 'item.mesFavoris'))),
       body: FutureBuilder<List<Listing>>(
         future: _futur,
         builder: (context, snap) {
@@ -83,7 +84,7 @@ class _FavorisScreenState extends State<FavorisScreen> {
         SizedBox(height: 120),
         Icon(Icons.favorite_border, size: 48, color: ChapColors.line2),
         SizedBox(height: 12),
-        Text('Aucun favori pour l’instant',
+        Text(tr(context, 'fav.aucun'),
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 15,
@@ -93,7 +94,7 @@ class _FavorisScreenState extends State<FavorisScreen> {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 40),
           child: Text(
-            'Touchez le ♡ sur une annonce pour la retrouver ici.',
+            tr(context, 'fav.aucunDetail'),
             textAlign: TextAlign.center,
             style: TextStyle(color: ChapColors.gray600),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/social_buttons.dart';
 
@@ -39,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_consent) {
       setState(() => _erreur =
-          'Vous devez accepter les conditions et la politique de confidentialité.');
+          tr(context, 'insc.accepter'));
       return;
     }
     setState(() {
@@ -63,7 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Créer un compte')),
+      appBar: AppBar(title: Text(tr(context, 'insc.titre'))),
       // Plafond de largeur : sur tablette, le formulaire ne s'étire pas sur
       // toute la largeur (cohérent avec l'écran « modifier le profil »).
       body: Center(
@@ -76,21 +77,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Bienvenue sur Chap.ci 🇨🇮',
+              Text(tr(context, 'insc.bienvenue'),
                   style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
               const SizedBox(height: 5),
-              const Text('Un compte pour publier, discuter et suivre vos annonces.',
+              Text(tr(context, 'insc.sousTitre'),
                   style: TextStyle(color: ChapColors.gray600)),
               const SizedBox(height: 20),
               TextFormField(
                 controller: _nom,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nom complet',
-                  prefixIcon: Icon(Icons.person_outline),
+                decoration: InputDecoration(
+                  labelText: tr(context, 'insc.nomComplet'),
+                  prefixIcon: const Icon(Icons.person_outline),
                 ),
                 validator: (v) => (v == null || v.trim().length < 2)
-                    ? 'Indiquez votre nom'
+                    ? tr(context, 'insc.indiquezNom')
                     : null,
               ),
               const SizedBox(height: 14),
@@ -98,9 +99,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
-                decoration: const InputDecoration(
-                  labelText: 'Adresse e-mail',
-                  prefixIcon: Icon(Icons.mail_outline),
+                decoration: InputDecoration(
+                  labelText: tr(context, 'item.email'),
+                  prefixIcon: const Icon(Icons.mail_outline),
                 ),
                 validator: (v) =>
                     (v == null || !v.contains('@')) ? 'E-mail invalide' : null,
@@ -111,8 +112,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: !_voirMdp,
                 autofillHints: const [AutofillHints.newPassword],
                 decoration: InputDecoration(
-                  labelText: 'Mot de passe',
-                  helperText: 'Au moins 8 caractères',
+                  labelText: tr(context, 'item.motDePasse'),
+                  helperText: tr(context, 'insc.min8'),
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -121,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 validator: (v) => (v == null || v.length < 8)
-                    ? 'Au moins 8 caractères'
+                    ? tr(context, 'insc.min8')
                     : null,
               ),
               const SizedBox(height: 8),
@@ -184,7 +185,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
-                    : const Text('Créer mon compte'),
+                    : Text(tr(context, 'insc.creerMonCompte')),
               ),
               const SizedBox(height: 18),
               SocialButtons(onConnecte: () {

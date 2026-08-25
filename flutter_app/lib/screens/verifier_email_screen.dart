@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api/api_client.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// Confirmer son adresse e-mail — le mur avant de publier.
@@ -91,7 +92,7 @@ class _VerifierEmailScreenState extends State<VerifierEmailScreen> {
       }
       if (mounted) {
         setState(() => _info =
-            'Un code à 6 chiffres a été envoyé à ${_email ?? 'votre adresse'}. Regardez aussi vos spams.');
+            "${tr(context, 'vmail.envoye')} ${_email ?? tr(context, 'vmail.votreAdresse')}. ${tr(context, 'vmail.spams')}");
         _lancerCompteARebours();
       }
     } on ApiException catch (e) {
@@ -104,7 +105,7 @@ class _VerifierEmailScreenState extends State<VerifierEmailScreen> {
   Future<void> _verifier() async {
     final code = _code.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (code.length < 6) {
-      setState(() => _erreur = 'Entrez les 6 chiffres du code.');
+      setState(() => _erreur = tr(context, 'vmail.entrez6'));
       return;
     }
     setState(() {
@@ -131,7 +132,7 @@ class _VerifierEmailScreenState extends State<VerifierEmailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Confirmer l’e-mail')),
+      appBar: AppBar(title: Text(tr(context, 'vmail.titre'))),
       body: _reussi ? _vueSucces() : _vueSaisie(),
     );
   }
@@ -148,22 +149,24 @@ class _VerifierEmailScreenState extends State<VerifierEmailScreen> {
               const Icon(Icons.mark_email_read_outlined,
                   size: 52, color: ChapColors.orange),
               const SizedBox(height: 14),
-              const Text('Confirmez votre adresse e-mail',
+              Text(tr(context, 'vmail.confirmez'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                  style: const TextStyle(
+                      fontSize: 19, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               Text(
                 _info ??
-                    'Nous envoyons un code à 6 chiffres à ${_email ?? 'votre adresse'}. C’est nécessaire une seule fois, pour pouvoir publier.',
+                    "${tr(context, 'vmail.explication')} ${_email ?? tr(context, 'vmail.votreAdresse')}. ${tr(context, 'vmail.uneFois')}",
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: ChapColors.gray600, height: 1.4),
               ),
               const SizedBox(height: 22),
               _cases(),
               const SizedBox(height: 10),
-              const Text('⏱  Code valable 15 minutes',
+              Text(tr(context, 'vmail.valable'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: ChapColors.gray500)),
+                  style: const TextStyle(
+                      fontSize: 12, color: ChapColors.gray500)),
               if (_erreur != null) ...[
                 const SizedBox(height: 10),
                 Text(_erreur!,
@@ -179,7 +182,7 @@ class _VerifierEmailScreenState extends State<VerifierEmailScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
-                    : const Text('Vérifier'),
+                    : Text(tr(context, 'vmail.verifier')),
               ),
               const SizedBox(height: 6),
               TextButton(
@@ -188,10 +191,10 @@ class _VerifierEmailScreenState extends State<VerifierEmailScreen> {
                     : () => _envoyerCode(),
                 child: Text(
                   _envoiEnCours
-                      ? 'Envoi…'
+                      ? tr(context, 'vmail.envoi')
                       : _secondes > 0
-                          ? 'Renvoyer le code dans 0:${_secondes.toString().padLeft(2, '0')}'
-                          : 'Renvoyer le code',
+                          ? "${tr(context, 'vmail.renvoyerDans')} 0:${_secondes.toString().padLeft(2, '0')}"
+                          : tr(context, 'vmail.renvoyer'),
                   style: const TextStyle(color: ChapColors.gray700),
                 ),
               ),
@@ -290,20 +293,20 @@ class _VerifierEmailScreenState extends State<VerifierEmailScreen> {
                   size: 46, color: ChapColors.greenDark),
             ),
             const SizedBox(height: 18),
-            const Text('E-mail confirmé',
+            Text(tr(context, 'vmail.succesTitre'),
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
-            const Text(
-              'Votre adresse est vérifiée. Vous pouvez maintenant publier vos annonces sur Chap.ci.',
+            Text(
+              tr(context, 'vmail.succesCorps'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ChapColors.gray600, height: 1.45),
+              style: const TextStyle(color: ChapColors.gray600, height: 1.45),
             ),
             const SizedBox(height: 26),
             SizedBox(
               width: 220,
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Continuer'),
+                child: Text(tr(context, 'vmail.continuer')),
               ),
             ),
           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/formulaires/couleurs.dart';
 import '../data/formulaires/schema.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 
 /// L'état courant d'un formulaire détaillé, remonté au parent à chaque
@@ -316,7 +317,8 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
           const SizedBox(height: 8),
           TextField(
             controller: _controleur(c.cle),
-            decoration: InputDecoration(hintText: c.ph ?? 'Précisez'),
+            decoration:
+                InputDecoration(hintText: c.ph ?? tr(context, 'form.precisez')),
             onChanged: (v) => _maj(() => _vals[c.cle] = v),
           ),
         ],
@@ -429,7 +431,8 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
 
   Widget _blocCouleursWidget() {
     final s = widget.schema;
-    final lab = resoudreTexte(s.labCouleurs, _vals) ?? 'Couleurs disponibles';
+    final lab =
+        resoudreTexte(s.labCouleurs, _vals) ?? tr(context, 'form.couleursDispo');
     final aide = resoudreTexte(s.aideCouleurs, _vals);
     final aideChamp = resoudreTexte(s.aideCoulChamp, _vals);
     final choisis = _couleursChoisies;
@@ -456,10 +459,10 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
         ),
         if (choisis.isNotEmpty) ...[
           const SizedBox(height: 12),
-          const Text(
-            'Facultatif : donnez à chaque couleur sa photo, son prix et ses détails. '
-            'Sans rien préciser, la couleur reprend le prix et les photos de l’annonce.',
-            style: TextStyle(fontSize: 12, height: 1.35, color: ChapColors.gray600),
+          Text(
+            tr(context, 'form.variantesAide'),
+            style: const TextStyle(
+                fontSize: 12, height: 1.35, color: ChapColors.gray600),
           ),
           const SizedBox(height: 8),
           for (final c in choisis) ...[
@@ -559,8 +562,8 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             maxLength: 12,
-            decoration: const InputDecoration(
-              hintText: 'Prix de cette couleur',
+            decoration: InputDecoration(
+              hintText: tr(context, 'form.prixCouleur'),
               suffixText: 'FCFA',
               counterText: '',
               isDense: true,
@@ -571,8 +574,8 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
           TextField(
             controller: _controleur(cleVariante(nom, 'note')),
             maxLength: 100,
-            decoration: const InputDecoration(
-              hintText: 'Détails — Ex : 128 Go, dernière pièce',
+            decoration: InputDecoration(
+              hintText: tr(context, 'form.detailsEx'),
               counterText: '',
               isDense: true,
             ),
@@ -590,15 +593,16 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
     final brut = (_vals[cle] ?? '').toString();
     final choisi = RegExp(r'^\d+$').hasMatch(brut) ? int.parse(brut) : null;
     if (widget.images.isEmpty) {
-      return const Row(
+      return Row(
         children: [
-          Icon(Icons.image_not_supported_outlined,
+          const Icon(Icons.image_not_supported_outlined,
               size: 15, color: ChapColors.gray600),
-          SizedBox(width: 6),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
-              'Ajoutez d’abord vos photos en haut du formulaire, puis liez ici celle de cette couleur.',
-              style: TextStyle(fontSize: 11.5, color: ChapColors.gray600),
+              tr(context, 'form.ajoutezPhotos'),
+              style: const TextStyle(
+                  fontSize: 11.5, color: ChapColors.gray600),
             ),
           ),
         ],
@@ -642,8 +646,9 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
         const SizedBox(height: 4),
         Text(
           choisi != null
-              ? 'Photo ${choisi + 1} liée'
-              : 'Touchez la photo qui montre cette couleur',
+              ? tr(context, 'form.photoLiee')
+                  .replaceFirst('{n}', '${choisi + 1}')
+              : tr(context, 'form.touchezPhoto'),
           style: const TextStyle(fontSize: 11.5, color: ChapColors.gray600),
         ),
       ],
