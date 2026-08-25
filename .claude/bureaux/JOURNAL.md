@@ -4070,3 +4070,13 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Propositions au Patron** : P1 recruter les 2 derniers testeurs Play Store ; P2
   vérifier le verdict d'examen de la v1.20 avant tout dépôt de la v1.21 (déjà prête) ;
   P3 trancher sur `.admin_otp`.
+
+### 2026-08-24 — [Livraison] Play Console : v1.20 a passé l'examen, testeurs 11/12
+- **Relevé par le Patron dans la Play Console** : v1.20 (code 21) « Disponible pour certains
+  testeurs · 177 pays/régions » → **verdict reçu, plus en examen**. `APP-VERSIONS.md` mis à jour
+  (table + fiches v1.20 et v1.21).
+- **Conséquence** : le **gate sur la v1.21 est levé** — la déposer ne relance plus aucun examen.
+  Reste à la construire (Patron ; `targetSdk 36` déjà prêt pour l'échéance du 30/08).
+- **Testeurs : 11/12** (était 10) — il n'en manque plus **qu'un** pour démarrer le compte à rebours
+  des 14 jours. Toujours le levier le plus lent, et le seul que personne d'autre que le Patron ne
+  peut débloquer.
