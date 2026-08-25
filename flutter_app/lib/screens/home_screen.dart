@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../api/pub.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/cloche_notifs.dart';
 import '../widgets/ecran_pub.dart';
@@ -140,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       IconButton(
                         icon: const Icon(Icons.favorite_border,
                             color: ChapColors.gray700),
-                        tooltip: 'Mes favoris',
+                        tooltip: tr(context, 'item.mesFavoris'),
                         onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute(
                                 builder: (_) => const FavorisScreen())),
@@ -163,12 +164,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: ChapColors.line2),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.search, color: ChapColors.gray500, size: 20),
-                          SizedBox(width: 8),
-                          Text('Rechercher une annonce…',
-                              style: TextStyle(color: ChapColors.gray500)),
+                          const Icon(Icons.search,
+                              color: ChapColors.gray500, size: 20),
+                          const SizedBox(width: 8),
+                          Text(tr(context, 'home.recherche'),
+                              style: const TextStyle(color: ChapColors.gray500)),
                         ],
                       ),
                     ),
@@ -183,15 +185,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Toutes les annonces',
-                          style: TextStyle(
+                      Text(tr(context, 'home.toutes'),
+                          style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: ChapColors.gray900)),
                       TextButton(
                         onPressed: widget.onVoirTout,
-                        child: const Text('Filtrer',
-                            style: TextStyle(color: ChapColors.orangeDark)),
+                        child: Text(tr(context, 'home.filtrer'),
+                            style: const TextStyle(color: ChapColors.orangeDark)),
                       ),
                     ],
                   ),
@@ -228,10 +230,10 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 24),
             child: _erreur
                 ? _blocErreur()
-                : const Text(
-                    'Aucune annonce pour le moment. Revenez bientôt !',
+                : Text(
+                    tr(context, 'home.vide'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: ChapColors.gray600),
+                    style: const TextStyle(color: ChapColors.gray600),
                   ),
           ),
         ),
@@ -305,14 +307,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('Impossible de charger les annonces.',
+        Text(tr(context, 'home.erreur'),
             textAlign: TextAlign.center,
-            style: TextStyle(color: ChapColors.gray600)),
+            style: const TextStyle(color: ChapColors.gray600)),
         const SizedBox(height: 10),
         OutlinedButton.icon(
           onPressed: _chargerPlus,
           icon: const Icon(Icons.refresh, size: 18),
-          label: const Text('Réessayer'),
+          label: Text(tr(context, 'action.reessayer')),
         ),
       ],
     );

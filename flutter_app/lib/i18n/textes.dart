@@ -77,6 +77,14 @@ const Map<String, Map<String, String>> _t = {
   'item.supprimer': {'fr': "Supprimer mon compte", 'en': "Delete my account", 'es': "Eliminar mi cuenta", 'pt': "Eliminar a minha conta", 'ar': "حذف حسابي", 'zh': "删除我的账户"},
   'dialog.deconnexion.titre': {'fr': "Se déconnecter ?", 'en': "Sign out?", 'es': "¿Cerrar sesión?", 'pt': "Terminar sessão?", 'ar': "تسجيل الخروج؟", 'zh': "退出登录？"},
   'dialog.deconnexion.corps': {'fr': "Vous devrez ressaisir votre mot de passe pour revenir.", 'en': "You'll need to enter your password to return.", 'es': "Tendrás que volver a introducir tu contraseña para regresar.", 'pt': "Terá de introduzir a sua palavra-passe para voltar.", 'ar': "ستحتاج إلى إدخال كلمة المرور للعودة.", 'zh': "重新登录时需要再次输入密码。"},
+
+  // Accueil
+  'action.reessayer': {'fr': "Réessayer", 'en': "Try again", 'es': "Reintentar", 'pt': "Tentar novamente", 'ar': "إعادة المحاولة", 'zh': "重试"},
+  'home.recherche': {'fr': "Rechercher une annonce…", 'en': "Search for a listing…", 'es': "Buscar un anuncio…", 'pt': "Procurar um anúncio…", 'ar': "ابحث عن إعلان…", 'zh': "搜索商品…"},
+  'home.toutes': {'fr': "Toutes les annonces", 'en': "All listings", 'es': "Todos los anuncios", 'pt': "Todos os anúncios", 'ar': "كل الإعلانات", 'zh': "全部商品"},
+  'home.filtrer': {'fr': "Filtrer", 'en': "Filter", 'es': "Filtrar", 'pt': "Filtrar", 'ar': "تصفية", 'zh': "筛选"},
+  'home.vide': {'fr': "Aucune annonce pour le moment. Revenez bientôt !", 'en': "No listings yet. Check back soon!", 'es': "Aún no hay anuncios. ¡Vuelve pronto!", 'pt': "Ainda não há anúncios. Volte em breve!", 'ar': "لا توجد إعلانات بعد. عُد قريباً!", 'zh': "暂无商品，请稍后再来！"},
+  'home.erreur': {'fr': "Impossible de charger les annonces.", 'en': "Couldn't load listings.", 'es': "No se pudieron cargar los anuncios.", 'pt': "Não foi possível carregar os anúncios.", 'ar': "تعذّر تحميل الإعلانات.", 'zh': "无法加载商品。"},
 };
 
 /// Le texte de la clé [cle] dans la langue de l'application.
