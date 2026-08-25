@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../i18n/textes.dart';
 import '../liens_site.dart';
 import '../theme.dart';
 import '../widgets/social_buttons.dart';
@@ -120,12 +121,12 @@ class _AccountScreenState extends State<AccountScreen> {
     final connecte = ApiClient.instance.connecte;
     return Scaffold(
       appBar: AppBar(
-        title: Text(connecte ? 'Mon compte' : 'Connexion'),
+        title: Text(connecte ? tr(context, 'compte.titre') : tr(context, 'compte.connexion')),
         actions: connecte
             ? [
                 IconButton(
                   icon: const Icon(Icons.settings_outlined),
-                  tooltip: 'Paramètres',
+                  tooltip: tr(context, 'param.titre'),
                   onPressed: _ouvrirParametres,
                 ),
               ]

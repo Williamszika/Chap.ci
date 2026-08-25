@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api/api_client.dart';
 import 'api/push_natif.dart';
 import 'favoris.dart';
+import 'i18n/langues.dart';
+import 'i18n/textes.dart';
 import 'notifications.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
@@ -24,6 +27,8 @@ Future<void> main() async {
   // puis les favoris (locaux, fusionnés au compte si connecté).
   await ApiClient.instance.chargerSession();
   await Favoris.instance.charger();
+  // La langue choisie (français par défaut), avant le premier rendu.
+  await LangueController.instance.charger();
   // Le compteur de la cloche (léger, best-effort, silencieux si hors ligne).
   Notifications.instance.rafraichirCompte();
   // Le push natif (FCM) — neutre tant qu'il n'est pas activé (voir README).
@@ -35,23 +40,37 @@ class ChapApp extends StatelessWidget {
   const ChapApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Chap.ci',
-      debugShowCheckedModeBanner: false,
-      theme: chapTheme(),
-      // Sur tablette et grands écrans, on borne la largeur du contenu et on le
-      // centre — comme le site (max-w-4xl) — pour éviter des lignes qui
-      // s'étirent à l'infini. Sous 900 px (téléphones), c'est sans effet.
-      builder: (context, child) => ColoredBox(
-        color: ChapColors.cream200,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: child,
+    // On reconstruit MaterialApp quand la langue change : tout l'arbre est
+    // redessiné, chaque `tr(...)` relit la langue courante, et l'arabe passe
+    // seul en droite-à-gauche.
+    return AnimatedBuilder(
+      animation: LangueController.instance,
+      builder: (context, _) => MaterialApp(
+        title: 'Chap.ci',
+        debugShowCheckedModeBanner: false,
+        theme: chapTheme(),
+        locale: LangueController.instance.locale,
+        supportedLocales:
+            languesDisponibles.map((l) => Locale(l.code)).toList(),
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        // Sur tablette et grands écrans, on borne la largeur du contenu et on le
+        // centre — comme le site (max-w-4xl) — pour éviter des lignes qui
+        // s'étirent à l'infini. Sous 900 px (téléphones), c'est sans effet.
+        builder: (context, child) => ColoredBox(
+          color: ChapColors.cream200,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: child,
+            ),
           ),
         ),
+        home: const AccueilShell(),
       ),
-      home: const AccueilShell(),
     );
   }
 }
@@ -103,8 +122,8 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
   Future<void> _publier() async {
     if (!ApiClient.instance.connecte) {
       _aller(3); // vers Compte pour se connecter
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Connectez-vous pour publier une annonce.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tr(context, 'login.connectezVous'))));
       return;
     }
     final ok = await Navigator.of(context)
@@ -140,31 +159,31 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
         backgroundColor: ChapColors.orange,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Publier'),
+        label: Text(tr(context, 'action.publier')),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _onglet,
         onDestinationSelected: _aller,
         backgroundColor: ChapColors.cream,
         indicatorColor: ChapColors.cream100,
-        destinations: const [
+        destinations: [
           NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home, color: ChapColors.orange),
-              label: 'Accueil'),
+              icon: const Icon(Icons.home_outlined),
+              selectedIcon: const Icon(Icons.home, color: ChapColors.orange),
+              label: tr(context, 'nav.accueil')),
           NavigationDestination(
-              icon: Icon(Icons.grid_view_outlined),
-              selectedIcon: Icon(Icons.grid_view, color: ChapColors.orange),
-              label: 'Explorer'),
+              icon: const Icon(Icons.grid_view_outlined),
+              selectedIcon: const Icon(Icons.grid_view, color: ChapColors.orange),
+              label: tr(context, 'nav.explorer')),
           NavigationDestination(
-              icon: Icon(Icons.chat_bubble_outline),
+              icon: const Icon(Icons.chat_bubble_outline),
               selectedIcon:
-                  Icon(Icons.chat_bubble, color: ChapColors.orange),
-              label: 'Messages'),
+                  const Icon(Icons.chat_bubble, color: ChapColors.orange),
+              label: tr(context, 'nav.messages')),
           NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person, color: ChapColors.orange),
-              label: 'Compte'),
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: const Icon(Icons.person, color: ChapColors.orange),
+              label: tr(context, 'nav.compte')),
         ],
       ),
     );

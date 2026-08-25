@@ -3,6 +3,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/admin.dart';
 import '../api/api_client.dart';
+import '../i18n/langues.dart';
+import '../i18n/textes.dart';
 import '../liens_site.dart';
 import '../theme.dart';
 import 'admin/tableau_bord_screen.dart';
@@ -163,16 +165,16 @@ class _ParametresScreenState extends State<ParametresScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: ChapColors.cream,
-        title: const Text('Se déconnecter ?'),
-        content: const Text('Vous devrez ressaisir votre mot de passe pour revenir.'),
+        title: Text(tr(context, 'dialog.deconnexion.titre')),
+        content: Text(tr(context, 'dialog.deconnexion.corps')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler')),
+              child: Text(tr(context, 'action.annuler'))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Se déconnecter',
-                  style: TextStyle(color: Color(0xFFB42318)))),
+              child: Text(tr(context, 'item.deconnexion'),
+                  style: const TextStyle(color: Color(0xFFB42318)))),
         ],
       ),
     );
@@ -190,10 +192,56 @@ class _ParametresScreenState extends State<ParametresScreen> {
     }
   }
 
+  /// Choisir la langue de l'application. Le choix bascule toute l'app en direct
+  /// (voir `LangueController`) et est mémorisé.
+  Future<void> _choisirLangue() async {
+    final actuel = LangueController.instance.code;
+    final choix = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+              child: Row(
+                children: [
+                  const Icon(Icons.language, color: ChapColors.orange),
+                  const SizedBox(width: 10),
+                  Text(tr(context, 'langue.choisir'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            for (final l in languesDisponibles)
+              ListTile(
+                leading: Text(l.drapeau, style: const TextStyle(fontSize: 22)),
+                title: Text(l.nom,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                trailing: l.code == actuel
+                    ? const Icon(Icons.check, color: ChapColors.orange)
+                    : null,
+                onTap: () => Navigator.pop(c, l.code),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (choix != null) {
+      await LangueController.instance.definir(choix);
+      if (mounted) setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text('Paramètres')),
+        appBar: AppBar(title: Text(tr(context, 'param.titre'))),
         body: _chargement
             ? const Center(
                 child: CircularProgressIndicator(color: ChapColors.orange))
@@ -201,49 +249,51 @@ class _ParametresScreenState extends State<ParametresScreen> {
                   padding: const EdgeInsets.only(bottom: 28),
                   children: [
                     if (_estAdmin) ...[
-                      _label('Administration'),
+                      _label(tr(context, 'section.administration')),
                       _groupe([
                         _ligne(
                           icone: Icons.dashboard_outlined,
                           fond: ChapColors.cream100,
                           teinte: ChapColors.orangeDark,
-                          titre: 'Tableau de bord',
+                          titre: tr(context, 'item.tableauBord'),
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => const TableauBordScreen())),
                         ),
                       ]),
                     ],
 
-                    _label('Mon activité'),
+                    _label(tr(context, 'section.monActivite')),
                     _groupe([
                       _ligne(
                         icone: Icons.favorite_border,
                         fond: const Color(0xFFFBE5E1),
                         teinte: const Color(0xFFB42318),
-                        titre: 'Mes favoris',
-                        sous: 'Les annonces que vous avez enregistrées',
+                        titre: tr(context, 'item.mesFavoris'),
+                        sous: tr(context, 'item.mesFavoris.sous'),
                         onTap: _mesFavoris,
                       ),
                     ]),
 
-                    _label('Compte'),
+                    _label(tr(context, 'section.compte')),
                     _groupe([
                       _ligne(
                         icone: Icons.person_outline,
                         fond: const Color(0xFFFFEAD1),
                         teinte: const Color(0xFFB4600C),
-                        titre: 'Profil',
-                        sous: 'Nom, photo, bio, téléphone',
+                        titre: tr(context, 'item.profil'),
+                        sous: tr(context, 'item.profil.sous'),
                         onTap: () => _ouvrir(const ModifierProfilScreen()),
                       ),
                       _ligne(
                         icone: Icons.alternate_email,
                         fond: const Color(0xFFE6EEF8),
                         teinte: const Color(0xFF3B5A80),
-                        titre: 'Adresse e-mail',
+                        titre: tr(context, 'item.email'),
                         sous: _email.isEmpty
-                            ? (_emailVerifie ? 'Confirmée' : 'À confirmer')
-                            : '$_email · ${_emailVerifie ? 'confirmée' : 'à confirmer'}',
+                            ? (_emailVerifie
+                                ? tr(context, 'email.confirmee')
+                                : tr(context, 'email.aConfirmer'))
+                            : '$_email · ${_emailVerifie ? tr(context, 'email.confirmee') : tr(context, 'email.aConfirmer')}',
                         sousCouleur:
                             _emailVerifie ? ChapColors.greenDark : ChapColors.ocreDark,
                         fin: _emailVerifie
@@ -258,77 +308,78 @@ class _ParametresScreenState extends State<ParametresScreen> {
                         icone: Icons.lock_outline,
                         fond: const Color(0xFFECE7DE),
                         teinte: const Color(0xFF5B5344),
-                        titre: 'Mot de passe',
-                        sous: 'Modifier',
+                        titre: tr(context, 'item.motDePasse'),
+                        sous: tr(context, 'action.modifier'),
                         onTap: () => _ouvrir(const MotDePasseScreen()),
                       ),
                       _ligne(
                         icone: Icons.shield_outlined,
                         fond: const Color(0xFFDFF2E8),
                         teinte: ChapColors.greenDark,
-                        titre: 'Double authentification',
-                        sous: _2faActive ? 'Activée' : 'Désactivée',
+                        titre: tr(context, 'item.doubleAuth'),
+                        sous: _2faActive ? tr(context, 'etat.activee') : tr(context, 'etat.desactivee'),
                         sousCouleur: _2faActive ? ChapColors.greenDark : null,
                         onTap: () => _ouvrir(const Securite2faScreen()),
                       ),
                     ]),
 
-                    _label('Notifications'),
+                    _label(tr(context, 'section.notifications')),
                     _groupeNotifs(),
 
-                    _label('Préférences'),
+                    _label(tr(context, 'section.preferences')),
                     _groupe([
                       _ligne(
                         icone: Icons.language,
                         fond: const Color(0xFFECE7DE),
                         teinte: const Color(0xFF5B5344),
-                        titre: 'Langue',
-                        sous: 'Français',
+                        titre: tr(context, 'item.langue'),
+                        sous: LangueController.instance.nomCourant,
+                        onTap: _choisirLangue,
                       ),
                     ]),
 
-                    _label('Faire connaître Chap.ci'),
+                    _label(tr(context, 'section.partager')),
                     _groupe([
                       _ligne(
                         icone: Icons.ios_share,
                         fond: const Color(0xFFDFF2E8),
                         teinte: ChapColors.greenDark,
-                        titre: 'Partager l’application',
-                        sous: 'Envoyer le lien à un ami',
+                        titre: tr(context, 'item.partager'),
+                        sous: tr(context, 'item.partager.sous'),
                         onTap: _partager,
                       ),
                       _ligne(
                         icone: Icons.star_border,
                         fond: const Color(0xFFFFEAD1),
                         teinte: const Color(0xFFB4600C),
-                        titre: 'Noter l’application',
-                        sous: 'Laisser un avis sur le Play Store',
+                        titre: tr(context, 'item.noter'),
+                        sous: tr(context, 'item.noter.sous'),
                         onTap: _noter,
                       ),
                     ]),
 
-                    _label('Aide & informations'),
+                    _label(tr(context, 'section.aide')),
                     _groupe([
-                      _lienSite(Icons.help_outline, 'Aide', PagesSite.aide),
-                      _lienSite(Icons.quiz_outlined, 'Questions fréquentes (FAQ)',
-                          PagesSite.faq),
+                      _lienSite(Icons.help_outline, tr(context, 'item.aide'), PagesSite.aide),
+                      _lienSite(Icons.quiz_outlined, tr(context, 'item.faq'), PagesSite.faq),
                       _lienSite(
-                          Icons.mail_outline, 'Nous contacter', PagesSite.contact),
-                      _lienSite(Icons.info_outline, 'À propos', PagesSite.aPropos),
-                      _lienSite(Icons.description_outlined,
-                          'Conditions d’utilisation', PagesSite.conditions),
-                      _lienSite(Icons.privacy_tip_outlined, 'Confidentialité',
-                          PagesSite.confidentialite),
+                          Icons.mail_outline, tr(context, 'item.contact'), PagesSite.contact),
+                      _lienSite(
+                          Icons.info_outline, tr(context, 'item.apropos'), PagesSite.aPropos),
+                      _lienSite(Icons.description_outlined, tr(context, 'item.conditions'),
+                          PagesSite.conditions),
+                      _lienSite(Icons.privacy_tip_outlined,
+                          tr(context, 'item.confidentialite'), PagesSite.confidentialite),
                     ]),
 
-                    _label('Zone sensible'),
+                    _label(tr(context, 'section.zoneSensible')),
                     _groupe(
                       [
                         _ligne(
                           icone: Icons.logout,
                           fond: const Color(0xFFFBE5E1),
                           teinte: const Color(0xFFB42318),
-                          titre: 'Se déconnecter',
+                          titre: tr(context, 'item.deconnexion'),
                           titreCouleur: const Color(0xFFB42318),
                           fin: const SizedBox.shrink(),
                           onTap: _seDeconnecter,
@@ -337,7 +388,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
                           icone: Icons.delete_outline,
                           fond: const Color(0xFFFBE5E1),
                           teinte: const Color(0xFFB42318),
-                          titre: 'Supprimer mon compte',
+                          titre: tr(context, 'item.supprimer'),
                           titreCouleur: const Color(0xFFB42318),
                           chevronCouleur: const Color(0xFFB42318),
                           onTap: _supprimer,
@@ -371,7 +422,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
         icone: Icons.chat_bubble_outline,
         fond: const Color(0xFFFFEAD1),
         teinte: const Color(0xFFB4600C),
-        titre: 'Messages reçus',
+        titre: tr(context, 'notif.messages'),
         valeur: _notifMessage,
         onChange: (v) => _majNotifs(
             () => _notifMessage = v, () => _notifMessage = !v),
@@ -380,7 +431,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
         icone: Icons.star_border,
         fond: const Color(0xFFFFEAD1),
         teinte: const Color(0xFFB4600C),
-        titre: 'Favoris & avis',
+        titre: tr(context, 'notif.favoris'),
         valeur: _notifFavori,
         onChange: (v) =>
             _majNotifs(() => _notifFavori = v, () => _notifFavori = !v),
@@ -389,8 +440,8 @@ class _ParametresScreenState extends State<ParametresScreen> {
         icone: Icons.mark_email_read_outlined,
         fond: const Color(0xFFE6EEF8),
         teinte: const Color(0xFF3B5A80),
-        titre: 'Rappels par e-mail',
-        sous: 'Quand vous n’êtes pas joignable autrement',
+        titre: tr(context, 'notif.email'),
+        sous: tr(context, 'notif.email.sous'),
         valeur: _notifEmail,
         onChange: (v) =>
             _majNotifs(() => _notifEmail = v, () => _notifEmail = !v),

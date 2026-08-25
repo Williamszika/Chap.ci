@@ -13,6 +13,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Localisation des widgets natifs (dates, sélecteurs) et bascule automatique
+  # en droite-à-gauche pour l'arabe. Nos propres textes sont dans lib/i18n/.
+  flutter_localizations:
+    sdk: flutter
   # Réseau : appels à l'API PHP existante (https://chap.ci/api).
   http: ^1.2.2
   # Stockage local du jeton de session (l'équivalent du cookie du site).
