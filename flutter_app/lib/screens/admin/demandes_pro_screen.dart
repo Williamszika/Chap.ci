@@ -22,10 +22,16 @@ class _DemandesProScreenState extends State<DemandesProScreen> {
   String? _erreur;
 
   static const Map<String, String> _types = {
-    'commerce': '🏪 Commerce / Boutique',
-    'services': '🛠️ Prestataire de services',
+    'boutique': '🏪 Boutique / Commerce',
+    'commerce': '🏪 Boutique / Commerce', // ancien nom, première version
+    'vehicules': '🚗 Auto-moto / Garage',
+    'immobilier': '🏠 Agence immobilière',
+    'services': '🛠️ Artisan / Prestataire de services',
     'formation': '🎓 École / Centre de formation',
     'emploi': '🏢 Employeur / Recruteur',
+    'voyage': '✈️ Agence de voyage',
+    'agro': '🌾 Producteur / Agro-élevage',
+    'sante': '💊 Santé & Bien-être',
     'association': '❤️ Association / ONG',
   };
 

@@ -6968,7 +6968,10 @@ try {
       jerr('Confirmez d’abord votre adresse e-mail (onglet Compte).');
     }
     $type = (string) ($b['type'] ?? '');
-    if (!in_array($type, ['commerce', 'services', 'formation', 'emploi', 'association'], true)) {
+    // Dix types, calqués sur les 16 catégories du site (« commerce » reste
+    // accepté : c'était le nom du type boutique dans la première version).
+    if (!in_array($type, ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
+                          'formation', 'emploi', 'voyage', 'agro', 'sante', 'association'], true)) {
       jerr('Type d’organisation inconnu.');
     }
     $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));

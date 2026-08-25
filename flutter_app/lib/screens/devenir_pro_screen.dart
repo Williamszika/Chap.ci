@@ -25,7 +25,7 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
   final _nom = TextEditingController();
   final _numero = TextEditingController();
   final _tel = TextEditingController();
-  String _type = 'commerce';
+  String _type = 'boutique';
   String? _secteur;
   String _statut = '';
   String? _motif;
@@ -34,10 +34,29 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
   bool _envoi = false;
   String? _erreur;
 
-  static const _types = ['commerce', 'services', 'formation', 'emploi', 'association'];
+  /// Les dix types d'organisation, calqués sur les 16 catégories du site.
+  /// Chaque type porte ses catégories : elles font le sous-titre de la carte
+  /// (traduites) et pré-remplissent le secteur principal.
+  static const _types = [
+    'boutique', 'vehicules', 'immobilier', 'services', 'formation',
+    'emploi', 'voyage', 'agro', 'sante', 'association',
+  ];
   static const _emojis = {
-    'commerce': '🏪', 'services': '🛠️', 'formation': '🎓',
-    'emploi': '🏢', 'association': '❤️',
+    'boutique': '🏪', 'vehicules': '🚗', 'immobilier': '🏠',
+    'services': '🛠️', 'formation': '🎓', 'emploi': '🏢',
+    'voyage': '✈️', 'agro': '🌾', 'sante': '💊', 'association': '❤️',
+  };
+  static const Map<String, List<String>> _categoriesDuType = {
+    'boutique': ['electronique', 'mode', 'maison', 'scolaire', 'bebe', 'loisirs', 'materiel-pro'],
+    'vehicules': ['vehicules'],
+    'immobilier': ['immobilier'],
+    'services': ['services'],
+    'formation': ['services', 'scolaire'],
+    'emploi': ['emploi'],
+    'voyage': ['voyage'],
+    'agro': ['alimentation', 'animaux'],
+    'sante': ['sante'],
+    'association': ['a-donner'],
   };
 
   @override
@@ -65,7 +84,11 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
           // Pré-remplir le formulaire avec le dossier précédent (refus → correction).
           if ((d['nom'] as String?)?.isNotEmpty ?? false) _nom.text = d['nom'] as String;
           if ((d['numero'] as String?)?.isNotEmpty ?? false) _numero.text = d['numero'] as String;
-          if (_types.contains(d['type'])) _type = d['type'] as String;
+          if (d['type'] == 'commerce') {
+            _type = 'boutique'; // ancien nom du type, première version
+          } else if (_types.contains(d['type'])) {
+            _type = d['type'] as String;
+          }
           if ((d['secteur'] as String?)?.isNotEmpty ?? false) _secteur = d['secteur'] as String?;
         });
       }
@@ -78,7 +101,11 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
     switch (_type) {
       case 'association':
         return tr(context, 'pro.numero.recepisse');
+      // Métiers réglementés : l'agrément (tourisme, enseignement, santé)
+      // vaut mieux qu'un simple RCCM — mais le RCCM reste accepté.
       case 'formation':
+      case 'voyage':
+      case 'sante':
         return tr(context, 'pro.numero.agrement');
       default:
         return tr(context, 'pro.numero.rccm');
@@ -220,7 +247,14 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 7),
                 child: InkWell(
-                  onTap: () => setState(() => _type = t),
+                  onTap: () => setState(() {
+                    _type = t;
+                    // Le secteur principal suit le type (modifiable ensuite).
+                    _secteur ??= _categoriesDuType[t]!.first;
+                    if (!(_categoriesDuType[t]!.contains(_secteur))) {
+                      _secteur = _categoriesDuType[t]!.first;
+                    }
+                  }),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -243,12 +277,27 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
                             style: const TextStyle(fontSize: 19)),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(tr(context, 'pro.type.$t'),
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: _type == t
-                                      ? FontWeight.w700
-                                      : FontWeight.w500)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(tr(context, 'pro.type.$t'),
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: _type == t
+                                          ? FontWeight.w700
+                                          : FontWeight.w500)),
+                              Text(
+                                _categoriesDuType[t]!
+                                    .map((c) => nomCategorieTr(context, c))
+                                    .join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: ChapColors.gray500),
+                              ),
+                            ],
+                          ),
                         ),
                         if (_type == t)
                           const Icon(Icons.check_circle,
@@ -280,6 +329,10 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
+              // Reconstruit quand le type change : le secteur pré-rempli
+              // s'affiche aussitôt (un champ de formulaire ne relit pas son
+              // initialValue tout seul).
+              key: ValueKey('secteur-$_type-$_secteur'),
               initialValue: _secteur,
               isExpanded: true,
               decoration: InputDecoration(
