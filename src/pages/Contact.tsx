@@ -3,9 +3,16 @@ import { BrandLogo } from '../components/BrandLogo'
 import { Link, useLocation } from 'react-router-dom'
 import { User, Mail, ChevronDown, Loader2, CheckCircle2, LifeBuoy } from 'lucide-react'
 import { phpContact } from '../lib/php'
+import { useTraductionPage } from '../lib/langue'
+import type { TexteContact } from '../i18n/contact'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
 
+// Les sujets sont la valeur ENVOYÉE au serveur : ils restent en français quelle
+// que soit la langue d'affichage (l'équipe lit les messages en français, et
+// `subjectFromQuery` présélectionne par ces valeurs). La traduction ne touche
+// que le libellé montré dans la liste — même principe que les catégories de
+// l'application, stockées en français et traduites à l'écran.
 const SUBJECTS = [
   'Question générale',
   'Signaler un problème',
@@ -26,6 +33,9 @@ function subjectFromQuery(search: string): string {
 
 export function Contact() {
   const { search } = useLocation()
+  const { t, dir } = useTraductionPage<TexteContact>((l) =>
+    import('../i18n/contact').then((m) => m.traductions[l] ?? null),
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [subject, setSubject] = useState(() => subjectFromQuery(search))
@@ -40,9 +50,9 @@ export function Contact() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!message.trim()) return setError('Veuillez écrire votre message.')
+    if (!message.trim()) return setError(t ? t.erreurMessage : 'Veuillez écrire votre message.')
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      return setError('Adresse email invalide.')
+      return setError(t ? t.erreurEmail : 'Adresse email invalide.')
     setBusy(true)
     try {
       await phpContact({ name: name.trim(), email: email.trim(), subject, message: message.trim(), company })
@@ -52,21 +62,25 @@ export function Contact() {
       setMessage('')
     } catch {
       // Repli : proposer l'email direct si l'envoi serveur échoue.
-      setError('Envoi impossible pour le moment. Vous pouvez aussi écrire directement à contact@chap.ci.')
+      setError(
+        t
+          ? t.erreurEnvoi
+          : 'Envoi impossible pour le moment. Vous pouvez aussi écrire directement à contact@chap.ci.',
+      )
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-16" dir={dir}>
       {/* Héro « info-hero » de l'artifact — dégradé orange doux, titre centré */}
       <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
         <h1 className="font-display text-[26px] font-extrabold tracking-tight text-ink md:text-[34px]">
-          Nous contacter
+          {t ? t.titre : 'Nous contacter'}
         </h1>
         <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-[#57534E] md:mt-3">
-          Une question, un souci ? On gère ça pour vous.
+          {t ? t.sous : 'Une question, un souci ? On gère ça pour vous.'}
         </p>
       </section>
 
@@ -77,11 +91,13 @@ export function Contact() {
         <div className="mx-auto flex max-w-5xl flex-col gap-3 rounded-2xl border border-primary-200 bg-primary-50/60 p-4 sm:flex-row sm:items-center">
           <LifeBuoy size={22} className="shrink-0 text-primary-600" />
           <p className="flex-1 text-[14px] leading-relaxed text-gray-700">
-            <b className="font-bold text-ink">Vous avez un compte&nbsp;?</b> Écrivez-nous depuis l’assistance :
-            nous voyons vos annonces, l’échange reste au même endroit, et vous recevez la réponse dans vos notifications.
+            <b className="font-bold text-ink">{t ? t.compteTitre : 'Vous avez un compte ?'}</b>{' '}
+            {t
+              ? t.compteTexte
+              : 'Écrivez-nous depuis l’assistance : nous voyons vos annonces, l’échange reste au même endroit, et vous recevez la réponse dans vos notifications.'}
           </p>
           <Link to="/assistance" className="btn-primary shrink-0 text-center">
-            Contacter l’équipe
+            {t ? t.compteBouton : 'Contacter l’équipe'}
           </Link>
         </div>
       </div>
@@ -91,12 +107,16 @@ export function Contact() {
           /* Confirmation après envoi réussi */
           <div className="mx-auto max-w-5xl rounded-2xl border border-ivoire-green/30 bg-ivoire-green/5 p-8 text-center">
             <CheckCircle2 className="mx-auto text-ivoire-green" size={44} />
-            <p className="mt-3 font-display text-lg font-bold text-ink">Message envoyé&nbsp;!</p>
+            <p className="mt-3 font-display text-lg font-bold text-ink">
+              {t ? t.envoyeTitre : 'Message envoyé !'}
+            </p>
             <p className="mx-auto mt-1 max-w-md text-sm text-gray-600">
-              Merci, nous avons bien reçu votre message. Notre équipe revient vers vous rapidement.
+              {t
+                ? t.envoyeTexte
+                : 'Merci, nous avons bien reçu votre message. Notre équipe revient vers vous rapidement.'}
             </p>
             <button onClick={() => setSent(false)} className="btn-outline mt-5">
-              Envoyer un autre message
+              {t ? t.envoyeEncore : 'Envoyer un autre message'}
             </button>
           </div>
         ) : (
@@ -116,7 +136,7 @@ export function Contact() {
 
             <div>
               <label htmlFor="c-name" className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Votre nom
+                {t ? t.nom : 'Votre nom'}
               </label>
               <div className="relative">
                 <User
@@ -137,7 +157,7 @@ export function Contact() {
 
             <div>
               <label htmlFor="c-email" className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Email
+                {t ? t.email : 'Email'}
               </label>
               <div className="relative">
                 <Mail
@@ -158,7 +178,7 @@ export function Contact() {
 
             <div>
               <label htmlFor="c-subject" className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Sujet
+                {t ? t.sujet : 'Sujet'}
               </label>
               <div className="relative">
                 <select
@@ -167,9 +187,9 @@ export function Contact() {
                   onChange={(e) => setSubject(e.target.value)}
                   className="input appearance-none pr-11"
                 >
-                  {SUBJECTS.map((s) => (
+                  {SUBJECTS.map((s, i) => (
                     <option key={s} value={s}>
-                      {s}
+                      {t?.sujets[i] ?? s}
                     </option>
                   ))}
                 </select>
@@ -182,14 +202,14 @@ export function Contact() {
 
             <div>
               <label htmlFor="c-message" className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Message
+                {t ? t.message : 'Message'}
               </label>
               <textarea
                 id="c-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={5}
-                placeholder="Bonjour, je voudrais…"
+                placeholder={t ? t.messageExemple : 'Bonjour, je voudrais…'}
                 className="input min-h-[130px] resize-y leading-relaxed"
               />
             </div>
@@ -199,7 +219,7 @@ export function Contact() {
             )}
 
             <button type="submit" disabled={busy} className="btn-primary w-full py-3.5 text-[15px]">
-              {busy ? <Loader2 size={20} className="animate-spin" /> : 'Envoyer le message'}
+              {busy ? <Loader2 size={20} className="animate-spin" /> : t ? t.envoyer : 'Envoyer le message'}
             </button>
           </form>
         )}
@@ -211,7 +231,7 @@ export function Contact() {
             className="rounded-[14px] border border-line bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)] transition active:scale-[0.99] hover:border-primary-300 hover:bg-primary-50/40"
           >
             <div className="text-[26px] leading-none" aria-hidden>✉️</div>
-            <p className="mt-2 font-display text-sm font-bold text-ink">Email</p>
+            <p className="mt-2 font-display text-sm font-bold text-ink">{t ? t.emailCarte : 'Email'}</p>
             <p className="mt-1 truncate text-[13px] text-gray-500">{CONTACT_EMAIL}</p>
           </a>
 

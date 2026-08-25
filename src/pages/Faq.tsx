@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Search, Plus, Minus, MessageSquare } from 'lucide-react'
+import { useTraductionPage } from '../lib/langue'
+import { chargerFaq, type TexteFaq } from '../i18n/faq'
 
 type QA = { q: string; a: React.ReactNode }
 type Section = { title: string; icon: string; slug: string; items: QA[] }
@@ -279,7 +281,7 @@ function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => v
     <div className="overflow-hidden rounded-[14px] border border-line bg-white shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left md:px-5"
+        className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-start md:px-5"
         aria-expanded={open}
       >
         <span className="font-display text-[15px] font-bold text-ink">{qa.q}</span>
@@ -296,10 +298,25 @@ function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => v
 
 export function Faq() {
   const { search } = useLocation()
+  const { t, dir } = useTraductionPage<TexteFaq>(chargerFaq)
   const [query, setQuery] = useState('')
   // Clé d'ouverture = "sectionIndex:itemIndex". La 1re question est ouverte par défaut.
   const [openKey, setOpenKey] = useState<string | null>('0:0')
 
+  // La vue affichée : le français en JSX (mise en gras, liens), ou la même
+  // structure en chaînes traduites quand `?lang=` est là. Icônes et ancres
+  // `?rubrique=` restent celles du français dans tous les cas.
+  const sectionsVue: Section[] = useMemo(() => {
+    if (!t) return sections
+    return sections.map((s, si) => ({
+      ...s,
+      title: t.sections[si]?.titre ?? s.title,
+      items: s.items.map((qa, ii) => {
+        const tr = t.sections[si]?.items[ii]
+        return tr ? { q: tr.q, a: tr.r } : qa
+      }),
+    }))
+  }, [t])
 
   // Lien profond ?rubrique=vendre|securite|… : ouvre la première question de la
   // rubrique et fait défiler jusqu'à elle (liens du pied de page).
@@ -319,24 +336,24 @@ export function Faq() {
 
   const filtered = useMemo(() => {
     const nq = norm(query.trim())
-    if (!nq) return sections
-    return sections
+    if (!nq) return sectionsVue
+    return sectionsVue
       .map((s) => ({
         ...s,
         items: s.items.filter((it) => norm(it.q).includes(nq) || norm(String(it.a)).includes(nq)),
       }))
       .filter((s) => s.items.length > 0)
-  }, [query])
+  }, [query, sectionsVue])
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-16" dir={dir}>
       {/* Héro « info-hero » de l'artifact — dégradé orange doux, titre centré */}
       <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
         <h1 className="font-display text-[26px] font-extrabold tracking-tight text-ink md:text-[34px]">
-          Questions fréquentes
+          {t ? t.titre : 'Questions fréquentes'}
         </h1>
         <p className="mx-auto mt-2 max-w-[46ch] text-sm leading-relaxed text-[#57534E] md:mt-3">
-          Tout ce qu’il faut savoir pour acheter et vendre sereinement.
+          {t ? t.sous : 'Tout ce qu’il faut savoir pour acheter et vendre sereinement.'}
         </p>
       </section>
 
@@ -347,7 +364,7 @@ export function Faq() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher une question…"
+            placeholder={t ? t.recherche : 'Rechercher une question…'}
             className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-gray-400"
           />
         </div>
@@ -355,16 +372,18 @@ export function Faq() {
         {filtered.length === 0 ? (
           <div className="mx-auto max-w-md py-14 text-center">
             <p className="text-4xl">🔎</p>
-            <p className="mt-3 font-display font-bold text-ink">Aucune réponse trouvée</p>
+            <p className="mt-3 font-display font-bold text-ink">
+              {t ? t.aucunTitre : 'Aucune réponse trouvée'}
+            </p>
             <p className="mx-auto mt-1 max-w-xs text-sm text-gray-500">
-              Essayez d’autres mots, ou contactez-nous directement — on vous répond vite.
+              {t ? t.aucunTexte : 'Essayez d’autres mots, ou contactez-nous directement — on vous répond vite.'}
             </p>
           </div>
         ) : (
           // Colonne large centrée, rubriques empilées (cartes plates de l'artifact).
           <div className="mx-auto w-full max-w-5xl space-y-8">
             {filtered.map((section, si) => (
-              <section key={section.title} id={`rub-${section.slug}`} className="scroll-mt-24">
+              <section key={section.slug} id={`rub-${section.slug}`} className="scroll-mt-24">
                 <h3 className="mb-3 flex items-center gap-2 px-1 font-display text-sm font-bold uppercase tracking-wide text-gray-500">
                   <span className="text-base">{section.icon}</span> {section.title}
                 </h3>
@@ -388,12 +407,14 @@ export function Faq() {
 
         {/* Bloc contact */}
         <div className="mx-auto mt-10 max-w-5xl rounded-2xl border border-primary-100 bg-primary-50 p-6 text-center">
-          <p className="font-display text-lg font-bold text-primary-900">Vous n’avez pas trouvé votre réponse ?</p>
+          <p className="font-display text-lg font-bold text-primary-900">{t ? t.contactTitre : 'Vous n’avez pas trouvé votre réponse ?'}</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-primary-800/80">
-            Notre équipe est là pour vous aider. Écrivez-nous, on revient vers vous rapidement.
+            {t
+              ? t.contactTexte
+              : 'Notre équipe est là pour vous aider. Écrivez-nous, on revient vers vous rapidement.'}
           </p>
           <Link to="/contact" className="btn-primary mt-4 inline-flex">
-            <MessageSquare size={18} /> Nous contacter
+            <MessageSquare size={18} /> {t ? t.contactBouton : 'Nous contacter'}
           </Link>
         </div>
       </div>

@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { useTraductionPage } from '../lib/langue'
+import { chargerConditions } from '../i18n/conditions'
+import type { TexteLegal } from '../i18n/legal'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
 const LAST_UPDATE = '14 juillet 2026'
@@ -27,7 +30,12 @@ const TOC: [string, string][] = [
 ]
 
 export function Terms() {
+  const { t, dir } = useTraductionPage<TexteLegal>(chargerConditions)
   const [active, setActive] = useState('sec-1')
+
+  // Sommaire affiché : titres traduits si `?lang=` est présent — les ancres
+  // sec-1 … sec-N, elles, ne changent jamais.
+  const toc = t ? t.sections.map((s, i): [string, string] => [`sec-${i + 1}`, s.titre]) : TOC
 
   // Surligne dans le sommaire la section actuellement à l'écran.
   useEffect(() => {
@@ -40,24 +48,33 @@ export function Terms() {
       },
       { rootMargin: '-88px 0px -65% 0px' },
     )
-    TOC.forEach(([id]) => { const el = document.getElementById(id); if (el) obs.observe(el) })
+    toc.forEach(([id]) => { const el = document.getElementById(id); if (el) obs.observe(el) })
     return () => obs.disconnect()
-  }, [])
+    // Le changement de langue remplace les sections : on se re-lie à elles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t])
 
   // Défilement doux vers une section (HashRouter : on n'utilise pas d'ancre href).
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-16" dir={dir}>
       {/* En-tête « legal-head » de l'artifact : titre à gauche + filet */}
       <header className="border-b border-line bg-white px-4 pb-4 pt-6 md:-mx-6 md:px-6">
         <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink md:text-[26px]">
-          CGU
+          {t ? t.titre : 'CGU'}
         </h1>
         <p className="mt-1.5 text-[13px] text-gray-500">
-          Conditions générales d’utilisation de Chap.ci. Mise à jour : {LAST_UPDATE}.
+          {t ? t.sousTitre : <>Conditions générales d’utilisation de Chap.ci. Mise à jour : {LAST_UPDATE}.</>}
         </p>
       </header>
+
+      {/* Traduction d'information : le droit reste porté par le texte français. */}
+      {t && (
+        <div className="mx-4 mt-4 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-[13px] leading-relaxed text-gray-700 md:mx-6">
+          🇫🇷 {t.avis}
+        </div>
+      )}
 
       {/* Corps « legal-body » : 960px centré — sommaire-carte + texte (2 colonnes
           dès md) ; sur téléphone, la carte sommaire s'affiche au-dessus du texte. */}
@@ -67,13 +84,13 @@ export function Terms() {
           aria-label="Sommaire"
           className="mb-5 rounded-[14px] border border-line bg-white p-4 shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)] md:sticky md:top-20 md:mb-0"
         >
-          <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">Sommaire</p>
+          <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">{t ? t.sommaire : 'Sommaire'}</p>
           <div className="flex flex-col">
-            {TOC.map(([id, label]) => (
+            {toc.map(([id, label]) => (
               <button
                 key={id}
                 onClick={() => go(id)}
-                className={`py-1 text-left text-[13px] font-semibold leading-snug transition ${
+                className={`py-1 text-start text-[13px] font-semibold leading-snug transition ${
                   active === id ? 'text-primary-700' : 'text-primary-600/80 hover:text-primary-700'
                 }`}
               >
@@ -85,7 +102,17 @@ export function Terms() {
 
         {/* Contenu */}
         <div className="min-w-0">
-          <div className="space-y-5 text-[15px] leading-relaxed text-gray-700">
+          {t ? (
+            <div className="space-y-5 text-[15px] leading-relaxed text-gray-700">
+              <p>{t.intro}</p>
+              {t.sections.map((s, i) => (
+                <Section key={i} id={`sec-${i + 1}`} title={s.titre}>
+                  <p className="whitespace-pre-line">{s.texte}</p>
+                </Section>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-5 text-[15px] leading-relaxed text-gray-700">
             <p>
               Bienvenue sur Chap.ci. En créant un compte ou en utilisant l’application, vous acceptez
               sans réserve les présentes Conditions Générales d’Utilisation (« CGU »). Si vous ne les
@@ -255,7 +282,8 @@ export function Terms() {
                 <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary-600">{CONTACT_EMAIL}</a>.
               </p>
             </Section>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

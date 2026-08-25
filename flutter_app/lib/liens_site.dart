@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'i18n/langues.dart';
+import 'i18n/textes.dart';
 import 'screens/page_site_screen.dart';
 
 /// Pages d'information et légales de Chap.ci.
@@ -21,23 +23,35 @@ class PagesSite {
   static const confidentialite = 'confidentialite';
 }
 
-/// Titre affiché dans la barre de l'app, par page.
-const Map<String, String> _titres = {
-  PagesSite.aide: 'Aide',
-  PagesSite.faq: 'Questions fréquentes',
-  PagesSite.contact: 'Nous contacter',
-  PagesSite.aPropos: 'À propos',
-  PagesSite.conditions: 'Conditions d’utilisation',
-  PagesSite.confidentialite: 'Confidentialité',
+/// Titre affiché dans la barre de l'app, par page — les mêmes clés `tr` que
+/// les lignes de l'écran Paramètres, pour suivre la langue choisie.
+const Map<String, String> _clesTitres = {
+  PagesSite.aide: 'item.aide',
+  PagesSite.faq: 'item.faq',
+  PagesSite.contact: 'item.contact',
+  PagesSite.aPropos: 'item.apropos',
+  PagesSite.conditions: 'item.conditions',
+  PagesSite.confidentialite: 'item.confidentialite',
 };
 
 /// Ouvre une page du site DANS l'app, sans jamais partir dans un navigateur
 /// séparé. Le contenu reste servi par chap.ci.
+///
+/// L'app dit toujours sa langue au site par `?lang=` — le site étant en
+/// HashRouter, le paramètre voyage dans le hash (`#/aide?lang=en`) et les six
+/// pages d'information s'affichent dans la langue de l'app. `fr` est envoyé
+/// aussi, exprès : le site mémorise la dernière langue reçue pour ses liens
+/// internes, et un `fr` explicite reprend la main sur cette mémoire quand
+/// l'utilisateur revient au français.
 Future<void> ouvrirPageSite(BuildContext context, String route) {
+  final langue = LangueController.instance.code;
+  final suffixe = '?lang=$langue';
+  final cle = _clesTitres[route];
+  final titre = cle == null ? 'Chap.ci' : tr(context, cle);
   return Navigator.of(context).push<void>(MaterialPageRoute<void>(
     builder: (_) => PageSiteScreen(
-      url: '$_baseSite$route',
-      titre: _titres[route] ?? 'Chap.ci',
+      url: '$_baseSite$route$suffixe',
+      titre: titre,
     ),
   ));
 }
