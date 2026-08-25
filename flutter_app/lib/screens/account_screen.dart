@@ -93,22 +93,21 @@ class _AccountScreenState extends State<AccountScreen> {
           children: [
             const Icon(Icons.lock_reset, color: ChapColors.orange),
             const SizedBox(height: 10),
-            const Text('Mot de passe oublié',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(tr(context, 'login.oublieTitre'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              'La réinitialisation par e-mail n’est pas encore disponible. '
-              'Écrivez-nous à contact@chap.ci et nous vous aiderons — ou, si '
-              'vous vous êtes inscrit avec Google, utilisez le bouton Google.',
-              style:
-                  TextStyle(fontSize: 14, height: 1.5, color: ChapColors.gray700),
+            Text(
+              tr(context, 'login.oublieCorps'),
+              style: const TextStyle(
+                  fontSize: 14, height: 1.5, color: ChapColors.gray700),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('J’ai compris')),
+                  child: Text(tr(context, 'action.compris'))),
             ),
           ],
         ),
@@ -150,22 +149,23 @@ class _AccountScreenState extends State<AccountScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 8),
-            const Text('Bon retour 👋',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            Text(tr(context, 'login.bonRetour'),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            const Text('Connectez-vous pour publier et suivre vos annonces.',
-                style: TextStyle(color: ChapColors.gray600)),
+            Text(tr(context, 'login.sousTitre'),
+                style: const TextStyle(color: ChapColors.gray600)),
             const SizedBox(height: 22),
             TextFormField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
-              decoration: const InputDecoration(
-                labelText: 'Adresse e-mail',
-                prefixIcon: Icon(Icons.mail_outline),
+              decoration: InputDecoration(
+                labelText: tr(context, 'item.email'),
+                prefixIcon: const Icon(Icons.mail_outline),
               ),
-              validator: (v) =>
-                  (v == null || !v.contains('@')) ? 'E-mail invalide' : null,
+              validator: (v) => (v == null || !v.contains('@'))
+                  ? tr(context, 'form.emailInvalide')
+                  : null,
             ),
             const SizedBox(height: 14),
             TextFormField(
@@ -173,7 +173,7 @@ class _AccountScreenState extends State<AccountScreen> {
               obscureText: !_voirMdp,
               autofillHints: const [AutofillHints.password],
               decoration: InputDecoration(
-                labelText: 'Mot de passe',
+                labelText: tr(context, 'item.motDePasse'),
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -182,7 +182,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
               ),
               validator: (v) => (v == null || v.length < 6)
-                  ? 'Au moins 6 caractères'
+                  ? tr(context, 'form.min6')
                   : null,
             ),
             Align(
@@ -193,8 +193,9 @@ class _AccountScreenState extends State<AccountScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                child: const Text('Mot de passe oublié ?',
-                    style: TextStyle(color: ChapColors.gray600, fontSize: 13)),
+                child: Text(tr(context, 'login.oublie'),
+                    style: const TextStyle(
+                        color: ChapColors.gray600, fontSize: 13)),
               ),
             ),
             if (_erreur != null) ...[
@@ -227,7 +228,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Text('Se connecter'),
+                  : Text(tr(context, 'login.seConnecter')),
             ),
             const SizedBox(height: 18),
             SocialButtons(onConnecte: () {
@@ -237,14 +238,14 @@ class _AccountScreenState extends State<AccountScreen> {
             Center(
               child: TextButton(
                 onPressed: _enCours ? null : _ouvrirInscription,
-                child: const Text.rich(
+                child: Text.rich(
                   TextSpan(
-                    text: 'Pas encore de compte ? ',
-                    style: TextStyle(color: ChapColors.gray600),
+                    text: tr(context, 'login.pasDeCompte'),
+                    style: const TextStyle(color: ChapColors.gray600),
                     children: [
                       TextSpan(
-                        text: 'Créer un compte',
-                        style: TextStyle(
+                        text: tr(context, 'login.creerCompte'),
+                        style: const TextStyle(
                             color: ChapColors.orangeDark,
                             fontWeight: FontWeight.bold),
                       ),
@@ -262,14 +263,14 @@ class _AccountScreenState extends State<AccountScreen> {
                   onPressed: () =>
                       ouvrirPageSite(context, PagesSite.conditions),
                   style: _lienLegalStyle,
-                  child: const Text('Conditions d’utilisation'),
+                  child: Text(tr(context, 'item.conditions')),
                 ),
                 const Text('·', style: TextStyle(color: ChapColors.gray500)),
                 TextButton(
                   onPressed: () =>
                       ouvrirPageSite(context, PagesSite.confidentialite),
                   style: _lienLegalStyle,
-                  child: const Text('Confidentialité'),
+                  child: Text(tr(context, 'item.confidentialite')),
                 ),
               ],
             ),

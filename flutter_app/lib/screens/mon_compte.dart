@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../api/models.dart';
 import '../format.dart';
+import '../i18n/textes.dart';
 import '../theme.dart';
 import 'listing_detail_screen.dart';
 import 'modifier_profil_screen.dart';
@@ -98,16 +99,17 @@ class _MonCompteViewState extends State<MonCompteView> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: ChapColors.cream,
-        title: const Text('Supprimer l’annonce ?'),
-        content: Text('« ${a.title} » sera retirée définitivement.'),
+        title: Text(tr(context, 'annonce.supprimerTitre')),
+        content:
+            Text('« ${a.title} » ${tr(context, 'annonce.supprimerCorps')}'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler')),
+              child: Text(tr(context, 'action.annuler'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer',
-                style: TextStyle(color: Color(0xFFB42318))),
+            child: Text(tr(context, 'action.supprimer'),
+                style: const TextStyle(color: Color(0xFFB42318))),
           ),
         ],
       ),
@@ -137,10 +139,10 @@ class _MonCompteViewState extends State<MonCompteView> {
               return const SizedBox.shrink();
             },
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 18, 16, 6),
-            child: Text('Mes annonces',
-                style: TextStyle(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
+            child: Text(tr(context, 'compte.mesAnnonces'),
+                style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: ChapColors.gray900)),
@@ -157,14 +159,14 @@ class _MonCompteViewState extends State<MonCompteView> {
                 );
               }
               if (snap.hasError) {
-                return _vide('Impossible de charger vos annonces.',
-                    'Tirez vers le bas pour réessayer.');
+                return _vide(tr(context, 'compte.chargeErreur'),
+                    tr(context, 'compte.tirezReessayer'));
               }
               final annonces = snap.data ?? const <Listing>[];
               if (annonces.isEmpty) {
                 return _vide(
-                  'Vous n’avez pas encore d’annonce.',
-                  'La publication depuis l’application arrive bientôt. En attendant, vous pouvez publier sur chap.ci.',
+                  tr(context, 'compte.aucuneAnnonce'),
+                  tr(context, 'compte.publierBientot'),
                 );
               }
               return Column(
@@ -209,11 +211,11 @@ class _MonCompteViewState extends State<MonCompteView> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Row(
         children: [
-          carte('$enLigne', 'En ligne', ChapColors.greenDark),
+          carte('$enLigne', tr(context, 'statut.enLigne'), ChapColors.greenDark),
           const SizedBox(width: 8),
-          carte('$vendues', 'Vendues', ChapColors.gray900),
+          carte('$vendues', tr(context, 'statut.vendue'), ChapColors.gray900),
           const SizedBox(width: 8),
-          carte('$vues', 'Vues', ChapColors.orangeDark),
+          carte('$vues', tr(context, 'stat.vues'), ChapColors.orangeDark),
         ],
       ),
     );
@@ -256,7 +258,9 @@ class _MonCompteViewState extends State<MonCompteView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          (nom != null && nom.isNotEmpty) ? nom : 'Mon compte',
+                          (nom != null && nom.isNotEmpty)
+                              ? nom
+                              : tr(context, 'compte.titre'),
                           style: const TextStyle(
                               fontSize: 16.5,
                               fontWeight: FontWeight.w800,
@@ -306,27 +310,30 @@ class _MonCompteViewState extends State<MonCompteView> {
   }) {
     final puces = <Widget>[];
     if (verifie) {
-      puces.add(_puce('E-mail confirmé',
+      puces.add(_puce(tr(context, 'badge.emailConfirme'),
           icone: Icons.check_circle,
           fond: const Color(0xFFE6F6EE),
           bord: const Color(0xFFBEE6D1),
           couleur: ChapColors.greenDark));
     }
     if (badge == 'admin') {
-      puces.add(_puce('Équipe Chap.ci',
+      puces.add(_puce(tr(context, 'badge.equipe'),
           icone: Icons.verified,
           fond: const Color(0xFFE7EDF5),
           bord: const Color(0xFFC7D6E8),
           couleur: const Color(0xFF3B5A80)));
     } else if (badge == 'anciennete') {
       puces.add(_puce(
-          mois > 0 ? 'Membre vérifié · $mois mois' : 'Membre vérifié',
+          mois > 0
+              ? '${tr(context, 'badge.membre')} · $mois ${tr(context, 'common.mois')}'
+              : tr(context, 'badge.membre'),
           icone: Icons.workspace_premium,
           fond: const Color(0xFFFFF3E4),
           bord: ChapColors.line2,
           couleur: ChapColors.ocreDark));
     } else if (verifie && moisRestants > 0) {
-      puces.add(_puce('Badge de confiance dans $moisRestants mois',
+      puces.add(_puce(
+          '${tr(context, 'badge.confianceDans')} $moisRestants ${tr(context, 'common.mois')}',
           icone: Icons.schedule,
           fond: ChapColors.cream100,
           bord: ChapColors.line2,
@@ -375,21 +382,22 @@ class _MonCompteViewState extends State<MonCompteView> {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFFF3D9A6)),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.mark_email_unread_outlined,
+            const Icon(Icons.mark_email_unread_outlined,
                 size: 18, color: ChapColors.ocreDark),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Confirmez votre e-mail pour pouvoir publier.',
-                style: TextStyle(
+                tr(context, 'compte.confirmezBanniere'),
+                style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: ChapColors.ocreDark),
               ),
             ),
-            Icon(Icons.chevron_right, size: 18, color: ChapColors.ocreDark),
+            const Icon(Icons.chevron_right,
+                size: 18, color: ChapColors.ocreDark),
           ],
         ),
       ),
@@ -496,15 +504,15 @@ class _MonCompteViewState extends State<MonCompteView> {
     late Color fond;
     late Color txt;
     if (a.sold) {
-      texte = 'Vendue';
+      texte = tr(context, 'statut.vendue');
       fond = const Color(0xFFE7EDF5);
       txt = const Color(0xFF3B5A80);
     } else if (a.hidden) {
-      texte = 'Masquée';
+      texte = tr(context, 'statut.masquee');
       fond = const Color(0xFFFFF4E0);
       txt = ChapColors.ocreDark;
     } else {
-      texte = 'En ligne';
+      texte = tr(context, 'statut.enLigne');
       fond = const Color(0xFFE6F6EE);
       txt = ChapColors.greenDark;
     }
@@ -541,14 +549,17 @@ class _MonCompteViewState extends State<MonCompteView> {
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem(value: 'voir', child: Text('Voir l’annonce')),
+        PopupMenuItem(value: 'voir', child: Text(tr(context, 'menu.voir'))),
         if (a.hidden)
-          const PopupMenuItem(value: 'afficher', child: Text('Remettre en ligne'))
+          PopupMenuItem(
+              value: 'afficher', child: Text(tr(context, 'menu.remettre')))
         else
-          const PopupMenuItem(value: 'masquer', child: Text('Masquer')),
-        const PopupMenuItem(
+          PopupMenuItem(
+              value: 'masquer', child: Text(tr(context, 'menu.masquer'))),
+        PopupMenuItem(
           value: 'supprimer',
-          child: Text('Supprimer', style: TextStyle(color: Color(0xFFB42318))),
+          child: Text(tr(context, 'action.supprimer'),
+              style: const TextStyle(color: Color(0xFFB42318))),
         ),
       ],
     );

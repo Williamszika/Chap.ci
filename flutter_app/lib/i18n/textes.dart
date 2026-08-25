@@ -112,6 +112,41 @@ const Map<String, Map<String, String>> _t = {
   'annonce.contacterImpossible': {'fr': "Ce vendeur ne peut pas être contacté dans l’application pour le moment.", 'en': "This seller can't be contacted in the app right now.", 'es': "No se puede contactar a este vendedor en la app por ahora.", 'pt': "Este vendedor não pode ser contactado na aplicação de momento.", 'ar': "لا يمكن التواصل مع هذا البائع في التطبيق حالياً.", 'zh': "目前无法在应用内联系该卖家。"},
   'annonce.proprAnnonce': {'fr': "C’est votre propre annonce.", 'en': "This is your own listing.", 'es': "Este es tu propio anuncio.", 'pt': "Este é o seu próprio anúncio.", 'ar': "هذا إعلانك أنت.", 'zh': "这是您自己的商品。"},
   'annonce.partageEchec': {'fr': "Le partage n’a pas pu s’ouvrir. Voici le lien de l’annonce : ", 'en': "Sharing couldn't open. Here's the listing link: ", 'es': "No se pudo abrir el menú de compartir. Aquí tienes el enlace: ", 'pt': "Não foi possível abrir a partilha. Aqui está o link: ", 'ar': "تعذّر فتح المشاركة. إليك رابط الإعلان: ", 'zh': "无法打开分享。这是商品链接："},
+
+  // Connexion / inscription
+  'login.bonRetour': {'fr': "Bon retour 👋", 'en': "Welcome back 👋", 'es': "Bienvenido de nuevo 👋", 'pt': "Bem-vindo de volta 👋", 'ar': "مرحباً بعودتك 👋", 'zh': "欢迎回来 👋"},
+  'login.sousTitre': {'fr': "Connectez-vous pour publier et suivre vos annonces.", 'en': "Sign in to post and track your listings.", 'es': "Inicia sesión para publicar y seguir tus anuncios.", 'pt': "Inicie sessão para publicar e acompanhar os seus anúncios.", 'ar': "سجّل الدخول لنشر ومتابعة إعلاناتك.", 'zh': "登录以发布和管理您的商品。"},
+  'form.emailInvalide': {'fr': "E-mail invalide", 'en': "Invalid email", 'es': "Correo no válido", 'pt': "E-mail inválido", 'ar': "بريد إلكتروني غير صالح", 'zh': "邮箱无效"},
+  'form.min6': {'fr': "Au moins 6 caractères", 'en': "At least 6 characters", 'es': "Al menos 6 caracteres", 'pt': "Pelo menos 6 caracteres", 'ar': "6 أحرف على الأقل", 'zh': "至少 6 个字符"},
+  'login.oublie': {'fr': "Mot de passe oublié ?", 'en': "Forgot password?", 'es': "¿Olvidaste tu contraseña?", 'pt': "Esqueceu a palavra-passe?", 'ar': "نسيت كلمة المرور؟", 'zh': "忘记密码？"},
+  'login.seConnecter': {'fr': "Se connecter", 'en': "Sign in", 'es': "Iniciar sesión", 'pt': "Entrar", 'ar': "تسجيل الدخول", 'zh': "登录"},
+  'login.pasDeCompte': {'fr': "Pas encore de compte ? ", 'en': "No account yet? ", 'es': "¿Aún no tienes cuenta? ", 'pt': "Ainda não tem conta? ", 'ar': "ليس لديك حساب بعد؟ ", 'zh': "还没有账户？ "},
+  'login.creerCompte': {'fr': "Créer un compte", 'en': "Create an account", 'es': "Crear una cuenta", 'pt': "Criar uma conta", 'ar': "إنشاء حساب", 'zh': "注册账户"},
+  'login.oublieTitre': {'fr': "Mot de passe oublié", 'en': "Forgot password", 'es': "Contraseña olvidada", 'pt': "Palavra-passe esquecida", 'ar': "نسيت كلمة المرور", 'zh': "忘记密码"},
+  'login.oublieCorps': {'fr': "La réinitialisation par e-mail n’est pas encore disponible. Écrivez-nous à contact@chap.ci et nous vous aiderons — ou, si vous vous êtes inscrit avec Google, utilisez le bouton Google.", 'en': "Password reset by email isn't available yet. Write to us at contact@chap.ci and we'll help — or, if you signed up with Google, use the Google button.", 'es': "El restablecimiento por correo aún no está disponible. Escríbenos a contact@chap.ci y te ayudaremos — o, si te registraste con Google, usa el botón de Google.", 'pt': "A reposição por e-mail ainda não está disponível. Escreva-nos para contact@chap.ci e ajudamos — ou, se se registou com o Google, use o botão Google.", 'ar': "إعادة تعيين كلمة المرور بالبريد غير متاحة بعد. راسلنا على contact@chap.ci وسنساعدك — أو استخدم زر Google إن سجّلت به.", 'zh': "暂不支持通过邮件重置密码。请发邮件至 contact@chap.ci，我们会协助您；若您用 Google 注册，请使用 Google 按钮。"},
+
+  // Mon compte (tableau de bord)
+  'compte.mesAnnonces': {'fr': "Mes annonces", 'en': "My listings", 'es': "Mis anuncios", 'pt': "Os meus anúncios", 'ar': "إعلاناتي", 'zh': "我的商品"},
+  'compte.confirmezBanniere': {'fr': "Confirmez votre e-mail pour pouvoir publier.", 'en': "Confirm your email to be able to post.", 'es': "Confirma tu correo para poder publicar.", 'pt': "Confirme o seu e-mail para poder publicar.", 'ar': "أكّد بريدك الإلكتروني لتتمكن من النشر.", 'zh': "确认邮箱后才能发布。"},
+  'compte.chargeErreur': {'fr': "Impossible de charger vos annonces.", 'en': "Couldn't load your listings.", 'es': "No se pudieron cargar tus anuncios.", 'pt': "Não foi possível carregar os seus anúncios.", 'ar': "تعذّر تحميل إعلاناتك.", 'zh': "无法加载您的商品。"},
+  'compte.tirezReessayer': {'fr': "Tirez vers le bas pour réessayer.", 'en': "Pull down to try again.", 'es': "Desliza hacia abajo para reintentar.", 'pt': "Puxe para baixo para tentar de novo.", 'ar': "اسحب للأسفل لإعادة المحاولة.", 'zh': "下拉重试。"},
+  'compte.aucuneAnnonce': {'fr': "Vous n’avez pas encore d’annonce.", 'en': "You don't have any listings yet.", 'es': "Aún no tienes anuncios.", 'pt': "Ainda não tem anúncios.", 'ar': "ليس لديك أي إعلان بعد.", 'zh': "您还没有商品。"},
+  'compte.publierBientot': {'fr': "La publication depuis l’application arrive bientôt. En attendant, vous pouvez publier sur chap.ci.", 'en': "Posting from the app is coming soon. In the meantime, you can post on chap.ci.", 'es': "Publicar desde la app llegará pronto. Mientras tanto, puedes publicar en chap.ci.", 'pt': "Publicar pela aplicação chega em breve. Entretanto, pode publicar em chap.ci.", 'ar': "النشر من التطبيق قريباً. في هذه الأثناء يمكنك النشر على chap.ci.", 'zh': "很快可在应用内发布。目前请在 chap.ci 上发布。"},
+  'statut.enLigne': {'fr': "En ligne", 'en': "Active", 'es': "Activo", 'pt': "Ativo", 'ar': "منشور", 'zh': "在售"},
+  'statut.vendue': {'fr': "Vendue", 'en': "Sold", 'es': "Vendido", 'pt': "Vendido", 'ar': "مُباع", 'zh': "已售"},
+  'statut.masquee': {'fr': "Masquée", 'en': "Hidden", 'es': "Oculto", 'pt': "Oculto", 'ar': "مخفي", 'zh': "已隐藏"},
+  'stat.vues': {'fr': "Vues", 'en': "Views", 'es': "Vistas", 'pt': "Visualizações", 'ar': "مشاهدات", 'zh': "浏览"},
+  'badge.emailConfirme': {'fr': "E-mail confirmé", 'en': "Email confirmed", 'es': "Correo confirmado", 'pt': "E-mail confirmado", 'ar': "تم تأكيد البريد", 'zh': "邮箱已确认"},
+  'badge.equipe': {'fr': "Équipe Chap.ci", 'en': "Chap.ci team", 'es': "Equipo Chap.ci", 'pt': "Equipa Chap.ci", 'ar': "فريق Chap.ci", 'zh': "Chap.ci 团队"},
+  'badge.membre': {'fr': "Membre vérifié", 'en': "Verified member", 'es': "Miembro verificado", 'pt': "Membro verificado", 'ar': "عضو موثّق", 'zh': "认证会员"},
+  'badge.confianceDans': {'fr': "Badge de confiance dans", 'en': "Trust badge in", 'es': "Insignia de confianza en", 'pt': "Distintivo de confiança em", 'ar': "شارة الثقة خلال", 'zh': "信任徽章还需"},
+  'common.mois': {'fr': "mois", 'en': "months", 'es': "meses", 'pt': "meses", 'ar': "أشهر", 'zh': "个月"},
+  'annonce.supprimerTitre': {'fr': "Supprimer l’annonce ?", 'en': "Delete listing?", 'es': "¿Eliminar el anuncio?", 'pt': "Eliminar anúncio?", 'ar': "حذف الإعلان؟", 'zh': "删除商品？"},
+  'annonce.supprimerCorps': {'fr': "sera retirée définitivement.", 'en': "will be permanently removed.", 'es': "se eliminará definitivamente.", 'pt': "será removido definitivamente.", 'ar': "سيُحذف نهائياً.", 'zh': "将被永久删除。"},
+  'action.supprimer': {'fr': "Supprimer", 'en': "Delete", 'es': "Eliminar", 'pt': "Eliminar", 'ar': "حذف", 'zh': "删除"},
+  'menu.voir': {'fr': "Voir l’annonce", 'en': "View listing", 'es': "Ver anuncio", 'pt': "Ver anúncio", 'ar': "عرض الإعلان", 'zh': "查看商品"},
+  'menu.remettre': {'fr': "Remettre en ligne", 'en': "Republish", 'es': "Volver a publicar", 'pt': "Voltar a publicar", 'ar': "إعادة النشر", 'zh': "重新上架"},
+  'menu.masquer': {'fr': "Masquer", 'en': "Hide", 'es': "Ocultar", 'pt': "Ocultar", 'ar': "إخفاء", 'zh': "隐藏"},
 };
 
 /// Le texte de la clé [cle] dans la langue de l'application.
