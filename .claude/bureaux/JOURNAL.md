@@ -4053,3 +4053,32 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - Modération : file vide ; 8 annonces du vendeur formation (connu-sain) examinées.
 - **Vérifié au curl par le Dev** : sur une ancienne photo, vignette = **37 Ko** vs image pleine
   **193 Ko** (−81 %). Fonctionnalité vignettes **complète et en ligne** (upload + backfill + site).
+
+### 2026-08-24 20:50 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Fait — Santé** : accueil 200, `/api/health` 200 (PHP 8.5.9), sitemap 200. Trois empreintes =
+  HEAD (`20412c1`) : API `6ea5197a7a2a` et SEO `c57f0f1c6e55` vérifiées par `md5sum` direct sur le
+  dépôt (identiques à l'octet). `empreinteSite` `a6a28076bd84` **non reconstruite ce tour** — tracée
+  à la place : aucun commit touchant `src/`, `web/index.html`, `vite.config.ts` ou `package.json`
+  depuis `c162676` (vignettes), dernier commit dont le build a été **vérifié par un vrai
+  `npm run build`** lors d'une ronde précédente. Valeur toujours fiable sans reconstruction inutile.
+- **Fait — Sécurité 24 h** : `cron_fail` 2 et `mtoken_fail` 3, **tous** signés « sans-cle » /
+  « missing » sur `cron/stats`/`mod/queue` → **exactement mes propres tests de cloisonnement** des
+  rondes précédentes dans la fenêtre 24 h. **0 échec réellement extérieur.** `login_fail` 6,
+  `failRatio` 1 (petit échantillon) — IP `160.155.199.185` (n=6) = **même IP, même compte déjà
+  signalé par le Mécanicien le 24/08** (pas P1) : inchangé, aucune nouvelle activité. Aucun
+  `adminUnlockFail`, aucun `rateLimited`. `adminsIntegrity: ok`, `adminsTampered: false`. CSP :
+  seule origine `api.bigdatacloud.net`, déjà autorisée, connue et tranchée (15/08). Toutes les
+  tâches (`derniersPassages`) ont un dernier passage récent et cohérent avec leur périodicité —
+  aucune tâche cron cassée.
+- **Fait — Ménage** : `cleanup` exécuté, 0 partout (visites/événements/annonces expirées/vignettes) —
+  le backfill de la veille a déjà tout couvert.
+- **Fait — Scan serveur** : rien de nouveau depuis la dernière revue complète (dernier commit sur
+  `server/index.php` = `e961d70`, déjà relu et jugé RAS ce même jour).
+- **Fait — Scan app** : seul commit app depuis la dernière ronde = `936dcc1` (montée de version
+  1.20.0+21 → 1.21.0+22, targetSdk 35 → 36 pour l'échéance Google du 31/08). Vérifié : **aucune
+  permission ni dépendance ajoutée**, changement de configuration de build pur.
+- **Fait — Modération** : file vide (0 signalement, 0 récent). Digest posé, RAS, aucun e-mail
+  (voulu, file vide sans notes).
+- **Problèmes ouverts** : aucun.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : rien de nouveau à signaler.
