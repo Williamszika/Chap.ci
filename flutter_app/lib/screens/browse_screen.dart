@@ -5,6 +5,7 @@ import '../api/models.dart';
 import '../data/categories.dart';
 import '../data/coords.dart';
 import '../data/formulaires/registre.dart';
+import '../i18n/categories_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
@@ -266,7 +267,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
                     _condition = 'tous';
                   })),
           for (final c in categories)
-            _chip('${c.emoji} ${c.nom}', _categorie == c.id,
+            _chip('${c.emoji} ${nomCategorieTr(context, c.id)}',
+                _categorie == c.id,
                 () => setState(() {
                       _categorie = c.id;
                       _condition = 'tous';

@@ -3,9 +3,9 @@ import 'package:share_plus/share_plus.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
-import '../data/categories.dart';
 import '../data/formulaires/registre.dart';
 import '../format.dart';
+import '../i18n/categories_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/bouton_favori.dart';
@@ -266,9 +266,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 
   Widget _filAriane(Listing a) {
-    final cat = nomCategorie(a.categoryId);
+    final cat = nomCategorieTr(context, a.categoryId);
     final sous = a.subcategory;
-    final texte = (sous != null && sous.isNotEmpty) ? '$cat · $sous' : cat;
+    final texte = (sous != null && sous.isNotEmpty)
+        ? '$cat · ${nomSousTr(context, sous)}'
+        : cat;
     return Row(
       children: [
         const Icon(Icons.local_offer_outlined,

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../data/categories.dart';
+import '../i18n/categories_i18n.dart';
 import '../data/coords.dart';
 import '../data/locations.dart';
 import '../data/formulaires/registre.dart';
@@ -275,7 +276,9 @@ class _PublierScreenState extends State<PublierScreen> {
               items: [
                 for (final c in categories)
                   DropdownMenuItem(
-                      value: c.id, child: Text('${c.emoji}  ${c.nom}')),
+                      value: c.id,
+                      child: Text(
+                          '${c.emoji}  ${nomCategorieTr(context, c.id)}')),
               ],
               onChanged: (v) => setState(() {
                 _categorie = v;
@@ -292,7 +295,8 @@ class _PublierScreenState extends State<PublierScreen> {
                 decoration: const InputDecoration(labelText: 'Sous-catégorie'),
                 items: [
                   for (final s in sousDe(_categorie!))
-                    DropdownMenuItem(value: s, child: Text(s)),
+                    DropdownMenuItem(
+                        value: s, child: Text(nomSousTr(context, s))),
                 ],
                 onChanged: (v) => setState(() {
                   _sousCategorie = v;
