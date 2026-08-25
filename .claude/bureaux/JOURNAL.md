@@ -4053,3 +4053,23 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - Modération : file vide ; 8 annonces du vendeur formation (connu-sain) examinées.
 - **Vérifié au curl par le Dev** : sur une ancienne photo, vignette = **37 Ko** vs image pleine
   **193 Ko** (−81 %). Fonctionnalité vignettes **complète et en ligne** (upload + backfill + site).
+
+### 2026-08-25 00:47 — [Confiance & Sécurité] 🛡️ Le Gardien
+- **Ronde entièrement verte, rien d'actionnable.** Trois empreintes = HEAD (`20412c1`) : API
+  `6ea5197a7a2a`, SEO `c57f0f1c6e55`, Site `a6a28076bd84` (`empreinteSite` vérifiée par un vrai
+  `npm run build`, pas supposée). Aucun commit code (server/seo/app) depuis la dernière ronde —
+  seuls deux commits de journal sont arrivés entre-temps, rien à rescanner.
+- **Sécurité 24 h propre** : `suspiciousIps` vide, `failRatio` 0, `rateLimited` 0, `loginFail` 0,
+  `adminUnlockFail` 0, `mfaFail` 0, `newSignups` 0, `adminsIntegrity: ok`. `cron_fail` 3
+  (`cron/stats · sans-cle`) + `mtoken_fail` 5 (`missing`) = signatures des tests de cloisonnement
+  internes des rondes précédentes, re-confirmées par mon propre test de fin de ronde (403/403
+  dans les deux sens). Toutes les tâches cron ont un `dernierPassage` récent et cohérent avec leur
+  cadence (y compris `report`, mensuel, dernier passage 01/08 → prochaine échéance 01/09, normal).
+- **CSP** : seule origine `api.bigdatacloud.net` (46 occurrences, déjà autorisée — question
+  tranchée le 15/08, non rouverte). Aucune origine nouvelle.
+- **TLS** : `crt.sh` injoignable ce tour (limite connue de l'environnement) → repli sur la dernière
+  valeur confirmée (exp. 12/10/2026, Let's Encrypt/Google Trust Services), largement > 21 j.
+- **Ménage** : `cron/cleanup` exécuté, rien à purger (0 visite/événement/annonce/vignette — le
+  backfill du 24/08 a déjà tout traité).
+- **Modération** : file vide (0 signalement, 0 récent), digest posté sans note (pas d'e-mail —
+  voulu).
