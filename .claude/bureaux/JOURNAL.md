@@ -4080,3 +4080,10 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Testeurs : 11/12** (était 10) — il n'en manque plus **qu'un** pour démarrer le compte à rebours
   des 14 jours. Toujours le levier le plus lent, et le seul que personne d'autre que le Patron ne
   peut débloquer.
+
+### 2026-08-24 (soir) — [Confiance & Sécurité] 🛡️ Le Gardien (versé par le Dev)
+- **Ronde verte, RAS.** Trois empreintes = dépôt (front inchangé depuis le dernier build vérifié).
+  Sécurité 24 h propre (seuls `cron_fail`/`mtoken_fail` = tests de cloisonnement internes ; IP
+  `160.155.199.185` inchangée, pas P1). Ménage : rien à purger (backfill de la veille a tout couvert).
+- Scan : serveur RAS ; app = seul le commit `targetSdk 36`, aucune permission ni dépendance ajoutée.
+  Modération : file vide.
