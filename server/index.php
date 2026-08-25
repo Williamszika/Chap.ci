@@ -2029,6 +2029,21 @@ function migrate(PDO $pdo): void {
   // Badge de vérification bleu : compte fidèle (≥ 1 an) et actif (vend et/ou paie).
   try { $pdo->exec("ALTER TABLE users ADD COLUMN verified $intT DEFAULT 0"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN verified_at $ts"); } catch (Throwable $e) {}
+  // Comptes professionnels (boutiques) : la fiche du dossier « devenir pro » et
+  // son état. `pro_status` vaut '' (jamais demandé), 'en_attente', 'approuve'
+  // ou 'refuse'. `pro_type` distingue commerce, prestataire de services,
+  // centre de formation, employeur/recruteur, association — même machinerie,
+  // vitrine et justificatif adaptés. `pro_numero` porte le RCCM (commerce),
+  // le récépissé de déclaration (association) ou l'agrément (formation).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_status $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_type $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_nom $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_numero $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_secteur $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_tel $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_demande_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_decide_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_motif $txt"); } catch (Throwable $e) {}
   // Relance d'activation : date d'envoi de l'e-mail « publiez votre 1ʳᵉ annonce »
   // (envoyé UNE seule fois par compte — jamais de spam).
   try { $pdo->exec("ALTER TABLE users ADD COLUMN activation_emailed $ts"); } catch (Throwable $e) {}
@@ -2161,14 +2176,27 @@ function user_public(PDO $pdo, array $u): array {
   // Repli sur la requête d'origine : la colonne est arrivée par migration, une
   // base pas encore migrée ferait échouer le SELECT complet.
   $phone = null;
+  $pro = null; // {status, nom, type} — absent tant que la base n'a pas migré
   try {
-    $vf = $pdo->prepare('SELECT verified, phone FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+    $vf = $pdo->prepare('SELECT verified, phone, pro_status, pro_nom, pro_type FROM users WHERE id = ?');
+    $vf->execute([$u['id']]);
     $row = $vf->fetch() ?: [];
     $ver = (int) ($row['verified'] ?? 0);
     $phone = ($row['phone'] ?? '') !== '' ? $row['phone'] : null;
+    if (($row['pro_status'] ?? '') !== '') {
+      $pro = ['status' => $row['pro_status'], 'nom' => $row['pro_nom'] ?: null,
+              'type' => $row['pro_type'] ?: null];
+    }
   } catch (Throwable $e) {
-    $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
-    $ver = (int) ($vf->fetchColumn() ?: 0);
+    try {
+      $vf = $pdo->prepare('SELECT verified, phone FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+      $row = $vf->fetch() ?: [];
+      $ver = (int) ($row['verified'] ?? 0);
+      $phone = ($row['phone'] ?? '') !== '' ? $row['phone'] : null;
+    } catch (Throwable $e2) {
+      $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+      $ver = (int) ($vf->fetchColumn() ?: 0);
+    }
   }
   return ['id' => $u['id'], 'email' => $u['email'], 'status' => $status ?: 'active',
           'verified' => $ver === 1,
@@ -2177,6 +2205,7 @@ function user_public(PDO $pdo, array $u): array {
           'emailVerified' => email_verifie($pdo, (string) $u['id']),
           'badge' => badge_of($GLOBALS['chapci_config'] ?? [], $pdo, $u),
           'phone' => $phone,
+          'pro' => $pro,
           'user_metadata' => ['full_name' => $name]];
 }
 /**
@@ -2307,6 +2336,7 @@ function admin_feature_labels(): array {
 function admin_feature_for_path(string $path): string {
   if ($path === 'admin/check' || $path === 'admin/me' || str_starts_with($path, 'admin/unlock')) return '';
   if ($path === 'admin/stats') return 'overview';
+  if (str_starts_with($path, 'admin/pro')) return 'users';
   if ($path === 'admin/visits' || $path === 'admin/response-time' || $path === 'admin/geo') return 'visitors';
   if (str_starts_with($path, 'admin/listings')) return 'listings';
   if (str_starts_with($path, 'admin/users')) return 'users';
@@ -4679,6 +4709,9 @@ function listing_out(array $r, bool $withPhone = false): array {
     'sellerId' => $r['user_id'] ?: null,
     // Vendeur vérifié (badge bleu) : présent quand la requête joint users.verified.
     'sellerVerified' => !empty($r['seller_verified']),
+    // Vendeur professionnel (badge PRO bleu) : présent quand la requête joint
+    // users.pro_status. Absent (false) sur une base pas encore migrée.
+    'sellerPro' => (string) ($r['seller_pro'] ?? '') === 'approuve',
     'createdAt' => iso_to_ms($r['created_at']),
     'delivery' => (bool) $r['delivery'], 'featured' => (bool) $r['featured'],
     'promoPrice' => $r['promo_price'] !== null ? (int) $r['promo_price'] : null,
@@ -5390,7 +5423,7 @@ try {
     }
     // $limit et $offset sont des entiers déjà bornés (jamais des chaînes) :
     // interpolation sûre, et on évite le piège du binding LIMIT/OFFSET en PDO.
-    $rows = $pdo->query("SELECT l.*, u.verified AS seller_verified FROM listings l
+    $rows = $pdo->query("SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro FROM listings l
       LEFT JOIN users u ON u.id = l.user_id
       WHERE (l.hidden IS NULL OR l.hidden = 0) AND (l.sold IS NULL OR l.sold = 0)
       ORDER BY l.created_at DESC LIMIT $limit OFFSET $offset")->fetchAll();
@@ -5485,7 +5518,7 @@ try {
       '#/annonce/' . $id);
     // Indexation instantanée : on signale la nouvelle annonce à tout le net (IndexNow).
     chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $id]);
-    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified FROM listings l
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro FROM listings l
       LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?'); $st->execute([$id]);
     jout(listing_out($st->fetch(), true)); // réponse au propriétaire : téléphone inclus
   }
@@ -5508,7 +5541,7 @@ try {
   // id exact (non énumérable) ; l'objet porte ses drapeaux `hidden`/`sold` pour
   // que l'écran affiche le bon état. Pas de téléphone (forme publique).
   if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'GET') {
-    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified FROM listings l
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro FROM listings l
       LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?');
     $st->execute([$seg[1]]);
     $row = $st->fetch();
@@ -6903,9 +6936,91 @@ try {
     $st->execute([$seg[1]]); $p = $st->fetch();
     if (!$p) jout(null);
     $badge = badge_of($config, $pdo, ['id' => $p['id'], 'email' => '']);
+    // La fiche Pro publique (nom commercial, type) — seulement si approuvée.
+    $pro = null;
+    try {
+      $pq = $pdo->prepare('SELECT pro_status, pro_nom, pro_type FROM users WHERE id = ?');
+      $pq->execute([$seg[1]]);
+      $pr = $pq->fetch();
+      if ($pr && (string) ($pr['pro_status'] ?? '') === 'approuve') {
+        $pro = ['nom' => $pr['pro_nom'] ?: null, 'type' => $pr['pro_type'] ?: null];
+      }
+    } catch (Throwable $e) { /* base pas migrée : pas de fiche pro */ }
     jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
           'avatarUrl' => $p['avatar_url'] ?: null,
-          'badge' => $badge, 'verified' => $badge !== '']);
+          'badge' => $badge, 'verified' => $badge !== '',
+          'pro' => $pro]);
+  }
+
+  // ---------- COMPTES PROFESSIONNELS (« devenir Pro ») ----------
+  //
+  // Le dossier : type d'organisation, nom commercial, numéro officiel, secteur.
+  // Cinq types — commerce, prestataire de services, centre de formation,
+  // employeur/recruteur, association — parce qu'une « boutique » n'est pas
+  // réservée aux commerces : une école vend ses formations, un employeur
+  // publie ses offres, une association donne. Même machinerie, mots adaptés.
+  // La validation est HUMAINE (tableau de bord admin, 24-48 h) : le numéro
+  // RCCM se vérifie sur le registre OHADA, un récépissé d'association à l'œil.
+
+  if ($path === 'pro/demande' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!email_verifie($pdo, (string) $u['id'])) {
+      jerr('Confirmez d’abord votre adresse e-mail (onglet Compte).');
+    }
+    $type = (string) ($b['type'] ?? '');
+    if (!in_array($type, ['commerce', 'services', 'formation', 'emploi', 'association'], true)) {
+      jerr('Type d’organisation inconnu.');
+    }
+    $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
+    if (mb_strlen($nom) < 2) jerr('Indiquez le nom de votre organisation.');
+    $numero = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 60));
+    $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 40));
+    $tel = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+    // Un compte déjà approuvé ne redépose pas de dossier ; un refusé peut
+    // réessayer (le dossier remplace l'ancien) ; un dossier en attente se met
+    // simplement à jour.
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') === 'approuve') {
+      jerr('Votre compte est déjà professionnel.');
+    }
+    rate_limit($pdo, 'pro_demande', $u['email'] ?? null, 5, 86400);
+    $pdo->prepare('UPDATE users SET pro_status = ?, pro_type = ?, pro_nom = ?, pro_numero = ?,
+                   pro_secteur = ?, pro_tel = ?, pro_demande_at = ?, pro_decide_at = NULL, pro_motif = NULL
+                   WHERE id = ?')
+        ->execute(['en_attente', $type, $nom, $numero, $secteur, $tel, now_iso(), $u['id']]);
+    log_security_event($pdo, 'pro_demande', $u['email'] ?? null, $type);
+    // Prévenir le Patron — best-effort : le dossier est en base quoi qu'il arrive.
+    try {
+      $inner = '<h2 style="margin-top:0">Nouvelle demande de compte Pro</h2>'
+        . '<p><b>' . htmlspecialchars($nom) . '</b> (' . htmlspecialchars($type) . ')<br>'
+        . 'Numéro : ' . htmlspecialchars($numero !== '' ? $numero : '— non fourni —') . '<br>'
+        . 'Compte : ' . htmlspecialchars((string) ($u['email'] ?? '')) . '</p>'
+        . '<p>À valider dans le tableau de bord → Demandes Pro (vérifiez le RCCM sur rccm.ohada.org).</p>';
+      foreach (owner_emails($config) as $to) {
+        send_mail($config, $to, 'Chap.ci — demande de compte Pro : ' . $nom,
+                  email_layout($config, $inner, 'Demande de compte professionnel'));
+      }
+    } catch (Throwable $e) { /* l'e-mail peut rater, le dossier est déposé */ }
+    jout(['ok' => true, 'status' => 'en_attente']);
+  }
+
+  if ($path === 'pro/statut' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    try {
+      $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_numero, pro_secteur, pro_motif
+                           FROM users WHERE id = ?');
+      $st->execute([$u['id']]);
+      $r = $st->fetch() ?: [];
+    } catch (Throwable $e) { $r = []; }
+    jout([
+      'status' => (string) ($r['pro_status'] ?? ''),
+      'type' => $r['pro_type'] ?? null,
+      'nom' => $r['pro_nom'] ?? null,
+      'numero' => $r['pro_numero'] ?? null,
+      'secteur' => $r['pro_secteur'] ?? null,
+      'motif' => $r['pro_motif'] ?? null,
+    ]);
   }
 
   // ---------- VÉRIFICATION DE L'ADRESSE E-MAIL ----------
@@ -7842,6 +7957,62 @@ try {
             })()
           : null,
       ]);
+    }
+
+    // ---- Demandes de comptes professionnels ---------------------------------
+    if ($path === 'admin/pro' && $method === 'GET') {
+      try {
+        $rows = $pdo->query("SELECT u.id, u.email, u.pro_status, u.pro_type, u.pro_nom, u.pro_numero,
+                                    u.pro_secteur, u.pro_tel, u.pro_demande_at, u.pro_decide_at, u.pro_motif,
+                                    p.full_name
+                             FROM users u LEFT JOIN profiles p ON p.id = u.id
+                             WHERE u.pro_status IS NOT NULL AND u.pro_status != ''
+                             ORDER BY (CASE WHEN u.pro_status = 'en_attente' THEN 0 ELSE 1 END),
+                                      u.pro_demande_at DESC")->fetchAll();
+      } catch (Throwable $e) { $rows = []; }
+      jout(['demandes' => array_map(fn($r) => [
+        'userId' => $r['id'], 'email' => $r['email'], 'nom' => $r['full_name'] ?: null,
+        'status' => $r['pro_status'], 'type' => $r['pro_type'], 'proNom' => $r['pro_nom'],
+        'numero' => $r['pro_numero'] ?: null, 'secteur' => $r['pro_secteur'] ?: null,
+        'tel' => $r['pro_tel'] ?: null, 'demandeAt' => iso_to_ms($r['pro_demande_at'] ?? null),
+        'decideAt' => iso_to_ms($r['pro_decide_at'] ?? null), 'motif' => $r['pro_motif'] ?: null,
+      ], $rows)]);
+    }
+
+    if ($path === 'admin/pro/decider' && $method === 'POST') {
+      $b = body();
+      $userId = (string) ($b['userId'] ?? '');
+      $action = (string) ($b['action'] ?? '');
+      if (!in_array($action, ['approuver', 'refuser'], true)) jerr('Action inconnue.');
+      $motif = trim(mb_substr((string) ($b['motif'] ?? ''), 0, 300));
+      $st = $pdo->prepare('SELECT email, pro_nom, pro_status FROM users WHERE id = ?');
+      $st->execute([$userId]);
+      $cible = $st->fetch();
+      if (!$cible || (string) ($cible['pro_status'] ?? '') === '') jerr('Demande introuvable.', 404);
+      $statut = $action === 'approuver' ? 'approuve' : 'refuse';
+      $pdo->prepare('UPDATE users SET pro_status = ?, pro_decide_at = ?, pro_motif = ? WHERE id = ?')
+          ->execute([$statut, now_iso(), $statut === 'refuse' ? $motif : null, $userId]);
+      log_security_event($pdo, 'pro_decision', $cible['email'] ?? null, $statut);
+      // Prévenir la personne — best-effort.
+      try {
+        $nomB = htmlspecialchars((string) ($cible['pro_nom'] ?? ''));
+        if ($statut === 'approuve') {
+          $inner = '<h2 style="margin-top:0">Votre compte est professionnel 🎉</h2>'
+            . "<p>Félicitations ! <b>$nomB</b> est maintenant un compte professionnel sur Chap.ci : "
+            . 'le badge <b>PRO</b> apparaît sur vos annonces et votre page vendeur.</p>'
+            . '<p>Merci de faire vivre le marché ivoirien avec nous.</p>';
+          $sujet = 'Chap.ci — votre compte Pro est approuvé 🎉';
+        } else {
+          $inner = '<h2 style="margin-top:0">Votre demande de compte Pro</h2>'
+            . "<p>Nous n'avons pas pu approuver la demande pour <b>$nomB</b>.</p>"
+            . ($motif !== '' ? '<p>Motif : ' . htmlspecialchars($motif) . '</p>' : '')
+            . '<p>Vous pouvez corriger votre dossier et redéposer une demande depuis '
+            . 'l’application (Compte → Passer en compte Pro).</p>';
+          $sujet = 'Chap.ci — votre demande de compte Pro';
+        }
+        send_mail($config, (string) $cible['email'], $sujet, email_layout($config, $inner, $sujet));
+      } catch (Throwable $e) { /* décision enregistrée quoi qu'il arrive */ }
+      jout(['ok' => true, 'status' => $statut]);
     }
 
     // Utilisateurs.

@@ -27,6 +27,9 @@ class Listing {
   final String sellerName;
   final String? sellerId; // le compte vendeur (pour ouvrir une conversation)
   final bool sellerVerified;
+
+  /// Vendeur professionnel (badge PRO bleu sur l'annonce et la page vendeur).
+  final bool sellerPro;
   final int createdAt; // ms
   final bool delivery;
   final bool featured;
@@ -60,6 +63,7 @@ class Listing {
     this.lat,
     this.lng,
     this.sellerVerified = false,
+    this.sellerPro = false,
     this.delivery = false,
     this.featured = false,
     this.promoPrice,
@@ -112,6 +116,7 @@ class Listing {
       sellerName: (j['sellerName'] ?? 'Vendeur').toString(),
       sellerId: j['sellerId']?.toString(),
       sellerVerified: j['sellerVerified'] == true,
+      sellerPro: j['sellerPro'] == true,
       createdAt: (j['createdAt'] is num) ? (j['createdAt'] as num).toInt() : 0,
       delivery: j['delivery'] == true,
       featured: j['featured'] == true,

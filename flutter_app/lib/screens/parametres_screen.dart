@@ -8,6 +8,7 @@ import '../i18n/textes.dart';
 import '../liens_site.dart';
 import '../theme.dart';
 import 'admin/tableau_bord_screen.dart';
+import 'devenir_pro_screen.dart';
 import 'favoris_screen.dart';
 import 'modifier_profil_screen.dart';
 import 'mot_de_passe_screen.dart';
@@ -33,6 +34,7 @@ class ParametresScreen extends StatefulWidget {
 class _ParametresScreenState extends State<ParametresScreen> {
   String _email = '';
   bool _emailVerifie = false;
+  String _proStatut = ''; // '', en_attente, approuve, refuse
   bool _2faActive = false;
   bool _estAdmin = false;
   bool _chargement = true;
@@ -56,6 +58,9 @@ class _ParametresScreenState extends State<ParametresScreen> {
       final moi = await ApiClient.instance.moi();
       _email = (moi?['email'] as String?) ?? '';
       _emailVerifie = moi?['emailVerified'] == true;
+      _proStatut = (moi?['pro'] is Map)
+          ? ((moi!['pro']['status'] as String?) ?? '')
+          : '';
     } catch (_) {/* on affiche quand même le reste */}
     // 2FA.
     _2faActive = await ApiClient.instance.statut2FA();
@@ -271,6 +276,36 @@ class _ParametresScreenState extends State<ParametresScreen> {
                         titre: tr(context, 'item.mesFavoris'),
                         sous: tr(context, 'item.mesFavoris.sous'),
                         onTap: _mesFavoris,
+                      ),
+                    ]),
+
+                    _label(tr(context, 'pro.section')),
+                    _groupe([
+                      _ligne(
+                        icone: Icons.workspace_premium_outlined,
+                        fond: const Color(0xFFE7F0F8),
+                        teinte: const Color(0xFF2E7DB8),
+                        titre: _proStatut == 'approuve'
+                            ? tr(context, 'pro.approuve')
+                            : _proStatut == 'en_attente'
+                                ? tr(context, 'pro.enAttente')
+                                : _proStatut == 'refuse'
+                                    ? tr(context, 'pro.refuse')
+                                    : tr(context, 'pro.devenir'),
+                        sous: _proStatut == 'en_attente'
+                            ? tr(context, 'pro.enAttente.sous')
+                            : _proStatut == ''
+                                ? tr(context, 'pro.devenir.sous')
+                                : null,
+                        sousCouleur: _proStatut == 'approuve'
+                            ? ChapColors.greenDark
+                            : null,
+                        onTap: () async {
+                          await Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => const DevenirProScreen()));
+                          // Le dossier a pu être déposé : on relit l'état.
+                          if (mounted) _charger();
+                        },
                       ),
                     ]),
 

@@ -59,6 +59,9 @@ class _MonCompteViewState extends State<MonCompteView> {
     } catch (_) {/* on se rabat sur /me */}
     return {
       'aCompte': moi != null,
+      'pro': (moi?['pro'] is Map) &&
+          (moi!['pro']['status'] as String?) == 'approuve',
+      'proNom': (moi?['pro'] is Map) ? moi!['pro']['nom'] as String? : null,
       'nom': (moi?['user_metadata']?['full_name'] as String?)?.trim(),
       'email': moi?['email'] as String? ?? '',
       'verifie': (verif['emailVerified'] ?? moi?['emailVerified']) == true,
@@ -232,6 +235,7 @@ class _MonCompteViewState extends State<MonCompteView> {
         final aCompte = d['aCompte'] == true;
         final avatarUrl = d['avatarUrl'] as String?;
         final badge = d['badge'] as String? ?? '';
+        final pro = d['pro'] == true;
         final mois = d['mois'] as int? ?? 0;
         final moisRestants = d['moisRestants'] as int? ?? 0;
         return Container(
@@ -287,7 +291,7 @@ class _MonCompteViewState extends State<MonCompteView> {
               if (aCompte) ...[
                 const SizedBox(height: 12),
                 _puces(verifie: verifie, badge: badge, mois: mois,
-                    moisRestants: moisRestants),
+                    moisRestants: moisRestants, pro: pro),
               ],
               if (aCompte && !verifie) ...[
                 const SizedBox(height: 12),
@@ -307,8 +311,23 @@ class _MonCompteViewState extends State<MonCompteView> {
     required String badge,
     required int mois,
     required int moisRestants,
+    bool pro = false,
   }) {
     final puces = <Widget>[];
+    if (pro) {
+      puces.add(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF2E7DB8),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text('💼 ${tr(context, 'pro.badge')}',
+            style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: Colors.white)),
+      ));
+    }
     if (verifie) {
       puces.add(_puce(tr(context, 'badge.emailConfirme'),
           icone: Icons.check_circle,

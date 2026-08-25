@@ -449,6 +449,22 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     const Icon(Icons.verified,
                         size: 16, color: Color(0xFF2E7DB8)),
                   ],
+                  if (a.sellerPro) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2E7DB8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(tr(context, 'pro.badge'),
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                    ),
+                  ],
                 ],
               ),
               Text(

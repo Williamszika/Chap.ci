@@ -9,12 +9,19 @@ class ProfilPublic {
   final String? avatarUrl;
   final bool verified;
 
+  /// Nom commercial et type d'organisation — seulement si le compte est un
+  /// professionnel approuvé (sinon null).
+  final String? proNom;
+  final String? proType;
+
   const ProfilPublic({
     required this.id,
     required this.nom,
     this.bio,
     this.avatarUrl,
     this.verified = false,
+    this.proNom,
+    this.proType,
   });
 
   factory ProfilPublic.fromJson(Map<String, dynamic> j) => ProfilPublic(
@@ -25,6 +32,8 @@ class ProfilPublic {
             : j['bio'].toString(),
         avatarUrl: j['avatarUrl']?.toString(),
         verified: j['verified'] == true,
+        proNom: (j['pro'] is Map) ? j['pro']['nom'] as String? : null,
+        proType: (j['pro'] is Map) ? j['pro']['type'] as String? : null,
       );
 }
 

@@ -162,6 +162,36 @@ class _VendeurScreenState extends State<VendeurScreen> {
               ],
             ],
           ),
+          if (_profil?.proNom != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7DB8),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('💼 ${tr(context, 'pro.badge')}',
+                      style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(_profil!.proNom!,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2E5F87))),
+                ),
+              ],
+            ),
+          ],
           if (_commune != null) ...[
             const SizedBox(height: 3),
             Row(
