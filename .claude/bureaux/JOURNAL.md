@@ -4269,3 +4269,18 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   `1d879677f334` = HEAD. En ligne ce soir : le logo « chap-chap », l'onglet et les fiches
   Demandes Pro (site + app), les cloches à lien direct, la page Devenir Pro du site, le
   tableau de bord professionnel (page #/pro, page Compte du site, onglet Compte de l'app).
+
+### 2026-08-26 (nuit) — [Veille] Courriel Google Play « Nouvelles exigences de qualité » : rien d'urgent
+- Le Patron a transmis un courriel Google Play (reçu 26/08 20:50) annonçant des exigences
+  de qualité sur la mémoire dynamique, les bitmaps et l'optimisation du code, plus un
+  standard d'intégration pour la migration sécurisée entre appareils. Recherche faite sur
+  le blog Android Developers (billets de juin et août 2026) et les annonces de politique
+  Play Console (15/07/2026) : c'est une annonce générale à tous les développeurs.
+  **Aucun seuil chiffré publié, aucune date d'application, aucune sanction définie** —
+  Android 17 imposera des limites mémoire par application « au cours de l'année à venir »
+  selon les fabricants, et la Play Console reçoit de nouvelles métriques (Memory Usage,
+  Bitmap Memory Usage, analyse R8). Le standard de migration n'a pas de calendrier public.
+- Position de Chap.ci : app Flutter légère, données côté serveur, R8 actif par défaut sur
+  les builds release Flutter, targetSdk 36 déjà livré (v1.21 en examen). Rien à changer.
+- À surveiller : Play Console → Android vitals (nouvelles métriques mémoire/bitmaps) lors
+  du prochain passage, et les prochaines annonces de politique pour des dates fermes.
