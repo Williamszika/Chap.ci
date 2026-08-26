@@ -4138,3 +4138,16 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   `sellerPro`) : trois portes admin en place, liste blanche des types, rate-limit 5/24 h,
   requêtes préparées, fiche publique sans RCCM ni téléphone — **aucune faille identifiée**.
   App : aucune permission ni dépendance nouvelle, aucun secret en dur. Modération : file vide.
+
+### 2026-08-26 — [Livraison] v1.21 (code 22) construite et envoyée à l'examen Google
+- Le 12ᵉ testeur s'est inscrit le 26/08 : les deux premières conditions de production sont
+  cochées dans la Play Console, le **décompte des 14 jours court** (échéance ~9 septembre).
+- Build v1.21 sur le Mac du Patron : premier essai en échec — `flutter_web_auth_2` 3.1.2
+  compilait l'ancienne API Android « Registrar », supprimée des Flutter récents. Montée en
+  `^5.1.0` (`b435eab`, signature `authenticate(...)` et schéma `chapci` inchangés — le code
+  Facebook, prêt mais désactivé, n'a pas bougé d'une ligne), second essai réussi.
+- **Téléversée et envoyée à l'examen le jour même** (capture Patron : « Tests fermés —
+  22 (1.21.0), en cours d'examen », publication gérée désactivée → diffusion automatique aux
+  12 testeurs au verdict). Échéance `targetSdk 36` du 30/08 : **tenue avec 4 jours d'avance**.
+  Fiche v1.21 d'`APP-VERSIONS.md` mise à jour (apports complets, build, envoi) ; poids de
+  l'AAB à relever.

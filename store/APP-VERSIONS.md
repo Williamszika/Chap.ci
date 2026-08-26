@@ -33,8 +33,8 @@ parce que c'est celui qu'on oublie :
 | Champ | Valeur |
 |---|---|
 | **Commit** | `abc1234` |
-| Date du build | J mois AAAA |
-| Poids de l'AAB | X,XX Mo |
+| Date du build | **26 août 2026** — construite par le Patron sur son Mac. Premier essai en échec : `flutter_web_auth_2` 3.1.2 compilait l'ancienne API Android « Registrar », supprimée des Flutter récents (la v1.20 était passée avec un Flutter plus ancien) ; montée en `^5.1.0` (`b435eab`), second essai réussi. |
+| Poids de l'AAB | non relevé — à compléter quand le Patron communique le chiffre (Finder → clic droit sur `app-release.aab` → « Lire les informations »). |
 | minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33` |
 | État Play | à téléverser / téléversée le JJ/MM / envoyée à l'examen le JJ/MM |
 ```
@@ -123,11 +123,11 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `936dcc1` — montée de version (`1.21.0+22`) + `targetSdk 36`. Le build embarque tous les commits Flutter jusqu'à `04711d2` inclus (dernier touchant `flutter_app/` au moment du build : pages du site en 5 langues via `?lang=`). |
+| **Commit** | `936dcc1` — montée de version (`1.21.0+22`) + `targetSdk 36`. Le build du 26/08 embarque tous les commits Flutter jusqu'à `b435eab` inclus (montée de `flutter_web_auth_2` en 5.x, sans laquelle le build échouait — voir Date du build). |
 | Date du build | **26 août 2026** — construction lancée par le Patron (procédure donnée par le Développement) ; poids à relever après le build. |
 | Poids de l'AAB | — (inconnu tant que non construite) |
 | **minSdk 22 · targetSdk 36** | signature d'import `chapci` — `CN=Chap.ci, OU=Mobile, O=Chap.ci, L=Abidjan, ST=Abidjan, C=CI`, SHA-1 `84:98:BB:44:AF:0E:22:2B:F5:3F:1E:6B:C0:D7:18:EF:0F:C8:F4:84` (même clé que la v1.20). |
-| État Play | **À CONSTRUIRE — PAS TÉLÉVERSÉE. NON VÉRIFIÉ.** ✅ **Gate levé le 24/08** : la v1.20 (code 21) a reçu son verdict et est **disponible pour les testeurs** (confirmé Play Console par le Patron) — déposer la v1.21 ne relance donc plus aucun examen en cours. Reste à construire (Patron, Android Studio + keystore) ; `targetSdk 36` déjà prêt pour l'échéance du 30/08. |
+| État Play | **Téléversée et envoyée à l'examen le 26/08/2026** — confirmé par le Patron (capture « Vue d'ensemble de la publication » : *Tests fermés — 22 (1.21.0), modifications en cours d'examen*, publication gérée désactivée → diffusion automatique aux testeurs au verdict). Échéance `targetSdk 36` du 30/08 : **tenue**. Le décompte des 14 jours (12ᵉ testeur inscrit le 26/08) court indépendamment. Verdict : NON VÉRIFIÉ tant que le Patron ne l'a pas relevé. |
 
 **Ce qu'elle apporte depuis la v1.20** (commits Flutter du 14/08 au 25/08, jusqu'à `04711d2`) :
 
