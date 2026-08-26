@@ -4151,3 +4151,17 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   12 testeurs au verdict). Échéance `targetSdk 36` du 30/08 : **tenue avec 4 jours d'avance**.
   Fiche v1.21 d'`APP-VERSIONS.md` mise à jour (apports complets, build, envoi) ; poids de
   l'AAB à relever.
+
+### 2026-08-26 — [Design] Proposition de nouveau logo « losange fendu » — EN ATTENTE DE DÉCISION
+- Reçu du Patron : rapport d'un bureau de design (espace de travail externe, hors dépôt) proposant
+  de remplacer l'épingle-C par un **losange fendu en deux moitiés qui glissent** — le redoublement
+  de « chap-chap », le vide central pour « la plateforme ne s'interpose pas dans le paiement », le
+  losange comme motif de tissu. Cinq pistes explorées, trois éliminées à l'épreuve (chevron = bouton
+  d'avance rapide, semi-transparence morte en monochrome, C angulaire = « précédent »).
+- Livrables annoncés chez ce bureau : assets de splash Android 12 (1152 px, signe dans le cercle de
+  768 px), `flutter_native_splash.yaml`, vue Dart animée (620 ms, portage vérifié sommet par
+  sommet). Les fichiers vivent chez lui, **pas dans le dépôt**.
+- **Aucun changement appliqué.** L'épingle reste en place sur le site, l'app et la fiche Play.
+  Remplacer la marque est une décision du Patron seul. Si adoption : v1.22 côté app (intégration
+  par le Développement), zip côté site, icône de fiche dans la Play Console. Sans aucun impact sur
+  l'examen en cours de la v1.21 ni sur le décompte des 14 jours.
