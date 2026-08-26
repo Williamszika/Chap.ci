@@ -92,6 +92,24 @@ class SigneChapci extends CustomPainter {
       ancien.ecartement != ecartement || ancien.couleur != couleur;
 }
 
+/// Le signe seul, à poser dans l'interface (en-tête de l'accueil…).
+///
+/// Peint par le même `SigneChapci` que l'écran de démarrage : net à toutes
+/// les tailles, aucun asset à charger, et un seul tracé à maintenir.
+class SigneChap extends StatelessWidget {
+  final double taille;
+  final Color couleur;
+  const SigneChap(
+      {super.key, this.taille = 26, this.couleur = CouleursChap.orange});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: taille,
+        height: taille,
+        child: CustomPaint(painter: SigneChapci(couleur: couleur)),
+      );
+}
+
 class EcranDemarrage extends StatefulWidget {
   /// Appelé quand l'animation est finie — pour enchaîner sur l'accueil.
   final VoidCallback? auTerme;

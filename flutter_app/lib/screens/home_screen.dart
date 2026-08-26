@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../api/pub.dart';
+import '../ecran_demarrage.dart' show SigneChap;
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/cloche_notifs.dart';
@@ -116,12 +117,15 @@ class _HomeScreenState extends State<HomeScreen> {
           child: CustomScrollView(
             controller: _scroll,
             slivers: [
-              // En-tête : le nom de marque « Chap » orange + « .ci » vert.
+              // En-tête : le signe « chap-chap » + le nom de marque
+              // (« Chap » orange, « .ci » vert) — comme l'en-tête du site.
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                   child: Row(
                     children: [
+                      const SigneChap(taille: 27),
+                      const SizedBox(width: 8),
                       RichText(
                         text: const TextSpan(
                           style: TextStyle(
