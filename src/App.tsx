@@ -69,6 +69,7 @@ const Conversation = L('Conversation', () => import('./pages/Conversation'))
 const SellerProfile = L('SellerProfile', () => import('./pages/SellerProfile'))
 const About = L('About', () => import('./pages/About'))
 const Faq = L('Faq', () => import('./pages/Faq'))
+const EspacePro = L('EspacePro', () => import('./pages/EspacePro'))
 const Notifications = L('Notifications', () => import('./pages/Notifications'))
 const SiteMap = L('SiteMap', () => import('./pages/SiteMap'))
 const AdminDashboard = lazy(() =>
@@ -119,6 +120,7 @@ export default function App() {
           <Route path="/explorer" element={<Browse />} />
           <Route path="/annonce/:id" element={<ListingDetail />} />
           <Route path="/publier" element={<PostAd />} />
+          <Route path="/pro" element={<EspacePro />} />
           <Route path="/modifier/:id" element={<PostAd />} />
           <Route path="/favoris" element={<Favorites />} />
           <Route path="/compte" element={<Profile />} />

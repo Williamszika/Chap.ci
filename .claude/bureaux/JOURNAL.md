@@ -4224,3 +4224,25 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   un non), dépôt → cloches Patron + modérateur habilité SEULEMENT ; déverrouillage admin par
   OTP réel (fichier `.admin_otp`), décision → statut `approuve` + cloche au demandeur.
   `php -l` OK, `npm run build` OK. Banc local arrêté, rien n'a touché la production.
+
+### 2026-08-26 (nuit) — [Développement] L'espace professionnel complet : site + app + liens directs
+- Quatre demandes du Patron, livrées d'un bloc :
+  ① **« Devenir Pro » sur le SITE** : page `#/pro` (formulaire complet — 10 types, mêmes
+  secteurs canoniques que l'app via `src/data/secteursPro.ts` —, états attente/refus), entrée
+  « Compte professionnel » dans le menu Compte (l'ancienne ligne « Tableau de bord pro » est
+  renommée « Statistiques de vente » pour lever l'ambiguïté).
+  ② **Fiche détaillée d'une demande** : sur le site (clic sur un dossier → fiche complète de
+  la personne via `admin/users/{id}` + dossier + décision) ET dans l'app (`FicheDemandePro` :
+  dossier, compte, historique — annonces, signalements, avis —, décision).
+  ③ **La notification mène au lieu exact** : lien `#/admin?onglet=pro&demande={id}` (le
+  tableau de bord lit `?onglet=` et ProTab ouvre le dossier visé) ; verdict → `#/pro`. Dans
+  l'app, toucher une notification `pro_demande` ouvre l'écran de décision, `pro_decision`
+  ouvre l'espace professionnel.
+  ④ **Le tableau de bord professionnel** : route `GET /pro/tableau` (agrégats best-effort :
+  annonces actives/total, vues, favoris reçus, conversations, note+avis) ; sur le site, la
+  page `#/pro` d'un compte approuvé devient l'espace pro (en-tête de marque dégradé, grille
+  de chiffres, actions Publier / Ma page vendeur / Mes annonces) ; dans l'app, la vue
+  « approuvé » devient le même espace (traduit — 10 clés ×6 langues).
+- **Banc SQLite vert** : `/pro/tableau` rend le dossier + les chiffres pour l'approuvé et
+  refuse le non-approuvé ; les cloches de demande portent le lien profond exact.
+  `php -l` OK, `npm run build` OK.

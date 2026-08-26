@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { mediaUrl } from '../lib/native'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, MessageSquare, Star, Mail,
   Loader2, Lock, Download, Trash2, TrendingUp, RefreshCw,
@@ -57,6 +57,14 @@ export function AdminDashboard() {
   const [gate, setGate] = useState<'loading' | 'ok' | 'denied' | 'error' | 'locked'>('loading')
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('overview')
+  // Lien profond `#/admin?onglet=…` : la cloche « Demande de compte Pro »
+  // amène DIRECTEMENT sur le bon onglet (HashRouter : le paramètre voyage
+  // dans le hash, comme ?rubrique= sur la page Aide).
+  const { search } = useLocation()
+  useEffect(() => {
+    const o = new URLSearchParams(search).get('onglet')
+    if (o === 'pro') setTab('pro')
+  }, [search])
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [role, setRole] = useState<{ owner: boolean; permissions: string[] }>({ owner: false, permissions: [] })
   const [reload, setReload] = useState(0)
@@ -1519,30 +1527,23 @@ const PRO_TYPES: Record<string, string> = {
 function ProTab() {
   const [items, setItems] = useState<AdminProDemande[] | null>(null)
   const [err, setErr] = useState('')
-  const [busy, setBusy] = useState<string | null>(null)
+  const [detail, setDetail] = useState<AdminProDemande | null>(null)
+  const { search } = useLocation()
   const load = () => { setItems(null); setErr(''); fetchAdminPro().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
-  const decider = async (d: AdminProDemande, action: 'approuver' | 'refuser') => {
-    let motif = ''
-    if (action === 'refuser') {
-      const m = prompt(
-        `Pourquoi refuser « ${d.proNom} » ?\n\n`
-        + 'Ce texte part au demandeur : écrivez-le comme vous le lui diriez.\n'
-        + 'Ex. : numéro RCCM introuvable au registre.',
-        '',
-      )
-      if (m === null) return
-      motif = m.trim()
+  // Lien profond `?demande=<userId>` : la cloche ouvre DIRECTEMENT le dossier.
+  useEffect(() => {
+    const vise = new URLSearchParams(search).get('demande')
+    if (vise && items) {
+      const d = items.find((x) => x.userId === vise)
+      if (d) setDetail(d)
     }
-    setBusy(d.userId)
-    try { await deciderPro(d.userId, action, motif); load() }
-    catch (e) { alert((e as Error).message) }
-    finally { setBusy(null) }
-  }
+  }, [search, items])
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  if (detail) return <ProDetail demande={detail} onBack={() => { setDetail(null); load() }} />
   if (items.length === 0) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500 shadow-card">
@@ -1556,20 +1557,24 @@ function ProTab() {
     <div className="space-y-2">
       <p className="px-1 text-xs text-gray-500">
         {enAttente > 0
-          ? `${enAttente} demande${enAttente > 1 ? 's' : ''} en attente — pour un commerce, vérifiez le numéro RCCM sur rccm.ohada.org avant d'approuver.`
-          : 'Toutes les demandes sont traitées.'}
+          ? `${enAttente} demande${enAttente > 1 ? 's' : ''} en attente — cliquez un dossier pour voir la fiche complète et décider.`
+          : 'Toutes les demandes sont traitées — cliquez un dossier pour revoir la fiche.'}
       </p>
       {items.map((d) => {
         const attente = d.status === 'en_attente'
         return (
-          <div
+          <button
             key={d.userId}
-            className={`rounded-2xl bg-white p-4 shadow-card ${attente ? 'border-2 border-primary-400' : 'border border-line2'}`}
+            onClick={() => setDetail(d)}
+            className={`block w-full rounded-2xl bg-white p-4 text-left shadow-card transition hover:bg-cream-100 ${attente ? 'border-2 border-primary-400' : 'border border-line2'}`}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-display text-[15px] font-bold text-ink">{d.proNom}</p>
                 <p className="mt-0.5 text-xs text-gray-600">{PRO_TYPES[d.type] ?? d.type}</p>
+                <p className="mt-1 truncate text-xs text-gray-500">
+                  {d.nom ?? '—'} · {d.email}{d.demandeAt != null ? ` · ${timeAgo(d.demandeAt)}` : ''}
+                </p>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
                 attente ? 'bg-primary-100 text-primary-800'
@@ -1578,35 +1583,124 @@ function ProTab() {
                 {attente ? 'En attente' : d.status === 'approuve' ? 'Approuvée' : 'Refusée'}
               </span>
             </div>
-            <div className="mt-2 grid gap-x-4 gap-y-1 text-[12.5px] text-gray-700 sm:grid-cols-2">
-              <p><span className="text-gray-500">Compte :</span> {d.nom ?? '—'} · {d.email}</p>
-              <p><span className="text-gray-500">Numéro officiel :</span> {d.numero ?? '— non fourni —'}</p>
-              {d.secteur && <p><span className="text-gray-500">Secteur :</span> {d.secteur}</p>}
-              {d.tel && <p><span className="text-gray-500">Téléphone :</span> {d.tel}</p>}
-              {d.demandeAt != null && <p><span className="text-gray-500">Déposée :</span> {timeAgo(d.demandeAt)}</p>}
-              {d.motif && <p><span className="text-gray-500">Motif du refus :</span> {d.motif}</p>}
-            </div>
-            {attente && (
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => decider(d, 'approuver')}
-                  disabled={busy === d.userId}
-                  className="flex-1 rounded-xl bg-ivoire-green py-2 text-sm font-bold text-white transition hover:brightness-105 disabled:opacity-50"
-                >
-                  {busy === d.userId ? '…' : 'Approuver'}
-                </button>
-                <button
-                  onClick={() => decider(d, 'refuser')}
-                  disabled={busy === d.userId}
-                  className="flex-1 rounded-xl border border-red-200 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-                >
-                  Refuser
-                </button>
-              </div>
-            )}
-          </div>
+          </button>
         )
       })}
+    </div>
+  )
+}
+
+/** La fiche complète : QUI demande (le compte, son historique) et QUOI (le
+ *  dossier), puis la décision — tout au même endroit. */
+function ProDetail({ demande: d, onBack }: { demande: AdminProDemande; onBack: () => void }) {
+  const [u, setU] = useState<AdminUserDetail | null>(null)
+  const [uErr, setUErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    fetchAdminUserDetail(d.userId).then(setU).catch((e) => setUErr((e as Error).message))
+  }, [d.userId])
+
+  const decider = async (action: 'approuver' | 'refuser') => {
+    let motif = ''
+    if (action === 'refuser') {
+      const m = prompt(
+        `Pourquoi refuser « ${d.proNom} » ?\n\n`
+        + 'Ce texte part au demandeur : écrivez-le comme vous le lui diriez.\n'
+        + 'Ex. : numéro RCCM introuvable au registre.',
+        '',
+      )
+      if (m === null) return
+      motif = m.trim()
+    }
+    setBusy(true)
+    try { await deciderPro(d.userId, action, motif); onBack() }
+    catch (e) { alert((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  const attente = d.status === 'en_attente'
+  return (
+    <div className="space-y-3">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-primary-600">
+        ← Toutes les demandes
+      </button>
+
+      {/* Le dossier demandé */}
+      <div className={`rounded-2xl bg-white p-4 shadow-card ${attente ? 'border-2 border-primary-400' : 'border border-line2'}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-lg font-bold text-ink">{d.proNom}</p>
+            <p className="mt-0.5 text-sm text-gray-600">{PRO_TYPES[d.type] ?? d.type}</p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
+            attente ? 'bg-primary-100 text-primary-800'
+              : d.status === 'approuve' ? 'bg-ivoire-green/15 text-ivoire-green' : 'bg-red-50 text-red-700'
+          }`}>
+            {attente ? 'En attente' : d.status === 'approuve' ? 'Approuvée' : 'Refusée'}
+          </span>
+        </div>
+        <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-2">
+          <InfoLigne l="Numéro officiel" v={d.numero ?? '— non fourni —'} />
+          <InfoLigne l="Secteur" v={d.secteur ?? '—'} />
+          <InfoLigne l="Téléphone pro" v={d.tel ?? '—'} />
+          <InfoLigne l="Déposée" v={d.demandeAt != null ? timeAgo(d.demandeAt) : '—'} />
+          {d.motif && <InfoLigne l="Motif du refus" v={d.motif} />}
+        </dl>
+        {attente && (
+          <p className="mt-2 text-xs text-gray-500">
+            Commerce : vérifiez le numéro RCCM sur{' '}
+            <a href="https://rccm.ohada.org" target="_blank" rel="noreferrer" className="font-semibold text-primary-600">rccm.ohada.org</a>{' '}
+            avant d'approuver.
+          </p>
+        )}
+      </div>
+
+      {/* La personne derrière le dossier */}
+      <div className="rounded-2xl border border-line2 bg-white p-4 shadow-card">
+        <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wider text-gray-400">Le compte</p>
+        {uErr && <p className="text-sm text-red-600">{uErr}</p>}
+        {!u && !uErr && <Center><Loader2 className="animate-spin" size={18} /></Center>}
+        {u && (
+          <dl className="grid gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-2">
+            <InfoLigne l="Nom" v={u.fullName || '—'} />
+            <InfoLigne l="E-mail" v={u.email} />
+            <InfoLigne l="E-mail vérifié" v={u.emailVerifie ? 'Oui ✓' : 'Non'} />
+            <InfoLigne l="Téléphone" v={u.phone ?? '—'} />
+            <InfoLigne l="Commune" v={u.commune ?? '—'} />
+            <InfoLigne l="Inscrit" v={timeAgo(u.createdAt)} />
+            <InfoLigne l="Statut du compte" v={u.status === 'active' ? 'Actif' : u.status} />
+            <InfoLigne l="Connexion" v={u.provider ?? 'email'} />
+          </dl>
+        )}
+      </div>
+
+      {attente && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => decider('approuver')}
+            disabled={busy}
+            className="flex-1 rounded-xl bg-ivoire-green py-3 text-sm font-bold text-white transition hover:brightness-105 disabled:opacity-50"
+          >
+            {busy ? '…' : 'Approuver la demande'}
+          </button>
+          <button
+            onClick={() => decider('refuser')}
+            disabled={busy}
+            className="flex-1 rounded-xl border border-red-200 py-3 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+          >
+            Refuser
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InfoLigne({ l, v }: { l: string; v: string }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="w-32 shrink-0 text-gray-500">{l}</dt>
+      <dd className="min-w-0 flex-1 break-words font-semibold text-ink">{v}</dd>
     </div>
   )
 }

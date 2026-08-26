@@ -36,6 +36,7 @@ import {
   Megaphone,
   MailCheck,
   Smartphone,
+  Briefcase,
 } from 'lucide-react'
 import { Mark, Wordmark } from '../components/Logo'
 import { VerifiedBadge } from '../components/VerifiedBadge'
@@ -251,7 +252,8 @@ export function Profile() {
             <AccountRow tint="red" icon={<Heart size={20} className="fill-current" />} label="Mes favoris" badge={favorites.length || undefined} onClick={() => navigate('/favoris')} />
             <AccountRow tint="gray" icon={<MessageSquare size={20} />} label="Messages" sub="Vos conversations" onClick={() => navigate('/messages')} />
             <AccountRow tint="gold" icon={<ShoppingBag size={20} />} label="Mes commandes" sub={`${purchases.filter((o) => o.status === 'en_cours').length} en cours`} onClick={() => setTab('achats')} />
-            <AccountRow tint="green" icon={<BarChart3 size={20} />} label="Tableau de bord pro" sub="Statistiques & ventes" onClick={() => setTab('ventes')} />
+            <AccountRow tint="green" icon={<BarChart3 size={20} />} label="Statistiques de vente" sub="Vos chiffres, vos ventes" onClick={() => setTab('ventes')} />
+            <AccountRow tint="ocre" icon={<Briefcase size={20} />} label="Compte professionnel" sub="Badge PRO & espace professionnel" onClick={() => navigate('/pro')} />
             {isPhp && (
               <AccountRow tint="primary" icon={<Megaphone size={20} />} label="Mes publicités" sub="Audience, coût, prolongation" onClick={() => setTab('pubs')} />
             )}

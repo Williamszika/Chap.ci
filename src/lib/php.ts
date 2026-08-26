@@ -642,6 +642,19 @@ export async function phpNewsletterStatus(): Promise<boolean> {
   }
 }
 
+// ---- Espace professionnel ---------------------------------------------------
+export async function phpProStatut<T>(): Promise<T> {
+  return req<T>('/pro/statut')
+}
+export async function phpProDemande(d: {
+  type: string; nom: string; numero: string; secteur: string; tel: string
+}): Promise<void> {
+  await req('/pro/demande', { method: 'POST', body: d })
+}
+export async function phpProTableau<T>(): Promise<T> {
+  return req<T>('/pro/tableau')
+}
+
 // ---- Administration ---------------------------------------------------------
 export async function phpAdminStats<T>(): Promise<T> {
   return req<T>('/admin/stats')

@@ -7024,7 +7024,7 @@ try {
         if ($idEquipe !== '' && $idEquipe !== (string) $u['id']) {
           notify($pdo, $idEquipe, 'pro_demande', 'Demande de compte Pro 💼',
                  $nom . ' (' . $type . ') attend votre décision — Tableau de bord → Demandes Pro.',
-                 '#/admin');
+                 '#/admin?onglet=pro&demande=' . $u['id']);
         }
       }
     } catch (Throwable $e) { /* l'e-mail peut rater, le dossier est déposé */ }
@@ -7056,6 +7056,62 @@ try {
   // écrire à un vendeur. On ne dresse un obstacle que devant l'action qui
   // engage : une annonce publiée est vue par tout le monde, et une adresse
   // jetable est ce qui permet de recommencer indéfiniment après un bannissement.
+  // Le tableau de bord de l'ESPACE PROFESSIONNEL : les chiffres du compte,
+  // réservés aux dossiers approuvés. Chaque agrégat est best-effort (try/catch
+  // par table) : une table absente rend 0, jamais un 500.
+  if ($path === 'pro/tableau' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at
+                         FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $r = $st->fetch() ?: [];
+    if ((string) ($r['pro_status'] ?? '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $uid = (string) $u['id'];
+    $stats = ['annoncesActives' => 0, 'annoncesTotal' => 0, 'vues' => 0,
+              'favoris' => 0, 'conversations' => 0, 'note' => null, 'avis' => 0];
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) AS total,
+               SUM(CASE WHEN (sold IS NULL OR sold = 0) AND (hidden IS NULL OR hidden = 0)
+                        THEN 1 ELSE 0 END) AS actives,
+               COALESCE(SUM(views), 0) AS vues
+             FROM listings WHERE user_id = ?');
+      $q->execute([$uid]);
+      $l = $q->fetch() ?: [];
+      $stats['annoncesTotal'] = (int) ($l['total'] ?? 0);
+      $stats['annoncesActives'] = (int) ($l['actives'] ?? 0);
+      $stats['vues'] = (int) ($l['vues'] ?? 0);
+    } catch (Throwable $e) { /* colonnes pas encore migrées : zéros */ }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM favorites f
+                          JOIN listings l ON l.id = f.listing_id WHERE l.user_id = ?');
+      $q->execute([$uid]);
+      $stats['favoris'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) { /* idem */ }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ?');
+      $q->execute([$uid]);
+      $stats['conversations'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) { /* idem */ }
+    try {
+      $q = $pdo->prepare('SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews WHERE seller_id = ?');
+      $q->execute([$uid]);
+      $n = $q->fetch() ?: [];
+      $stats['avis'] = (int) ($n['n'] ?? 0);
+      $stats['note'] = $stats['avis'] > 0 ? round((float) $n['moy'], 1) : null;
+    } catch (Throwable $e) { /* idem */ }
+    jout([
+      'pro' => [
+        'nom' => (string) ($r['pro_nom'] ?? ''),
+        'type' => (string) ($r['pro_type'] ?? ''),
+        'secteur' => (string) ($r['pro_secteur'] ?? ''),
+        'depuis' => iso_to_ms($r['pro_decide_at'] ?? null),
+      ],
+      'stats' => $stats,
+    ]);
+  }
+
   if ($path === 'verify/email/send' && $method === 'POST') {
     $u = require_user($pdo, $secret);
     if (email_verifie($pdo, (string) $u['id'])) jout(['ok' => true, 'already' => true]);
@@ -8043,11 +8099,12 @@ try {
       try {
         if ($statut === 'approuve') {
           notify($pdo, $userId, 'pro_decision', 'Votre compte est professionnel 🎉',
-                 'Le badge PRO apparaît maintenant sur vos annonces et votre page vendeur.', '');
+                 'Le badge PRO apparaît sur vos annonces — découvrez votre espace professionnel.',
+                 '#/pro');
         } else {
           notify($pdo, $userId, 'pro_decision', 'Votre demande de compte Pro',
                  'Demande refusée' . ($motif !== '' ? ' — ' . $motif : '')
-                 . '. Vous pouvez corriger votre dossier et redéposer.', '');
+                 . '. Vous pouvez corriger votre dossier et redéposer.', '#/pro');
         }
       } catch (Throwable $e) { /* la décision est enregistrée quoi qu'il arrive */ }
       jout(['ok' => true, 'status' => $statut]);

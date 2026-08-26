@@ -4,6 +4,8 @@ import '../i18n/formats_i18n.dart';
 import '../notifications.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import 'admin/demandes_pro_screen.dart';
+import 'devenir_pro_screen.dart';
 import 'listing_detail_screen.dart';
 
 /// La cloche — la liste des notifications du compte (nouveau message, annonce
@@ -52,6 +54,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _ouvrir(NotifItem n) async {
+    // Les notifications « Pro » mènent DIRECTEMENT au bon endroit : la
+    // demande vers l'écran de décision (l'équipe), le verdict vers l'espace
+    // professionnel (le demandeur).
+    if (n.type == 'pro_demande') {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const DemandesProScreen()));
+      return;
+    }
+    if (n.type == 'pro_decision') {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const DevenirProScreen()));
+      return;
+    }
     final id = n.annonceId;
     if (id == null) return;
     try {
