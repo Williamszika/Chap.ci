@@ -119,6 +119,24 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.22 — versionCode 23
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | à inscrire au moment du build (`git log --oneline -1` — la montée `1.22.0+23` est dans le commit du 26/08 « Chap.ci change de signe ») |
+| Date du build | **PAS ENCORE CONSTRUITE** — préparée le 26/08/2026 (adoption du nouveau logo par le Patron). |
+| Poids de l'AAB | — (inconnu tant que non construite) |
+| **minSdk 22 · targetSdk 36** | même clé de signature que v1.20/v1.21. |
+| État Play | **À CONSTRUIRE.** ⚠️ Attendre le **verdict de la v1.21** (envoyée à l'examen le 26/08) avant de construire et téléverser — deux releases dans la même file d'examen se remplacent. Aucune urgence : l'échéance `targetSdk 36` est déjà tenue par la v1.21. |
+
+**Ce qu'elle apportera — le rebranding « chap-chap »** : le losange fendu remplace l'épingle
+partout — icône d'application (champ orange, signe encre, contraste 6,62:1 conforme AA),
+splash natif clair/sombre + variantes Android 12 (`flutter_native_splash`, relancé
+automatiquement par `tool/preparer_plateformes.dart`), et entrée animée : les deux moitiés
+du signe se rejoignent en 620 ms (`lib/ecran_demarrage.dart`), suivies d'un fondu vers
+l'accueil. Le site bascule en même temps (composant `Logo.tsx`, favicons, icônes PWA,
+splash de `index.html`) — kit de marque complet versionné dans `marque/`.
+
 ## v1.21 — versionCode 22
 
 | Champ | Valeur |

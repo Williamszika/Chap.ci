@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <mask id="c-cr">
+    <rect x="0" y="0" width="96" height="96" fill="white"/>
+    <path d="M 60.63 48.38 A 17 17 0 1 1 60.63 25.62" fill="none" stroke="black" stroke-width="10" stroke-linecap="round"/>
+  </mask>
+  <path d="M 72.94 53.67 L 48 91 L 23.06 53.67 A 30 30 0 1 1 72.94 53.67 Z" fill="#FFFDF9" mask="url(#c-cr)"/>
+</svg>

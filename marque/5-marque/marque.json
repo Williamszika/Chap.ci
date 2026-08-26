@@ -1,0 +1,70 @@
+{
+  "nom": "Chap.ci",
+  "signature": "Petites annonces CI",
+  "accroche": "Vendez gratuitement, sans commission.",
+  "manifeste": "Chap.ci démarre : 29 annonces, 6 communes, 6 vendeurs actifs. Aucun visuel ne doit suggérer une abondance qui n'existe pas — on montre de vraies annonces avec leurs vrais prix.",
+  "contact": {
+    "personne": "Chap.ci",
+    "role": "Marketplace ivoirienne",
+    "courriel": "contact@chap.ci",
+    "telephone": "",
+    "site": "chap.ci",
+    "adresse": "Abidjan",
+    "ville": "Côte d'Ivoire"
+  },
+  "reseaux": {
+    "instagram": "@chap.ci",
+    "linkedin": "chap-ci",
+    "behance": ""
+  },
+  "couleurs": {
+    "primaire": "#F77F00",
+    "primaireClaire": "#FFA243",
+    "primaireSombre": "#D95F00",
+    "accent": "#009E60",
+    "accentSombre": "#00784A",
+    "encre": "#1B1A17",
+    "papier": "#FFFDF9",
+    "creme2": "#FFF3E4",
+    "blanc": "#FFFFFF",
+    "sable": "#EAD9C0",
+    "terracotta": "#C1440E",
+    "or": "#E8A100",
+    "ligne": "#EFE6D7"
+  },
+  "typographie": {
+    "titre": "'Plus Jakarta Sans', 'DejaVu Sans', system-ui, sans-serif",
+    "texte": "'Inter', 'DejaVu Sans', system-ui, sans-serif",
+    "mono": "'JetBrains Mono', 'DejaVu Sans Mono', monospace"
+  },
+  "chiffres": {
+    "annonces": 29,
+    "communes": 6,
+    "vendeurs": 6,
+    "visites30j": "2 718",
+    "communesCouvertes": 22
+  },
+  "arguments": [
+    {
+      "titre": "Vendre est gratuit",
+      "detail": "Aucune commission sur une vente, jamais."
+    },
+    {
+      "titre": "Publier en moins de 2 minutes",
+      "detail": "Une photo, et la catégorie se propose toute seule."
+    },
+    {
+      "titre": "Votre numéro reste privé",
+      "detail": "Acheteur et vendeur se parlent dans la messagerie."
+    },
+    {
+      "titre": "Paiement de la main à la main",
+      "detail": "Mobile Money, Wave ou espèces. Chap.ci n'encaisse rien."
+    },
+    {
+      "titre": "Pensé pour la Côte d'Ivoire",
+      "detail": "Appli légère, qui tourne même quand le réseau fatigue."
+    }
+  ],
+  "services": []
+}

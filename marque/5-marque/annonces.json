@@ -1,0 +1,264 @@
+{
+  "_source": "Annonces réelles relevées le 23/08/2026, listées dans le brief Chap.ci. Ne jamais les remplacer par un produit générique de banque d'images.",
+  "annonces": [
+    {
+      "cle": "vans",
+      "titre": "Chaussures Vans, très bonne qualité",
+      "court": "Chaussures Vans",
+      "categorie": "Mode",
+      "commune": "Cocody",
+      "prix": 10000,
+      "accent": "terracotta",
+      "accroche": "La mode à petit prix",
+      "prixTexte": "10 000 FCFA"
+    },
+    {
+      "cle": "lit",
+      "titre": "Lit capitonné",
+      "court": "Lit capitonné",
+      "categorie": "Maison",
+      "commune": "Treichville",
+      "prix": 650000,
+      "accent": "primaire",
+      "accroche": "Meublez chap-chap",
+      "prixTexte": "650 000 FCFA"
+    },
+    {
+      "cle": "cahiers",
+      "titre": "Cahiers scolaires (rentrée)",
+      "court": "Cahiers scolaires",
+      "categorie": "Scolaire",
+      "commune": "Koumassi",
+      "prix": 4000,
+      "accent": "accent",
+      "accroche": "La rentrée sans se ruiner",
+      "prixTexte": "4 000 FCFA"
+    },
+    {
+      "cle": "sage",
+      "titre": "Formation Sage 100 — Paie",
+      "court": "Formation Sage 100",
+      "categorie": "Services",
+      "commune": "Treichville",
+      "prix": 550000,
+      "accent": "accentSombre",
+      "accroche": "Formez-vous près de chez vous",
+      "prixTexte": "550 000 FCFA"
+    },
+    {
+      "cle": "huile",
+      "titre": "Huile rouge, bonne qualité",
+      "court": "Huile rouge",
+      "categorie": "Alimentation",
+      "commune": "Bingerville",
+      "prix": 2000,
+      "accent": "or",
+      "accroche": "Du frais, du local",
+      "prixTexte": "2 000 FCFA"
+    },
+    {
+      "cle": "lapin",
+      "titre": "Lapin",
+      "court": "Lapin",
+      "categorie": "Animaux",
+      "commune": "Port-Bouët",
+      "prix": 6000,
+      "accent": "primaireSombre",
+      "accroche": "Élevage entre particuliers",
+      "prixTexte": "6 000 FCFA"
+    }
+  ],
+  "categories": [
+    {
+      "cle": "electronique",
+      "nom": "Électronique",
+      "nom_categorie": "Électronique",
+      "surtitre": "Électronique",
+      "accroche": "L'électronique à petit prix",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "primaire"
+    },
+    {
+      "cle": "telephones",
+      "nom": "Téléphones",
+      "nom_categorie": "Téléphones",
+      "surtitre": "Téléphones",
+      "accroche": "Téléphones à petit prix",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "primaireSombre"
+    },
+    {
+      "cle": "vehicules",
+      "nom": "Véhicules",
+      "nom_categorie": "Véhicules",
+      "surtitre": "Véhicules",
+      "accroche": "Véhicules, entre particuliers",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "encre"
+    },
+    {
+      "cle": "immobilier",
+      "nom": "Immobilier",
+      "nom_categorie": "Immobilier",
+      "surtitre": "Immobilier",
+      "accroche": "Un toit, sans agence",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "accentSombre"
+    },
+    {
+      "cle": "mode",
+      "nom": "Mode",
+      "nom_categorie": "Mode",
+      "surtitre": "Mode",
+      "accroche": "La mode qui vous ressemble",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "terracotta"
+    },
+    {
+      "cle": "maison",
+      "nom": "Maison & meubles",
+      "nom_categorie": "Maison & meubles",
+      "surtitre": "Maison & meubles",
+      "accroche": "Meublez chap-chap",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "primaire"
+    },
+    {
+      "cle": "bebe",
+      "nom": "Bébé & enfant",
+      "nom_categorie": "Bébé & enfant",
+      "surtitre": "Bébé & enfant",
+      "accroche": "Tout pour les enfants",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "primaireClaire"
+    },
+    {
+      "cle": "sante",
+      "nom": "Santé & bien-être",
+      "nom_categorie": "Santé & bien-être",
+      "surtitre": "Santé & bien-être",
+      "accroche": "Prendre soin de soi",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "accent"
+    },
+    {
+      "cle": "emploi",
+      "nom": "Emploi",
+      "nom_categorie": "Emploi",
+      "surtitre": "Emploi",
+      "accroche": "Du travail près de chez vous",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "accentSombre"
+    },
+    {
+      "cle": "services",
+      "nom": "Services",
+      "nom_categorie": "Services",
+      "surtitre": "Services",
+      "accroche": "Le bon service, près de vous",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "accent"
+    },
+    {
+      "cle": "materiel-pro",
+      "nom": "Matériel professionnel",
+      "nom_categorie": "Matériel professionnel",
+      "surtitre": "Matériel professionnel",
+      "accroche": "Équipez votre activité",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "encre"
+    },
+    {
+      "cle": "alimentation",
+      "nom": "Alimentation",
+      "nom_categorie": "Alimentation",
+      "surtitre": "Alimentation",
+      "accroche": "Du frais, du local",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "or"
+    },
+    {
+      "cle": "animaux",
+      "nom": "Animaux",
+      "nom_categorie": "Animaux",
+      "surtitre": "Animaux",
+      "accroche": "Animaux et élevage",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "primaireSombre"
+    },
+    {
+      "cle": "loisirs",
+      "nom": "Loisirs & sport",
+      "nom_categorie": "Loisirs & sport",
+      "surtitre": "Loisirs & sport",
+      "accroche": "De quoi s'enjailler",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "terracotta"
+    },
+    {
+      "cle": "voyage",
+      "nom": "Voyage",
+      "nom_categorie": "Voyage",
+      "surtitre": "Voyage",
+      "accroche": "Préparez le départ",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "accent"
+    },
+    {
+      "cle": "scolaire",
+      "nom": "Scolaire",
+      "nom_categorie": "Scolaire",
+      "surtitre": "Scolaire",
+      "accroche": "La rentrée sans se ruiner",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "accent"
+    },
+    {
+      "cle": "agriculture",
+      "nom": "Agriculture",
+      "nom_categorie": "Agriculture",
+      "surtitre": "Agriculture",
+      "accroche": "La terre et ses outils",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "accentSombre"
+    },
+    {
+      "cle": "a-donner",
+      "nom": "À donner",
+      "nom_categorie": "À donner",
+      "surtitre": "À donner",
+      "accroche": "Gratuit, à venir chercher",
+      "sous": "Entre particuliers, près de chez vous.",
+      "promesse": "Gratuit · sans commission",
+      "accent": "primaireClaire"
+    }
+  ],
+  "accueil": [
+    {
+      "cle": "accueil",
+      "surtitre": "Petites annonces CI",
+      "nom_categorie": "Accueil",
+      "accroche": "Vendez chap-chap, sans commission",
+      "sous": "29 annonces à Abidjan et alentour. Publiez la vôtre en 2 minutes.",
+      "promesse": "Votre numéro reste privé",
+      "accent": "primaire"
+    }
+  ]
+}

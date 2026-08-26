@@ -4165,3 +4165,18 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Remplacer la marque est une décision du Patron seul. Si adoption : v1.22 côté app (intégration
   par le Développement), zip côté site, icône de fiche dans la Play Console. Sans aucun impact sur
   l'examen en cours de la v1.21 ni sur le décompte des 14 jours.
+
+### 2026-08-26 — [Design → Développement] Le Patron adopte le logo « chap-chap » — bascule faite
+- Le Patron a tranché : le losange fendu remplace l'épingle. Le kit complet du bureau de design
+  (116 fichiers : logo + Flutter, visuels, vidéos muettes, fiche de marque) est versionné dans
+  `marque/` — source de vérité désormais.
+- **Site basculé dans le dépôt** : `Logo.tsx` (signe seul, mêmes composants Mark/Wordmark/Logo,
+  aucune page à toucher), splash de `index.html`, favicons, `apple-touch-icon`, icônes PWA
+  régénérées (`generate-icons.mjs` puise maintenant dans le kit au lieu de dessiner l'épingle).
+  `npm run build` OK. **Se verra en ligne au prochain zip.**
+- **App préparée (v1.22, code 23)** : icônes d'app remplacées, `flutter_native_splash` (clair/
+  sombre + Android 12) branché et relancé automatiquement par `preparer_plateformes.dart`,
+  `ecran_demarrage.dart` (deux moitiés qui se rejoignent, 620 ms) enchaîné avant l'accueil.
+  Deux adaptations au fichier du designer : luminosité lue sur le SYSTÈME (continuité avec le
+  splash natif), et polices Jakarta/Inter non nommées (l'app vit en Roboto — les nommer aurait
+  fait un repli silencieux). ⚠️ **Ne pas construire la v1.22 avant le verdict de la v1.21.**

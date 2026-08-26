@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api/api_client.dart';
 import 'api/push_natif.dart';
+import 'ecran_demarrage.dart';
 import 'favoris.dart';
 import 'i18n/langues.dart';
 import 'i18n/textes.dart';
@@ -69,8 +70,36 @@ class ChapApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const AccueilShell(),
+        home: const _Lancement(),
       ),
+    );
+  }
+}
+
+/// L'entrée de marque, puis l'accueil.
+///
+/// Le splash NATIF (flutter_native_splash, champ orange + signe immobile)
+/// couvre le chargement du moteur ; `EcranDemarrage` prend sa suite sans
+/// coupure — les deux moitiés du signe se rejoignent en 620 ms —, puis un
+/// fondu court laisse place à l'app. Total perçu : moins d'une seconde.
+class _Lancement extends StatefulWidget {
+  const _Lancement();
+  @override
+  State<_Lancement> createState() => _LancementState();
+}
+
+class _LancementState extends State<_Lancement> {
+  bool _fini = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 240),
+      child: _fini
+          ? const AccueilShell()
+          : EcranDemarrage(auTerme: () {
+              if (mounted) setState(() => _fini = true);
+            }),
     );
   }
 }

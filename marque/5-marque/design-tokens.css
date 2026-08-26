@@ -1,0 +1,180 @@
+/**
+ * Do not edit directly, this file was auto-generated.
+ */
+
+:root {
+  --couleur-marque-50: #f0f7f4; /** CMJN indicatif 3/0/1/3 */
+  --couleur-marque-100: #e0ede8; /** CMJN indicatif 5/0/2/7 */
+  --couleur-marque-200: #c7e0d6; /** CMJN indicatif 11/0/4/12 */
+  --couleur-marque-300: #a1cbbb; /** CMJN indicatif 21/0/8/20 */
+  --couleur-marque-400: #73ae99; /** CMJN indicatif 34/0/12/32 */
+  --couleur-marque-500: #529c84; /** CMJN indicatif 47/0/15/39 */
+  --couleur-marque-600: #3d8a72; /** CMJN indicatif 56/0/17/46 */
+  --couleur-marque-700: #2d735e; /** CMJN indicatif 61/0/18/55 */
+  --couleur-marque-800: #25604e; /** CMJN indicatif 61/0/19/62 */
+  --couleur-marque-900: #1b4d3e; /** CMJN indicatif 65/0/19/70 */
+  --couleur-marque-950: #082a20; /** CMJN indicatif 81/0/24/84 */
+  --couleur-accent-50: #fff2ee; /** CMJN indicatif 0/5/7/0 */
+  --couleur-accent-100: #ffe3d9; /** CMJN indicatif 0/11/15/0 */
+  --couleur-accent-200: #ffccb9; /** CMJN indicatif 0/20/27/0 */
+  --couleur-accent-300: #ffa786; /** CMJN indicatif 0/35/47/0 */
+  --couleur-accent-400: #f07949; /** CMJN indicatif 0/50/70/6 */
+  --couleur-accent-500: #e8590c; /** CMJN indicatif 0/62/95/9 */
+  --couleur-accent-600: #ca4a00; /** CMJN indicatif 0/63/100/21 */
+  --couleur-accent-700: #a93d00; /** CMJN indicatif 0/64/100/34 */
+  --couleur-accent-800: #8d3200; /** CMJN indicatif 0/65/100/45 */
+  --couleur-accent-900: #792900; /** CMJN indicatif 0/66/100/53 */
+  --couleur-accent-950: #411200; /** CMJN indicatif 0/72/100/75 */
+  --couleur-neutre-50: #f4f5f7; /** CMJN indicatif 1/1/0/3 */
+  --couleur-neutre-100: #e8eaed; /** CMJN indicatif 2/1/0/7 */
+  --couleur-neutre-200: #d5dade; /** CMJN indicatif 4/2/0/13 */
+  --couleur-neutre-300: #bac1c9; /** CMJN indicatif 7/4/0/21 */
+  --couleur-neutre-400: #97a1ab; /** CMJN indicatif 12/6/0/33 */
+  --couleur-neutre-500: #818d99; /** CMJN indicatif 16/8/0/40 */
+  --couleur-neutre-600: #707b87; /** CMJN indicatif 17/9/0/47 */
+  --couleur-neutre-700: #5b6570; /** CMJN indicatif 19/10/0/56 */
+  --couleur-neutre-800: #4c555e; /** CMJN indicatif 19/10/0/63 */
+  --couleur-neutre-900: #40474f; /** CMJN indicatif 19/10/0/69 */
+  --couleur-neutre-950: #1f2429; /** CMJN indicatif 24/12/0/84 */
+  --couleur-succes-50: #eff9ef; /** CMJN indicatif 4/0/4/2 */
+  --couleur-succes-100: #ddf0de; /** CMJN indicatif 8/0/7/6 */
+  --couleur-succes-200: #c1e4c3; /** CMJN indicatif 15/0/14/11 */
+  --couleur-succes-300: #97d29b; /** CMJN indicatif 28/0/26/18 */
+  --couleur-succes-400: #62b66b; /** CMJN indicatif 46/0/41/29 */
+  --couleur-succes-500: #2f9e44; /** CMJN indicatif 70/0/57/38 */
+  --couleur-succes-600: #179236; /** CMJN indicatif 84/0/63/43 */
+  --couleur-succes-700: #007a27; /** CMJN indicatif 100/0/68/52 */
+  --couleur-succes-800: #026620; /** CMJN indicatif 98/0/69/60 */
+  --couleur-succes-900: #04561a; /** CMJN indicatif 95/0/70/66 */
+  --couleur-succes-950: #002d09; /** CMJN indicatif 100/0/80/82 */
+  --couleur-attention-50: #fff3e9; /** CMJN indicatif 0/5/9/0 */
+  --couleur-attention-100: #fde5d0; /** CMJN indicatif 0/9/18/1 */
+  --couleur-attention-200: #fccfa8; /** CMJN indicatif 0/18/33/1 */
+  --couleur-attention-300: #f8ae6a; /** CMJN indicatif 0/30/57/3 */
+  --couleur-attention-400: #f08c00; /** CMJN indicatif 0/42/100/6 */
+  --couleur-attention-500: #c87400; /** CMJN indicatif 0/42/100/22 */
+  --couleur-attention-600: #af6500; /** CMJN indicatif 0/42/100/31 */
+  --couleur-attention-700: #925300; /** CMJN indicatif 0/43/100/43 */
+  --couleur-attention-800: #7a4500; /** CMJN indicatif 0/43/100/52 */
+  --couleur-attention-900: #683a00; /** CMJN indicatif 0/44/100/59 */
+  --couleur-attention-950: #371c00; /** CMJN indicatif 0/49/100/78 */
+  --couleur-erreur-50: #fff2f0; /** CMJN indicatif 0/5/6/0 */
+  --couleur-erreur-100: #ffe2de; /** CMJN indicatif 0/11/13/0 */
+  --couleur-erreur-200: #ffcbc4; /** CMJN indicatif 0/20/23/0 */
+  --couleur-erreur-300: #ffa59b; /** CMJN indicatif 0/35/39/0 */
+  --couleur-erreur-400: #f27369; /** CMJN indicatif 0/52/57/5 */
+  --couleur-erreur-500: #e84f48; /** CMJN indicatif 0/66/69/9 */
+  --couleur-erreur-600: #c92a2a; /** CMJN indicatif 0/79/79/21 */
+  --couleur-erreur-700: #b52525; /** CMJN indicatif 0/80/80/29 */
+  --couleur-erreur-800: #971f1e; /** CMJN indicatif 0/79/80/41 */
+  --couleur-erreur-900: #811a19; /** CMJN indicatif 0/80/81/49 */
+  --couleur-erreur-950: #490405; /** CMJN indicatif 0/95/93/71 */
+  --couleur-info-50: #eff6ff; /** CMJN indicatif 6/4/0/0 */
+  --couleur-info-100: #ddecfc; /** CMJN indicatif 12/6/0/1 */
+  --couleur-info-200: #c1dcfb; /** CMJN indicatif 23/12/0/2 */
+  --couleur-info-300: #97c5f8; /** CMJN indicatif 39/21/0/3 */
+  --couleur-info-400: #64a4e8; /** CMJN indicatif 57/29/0/9 */
+  --couleur-info-500: #3f8ee0; /** CMJN indicatif 72/37/0/12 */
+  --couleur-info-600: #1971c2; /** CMJN indicatif 87/42/0/24 */
+  --couleur-info-700: #1766af; /** CMJN indicatif 87/42/0/31 */
+  --couleur-info-800: #135593; /** CMJN indicatif 87/42/0/42 */
+  --couleur-info-900: #10487d; /** CMJN indicatif 87/42/0/51 */
+  --couleur-info-950: #002446; /** CMJN indicatif 100/49/0/73 */
+  --couleur-base-blanc: #ffffff;
+  --couleur-base-noir: #0b0d0e; /** Jamais #000 : un noir legerement teinte est plus doux a l ecran comme a l impression. */
+  --couleur-base-papier: #faf8f4; /** Blanc casse pour les fonds de document. */
+  --couleur-base-transparent: rgba(0, 0, 0, 0);
+  --espace-0: 0px;
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 16px;
+  --espace-5: 24px;
+  --espace-6: 32px;
+  --espace-7: 40px;
+  --espace-8: 48px;
+  --espace-9: 64px;
+  --espace-10: 80px;
+  --espace-11: 96px;
+  --espace-12: 128px;
+  --espace-13: 160px;
+  --espace-14: 192px;
+  --grille-colonnes-mobile: 4;
+  --grille-colonnes-tablette: 8;
+  --grille-colonnes-bureau: 12;
+  --grille-gouttiere-mobile: 16px;
+  --grille-gouttiere-tablette: 24px;
+  --grille-gouttiere-bureau: 32px;
+  --grille-marge-mobile: 20px;
+  --grille-marge-tablette: 40px;
+  --grille-marge-bureau: 80px;
+  --grille-conteneur: 1280px;
+  --grille-rupture-sm: 640px;
+  --grille-rupture-md: 768px;
+  --grille-rupture-lg: 1024px;
+  --grille-rupture-xl: 1280px;
+  --mouvement-duree-instantane: 80ms; /** Retour tactile — survol, pression. */
+  --mouvement-duree-rapide: 160ms; /** Micro-interaction — bascule, infobulle. */
+  --mouvement-duree-normale: 280ms; /** Transition standard — panneau, modale. */
+  --mouvement-duree-lente: 480ms; /** Changement de contexte — page, scene. */
+  --mouvement-duree-scene: 900ms; /** Entree de titre en motion design. */
+  --mouvement-courbe-sortie: cubic-bezier(0.16, 1, 0.3, 1); /** Demarre vite, s installe en douceur. Par defaut pour toute apparition. */
+  --mouvement-courbe-entree: cubic-bezier(0.7, 0, 0.84, 0); /** Accelere vers la sortie. Pour les disparitions. */
+  --mouvement-courbe-douce: cubic-bezier(0.65, 0, 0.35, 1); /** Symetrique. Pour les deplacements. */
+  --mouvement-courbe-ressort: cubic-bezier(0.34, 1.56, 0.64, 1); /** Leger depassement. A doser : au-dela de 2 elements simultanes, cela devient nerveux. */
+  --mouvement-courbe-lineaire: linear; /** Reserve aux rotations continues et aux barres de progression. */
+  --mouvement-decalage-court: 40ms; /** Decalage entre elements d une meme liste. */
+  --mouvement-decalage-moyen: 80ms;
+  --mouvement-decalage-long: 140ms;
+  --ombre-sm: 0 1px 2px rgba(11,13,14,0.06), 0 1px 1px rgba(11,13,14,0.04);
+  --ombre-md: 0 4px 12px rgba(11,13,14,0.08), 0 1px 3px rgba(11,13,14,0.06);
+  --ombre-lg: 0 12px 32px rgba(11,13,14,0.10), 0 2px 8px rgba(11,13,14,0.06);
+  --ombre-xl: 0 24px 64px rgba(11,13,14,0.14), 0 4px 16px rgba(11,13,14,0.08);
+  --rayon-aucun: 0;
+  --rayon-sm: 4px;
+  --rayon-md: 8px;
+  --rayon-lg: 16px;
+  --rayon-xl: 28px;
+  --rayon-rond: 9999px;
+  --typographie-famille-titre: 'Playfair Display', 'DejaVu Serif', Georgia, serif; /** Titrage — serif a fort contraste, pour les accroches. */
+  --typographie-famille-texte: 'Inter', 'DejaVu Sans', system-ui, sans-serif; /** Labeur — sans serif neutre, lisible en petit corps. */
+  --typographie-famille-mono: 'Fira Code', 'DejaVu Sans Mono', monospace; /** Chiffres, code, donnees techniques. */
+  --typographie-graisse-fine: 300;
+  --typographie-graisse-normale: 400;
+  --typographie-graisse-moyenne: 500;
+  --typographie-graisse-demi: 600;
+  --typographie-graisse-grasse: 700;
+  --typographie-graisse-noire: 900;
+  --typographie-corps-xs: 12.8px;
+  --typographie-corps-sm: 14.22px;
+  --typographie-corps-base: 16px;
+  --typographie-corps-lg: 20px;
+  --typographie-corps-xl: 25px;
+  --typographie-corps-2xl: 31.25px;
+  --typographie-corps-3xl: 39.06px;
+  --typographie-corps-4xl: 48.83px;
+  --typographie-corps-5xl: 61.04px;
+  --typographie-corps-6xl: 76.29px;
+  --typographie-corps-7xl: 95.37px;
+  --typographie-interlignage-serre: 1.1; /** Grands titres uniquement. */
+  --typographie-interlignage-titre: 1.25;
+  --typographie-interlignage-normal: 1.5; /** Texte courant — le minimum confortable. */
+  --typographie-interlignage-aere: 1.75; /** Colonnes larges, lecture longue. */
+  --typographie-interlettrage-serre: -0.02em; /** Compense l espacement excessif des grands corps. */
+  --typographie-interlettrage-normal: 0;
+  --typographie-interlettrage-large: 0.08em; /** Petites capitales, surtitres. */
+  --typographie-mesure-etroite: 45ch;
+  --typographie-mesure-ideale: 66ch; /** Longueur de ligne de reference en typographie. */
+  --typographie-mesure-large: 80ch;
+  --video-cadence-cinema: 24;
+  --video-cadence-diffusion: 25;
+  --video-cadence-web: 30;
+  --video-cadence-fluide: 60;
+  --video-sonie-youtube: -14;
+  --video-sonie-tiktok: -13;
+  --video-sonie-podcast: -16;
+  --video-sonie-diffusion: -23;
+  --video-securite-verticalhaut: 200px;
+  --video-securite-verticalbas: 480px;
+  --video-securite-lateral: 60px;
+}

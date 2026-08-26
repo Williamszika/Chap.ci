@@ -4,8 +4,9 @@ publish_to: "none"
 
 # La version affichée + le versionCode Android (après le +).
 # ⚠️ Le nombre après le + DOIT être supérieur au dernier versionCode téléversé
-#    sur le Play Store. Dernier téléversé : 21 (v1.20, en examen). Donc 22.
-version: 1.21.0+22
+#    sur le Play Store. Dernier téléversé : 22 (v1.21, envoyée à l'examen le
+#    26/08). Donc 23 — la v1.22, celle du nouveau logo « chap-chap ».
+version: 1.22.0+23
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -51,6 +52,11 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   # Génère l'icône de lancement Android à partir du logo Chap.ci.
   flutter_launcher_icons: ^0.14.1
+  # Écran de démarrage natif (champ orange, signe « chap-chap », variantes
+  # sombres et Android 12+) — configuré par flutter_native_splash.yaml, copié
+  # dans android/ et ios/ par `dart run flutter_native_splash:create`, que
+  # tool/preparer_plateformes.dart relance après chaque régénération.
+  flutter_native_splash: ^2.4.4
 
 # Icône de lancement — lancée par `tool/preparer_android.dart` (ou
 # `dart run flutter_launcher_icons`) après la génération du dossier android/.

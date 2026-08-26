@@ -47,6 +47,13 @@ void main() {
   _etape('Génération des icônes de lancement…');
   _executer('dart', ['run', 'flutter_launcher_icons']);
 
+  // Écran de démarrage natif (flutter_native_splash.yaml, images dans
+  // assets/marque/splash/). Le paquet COPIE les images dans android/ et ios/,
+  // il ne les lit pas au démarrage : il doit donc repasser après chaque
+  // régénération des dossiers — c'est ici que l'oubli devient impossible.
+  _etape('Écran de démarrage natif (flutter_native_splash)…');
+  _executer('dart', ['run', 'flutter_native_splash:create']);
+
   _rappels();
 }
 
@@ -159,9 +166,9 @@ void _rappels() {
   stdout.writeln('     choisissez votre équipe (Team) — le bundle est déjà ci.chap.app.');
   stdout.writeln('  2. flutter build ipa   (puis Transporter / Xcode vers App Store Connect)');
 
-  stdout.writeln('\nversionCode : il DOIT dépasser le dernier publié (20 pour la v1.19).');
-  stdout.writeln('  Réglé dans pubspec.yaml (champ « version »). Mettez ensuite à jour');
-  stdout.writeln('  store/APP-VERSIONS.md.');
+  stdout.writeln('\nversionCode : il DOIT dépasser le dernier téléversé sur le Play Store');
+  stdout.writeln('  (voir store/APP-VERSIONS.md, qui fait foi). Réglé dans pubspec.yaml');
+  stdout.writeln('  (champ « version »). Mettez ensuite à jour store/APP-VERSIONS.md.');
 }
 
 // ─────────────────────────── Gabarits / texte ───────────────────────────────
