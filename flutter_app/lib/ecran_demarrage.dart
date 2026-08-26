@@ -131,7 +131,13 @@ class _EcranDemarrageState extends State<EcranDemarrage>
       curve: const Interval(0.42, 1, curve: Curves.easeOut),
     );
 
-    _controleur.forward().then((_) => widget.auTerme?.call());
+    // Une fois les moitiés rejointes, le signe TIENT un instant avant de
+    // laisser place à l'accueil — demande du Patron (26/08) : « que cela dure
+    // un peu, juste un peu ». 750 ms : le temps de le voir, pas d'attendre.
+    _controleur.forward().then((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 750));
+      if (mounted) widget.auTerme?.call();
+    });
   }
 
   @override
