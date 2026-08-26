@@ -422,7 +422,7 @@ function Registre({ titre, sous, lignes, cats, ventil, total, clos, onSupprimer,
         <div className="divide-y divide-line">
           {lignes.map((l) => (
             <div key={l.id} className="flex items-start gap-2.5 px-4 py-2.5">
-              <span className="tnum mt-0.5 w-6 shrink-0 text-right text-[12px] font-bold text-gray-400">{l.numero}</span>
+              <span className="tnum mt-0.5 w-6 shrink-0 text-right text-[12px] font-bold text-gray-500">{l.numero}</span>
               {/* Le pointage : « je l'ai retrouvée sur le relevé de
                   l'opérateur ». Une ligne non pointée n'est pas douteuse —
                   elle n'a simplement pas encore été vérifiée. */}
@@ -463,7 +463,7 @@ function Registre({ titre, sous, lignes, cats, ventil, total, clos, onSupprimer,
                 <button
                   onClick={() => onSupprimer(l)}
                   aria-label={`Supprimer ${l.libelle}`}
-                  className="mt-0.5 shrink-0 rounded-lg p-1 text-gray-400 transition md:hover:bg-red-50 md:hover:text-red-600"
+                  className="mt-0.5 shrink-0 rounded-lg p-1 text-gray-500 transition md:hover:bg-red-50 md:hover:text-red-600"
                 >
                   <Trash2 size={14} />
                 </button>

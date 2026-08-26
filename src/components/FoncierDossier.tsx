@@ -64,7 +64,7 @@ export function FoncierDossier({ attributes }: { attributes: Record<string, stri
 
       {/* 2 — ce qu'il faut vérifier, d'après ce que le vendeur a déclaré */}
       <div className="rounded-2xl border border-line bg-white p-4">
-        <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-gray-400">
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-gray-500">
           Avant de payer, vérifiez
         </p>
         <ul className="mt-2.5 space-y-2.5">
@@ -94,7 +94,7 @@ export function FoncierDossier({ attributes }: { attributes: Record<string, stri
           Comprendre les documents fonciers
           <ChevronDown
             size={17}
-            className={`ml-auto shrink-0 text-gray-400 transition-transform duration-200 ${ouvert ? 'rotate-180' : ''}`}
+            className={`ml-auto shrink-0 text-gray-500 transition-transform duration-200 ${ouvert ? 'rotate-180' : ''}`}
           />
         </button>
 
@@ -172,7 +172,7 @@ export function FoncierDossier({ attributes }: { attributes: Record<string, stri
                     <b className="block text-[13.5px] font-bold text-gray-900">{l.titre}</b>
                     <small className="mt-0.5 block text-[12px] leading-relaxed text-gray-500">{l.texte}</small>
                   </span>
-                  <ExternalLink size={16} className="shrink-0 text-gray-400" />
+                  <ExternalLink size={16} className="shrink-0 text-gray-500" />
                 </a>
               ))}
             </div>

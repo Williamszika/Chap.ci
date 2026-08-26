@@ -132,9 +132,11 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 **Ce qu'elle apportera — le rebranding « chap-chap »** : le losange fendu remplace l'épingle
 partout — icône d'application (champ orange, signe encre, contraste 6,62:1 conforme AA),
 splash natif clair/sombre + variantes Android 12 (`flutter_native_splash`, relancé
-automatiquement par `tool/preparer_plateformes.dart`), et entrée animée : les deux moitiés
-du signe se rejoignent en 620 ms (`lib/ecran_demarrage.dart`), suivies d'un fondu vers
-l'accueil. Le site bascule en même temps (composant `Logo.tsx`, favicons, icônes PWA,
+automatiquement par `tool/preparer_plateformes.dart`), et l'entrée « la croisée », choisie par le Patron sur aperçu animé
+(`lib/ecran_demarrage.dart`) : les deux bords arrivent des côtés opposés et se croisent,
+une lumière jaillit à la rencontre, une couleur coule et écrit le nom, tout bat une seule
+fois — 1,8 s, puis fondu vers l'accueil. Le signe est aussi posé dans l'en-tête de
+l'accueil (widget `SigneChap`). Le site bascule en même temps (composant `Logo.tsx`, favicons, icônes PWA,
 splash de `index.html`) — kit de marque complet versionné dans `marque/`.
 
 ## v1.21 — versionCode 22

@@ -4189,3 +4189,22 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Décision du Patron : on laisse tomber cette refonte.** Le site et l'app gardent leur design
   actuel ; seul le logo « chap-chap » change (bascule déjà faite et committée le 26/08).
   Ne pas rouvrir ce chantier sans une nouvelle demande explicite du Patron.
+
+### 2026-08-26 (soir) — [Développement] L'écran de démarrage trouve sa forme : « la croisée »
+- Trois itérations avec le Patron, à chaque fois sur aperçu animé (GIF fabriqué image par
+  image depuis la vraie géométrie) : ① jonction simple + tenue de 750 ms (« trop rapide ») ;
+  ② « deux battements chap-chap » — appliquée puis **rejetée** au vu sur téléphone ;
+  ③ **« la croisée »**, décrite par le Patron lui-même et **validée** : les bords arrivent des
+  côtés opposés et se croisent, lumière à la rencontre, une couleur coule et écrit le nom,
+  un seul battement de l'ensemble, l'app s'ouvre. Partition 1,8 s, mode sombre compris.
+- Au passage : le signe est entré DANS l'app (en-tête de l'accueil, widget `SigneChap`,
+  même tracé peint). Fiche v1.22 du registre mise à jour en conséquence.
+- Méthode retenue pour la suite : sur l'animation, TOUJOURS montrer un aperçu animé avant
+  de coder — les mots ne suffisent pas, et un GIF coûte cinq minutes.
+
+### 2026-08-26 (soir) — [Développement] Lot de contraste suggéré par l'Atelier : fait
+- `FoncierDossier.tsx` (5 signalés) : 3 corrigés en `text-gray-500` — libellé de section
+  (10,5 px), chevron d'une rangée cliquable, icône de lien externe. Les 2 icônes ℹ️ posées
+  à côté d'un texte lisible restent en 400 : décor pur, doctrine Atelier du 25/08.
+- `ComptabiliteTab.tsx` (2 signalés) : 2 corrigés — le numéro d'écriture (une donnée) et le
+  bouton supprimer (une commande). `npm run build` OK. Partiront avec le prochain zip.
