@@ -157,6 +157,31 @@ export async function fetchAdminListings(): Promise<AdminListing[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminListings<AdminListing[]>()
 }
+
+/** Une demande de compte professionnel (Tableau de bord → Demandes Pro). */
+export interface AdminProDemande {
+  userId: string
+  email: string
+  nom: string | null
+  status: 'en_attente' | 'approuve' | 'refuse'
+  type: string
+  proNom: string
+  numero: string | null
+  secteur: string | null
+  tel: string | null
+  demandeAt: number | null
+  decideAt: number | null
+  motif: string | null
+}
+export async function fetchAdminPro(): Promise<AdminProDemande[]> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  const d = await php.phpAdminPro<{ demandes: AdminProDemande[] }>()
+  return d.demandes ?? []
+}
+export async function deciderPro(userId: string, action: 'approuver' | 'refuser', motif = ''): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  await php.phpAdminProDecider(userId, action, motif)
+}
 export async function deleteAdminListing(id: string, motif = ''): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminDeleteListing(id, motif)

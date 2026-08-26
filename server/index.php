@@ -6993,16 +6993,39 @@ try {
                    WHERE id = ?')
         ->execute(['en_attente', $type, $nom, $numero, $secteur, $tel, now_iso(), $u['id']]);
     log_security_event($pdo, 'pro_demande', $u['email'] ?? null, $type);
-    // Prévenir le Patron — best-effort : le dossier est en base quoi qu'il arrive.
+    // Prévenir l'ÉQUIPE — best-effort : le dossier est en base quoi qu'il
+    // arrive. L'équipe = le Patron (owner_emails) + les modérateurs qui ont la
+    // permission « users » (ce sont eux qui peuvent décider — même porte que
+    // admin_feature_for_path('admin/pro')). Chacun reçoit l'e-mail ET, s'il a
+    // un compte sur le site, la notification (cloche du site, cloche de
+    // l'app, push) via notify().
     try {
+      $equipe = owner_emails($config);
+      try {
+        foreach ($pdo->query('SELECT email, permissions, blocked FROM admins')->fetchAll() as $a) {
+          if ((int) ($a['blocked'] ?? 0) === 1) continue;
+          $perms = json_decode((string) ($a['permissions'] ?? '[]'), true) ?: [];
+          if (in_array('users', $perms, true)) $equipe[] = strtolower(trim((string) $a['email']));
+        }
+      } catch (Throwable $e) { /* table admins absente : le Patron suffit */ }
+      $equipe = array_values(array_unique(array_filter($equipe)));
+
       $inner = '<h2 style="margin-top:0">Nouvelle demande de compte Pro</h2>'
         . '<p><b>' . htmlspecialchars($nom) . '</b> (' . htmlspecialchars($type) . ')<br>'
         . 'Numéro : ' . htmlspecialchars($numero !== '' ? $numero : '— non fourni —') . '<br>'
         . 'Compte : ' . htmlspecialchars((string) ($u['email'] ?? '')) . '</p>'
         . '<p>À valider dans le tableau de bord → Demandes Pro (vérifiez le RCCM sur rccm.ohada.org).</p>';
-      foreach (owner_emails($config) as $to) {
+      $stEquipe = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1');
+      foreach ($equipe as $to) {
         send_mail($config, $to, 'Chap.ci — demande de compte Pro : ' . $nom,
                   email_layout($config, $inner, 'Demande de compte professionnel'));
+        $stEquipe->execute([$to]);
+        $idEquipe = (string) ($stEquipe->fetchColumn() ?: '');
+        if ($idEquipe !== '' && $idEquipe !== (string) $u['id']) {
+          notify($pdo, $idEquipe, 'pro_demande', 'Demande de compte Pro 💼',
+                 $nom . ' (' . $type . ') attend votre décision — Tableau de bord → Demandes Pro.',
+                 '#/admin');
+        }
       }
     } catch (Throwable $e) { /* l'e-mail peut rater, le dossier est déposé */ }
     jout(['ok' => true, 'status' => 'en_attente']);
@@ -8015,6 +8038,18 @@ try {
         }
         send_mail($config, (string) $cible['email'], $sujet, email_layout($config, $inner, $sujet));
       } catch (Throwable $e) { /* décision enregistrée quoi qu'il arrive */ }
+      // Et la cloche (site + app + push) — l'écran « Devenir professionnel »
+      // promet une réponse « par e-mail et dans l'application » : la voici.
+      try {
+        if ($statut === 'approuve') {
+          notify($pdo, $userId, 'pro_decision', 'Votre compte est professionnel 🎉',
+                 'Le badge PRO apparaît maintenant sur vos annonces et votre page vendeur.', '');
+        } else {
+          notify($pdo, $userId, 'pro_decision', 'Votre demande de compte Pro',
+                 'Demande refusée' . ($motif !== '' ? ' — ' . $motif : '')
+                 . '. Vous pouvez corriger votre dossier et redéposer.', '');
+        }
+      } catch (Throwable $e) { /* la décision est enregistrée quoi qu'il arrive */ }
       jout(['ok' => true, 'status' => $statut]);
     }
 

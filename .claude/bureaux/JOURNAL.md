@@ -4208,3 +4208,19 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   à côté d'un texte lisible restent en 400 : décor pur, doctrine Atelier du 25/08.
 - `ComptabiliteTab.tsx` (2 signalés) : 2 corrigés — le numéro d'écriture (une donnée) et le
   bouton supprimer (une commande). `npm run build` OK. Partiront avec le prochain zip.
+
+### 2026-08-26 (soir) — [Développement] Demandes Pro : onglet sur le SITE + notifications d'équipe
+- Le Patron a déposé un dossier Pro de test depuis l'app et constaté que le tableau de bord
+  admin DU SITE n'avait pas l'écran de décision (il n'existait que dans l'app). Corrigé :
+  **onglet « Demandes Pro »** dans AdminDashboard (visible du propriétaire et des modérateurs
+  ayant la permission `users` — la même porte que la route serveur), liste en-attente d'abord,
+  Approuver / Refuser avec motif, rappel RCCM.
+- **Notifications à l'équipe** : `POST /pro/demande` envoie désormais l'e-mail au Patron ET aux
+  modérateurs habilités `users` (non bloqués), et pose pour chacun la cloche `notify()` — donc
+  site, app et push d'un coup. **Notification au demandeur** : `admin/pro/decider` pose la
+  cloche 🎉 (ou le refus motivé) en plus de l'e-mail existant — l'écran « Devenir
+  professionnel » promettait une réponse « par e-mail et dans l'application », c'est tenu.
+- **Banc SQLite E2E vert, portes réelles comprises** : 4 comptes, 2 modérateurs (un habilité,
+  un non), dépôt → cloches Patron + modérateur habilité SEULEMENT ; déverrouillage admin par
+  OTP réel (fichier `.admin_otp`), décision → statut `approuve` + cloche au demandeur.
+  `php -l` OK, `npm run build` OK. Banc local arrêté, rien n'a touché la production.

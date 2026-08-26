@@ -25,6 +25,7 @@ import {
   type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview,
   fetchInvites, envoyerInvitations, type ListeInvites,
   fetchGeo, type GeoStats, type GeoRange,
+  fetchAdminPro, deciderPro, type AdminProDemande,
 } from '../lib/admin'
 import { ouvrirFil } from '../lib/equipe'
 import {
@@ -43,7 +44,7 @@ import { AdTextControls } from '../components/AdTextControls'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
+type Tab = 'overview' | 'listings' | 'users' | 'pro' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -136,7 +137,7 @@ export function AdminDashboard() {
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['comptabilite','Comptabilité'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'comptabilite' ? role.owner : canSee(id))).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['pro','Demandes Pro'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['comptabilite','Comptabilité'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'comptabilite' ? role.owner : id === 'pro' ? canSee('users') : canSee(id))).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -164,6 +165,7 @@ export function AdminDashboard() {
         {tab === 'visitors' && <VisitorsTab />}
         {tab === 'listings' && <ListingsTab />}
         {tab === 'users' && <UsersTab />}
+        {tab === 'pro' && <ProTab />}
         {tab === 'reports' && <ReportsTab onChanged={refreshStats} />}
         {tab === 'contact' && <ContactTab onChanged={refreshStats} />}
         {tab === 'ads' && <AdsTab onChanged={refreshStats} />}
@@ -1499,6 +1501,113 @@ function Presence({ enLigne, vuIlYA, compact }: { enLigne?: boolean; vuIlYA?: nu
       <span className="h-2 w-2 rounded-full bg-gray-300" />
       Vu {quand}
     </span>
+  )
+}
+
+/* ---- Demandes de comptes professionnels --------------------------------- */
+
+/** Libellés des types d'organisation — mêmes identifiants que l'application. */
+const PRO_TYPES: Record<string, string> = {
+  boutique: '🏪 Boutique / Commerce', commerce: '🏪 Boutique / Commerce',
+  vehicules: '🚗 Auto-moto / Garage', immobilier: '🏠 Agence immobilière',
+  services: '🛠️ Artisan / Prestataire de services', formation: '🎓 École / Centre de formation',
+  emploi: '🏢 Employeur / Recruteur', voyage: '✈️ Agence de voyage',
+  agro: '🌾 Producteur / Agro-élevage', sante: '💊 Santé & Bien-être',
+  association: '❤️ Association / ONG',
+}
+
+function ProTab() {
+  const [items, setItems] = useState<AdminProDemande[] | null>(null)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState<string | null>(null)
+  const load = () => { setItems(null); setErr(''); fetchAdminPro().then(setItems).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+
+  const decider = async (d: AdminProDemande, action: 'approuver' | 'refuser') => {
+    let motif = ''
+    if (action === 'refuser') {
+      const m = prompt(
+        `Pourquoi refuser « ${d.proNom} » ?\n\n`
+        + 'Ce texte part au demandeur : écrivez-le comme vous le lui diriez.\n'
+        + 'Ex. : numéro RCCM introuvable au registre.',
+        '',
+      )
+      if (m === null) return
+      motif = m.trim()
+    }
+    setBusy(d.userId)
+    try { await deciderPro(d.userId, action, motif); load() }
+    catch (e) { alert((e as Error).message) }
+    finally { setBusy(null) }
+  }
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500 shadow-card">
+        Aucune demande de compte professionnel pour le moment.
+      </div>
+    )
+  }
+
+  const enAttente = items.filter((d) => d.status === 'en_attente').length
+  return (
+    <div className="space-y-2">
+      <p className="px-1 text-xs text-gray-500">
+        {enAttente > 0
+          ? `${enAttente} demande${enAttente > 1 ? 's' : ''} en attente — pour un commerce, vérifiez le numéro RCCM sur rccm.ohada.org avant d'approuver.`
+          : 'Toutes les demandes sont traitées.'}
+      </p>
+      {items.map((d) => {
+        const attente = d.status === 'en_attente'
+        return (
+          <div
+            key={d.userId}
+            className={`rounded-2xl bg-white p-4 shadow-card ${attente ? 'border-2 border-primary-400' : 'border border-line2'}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-display text-[15px] font-bold text-ink">{d.proNom}</p>
+                <p className="mt-0.5 text-xs text-gray-600">{PRO_TYPES[d.type] ?? d.type}</p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
+                attente ? 'bg-primary-100 text-primary-800'
+                  : d.status === 'approuve' ? 'bg-ivoire-green/15 text-ivoire-green' : 'bg-red-50 text-red-700'
+              }`}>
+                {attente ? 'En attente' : d.status === 'approuve' ? 'Approuvée' : 'Refusée'}
+              </span>
+            </div>
+            <div className="mt-2 grid gap-x-4 gap-y-1 text-[12.5px] text-gray-700 sm:grid-cols-2">
+              <p><span className="text-gray-500">Compte :</span> {d.nom ?? '—'} · {d.email}</p>
+              <p><span className="text-gray-500">Numéro officiel :</span> {d.numero ?? '— non fourni —'}</p>
+              {d.secteur && <p><span className="text-gray-500">Secteur :</span> {d.secteur}</p>}
+              {d.tel && <p><span className="text-gray-500">Téléphone :</span> {d.tel}</p>}
+              {d.demandeAt != null && <p><span className="text-gray-500">Déposée :</span> {timeAgo(d.demandeAt)}</p>}
+              {d.motif && <p><span className="text-gray-500">Motif du refus :</span> {d.motif}</p>}
+            </div>
+            {attente && (
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => decider(d, 'approuver')}
+                  disabled={busy === d.userId}
+                  className="flex-1 rounded-xl bg-ivoire-green py-2 text-sm font-bold text-white transition hover:brightness-105 disabled:opacity-50"
+                >
+                  {busy === d.userId ? '…' : 'Approuver'}
+                </button>
+                <button
+                  onClick={() => decider(d, 'refuser')}
+                  disabled={busy === d.userId}
+                  className="flex-1 rounded-xl border border-red-200 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                >
+                  Refuser
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

@@ -652,6 +652,12 @@ export async function phpAdminUsers<T>(): Promise<T> {
 export async function phpAdminListings<T>(): Promise<T> {
   return req<T>('/admin/listings')
 }
+export async function phpAdminPro<T>(): Promise<T> {
+  return req<T>('/admin/pro')
+}
+export async function phpAdminProDecider(userId: string, action: 'approuver' | 'refuser', motif = ''): Promise<void> {
+  await req('/admin/pro/decider', { method: 'POST', body: { userId, action, motif } })
+}
 export async function phpAdminDeleteListing(id: string, motif = ''): Promise<void> {
   await req(`/admin/listings/${id}`, { method: 'DELETE', body: { motif } })
 }
