@@ -4261,3 +4261,11 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Compte l'affiche en tête pour les comptes approuvés — même panneau, action « Mes
   annonces » masquée à cet endroit (le menu l'a déjà). Détection par `/pro/statut`,
   best-effort ; les comptes ordinaires ne voient rien. `npm run build` OK.
+
+### 2026-08-26 (nuit) — [Livraison] Les trois zips du soir extraits, production au niveau du dépôt
+- Le Patron a téléversé et extrait successivement `chapcidemandespro.zip` (17:34),
+  `chapciespacepro.zip` (18:00) puis `chapcicomptepro.zip` (18:18) — à chaque fois du premier
+  coup. Empreintes finales vérifiées au curl : API `6a4d6d5acf4f`, SEO `c57f0f1c6e55`, Site
+  `1d879677f334` = HEAD. En ligne ce soir : le logo « chap-chap », l'onglet et les fiches
+  Demandes Pro (site + app), les cloches à lien direct, la page Devenir Pro du site, le
+  tableau de bord professionnel (page #/pro, page Compte du site, onglet Compte de l'app).
