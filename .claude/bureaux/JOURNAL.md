@@ -4180,3 +4180,12 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Deux adaptations au fichier du designer : luminosité lue sur le SYSTÈME (continuité avec le
   splash natif), et polices Jakarta/Inter non nommées (l'app vit en Roboto — les nommer aurait
   fait un repli silencieux). ⚠️ **Ne pas construire la v1.22 avant le verdict de la v1.21.**
+
+### 2026-08-26 — [Design] Refonte « landing crème » de l'accueil : explorée, NON RETENUE
+- Sur demande du Patron, aperçu d'une refonte de la page d'accueil du site dans le style de la
+  maquette du bureau de design (héros display, vitrine d'annonces, pastilles, bandeau vert de
+  confiance) — rendu avec les VRAIES annonces et photos de production, en trois vues (site
+  ordinateur, site téléphone, écran d'app). Fait entièrement hors dépôt (bac à sable).
+- **Décision du Patron : on laisse tomber cette refonte.** Le site et l'app gardent leur design
+  actuel ; seul le logo « chap-chap » change (bascule déjà faite et committée le 26/08).
+  Ne pas rouvrir ce chantier sans une nouvelle demande explicite du Patron.
