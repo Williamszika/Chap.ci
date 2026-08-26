@@ -4,6 +4,7 @@ import '../api/models.dart';
 import '../format.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../widgets/espace_pro_panel.dart';
 import 'listing_detail_screen.dart';
 import 'modifier_profil_screen.dart';
 import 'verifier_email_screen.dart';
@@ -131,15 +132,31 @@ class _MonCompteViewState extends State<MonCompteView> {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           _entete(),
-          FutureBuilder<List<Listing>>(
-            future: _annonces,
-            builder: (context, snap) {
-              final annonces = snap.data ?? const <Listing>[];
-              if (snap.connectionState == ConnectionState.done &&
-                  annonces.isNotEmpty) {
-                return _chiffres(annonces);
+          // Pour un compte PRO approuvé, l'onglet Compte devient l'espace
+          // professionnel : le tableau de bord de marque PREND LA PLACE des
+          // trois chiffres simples (demande du Patron, 26/08). Les annonces
+          // restent en dessous — c'est l'inventaire du professionnel. Le
+          // bouton Publier du panneau est masqué : l'onglet a déjà le sien.
+          FutureBuilder<Map<String, dynamic>>(
+            future: _infos,
+            builder: (context, infos) {
+              if (infos.data?['pro'] == true) {
+                return const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: EspaceProPanel(avecPublier: false),
+                );
               }
-              return const SizedBox.shrink();
+              return FutureBuilder<List<Listing>>(
+                future: _annonces,
+                builder: (context, snap) {
+                  final annonces = snap.data ?? const <Listing>[];
+                  if (snap.connectionState == ConnectionState.done &&
+                      annonces.isNotEmpty) {
+                    return _chiffres(annonces);
+                  }
+                  return const SizedBox.shrink();
+                },
+              );
             },
           ),
           Padding(

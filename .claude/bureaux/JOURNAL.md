@@ -4246,3 +4246,12 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Banc SQLite vert** : `/pro/tableau` rend le dossier + les chiffres pour l'approuvé et
   refuse le non-approuvé ; les cloches de demande portent le lien profond exact.
   `php -l` OK, `npm run build` OK.
+
+### 2026-08-26 (nuit) — [Développement] L'onglet « Mon compte » des comptes Pro devient l'espace professionnel
+- Demande du Patron (captures à l'appui) : pour un compte Pro approuvé, le tableau de bord
+  professionnel doit prendre la place de la vue simple de « Mon compte ». Fait : le panneau
+  est extrait dans `widgets/espace_pro_panel.dart` (auto-chargé sur `/pro/tableau`,
+  réutilisé par l'écran Devenir professionnel), et « Mon compte » l'affiche à la place des
+  trois chiffres simples quand `pro == approuve` — les annonces restent dessous (c'est
+  l'inventaire du professionnel), le bouton Publier du panneau est masqué (l'onglet a déjà
+  son bouton flottant). Les comptes ordinaires ne voient aucun changement.
