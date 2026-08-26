@@ -34,7 +34,13 @@ dependencies:
   # l'utilisateur ne part jamais dans un navigateur séparé.
   webview_flutter: ^4.7.0
   google_sign_in: ^6.2.1
-  flutter_web_auth_2: ^3.1.2
+  # Flux OAuth par le navigateur système (Facebook — code prêt, bouton en
+  # « bientôt »). La 3.x utilisait l'ancienne API Android « Registrar »,
+  # supprimée par les Flutter récents : elle a cassé le build de la v1.21 le
+  # 26/08/2026. La 5.x garde la même signature `authenticate(url:,
+  # callbackUrlScheme:)` et le même CallbackActivity/schéma `chapci` que pose
+  # tool/preparer_plateformes.dart — rien d'autre à changer.
+  flutter_web_auth_2: ^5.1.0
   # Glisser une conversation à gauche/droite pour révéler des actions
   # (épingler, archiver, bloquer, supprimer).
   flutter_slidable: ^3.1.0
