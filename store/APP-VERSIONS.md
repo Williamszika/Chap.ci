@@ -123,20 +123,30 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `936dcc1` — montée de version + `targetSdk 36`. Dernier commit touchant `flutter_app/` ; toutes les fonctionnalités et le correctif de sécurité ci-dessous y sont inclus. |
-| Date du build | **PAS ENCORE CONSTRUITE** — préparée le 24/08/2026 (verdict « construire » du bureau Livraison). |
+| **Commit** | `936dcc1` — montée de version (`1.21.0+22`) + `targetSdk 36`. Le build embarque tous les commits Flutter jusqu'à `04711d2` inclus (dernier touchant `flutter_app/` au moment du build : pages du site en 5 langues via `?lang=`). |
+| Date du build | **26 août 2026** — construction lancée par le Patron (procédure donnée par le Développement) ; poids à relever après le build. |
 | Poids de l'AAB | — (inconnu tant que non construite) |
 | **minSdk 22 · targetSdk 36** | signature d'import `chapci` — `CN=Chap.ci, OU=Mobile, O=Chap.ci, L=Abidjan, ST=Abidjan, C=CI`, SHA-1 `84:98:BB:44:AF:0E:22:2B:F5:3F:1E:6B:C0:D7:18:EF:0F:C8:F4:84` (même clé que la v1.20). |
 | État Play | **À CONSTRUIRE — PAS TÉLÉVERSÉE. NON VÉRIFIÉ.** ✅ **Gate levé le 24/08** : la v1.20 (code 21) a reçu son verdict et est **disponible pour les testeurs** (confirmé Play Console par le Patron) — déposer la v1.21 ne relance donc plus aucun examen en cours. Reste à construire (Patron, Android Studio + keystore) ; `targetSdk 36` déjà prêt pour l'échéance du 30/08. |
 
-**Ce qu'elle apporte depuis la v1.20** (14 commits Flutter accumulés depuis le 14/08) :
-défilement infini de l'accueil (adossé à la pagination serveur `/listings?limit=&offset=`) ;
-tri **« Près de moi »** ; messagerie **glissable** (épingler — 5 au maximum, fond foncé —
-archiver, bloquer, supprimer), **onglets au doigt**, en-tête de conversation cliquable vers
-le profil public ; **pages légales** (CGU, confidentialité, aide…) désormais DANS l'app ;
-et un **correctif de sécurité** : la vue web embarquée ne lance plus que les schémas de lien
-autorisés (`https`/`http`/`tel`/`mailto`/`sms`). Côté serveur (déjà en ligne, sans rapport
-avec ce build) : route `GET /listings/{id}` ajoutée, `/listings` paginé.
+**Ce qu'elle apporte depuis la v1.20** (commits Flutter du 14/08 au 25/08, jusqu'à `04711d2`) :
+
+- **Six langues** (français, anglais, espagnol, portugais, arabe, chinois) : toute l'app bascule
+  instantanément, catalogue des 16 catégories et 101 sous-catégories compris ; l'arabe passe en
+  droite-à-gauche. Les annonces elles-mêmes se traduisent dans l'app (bouton « Traduire »,
+  moteurs gratuits en relais côté serveur + cache — route `/traduire` déjà en ligne).
+- **Comptes professionnels** : demande PRO (10 types d'organisation, 59 secteurs propres),
+  suivi du dossier (en attente / approuvé / refusé + motif), badge 💼 PRO sur annonces et
+  profils, écran admin « Demandes Pro » (approuver / refuser, rappel RCCM).
+- **Écran Paramètres complet** : Mes favoris, Partager, Noter l'app, Langue, notifications,
+  e-mail / mot de passe / 2FA, zone sensible.
+- **Pages du site dans la langue choisie** : la vue web passe `?lang=` au site et les titres de
+  barre sont localisés (contenus traduits servis par le site depuis le déploiement du 25/08).
+- Défilement infini de l'accueil (pagination serveur `/listings?limit=&offset=`), tri « Près de
+  moi », messagerie glissable (épingler — 5 max —, archiver, bloquer, supprimer), onglets au
+  doigt, en-tête de conversation cliquable vers le profil public, pages légales dans l'app.
+- **Correctifs** : la vue web n'ouvre que les schémas `https/http/tel/mailto/sms` (sécurité) ;
+  cible tactile du bouton « Traduire » portée à 48×48 dp (accessibilité, verdict Atelier).
 
 > ⚠️ **`targetSdk` monté de 35 à 36** dans `tool/preparer_plateformes.dart` (qui le figeait
 > à 35) : Google refuse `targetSdk 35` pour tout dépôt **à partir du 31/08/2026**. C'est
