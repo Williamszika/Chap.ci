@@ -4255,3 +4255,9 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   trois chiffres simples quand `pro == approuve` — les annonces restent dessous (c'est
   l'inventaire du professionnel), le bouton Publier du panneau est masqué (l'onglet a déjà
   son bouton flottant). Les comptes ordinaires ne voient aucun changement.
+
+### 2026-08-26 (nuit) — [Développement] … et la page Compte du SITE aussi
+- Suite immédiate : « aussi sur le site ». `TableauPro` (page #/pro) est exporté et la page
+  Compte l'affiche en tête pour les comptes approuvés — même panneau, action « Mes
+  annonces » masquée à cet endroit (le menu l'a déjà). Détection par `/pro/statut`,
+  best-effort ; les comptes ordinaires ne voient rien. `npm run build` OK.

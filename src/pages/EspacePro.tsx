@@ -115,7 +115,10 @@ function Coquille({ children }: { children: React.ReactNode }) {
 
 /* ---- Le tableau de bord professionnel ------------------------------------ */
 
-function TableauPro() {
+/** Le tableau de bord professionnel — aussi affiché en tête de la page
+ *  Compte pour les comptes approuvés (`dansCompte` masque l'action « Mes
+ *  annonces », redondante à cet endroit). */
+export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [t, setT] = useState<Tableau | null>(null)
@@ -169,9 +172,11 @@ function TableauPro() {
             <Store size={18} /> Ma page vendeur
           </Link>
         )}
-        <Link to="/compte" className="btn-outline justify-center py-3 text-center">
-          <Package size={18} /> Mes annonces
-        </Link>
+        {!dansCompte && (
+          <Link to="/compte" className="btn-outline justify-center py-3 text-center">
+            <Package size={18} /> Mes annonces
+          </Link>
+        )}
       </div>
 
       <p className="px-1 text-xs leading-relaxed text-gray-500">

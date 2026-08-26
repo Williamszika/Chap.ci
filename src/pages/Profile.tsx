@@ -59,6 +59,8 @@ import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
 import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
 import { isPhp } from '../lib/backend'
+import { TableauPro } from './EspacePro'
+import { phpProStatut } from '../lib/php'
 import {
   phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs,
   phpPushDevices, phpPushUnsubscribe, phpPushTest, type PushAppareil,
@@ -87,6 +89,15 @@ export function Profile() {
 
   // Onglet initial : piloté par la navigation (menu « Mon compte » du desktop).
   const [tab, setTab] = useState<Tab>(() => ((location.state as { tab?: Tab } | null)?.tab) || 'accueil')
+  // Compte PRO approuvé ? Alors la page Compte s'ouvre sur l'espace
+  // professionnel (demande du Patron, 26/08) — les autres ne voient rien.
+  const [proApprouve, setProApprouve] = useState(false)
+  useEffect(() => {
+    if (!isPhp || !user) { setProApprouve(false); return }
+    phpProStatut<{ status?: string }>()
+      .then((s) => setProApprouve(s.status === 'approuve'))
+      .catch(() => setProApprouve(false))
+  }, [user])
   useEffect(() => {
     const t = (location.state as { tab?: Tab } | null)?.tab
     if (t) setTab(t)
@@ -230,6 +241,14 @@ export function Profile() {
               </span>
               <ChevronRight size={20} className="shrink-0" />
             </Link>
+          )}
+
+          {/* Le tableau de bord professionnel — en tête, pour les comptes
+              PRO approuvés uniquement (le même panneau que la page #/pro). */}
+          {proApprouve && (
+            <div className="mt-6">
+              <TableauPro dansCompte />
+            </div>
           )}
 
           {/* Mon activité */}
