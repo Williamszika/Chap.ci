@@ -4,8 +4,12 @@
 // densité d'écran sans jeu d'assets, et le tracé reste celui de la
 // construction — mêmes paramètres, mêmes proportions.
 //
-// Le glissement des deux moitiés est animé : elles arrivent écartées et se
-// rejoignent. C'est le nom qui joue, « chap-chap », vite vite.
+// L'animation est « LA CROISÉE », choisie par le Patron le 26/08 sur aperçu :
+// les deux bords arrivent chacun du côté opposé et SE CROISENT au centre, une
+// LUMIÈRE jaillit à la rencontre, une couleur COULE vers le bas et écrit le
+// nom puis la devise, TOUT BAT UNE SEULE FOIS, et l'app s'ouvre.
+
+import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
 
@@ -27,14 +31,31 @@ class _Signe {
 
   /// Rayon d'encombrement mesuré sur la construction : sert à caler l'échelle.
   static const rayonEncombrement = 32.39;
+
+  /// Course de la croisée : de combien (en unités de la grille) chaque moitié
+  /// part du côté opposé avant de traverser — 40 ≈ 92 px à la taille 148.
+  static const course = 40.0;
 }
 
 class SigneChapci extends CustomPainter {
   /// 0 = les deux moitiés au repos, 1 = écartées au maximum.
   final double ecartement;
+
+  /// La croisée : 0 = chaque moitié est DE L'AUTRE CÔTÉ (la gauche à droite,
+  /// la droite à gauche), 1 = posées. Entre les deux, elles se traversent.
+  final double croisee;
+
+  /// Opacité du signe (les moitiés naissent en tout début de course).
+  final double alpha;
+
   final Color couleur;
 
-  SigneChapci({this.ecartement = 0, required this.couleur});
+  SigneChapci({
+    this.ecartement = 0,
+    this.croisee = 1,
+    this.alpha = 1,
+    required this.couleur,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -46,7 +67,7 @@ class SigneChapci extends CustomPainter {
     canvas.scale(k);
 
     final peinture = Paint()
-      ..color = couleur
+      ..color = couleur.withValues(alpha: alpha.clamp(0, 1).toDouble())
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
@@ -77,7 +98,7 @@ class SigneChapci extends CustomPainter {
     final cy = c + sens * (_Signe.decalage + ecart * 0.55);
     final dos = pointeX - sens * r;
 
-    return Path()
+    final chemin = Path()
       ..moveTo(dos, cy - r)
       ..lineTo(pointeX, cy)
       ..lineTo(dos, cy + r)
@@ -85,11 +106,20 @@ class SigneChapci extends CustomPainter {
       ..lineTo(pointeX - sens * e * r2, cy)
       ..lineTo(dos - (sens * e) / r2, cy - r + e / r2)
       ..close();
+
+    // La croisée : chaque moitié part du CÔTÉ OPPOSÉ (d'où le -sens) et
+    // traverse l'axe en revenant chez elle, le long de la même diagonale
+    // que le glissement (0,55 de pente, comme le décalage).
+    final dx = -sens * (1 - croisee) * _Signe.course;
+    return chemin.shift(Offset(dx, dx * 0.55));
   }
 
   @override
   bool shouldRepaint(SigneChapci ancien) =>
-      ancien.ecartement != ecartement || ancien.couleur != couleur;
+      ancien.ecartement != ecartement ||
+      ancien.croisee != croisee ||
+      ancien.alpha != alpha ||
+      ancien.couleur != couleur;
 }
 
 /// Le signe seul, à poser dans l'interface (en-tête de l'accueil…).
@@ -122,23 +152,14 @@ class EcranDemarrage extends StatefulWidget {
 
 class _EcranDemarrageState extends State<EcranDemarrage>
     with SingleTickerProviderStateMixin {
-  // « L'entrée chap-chap » (validée par le Patron le 26/08, aperçu à l'appui).
-  //
-  // Le mot est doublé, l'animation aussi : le signe est déjà là, ENTIER —
-  // continuité parfaite avec le splash natif, fini le saut où il apparaissait
-  // coupé en deux — puis il BAT deux fois (écart bref, retour ferme), et le
-  // nom se pose en deux temps : « Chap », puis « .ci » qui répond.
-  //
-  // Partition sur 1 800 ms (le fondu vers l'accueil, 240 ms, est assuré par
-  // `_Lancement` dans main.dart une fois `auTerme` appelé) :
-  //   0 → 150     repos — le signe entier, immobile
-  //   150 → 400   battement 1 (écart 110 ms, retour 140 ms)
-  //   400 → 490   silence entre les deux temps
-  //   490 → 740   battement 2
-  //   620 → 880   « Chap » se pose (sortie rapide, freinée à l'arrivée)
-  //   730 → 990   « .ci » répond
-  //   880 → 1180  la devise s'éclaire
-  //   1180 → 1800 tenue — on regarde
+  // Partition de « la croisée », sur 1 800 ms (le fondu final vers l'accueil,
+  // 240 ms, est assuré par `_Lancement` dans main.dart via `auTerme`) :
+  //   90 → 520     les bords arrivent des côtés opposés et se croisent
+  //   210 → 730    la lumière jaillit à la rencontre, puis s'éteint
+  //   600 → 1160   la couleur coule : l'éclat descend le long du texte
+  //   640 → 1120   … et ÉCRIT le nom puis la devise, de haut en bas
+  //   1220 → 1560  tout bat UNE SEULE fois (signe + nom ensemble)
+  //   1560 → 1800  tenue brève, puis l'app s'ouvre
   static const int _dureeMs = 1800;
 
   // Les courbes fortes du studio : une entrée démarre vite (sortie franche),
@@ -146,15 +167,20 @@ class _EcranDemarrageState extends State<EcranDemarrage>
   static const Cubic _sortie = Cubic(0.23, 1, 0.32, 1);
   static const Cubic _dedans = Cubic(0.77, 0, 0.175, 1);
 
-  // Amplitude du battement : 4,6 unités de la grille 96, soit `0.37` sur
-  // l'échelle d'écartement du peintre (dont le 1 vaut rayon/2 = 12,5 unités).
-  static const double _amplitude = 0.37;
-
   late final AnimationController _controleur;
+  late final Animation<double> _croisee;
+  late final Animation<double> _lumiereOpacite;
+  late final Animation<double> _lumiereEchelle;
+  late final Animation<double> _fluxY;
+  late final Animation<double> _fluxOpacite;
+  late final Animation<double> _ecrit;
   late final Animation<double> _battement;
-  late final Animation<double> _poseChap;
-  late final Animation<double> _poseCi;
-  late final Animation<double> _deviseVisible;
+
+  Animation<double> _entre(int debutMs, int finMs, [Curve courbe = Curves.linear]) =>
+      CurvedAnimation(
+        parent: _controleur,
+        curve: Interval(debutMs / _dureeMs, finMs / _dureeMs, curve: courbe),
+      );
 
   @override
   void initState() {
@@ -165,42 +191,51 @@ class _EcranDemarrageState extends State<EcranDemarrage>
       duration: const Duration(milliseconds: _dureeMs),
     );
 
-    // Un battement = écart (courbe dedans) puis retour (sortie franche).
-    TweenSequenceItem<double> ecart() => TweenSequenceItem(
-          tween: Tween(begin: 0.0, end: _amplitude)
-              .chain(CurveTween(curve: _dedans)),
-          weight: 110,
-        );
-    TweenSequenceItem<double> retour() => TweenSequenceItem(
-          tween: Tween(begin: _amplitude, end: 0.0)
-              .chain(CurveTween(curve: _sortie)),
-          weight: 140,
-        );
-    TweenSequenceItem<double> repos(double ms) =>
-        TweenSequenceItem(tween: ConstantTween(0.0), weight: ms);
+    // 1. La croisée — sortie franche : la traversée est vive, l'arrivée
+    //    freinée. L'opacité naît sur les premiers 12 % de la course.
+    _croisee = _entre(90, 520, _sortie);
 
+    // 2. La lumière : monte vite (30 % du temps), s'éteint en grandissant.
+    _lumiereOpacite = TweenSequence<double>([
+      TweenSequenceItem(
+          tween: Tween(begin: 0.0, end: 0.95)
+              .chain(CurveTween(curve: Curves.easeOut)),
+          weight: 30),
+      TweenSequenceItem(
+          tween: Tween(begin: 0.95, end: 0.0)
+              .chain(CurveTween(curve: Curves.easeOut)),
+          weight: 70),
+    ]).animate(_entre(210, 730));
+    _lumiereEchelle = TweenSequence<double>([
+      TweenSequenceItem(
+          tween: Tween(begin: 0.55, end: 1.0)
+              .chain(CurveTween(curve: Curves.easeOut)),
+          weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.28), weight: 70),
+    ]).animate(_entre(210, 730));
+
+    // 3. La coulée : l'éclat descend de -6 à 96 (repère : haut du texte) et
+    //    s'évanouit en bas ; l'écriture suit le même mouvement « dedans ».
+    _fluxY = Tween<double>(begin: -6, end: 96).animate(_entre(600, 1160, _dedans));
+    _fluxOpacite = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.9), weight: 25),
+      TweenSequenceItem(tween: ConstantTween(0.85), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 0.85, end: 0.0), weight: 25),
+    ]).animate(_entre(600, 1160));
+    _ecrit = _entre(640, 1120, _dedans);
+
+    // 4. Tout bat une seule fois — signe et nom ensemble.
     _battement = TweenSequence<double>([
-      repos(150), // continuité avec le splash natif
-      ecart(), retour(), // chap…
-      repos(90),
-      ecart(), retour(), // …chap
-      repos(1060), // le signe tient, on regarde
-    ]).animate(_controleur);
+      TweenSequenceItem(
+          tween: Tween(begin: 1.0, end: 1.05).chain(CurveTween(curve: _dedans)),
+          weight: 42),
+      TweenSequenceItem(
+          tween: Tween(begin: 1.05, end: 1.0).chain(CurveTween(curve: _dedans)),
+          weight: 58),
+    ]).animate(_entre(1220, 1560));
 
-    Animation<double> pose(int debutMs, int finMs) => CurvedAnimation(
-          parent: _controleur,
-          curve: Interval(debutMs / _dureeMs, finMs / _dureeMs, curve: _sortie),
-        );
-    _poseChap = pose(620, 880);
-    _poseCi = pose(730, 990);
-    _deviseVisible = CurvedAnimation(
-      parent: _controleur,
-      curve: const Interval(880 / _dureeMs, 1180 / _dureeMs,
-          curve: Curves.easeOut),
-    );
-
-    // La tenue fait partie de la partition : au terme, l'accueil prend la
-    // suite par un fondu court (une sortie doit être plus vive qu'une entrée).
+    // 5. Et l'app s'ouvre : au terme, l'accueil prend la suite par un fondu
+    //    court (une sortie doit être plus vive qu'une entrée).
     _controleur.forward().then((_) {
       if (mounted) widget.auTerme?.call();
     });
@@ -224,79 +259,144 @@ class _EcranDemarrageState extends State<EcranDemarrage>
     final signe = sombre ? CouleursChap.orange : CouleursChap.encre;
     final nom = sombre ? CouleursChap.papier : CouleursChap.encre;
     final extension = sombre ? CouleursChap.orange : CouleursChap.papier;
+    const lumiere = CouleursChap.papier; // lumière chaude, sur les deux fonds
 
     return Scaffold(
       backgroundColor: fond,
       body: Center(
         child: AnimatedBuilder(
           animation: _controleur,
-          builder: (context, _) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 148,
-                height: 148,
-                child: CustomPaint(
-                  painter: SigneChapci(
-                    ecartement: _battement.value,
-                    couleur: signe,
+          builder: (context, _) => Transform.scale(
+            scale: _battement.value,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Le signe et sa lumière, superposés sans borner l'éclat.
+                SizedBox(
+                  width: 148,
+                  height: 148,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      Transform.scale(
+                        scale: _lumiereEchelle.value,
+                        child: Opacity(
+                          opacity: _lumiereOpacite.value.clamp(0, 1).toDouble(),
+                          child: Container(
+                            width: 228,
+                            height: 228,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(
+                                colors: [
+                                  lumiere,
+                                  Color(0x59FFFDF9), // papier à 35 %
+                                  Color(0x00FFFDF9),
+                                ],
+                                stops: [0, 0.34, 0.62],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      CustomPaint(
+                        size: const Size(148, 148),
+                        painter: SigneChapci(
+                          croisee: _croisee.value,
+                          alpha: min(1, _croisee.value / 0.12),
+                          couleur: signe,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              // Le nom en deux temps : « Chap » se pose, « .ci » répond —
-              // chaque moitié monte de 14 px en s'éclairant.
-              //
-              // L'app n'embarque pas Plus Jakarta Sans (elle vit en Roboto) :
-              // on garde la graisse et le resserrement du dessin, sans nommer
-              // une police absente — la nommer ferait un repli silencieux.
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  _mot('Chap', nom, _poseChap.value),
-                  _mot('.ci', extension, _poseCi.value),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Opacity(
-                opacity: _deviseVisible.value,
-                child: Text(
-                  'ACHETER · VENDRE · CHAP-CHAP',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                    letterSpacing: 2.4,
-                    color: nom.withValues(alpha: 0.68),
+                const SizedBox(height: 28),
+                // Le texte, écrit de haut en bas par la coulée : une fenêtre
+                // qui s'ouvre vers le bas, l'éclat voyageant sur son bord.
+                //
+                // L'app n'embarque pas Plus Jakarta Sans (elle vit en Roboto) :
+                // on garde la graisse et le resserrement du dessin, sans
+                // nommer une police absente — ce serait un repli silencieux.
+                SizedBox(
+                  width: 260,
+                  height: 80,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      ClipRect(
+                        clipper: _Revele(_ecrit.value),
+                        child: Column(
+                          children: [
+                            Text.rich(
+                              TextSpan(children: [
+                                TextSpan(
+                                    text: 'Chap',
+                                    style: TextStyle(color: nom)),
+                                TextSpan(
+                                    text: '.ci',
+                                    style: TextStyle(color: extension)),
+                              ]),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 44,
+                                letterSpacing: -1.6,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'ACHETER · VENDRE · CHAP-CHAP',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                                letterSpacing: 2.4,
+                                color: nom.withValues(alpha: 0.68),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // L'éclat qui coule et « écrit ».
+                      Transform.translate(
+                        offset: Offset(0, _fluxY.value),
+                        child: Opacity(
+                          opacity: _fluxOpacite.value.clamp(0, 1).toDouble(),
+                          child: Container(
+                            width: 190,
+                            height: 30,
+                            decoration: const BoxDecoration(
+                              gradient: RadialGradient(
+                                colors: [Color(0xD9FFFDF9), Color(0x00FFFDF9)],
+                                stops: [0, 0.68],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
 
-  /// Une moitié du nom : opacité et montée de 14 px pilotées par `avancee`
-  /// (0 = invisible en bas, 1 = posée).
-  Widget _mot(String texte, Color couleur, double avancee) {
-    return Opacity(
-      opacity: avancee,
-      child: Transform.translate(
-        offset: Offset(0, 14 * (1 - avancee)),
-        child: Text(
-          texte,
-          style: TextStyle(
-            color: couleur,
-            fontWeight: FontWeight.w800,
-            fontSize: 44,
-            letterSpacing: -1.6,
-            height: 1,
-          ),
-        ),
-      ),
-    );
-  }
+/// La fenêtre d'écriture : ne montre que la part haute du texte — `part` va
+/// de 0 (rien) à 1 (tout), avec 6 px de marge pour ne pas raser les jambages.
+class _Revele extends CustomClipper<Rect> {
+  final double part;
+  const _Revele(this.part);
+
+  @override
+  Rect getClip(Size size) => Rect.fromLTWH(
+      -10, 0, size.width + 20, part <= 0 ? 0 : size.height * part + 6);
+
+  @override
+  bool shouldReclip(_Revele ancien) => ancien.part != part;
 }
