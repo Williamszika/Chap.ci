@@ -4140,6 +4140,7 @@ const CRON_JOBS: { id: string; label: string; desc: string; query?: string; sche
   { id: 'activation-relance', label: 'Relance « publiez votre 1ʳᵉ annonce »', desc: 'Invite une seule fois, par e-mail, les inscrits sans aucune annonce (≥ 3 jours) à publier leur première.', schedule: 'Chaque jour à 12h', cronExpr: '0 12 * * *', maxAgeH: 26 },
   { id: 'alerts',         label: 'Alertes recherches',          desc: 'Prévient quand une annonce correspond à une recherche sauvegardée.',                            schedule: 'Toutes les 2 heures', cronExpr: '0 */2 * * *', maxAgeH: 4 },
   { id: 'review-invites', label: 'Invitations à noter',         desc: 'Invite l’acheteur à laisser un avis après une vente confirmée par le vendeur.',                 schedule: 'Chaque jour à 10h',   cronExpr: '0 10 * * *',  maxAgeH: 26 },
+  { id: 'rappels-pro',    label: 'Rappels du professionnel',    desc: 'Message sans réponse depuis 24 h · annonce qui ne bouge plus depuis 10 jours · bilan de la semaine, le lundi matin.', schedule: 'Chaque jour à 6h', cronExpr: '0 6 * * *', maxAgeH: 26 },
   { id: 'stats',          label: 'Statistiques hebdo',          desc: 'Agrégats anonymes d’activité (pour le rapport hebdomadaire).', query: '?days=7',                schedule: 'Lundi à 7h',          cronExpr: '0 7 * * 1',   maxAgeH: 192 },
   { id: 'report',         label: 'Rapport mensuel',             desc: 'Envoie à contact@chap.ci un récap activité + sécurité + santé de la base.',   query: '?days=30',  schedule: 'Le 1er du mois à 7h', cronExpr: '0 7 1 * *',   maxAgeH: 768 },
 ]
