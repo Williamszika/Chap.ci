@@ -37,6 +37,35 @@ const HORAIRES_DEFAUT: Horaire[] = [
   { ouvert: false, de: '', a: '' },
 ]
 
+/**
+ * Les heures d'ouverture proposées : de 6 h à 22 h, par demi-heures.
+ *
+ * On n'utilise PAS `<input type="time">`. Le navigateur y impose SON format —
+ * sur un téléphone réglé en anglais, un commerçant d'Abobo lisait « 08:00 AM »
+ * — et sa roulette d'horloge dépassait de la carte. Une liste écrite en
+ * français tient dans la ligne et se lit partout pareil.
+ */
+const HEURES: [string, string][] = (() => {
+  const out: [string, string][] = []
+  for (let m = 6 * 60; m <= 22 * 60; m += 30) {
+    const h = Math.floor(m / 60), r = m % 60
+    out.push([`${String(h).padStart(2, '0')}:${String(r).padStart(2, '0')}`,
+      r === 0 ? `${h} h` : `${h} h ${r}`])
+  }
+  return out
+})()
+
+function ChoixHeure({ valeur, onChange }: { valeur: string; onChange: (v: string) => void }) {
+  return (
+    <select value={valeur} onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg bg-cream-100 px-1.5 py-1 text-[12px] font-semibold text-ink outline-none">
+      {/* Une heure enregistrée hors de la liste (ancienne saisie) reste offerte. */}
+      {!HEURES.some(([v]) => v === valeur) && <option value={valeur}>{valeur}</option>}
+      {HEURES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </select>
+  )
+}
+
 /** Un champ encadré, étiquette en capitales — le dessin de toute la planche. */
 function Champ({ etiquette, aide, accent, children }: {
   etiquette: React.ReactNode; aide?: React.ReactNode; accent?: boolean; children: React.ReactNode
@@ -94,16 +123,20 @@ function Interrupteur({ titre, sous, actif, onChange }: {
  * sépare une enseigne d'un pseudonyme, et c'est lui qui fait écrire l'acheteur
  * qui hésite entre deux vendeurs.
  */
-export function FicheProEdit({ pro, banniere, logo, onEnregistre }: {
+export function FicheProEdit({ pro, commune: communeInitiale, banniere, logo, onEnregistre }: {
   pro: {
     nom: string; type: string; secteur: string; numero?: string; tel?: string
     description?: string; horaires?: Horaire[] | null
   }
+  /** La commune du profil : la planche la montre ici, à côté du téléphone. */
+  commune?: string
   banniere?: string
   logo?: string
   onEnregistre: () => void
 }) {
+  const { user } = useAuth()
   const toast = useToast()
+  const [commune, setCommune] = useState(communeInitiale ?? '')
   const [nom, setNom] = useState(pro.nom ?? '')
   const [type, setType] = useState(pro.type === 'commerce' ? 'boutique' : (pro.type ?? 'boutique'))
   const [secteur, setSecteur] = useState(pro.secteur ?? '')
@@ -136,6 +169,9 @@ export function FicheProEdit({ pro, banniere, logo, onEnregistre }: {
     setEnCours(true)
     try {
       await phpProFiche({ nom, type, secteur, numero, tel, description, horaires })
+      if (user && commune !== (communeInitiale ?? '')) {
+        await updateMyProfile(user.id, { commune })
+      }
       onEnregistre()
       toast.success('Votre fiche est à jour.')
     } catch (e) { toast.error((e as Error).message) }
@@ -201,10 +237,21 @@ export function FicheProEdit({ pro, banniere, logo, onEnregistre }: {
           placeholder="CI-ABJ-2026-B-…" className={SAISIE} />
       </Champ>
 
-      <Champ etiquette="Téléphone professionnel">
-        <input value={tel} onChange={(e) => setTel(e.target.value)} maxLength={20}
-          inputMode="tel" placeholder="07 00 00 00 00" className={SAISIE} />
-      </Champ>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Champ etiquette="Téléphone professionnel">
+          <input value={tel} onChange={(e) => setTel(e.target.value)} maxLength={20}
+            inputMode="tel" placeholder="07 00 00 00 00" className={SAISIE} />
+        </Champ>
+        {/* La commune vit dans le profil ; on l'édite aussi d'ici, parce que
+            c'est ici qu'un professionnel vient corriger sa fiche. */}
+        <Champ etiquette="Commune">
+          <select value={commune} onChange={(e) => setCommune(e.target.value)} className={`${SAISIE} font-semibold`}>
+            <option value="">— à choisir —</option>
+            {commune !== '' && !communesAbidjan.includes(commune) && <option value={commune}>{commune}</option>}
+            {communesAbidjan.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Champ>
+      </div>
 
       <Champ etiquette={<>Ce que vous faites <span className="text-gray-300">— 2 lignes</span></>}
         aide={`${description.length} / 300 caractères · cette phrase s’affiche en haut de votre page vendeur`}>
@@ -222,29 +269,30 @@ export function FicheProEdit({ pro, banniere, logo, onEnregistre }: {
           Affichés sur votre page vendeur — l’acheteur sait quand vous écrire.
         </p>
         <div className="mt-2.5 space-y-1.5">
-          {horaires.map((h, i) => (
-            <div key={JOURS[i]} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 ring-1 ring-line">
-              <button onClick={() => setHoraires((p) => p.map((x, j) => j === i ? { ...x, ouvert: !x.ouvert } : x))}
-                className={`w-[86px] shrink-0 text-left text-[12.5px] font-bold ${h.ouvert ? 'text-ink' : 'text-gray-400'}`}>
-                {JOURS[i]}
-              </button>
-              {h.ouvert ? (
-                <span className="flex flex-1 items-center gap-1.5">
-                  <input type="time" value={h.de || '08:00'}
-                    onChange={(e) => setHoraires((p) => p.map((x, j) => j === i ? { ...x, de: e.target.value } : x))}
-                    className="min-w-0 flex-1 rounded-lg bg-cream-100 px-2 py-1 text-[12px] text-ink outline-none" />
-                  <span className="text-gray-400">–</span>
-                  <input type="time" value={h.a || '18:00'}
-                    onChange={(e) => setHoraires((p) => p.map((x, j) => j === i ? { ...x, a: e.target.value } : x))}
-                    className="min-w-0 flex-1 rounded-lg bg-cream-100 px-2 py-1 text-[12px] text-ink outline-none" />
-                </span>
-              ) : (
-                <span className="flex-1 text-[12px] text-gray-400">fermé</span>
-              )}
-              <button onClick={() => setHoraires((p) => p.map((x, j) => j === i ? { ...x, ouvert: !x.ouvert } : x))}
-                className="shrink-0"><Bascule active={h.ouvert} /></button>
-            </div>
-          ))}
+          {horaires.map((h, i) => {
+            const poser = (champ: 'de' | 'a', v: string) =>
+              setHoraires((p) => p.map((x, j) => (j === i ? { ...x, [champ]: v } : x)))
+            const basculer = () =>
+              setHoraires((p) => p.map((x, j) => (j === i ? { ...x, ouvert: !x.ouvert } : x)))
+            return (
+              <div key={JOURS[i]} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 ring-1 ring-line">
+                <button onClick={basculer}
+                  className={`min-w-0 flex-1 truncate text-left text-[12.5px] font-bold ${h.ouvert ? 'text-ink' : 'text-gray-400'}`}>
+                  {JOURS[i]}
+                </button>
+                {h.ouvert ? (
+                  <span className="flex shrink-0 items-center gap-1">
+                    <ChoixHeure valeur={h.de || '08:00'} onChange={(v) => poser('de', v)} />
+                    <span className="text-gray-400">–</span>
+                    <ChoixHeure valeur={h.a || '18:00'} onChange={(v) => poser('a', v)} />
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[12px] text-gray-400">fermé</span>
+                )}
+                <button onClick={basculer} className="shrink-0"><Bascule active={h.ouvert} /></button>
+              </div>
+            )
+          })}
         </div>
       </div>
 

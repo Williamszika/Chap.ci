@@ -599,6 +599,7 @@ export function Profile() {
           proTableau ? (
             <FicheProEdit
               pro={proTableau.pro}
+              commune={proTableau.compte?.commune}
               banniere={proTableau.pro.banniere}
               logo={proTableau.pro.logo}
               onEnregistre={() => rechargerPro()}
