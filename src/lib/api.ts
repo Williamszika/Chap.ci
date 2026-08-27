@@ -53,6 +53,11 @@ export async function setListingHidden(id: string, hidden: boolean): Promise<voi
   return php.phpSetListingHidden(id, hidden)
 }
 
+/** Marquer vendue / remettre en vente (depuis « Mes annonces »). */
+export async function setListingSold(id: string, sold: boolean): Promise<void> {
+  return php.phpSetListingSold(id, sold)
+}
+
 /** Signaler une annonce. */
 export async function reportListing(listingId: string, reason: string, details: string): Promise<void> {
   return php.phpReportListing(listingId, reason, details)

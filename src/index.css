@@ -96,6 +96,10 @@ select:focus-visible,
 }
 
 @layer components {
+  /* Puce de filtre par état (« En ligne · 14 ») — Mes annonces, Commandes. */
+  .chip-etat {
+    @apply shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12px] font-bold transition active:scale-[0.97];
+  }
   /* Pastille de tendance du tableau de bord professionnel (« ▲ 18 % »). */
   .chip-delta {
     @apply inline-flex items-center gap-0.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-extrabold;

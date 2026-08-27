@@ -3,7 +3,6 @@ import { mediaUrl } from '../lib/native'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft,
-  PlusCircle,
   Heart,
   Trash2,
   ShoppingBag,
@@ -26,8 +25,6 @@ import {
   ChevronRight,
   Pencil,
   Eye,
-  EyeOff,
-  BadgeCheck,
   Bell,
   BellOff,
   Package,
@@ -42,9 +39,9 @@ import { Mark, Wordmark } from '../components/Logo'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { fetchVerifyStatus, sendEmailCode, confirmEmailCode, type VerifyStatus } from '../lib/verify'
 import { MyAdsPanel } from '../components/MyAdsPanel'
+import { MesAnnonces } from '../components/MesAnnonces'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
-import { activePromo } from '../lib/promo'
 import { useIsAdmin } from '../lib/useIsAdmin'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -57,7 +54,7 @@ import { categories } from '../data/categories'
 import { fetchOrders, updateOrderStatus } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
-import { fetchMyListings, setListingHidden, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
+import { fetchMyListings, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
 import { isPhp } from '../lib/backend'
 import { TableauPro } from './EspacePro'
 import { phpProStatut } from '../lib/php'
@@ -79,7 +76,7 @@ const statusLabel: Record<string, { label: string; cls: string }> = {
 
 export function Profile() {
   const navigate = useNavigate()
-  const { listings, deleteListing, resetDemo, isMine, favorites } = useApp()
+  const { listings, resetDemo, isMine, favorites } = useApp()
   const { user, enabled, signOut, refreshUser } = useAuth()
   const isAdmin = useIsAdmin()
   const { place } = useGeo()
@@ -135,7 +132,6 @@ export function Profile() {
   // Statistiques vendeur
   const salesDone = sales.filter((o) => o.status === 'finalise').length
   const shownSales = salesFilter === 'all' ? sales : sales.filter((o) => o.status === salesFilter)
-  const shownMine = annoncesFilter === 'promo' ? myListings.filter((l) => activePromo(l)) : myListings
   const revenue = sales
     .filter((o) => o.status === 'finalise')
     .reduce((sum, o) => sum + o.items.reduce((t, it) => t + it.price, 0), 0)
@@ -584,99 +580,12 @@ export function Profile() {
 
         {/* ANNONCES */}
         {tab === 'annonces' && (
-          <>
-            <button onClick={() => navigate('/publier')} className="btn-primary mb-3 w-full py-3">
-              <PlusCircle size={20} /> Publier une annonce
-            </button>
-            {annoncesFilter === 'promo' && (
-              <FilterNote label="En promotion" onClear={() => setAnnoncesFilter('all')} />
-            )}
-            {shownMine.length === 0 ? (
-              <Empty text={annoncesFilter === 'promo' ? 'Aucune annonce en promotion.' : 'Vous n’avez pas encore d’annonce.'} />
-            ) : (
-              <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2.5 lg:space-y-0">
-                {shownMine.map((l) => (
-                  <div key={l.id} className="card p-2.5">
-                    <div className="flex items-center gap-3">
-                      {/* Une annonce masquée n'a pas de fiche publique : le lien
-                          menait à « Annonce introuvable ». On envoie donc au
-                          formulaire, qui est de toute façon ce qu'il y a à
-                          faire. */}
-                      <Link to={l.hidden ? `/modifier/${l.id}` : `/annonce/${l.id}`} state={l.hidden ? { listing: l } : undefined} className="flex flex-1 items-center gap-3">
-                        <div className="relative">
-                          <img src={mediaUrl(l.images[0])} alt="" className={`h-16 w-16 rounded-xl object-cover ${l.hidden ? 'opacity-40' : ''}`} />
-                          {l.hidden && (
-                            <span className="absolute inset-0 grid place-items-center">
-                              <EyeOff size={18} className="text-gray-600" />
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-gray-900">{l.title}</p>
-                          <p className="text-sm font-bold text-primary-600">{priceLabel(l.price, l.negotiable)}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
-                            {l.sold ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-ivoire-green/15 px-2 py-0.5 font-semibold text-ivoire-green-dark">
-                                <BadgeCheck size={11} /> Vendue
-                              </span>
-                            ) : l.hidden ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-500">
-                                <EyeOff size={10} /> Masquée
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-ivoire-green/10 px-2 py-0.5 font-semibold text-ivoire-green-dark">
-                                <span className="h-1.5 w-1.5 rounded-full bg-ivoire-green" /> En ligne
-                              </span>
-                            )}
-                            <span className="inline-flex items-center gap-1 text-gray-500">
-                              <Eye size={12} /> {l.views ?? 0} vue{(l.views ?? 0) > 1 ? 's' : ''}
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    </div>
-                    {/* Masquée : on dit POURQUOI, et le bouton qui suit répare.
-                        Une annonce masquée sans explication est abandonnée. */}
-                    {l.hidden && l.hiddenReason && (
-                      <div className="mt-2 flex gap-2 rounded-xl border border-accent-ocre/30 bg-accent-ocre/8 p-2.5 text-[12px] leading-relaxed text-accent-ocre-dark">
-                        <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                        <p>{l.hiddenReason}</p>
-                      </div>
-                    )}
-                    <div className="mt-2 flex gap-1.5 border-t border-line pt-2">
-                      <button
-                        onClick={() => navigate(`/modifier/${l.id}`, { state: { listing: l } })}
-                        className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        <Pencil size={14} /> Modifier
-                      </button>
-                      {isPhp && (
-                        <button
-                          onClick={async () => {
-                            try { await setListingHidden(l.id, !l.hidden); await reloadMine.current() }
-                            catch { toast.error('Action impossible.') }
-                          }}
-                          className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                        >
-                          {l.hidden ? <><Eye size={14} /> Afficher</> : <><EyeOff size={14} /> Masquer</>}
-                        </button>
-                      )}
-                      <button
-                        onClick={async () => {
-                          if (!confirm('Supprimer définitivement cette annonce ?')) return
-                          try { await deleteListing(l.id); await reloadMine.current() }
-                          catch { toast.error('Suppression impossible : vous devez être le propriétaire connecté.') }
-                        }}
-                        className="flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium text-red-500 hover:bg-red-50"
-                      >
-                        <Trash2 size={14} /> Supprimer
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          <MesAnnonces
+            annonces={myListings}
+            onRecharger={() => reloadMine.current()}
+            filtreInitial={annoncesFilter}
+            onFiltreConsomme={() => setAnnoncesFilter('all')}
+          />
         )}
 
         {/* PARAMÈTRES */}

@@ -66,6 +66,10 @@ export interface Listing {
   sold?: boolean
   /** Nombre de vues (statistiques vendeur). */
   views?: number
+  /** Combien de personnes l'ont enregistrée (rendu par `listings/mine`). */
+  favoris?: number
+  /** Combien ont écrit au sujet de cette annonce (rendu par `listings/mine`). */
+  contacts?: number
 }
 
 export interface LocationFilter {

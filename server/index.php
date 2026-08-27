@@ -5533,9 +5533,51 @@ try {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
     $st->execute([$u['id']]);
+    $rows = $st->fetchAll();
+    // Les deux chiffres qui manquaient à « Mes annonces » : combien de
+    // personnes l'ont enregistrée, combien ont écrit. Un vendeur qui voit
+    // « 214 vues, 12 favoris, 0 contact » sait quoi corriger ; « 214 vues »
+    // tout seul ne dit rien. Best-effort : une base non migrée rend des zéros.
+    $fav = []; $conv = [];
+    $ids = array_column($rows, 'id');
+    if ($ids) {
+      $in = implode(',', array_fill(0, count($ids), '?'));
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM favorites
+                            WHERE listing_id IN ($in) GROUP BY listing_id");
+        $q->execute($ids);
+        foreach ($q->fetchAll() as $r) $fav[(string) $r['listing_id']] = (int) $r['c'];
+      } catch (Throwable $e) {}
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM conversations
+                            WHERE listing_id IN ($in) GROUP BY listing_id");
+        $q->execute($ids);
+        foreach ($q->fetchAll() as $r) $conv[(string) $r['listing_id']] = (int) $r['c'];
+      } catch (Throwable $e) {}
+    }
     // « Mes annonces » : le demandeur est authentifié et n'obtient que les
     // siennes — son propre téléphone peut donc lui être renvoyé.
-    jout(array_map(fn($r) => listing_out($r, true), $st->fetchAll()));
+    jout(array_map(function ($r) use ($fav, $conv) {
+      $o = listing_out($r, true);
+      $o['favoris'] = $fav[(string) $r['id']] ?? 0;
+      $o['contacts'] = $conv[(string) $r['id']] ?? 0;
+      return $o;
+    }, $rows));
+  }
+
+  // Marquer une annonce vendue (ou la remettre en vente) depuis « Mes
+  // annonces ». Le vendeur seul décide : une annonce vendue sort des
+  // résultats sans être supprimée, et ses statistiques restent.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'vendue' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ((string) $row['user_id'] !== (string) $u['id']) jerr('Cette annonce n’est pas la vôtre.', 403);
+    $vendue = !empty(body()['sold']) ? 1 : 0;
+    $pdo->prepare('UPDATE listings SET sold = ? WHERE id = ?')->execute([$vendue, $seg[1]]);
+    jout(['ok' => true, 'sold' => (bool) $vendue]);
   }
 
   // Lire UNE annonce par son id. Le fil `/listings` renvoie déjà l'objet

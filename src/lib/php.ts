@@ -654,6 +654,11 @@ export async function phpProDemande(d: {
 export async function phpProTableau<T>(periode: 7 | 30 = 7): Promise<T> {
   return req<T>(`/pro/tableau?periode=${periode}`)
 }
+/** Marquer une annonce vendue, ou la remettre en vente. */
+export async function phpSetListingSold(id: string, sold: boolean): Promise<void> {
+  await req(`/listings/${id}/vendue`, { method: 'POST', body: { sold } })
+}
+
 /** La vitrine du professionnel : bannière et logo (chaîne vide = retirer). */
 export async function phpProVitrine(
   d: { banniere?: string; logo?: string },
