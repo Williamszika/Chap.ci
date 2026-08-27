@@ -6,8 +6,13 @@ import '../i18n/categories_i18n.dart';
 import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../liens_site.dart';
+import '../screens/favoris_screen.dart';
 import '../screens/messages_screen.dart';
+import '../screens/modifier_profil_screen.dart';
+import '../screens/notifications_screen.dart';
 import '../screens/publier_screen.dart';
+import '../screens/securite_2fa_screen.dart';
 
 /// Le tableau de bord de l'ESPACE PROFESSIONNEL, façon CRM — le panneau d'un
 /// compte approuvé : badge 💼, nom commercial, période 7/30 jours, chiffres
@@ -20,7 +25,23 @@ import '../screens/publier_screen.dart';
 /// où un bouton Publier existe déjà.
 class EspaceProPanel extends StatefulWidget {
   final bool avecPublier;
-  const EspaceProPanel({super.key, this.avecPublier = true});
+
+  /// Dans l'onglet « Mon compte » : le panneau porte alors TOUT le compte —
+  /// les tuiles de la boutique, la fiche d'entreprise, les réglages et la
+  /// déconnexion.
+  final bool dansCompte;
+
+  /// Fait défiler la page jusqu'à la liste des annonces (tuile « Mes annonces »).
+  final VoidCallback? onVersAnnonces;
+  final VoidCallback? onDeconnexion;
+
+  const EspaceProPanel({
+    super.key,
+    this.avecPublier = true,
+    this.dansCompte = false,
+    this.onVersAnnonces,
+    this.onDeconnexion,
+  });
 
   @override
   State<EspaceProPanel> createState() => _EspaceProPanelState();
@@ -70,6 +91,7 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
     final secteur = (pro['secteur'] as String?) ?? '';
     final type = (pro['type'] as String?) ?? '';
     final nom = (pro['nom'] as String?) ?? '';
+    final compte = (t?['compte'] as Map?) ?? const {};
     final tauxReponse = t?['tauxReponse'] as int?;
     final aRepondre = (t?['aRepondre'] as Map?) ?? const {};
     final serie = ((t?['serie'] as List?) ?? const [])
@@ -348,6 +370,111 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
           ],
         )),
 
+        // TOUT LE COMPTE, INTÉGRÉ — l'onglet Compte d'un professionnel n'est
+        // plus un tableau suivi d'une liste de réglages : c'est une seule
+        // console (demande du Patron, 27/08).
+        if (widget.dansCompte) ...[
+          _titreSection(tr(context, 'pro.sec.boutique')),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 9,
+            crossAxisSpacing: 9,
+            childAspectRatio: 1.62,
+            children: [
+              _tuile('📦', ChapColors.cream100,
+                  tr(context, 'compte.mesAnnonces'),
+                  _tr('pro.tuile.annoncesSous', {
+                    'a': '${stats['annoncesActives'] ?? 0}',
+                    'v': '${compte['annoncesVendues'] ?? 0}',
+                  }),
+                  onTap: widget.onVersAnnonces),
+              _tuile('💬', const Color(0xFFEDEFF2), tr(context, 'nav.messages'),
+                  (aRepondre['n'] as int? ?? 0) > 0
+                      ? _tr('pro.tuile.sansReponse', {'n': '${aRepondre['n']}'})
+                      : _tr('pro.tuile.conversations',
+                          {'n': '${stats['conversations'] ?? 0}'}),
+                  compteur: (aRepondre['n'] as int? ?? 0) > 0
+                      ? '${aRepondre['n']}'
+                      : null,
+                  compteurRouge: true,
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const MessagesScreen()))),
+              _tuile('❤️', const Color(0xFFFBEAE7),
+                  tr(context, 'item.mesFavoris'),
+                  _tr('pro.tuile.favorisSous',
+                      {'n': '${compte['favorisEnregistres'] ?? 0}'}),
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const FavorisScreen()))),
+              _tuile('➕', ChapColors.cream100, tr(context, 'action.publier'),
+                  tr(context, 'pro.tuile.publierSous'),
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PublierScreen()))),
+            ],
+          ),
+
+          _titreSection(tr(context, 'pro.sec.entreprise')),
+          _ficheEntreprise(pro, compte),
+
+          _titreSection(tr(context, 'pro.sec.compte')),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 9,
+            crossAxisSpacing: 9,
+            childAspectRatio: 1.62,
+            children: [
+              _tuile('👤', const Color(0xFFEDEFF2), tr(context, 'item.profil'),
+                  tr(context, 'pro.tuile.profilSous'),
+                  onTap: () => _ouvrir(const ModifierProfilScreen())),
+              _tuile('🔔', ChapColors.cream100,
+                  tr(context, 'section.notifications'),
+                  tr(context, 'pro.tuile.notifsSous'),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen()))),
+              _tuile('🔒', const Color(0xFFE4F5EC),
+                  tr(context, 'pro.tuile.securite'),
+                  tr(context, 'pro.tuile.securiteSous'),
+                  compteur: compte['twofa'] == true ? '✓' : null,
+                  onTap: () => _ouvrir(const Securite2faScreen())),
+              _tuile('📍', const Color(0xFFE8EEFB),
+                  tr(context, 'pro.tuile.adresse'),
+                  (compte['commune'] as String?)?.isNotEmpty == true
+                      ? '${compte['commune']}'
+                      : tr(context, 'pro.tuile.adresseVide'),
+                  onTap: () => _ouvrir(const ModifierProfilScreen())),
+              _tuile('❓', ChapColors.cream100, tr(context, 'item.aide'),
+                  tr(context, 'pro.tuile.aideSous'),
+                  onTap: () => ouvrirPageSite(context, PagesSite.aide)),
+              _tuile('🛡️', const Color(0xFFE4F5EC), tr(context, 'item.contact'),
+                  tr(context, 'pro.tuile.contactSous'),
+                  onTap: () => ouvrirPageSite(context, PagesSite.contact)),
+            ],
+          ),
+
+          if (widget.onDeconnexion != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: widget.onDeconnexion,
+                icon: const Icon(Icons.logout, size: 18),
+                label: Text(tr(context, 'item.deconnexion'),
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFC43025),
+                  backgroundColor: const Color(0xFFFBEAE7),
+                  side: const BorderSide(color: Color(0xFFF3C9C4)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ],
+
         if (widget.avecPublier) ...[
           const SizedBox(height: 12),
           SizedBox(
@@ -396,6 +523,189 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                 color: actif ? ChapColors.ocreDark : Colors.white)),
       ),
     );
+  }
+
+  /// Ouvre un écran, puis redessine : le profil ou la 2FA ont pu changer.
+  Future<void> _ouvrir(Widget ecran) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ecran));
+    if (mounted) _charger();
+  }
+
+  Widget _titreSection(String texte) => Padding(
+        padding: const EdgeInsets.fromLTRB(2, 14, 2, 6),
+        child: Text(texte.toUpperCase(),
+            style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: ChapColors.gray500)),
+      );
+
+  /// Une tuile d'accès : emoji sur pastille teintée, titre, sous-titre chiffré,
+  /// et le compteur en haut à droite quand il y a quelque chose à voir.
+  Widget _tuile(String emoji, Color fond, String titre, String sous,
+      {String? compteur, bool compteurRouge = false, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: ChapColors.cream,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: ChapColors.line2),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: fond, borderRadius: BorderRadius.circular(10)),
+                  child: Text(emoji, style: const TextStyle(fontSize: 14)),
+                ),
+                const SizedBox(height: 6),
+                Text(titre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w800)),
+                Text(sous,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10, color: ChapColors.gray600)),
+              ],
+            ),
+            if (compteur != null)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 18),
+                  height: 18,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  decoration: BoxDecoration(
+                    color: compteurRouge
+                        ? const Color(0xFFC43025)
+                        : const Color(0xFFE4F5EC),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(compteur,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: compteurRouge
+                              ? Colors.white
+                              : ChapColors.greenDark)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// La fiche d'entreprise : ce que les acheteurs voient sur la page vendeur.
+  Widget _ficheEntreprise(Map pro, Map compte) {
+    final type = (pro['type'] as String?) ?? '';
+    final secteur = (pro['secteur'] as String?) ?? '';
+    final depuis = pro['depuis'];
+    final vide = tr(context, 'pro.fiche.vide');
+    Widget champ(String etiquette, String valeur, {Color? couleur}) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(etiquette.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: ChapColors.gray500)),
+            Text(valeur,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: couleur ?? ChapColors.ink)),
+          ],
+        );
+    return _carte(Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tr(context, 'pro.fiche.titre'),
+                      style: const TextStyle(
+                          fontSize: 13.5, fontWeight: FontWeight.w800)),
+                  Text(tr(context, 'pro.fiche.sous'),
+                      style: const TextStyle(
+                          fontSize: 10.5, color: ChapColors.gray600)),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => _ouvrir(const ModifierProfilScreen()),
+              child: Text(tr(context, 'action.modifier'),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: ChapColors.ocreDark)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 4.2,
+          children: [
+            champ(tr(context, 'pro.fiche.nom'),
+                (pro['nom'] as String?)?.isNotEmpty == true
+                    ? '${pro['nom']}'
+                    : vide),
+            champ(tr(context, 'pro.fiche.type'),
+                type.isEmpty ? vide : tr(context, 'pro.type.$type')),
+            champ(tr(context, 'pro.fiche.secteur'),
+                secteur.isEmpty ? vide : secteurProTr(context, secteur)),
+            champ(tr(context, 'pro.fiche.numero'),
+                (pro['numero'] as String?)?.isNotEmpty == true
+                    ? '${pro['numero']}'
+                    : vide),
+            champ(tr(context, 'pro.fiche.tel'),
+                (pro['tel'] as String?)?.isNotEmpty == true
+                    ? '${pro['tel']}'
+                    : vide),
+            champ(tr(context, 'pro.fiche.commune'),
+                (compte['commune'] as String?)?.isNotEmpty == true
+                    ? '${compte['commune']}'
+                    : vide),
+            champ(
+                tr(context, 'pro.fiche.badge'),
+                depuis is int && depuis > 0
+                    ? '${tr(context, 'pro.fiche.badgeActif')} · ${dureeTr(context, depuis)}'
+                    : tr(context, 'pro.fiche.badgeActif'),
+                couleur: ChapColors.greenDark),
+            champ(tr(context, 'pro.fiche.page'),
+                tr(context, 'pro.fiche.voirPage'),
+                couleur: ChapColors.ocreDark),
+          ],
+        ),
+      ],
+    ));
   }
 
   Widget _carte(Widget enfant) => Container(

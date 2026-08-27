@@ -26,11 +26,46 @@ class _MonCompteViewState extends State<MonCompteView> {
   late Future<Map<String, dynamic>> _infos;
   late Future<List<Listing>> _annonces;
 
+  /// Le titre « Mes annonces » : la tuile de la console professionnelle fait
+  /// défiler jusqu'à lui (l'app n'a pas d'écran séparé pour la liste).
+  final GlobalKey _cleAnnonces = GlobalKey();
+
   @override
   void initState() {
     super.initState();
     _infos = _chargerInfos();
     _annonces = Listing.miennes();
+  }
+
+  void _versAnnonces() {
+    final ctx = _cleAnnonces.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx,
+          duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
+    }
+  }
+
+  /// La déconnexion, avec la même confirmation que l'écran Paramètres.
+  Future<void> _seDeconnecter() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr(context, 'dialog.deconnexion.titre')),
+        content: Text(tr(context, 'dialog.deconnexion.corps')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(tr(context, 'action.annuler'))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(tr(context, 'item.deconnexion'),
+                  style: const TextStyle(color: Color(0xFFC43025)))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ApiClient.instance.seDeconnecter();
+    if (mounted) setState(() {});
   }
 
   Future<void> _recharger() async {
@@ -140,13 +175,19 @@ class _MonCompteViewState extends State<MonCompteView> {
             future: _infos,
             builder: (context, infos) {
               if (infos.data?['pro'] == true) {
-                return Column(children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
-                    child: EspaceProPanel(avecPublier: false),
+                // Un compte PRO ne voit plus un tableau POSÉ SUR un menu :
+                // la console porte tout — chiffres, boutique, fiche
+                // d'entreprise, réglages, déconnexion. La carte de profil
+                // devient la tuile « Profil & photo ».
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: EspaceProPanel(
+                    avecPublier: false,
+                    dansCompte: true,
+                    onVersAnnonces: _versAnnonces,
+                    onDeconnexion: _seDeconnecter,
                   ),
-                  _entete(),
-                ]);
+                );
               }
               return Column(children: [
                 _entete(),
@@ -165,6 +206,7 @@ class _MonCompteViewState extends State<MonCompteView> {
             },
           ),
           Padding(
+            key: _cleAnnonces,
             padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
             child: Text(tr(context, 'compte.mesAnnonces'),
                 style: const TextStyle(

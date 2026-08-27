@@ -7065,7 +7065,8 @@ try {
   // en best-effort : une table manquante donne des zéros, jamais une erreur.
   if ($path === 'pro/tableau' && $method === 'GET') {
     $u = require_user($pdo, $secret);
-    $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at
+    $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at,
+                                pro_numero, pro_tel
                          FROM users WHERE id = ?');
     $st->execute([$u['id']]);
     $r = $st->fetch() ?: [];
@@ -7308,12 +7309,61 @@ try {
     usort($activite, fn($a, $b) => $b['quand'] <=> $a['quand']);
     $activite = array_slice($activite, 0, 6);
 
+    // TOUT LE COMPTE DANS LE TABLEAU DE BORD (demande du Patron, 27/08).
+    // Pour un professionnel, la page Compte n'est plus une liste de réglages à
+    // côté d'un tableau : c'est une seule console. Ces champs alimentent les
+    // tuiles (chacune porte son chiffre) et la fiche d'entreprise.
+    $compteur = function (string $sql, array $args) use ($pdo): int {
+      try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+      catch (Throwable $e) { return 0; }
+    };
+    $annoncesMasquees = 0; $annoncesVendues = 0;
+    foreach ($annonces as $l) {
+      if (!empty($l['hidden'])) $annoncesMasquees++;
+      if (!empty($l['sold'])) $annoncesVendues++;
+    }
+    $profil = [];
+    try {
+      $q = $pdo->prepare('SELECT full_name, phone, commune, avatar_url FROM profiles WHERE id = ?');
+      $q->execute([$uid]);
+      $profil = $q->fetch() ?: [];
+    } catch (Throwable $e) {}
+    $pubFin = null;
+    try {
+      $q = $pdo->prepare("SELECT MIN(expires_at) FROM ads
+                          WHERE user_id = ? AND status = 'active' AND expires_at > ?");
+      $q->execute([$uid, now_iso()]);
+      $pubFin = $q->fetchColumn() ?: null;
+    } catch (Throwable $e) {}
+
     jout([
       'pro' => [
         'nom' => (string) ($r['pro_nom'] ?? ''),
         'type' => (string) ($r['pro_type'] ?? ''),
         'secteur' => (string) ($r['pro_secteur'] ?? ''),
         'depuis' => iso_to_ms($r['pro_decide_at'] ?? null),
+        'numero' => (string) ($r['pro_numero'] ?? ''),
+        'tel' => (string) ($r['pro_tel'] ?? ''),
+      ],
+      'compte' => [
+        'nom' => (string) ($profil['full_name'] ?? ''),
+        'email' => (string) ($u['email'] ?? ''),
+        'commune' => (string) ($profil['commune'] ?? ''),
+        'avatar' => (string) ($profil['avatar_url'] ?? ''),
+        'twofa' => $compteur('SELECT COALESCE(totp_enabled, 0) FROM users WHERE id = ?', [$uid]) === 1,
+        'annoncesMasquees' => $annoncesMasquees,
+        'annoncesVendues' => $annoncesVendues,
+        'favorisEnregistres' => $compteur('SELECT COUNT(*) FROM favorites WHERE user_id = ?', [$uid]),
+        'commandesEnCours' => $compteur(
+          "SELECT COUNT(*) FROM orders WHERE (buyer_id = ? OR seller_id = ?) AND status = 'en_cours'",
+          [$uid, $uid]),
+        'commandesFinalisees' => $compteur(
+          "SELECT COUNT(*) FROM orders WHERE (buyer_id = ? OR seller_id = ?) AND status = 'finalise'",
+          [$uid, $uid]),
+        'pubsActives' => $compteur(
+          "SELECT COUNT(*) FROM ads WHERE user_id = ? AND status = 'active' AND expires_at > ?",
+          [$uid, now_iso()]),
+        'pubFin' => iso_to_ms($pubFin),
       ],
       'stats' => $stats,
       'periode' => $periode,

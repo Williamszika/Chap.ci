@@ -193,7 +193,10 @@ export function Profile() {
     return (
       <div className="min-h-screen bg-cream-200 md:min-h-0 md:bg-transparent">
         <div className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-4xl md:px-6 md:py-6 lg:max-w-5xl">
-          {/* Carte profil */}
+          {/* Carte profil — masquée pour un compte PRO : sa console porte
+              désormais la tuile « Profil & photo » (demande du 27/08). */}
+          {!proApprouve && (
+          <>
           <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-4 shadow-card md:rounded-3xl md:p-5">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white md:h-20 md:w-20">
               {avatarUrl ? (
@@ -227,6 +230,8 @@ export function Profile() {
 
           {/* Badge de vérification (membre fidèle et actif) */}
           {isPhp && <VerificationCard onVerified={refreshUser} />}
+          </>
+          )}
 
           {/* Accès administrateur */}
           {isAdmin && (
@@ -243,14 +248,19 @@ export function Profile() {
             </Link>
           )}
 
-          {/* Le tableau de bord professionnel — en tête, pour les comptes
-              PRO approuvés uniquement (le même panneau que la page #/pro). */}
+          {/* LE TABLEAU DE BORD PROFESSIONNEL — pour un compte PRO approuvé,
+              il ne s'ajoute pas au menu : il LE REMPLACE. Tout y est (boutique,
+              entreprise, compte, sécurité, déconnexion), en tuiles qui portent
+              leurs chiffres. Demande du Patron du 27/08 : « je veux que tous
+              ses paramètres soient inclus dans son tableau de bord pro ». */}
           {proApprouve && (
             <div className="mt-6">
-              <TableauPro dansCompte />
+              <TableauPro dansCompte onOnglet={setTab} onDeconnexion={logout} />
             </div>
           )}
 
+          {!proApprouve && (
+          <>
           {/* Mon activité */}
           <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-gray-400">Mon activité</p>
           <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white shadow-card">
@@ -294,6 +304,8 @@ export function Profile() {
               <span className="flex-1 font-semibold text-red-600">Se déconnecter</span>
             </button>
           </div>
+          </>
+          )}
 
           <div className="h-6" />
         </div>

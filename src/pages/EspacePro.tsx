@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   BadgeCheck, Eye, Handshake, Heart, Hourglass, Loader2, LogIn,
-  MessageSquare, Package, Plus, Zap,
+  LogOut, MessageSquare, Package, Plus, Zap,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { phpProStatut, phpProDemande, phpProTableau } from '../lib/php'
@@ -30,7 +30,17 @@ interface Statut {
 }
 
 interface Tableau {
-  pro: { nom: string; type: string; secteur: string; depuis: number | null }
+  pro: {
+    nom: string; type: string; secteur: string; depuis: number | null
+    numero?: string; tel?: string
+  }
+  /** Tout le compte, pour les tuiles et la fiche d'entreprise de la page Compte. */
+  compte?: {
+    nom: string; email: string; commune: string; avatar: string; twofa: boolean
+    annoncesMasquees: number; annoncesVendues: number; favorisEnregistres: number
+    commandesEnCours: number; commandesFinalisees: number
+    pubsActives: number; pubFin: number
+  }
   stats: {
     annoncesActives: number
     annoncesTotal: number
@@ -241,7 +251,12 @@ const ETATS: Record<string, { texte: string; classe: string }> = {
 /** Le tableau de bord professionnel — aussi affiché en tête de la page
  *  Compte pour les comptes approuvés (`dansCompte` masque le lien « Toutes
  *  mes annonces », redondant à cet endroit). */
-export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}) {
+export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
+  dansCompte?: boolean
+  /** Ouvre un onglet interne de la page Compte (annonces, achats, ventes, pubs, params). */
+  onOnglet?: (onglet: 'annonces' | 'achats' | 'ventes' | 'pubs' | 'params') => void
+  onDeconnexion?: () => void
+} = {}) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [periode, setPeriode] = useState<7 | 30>(7)
@@ -256,7 +271,11 @@ export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}
 
   const s = t.stats
   const k = t.kpi
+  const c = t.compte
   const maxVuesTop = Math.max(1, ...t.top.map((a) => a.vues))
+  // « se termine dans 6 j » : le compte à rebours d'une campagne en cours.
+  const joursPub = c?.pubFin ? Math.ceil((c.pubFin - Date.now()) / 86400000) : 0
+  const finPub = joursPub > 1 ? `dans ${joursPub} j` : joursPub === 1 ? 'demain' : joursPub === 0 ? "aujourd’hui" : ''
   return (
     <div className="space-y-4">
       {/* L'en-tête de marque : badge, nom commercial, note, période, actions. */}
@@ -377,18 +396,18 @@ export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}
         </div>
       </div>
 
-      {/* Le classement des annonces. */}
+      {/* Le classement des annonces — sur la page Compte, la tuile « Mes
+          annonces » y mène déjà : on ne l'affiche qu'en dehors. */}
+      {!dansCompte && (
       <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
         <div className="flex items-baseline justify-between gap-3">
           <div>
             <p className="font-display text-[15px] font-extrabold text-ink">Vos annonces qui marchent</p>
             <p className="mt-0.5 text-xs text-gray-500">Classées par vues sur les {periode} derniers jours</p>
           </div>
-          {!dansCompte && (
-            <Link to="/compte" className="whitespace-nowrap text-xs font-bold text-primary-700">
-              Toutes mes annonces →
-            </Link>
-          )}
+          <Link to="/compte" className="whitespace-nowrap text-xs font-bold text-primary-700">
+            Toutes mes annonces →
+          </Link>
         </div>
         {t.top.length === 0 ? (
           <div className="mt-4 rounded-xl bg-cream-100 p-5 text-center">
@@ -426,11 +445,168 @@ export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}
           </div>
         )}
       </div>
+      )}
+
+      {/* ===== TOUT LE COMPTE, INTÉGRÉ (page Compte d'un professionnel) =====
+          Le Patron l'a demandé le 27/08 : un professionnel ne doit plus avoir
+          son tableau d'un côté et ses réglages en liste de l'autre. Chaque
+          tuile porte son chiffre — « 3 sans réponse » se voit sans ouvrir
+          Messages. */}
+      {dansCompte && c && (
+        <>
+          <p className="mt-2 px-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">
+            Gérer ma boutique
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <Tuile emoji="📦" fond="#FFF3E4" titre="Mes annonces"
+              sous={[
+                `${s.annoncesActives} en ligne`,
+                c.annoncesMasquees > 0 ? `${c.annoncesMasquees} masquée${c.annoncesMasquees > 1 ? 's' : ''}` : '',
+                `${c.annoncesVendues} vendue${c.annoncesVendues > 1 ? 's' : ''}`,
+              ].filter(Boolean).join(' · ')}
+              onClick={() => onOnglet?.('annonces')} />
+            <Tuile emoji="💬" fond="#EDEFF2" titre="Messages"
+              sous={t.aRepondre.n > 0
+                ? `${t.aRepondre.n} sans réponse depuis 24 h`
+                : `${s.conversations} conversation${s.conversations > 1 ? 's' : ''}`}
+              badge={t.aRepondre.n > 0
+                ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-extrabold text-white">{t.aRepondre.n}</span>
+                : undefined}
+              onClick={() => navigate('/messages')} />
+            <Tuile emoji="🛍️" fond="#FFF6E0" titre="Mes commandes"
+              sous={`${c.commandesEnCours} en cours · ${c.commandesFinalisees} finalisée${c.commandesFinalisees > 1 ? 's' : ''}`}
+              onClick={() => onOnglet?.('achats')} />
+            <Tuile emoji="❤️" fond="#FBEAE7" titre="Mes favoris"
+              sous={`${c.favorisEnregistres} annonce${c.favorisEnregistres > 1 ? 's' : ''} enregistrée${c.favorisEnregistres > 1 ? 's' : ''}`}
+              onClick={() => navigate('/favoris')} />
+            <Tuile emoji="📊" fond="#E4F5EC" titre="Statistiques de vente"
+              sous="Vues, demandes, ventes par période"
+              onClick={() => onOnglet?.('ventes')} />
+            <Tuile emoji="📣" fond="#FFF3E4" titre="Mes publicités"
+              sous={c.pubsActives > 0
+                ? `${c.pubsActives} campagne${c.pubsActives > 1 ? 's' : ''} active${c.pubsActives > 1 ? 's' : ''}${finPub ? ` · se termine ${finPub}` : ''}`
+                : 'Audience, coût, prolongation'}
+              badge={c.pubsActives > 0
+                ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-primary-500 px-1.5 text-[11px] font-extrabold text-white">{c.pubsActives}</span>
+                : undefined}
+              onClick={() => onOnglet?.('pubs')} />
+          </div>
+
+          <p className="mt-2 px-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">
+            Mon entreprise
+          </p>
+          <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <div>
+                <p className="font-display text-[15px] font-extrabold text-ink">Fiche professionnelle</p>
+                <p className="mt-0.5 text-xs text-gray-500">Ce que les acheteurs voient sur votre page vendeur</p>
+              </div>
+              <Link to="/pro" className="whitespace-nowrap text-xs font-bold text-primary-700">
+                Modifier ma fiche →
+              </Link>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-4 xl:grid-cols-4">
+              <Champ etiquette="Nom commercial" valeur={t.pro.nom} />
+              <Champ etiquette="Type" valeur={labelTypePro(t.pro.type)} />
+              <Champ etiquette="Secteur" valeur={t.pro.secteur || '—'} />
+              <Champ etiquette={t.pro.type === 'boutique' || t.pro.type === 'commerce' ? 'Numéro RCCM' : 'Numéro'}
+                valeur={t.pro.numero || 'non renseigné'} />
+              <Champ etiquette="Téléphone pro" valeur={t.pro.tel || 'non renseigné'} />
+              <Champ etiquette="Commune" valeur={c.commune || 'non renseignée'} />
+              <Champ etiquette="Badge PRO" ton="vert"
+                valeur={t.pro.depuis ? `✓ Actif depuis ${dateCourte(t.pro.depuis)}` : '✓ Actif'} />
+              <Champ etiquette="Page publique" ton="orange"
+                valeur={user ? 'Voir ma page vendeur →' : '—'}
+                lien={user ? `/vendeur/${user.id}` : undefined} />
+            </div>
+          </div>
+
+          <p className="mt-2 px-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">
+            Mon compte &amp; sécurité
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <Tuile emoji="👤" fond="#EDEFF2" titre="Profil & photo"
+              sous={[c.nom, c.email].filter(Boolean).join(' · ')}
+              onClick={() => onOnglet?.('params')} />
+            <Tuile emoji="🔔" fond="#FFF3E4" titre="Notifications"
+              sous="Messages, favoris, e-mail de secours"
+              onClick={() => navigate('/notifications')} />
+            <Tuile emoji="🔒" fond="#E4F5EC" titre="Sécurité"
+              sous="Mot de passe · double authentification"
+              badge={c.twofa
+                ? <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 text-[11px] font-extrabold text-emerald-700">✓</span>
+                : undefined}
+              onClick={() => onOnglet?.('params')} />
+            <Tuile emoji="📍" fond="#E8EEFB" titre="Adresse & localisation"
+              sous={c.commune ? `${c.commune} · position enregistrée` : 'Ajoutez votre commune'}
+              onClick={() => onOnglet?.('params')} />
+            <Tuile emoji="❓" fond="#FFF3E4" titre="Aide & support"
+              sous="Questions fréquentes, conseils vendeur"
+              onClick={() => navigate('/aide')} />
+            <Tuile emoji="🛡️" fond="#E4F5EC" titre="Contacter l’équipe"
+              sous="Une question, un doute, une annonce masquée"
+              onClick={() => navigate('/assistance')} />
+          </div>
+
+          {onDeconnexion && (
+            <div className="flex justify-center pt-1">
+              <button onClick={onDeconnexion}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#F3C9C4] bg-red-50 px-4 py-2.5 text-[13px] font-extrabold text-red-600 transition active:scale-[0.98]">
+                <LogOut size={16} /> Se déconnecter
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       <p className="px-1 text-center text-xs leading-relaxed text-gray-400">
-        Chiffres réels de votre compte, mis à jour en continu · Les tendances comparent
-        la période choisie à la précédente
+        {dansCompte
+          ? <>Chiffres réels de votre compte, mis à jour en continu · Tout votre compte est ici — plus rien à chercher ailleurs</>
+          : <>Chiffres réels de votre compte, mis à jour en continu · Les tendances comparent la période choisie à la précédente</>}
       </p>
+    </div>
+  )
+}
+
+/** « 6 août » — la date courte d'un badge ou d'une échéance. */
+function dateCourte(ms: number): string {
+  return new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+}
+
+/** Une tuile d'accès : emoji sur pastille teintée, titre, sous-titre chiffré,
+ *  et à droite soit un compteur, soit le chevron. */
+function Tuile({ emoji, fond, titre, sous, badge, onClick }: {
+  emoji: string; fond: string; titre: string; sous: string
+  badge?: React.ReactNode; onClick: () => void
+}) {
+  return (
+    <button onClick={onClick}
+      className="flex items-start gap-3 rounded-2xl border border-line bg-white p-3.5 text-left shadow-card transition hover:shadow-md active:scale-[0.98]">
+      <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl text-[17px]"
+        style={{ background: fond }} aria-hidden>{emoji}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13.5px] font-extrabold text-ink">{titre}</span>
+        <span className="mt-0.5 block text-[11.5px] leading-snug text-gray-500">{sous}</span>
+      </span>
+      <span className="grid shrink-0 self-center place-items-center">
+        {badge ?? <span className="text-gray-300" aria-hidden>›</span>}
+      </span>
+    </button>
+  )
+}
+
+/** Un champ de la fiche professionnelle : étiquette en capitales, valeur en gras. */
+function Champ({ etiquette, valeur, ton, lien }: {
+  etiquette: string; valeur: string; ton?: 'vert' | 'orange'; lien?: string
+}) {
+  const classe = `mt-0.5 block truncate text-[13.5px] font-bold ${
+    ton === 'vert' ? 'text-ivoire-green-dark' : ton === 'orange' ? 'text-primary-700' : 'text-ink'}`
+  return (
+    <div className="min-w-0">
+      <span className="block text-[10.5px] font-bold uppercase tracking-wider text-gray-400">{etiquette}</span>
+      {lien
+        ? <Link to={lien} className={classe}>{valeur}</Link>
+        : <span className={classe}>{valeur}</span>}
     </div>
   )
 }
