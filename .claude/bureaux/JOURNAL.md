@@ -4345,3 +4345,7 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - Reste au Patron : téléverser l'AAB (Tests fermés → Créer une release), notes de
   version fournies, puis « Envoyer les modifications pour examen ». La v1.22 y
   remplacera la v1.21 — assumé et consigné.
+- **Précision du Patron après le build** : « c'est juste pour l'app de test de mon
+  téléphone d'abord » — donc **pas de téléversement** : la v1.21 reste seule dans la
+  file d'examen, et la v1.22 s'essaie sur son téléphone par `flutter run --release`.
+  L'AAB de 60,3 Mo attend le feu vert. Fiche du registre corrigée en conséquence.
