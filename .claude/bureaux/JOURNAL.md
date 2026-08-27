@@ -4349,3 +4349,25 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   téléphone d'abord » — donc **pas de téléversement** : la v1.21 reste seule dans la
   file d'examen, et la v1.22 s'essaie sur son téléphone par `flutter run --release`.
   L'AAB de 60,3 Mo attend le feu vert. Fiche du registre corrigée en conséquence.
+
+### 2026-08-27 (nuit) — [Développement] Le tableau de bord ADMIN appliqué (maquette validée) + livraison des deux tableaux
+- « Rendre le tableau des comptes pro comme la photo 1, et le dashboard des
+  administrateurs et modérateurs comme la photo 2. » La photo 1 était déjà codée
+  (zip précédent) ; la photo 2 est maintenant appliquée : Aperçu admin refondu —
+  bandeau sombre « Bonsoir » + état du jour, file « dossiers en attente d'une
+  décision » à boutons directs, 6 KPI à tendance (7/30 j), courbe visiteurs +
+  inscriptions, parcours en barres, activité récente, carte Sécurité. Permissions
+  respectées bloc par bloc (modérateur = ses onglets seulement ; parcours et
+  sécurité au propriétaire). Les blocs existants utiles (géographie, vues de
+  pages, derniers utilisateurs, panneau signalements modérateur) restent dessous.
+- Serveur : admin/stats + `tendances` (j7/j30 avec valeur précédente), `noteMoyenne`,
+  `aTraiter` (pro en attente + dernier dossier, signalements > 48 h, dernier
+  contact — champ null si permission absente), `serieVisites` (30 j, règle
+  « public seul »).
+- Vérifié en vrai au banc : propriétaire déverrouillé par OTP (`.admin_otp`),
+  données garnies (visites 30 j, demande Pro en attente, 2 signalements dont un
+  vieux, contact, abonnés) — page conforme, ordinateur et téléphone. La carte
+  Sécurité a montré juste : « 2FA inactive » sur le compte de banc.
+- Livraison : `chapcitableaux.zip` (remplace tout). Empreintes : API `d02d56bd2972`
+  · SEO `c57f0f1c6e55` · Site `195335cbe419`. L'app v1.22 du téléphone du Patron
+  n'est pas concernée par ce zip (elle parle au serveur, qui reste compatible).
