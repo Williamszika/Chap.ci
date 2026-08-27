@@ -11,6 +11,7 @@ import { useAuth } from '../store/AuthContext'
 import { formatPrice, formatFCFA, timeAgo } from '../lib/format'
 import { emojiFor } from '../lib/placeholder'
 import { locationLabel } from '../data/locations'
+import { TYPES_PRO } from '../data/secteursPro'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
   fetchModerators, saveModerator, removeModerator, blockModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
@@ -25,7 +26,7 @@ import {
   type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview,
   fetchInvites, envoyerInvitations, type ListeInvites,
   fetchGeo, type GeoStats, type GeoRange,
-  fetchAdminPro, deciderPro, type AdminProDemande,
+  fetchAdminPro, deciderPro, corrigerFichePro, type AdminProDemande,
 } from '../lib/admin'
 import { ouvrirFil } from '../lib/equipe'
 import {
@@ -1871,6 +1872,103 @@ function ProDetail({ demande: d, onBack }: { demande: AdminProDemande; onBack: (
           </button>
         </div>
       )}
+
+      {/* CORRIGER LE DOSSIER — la seule porte. Le professionnel ne peut pas
+          changer son type, son secteur ni son numéro depuis son compte : ce
+          sont les trois éléments contrôlés avant l'approbation. Quand il
+          écrit « mon RCCM a changé », c'est ici que ça se règle. */}
+      {d.status === 'approuve' && <CorrigerFiche demande={d} onFait={onBack} />}
+    </div>
+  )
+}
+
+/**
+ * Le formulaire de correction d'un dossier approuvé, réservé à l'équipe.
+ * Chaque modification part au journal d'audit (qui, quoi, avant → après) et
+ * le professionnel en est averti dans sa cloche.
+ */
+function CorrigerFiche({ demande: d, onFait }: { demande: AdminProDemande; onFait: () => void }) {
+  const [ouvert, setOuvert] = useState(false)
+  const [nom, setNom] = useState(d.proNom ?? '')
+  const [type, setType] = useState(d.type === 'commerce' ? 'boutique' : d.type)
+  const [secteur, setSecteur] = useState(d.secteur ?? '')
+  const [numero, setNumero] = useState(d.numero ?? '')
+  const [tel, setTel] = useState(d.tel ?? '')
+  const [busy, setBusy] = useState(false)
+  const def = TYPES_PRO.find((t) => t.id === type) ?? TYPES_PRO[0]
+
+  const enregistrer = async () => {
+    setBusy(true)
+    try {
+      const r = await corrigerFichePro({ userId: d.userId, nom, type, secteur, numero, tel })
+      alert(r.change === 0
+        ? 'Rien n’a changé.'
+        : `${r.change} champ${r.change > 1 ? 's' : ''} modifié${r.change > 1 ? 's' : ''}. Le professionnel a été averti.`)
+      onFait()
+    } catch (e) { alert((e as Error).message) }
+    finally { setBusy(false) }
+  }
+
+  if (!ouvert) {
+    return (
+      <button onClick={() => setOuvert(true)}
+        className="w-full rounded-2xl border border-line2 bg-white py-3 text-sm font-bold text-gray-700 shadow-card transition hover:bg-cream-100">
+        ✏️ Corriger le dossier (type, secteur, numéro)
+      </button>
+    )
+  }
+  return (
+    <div className="space-y-2.5 rounded-2xl border-2 border-primary-300 bg-white p-4 shadow-card">
+      <p className="font-display text-sm font-bold text-ink">Corriger le dossier</p>
+      <p className="text-xs leading-relaxed text-gray-500">
+        Le professionnel ne peut pas modifier ces champs lui-même. Chaque changement est
+        journalisé (avant → après) et lui est signalé dans sa cloche.
+      </p>
+      <label className="block text-xs font-semibold text-gray-500">
+        Nom commercial
+        <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80}
+          className="mt-1 w-full rounded-xl border border-line2 px-3 py-2 text-sm text-ink outline-none focus:border-primary-400" />
+      </label>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <label className="block text-xs font-semibold text-gray-500">
+          Type
+          <select value={type} onChange={(e) => { setType(e.target.value); setSecteur('') }}
+            className="mt-1 w-full rounded-xl border border-line2 px-3 py-2 text-sm text-ink outline-none focus:border-primary-400">
+            {TYPES_PRO.map((t) => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
+          </select>
+        </label>
+        <label className="block text-xs font-semibold text-gray-500">
+          Secteur
+          <select value={secteur} onChange={(e) => setSecteur(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-line2 px-3 py-2 text-sm text-ink outline-none focus:border-primary-400">
+            <option value="">— aucun —</option>
+            {secteur !== '' && !def.secteurs.includes(secteur) && <option value={secteur}>{secteur}</option>}
+            {def.secteurs.map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <label className="block text-xs font-semibold text-gray-500">
+          {def.numero}
+          <input value={numero} onChange={(e) => setNumero(e.target.value)} maxLength={60}
+            className="mt-1 w-full rounded-xl border border-line2 px-3 py-2 text-sm text-ink outline-none focus:border-primary-400" />
+        </label>
+        <label className="block text-xs font-semibold text-gray-500">
+          Téléphone pro
+          <input value={tel} onChange={(e) => setTel(e.target.value)} maxLength={20}
+            className="mt-1 w-full rounded-xl border border-line2 px-3 py-2 text-sm text-ink outline-none focus:border-primary-400" />
+        </label>
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button onClick={enregistrer} disabled={busy || nom.trim().length < 2}
+          className="flex-1 rounded-xl bg-primary-500 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+          {busy ? '…' : 'Enregistrer la correction'}
+        </button>
+        <button onClick={() => setOuvert(false)}
+          className="rounded-xl border border-line2 px-4 py-2.5 text-sm font-semibold text-gray-600">
+          Annuler
+        </button>
+      </div>
     </div>
   )
 }

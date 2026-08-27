@@ -669,12 +669,24 @@ export async function phpProVitrine(
 /** Un jour d'ouverture de la fiche professionnelle. */
 export interface Horaire { ouvert: boolean; de: string; a: string }
 
-/** La fiche professionnelle : ce que les acheteurs voient sur la page vendeur. */
+/**
+ * La fiche professionnelle : ce que les acheteurs voient sur la page vendeur.
+ *
+ * Le TYPE, le SECTEUR et le NUMÉRO n'y sont pas : ce sont les trois éléments
+ * que l'équipe a vérifiés avant d'approuver le dossier, et seul un
+ * administrateur peut les changer (voir phpAdminProFiche).
+ */
 export async function phpProFiche(d: {
-  nom: string; type: string; secteur: string; numero: string; tel: string
-  description: string; horaires?: Horaire[]
+  nom: string; tel: string; description: string; horaires?: Horaire[]
 }): Promise<void> {
   await req('/pro/fiche', { method: 'POST', body: d })
+}
+
+/** Côté équipe : corriger le dossier vérifié d'un professionnel. */
+export async function phpAdminProFiche(d: {
+  userId: string; nom: string; type: string; secteur: string; numero: string; tel: string
+}): Promise<{ change: number }> {
+  return req('/admin/pro/fiche', { method: 'POST', body: d })
 }
 
 /** Le chemin de l'acheteur : vues → favoris → contacts → ventes, heures, communes. */

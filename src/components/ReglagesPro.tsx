@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Camera, Check, ChevronRight, Clock, KeyRound, Loader2, LogOut, MapPin,
-  Monitor, ShieldCheck, Smartphone,
+  Camera, Check, ChevronRight, Clock, Crosshair, KeyRound, Loader2, Lock, LogOut,
+  MapPin, Monitor, ShieldCheck, Smartphone,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
@@ -11,7 +11,7 @@ import { fetchMyProfile, updateMyProfile } from '../lib/profiles'
 import { fetchVerifyStatus, type VerifyStatus } from '../lib/verify'
 import { downscaleImage, downscaleListingImage } from '../lib/image'
 import { mediaUrl } from '../lib/native'
-import { regions, citiesByRegion, communesAbidjan } from '../data/locations'
+import { regions, cities, citiesByRegion, communesAbidjan, locationLabel } from '../data/locations'
 import { TYPES_PRO, labelTypePro } from '../data/secteursPro'
 import {
   phpProFiche, phpProVitrine, phpReglagesNotifs, phpEnregistrerReglagesNotifs,
@@ -123,24 +123,24 @@ function Interrupteur({ titre, sous, actif, onChange }: {
  * sépare une enseigne d'un pseudonyme, et c'est lui qui fait écrire l'acheteur
  * qui hésite entre deux vendeurs.
  */
-export function FicheProEdit({ pro, commune: communeInitiale, banniere, logo, onEnregistre }: {
+export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdresse }: {
   pro: {
     nom: string; type: string; secteur: string; numero?: string; tel?: string
     description?: string; horaires?: Horaire[] | null
   }
-  /** La commune du profil : la planche la montre ici, à côté du téléphone. */
-  commune?: string
+  /** « Abidjan · Abobo » — rappel de ce qui est enregistré, sans le modifier ici. */
+  lieu?: string
   banniere?: string
   logo?: string
   onEnregistre: () => void
+  /** Ouvre l'écran « Adresse & localisation », seul endroit où le lieu se règle. */
+  onAdresse: () => void
 }) {
-  const { user } = useAuth()
   const toast = useToast()
-  const [commune, setCommune] = useState(communeInitiale ?? '')
   const [nom, setNom] = useState(pro.nom ?? '')
-  const [type, setType] = useState(pro.type === 'commerce' ? 'boutique' : (pro.type ?? 'boutique'))
-  const [secteur, setSecteur] = useState(pro.secteur ?? '')
-  const [numero, setNumero] = useState(pro.numero ?? '')
+  const type = pro.type === 'commerce' ? 'boutique' : (pro.type ?? 'boutique')
+  const secteur = pro.secteur ?? ''
+  const numero = pro.numero ?? ''
   const [tel, setTel] = useState(pro.tel ?? '')
   const [description, setDescription] = useState(pro.description ?? '')
   const [horaires, setHoraires] = useState<Horaire[]>(pro.horaires?.length === 7 ? pro.horaires : HORAIRES_DEFAUT)
@@ -168,10 +168,7 @@ export function FicheProEdit({ pro, commune: communeInitiale, banniere, logo, on
   const enregistrer = async () => {
     setEnCours(true)
     try {
-      await phpProFiche({ nom, type, secteur, numero, tel, description, horaires })
-      if (user && commune !== (communeInitiale ?? '')) {
-        await updateMyProfile(user.id, { commune })
-      }
+      await phpProFiche({ nom, tel, description, horaires })
       onEnregistre()
       toast.success('Votre fiche est à jour.')
     } catch (e) { toast.error((e as Error).message) }
@@ -209,47 +206,54 @@ export function FicheProEdit({ pro, commune: communeInitiale, banniere, logo, on
           placeholder="Ex : Zika Fête" className={SAISIE} />
       </Champ>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Champ etiquette="Type">
-          <select value={type} onChange={(e) => { setType(e.target.value); setSecteur('') }}
-            className={`${SAISIE} font-semibold`}>
-            {TYPES_PRO.map((t) => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
-          </select>
-        </Champ>
-        <Champ etiquette="Secteur">
-          <select value={secteur} onChange={(e) => setSecteur(e.target.value)} className={`${SAISIE} font-semibold`}>
-            <option value="">— à choisir —</option>
-            {/* Un secteur enregistré sous un AUTRE type reste proposé : sans
-                cette ligne, il disparaissait de la liste sans un mot, et le
-                premier enregistrement l'effaçait pour de bon. */}
-            {secteur !== '' && !def.secteurs.includes(secteur) && (
-              <option value={secteur}>{secteur}</option>
-            )}
-            {def.secteurs.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </Champ>
+      {/* CE QUE L'ÉQUIPE A VÉRIFIÉ — en lecture seule.
+          Type, secteur et numéro sont les trois éléments contrôlés avant
+          l'approbation du dossier : le numéro se vérifie au registre, et c'est
+          lui qui porte « entreprise enregistrée » sur la page vendeur. Les
+          laisser modifiables, ce serait laisser une boutique approuvée se
+          déclarer association le lendemain, badge compris. */}
+      <div className="rounded-2xl border border-line bg-white p-3.5 shadow-card">
+        <p className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-gray-400">
+          <Lock size={11} /> Vérifié par l’équipe
+        </p>
+        <dl className="mt-2 grid gap-2.5 sm:grid-cols-2">
+          <div>
+            <dt className="text-[10px] font-extrabold uppercase tracking-[0.07em] text-gray-400">Type</dt>
+            <dd className="mt-0.5 text-[14px] font-semibold text-gray-700">{labelTypePro(type)}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-extrabold uppercase tracking-[0.07em] text-gray-400">Secteur</dt>
+            <dd className="mt-0.5 text-[14px] font-semibold text-gray-700">{secteur || '—'}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-[10px] font-extrabold uppercase tracking-[0.07em] text-gray-400">{def.numero}</dt>
+            <dd className="mt-0.5 text-[14px] font-semibold text-gray-700">
+              {numero || <span className="font-normal text-gray-400">non renseigné</span>}
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-2.5 rounded-xl bg-cream-100 px-3 py-2 text-[11.5px] leading-relaxed text-gray-600">
+          Ces trois-là ont été contrôlés avant l’approbation de votre dossier : ils ne se
+          changent pas depuis ici. Une erreur ou un changement réel (nouveau RCCM,
+          changement d’activité) ?{' '}
+          <Link to="/assistance" className="font-bold text-primary-700">Écrivez à l’équipe</Link>,
+          elle le corrige.
+        </p>
       </div>
-
-      <Champ accent
-        etiquette={<>{def.numero} <span className="text-primary-700">— recommandé</span></>}
-        aide="Un numéro vérifiable rassure l’acheteur : il apparaît sur votre page vendeur avec la mention « entreprise enregistrée ».">
-        <input value={numero} onChange={(e) => setNumero(e.target.value)} maxLength={60}
-          placeholder="CI-ABJ-2026-B-…" className={SAISIE} />
-      </Champ>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Champ etiquette="Téléphone professionnel">
           <input value={tel} onChange={(e) => setTel(e.target.value)} maxLength={20}
             inputMode="tel" placeholder="07 00 00 00 00" className={SAISIE} />
         </Champ>
-        {/* La commune vit dans le profil ; on l'édite aussi d'ici, parce que
-            c'est ici qu'un professionnel vient corriger sa fiche. */}
-        <Champ etiquette="Commune">
-          <select value={commune} onChange={(e) => setCommune(e.target.value)} className={`${SAISIE} font-semibold`}>
-            <option value="">— à choisir —</option>
-            {commune !== '' && !communesAbidjan.includes(commune) && <option value={commune}>{commune}</option>}
-            {communesAbidjan.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+        {/* Le lieu se règle à UN SEUL endroit — « Adresse & localisation », qui
+            détecte la position et enchaîne région → ville → commune. Deux
+            formulaires pour la même donnée, c'est deux valeurs différentes. */}
+        <Champ etiquette="Où l’on vous trouve"
+          aide={<>Se règle dans <button onClick={onAdresse} className="font-bold text-primary-700">Adresse &amp; localisation</button>.</>}>
+          <span className="mt-1 block text-[14px] font-semibold text-gray-700">
+            {lieu || <span className="font-normal text-gray-400">non renseigné</span>}
+          </span>
         </Champ>
       </div>
 
@@ -613,12 +617,13 @@ export function SecuriteCompte({ onMotDePasse, onDoubleAuth }: {
  */
 export function AdressePosition({ onChange }: { onChange?: () => void }) {
   const { user } = useAuth()
-  const { place } = useGeo()
+  const { place, status, allowGps } = useGeo()
   const toast = useToast()
   const [regionId, setRegionId] = useState('')
   const [cityId, setCityId] = useState('')
   const [commune, setCommune] = useState('')
   const [adresse, setAdresse] = useState('')
+  const [coord, setCoord] = useState<{ lat: number; lng: number } | null>(null)
   const [montrer, setMontrer] = useState(true)
   const [enCours, setEnCours] = useState(false)
 
@@ -629,17 +634,49 @@ export function AdressePosition({ onChange }: { onChange?: () => void }) {
       if (!actif) return
       setRegionId(p.regionId); setCityId(p.cityId)
       setCommune(p.commune); setAdresse(p.address)
+      if (p.lat != null && p.lng != null) setCoord({ lat: p.lat, lng: p.lng })
     }).catch(() => {})
     phpReglagesNotifs().then((r) => actif && setMontrer(r.position !== false)).catch(() => {})
     return () => { actif = false }
   }, [user])
 
-  const villes = useMemo(() => citiesByRegion(regionId), [regionId])
-  const abidjan = villes.some((v) => v.id === cityId && (v.communes?.length ?? 0) > 0)
-  const communes = useMemo(
-    () => villes.find((v) => v.id === cityId)?.communes ?? (regionId === 'abidjan' ? communesAbidjan : []),
-    [villes, cityId, regionId],
+  // TOUTES les villes de Côte d'Ivoire : la liste n'est bornée par la région
+  // que si l'on en a choisi une. Un vendeur de Korhogo doit se trouver sans
+  // savoir dans quel district administratif tombe sa ville.
+  const villes = useMemo(
+    () => (regionId ? citiesByRegion(regionId) : cities),
+    [regionId],
   )
+  const villeChoisie = useMemo(() => cities.find((v) => v.id === cityId), [cityId])
+  // Les communes n'existent que pour les villes qui en ont — Abidjan, et les
+  // grandes villes que `locations.ts` détaille.
+  const communes = useMemo(
+    () => villeChoisie?.communes ?? (cityId === '' && regionId === 'abidjan' ? communesAbidjan : []),
+    [villeChoisie, cityId, regionId],
+  )
+
+  /**
+   * « Détecter ma position » — le GPS d'abord, l'adresse IP en repli, puis la
+   * région, la ville et la commune remplies toutes seules. C'est le geste qui
+   * évite trois listes déroulantes à quelqu'un qui tient son téléphone.
+   */
+  const detecter = async () => {
+    setEnCours(true)
+    try {
+      await allowGps()
+    } finally { setEnCours(false) }
+  }
+
+  // Ce que la détection a trouvé se reporte dans le formulaire — mais on
+  // n'écrase JAMAIS un choix déjà fait à la main.
+  useEffect(() => {
+    if (!place) return
+    setRegionId((v) => v || place.regionId || '')
+    setCityId((v) => v || place.cityId || '')
+    setCommune((v) => v || place.commune || '')
+    setAdresse((v) => v || place.address || '')
+    if (place.lat != null && place.lng != null) setCoord({ lat: place.lat, lng: place.lng })
+  }, [place])
 
   const basculerPosition = async (v: boolean) => {
     setMontrer(v)
@@ -660,6 +697,7 @@ export function AdressePosition({ onChange }: { onChange?: () => void }) {
     try {
       await updateMyProfile(user.id, {
         region_id: regionId, city_id: cityId, commune, address: adresse.trim(),
+        lat: coord?.lat ?? null, lng: coord?.lng ?? null,
       })
       onChange?.()
       toast.success('Adresse enregistrée.')
@@ -672,37 +710,65 @@ export function AdressePosition({ onChange }: { onChange?: () => void }) {
       <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
         <div className="relative grid h-[110px] place-items-center bg-gradient-to-br from-[#E8EEFB] to-[#DCE6F7]">
           <MapPin size={26} className="text-primary-600" />
-          <p className="absolute bottom-2 left-0 right-0 text-center text-[11px] font-semibold text-gray-500">
-            {place?.commune || place?.address || 'Position non enregistrée'}
+          <p className="absolute bottom-2 left-0 right-0 px-4 text-center text-[11px] font-semibold text-gray-600">
+            {coord
+              ? `${locationLabel(regionId, cityId, commune) || 'Position enregistrée'}`
+              : 'Position non enregistrée'}
           </p>
         </div>
-        <p className="px-3.5 py-3 text-[11.5px] leading-relaxed text-gray-500">
-          Votre position sert à mesurer une distance. Le point exact n’est jamais publié :
-          les acheteurs voient la commune, pas votre porte.
-        </p>
+        <div className="p-3.5">
+          <button onClick={detecter} disabled={enCours || status === 'loading'}
+            className="btn-primary w-full py-2.5 text-[13.5px] disabled:opacity-50">
+            {status === 'loading' || enCours
+              ? <Loader2 size={16} className="animate-spin" />
+              : <Crosshair size={16} />} Détecter ma position
+          </button>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-gray-500">
+            Votre téléphone donne la position, et la région, la ville et la commune se
+            remplissent toutes seules. Vous pouvez ensuite corriger à la main.
+            {status === 'denied' || status === 'unavailable'
+              ? ' Le GPS n’a rien donné : choisissez votre ville ci-dessous.' : ''}
+          </p>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-gray-400">
+            Le point exact n’est jamais publié : les acheteurs voient la commune, pas votre porte.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Champ etiquette="Région">
-          <select value={regionId} onChange={(e) => { setRegionId(e.target.value); setCityId(''); setCommune('') }}
+        <Champ etiquette={<>Région <span className="text-gray-300">— facultatif</span></>}>
+          <select value={regionId}
+            onChange={(e) => {
+              const r = e.target.value
+              setRegionId(r)
+              // On ne garde la ville que si elle appartient encore à la région.
+              if (r && villeChoisie && villeChoisie.regionId !== r) { setCityId(''); setCommune('') }
+            }}
             className={`${SAISIE} font-semibold`}>
-            <option value="">— à choisir —</option>
+            <option value="">Toute la Côte d’Ivoire</option>
             {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </Champ>
         <Champ etiquette="Ville">
-          <select value={cityId} onChange={(e) => { setCityId(e.target.value); setCommune('') }}
-            disabled={!regionId} className={`${SAISIE} font-semibold disabled:opacity-40`}>
+          <select value={cityId}
+            onChange={(e) => {
+              const v = e.target.value
+              setCityId(v); setCommune('')
+              // Choisir une ville pose sa région : une liste de moins à remplir.
+              const trouvee = cities.find((c) => c.id === v)
+              if (trouvee) setRegionId(trouvee.regionId)
+            }}
+            className={`${SAISIE} font-semibold`}>
             <option value="">— à choisir —</option>
             {villes.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select>
         </Champ>
       </div>
 
-      {/* La commune reste visible dès qu'on en a une d'enregistrée, même si la
-          région n'a jamais été renseignée : sinon on ne verrait nulle part ce
-          que le compte contient déjà. */}
-      {(abidjan || communes.length > 0 || commune !== '') && (
+      {/* La commune n'apparaît que pour les villes qui en ont — Abidjan et les
+          grandes villes. Elle reste visible si le compte en porte déjà une :
+          sinon on ne verrait nulle part ce qui est enregistré. */}
+      {(communes.length > 0 || commune !== '') && (
         <Champ etiquette="Commune">
           <select value={commune} onChange={(e) => setCommune(e.target.value)} className={`${SAISIE} font-semibold`}>
             <option value="">— à choisir —</option>

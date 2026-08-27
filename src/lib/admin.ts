@@ -200,6 +200,16 @@ export async function deciderPro(userId: string, action: 'approuver' | 'refuser'
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   await php.phpAdminProDecider(userId, action, motif)
 }
+/**
+ * Corriger le dossier vérifié d'un professionnel — type, secteur, numéro.
+ * Le professionnel ne le peut pas lui-même : c'est ce que l'équipe a contrôlé.
+ */
+export async function corrigerFichePro(d: {
+  userId: string; nom: string; type: string; secteur: string; numero: string; tel: string
+}): Promise<{ change: number }> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminProFiche(d)
+}
 export async function deleteAdminListing(id: string, motif = ''): Promise<void> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminDeleteListing(id, motif)

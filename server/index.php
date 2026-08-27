@@ -7431,15 +7431,19 @@ try {
     $b = body();
     $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
     if (mb_strlen($nom) < 2) jerr('Indiquez le nom de votre organisation.');
-    $type = (string) ($b['type'] ?? '');
-    if (!in_array($type, ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
-                          'formation', 'emploi', 'voyage', 'agro', 'sante', 'association'], true)) {
-      jerr('Type d’organisation inconnu.');
-    }
-    $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 60));
-    $numero  = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 60));
-    $tel     = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
-    $desc    = trim(mb_substr((string) ($b['description'] ?? ''), 0, 300));
+    // LE TYPE, LE SECTEUR ET LE NUMÉRO NE SE MODIFIENT PAS ICI.
+    //
+    // Ces trois-là sont ce que l'équipe a VÉRIFIÉ avant d'approuver le dossier
+    // — le numéro RCCM se contrôle au registre, et c'est lui qui porte la
+    // mention « entreprise enregistrée » sur la page vendeur. Les laisser
+    // modifiables, c'est laisser une enseigne approuvée en boutique se
+    // déclarer association le lendemain, avec le badge en prime.
+    //
+    // Ils changent par une seule porte : un administrateur ou un modérateur
+    // qui a le droit « utilisateurs » (route admin/pro/fiche). Le corps de la
+    // requête peut les porter, on ne les lit pas.
+    $tel  = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+    $desc = trim(mb_substr((string) ($b['description'] ?? ''), 0, 300));
     // Les horaires : sept jours, chacun ouvert ou fermé avec deux heures.
     // Stockés en JSON — un tableau de sept, jamais autre chose.
     $horaires = null;
@@ -7458,9 +7462,8 @@ try {
         $horaires = count($propre) === 7 ? json_encode($propre, JSON_UNESCAPED_UNICODE) : null;
       }
     }
-    $sql = 'UPDATE users SET pro_nom = ?, pro_type = ?, pro_secteur = ?, pro_numero = ?,
-            pro_tel = ?, pro_description = ?';
-    $vals = [$nom, $type, $secteur, $numero, $tel, $desc];
+    $sql = 'UPDATE users SET pro_nom = ?, pro_tel = ?, pro_description = ?';
+    $vals = [$nom, $tel, $desc];
     if ($horaires !== null) { $sql .= ', pro_horaires = ?'; $vals[] = $horaires; }
     $sql .= ' WHERE id = ?'; $vals[] = $u['id'];
     $pdo->prepare($sql)->execute($vals);
@@ -7874,7 +7877,8 @@ try {
     }
     $profil = [];
     try {
-      $q = $pdo->prepare('SELECT full_name, phone, commune, avatar_url FROM profiles WHERE id = ?');
+      $q = $pdo->prepare('SELECT full_name, phone, commune, city_id, region_id, avatar_url
+                          FROM profiles WHERE id = ?');
       $q->execute([$uid]);
       $profil = $q->fetch() ?: [];
     } catch (Throwable $e) {}
@@ -7904,6 +7908,10 @@ try {
         'nom' => (string) ($profil['full_name'] ?? ''),
         'email' => (string) ($u['email'] ?? ''),
         'commune' => (string) ($profil['commune'] ?? ''),
+        // Les identifiants bruts du lieu : la fiche professionnelle en fait
+        // « Abidjan · Abobo » sans avoir à interroger une seconde route.
+        'villeId' => (string) ($profil['city_id'] ?? ''),
+        'regionId' => (string) ($profil['region_id'] ?? ''),
         'avatar' => (string) ($profil['avatar_url'] ?? ''),
         'twofa' => $compteur('SELECT COALESCE(totp_enabled, 0) FROM users WHERE id = ?', [$uid]) === 1,
         'annoncesMasquees' => $annoncesMasquees,
@@ -9021,6 +9029,56 @@ try {
         'tel' => $r['pro_tel'] ?: null, 'demandeAt' => iso_to_ms($r['pro_demande_at'] ?? null),
         'decideAt' => iso_to_ms($r['pro_decide_at'] ?? null), 'motif' => $r['pro_motif'] ?: null,
       ], $rows)]);
+    }
+
+    // LA SEULE PORTE par laquelle le type, le secteur et le numéro d'un dossier
+    // approuvé peuvent changer. Le professionnel, lui, ne le peut pas : ces
+    // trois-là sont ce que l'équipe a vérifié avant d'approuver.
+    //
+    // Réservé au droit « utilisateurs » (admin_feature_for_path le donne à
+    // tout ce qui commence par admin/pro). Chaque modification est journalisée
+    // avec l'ancienne et la nouvelle valeur : on doit pouvoir dire QUI a changé
+    // un RCCM, et quand.
+    if ($path === 'admin/pro/fiche' && $method === 'POST') {
+      $b = body();
+      $userId = (string) ($b['userId'] ?? '');
+      $st = $pdo->prepare('SELECT email, pro_status, pro_nom, pro_type, pro_secteur, pro_numero, pro_tel
+                           FROM users WHERE id = ?');
+      $st->execute([$userId]);
+      $cible = $st->fetch();
+      if (!$cible || (string) ($cible['pro_status'] ?? '') === '') jerr('Dossier introuvable.', 404);
+
+      $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
+      if (mb_strlen($nom) < 2) jerr('Le nom commercial est obligatoire.');
+      $type = (string) ($b['type'] ?? '');
+      if (!in_array($type, ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
+                            'formation', 'emploi', 'voyage', 'agro', 'sante', 'association'], true)) {
+        jerr('Type d’organisation inconnu.');
+      }
+      $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 60));
+      $numero  = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 60));
+      $tel     = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+
+      $change = [];
+      foreach ([['pro_nom', $nom], ['pro_type', $type], ['pro_secteur', $secteur],
+                ['pro_numero', $numero], ['pro_tel', $tel]] as [$col, $neuf]) {
+        $avant = (string) ($cible[$col] ?? '');
+        if ($avant !== (string) $neuf) $change[] = $col . ' : « ' . $avant . ' » → « ' . $neuf . ' »';
+      }
+      if (!$change) jout(['ok' => true, 'change' => 0]);
+
+      $pdo->prepare('UPDATE users SET pro_nom = ?, pro_type = ?, pro_secteur = ?, pro_numero = ?,
+                     pro_tel = ? WHERE id = ?')
+          ->execute([$nom, $type, $secteur, $numero, $tel, $userId]);
+      log_security_event($pdo, 'pro_fiche_admin', $cible['email'] ?? null, implode(' · ', $change));
+      // La personne concernée l'apprend : une fiche qui change sans un mot,
+      // c'est ce qui fait écrire « on a modifié mon compte sans me prévenir ».
+      try {
+        notify($pdo, $userId, 'pro_decision', 'Votre fiche professionnelle a été modifiée',
+               'L’équipe Chap.ci a mis à jour votre dossier. Vérifiez-la dans Compte → Modifier ma fiche.',
+               '#/compte');
+      } catch (Throwable $e) { /* la modification est enregistrée quoi qu'il arrive */ }
+      jout(['ok' => true, 'change' => count($change)]);
     }
 
     if ($path === 'admin/pro/decider' && $method === 'POST') {

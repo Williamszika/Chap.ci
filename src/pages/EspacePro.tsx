@@ -40,7 +40,8 @@ export interface Tableau {
   }
   /** Tout le compte, pour les tuiles et la fiche d'entreprise de la page Compte. */
   compte?: {
-    nom: string; email: string; commune: string; avatar: string; twofa: boolean
+    nom: string; email: string; commune: string; villeId?: string; regionId?: string
+    avatar: string; twofa: boolean
     annoncesMasquees: number; annoncesVendues: number; favorisEnregistres: number
     commandesEnCours: number; commandesFinalisees: number
     pubsActives: number; pubFin: number

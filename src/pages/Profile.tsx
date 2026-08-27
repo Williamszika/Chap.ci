@@ -599,10 +599,11 @@ export function Profile() {
           proTableau ? (
             <FicheProEdit
               pro={proTableau.pro}
-              commune={proTableau.compte?.commune}
+              lieu={locationLabel(proTableau.compte?.regionId, proTableau.compte?.villeId, proTableau.compte?.commune)}
               banniere={proTableau.pro.banniere}
               logo={proTableau.pro.logo}
               onEnregistre={() => rechargerPro()}
+              onAdresse={() => setTab('adresse')}
             />
           ) : (
             <Empty text="Votre fiche professionnelle se charge…" />
