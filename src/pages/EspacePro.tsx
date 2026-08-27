@@ -326,7 +326,7 @@ export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* La courbe des vues. */}
-        <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5 lg:col-span-2">
+        <div className="flex flex-col rounded-2xl border border-line bg-white p-4 shadow-card md:p-5 lg:col-span-2">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-display text-[15px] font-extrabold text-ink">Vues de vos annonces</p>
@@ -341,7 +341,7 @@ export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}
               <Delta n={k.vues.n} prev={k.vues.prev} />
             </div>
           </div>
-          <GraphVues serie={t.serie} />
+          <div className="grid flex-1 content-center"><GraphVues serie={t.serie} /></div>
         </div>
 
         <div className="flex flex-col gap-4">
