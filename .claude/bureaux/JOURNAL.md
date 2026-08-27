@@ -4434,3 +4434,51 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   au curl : API `13c1c36ead45` ✓ · SEO `c57f0f1c6e55` ✓ · Site `c3cc823e7858` ✓.
   Route `POST /pro/vitrine` confirmée vivante en production (refuse « Non authentifié »
   au lieu de « Route inconnue »). La vitrine professionnelle est EN LIGNE.
+
+### 2026-08-27 (fin d'après-midi) — [Design] Les quatorze écrans de la console pro — livrés et EN LIGNE
+- Le Patron a demandé les « suites » de chaque bouton du compte pro : trois planches
+  d'aperçu (14 écrans), validées, puis construites à l'identique. Site d'abord ;
+  l'application suit.
+- **Gérer ma boutique** : ① Mes annonces (filtres par état, recherche, tri, les trois
+  chiffres par ligne, motif de masquage + « Corriger », menu ⋯) · ② Messages (les
+  conversations sans réponse remontent, jours d'attente, annonce concernée, réponses
+  toutes prêtes) · ③ Mes commandes (ventes + achats, « Marquer finalisée », « Ce
+  mois-ci ») · ④ Statistiques (le CHEMIN DE L'ACHETEUR, heures, communes) ·
+  ⑤ Mes publicités (retombées pendant la campagne, formules) · ⑥ Mes favoris (veille,
+  prix baissé démontrable).
+- **Mon entreprise** : ⑦ Ma fiche (RCCM mis en avant, description, sept jours
+  d'horaires).
+- **Mon compte** : ⑧ Profil & photo · ⑨ Notifications · ⑩ Sécurité (appareils,
+  dernières connexions) · ⑪ Adresse · ⑫ Aide (bloc « Pour les professionnels ») ·
+  ⑬ Contacter l'équipe · ⑭ Se déconnecter.
+- **Ce qui a été rendu réel plutôt qu'affiché** — un interrupteur qui ne commande rien
+  est un mensonge poli :
+  · `cron/rappels-pro` (message sans réponse 24 h, annonce essoufflée 10 j, bilan du
+    lundi), chacun avec son marqueur anti-répétition ;
+  · les notifications « vente » et « avis », qui n'existaient pas ;
+  · « heures calmes » (rien qui sonne 22 h → 6 h, la notification attend dans la
+    cloche), ALLUMÉ par défaut ;
+  · « montrer ma position » agit sur les annonces DÉJÀ publiées, et se rallume depuis
+    la position du profil.
+- **Deux bogues anciens corrigés au passage** : le bouton « Article reçu » de
+  l'acheteur renvoyait 403 depuis toujours (la route n'acceptait que le vendeur) ;
+  « ce mois-ci » comptait la date de la DEMANDE, pas de la conclusion (colonne
+  `orders.finalized_at` ajoutée).
+- **Un seul magasin de réglages** : `profiles.notif_prefs`, celui que `notify()`
+  consulte déjà. J'avais commencé une seconde table `notif_prefs` — supprimée avant
+  livraison. Deux magasins pour la même chose, c'est un réglage qui ne s'applique pas.
+- **Défauts vus SEULEMENT en photographiant** : les horaires débordaient de la carte
+  (`<input type="time">` impose le format du navigateur — « 08:00 AM » sur un
+  téléphone en anglais — et sa roulette poussait l'interrupteur dehors) ; la commune
+  manquait sur la fiche ; un secteur enregistré sous un autre type disparaissait de la
+  liste et s'effaçait au premier enregistrement. Même leçon que le 26/08.
+- **Extrait par le Patron le 27/08 à 15 h 33.** Empreintes vérifiées au curl :
+  API `1596c5702fff` ✓ · SEO `c57f0f1c6e55` ✓ · Site `a63862b69388` ✓. Les sept
+  nouvelles routes répondent « Non authentifié » (et non « Route inconnue ») ;
+  `cron/rappels-pro` refuse une mauvaise clé en 403.
+- **Reste à faire côté Patron** : ajouter la tâche cron quotidienne
+  `curl -s 'https://chap.ci/api/cron/rappels-pro?key=CLE_CRON_ICI'`. Sans elle, les
+  trois rappels du professionnel ne partent jamais.
+- **Deux chiffres partent de zéro, et l'écran le dit lui-même** : « vos meilleures
+  heures » (l'heure des vues n'était pas enregistrée avant) et « prix baissé » (le
+  prix d'alors n'existe que pour les favoris ajoutés à partir de maintenant).
