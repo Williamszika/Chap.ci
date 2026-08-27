@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../api/models.dart' show ImageSource;
 import '../format.dart';
@@ -50,6 +53,8 @@ class EspaceProPanel extends StatefulWidget {
 class _EspaceProPanelState extends State<EspaceProPanel> {
   Map<String, dynamic>? _tableau;
   int _periode = 7;
+  /// 'banniere' ou 'logo' pendant l'envoi de l'image correspondante.
+  String? _envoiImage;
 
   @override
   void initState() {
@@ -65,6 +70,43 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
         setState(() => _tableau = Map<String, dynamic>.from(t));
       }
     } catch (_) {/* les chiffres sont un plus, pas une condition */}
+  }
+
+  /// Choisit une image dans la galerie et l'envoie comme bannière ou logo.
+  /// La bannière est large (1600 px), le logo carré (512 px) : on demande au
+  /// sélecteur la bonne taille pour ne pas charger le réseau ivoirien.
+  Future<void> _changerImage(String quoi) async {
+    if (_envoiImage != null) return;
+    try {
+      final x = await imgpick.ImagePicker().pickImage(
+        source: imgpick.ImageSource.gallery,
+        maxWidth: quoi == 'banniere' ? 1600 : 512,
+        imageQuality: 85,
+      );
+      if (x == null) return;
+      setState(() => _envoiImage = quoi);
+      final bytes = await x.readAsBytes();
+      final mime = x.mimeType ??
+          (x.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+      final r = await ApiClient.instance.post('/pro/vitrine',
+          {quoi: 'data:$mime;base64,${base64Encode(bytes)}'});
+      if (r is Map && mounted) {
+        setState(() {
+          final pro = Map<String, dynamic>.from(
+              (_tableau?['pro'] as Map?) ?? const {});
+          pro['banniere'] = r['banniere'] ?? '';
+          pro['logo'] = r['logo'] ?? '';
+          _tableau = {...?_tableau, 'pro': pro};
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(tr(context, 'pro.vitrine.erreur'))));
+      }
+    } finally {
+      if (mounted) setState(() => _envoiImage = null);
+    }
   }
 
   void _changerPeriode(int p) {
@@ -107,77 +149,99 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // L'en-tête de marque : badge, nom commercial, note, ancienneté, période.
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [ChapColors.orange, ChapColors.orangeDark],
-            ),
-            borderRadius: BorderRadius.circular(18),
-          ),
+        // L'en-tête de marque : LA VITRINE (bannière + logo, modifiables),
+        // le badge, le nom commercial, la note, l'ancienneté et la période.
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _banniere(pro),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(20),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [ChapColors.orange, ChapColors.orangeDark],
+                  ),
                 ),
-                child: Text('💼 ${tr(context, 'pro.badge')}',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11.5)),
-              ),
-              const SizedBox(height: 10),
-              Text(nom.isNotEmpty ? nom : tr(context, 'pro.approuve'),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                      height: 1.15)),
-              if (type.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  tr(context, 'pro.type.$type') +
-                      (secteur.isNotEmpty
-                          ? ' · ${secteurProTr(context, secteur)}'
-                          : ''),
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 12.5),
-                ),
-              ],
-              const SizedBox(height: 3),
-              Text(
-                [
-                  if (note != null)
-                    '★ $note ($avis ${tr(context, 'pro.tab.avis')})',
-                  if (depuis is int && depuis > 0)
-                    '${tr(context, 'pro.tab.depuis')} '
-                        '${dureeTr(context, depuis)}',
-                ].join(' · '),
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.75),
-                    fontSize: 11),
-              ),
-              const SizedBox(height: 11),
-              Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _chipPeriode(7, tr(context, 'pro.tab.jours7')),
-                    _chipPeriode(30, tr(context, 'pro.tab.jours30')),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _logo(pro, nom),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 14),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text('💼 ${tr(context, 'pro.badge')}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 11.5)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(nom.isNotEmpty ? nom : tr(context, 'pro.approuve'),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15)),
+                    if (type.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        tr(context, 'pro.type.$type') +
+                            (secteur.isNotEmpty
+                                ? ' · ${secteurProTr(context, secteur)}'
+                                : ''),
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 12.5),
+                      ),
+                    ],
+                    const SizedBox(height: 3),
+                    Text(
+                      [
+                        if (note != null)
+                          '★ $note ($avis ${tr(context, 'pro.tab.avis')})',
+                        if (depuis is int && depuis > 0)
+                          '${tr(context, 'pro.tab.depuis')} '
+                              '${dureeTr(context, depuis)}',
+                      ].join(' · '),
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 11),
+                    ),
+                    const SizedBox(height: 11),
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _chipPeriode(7, tr(context, 'pro.tab.jours7')),
+                          _chipPeriode(30, tr(context, 'pro.tab.jours30')),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -521,6 +585,147 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
                 color: actif ? ChapColors.ocreDark : Colors.white)),
+      ),
+    );
+  }
+
+  /// La bannière : l'image choisie par le professionnel, ou le dégradé de la
+  /// marque — avec le bouton qui permet de la changer.
+  Widget _banniere(Map pro) {
+    final url = (pro['banniere'] as String?) ?? '';
+    return SizedBox(
+      height: 104,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (url.isEmpty)
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [ChapColors.orangeDark, Color(0xFFB45200)],
+                ),
+              ),
+            )
+          else
+            _image(url),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Color(0x59000000)],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: GestureDetector(
+              onTap: () => _changerImage('banniere'),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_envoiImage == 'banniere')
+                      const SizedBox(
+                        width: 13,
+                        height: 13,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    else
+                      const Icon(Icons.photo_camera_outlined,
+                          size: 14, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      url.isEmpty
+                          ? tr(context, 'pro.vitrine.ajouterBanniere')
+                          : tr(context, 'pro.vitrine.changerBanniere'),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Le logo rond du professionnel, à cheval sur la bannière, avec son bouton.
+  Widget _logo(Map pro, String nom) {
+    final url = (pro['logo'] as String?) ?? '';
+    return SizedBox(
+      width: 76,
+      height: 62,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: -34,
+            left: 0,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: ChapColors.cream100,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white, width: 3),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: url.isEmpty
+                    ? Container(
+                        color: ChapColors.orangeDark,
+                        alignment: Alignment.center,
+                        child: Text(
+                            (nom.isEmpty ? 'P' : nom[0]).toUpperCase(),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900)),
+                      )
+                    : _image(url),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 12,
+            left: 46,
+            child: GestureDetector(
+              onTap: () => _changerImage('logo'),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: ChapColors.orange,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: _envoiImage == 'logo'
+                    ? const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.photo_camera_outlined,
+                        size: 13, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

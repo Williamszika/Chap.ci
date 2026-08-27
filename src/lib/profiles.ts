@@ -9,6 +9,14 @@ export interface PublicProfile {
   verified?: boolean
   /** '' = aucun · 'anciennete' = vert (6 mois) · 'admin' = bleu (équipe). */
   badge?: 'admin' | 'anciennete' | ''
+  /** La vitrine d'un compte professionnel approuvé (sinon absente). */
+  pro?: {
+    nom?: string | null
+    type?: string | null
+    secteur?: string | null
+    banniere?: string | null
+    logo?: string | null
+  } | null
 }
 
 export async function fetchProfile(id: string): Promise<PublicProfile | null> {

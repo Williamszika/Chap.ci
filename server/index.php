@@ -2044,6 +2044,11 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_demande_at $ts"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_decide_at $ts"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_motif $txt"); } catch (Throwable $e) {}
+  // La vitrine d'un professionnel : sa bannière (image large en tête de son
+  // espace et de sa page vendeur) et son logo rond. Deux chemins `/uploads/…`,
+  // jamais des données d'image en base.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_banniere $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_logo $txt"); } catch (Throwable $e) {}
   // Relance d'activation : date d'envoi de l'e-mail « publiez votre 1ʳᵉ annonce »
   // (envoyé UNE seule fois par compte — jamais de spam).
   try { $pdo->exec("ALTER TABLE users ADD COLUMN activation_emailed $ts"); } catch (Throwable $e) {}
@@ -6939,11 +6944,17 @@ try {
     // La fiche Pro publique (nom commercial, type) — seulement si approuvée.
     $pro = null;
     try {
-      $pq = $pdo->prepare('SELECT pro_status, pro_nom, pro_type FROM users WHERE id = ?');
+      $pq = $pdo->prepare('SELECT pro_status, pro_nom, pro_type, pro_secteur,
+                                  pro_banniere, pro_logo FROM users WHERE id = ?');
       $pq->execute([$seg[1]]);
       $pr = $pq->fetch();
       if ($pr && (string) ($pr['pro_status'] ?? '') === 'approuve') {
-        $pro = ['nom' => $pr['pro_nom'] ?: null, 'type' => $pr['pro_type'] ?: null];
+        // La vitrine part avec la fiche : une bannière que personne ne voit
+        // ne sert à rien — c'est justement ce que le professionnel montre.
+        $pro = ['nom' => $pr['pro_nom'] ?: null, 'type' => $pr['pro_type'] ?: null,
+                'secteur' => $pr['pro_secteur'] ?: null,
+                'banniere' => $pr['pro_banniere'] ?: null,
+                'logo' => $pr['pro_logo'] ?: null];
       }
     } catch (Throwable $e) { /* base pas migrée : pas de fiche pro */ }
     jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
@@ -7059,6 +7070,42 @@ try {
   // Le tableau de bord de l'ESPACE PROFESSIONNEL : les chiffres du compte,
   // réservés aux dossiers approuvés. Chaque agrégat est best-effort (try/catch
   // par table) : une table absente rend 0, jamais un 500.
+  // La vitrine d'un professionnel : sa bannière et son logo. Le corps porte
+  // `banniere` et/ou `logo` — soit une image `data:` (enregistrée par
+  // save_data_uri, qui vérifie que c'en est vraiment une), soit une chaîne
+  // vide pour retirer l'image. Réservé aux comptes approuvés.
+  if ($path === 'pro/vitrine' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $b = body();
+    $set = []; $vals = [];
+    foreach (['banniere' => 'pro_banniere', 'logo' => 'pro_logo'] as $champ => $colonne) {
+      if (!array_key_exists($champ, $b)) continue;
+      $v = $b[$champ];
+      if (!is_string($v)) continue;
+      if ($v === '') {                       // retirer l'image
+        $set[] = "$colonne = ?"; $vals[] = null;
+        continue;
+      }
+      $chemin = save_data_uri($config, $v);  // refuse tout ce qui n'est pas une image
+      if ($chemin === null) jerr('Cette image n’a pas pu être lue. Choisissez une photo (JPG ou PNG).');
+      $set[] = "$colonne = ?"; $vals[] = $chemin;
+    }
+    if (!$set) jerr('Rien à enregistrer.');
+    $vals[] = $u['id'];
+    $pdo->prepare('UPDATE users SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
+    $q = $pdo->prepare('SELECT pro_banniere, pro_logo FROM users WHERE id = ?');
+    $q->execute([$u['id']]);
+    $r2 = $q->fetch() ?: [];
+    jout(['ok' => true,
+          'banniere' => (string) ($r2['pro_banniere'] ?? ''),
+          'logo' => (string) ($r2['pro_logo'] ?? '')]);
+  }
+
   // Le tableau de bord professionnel, façon CRM : chiffres de la période (7 ou
   // 30 jours) avec tendance vs période précédente, taux de réponse, messages en
   // attente, série des vues, top des annonces et fil d'activité. Chaque bloc est
@@ -7066,7 +7113,7 @@ try {
   if ($path === 'pro/tableau' && $method === 'GET') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at,
-                                pro_numero, pro_tel
+                                pro_numero, pro_tel, pro_banniere, pro_logo
                          FROM users WHERE id = ?');
     $st->execute([$u['id']]);
     $r = $st->fetch() ?: [];
@@ -7344,6 +7391,8 @@ try {
         'depuis' => iso_to_ms($r['pro_decide_at'] ?? null),
         'numero' => (string) ($r['pro_numero'] ?? ''),
         'tel' => (string) ($r['pro_tel'] ?? ''),
+        'banniere' => (string) ($r['pro_banniere'] ?? ''),
+        'logo' => (string) ($r['pro_logo'] ?? ''),
       ],
       'compte' => [
         'nom' => (string) ($profil['full_name'] ?? ''),

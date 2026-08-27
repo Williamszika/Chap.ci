@@ -1,14 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  BadgeCheck, Eye, Handshake, Heart, Hourglass, Loader2, LogIn,
+  BadgeCheck, Camera, Eye, Handshake, Heart, Hourglass, Loader2, LogIn,
   LogOut, MessageSquare, Package, Plus, Zap,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
-import { phpProStatut, phpProDemande, phpProTableau } from '../lib/php'
+import { phpProStatut, phpProDemande, phpProTableau, phpProVitrine } from '../lib/php'
 import { TYPES_PRO, labelTypePro } from '../data/secteursPro'
 import { formatFCFA, formatPrice, timeAgo } from '../lib/format'
 import { mediaUrl, thumbUrl } from '../lib/native'
+import { downscaleImage, downscaleListingImage } from '../lib/image'
 
 /**
  * L'espace professionnel du site — le pendant exact de l'écran « Devenir
@@ -33,6 +34,7 @@ interface Tableau {
   pro: {
     nom: string; type: string; secteur: string; depuis: number | null
     numero?: string; tel?: string
+    banniere?: string; logo?: string
   }
   /** Tout le compte, pour les tuiles et la fiche d'entreprise de la page Compte. */
   compte?: {
@@ -262,6 +264,10 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
   const [periode, setPeriode] = useState<7 | 30>(7)
   const [t, setT] = useState<Tableau | null>(null)
   const [erreur, setErreur] = useState('')
+  const [envoi, setEnvoi] = useState<'banniere' | 'logo' | null>(null)
+  const [erreurImage, setErreurImage] = useState('')
+  const champFichier = useRef<HTMLInputElement>(null)
+  const cible = useRef<'banniere' | 'logo' | null>(null)
   useEffect(() => {
     phpProTableau<Tableau>(periode).then(setT).catch((e) => setErreur((e as Error).message))
   }, [periode])
@@ -272,28 +278,103 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
   const s = t.stats
   const k = t.kpi
   const c = t.compte
+  // La vitrine : on choisit un fichier, on le réduit (la bannière est large,
+  // le logo carré), on l'envoie, et le tableau se met à jour sans recharger.
+  const choisirImage = (quoi: 'banniere' | 'logo') => {
+    setErreurImage('')
+    cible.current = quoi
+    champFichier.current?.click()
+  }
+  const envoyerImage = async (fichier: File) => {
+    const quoi = cible.current
+    if (!quoi) return
+    setEnvoi(quoi)
+    setErreurImage('')
+    try {
+      const donnees = quoi === 'banniere'
+        ? await downscaleListingImage(fichier, 1600, 0.82)
+        : await downscaleImage(fichier, 512, 0.85)
+      const r = await phpProVitrine({ [quoi]: donnees })
+      setT((ancien) => ancien && { ...ancien, pro: { ...ancien.pro, banniere: r.banniere, logo: r.logo } })
+    } catch (e) {
+      setErreurImage((e as Error).message || 'L’image n’a pas pu être envoyée.')
+    } finally {
+      setEnvoi(null)
+    }
+  }
+  const retirerImage = async (quoi: 'banniere' | 'logo') => {
+    setEnvoi(quoi)
+    setErreurImage('')
+    try {
+      const r = await phpProVitrine({ [quoi]: '' })
+      setT((ancien) => ancien && { ...ancien, pro: { ...ancien.pro, banniere: r.banniere, logo: r.logo } })
+    } catch (e) {
+      setErreurImage((e as Error).message)
+    } finally {
+      setEnvoi(null)
+    }
+  }
   const maxVuesTop = Math.max(1, ...t.top.map((a) => a.vues))
   // « se termine dans 6 j » : le compte à rebours d'une campagne en cours.
   const joursPub = c?.pubFin ? Math.ceil((c.pubFin - Date.now()) / 86400000) : 0
   const finPub = joursPub > 1 ? `dans ${joursPub} j` : joursPub === 1 ? 'demain' : joursPub === 0 ? "aujourd’hui" : ''
   return (
     <div className="space-y-4">
-      {/* L'en-tête de marque : badge, nom commercial, note, période, actions. */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 p-5 text-white shadow-card md:p-6">
+      {/* L'en-tête de marque : la VITRINE (bannière + logo), le badge, le nom
+          commercial, la note, la période et les actions. La bannière et le logo
+          se changent d'ici même (demande du Patron, 27/08). */}
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-card">
+        {/* La bannière : l'image du professionnel, ou le dégradé de la marque. */}
+        <div className="relative h-28 md:h-36">
+          {t.pro.banniere ? (
+            <img src={mediaUrl(t.pro.banniere)} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-primary-600 to-[#B45200]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
+          <button onClick={() => choisirImage('banniere')} disabled={envoi !== null}
+            className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60">
+            {envoi === 'banniere'
+              ? <Loader2 size={14} className="animate-spin" />
+              : <Camera size={14} />}
+            {t.pro.banniere ? 'Changer la bannière' : 'Ajouter une bannière'}
+          </button>
+        </div>
+
+        <div className="p-5 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider">
-              <BadgeCheck size={14} /> Compte professionnel
-            </span>
-            <p className="mt-3 font-display text-2xl font-extrabold leading-tight md:text-3xl">{t.pro.nom}</p>
-            <p className="mt-1 text-sm text-white/85">
-              {labelTypePro(t.pro.type)}
-              {t.pro.secteur ? <> · {t.pro.secteur}</> : null}
-            </p>
-            <p className="mt-0.5 text-xs text-white/70">
-              {s.note != null ? <>★ {s.note} ({s.avis} avis) · </> : null}
-              {t.pro.depuis != null ? <>Professionnel depuis {timeAgo(t.pro.depuis).replace('il y a ', '')}</> : null}
-            </p>
+          <div className="flex min-w-0 gap-4">
+            {/* Le logo rond, à cheval sur la bannière. */}
+            <div className="relative -mt-14 shrink-0 self-start md:-mt-16">
+              <div className="h-20 w-20 overflow-hidden rounded-2xl border-[3px] border-white bg-cream-100 shadow-lg md:h-24 md:w-24">
+                {t.pro.logo ? (
+                  <img src={mediaUrl(t.pro.logo)} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center bg-gradient-to-br from-primary-500 to-primary-700 font-display text-3xl font-black text-white">
+                    {(t.pro.nom || 'P').charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => choisirImage('logo')} disabled={envoi !== null}
+                aria-label={t.pro.logo ? 'Changer le logo' : 'Ajouter un logo'}
+                className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-primary-600 text-white shadow transition hover:bg-primary-700 disabled:opacity-60">
+                {envoi === 'logo' ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />}
+              </button>
+            </div>
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider">
+                <BadgeCheck size={14} /> Compte professionnel
+              </span>
+              <p className="mt-2 font-display text-2xl font-extrabold leading-tight md:text-3xl">{t.pro.nom}</p>
+              <p className="mt-1 text-sm text-white/85">
+                {labelTypePro(t.pro.type)}
+                {t.pro.secteur ? <> · {t.pro.secteur}</> : null}
+              </p>
+              <p className="mt-0.5 text-xs text-white/70">
+                {s.note != null ? <>★ {s.note} ({s.avis} avis) · </> : null}
+                {t.pro.depuis != null ? <>Professionnel depuis {timeAgo(t.pro.depuis).replace('il y a ', '')}</> : null}
+              </p>
+            </div>
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
             <div className="flex self-stretch rounded-full bg-white/20 p-1 sm:self-end">
@@ -319,7 +400,21 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
             </div>
           </div>
         </div>
+        {erreurImage && (
+          <p className="mt-3 rounded-xl bg-black/25 px-3 py-2 text-[12.5px] font-medium">{erreurImage}</p>
+        )}
+        {(t.pro.banniere || t.pro.logo) && (
+          <p className="mt-2 text-[11px] text-white/60">
+            Votre bannière et votre logo apparaissent aussi sur votre page vendeur.
+            {t.pro.banniere && <> <button onClick={() => retirerImage('banniere')} className="underline">Retirer la bannière</button></>}
+            {t.pro.logo && <> · <button onClick={() => retirerImage('logo')} className="underline">Retirer le logo</button></>}
+          </p>
+        )}
+        </div>
       </div>
+      {/* Le sélecteur de fichier, invisible : les deux boutons l'ouvrent. */}
+      <input ref={champFichier} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) envoyerImage(f) }} />
 
       {/* Les six chiffres clés de la période, chacun avec sa tendance. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">

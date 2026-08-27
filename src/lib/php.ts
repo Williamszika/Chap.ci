@@ -654,6 +654,12 @@ export async function phpProDemande(d: {
 export async function phpProTableau<T>(periode: 7 | 30 = 7): Promise<T> {
   return req<T>(`/pro/tableau?periode=${periode}`)
 }
+/** La vitrine du professionnel : bannière et logo (chaîne vide = retirer). */
+export async function phpProVitrine(
+  d: { banniere?: string; logo?: string },
+): Promise<{ banniere: string; logo: string }> {
+  return req('/pro/vitrine', { method: 'POST', body: d })
+}
 
 // ---- Administration ---------------------------------------------------------
 export async function phpAdminStats<T>(): Promise<T> {

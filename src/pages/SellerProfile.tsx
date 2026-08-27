@@ -102,8 +102,17 @@ export function SellerProfile() {
 
   return (
     <div className="min-h-screen bg-cream-200 md:mx-auto md:max-w-4xl">
+      {/* La bannière du professionnel — l'image qu'il a choisie dans son
+          espace pro. Les vendeurs ordinaires gardent le dégradé de la marque. */}
+      {profile?.pro?.banniere && (
+        <div className="relative h-32 w-full overflow-hidden md:h-44">
+          <img src={mediaUrl(profile.pro.banniere)} alt="" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FFF6EA] to-transparent" />
+        </div>
+      )}
+
       {/* Couverture + en-tête vendeur */}
-      <header className="safe-top relative overflow-hidden bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 pt-3">
+      <header className={`safe-top relative overflow-hidden bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 ${profile?.pro?.banniere ? 'pt-3' : 'pt-3'}`}>
         <button
           onClick={() => navigate(-1)}
           aria-label="Retour"
@@ -113,9 +122,12 @@ export function SellerProfile() {
         </button>
 
         <div className="mt-1 flex flex-col items-center text-center">
-          {/* Avatar */}
-          <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-ivoire-green font-display text-4xl font-black text-white shadow-card ring-4 ring-white md:h-28 md:w-28">
-            {profile?.avatarUrl ? (
+          {/* Avatar — le logo du professionnel s'il en a un. */}
+          <div className={`grid h-24 w-24 place-items-center overflow-hidden bg-ivoire-green font-display text-4xl font-black text-white shadow-card ring-4 ring-white md:h-28 md:w-28 ${
+            profile?.pro?.logo ? 'rounded-3xl' : 'rounded-full'} ${profile?.pro?.banniere ? '-mt-16 md:-mt-20' : ''}`}>
+            {profile?.pro?.logo ? (
+              <img src={mediaUrl(profile.pro.logo)} alt={displayName} className="h-full w-full object-cover" />
+            ) : profile?.avatarUrl ? (
               <img src={mediaUrl(profile.avatarUrl)} alt={displayName} className="h-full w-full object-cover" />
             ) : (
               displayName.charAt(0).toUpperCase()
