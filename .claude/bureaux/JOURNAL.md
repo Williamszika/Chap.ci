@@ -4395,3 +4395,23 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   photographiée ordinateur + téléphone — conforme à la maquette.
 - Livraison `chapciconsolepro.zip` : API `f669afeacadf` · SEO `c57f0f1c6e55` ·
   Site `7d54e0f73abf`. L'app demande une reconstruction sur le Mac du Patron.
+
+### 2026-08-27 (après-midi) — [Développement] La vitrine du professionnel : bannière et logo
+- Demande : « je veux que l'utilisateur pro puisse mettre une bannière, mettre une
+  photo de profil et pouvoir aussi les modifier ». Fait, site et app.
+- L'en-tête de l'espace pro devient une devanture : bannière large en tête (bouton
+  « Ajouter/Changer la bannière »), logo carré à cheval dessus (bouton appareil
+  photo), et deux liens « Retirer ». L'image est réduite AVANT l'envoi — 1600 px
+  pour la bannière, 512 pour le logo — parce qu'un forfait ivoirien se ménage.
+- **Les deux images partent aussi avec la fiche publique** : la page vendeur d'un
+  professionnel porte sa bannière et son logo (une bannière que personne ne voit ne
+  sert à rien). Le logo remplace l'avatar quand il existe.
+- Serveur : `POST /pro/vitrine` (approuvés seulement) passe par `save_data_uri` —
+  vérification que c'est une vraie image, taille bornée, écriture dans `uploads/`,
+  jamais d'exécutable ; deux colonnes `pro_banniere`/`pro_logo` portent les CHEMINS,
+  jamais les données. `GET /pro/tableau` et `GET /profile/{id}` les renvoient.
+- Vérifié en vrai : envoi d'une bannière et d'un logo au banc (route + fichiers
+  écrits), page Compte photographiée ordinateur et téléphone — bouton du logo bien
+  ancré après correction (`self-start` : le conteneur s'étirait).
+- Livraison `chapcivitrinepro.zip` : API `13c1c36ead45` · SEO `c57f0f1c6e55` ·
+  Site `01e9067d97e9`.
