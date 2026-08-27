@@ -153,19 +153,15 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
         // le badge, le nom commercial, la note, l'ancienneté et la période.
         ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
             children: [
-              _banniere(pro),
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [ChapColors.orange, ChapColors.orangeDark],
-                  ),
-                ),
+              // La bannière occupe TOUT le bandeau, derrière les écritures,
+              // avec un simple voile dégradé pour la lisibilité (demande du
+              // Patron, 27/08 : plus de bloc plein qui masque l'image).
+              Positioned.fill(child: _fondBanniere(pro)),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    16, (pro['banniere'] as String?)?.isNotEmpty == true ? 56 : 14, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -176,7 +172,7 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.only(top: 14),
+                            padding: const EdgeInsets.only(top: 22),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 5),
@@ -245,6 +241,7 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                   ],
                 ),
               ),
+              Positioned(top: 8, right: 8, child: _boutonBanniere(pro)),
             ],
           ),
         ),
@@ -589,121 +586,120 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
     );
   }
 
-  /// La bannière : l'image choisie par le professionnel, ou le dégradé de la
-  /// marque — avec le bouton qui permet de la changer.
-  Widget _banniere(Map pro) {
+  /// Le FOND du bandeau : la bannière du professionnel (ou le dégradé de la
+  /// marque s'il n'en a pas), avec un voile sombre en dégradé — assez pour
+  /// lire les écritures, assez peu pour que l'image reste visible.
+  Widget _fondBanniere(Map pro) {
     final url = (pro['banniere'] as String?) ?? '';
-    return SizedBox(
-      height: 104,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (url.isEmpty)
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [ChapColors.orangeDark, Color(0xFFB45200)],
-                ),
-              ),
-            )
-          else
-            _image(url),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Color(0x59000000)],
-              ),
+    if (url.isEmpty) {
+      return const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [ChapColors.orange, ChapColors.orangeDark],
+          ),
+        ),
+      );
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _image(url),
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x1F000000), Color(0x52000000), Color(0xA6000000)],
             ),
           ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: GestureDetector(
-              onTap: () => _changerImage('banniere'),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_envoiImage == 'banniere')
-                      const SizedBox(
-                        width: 13,
-                        height: 13,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    else
-                      const Icon(Icons.photo_camera_outlined,
-                          size: 14, color: Colors.white),
-                    const SizedBox(width: 6),
-                    Text(
-                      url.isEmpty
-                          ? tr(context, 'pro.vitrine.ajouterBanniere')
-                          : tr(context, 'pro.vitrine.changerBanniere'),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
+        ),
+      ],
+    );
+  }
+
+  /// Le bouton qui pose ou change la bannière, posé sur l'image.
+  Widget _boutonBanniere(Map pro) {
+    final url = (pro['banniere'] as String?) ?? '';
+    return GestureDetector(
+      onTap: () => _changerImage('banniere'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_envoiImage == 'banniere')
+              const SizedBox(
+                width: 13,
+                height: 13,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            else
+              const Icon(Icons.photo_camera_outlined,
+                  size: 14, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              url.isEmpty
+                  ? tr(context, 'pro.vitrine.ajouterBanniere')
+                  : tr(context, 'pro.vitrine.changerBanniere'),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  /// Le logo rond du professionnel, à cheval sur la bannière, avec son bouton.
+  /// Le logo du professionnel, posé sur sa bannière, avec son bouton.
   Widget _logo(Map pro, String nom) {
     final url = (pro['logo'] as String?) ?? '';
     return SizedBox(
-      width: 76,
-      height: 62,
+      width: 74,
+      height: 74,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned(
-            top: -34,
-            left: 0,
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: ChapColors.cream100,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: url.isEmpty
-                    ? Container(
-                        color: ChapColors.orangeDark,
-                        alignment: Alignment.center,
-                        child: Text(
-                            (nom.isEmpty ? 'P' : nom[0]).toUpperCase(),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900)),
-                      )
-                    : _image(url),
-              ),
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              color: ChapColors.cream100,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3)),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: url.isEmpty
+                  ? Container(
+                      color: ChapColors.orangeDark,
+                      alignment: Alignment.center,
+                      child: Text((nom.isEmpty ? 'P' : nom[0]).toUpperCase(),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900)),
+                    )
+                  : _image(url),
             ),
           ),
           Positioned(
-            top: 12,
-            left: 46,
+            bottom: 0,
+            right: 0,
             child: GestureDetector(
               onTap: () => _changerImage('logo'),
               child: Container(

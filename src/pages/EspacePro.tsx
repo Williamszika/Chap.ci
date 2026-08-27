@@ -323,29 +323,36 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
       {/* L'en-tête de marque : la VITRINE (bannière + logo), le badge, le nom
           commercial, la note, la période et les actions. La bannière et le logo
           se changent d'ici même (demande du Patron, 27/08). */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-card">
-        {/* La bannière : l'image du professionnel, ou le dégradé de la marque. */}
-        <div className="relative h-28 md:h-36">
-          {t.pro.banniere ? (
-            <img src={mediaUrl(t.pro.banniere)} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full bg-gradient-to-br from-primary-600 to-[#B45200]" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
-          <button onClick={() => choisirImage('banniere')} disabled={envoi !== null}
-            className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60">
-            {envoi === 'banniere'
-              ? <Loader2 size={14} className="animate-spin" />
-              : <Camera size={14} />}
-            {t.pro.banniere ? 'Changer la bannière' : 'Ajouter une bannière'}
-          </button>
-        </div>
+      {/* La bannière occupe TOUT le bandeau, derrière les écritures — le
+          Patron ne voulait plus du bloc plein qui masquait son image (27/08).
+          Seul un voile sombre en dégradé, du bas vers le haut, garde les
+          textes lisibles sans effacer la photo. Sans bannière, on retrouve
+          le dégradé de la marque. */}
+      <div className="relative overflow-hidden rounded-2xl text-white shadow-card">
+        {t.pro.banniere ? (
+          <>
+            <img src={mediaUrl(t.pro.banniere)} alt=""
+              className="absolute inset-0 h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/32 to-black/12" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700" />
+        )}
 
-        <div className="p-5 md:p-6">
+        <button onClick={() => choisirImage('banniere')} disabled={envoi !== null}
+          className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60">
+          {envoi === 'banniere'
+            ? <Loader2 size={14} className="animate-spin" />
+            : <Camera size={14} />}
+          {t.pro.banniere ? 'Changer la bannière' : 'Ajouter une bannière'}
+        </button>
+
+        <div className={`relative p-5 md:p-6 ${t.pro.banniere ? 'pt-16 md:pt-20' : ''}`}
+          style={t.pro.banniere ? { textShadow: '0 1px 4px rgba(0,0,0,.55)' } : undefined}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 gap-4">
-            {/* Le logo rond, à cheval sur la bannière. */}
-            <div className="relative -mt-14 shrink-0 self-start md:-mt-16">
+            {/* Le logo, posé sur l'image. */}
+            <div className="relative shrink-0 self-start">
               <div className="h-20 w-20 overflow-hidden rounded-2xl border-[3px] border-white bg-cream-100 shadow-lg md:h-24 md:w-24">
                 {t.pro.logo ? (
                   <img src={mediaUrl(t.pro.logo)} alt="" className="h-full w-full object-cover" />
