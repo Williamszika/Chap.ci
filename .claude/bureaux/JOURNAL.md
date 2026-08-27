@@ -4284,3 +4284,35 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   les builds release Flutter, targetSdk 36 déjà livré (v1.21 en examen). Rien à changer.
 - À surveiller : Play Console → Android vitals (nouvelles métriques mémoire/bitmaps) lors
   du prochain passage, et les prochaines annonces de politique pour des dates fermes.
+
+### 2026-08-27 (nuit) — [Développement] Le tableau de bord professionnel façon CRM, validé sur photos puis appliqué
+- Demande du Patron : « recherches en profondeur sur les tableaux CRM professionnels,
+  maquettes en photos, j'applique si je confirme ». Recherche faite (Shopify, Etsy, CRM
+  de vente) — la règle retenue : 5 à 7 chiffres avec tendance, chaque chiffre relié à
+  une action, pas un mur de graphiques. Maquettes envoyées (site ordinateur + téléphone
+  + app), **validées**, puis appliquées fidèlement — avec les vraies photos des annonces.
+- Serveur : `GET /pro/tableau` enrichi (`periode` 7/30, `kpi` avec valeur précédente,
+  `tauxReponse`, `aRepondre` avec prénoms — noms lus dans **profiles**, pas users —,
+  `serie` des vues par jour via `listing_view_days`, `top` classé par vues de la
+  période, `activite` : contacts, favoris, avis, ventes, record). Best-effort partout.
+- Site : `TableauPro` v2 (page #/pro + page Compte) — période, 6 KPI à tendance, courbe
+  SVG, carte « messages sans réponse » → /messages, top annonces cliquables, fil
+  d'activité. App : `EspaceProPanel` v2 (Mon compte + Devenir pro), courbe en
+  CustomPaint, 27 clés ×6 langues. `php -l`, `npm run build` verts.
+- Vérifié EN VRAI : banc SQLite peuplé (annonces, vues quotidiennes, conversations avec
+  et sans réponse, avis, vente) + le site compilé servi localement avec /api relayé vers
+  le banc — connexion, page #/pro photographiée ordinateur et téléphone, conforme.
+- Livraison : `chapcitableaupro.zip` envoyé au Patron. Empreintes attendues :
+  API `faaba1380883` · SEO `c57f0f1c6e55` (inchangée) · Site `1b399f6634a0`.
+- L'app affichera ce tableau dans la **v1.22** — toujours en attente du verdict v1.21
+  avant toute construction.
+
+### 2026-08-27 (nuit) — [Design] Le tableau de bord ADMIN : maquette proposée, en attente de confirmation
+- Suite de la demande (« et aussi le tableau de bord admin ») : maquette du nouvel
+  Aperçu admin envoyée en photos (ordinateur + téléphone) — bandeau sombre « Bonsoir,
+  Abraham », file « dossiers en attente d'une décision » (signalements, demandes Pro,
+  contact, publicités) avec boutons directs, 6 KPI à tendance, courbe visiteurs +
+  inscriptions, parcours « où ça fuit » en barres, activité récente, carte sécurité.
+  Tout s'appuie sur des données que `admin/stats` et `visit_series` savent déjà servir
+  (à ajouter côté serveur : compteur de demandes Pro en attente et les valeurs de la
+  période précédente pour les flèches). **Ne pas coder sans le « j'applique » du Patron.**
