@@ -30,7 +30,8 @@ export function SellerProfile() {
   const [busy, setBusy] = useState(false)
 
   const sellerListings = listings.filter((l) => l.sellerId === id)
-  const displayName = profile?.fullName || sellerListings[0]?.sellerName || 'Vendeur'
+  const displayName = profile?.pro?.nom
+    || profile?.fullName || sellerListings[0]?.sellerName || 'Vendeur'
   const { avg, count } = averageRating(reviews)
   const location = sellerListings[0]?.commune ?? null
 
@@ -112,11 +113,13 @@ export function SellerProfile() {
       )}
 
       {/* Couverture + en-tête vendeur */}
-      <header className={`safe-top relative overflow-hidden bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 ${profile?.pro?.banniere ? 'pt-3' : 'pt-3'}`}>
+      <header className={`safe-top relative bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 pt-3 ${
+        profile?.pro?.banniere ? '' : 'overflow-hidden'}`}>
         <button
           onClick={() => navigate(-1)}
           aria-label="Retour"
-          className="grid h-10 w-10 place-items-center rounded-full bg-white/80 text-ink shadow-card backdrop-blur transition active:scale-95"
+          className={`grid h-10 w-10 place-items-center rounded-full bg-white/80 text-ink shadow-card backdrop-blur transition active:scale-95 ${
+            profile?.pro?.banniere ? 'absolute left-4 -top-14 z-10' : ''}`}
         >
           <ArrowLeft size={20} />
         </button>
