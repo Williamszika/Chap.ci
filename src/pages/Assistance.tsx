@@ -22,6 +22,7 @@ import {
 import { isPhp } from '../lib/backend'
 import { useAuth } from '../store/AuthContext'
 import { timeAgo } from '../lib/format'
+import { RetourCompte } from '../components/RetourCompte'
 
 export function Assistance() {
   const { id } = useParams()
@@ -380,9 +381,12 @@ function Nouveau({
 function Cadre({ titre, action, children }: { titre: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-cream-200 pb-16 md:min-h-0 md:pb-8">
-      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-4 md:px-6 md:py-5">
-        <h1 className="font-display text-[22px] font-extrabold text-ink md:text-2xl">{titre}</h1>
-        {action}
+      <div className="border-b border-line px-4 py-4 md:px-6 md:py-5">
+        <RetourCompte className="mb-2" />
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-display text-[22px] font-extrabold text-ink md:text-2xl">{titre}</h1>
+          {action}
+        </div>
       </div>
       {children}
     </div>

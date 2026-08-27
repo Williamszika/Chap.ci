@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mediaUrl, thumbUrl } from '../lib/native'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, LogIn, Plus, X, Zap } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
@@ -59,6 +59,11 @@ function attente(depuis: number): string {
 /** Liste des conversations (réutilisée dans les deux volets). */
 export function ConversationList({ activeId }: { activeId?: string }) {
   const navigate = useNavigate()
+  // Arrivé depuis le compte ? La flèche y ramène, et elle reste visible sur
+  // ordinateur : sinon on entre dans les messages depuis le tableau de bord
+  // sans aucun chemin de retour.
+  const { state } = useLocation()
+  const retour = (state as { retour?: string } | null)?.retour
   const { user, enabled, loading: authLoading } = useAuth()
   const { conversations: convs, loading, unreadConvIds, refresh } = useNotifications()
   const [filtre, setFiltre] = useState<Filtre>('toutes')
@@ -165,7 +170,8 @@ export function ConversationList({ activeId }: { activeId?: string }) {
   return (
     <div className="flex h-full flex-col">
       <header className="safe-top sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-white/90 px-3 py-3 backdrop-blur-md md:rounded-t-3xl">
-        <button onClick={() => navigate(-1)} aria-label="Retour" className="-ml-1 grid h-11 w-11 shrink-0 place-items-center rounded-full transition md:hidden md:hover:bg-cream-100">
+        <button onClick={() => (retour ? navigate(retour) : navigate(-1))} aria-label="Retour"
+          className={`-ml-1 grid h-11 w-11 shrink-0 place-items-center rounded-full transition hover:bg-cream-100 ${retour ? '' : 'md:hidden'}`}>
           <ArrowLeft size={22} />
         </button>
         <h1 className="font-display text-lg font-extrabold text-ink">Messages</h1>

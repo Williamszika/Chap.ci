@@ -6,6 +6,7 @@ import { useAuth } from '../store/AuthContext'
 import { isPhp } from '../lib/backend'
 import { phpProStatut } from '../lib/php'
 import { chargerFaq, type TexteFaq } from '../i18n/faq'
+import { RetourCompte } from '../components/RetourCompte'
 
 /** Ce qu'un professionnel vient chercher ici — le mot cherché, pas l'étiquette. */
 const RACCOURCIS_PRO: [string, string][] = [
@@ -369,7 +370,8 @@ export function Faq() {
   return (
     <div className="min-h-screen pb-16" dir={dir}>
       {/* Héro « info-hero » de l'artifact — dégradé orange doux, titre centré */}
-      <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
+      <section className="relative bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
+        <RetourCompte className="absolute left-4 top-4 md:left-8" />
         <h1 className="font-display text-[26px] font-extrabold tracking-tight text-ink md:text-[34px]">
           {t ? t.titre : 'Questions fréquentes'}
         </h1>

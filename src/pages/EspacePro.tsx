@@ -10,6 +10,7 @@ import { TYPES_PRO, labelTypePro } from '../data/secteursPro'
 import { formatFCFA, formatPrice, timeAgo } from '../lib/format'
 import { mediaUrl, thumbUrl } from '../lib/native'
 import { downscaleImage, downscaleListingImage } from '../lib/image'
+import { DEPUIS_COMPTE } from '../components/RetourCompte'
 
 /**
  * L'espace professionnel du site — le pendant exact de l'écran « Devenir
@@ -480,7 +481,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
                 {t.aRepondre.noms.length > 0 ? <>{t.aRepondre.noms.join(', ')} attend{t.aRepondre.n > 1 ? 'ent' : ''} depuis plus de 24 h. </> : null}
                 Répondre vite fait monter votre taux de réponse — et vos ventes.
               </p>
-              <button onClick={() => navigate('/messages')} className="btn-primary mt-3 py-2.5 text-[13px]">
+              <button onClick={() => navigate('/messages', DEPUIS_COMPTE)} className="btn-primary mt-3 py-2.5 text-[13px]">
                 Répondre maintenant
               </button>
             </div>
@@ -578,13 +579,13 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
               badge={t.aRepondre.n > 0
                 ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-extrabold text-white">{t.aRepondre.n}</span>
                 : undefined}
-              onClick={() => navigate('/messages')} />
+              onClick={() => navigate('/messages', DEPUIS_COMPTE)} />
             <Tuile emoji="🛍️" fond="#FFF6E0" titre="Mes commandes"
               sous={`${c.commandesEnCours} en cours · ${c.commandesFinalisees} finalisée${c.commandesFinalisees > 1 ? 's' : ''}`}
               onClick={() => onOnglet?.('achats')} />
             <Tuile emoji="❤️" fond="#FBEAE7" titre="Mes favoris"
               sous={`${c.favorisEnregistres} annonce${c.favorisEnregistres > 1 ? 's' : ''} surveillée${c.favorisEnregistres > 1 ? 's' : ''}`}
-              onClick={() => navigate('/favoris')} />
+              onClick={() => navigate('/favoris', DEPUIS_COMPTE)} />
             <Tuile emoji="📊" fond="#E4F5EC" titre="Statistiques de vente"
               sous="Le chemin de l’acheteur, vos heures, vos communes"
               onClick={() => onOnglet?.('stats')} />
@@ -649,10 +650,10 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
               onClick={() => onOnglet?.('adresse')} />
             <Tuile emoji="❓" fond="#FFF3E4" titre="Aide & support"
               sous="Questions fréquentes, conseils vendeur"
-              onClick={() => navigate('/aide')} />
+              onClick={() => navigate('/aide', DEPUIS_COMPTE)} />
             <Tuile emoji="🛡️" fond="#E4F5EC" titre="Contacter l’équipe"
               sous="Une question, un doute, une annonce masquée"
-              onClick={() => navigate('/assistance')} />
+              onClick={() => navigate('/assistance', DEPUIS_COMPTE)} />
           </div>
 
           {onDeconnexion && (

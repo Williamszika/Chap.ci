@@ -10,6 +10,7 @@ import {
 import { isPhp } from '../lib/backend'
 import { useAuth } from '../store/AuthContext'
 import { timeAgo } from '../lib/format'
+import { RetourCompte } from '../components/RetourCompte'
 
 // Icône colorée selon le type de notification (glyphe posé sur une tuile blanche).
 function iconFor(type: string) {
@@ -102,7 +103,9 @@ export function Notifications() {
   return (
     <div className="min-h-screen bg-cream-200 pb-16 md:min-h-0 md:pb-8">
       {/* En-tête : titre + action « Tout marquer lu » */}
-      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-4 md:px-6 md:py-5">
+      <div className="border-b border-line px-4 py-4 md:px-6 md:py-5">
+        <RetourCompte className="mb-2" />
+        <div className="flex items-center justify-between gap-3">
         <h1 className="font-display text-[22px] font-extrabold text-ink md:text-2xl">Notifications</h1>
         {items.length > 0 && (
           selectMode ? (
@@ -128,6 +131,7 @@ export function Notifications() {
             </div>
           )
         )}
+        </div>
       </div>
 
       {/* Barre de sélection (mode suppression) */}

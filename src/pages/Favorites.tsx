@@ -12,6 +12,7 @@ import {
 } from '../lib/php'
 import { ListingCard } from '../components/ListingCard'
 import { Bascule, CLE_ALERTE_PRIX } from '../components/Bascule'
+import { RetourCompte } from '../components/RetourCompte'
 
 /**
  * « Mes favoris » — ce que le professionnel surveille (maquette validée le 27/08).
@@ -198,6 +199,7 @@ export function Favorites() {
 function Entete({ n }: { n: number }) {
   return (
     <header className="safe-top px-4 pb-3 pt-5 md:px-6 md:pt-7">
+      <RetourCompte className="mb-2" />
       <h1 className="font-display text-2xl font-extrabold text-gray-900 md:text-[28px]">Mes favoris</h1>
       <p className="mt-0.5 text-sm text-gray-500">
         {n} annonce{n > 1 ? 's' : ''} surveillée{n > 1 ? 's' : ''}
