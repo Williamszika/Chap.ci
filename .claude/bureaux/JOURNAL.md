@@ -4482,3 +4482,33 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Deux chiffres partent de zéro, et l'écran le dit lui-même** : « vos meilleures
   heures » (l'heure des vues n'était pas enregistrée avant) et « prix baissé » (le
   prix d'alors n'existe que pour les favoris ajoutés à partir de maintenant).
+
+### 2026-08-27 (soir) — [Design] Position détectée, dossier verrouillé, flèches de retour — EN LIGNE
+- **Trois demandes du Patron**, livrées en deux zips extraits à 15 h 53 et 18 h 38.
+- **Le positionnement** : « Détecter ma position » ouvre l'écran Adresse — le GPS d'abord,
+  l'IP en repli, puis région / ville / commune remplies seules (ce qui est saisi à la main
+  n'est jamais écrasé). La ville se choisit dans TOUTE la Côte d'Ivoire : la région
+  devient un filtre facultatif, et choisir une ville pose sa région. La commune
+  n'apparaît que pour les villes qui en ont.
+- **Le dossier vérifié** : type, secteur et numéro RCCM ne se modifient plus depuis le
+  compte — ils s'affichent sous « 🔒 Vérifié par l'équipe ». `POST /pro/fiche` ne les lit
+  plus (testé : une requête qui les porte ne change rien en base). Une seule porte les
+  ouvre : `POST /admin/pro/fiche`, droit « utilisateurs », avec son formulaire dans
+  Demandes Pro → dossier approuvé → « Corriger le dossier ». Chaque changement part au
+  journal d'audit (`pro_fiche_admin`, avant → après) et le professionnel est averti.
+- **Les flèches de retour** : cinq écrans à leur propre adresse (Favoris, Messages,
+  Notifications, Aide, Contacter l'équipe) n'en avaient aucune. « ← Retour au tableau de
+  bord » n'apparaît que si l'on vient du compte — une flèche qui renvoie ailleurs que
+  d'où l'on vient est pire que rien. Les quatre chemins parcourus en vrai au banc.
+- **UN INCIDENT DE LIVRAISON, ET LA BOUCLE QUI L'A ATTRAPÉ.** Le Patron a annoncé
+  « c'est poussé » alors que le zip n'était pas extrait : les empreintes lisaient encore
+  celles de 15 h 33. La comparaison d'empreintes seule dit « ce n'est pas passé » sans
+  dire pourquoi. Le signal serré qui tranche : **demander un fichier d'assets qui
+  n'existe QUE dans le nouveau zip** (404) puis son équivalent de l'ancien (200). En deux
+  requêtes on sait que le serveur porte encore l'ancienne version, et non qu'un cache
+  s'interpose. À refaire à chaque doute de livraison.
+- **À noter pour le ménage** : extraire n'efface pas les fichiers absents du zip. Les
+  vieux morceaux `assets/*.js` s'accumulent dans `public_html/assets` à chaque livraison.
+  Sans danger (personne ne les demande) mais à purger un jour.
+- **Reste en attente du Patron** : la tâche cron quotidienne `rappels-pro`, et la
+  question du NOM COMMERCIAL — faut-il le verrouiller comme le type et le RCCM ?
