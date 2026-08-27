@@ -1,15 +1,59 @@
-import { useEffect, useState } from 'react'
-import { mediaUrl } from '../lib/native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { mediaUrl, thumbUrl } from '../lib/native'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MessageCircle, LogIn, ChevronDown } from 'lucide-react'
+import { ArrowLeft, MessageCircle, LogIn, Plus, X, Zap } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
+import { createReponse, deleteReponse, fetchReponses, type ReponsePrete } from '../lib/api'
 import { timeAgo } from '../lib/format'
 import type { Conversation } from '../types'
+
+/**
+ * « Messages » — répondre vite, sans chercher (maquette validée le 27/08).
+ *
+ * Le classement est l'écran : une conversation à laquelle on n'a pas répondu
+ * remonte en haut avec le nombre de jours d'attente et l'annonce concernée.
+ * Un acheteur qui attend deux jours ne revient pas — et le taux de réponse est
+ * le premier chiffre qu'il regarde avant d'écrire au suivant.
+ */
+
+type Filtre = 'sans' | 'toutes' | 'acheteurs' | 'archivees'
+
+/** Trois phrases proposées tant que le vendeur n'en a enregistré aucune. */
+const MODELES = [
+  'Oui, c’est disponible.',
+  'Je livre à…',
+  'Mon dernier prix est…',
+]
 
 /** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
 function avatarInitial(name?: string): string {
   return (name?.trim().charAt(0) || '?').toUpperCase()
+}
+
+/**
+ * Couleur du rond, tirée du nom : la même personne garde la même teinte d'une
+ * fois sur l'autre, on la reconnaît avant d'avoir lu.
+ */
+const TEINTES = [
+  'bg-cream-100 text-primary-700',
+  'bg-blue-50 text-blue-700',
+  'bg-emerald-50 text-emerald-700',
+  'bg-pink-50 text-pink-700',
+]
+function teinte(nom?: string): string {
+  let n = 7
+  for (const c of nom ?? '') n = (n * 31 + c.charCodeAt(0)) % 9973
+  return TEINTES[n % TEINTES.length]
+}
+
+/** « 2 j sans réponse », « 3 h sans réponse » — l'attente, en clair. */
+function attente(depuis: number): string {
+  const min = Math.max(0, Math.round((Date.now() - depuis) / 60000))
+  if (min >= 2880) return `${Math.floor(min / 1440)} j sans réponse`
+  if (min >= 1440) return '1 j sans réponse'
+  if (min >= 60) return `${Math.floor(min / 60)} h sans réponse`
+  return 'à répondre'
 }
 
 /** Liste des conversations (réutilisée dans les deux volets). */
@@ -17,61 +61,106 @@ export function ConversationList({ activeId }: { activeId?: string }) {
   const navigate = useNavigate()
   const { user, enabled, loading: authLoading } = useAuth()
   const { conversations: convs, loading, unreadConvIds, refresh } = useNotifications()
-  const [showArchived, setShowArchived] = useState(false)
+  const [filtre, setFiltre] = useState<Filtre>('toutes')
 
   useEffect(() => {
     if (user) refresh()
   }, [user, refresh])
 
-  const activeConvs = convs.filter((c) => !c.archived)
-  const archivedConvs = convs.filter((c) => c.archived)
+  const moi = user?.id
+
+  /** Une conversation « sans réponse » : le dernier mot est à l'autre. */
+  const sansReponse = useCallback(
+    (c: Conversation) => !c.archived && !!c.lastSenderId && c.lastSenderId !== moi,
+    [moi],
+  )
+
+  const compte = useMemo(() => ({
+    sans: convs.filter(sansReponse).length,
+    toutes: convs.filter((c) => !c.archived).length,
+    acheteurs: convs.filter((c) => !c.archived && c.sellerId === moi).length,
+    archivees: convs.filter((c) => c.archived).length,
+  }), [convs, moi, sansReponse])
+
+  const liste = useMemo(() => {
+    let out = convs.filter((c) => !c.archived)
+    if (filtre === 'sans') out = out.filter(sansReponse)
+    else if (filtre === 'acheteurs') out = out.filter((c) => c.sellerId === moi)
+    else if (filtre === 'archivees') out = convs.filter((c) => c.archived)
+    // Celles qui attendent d'abord, la plus ancienne en tête : c'est celle-là
+    // qu'on risque de perdre.
+    return [...out].sort((a, b) => {
+      const sa = sansReponse(a) ? 1 : 0, sb = sansReponse(b) ? 1 : 0
+      if (sa !== sb) return sb - sa
+      if (sa === 1) return (a.lastAt ?? 0) - (b.lastAt ?? 0)
+      return (b.lastAt ?? 0) - (a.lastAt ?? 0)
+    })
+  }, [convs, filtre, moi, sansReponse])
 
   const renderRow = (c: Conversation) => {
     const unread = unreadConvIds.has(c.id)
     const isActive = c.id === activeId
+    const attend = sansReponse(c)
+    const jaiRepondu = !!c.lastSenderId && c.lastSenderId === moi
     return (
       <Link
         key={c.id}
         to={`/messages/${c.id}`}
-        className={`flex items-center gap-3 px-4 py-3.5 transition hover:bg-cream-100 ${
-          isActive ? 'bg-primary-50' : unread ? 'bg-primary-50/50' : ''
+        className={`flex items-start gap-3 px-4 py-3.5 transition hover:bg-cream-100 ${
+          isActive ? 'bg-primary-50' : attend ? 'bg-red-50/40' : unread ? 'bg-primary-50/50' : ''
         }`}
       >
         <div className="relative shrink-0">
-          {c.listingImage ? (
-            <img
-              src={mediaUrl(c.listingImage)}
-              alt=""
-              className="h-14 w-14 rounded-full object-cover ring-1 ring-line"
-            />
-          ) : (
-            <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-ivoire-green to-ivoire-green-dark font-display text-lg font-bold text-white">
-              {avatarInitial(c.otherName)}
-            </div>
-          )}
+          <div className={`grid h-12 w-12 place-items-center rounded-full font-display text-lg font-extrabold ${teinte(c.otherName)}`}>
+            {avatarInitial(c.otherName)}
+          </div>
           {unread && (
             <span className="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full bg-primary-500 ring-2 ring-white" />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className={`truncate font-display text-gray-900 ${unread ? 'font-extrabold' : 'font-bold'}`}>
+          <div className="flex items-baseline justify-between gap-2">
+            <p className={`min-w-0 truncate font-display text-gray-900 ${unread ? 'font-extrabold' : 'font-bold'}`}>
               {c.otherName}
+              {attend && (
+                <span className="ml-1.5 whitespace-nowrap rounded-md bg-red-50 px-1.5 py-0.5 align-middle text-[10px] font-extrabold text-red-600">
+                  {attente(c.lastAt ?? Date.now())}
+                </span>
+              )}
             </p>
-            <span className={`shrink-0 text-[11px] ${unread ? 'font-bold text-primary-600' : 'text-gray-500'}`}>
-              {c.lastAt ? timeAgo(c.lastAt) : ''}
-            </span>
+            {/* L'attente est déjà dite par la pastille rouge : on ne l'écrit
+                pas deux fois sur la même ligne. */}
+            {!attend && (
+              <span className={`shrink-0 text-[11px] ${unread ? 'font-bold text-primary-600' : 'text-gray-500'}`}>
+                {c.lastAt ? timeAgo(c.lastAt) : ''}
+              </span>
+            )}
           </div>
-          {c.listingTitle && (
-            <p className="truncate text-xs font-medium text-primary-600">{c.listingTitle}</p>
-          )}
-          <p className={`truncate text-sm ${unread ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
-            {c.lastMessage ?? 'Nouvelle conversation'}
+          <p className={`truncate text-sm ${attend || unread ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
+            {c.lastMessage
+              ? jaiRepondu ? `Vous : « ${c.lastMessage} »` : `« ${c.lastMessage} »`
+              : 'Nouvelle conversation'}
           </p>
+          {c.listingTitle && (
+            <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs font-medium text-primary-600">
+              {c.listingImage && (
+                <img src={mediaUrl(thumbUrl(c.listingImage))} alt=""
+                  className="h-4 w-4 shrink-0 rounded object-cover" />
+              )}
+              <span className="truncate">{c.listingTitle}</span>
+            </p>
+          )}
         </div>
+        {jaiRepondu && c.sellerId === moi && (
+          <span className="mt-1 shrink-0 whitespace-nowrap rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-extrabold text-emerald-700">
+            Répondu
+          </span>
+        )}
       </Link>
     )
   }
+
+  const vide = compte.toutes === 0 && compte.archivees === 0
 
   return (
     <div className="flex h-full flex-col">
@@ -80,6 +169,11 @@ export function ConversationList({ activeId }: { activeId?: string }) {
           <ArrowLeft size={22} />
         </button>
         <h1 className="font-display text-lg font-extrabold text-ink">Messages</h1>
+        {compte.sans > 0 && (
+          <span className="grid h-6 min-w-6 place-items-center rounded-full bg-red-500 px-1.5 text-[12px] font-extrabold text-white">
+            {compte.sans}
+          </span>
+        )}
       </header>
 
       <div className="flex-1 md:min-h-0 md:overflow-y-auto">
@@ -98,7 +192,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
           </div>
         ) : loading || authLoading ? (
           <div className="py-24 text-center text-sm text-gray-500">Chargement…</div>
-        ) : activeConvs.length === 0 && archivedConvs.length === 0 ? (
+        ) : vide ? (
           <div className="flex flex-col items-center gap-3 px-6 py-24 text-center">
             <div className="text-5xl">💬</div>
             <p className="text-lg font-bold text-gray-800">Aucune conversation</p>
@@ -110,23 +204,145 @@ export function ConversationList({ activeId }: { activeId?: string }) {
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-line bg-white md:rounded-b-3xl">
-            {activeConvs.map(renderRow)}
-            {archivedConvs.length > 0 && (
-              <>
-                <button
-                  onClick={() => setShowArchived((s) => !s)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-gray-600 transition hover:bg-cream-100"
-                >
-                  <span>Conversations archivées ({archivedConvs.length})</span>
-                  <ChevronDown size={18} className={showArchived ? 'rotate-180' : ''} />
+          <div className="space-y-3 pb-4 md:pb-0">
+            {/* Filtrer — « sans réponse » d'abord, c'est le tas qui coûte cher. */}
+            <div className="no-scrollbar flex gap-2 overflow-x-auto bg-white px-4 py-3">
+              {compte.sans > 0 && (
+                <button onClick={() => setFiltre('sans')}
+                  className={`chip-etat ${filtre === 'sans' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600 ring-1 ring-red-200'}`}>
+                  Sans réponse · {compte.sans}
                 </button>
-                {showArchived && archivedConvs.map(renderRow)}
-              </>
+              )}
+              <button onClick={() => setFiltre('toutes')}
+                className={`chip-etat ${filtre === 'toutes' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
+                Toutes · {compte.toutes}
+              </button>
+              {compte.acheteurs > 0 && (
+                <button onClick={() => setFiltre('acheteurs')}
+                  className={`chip-etat ${filtre === 'acheteurs' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
+                  Acheteurs
+                </button>
+              )}
+              {compte.archivees > 0 && (
+                <button onClick={() => setFiltre('archivees')}
+                  className={`chip-etat ${filtre === 'archivees' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
+                  Archivées
+                </button>
+              )}
+            </div>
+
+            {liste.length === 0 ? (
+              <p className="bg-white px-4 py-16 text-center text-sm text-gray-500">
+                {filtre === 'sans' ? 'Tout le monde a eu sa réponse.'
+                  : filtre === 'acheteurs' ? 'Aucun acheteur ne vous a encore écrit.'
+                    : filtre === 'archivees' ? 'Aucune conversation archivée.'
+                      : 'Toutes vos conversations sont archivées.'}
+              </p>
+            ) : (
+              <div className="divide-y divide-line bg-white">{liste.map(renderRow)}</div>
+            )}
+
+            {(compte.acheteurs > 0 || filtre === 'sans') && (
+              <div className="px-4 md:pb-4">
+                <ReponsesPretes />
+              </div>
             )}
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * « ⚡ Réponses toutes prêtes » — les phrases qu'on retape vingt fois par jour,
+ * enregistrées une bonne fois. Elles se posent d'un appui dans la conversation.
+ */
+function ReponsesPretes() {
+  const [liste, setListe] = useState<ReponsePrete[]>([])
+  const [chargee, setChargee] = useState(false)
+  const [saisie, setSaisie] = useState<string | null>(null)
+  const [occupe, setOccupe] = useState(false)
+
+  useEffect(() => {
+    fetchReponses()
+      .then(setListe)
+      .catch(() => {})
+      .finally(() => setChargee(true))
+  }, [])
+
+  const ajouter = async (texte: string) => {
+    const t = texte.trim()
+    if (!t || occupe) return
+    setOccupe(true)
+    try {
+      const creee = await createReponse(t)
+      setListe((p) => [...p, creee])
+      setSaisie(null)
+    }
+    catch { /* la phrase reste dans le champ, le vendeur réessaie */ }
+    finally { setOccupe(false) }
+  }
+
+  const retirer = async (id: string) => {
+    setListe((p) => p.filter((r) => r.id !== id))
+    try { await deleteReponse(id) } catch { /* rechargée au prochain passage */ }
+  }
+
+  if (!chargee) return null
+
+  return (
+    <div className="rounded-2xl border border-accent-ocre/30 bg-cream-100 p-3.5">
+      <p className="flex items-center gap-1.5 font-display text-[13.5px] font-extrabold text-ink">
+        <Zap size={15} className="text-primary-600" /> Réponses toutes prêtes
+      </p>
+      <p className="mt-0.5 text-[12px] leading-relaxed text-gray-600">
+        Un appui, la phrase s’écrit dans la conversation — vous n’avez plus qu’à envoyer.
+      </p>
+
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {liste.map((r) => (
+          <span key={r.id}
+            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 ring-1 ring-line">
+            <span className="truncate">{r.texte}</span>
+            <button onClick={() => retirer(r.id)} aria-label="Retirer cette réponse"
+              className="shrink-0 text-gray-400 transition hover:text-red-600">
+              <X size={13} />
+            </button>
+          </span>
+        ))}
+
+        {/* Aucune enregistrée : on propose les trois plus utiles, à prendre d'un appui. */}
+        {liste.length === 0 && MODELES.map((m) => (
+          <button key={m} onClick={() => ajouter(m)} disabled={occupe}
+            className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 ring-1 ring-dashed ring-line transition hover:text-primary-700 disabled:opacity-50">
+            <Plus size={12} /> {m}
+          </button>
+        ))}
+
+        {liste.length < 12 && saisie === null && (
+          <button onClick={() => setSaisie('')}
+            className="inline-flex items-center gap-1 rounded-full bg-primary-500 px-3 py-1.5 text-[12px] font-extrabold text-white transition active:scale-95">
+            <Plus size={13} /> Créer
+          </button>
+        )}
+      </div>
+
+      {saisie !== null && (
+        <form onSubmit={(e) => { e.preventDefault(); ajouter(saisie) }} className="mt-2.5 flex gap-2">
+          <input autoFocus value={saisie} onChange={(e) => setSaisie(e.target.value)}
+            maxLength={400} placeholder="Votre phrase, telle qu’elle partira…"
+            className="min-w-0 flex-1 rounded-full border border-line bg-white px-3.5 py-2 text-[13px] outline-none focus:border-primary-400" />
+          <button type="submit" disabled={occupe || !saisie.trim()}
+            className="shrink-0 rounded-full bg-ink px-4 py-2 text-[12.5px] font-extrabold text-white disabled:opacity-40">
+            Enregistrer
+          </button>
+          <button type="button" onClick={() => setSaisie(null)} aria-label="Annuler"
+            className="shrink-0 rounded-full px-2 text-gray-400">
+            <X size={16} />
+          </button>
+        </form>
+      )}
     </div>
   )
 }

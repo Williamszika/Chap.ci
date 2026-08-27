@@ -1767,6 +1767,14 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS saved_searches (
       id $id PRIMARY KEY, user_id $id, label $txt, params $txt, last_notified_at $ts, created_at $ts
     )$eng",
+    // LES RÉPONSES TOUTES PRÊTES — les phrases qu'un vendeur retape vingt fois
+    // par jour. « Oui, c'est disponible », « Je livre à Yopougon », « Mon
+    // dernier prix est 70 000 FCFA ». Les garder ici, c'est répondre d'un
+    // appui — et le taux de réponse est le premier chiffre que l'acheteur
+    // regarde avant d'écrire.
+    "CREATE TABLE IF NOT EXISTS quick_replies (
+      id $id PRIMARY KEY, user_id $id, body $txt, created_at $ts
+    )$eng",
     // ------------------------------------------------------------------------
     //  LA MESSAGERIE DE L'ÉQUIPE — et pourquoi ce n'est PAS `conversations`.
     //
@@ -4270,7 +4278,7 @@ function send_search_alert(array $config, array $user, string $label, array $row
 function export_all(PDO $pdo): array {
   $tables = ['users', 'profiles', 'listings', 'conversations', 'messages', 'orders',
              'order_items', 'reviews', 'newsletter', 'admins', 'user_interests',
-             'reports', 'visits', 'saved_searches', 'contact_messages', 'ads',
+             'reports', 'visits', 'saved_searches', 'quick_replies', 'contact_messages', 'ads',
              // La messagerie de l'équipe : une sauvegarde qui l'oublierait
              // perdrait la trace des décisions de modération, qui s'écrivent là.
              'team_threads', 'team_messages'];
@@ -5209,6 +5217,7 @@ try {
     // (loi 2013-450, droit à l'effacement). Robuste si une table est absente.
     foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
               'saved_searches' => 'user_id', 'user_interests' => 'user_id',
+              'quick_replies' => 'user_id',
               // Sans cette ligne, le téléphone d'un compte supprimé continuerait
               // de recevoir les notifications du compte qui reprendrait son id.
               'push_subs' => 'user_id'] as $tbl => $col) {
@@ -6002,6 +6011,42 @@ try {
     if (!$row) jerr('Alerte introuvable.', 404);
     if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
     $pdo->prepare('DELETE FROM saved_searches WHERE id = ?')->execute([$seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---------- RÉPONSES TOUTES PRÊTES ----------
+  // Mes phrases enregistrées, la plus ancienne en premier : l'ordre ne bouge
+  // pas d'une fois sur l'autre, la main retrouve la bonne puce sans lire.
+  if ($path === 'reponses' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT id, body, created_at FROM quick_replies WHERE user_id = ? ORDER BY created_at ASC');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => [
+      'id' => $r['id'], 'texte' => $r['body'], 'createdAt' => iso_to_ms($r['created_at']),
+    ], $st->fetchAll()));
+  }
+  // Enregistrer une phrase (12 au maximum : au-delà, on ne les retrouve plus).
+  if ($path === 'reponses' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $texte = trim((string) (body()['texte'] ?? ''));
+    if ($texte === '') jerr('Écrivez la phrase à enregistrer.');
+    $texte = mb_substr($texte, 0, 400);
+    $cnt = $pdo->prepare('SELECT COUNT(*) AS c FROM quick_replies WHERE user_id = ?');
+    $cnt->execute([$u['id']]);
+    if ((int) $cnt->fetch()['c'] >= 12) jerr('Vous avez atteint la limite de 12 réponses enregistrées.', 400);
+    $rid = uuid();
+    $pdo->prepare('INSERT INTO quick_replies (id,user_id,body,created_at) VALUES (?,?,?,?)')
+        ->execute([$rid, $u['id'], $texte, now_iso()]);
+    jout(['id' => $rid, 'texte' => $texte, 'createdAt' => iso_to_ms(now_iso())]);
+  }
+  // Retirer une phrase.
+  if (count($seg) === 2 && $seg[0] === 'reponses' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id FROM quick_replies WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Réponse introuvable.', 404);
+    if ((string) $row['user_id'] !== (string) $u['id']) jerr('Non autorisé.', 403);
+    $pdo->prepare('DELETE FROM quick_replies WHERE id = ?')->execute([$seg[1]]);
     jout(['ok' => true]);
   }
 
@@ -8217,7 +8262,7 @@ try {
       }
       // 2) Purge du catalogue + transactions + analytics (toujours).
       $wipe = ['order_items', 'orders', 'messages', 'conversations', 'reviews', 'reports',
-               'user_interests', 'saved_searches', 'visits', 'listings',
+               'user_interests', 'saved_searches', 'quick_replies', 'visits', 'listings',
                'team_messages', 'team_threads'];
       $deleted = [];
       foreach ($wipe as $t) {
@@ -8745,7 +8790,7 @@ try {
       // Nettoyage RGPD complet (idem suppression par l'utilisateur).
       foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
                 'saved_searches' => 'user_id', 'user_interests' => 'user_id',
-                'push_subs' => 'user_id'] as $tbl => $col) {
+                'quick_replies' => 'user_id', 'push_subs' => 'user_id'] as $tbl => $col) {
         try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
       }
       $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);

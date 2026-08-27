@@ -954,6 +954,18 @@ export async function phpDeleteSavedSearch(id: string): Promise<void> {
   await req(`/searches/${id}`, { method: 'DELETE' })
 }
 
+// ---- Réponses toutes prêtes (messagerie) -----------------------------------
+export interface ReponsePrete { id: string; texte: string; createdAt: number }
+export async function phpReponses(): Promise<ReponsePrete[]> {
+  return req<ReponsePrete[]>('/reponses')
+}
+export async function phpAjouterReponse(texte: string): Promise<ReponsePrete> {
+  return req<ReponsePrete>('/reponses', { method: 'POST', body: { texte } })
+}
+export async function phpSupprimerReponse(id: string): Promise<void> {
+  await req(`/reponses/${id}`, { method: 'DELETE' })
+}
+
 // ---- Sauvegarde de la base (admin) -----------------------------------------
 export interface BackupFile { file: string; bytes: number; at: number }
 export async function phpAdminBackups(): Promise<{ cronKey: string; site: string; backups: BackupFile[] }> {

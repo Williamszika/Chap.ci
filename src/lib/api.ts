@@ -75,3 +75,15 @@ export async function createSavedSearch(label: string, params: string): Promise<
 export async function deleteSavedSearch(id: string): Promise<void> {
   return php.phpDeleteSavedSearch(id)
 }
+
+// ---- Réponses toutes prêtes (messagerie) -----------------------------------
+export type { ReponsePrete } from './php'
+export async function fetchReponses(): Promise<php.ReponsePrete[]> {
+  return php.phpReponses()
+}
+export async function createReponse(texte: string): Promise<php.ReponsePrete> {
+  return php.phpAjouterReponse(texte)
+}
+export async function deleteReponse(id: string): Promise<void> {
+  return php.phpSupprimerReponse(id)
+}

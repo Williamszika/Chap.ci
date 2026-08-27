@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { mediaUrl } from '../lib/native'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Send, Tag, ShieldCheck, MoreVertical, Trash2, Archive, Ban, Flag, X } from 'lucide-react'
+import { ArrowLeft, Send, Tag, ShieldCheck, MoreVertical, Trash2, Archive, Ban, Flag, X, Zap } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
 import {
@@ -17,6 +17,7 @@ import {
   phpBlockConversation,
   phpReportConversation,
 } from '../lib/php'
+import { fetchReponses, type ReponsePrete } from '../lib/api'
 import { DealCard } from '../components/DealCard'
 import type { Conversation as Conv, Message } from '../types'
 
@@ -106,6 +107,9 @@ export function Conversation() {
   const [reporting, setReporting] = useState(false)
   const [blocked, setBlocked] = useState(false)
   const [archived, setArchived] = useState(false)
+  // Les phrases enregistrées du vendeur, et la feuille qui les propose.
+  const [reponses, setReponses] = useState<ReponsePrete[]>([])
+  const [feuilleReponses, setFeuilleReponses] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -137,6 +141,16 @@ export function Conversation() {
       refresh()
     }
   }, [id, user, markRead, refresh])
+
+  // Les réponses toutes prêtes, chargées une fois. Sans elles la barre de
+  // saisie reste telle quelle : l'éclair n'apparaît que s'il a quelque chose
+  // à proposer.
+  useEffect(() => {
+    if (!user) return
+    let actif = true
+    fetchReponses().then((r) => actif && setReponses(r)).catch(() => {})
+    return () => { actif = false }
+  }, [user])
 
   useEffect(() => {
     // Défilement INTERNE à la zone des messages (ne fait pas défiler la page :
@@ -364,6 +378,16 @@ export function Conversation() {
               onSubmit={send}
               className="safe-bottom sticky bottom-0 flex items-center gap-2 border-t border-line bg-white px-3 py-3 md:rounded-b-3xl"
             >
+              {reponses.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFeuilleReponses(true)}
+                  aria-label="Réponses toutes prêtes"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cream-100 text-primary-600 transition active:scale-95"
+                >
+                  <Zap size={18} />
+                </button>
+              )}
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -379,6 +403,33 @@ export function Conversation() {
                 <Send size={18} />
               </button>
             </form>
+          )}
+
+          {/* Réponses toutes prêtes — un appui pose la phrase dans la barre de
+              saisie. On n'envoie pas à la place du vendeur : il relit, il
+              complète le prix ou la commune, puis il envoie. */}
+          {feuilleReponses && (
+            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setFeuilleReponses(false)}>
+              <div className="w-full max-w-md rounded-t-3xl bg-white p-4 pb-6" onClick={(e) => e.stopPropagation()}>
+                <p className="flex items-center gap-1.5 px-1 font-display text-[15px] font-extrabold text-ink">
+                  <Zap size={16} className="text-primary-600" /> Réponses toutes prêtes
+                </p>
+                <div className="mt-3 space-y-1.5">
+                  {reponses.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => { setText(r.texte); setFeuilleReponses(false) }}
+                      className="w-full rounded-2xl bg-cream-100 px-4 py-3 text-left text-[14.5px] text-gray-800 transition hover:bg-cream-200"
+                    >
+                      {r.texte}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-3 px-1 text-[12px] text-gray-500">
+                  Vos phrases se gèrent depuis la liste des messages.
+                </p>
+              </div>
+            </div>
           )}
 
           {/* Feuille d'actions — appui sur « ⋮ » d'un message ou de la conversation */}
