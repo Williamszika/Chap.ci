@@ -10472,10 +10472,17 @@ try {
 
     // Conversations (supervision) : parties, annonce, nb de messages, dernier message.
     if ($path === 'admin/conversations' && $method === 'GET') {
+      // `last_human` : le dernier expéditeur HORS réponse automatique, et
+      // `last_at` : quand. Les deux servent à trier ce qui attend vraiment une
+      // réponse — une liste de 200 conversations sans cette distinction ne dit
+      // pas laquelle regarder.
       $rows = $pdo->query('SELECT c.*, b.email AS buyer_email, s.email AS seller_email,
           l.title AS listing_title,
           (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS msg_count,
-          (SELECT m2.body FROM messages m2 WHERE m2.conversation_id = c.id ORDER BY m2.created_at DESC LIMIT 1) AS last_body
+          (SELECT m2.body FROM messages m2 WHERE m2.conversation_id = c.id ORDER BY m2.created_at DESC LIMIT 1) AS last_body,
+          (SELECT m3.created_at FROM messages m3 WHERE m3.conversation_id = c.id ORDER BY m3.created_at DESC LIMIT 1) AS last_at,
+          (SELECT m4.sender_id FROM messages m4 WHERE m4.conversation_id = c.id
+             AND (m4.auto IS NULL OR m4.auto = 0) ORDER BY m4.created_at DESC LIMIT 1) AS last_human
         FROM conversations c
         LEFT JOIN users b ON b.id = c.buyer_id
         LEFT JOIN users s ON s.id = c.seller_id
@@ -10485,6 +10492,11 @@ try {
         'id' => $r['id'], 'buyerEmail' => $r['buyer_email'] ?: null, 'sellerEmail' => $r['seller_email'] ?: null,
         'listingTitle' => $r['listing_title'] ?: null, 'messages' => (int) $r['msg_count'],
         'lastMessage' => $r['last_body'] ?: null, 'createdAt' => iso_to_ms($r['created_at']),
+        'lastAt' => iso_to_ms($r['last_at'] ?? $r['created_at']),
+        // Le vendeur n'a pas encore répondu : c'est la seule ligne qui appelle
+        // une action de l'équipe (relancer, ou comprendre pourquoi).
+        'sansReponse' => $r['last_human'] !== null
+          && (string) $r['last_human'] !== (string) $r['seller_id'],
       ], $rows));
     }
 

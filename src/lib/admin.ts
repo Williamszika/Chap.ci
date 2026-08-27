@@ -293,6 +293,10 @@ export interface AdminConversation {
   messages: number
   lastMessage?: string | null
   createdAt: number
+  /** Date du dernier message (et non de l'ouverture du fil). */
+  lastAt?: number
+  /** Le vendeur n'a pas répondu — hors réponse automatique, qui ne compte pas. */
+  sansReponse?: boolean
 }
 export interface AdminReview {
   id: string

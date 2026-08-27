@@ -12,6 +12,7 @@ import { formatPrice, formatFCFA, timeAgo } from '../lib/format'
 import { emojiFor } from '../lib/placeholder'
 import { locationLabel } from '../data/locations'
 import { TYPES_PRO } from '../data/secteursPro'
+import { KpiCrm, KpisCrm, PucesCrm, BarreCrm, AttenteCrm, contient } from '../components/CrmAdmin'
 import {
   fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
   fetchModerators, saveModerator, removeModerator, blockModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
@@ -1442,36 +1443,98 @@ function VisitorsTab() {
 }
 
 // ---------- Conversations (supervision) ----------
+/**
+ * CONVERSATIONS — où le dialogue s'arrête.
+ *
+ * Deux cents fils listés par date ne disent rien. Ce qui compte pour l'équipe,
+ * c'est le fil où l'ACHETEUR a écrit et où le vendeur n'a jamais répondu :
+ * c'est là qu'un acheteur quitte le site, et c'est le seul endroit où une
+ * relance sert à quelque chose.
+ */
 function ConversationsTab() {
   const [items, setItems] = useState<AdminConversation[] | null>(null)
   const [err, setErr] = useState('')
+  const [vue, setVue] = useState('toutes')
+  const [q, setQ] = useState('')
   const load = () => { setItems(null); setErr(''); fetchAdminConversations().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const quand = (c: AdminConversation) => c.lastAt ?? c.createdAt
+  const sans = items.filter((c) => c.sansReponse)
+  // Sans réponse depuis plus de 48 h : au-delà, l'acheteur a écrit ailleurs.
+  const vieilles = sans.filter((c) => Date.now() - quand(c) > 2 * 86400_000)
+  const muettes = items.filter((c) => c.messages === 0)
+  const totalMsg = items.reduce((s2, c) => s2 + c.messages, 0)
+
+  let liste = vue === 'sans' ? sans : vue === 'vieilles' ? vieilles : vue === 'muettes' ? muettes : items
+  if (q) liste = liste.filter((c) =>
+    contient(c.listingTitle, q) || contient(c.buyerEmail, q) || contient(c.sellerEmail, q)
+    || contient(c.lastMessage, q))
+  liste = [...liste].sort((a, b) => quand(b) - quand(a))
+
   return (
-    <div className="space-y-2">
-      <RowHead count={items.length} label="conversation" />
-      {items.map((c) => (
-        <div key={c.id} className="rounded-2xl bg-white p-3 shadow-card">
+    <div className="space-y-3">
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(items.length)} libelle="conversations" />
+        <KpiCrm valeur={formatPrice(totalMsg)} libelle="messages" />
+        <KpiCrm valeur={formatPrice(sans.length)} libelle="sans réponse" sous="le vendeur n’a pas écrit"
+          ton={sans.length > 0 ? 'alerte' : 'bon'} />
+        <KpiCrm valeur={items.length ? `${Math.round((1 - sans.length / items.length) * 100)} %` : '—'}
+          libelle="ont eu une réponse" />
+      </KpisCrm>
+
+      <AttenteCrm n={vieilles.length}
+        phrase={`${vieilles.length} acheteur${vieilles.length > 1 ? 's' : ''} ${vieilles.length > 1 ? 'attendent' : 'attend'} une réponse depuis plus de 48 h`}
+        action={<button onClick={() => setVue('vieilles')}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-extrabold text-white">Les voir</button>} />
+
+      <PucesCrm valeur={vue} onChange={setVue} puces={[
+        { id: 'toutes', label: 'Toutes', n: items.length },
+        ...(sans.length > 0 ? [{ id: 'sans', label: 'Sans réponse', n: sans.length, alerte: true }] : []),
+        ...(vieilles.length > 0 ? [{ id: 'vieilles', label: 'Plus de 48 h', n: vieilles.length, alerte: true }] : []),
+        ...(muettes.length > 0 ? [{ id: 'muettes', label: 'Jamais écrit', n: muettes.length }] : []),
+      ]} />
+
+      <BarreCrm q={q} onQ={setQ} placeholder="Chercher une annonce, un e-mail, un mot…" />
+
+      {liste.length === 0 ? <Empty>Aucune conversation dans cette vue.</Empty> : liste.map((c) => (
+        <div key={c.id} className={`rounded-2xl bg-white p-3 shadow-card ${c.sansReponse ? 'ring-1 ring-red-200' : ''}`}>
           <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm font-semibold text-gray-800">{c.listingTitle || 'Conversation'}</p>
-            <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">{c.messages} msg</span>
+            <span className="flex shrink-0 items-center gap-1.5">
+              {c.sansReponse && (
+                <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
+                  sans réponse
+                </span>
+              )}
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">{c.messages} msg</span>
+            </span>
           </div>
           <p className="mt-0.5 truncate text-xs text-gray-500">{c.buyerEmail || '—'} ↔ {c.sellerEmail || '—'}</p>
           {c.lastMessage && <p className="mt-1 truncate rounded-lg bg-gray-50 px-2 py-1 text-xs text-gray-600">« {c.lastMessage} »</p>}
-          <p className="mt-1 text-[11px] text-gray-400">{timeAgo(c.createdAt)}</p>
+          <p className="mt-1 text-[11px] text-gray-400">
+            {c.messages === 0 ? 'ouverte ' : 'dernier message '}{timeAgo(quand(c))}
+          </p>
         </div>
       ))}
-      {items.length === 0 && <Empty>Aucune conversation.</Empty>}
     </div>
   )
 }
 
-// ---------- Avis (modération) ----------
+/**
+ * AVIS — la réputation du site, et ce qui l'abîme.
+ *
+ * Ce qu'on vient chercher ici n'est pas la moyenne : ce sont les avis à une ou
+ * deux étoiles. Un vendeur qui en accumule est un problème qui grandit, et il
+ * se voit d'un coup d'œil quand on peut filtrer dessus.
+ */
 function ReviewsTab() {
   const [items, setItems] = useState<AdminReview[] | null>(null)
   const [err, setErr] = useState('')
+  const [note, setNote] = useState('tous')
+  const [q, setQ] = useState('')
   const load = () => { setItems(null); setErr(''); fetchAdminReviews().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
   const remove = async (r: AdminReview) => {
@@ -1481,19 +1544,68 @@ function ReviewsTab() {
   }
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const moyenne = items.length
+    ? (items.reduce((s2, r) => s2 + r.rating, 0) / items.length).toFixed(1).replace('.', ',')
+    : '—'
+  const mauvais = items.filter((r) => r.rating <= 2)
+  const bons = items.filter((r) => r.rating >= 4)
+  // Les vendeurs qui accumulent les mauvaises notes : deux, et c'est un motif
+  // de regarder le compte de plus près.
+  const parVendeur = new Map<string, number>()
+  for (const r of mauvais) {
+    const v = r.sellerEmail ?? ''
+    if (v) parVendeur.set(v, (parVendeur.get(v) ?? 0) + 1)
+  }
+  const recidivistes = [...parVendeur.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1])
+
+  let liste = note === 'mauvais' ? mauvais : note === 'bons' ? bons : items
+  if (q) liste = liste.filter((r) =>
+    contient(r.reviewerName, q) || contient(r.reviewerEmail, q)
+    || contient(r.sellerEmail, q) || contient(r.listingTitle, q) || contient(r.comment, q))
+
   return (
-    <div className="space-y-2">
-      <RowHead count={items.length} label="avis" />
-      {items.map((r) => (
-        <div key={r.id} className="rounded-2xl bg-white p-3 shadow-card">
-          <div className="flex items-center justify-between">
+    <div className="space-y-3">
+      <KpisCrm>
+        <KpiCrm valeur={moyenne} libelle="note moyenne" sous="sur 5" ton={items.length && Number(moyenne.replace(',', '.')) >= 4 ? 'bon' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(items.length)} libelle="avis" />
+        <KpiCrm valeur={formatPrice(mauvais.length)} libelle="1 ou 2 étoiles"
+          ton={mauvais.length > 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(recidivistes.length)} libelle="vendeurs à surveiller"
+          sous="2 mauvais avis ou plus" ton={recidivistes.length > 0 ? 'alerte' : 'neutre'} />
+      </KpisCrm>
+
+      {recidivistes.length > 0 && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5">
+          <p className="text-[13px] font-bold text-red-800">Vendeurs qui accumulent les mauvaises notes</p>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-red-700">
+            {recidivistes.slice(0, 5).map(([mail, n]) => `${mail} (${n})`).join(' · ')}
+          </p>
+          <p className="mt-1 text-[11.5px] text-red-700/80">
+            Cherchez leur adresse dans l’onglet Utilisateurs pour voir leur fiche complète.
+          </p>
+        </div>
+      )}
+
+      <PucesCrm valeur={note} onChange={setNote} puces={[
+        { id: 'tous', label: 'Tous', n: items.length },
+        ...(mauvais.length > 0 ? [{ id: 'mauvais', label: '1–2 étoiles', n: mauvais.length, alerte: true }] : []),
+        { id: 'bons', label: '4–5 étoiles', n: bons.length },
+      ]} />
+
+      <BarreCrm q={q} onQ={setQ} placeholder="Chercher un auteur, un vendeur, une annonce…" />
+
+      {liste.length === 0 ? <Empty>Aucun avis dans cette vue.</Empty> : liste.map((r) => (
+        <div key={r.id} className={`rounded-2xl bg-white p-3 shadow-card ${r.rating <= 2 ? 'ring-1 ring-red-200' : ''}`}>
+          <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm font-semibold text-gray-800">{r.reviewerName || r.reviewerEmail || 'Acheteur'}</p>
             <span className="flex shrink-0 items-center gap-0.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} size={13} className={i < r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'} />
+              {Array.from({ length: 5 }).map((_, i2) => (
+                <Star key={i2} size={13} className={i2 < r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'} />
               ))}
             </span>
           </div>
+          {r.sellerEmail && <p className="mt-0.5 truncate text-[11.5px] text-gray-500">vendeur : {r.sellerEmail}</p>}
           {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
           <div className="mt-1 flex items-center justify-between gap-2">
             <p className="truncate text-[11px] text-gray-400">
@@ -1505,7 +1617,6 @@ function ReviewsTab() {
           </div>
         </div>
       ))}
-      {items.length === 0 && <Empty>Aucun avis.</Empty>}
     </div>
   )
 }
@@ -3321,50 +3432,116 @@ function KV({ k, v }: { k: string; v: ReactNode }) {
 }
 
 // ---------- Commandes ----------
+/**
+ * COMMANDES — ce qui s'est vendu, et ce qui traîne.
+ *
+ * La liste brute ne répondait à aucune question. Trois maintenant : combien
+ * a-t-on encaissé, quel est le panier moyen, et combien de ventes restent
+ * ouvertes — une commande « en cours » depuis trois semaines, c'est une vente
+ * perdue que personne n'a vue passer.
+ */
 function OrdersTab() {
   const [items, setItems] = useState<AdminOrder[] | null>(null)
   const [err, setErr] = useState('')
+  const [etat, setEtat] = useState('toutes')
+  const [q, setQ] = useState('')
+  const [tri, setTri] = useState('recentes')
   const load = () => { setItems(null); setErr(''); fetchAdminOrders().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const n = (st: string) => items.filter((o) => o.status === st).length
+  const finalisees = items.filter((o) => o.status === 'finalise')
+  const encaisse = finalisees.reduce((s2, o) => s2 + o.total, 0)
+  const panier = finalisees.length ? Math.round(encaisse / finalisees.length) : 0
+  // Une commande ouverte depuis plus de deux semaines n'aboutira plus toute seule.
+  const dormantes = items.filter((o) => o.status === 'en_cours' && Date.now() - o.createdAt > 14 * 86400_000)
+
+  let liste = etat === 'toutes' ? items
+    : etat === 'dormantes' ? dormantes
+      : items.filter((o) => o.status === etat)
+  if (q) liste = liste.filter((o) =>
+    contient(o.buyerEmail, q) || contient(o.sellerEmail, q)
+    || o.items.some((it) => contient(it.title, q)))
+  liste = [...liste].sort((a, b) => (tri === 'montant' ? b.total - a.total : b.createdAt - a.createdAt))
+
   return (
-    <div className="space-y-2">
-      <RowHead count={items.length} label="commande" />
-      {items.map((o) => (
-        <div key={o.id} className="rounded-2xl bg-white p-3 shadow-card">
-          <div className="flex items-center justify-between">
-            <span className="rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-700">{statusLabel(o.status)}</span>
-            <span className="tnum text-sm font-bold text-gray-900">{formatFCFA(o.total)}</span>
+    <div className="space-y-3">
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(encaisse)} libelle="encaissé" sous="FCFA, ventes finalisées" ton="bon" />
+        <KpiCrm valeur={formatPrice(panier)} libelle="panier moyen" sous="FCFA par vente" />
+        <KpiCrm valeur={formatPrice(n('en_cours'))} libelle="en cours" />
+        <KpiCrm valeur={formatPrice(dormantes.length)} libelle="dorment" sous="ouvertes depuis 15 jours"
+          ton={dormantes.length > 0 ? 'alerte' : 'neutre'} />
+      </KpisCrm>
+
+      <AttenteCrm n={dormantes.length}
+        phrase={`${dormantes.length} commande${dormantes.length > 1 ? 's' : ''} ouverte${dormantes.length > 1 ? 's' : ''} depuis plus de deux semaines`}
+        action={<button onClick={() => setEtat('dormantes')}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-extrabold text-white">Les voir</button>} />
+
+      <PucesCrm valeur={etat} onChange={setEtat} puces={[
+        { id: 'toutes', label: 'Toutes', n: items.length },
+        { id: 'en_cours', label: 'En cours', n: n('en_cours') },
+        { id: 'finalise', label: 'Finalisées', n: n('finalise') },
+        ...(n('annule') > 0 ? [{ id: 'annule', label: 'Annulées', n: n('annule') }] : []),
+        ...(dormantes.length > 0 ? [{ id: 'dormantes', label: 'Qui dorment', n: dormantes.length, alerte: true }] : []),
+      ]} />
+
+      <BarreCrm q={q} onQ={setQ} placeholder="Chercher un e-mail, un article…"
+        tri={tri} onTri={setTri} tris={[['recentes', 'Plus récentes'], ['montant', 'Montant']]} />
+
+      {liste.length === 0 ? <Empty>Aucune commande dans cette vue.</Empty> : liste.map((o) => {
+        const dort = o.status === 'en_cours' && Date.now() - o.createdAt > 14 * 86400_000
+        return (
+          <div key={o.id} className={`rounded-2xl bg-white p-3 shadow-card ${dort ? 'ring-1 ring-red-200' : ''}`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                o.status === 'finalise' ? 'bg-ivoire-green/10 text-ivoire-green-dark'
+                  : o.status === 'annule' ? 'bg-gray-100 text-gray-500'
+                    : 'bg-primary-100 text-primary-700'}`}>
+                {statusLabel(o.status)}
+              </span>
+              <span className="tnum text-sm font-bold text-gray-900">{formatFCFA(o.total)}</span>
+            </div>
+            <ul className="mt-2 space-y-0.5">
+              {o.items.map((it, i2) => (
+                <li key={i2} className="flex justify-between text-sm text-gray-700">
+                  <span className="min-w-0 truncate">{it.title}</span>
+                  <span className="shrink-0 pl-2 text-gray-500">{formatPrice(it.price)} F</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 border-t border-line pt-2 text-xs text-gray-400">
+              {o.buyerEmail || '—'} → {o.sellerEmail || '—'} · {timeAgo(o.createdAt)}
+              {dort && <span className="ml-1 font-bold text-red-600">· dort depuis {Math.floor((Date.now() - o.createdAt) / 86400_000)} jours</span>}
+            </p>
           </div>
-          <ul className="mt-2 space-y-0.5">
-            {o.items.map((it, i) => (
-              <li key={i} className="flex justify-between text-sm text-gray-700">
-                <span className="min-w-0 truncate">{it.title}</span>
-                <span className="shrink-0 pl-2 text-gray-500">{formatPrice(it.price)} F</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 border-t border-line pt-2 text-xs text-gray-400">
-            {o.buyerEmail || '—'} → {o.sellerEmail || '—'} · {timeAgo(o.createdAt)}
-          </p>
-        </div>
-      ))}
-      {items.length === 0 && <Empty>Aucune commande.</Empty>}
+        )
+      })}
     </div>
   )
 }
 
 // ---------- Abonnés newsletter ----------
+/**
+ * ABONNÉS — une liste ne vaut que par ce qu'elle grossit.
+ *
+ * Le nombre seul ne dit pas si l'on progresse. Les trente derniers jours, et
+ * ce qu'ils pèsent, le disent : une liste qui n'a pris personne ce mois-ci est
+ * une liste qu'on croit vivante et qui ne l'est plus.
+ */
 function NewsletterTab() {
   const [subs, setSubs] = useState<Subscriber[] | null>(null)
   const [err, setErr] = useState('')
+  const [q, setQ] = useState('')
+  const [vue, setVue] = useState('tous')
   const load = () => { setSubs(null); setErr(''); fetchNewsletter().then(setSubs).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
-  const exportCsv = () => {
-    if (!subs) return
-    const csv = 'email,date_inscription\n' + subs.map((s) => `${s.email},${new Date(s.createdAt).toISOString().slice(0, 10)}`).join('\n')
+  const exportCsv = (lignes: Subscriber[]) => {
+    const csv = 'email,date_inscription\n' + lignes.map((s2) => `${s2.email},${new Date(s2.createdAt).toISOString().slice(0, 10)}`).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
     a.href = url
@@ -3375,25 +3552,56 @@ function NewsletterTab() {
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!subs) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const j30 = subs.filter((s2) => Date.now() - s2.createdAt < 30 * 86400_000)
+  const j30prec = subs.filter((s2) => {
+    const age = Date.now() - s2.createdAt
+    return age >= 30 * 86400_000 && age < 60 * 86400_000
+  })
+  const j7 = subs.filter((s2) => Date.now() - s2.createdAt < 7 * 86400_000)
+
+  let liste = vue === 'j30' ? j30 : vue === 'j7' ? j7 : subs
+  if (q) liste = liste.filter((s2) => contient(s2.email, q))
+  liste = [...liste].sort((a, b) => b.createdAt - a.createdAt)
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-display text-2xl font-bold text-gray-900">{subs.length}</p>
-          <p className="text-sm text-gray-500">abonné{subs.length > 1 ? 's' : ''}</p>
-        </div>
-        <button onClick={exportCsv} disabled={subs.length === 0} className="btn-primary py-2.5 disabled:opacity-50">
-          <Download size={18} /> Exporter (CSV)
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(subs.length)} libelle="abonnés" />
+        <KpiCrm valeur={formatPrice(j30.length)} libelle="ce mois-ci"
+          sous={j30prec.length > 0 ? `${j30prec.length} le mois précédent` : undefined}
+          ton={j30.length > j30prec.length ? 'bon' : j30.length === 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(j7.length)} libelle="cette semaine" />
+        <KpiCrm valeur={subs.length ? `${Math.round(j30.length / 30 * 10) / 10}` : '0'}
+          libelle="par jour" sous="moyenne sur 30 jours" />
+      </KpisCrm>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <PucesCrm valeur={vue} onChange={setVue} puces={[
+          { id: 'tous', label: 'Tous', n: subs.length },
+          { id: 'j30', label: '30 derniers jours', n: j30.length },
+          { id: 'j7', label: '7 derniers jours', n: j7.length },
+        ]} />
+        <button onClick={() => exportCsv(liste)} disabled={liste.length === 0}
+          className="btn-primary shrink-0 py-2 text-sm disabled:opacity-50">
+          <Download size={16} /> Exporter ({liste.length})
         </button>
       </div>
-      <p className="text-xs text-gray-400">Importez le CSV dans Brevo, Mailchimp ou MailerLite pour vos campagnes.</p>
-      {subs.length === 0 ? <Empty>Aucun abonné pour l’instant.</Empty> : (
+
+      <BarreCrm q={q} onQ={setQ} placeholder="Chercher une adresse…" />
+
+      <p className="px-1 text-xs text-gray-400">
+        L’export reprend EXACTEMENT ce qui est affiché — filtre et recherche compris.
+        Importez-le dans Brevo, Mailchimp ou MailerLite.
+      </p>
+
+      {liste.length === 0 ? <Empty>Aucun abonné dans cette vue.</Empty> : (
         <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-line bg-white">
-          {subs.map((s) => (
-            <li key={s.email} className="flex items-center gap-3 px-4 py-3">
+          {liste.map((s2) => (
+            <li key={s2.email} className="flex items-center gap-3 px-4 py-3">
               <Mail size={16} className="shrink-0 text-primary-500" />
-              <span className="min-w-0 flex-1 truncate text-sm text-gray-800">{s.email}</span>
-              <span className="shrink-0 text-xs text-gray-400">{new Date(s.createdAt).toLocaleDateString('fr-FR')}</span>
+              <span className="min-w-0 flex-1 truncate text-sm text-gray-800">{s2.email}</span>
+              <span className="shrink-0 text-xs text-gray-400">{new Date(s2.createdAt).toLocaleDateString('fr-FR')}</span>
             </li>
           ))}
         </ul>
