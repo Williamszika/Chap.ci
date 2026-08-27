@@ -1658,7 +1658,7 @@ function demanderMotif(action: 'masquer' | 'retirer', titre: string): string | n
   return t
 }
 
-type FiltreAnnonces = 'toutes' | 'visibles' | 'masquees'
+type FiltreAnnonces = 'toutes' | 'visibles' | 'masquees' | 'sansphoto'
 
 function ListingsTab() {
   const [items, setItems] = useState<AdminListing[] | null>(null)
@@ -1691,16 +1691,34 @@ function ListingsTab() {
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
 
   const masquees = items.filter((l) => l.hidden).length
+  const semaine = items.filter((l) => Date.now() - l.createdAt < 7 * 86400_000).length
+  // Une annonce sans photo ne se vend pas et fait douter du site : c'est le
+  // premier tas à traiter quand on ouvre cet onglet.
+  const sansPhoto = items.filter((l) => (l.images?.length ?? 0) === 0)
   const terme = q.trim().toLowerCase()
   const vus = items.filter((l) => {
     if (filtre === 'visibles' && l.hidden) return false
     if (filtre === 'masquees' && !l.hidden) return false
+    if (filtre === 'sansphoto' && (l.images?.length ?? 0) > 0) return false
     if (!terme) return true
     return (l.title + ' ' + (l.sellerEmail ?? '') + ' ' + (l.sellerName ?? '')).toLowerCase().includes(terme)
   })
 
   return (
     <div className="space-y-2">
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(items.length)} libelle="annonces" />
+        <KpiCrm valeur={formatPrice(items.length - masquees)} libelle="en ligne" ton="bon" />
+        <KpiCrm valeur={formatPrice(masquees)} libelle="masquées"
+          ton={masquees > 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(semaine)} libelle="cette semaine" sous="publiées en 7 jours" />
+      </KpisCrm>
+
+      <AttenteCrm n={sansPhoto.length}
+        phrase={`${sansPhoto.length} annonce${sansPhoto.length > 1 ? 's' : ''} sans aucune photo`}
+        action={<button onClick={() => setFiltre('sansphoto')}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-extrabold text-white">Les voir</button>} />
+
       {/* Chercher, filtrer, ajouter — les trois gestes du contrôle complet.
           « Ajouter » ouvre le formulaire ordinaire : une annonce publiée par
           l'équipe reste une annonce, avec ses photos et ses règles. */}
@@ -1713,7 +1731,8 @@ function ListingsTab() {
           className="input h-10 min-w-[180px] flex-1 py-0 text-sm"
         />
         <div className="flex gap-1">
-          {([['toutes', `Toutes (${items.length})`], ['visibles', `En ligne (${items.length - masquees})`], ['masquees', `Masquées (${masquees})`]] as [FiltreAnnonces, string][]).map(([id, label]) => (
+          {([['toutes', `Toutes (${items.length})`], ['visibles', `En ligne (${items.length - masquees})`], ['masquees', `Masquées (${masquees})`],
+             ...(sansPhoto.length > 0 ? [['sansphoto', `Sans photo (${sansPhoto.length})`]] : [])] as [FiltreAnnonces, string][]).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setFiltre(id)}
@@ -1819,6 +1838,9 @@ function ProTab() {
   const [items, setItems] = useState<AdminProDemande[] | null>(null)
   const [err, setErr] = useState('')
   const [detail, setDetail] = useState<AdminProDemande | null>(null)
+  // On ouvre sur ce qui attend : personne ne vient ici relire un dossier clos.
+  const [vue, setVue] = useState('attente')
+  const [q, setQ] = useState('')
   const { search } = useLocation()
   const load = () => { setItems(null); setErr(''); fetchAdminPro().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
@@ -1844,14 +1866,54 @@ function ProTab() {
   }
 
   const enAttente = items.filter((d) => d.status === 'en_attente').length
+  const approuves = items.filter((d) => d.status === 'approuve').length
+  const refuses = items.filter((d) => d.status === 'refuse').length
+  // Un dossier qui attend depuis plus de trois jours : la personne a payé son
+  // registre, elle attend, et elle ne le dira pas — elle partira.
+  const vieux = items.filter((d) => d.status === 'en_attente'
+    && d.demandeAt != null && Date.now() - d.demandeAt > 3 * 86400_000)
+  // Sans numéro vérifiable, le dossier ne peut pas être contrôlé au registre :
+  // il faut écrire au demandeur avant de décider.
+  const sansNumero = items.filter((d) => d.status === 'en_attente' && !d.numero)
+
+  const vus = items.filter((d) => {
+    if (vue === 'attente' && d.status !== 'en_attente') return false
+    if (vue === 'vieux' && !vieux.includes(d)) return false
+    if (vue === 'approuves' && d.status !== 'approuve') return false
+    if (vue === 'refuses' && d.status !== 'refuse') return false
+    return contient(d.proNom, q) || contient(d.email, q) || contient(d.nom, q)
+      || contient(d.numero, q) || contient(d.secteur, q)
+  })
+
   return (
     <div className="space-y-2">
-      <p className="px-1 text-xs text-gray-500">
-        {enAttente > 0
-          ? `${enAttente} demande${enAttente > 1 ? 's' : ''} en attente — cliquez un dossier pour voir la fiche complète et décider.`
-          : 'Toutes les demandes sont traitées — cliquez un dossier pour revoir la fiche.'}
-      </p>
-      {items.map((d) => {
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(enAttente)} libelle="en attente"
+          ton={enAttente > 0 ? 'alerte' : 'bon'} />
+        <KpiCrm valeur={formatPrice(vieux.length)} libelle="depuis 3 jours"
+          ton={vieux.length > 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(sansNumero.length)} libelle="sans numéro"
+          sous="invérifiables au registre" ton={sansNumero.length > 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(approuves)} libelle="professionnels" sous={`${refuses} refusé${refuses > 1 ? 's' : ''}`} ton="bon" />
+      </KpisCrm>
+
+      <AttenteCrm n={vieux.length}
+        phrase={`${vieux.length} dossier${vieux.length > 1 ? 's' : ''} ${vieux.length > 1 ? 'attendent' : 'attend'} une décision depuis plus de trois jours`}
+        action={<button onClick={() => setVue('vieux')}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-extrabold text-white">Les voir</button>} />
+
+      <PucesCrm valeur={vue} onChange={setVue} puces={[
+        { id: 'attente', label: 'En attente', n: enAttente, alerte: enAttente > 0 },
+        ...(vieux.length > 0 ? [{ id: 'vieux', label: 'Depuis 3 jours', n: vieux.length, alerte: true }] : []),
+        { id: 'approuves', label: 'Approuvés', n: approuves },
+        ...(refuses > 0 ? [{ id: 'refuses', label: 'Refusés', n: refuses }] : []),
+        { id: 'tous', label: 'Tous', n: items.length },
+      ]} />
+
+      <BarreCrm q={q} onQ={setQ} placeholder="Chercher une enseigne, un e-mail, un numéro…" />
+
+      {vus.length === 0 && <Empty>Aucun dossier dans cette vue.</Empty>}
+      {vus.map((d) => {
         const attente = d.status === 'en_attente'
         return (
           <button
@@ -2120,8 +2182,26 @@ function UsersTab() {
     return `${u.fullName} ${u.email} ${u.phone ?? ''} ${u.commune ?? ''}`.toLowerCase().includes(terme)
   })
 
+  const bloques = items.filter((u) => u.status === 'blocked' || u.status === 'restricted').length
+  const semaine = items.filter((u) => Date.now() - u.createdAt < 7 * 86400_000).length
+
   return (
     <div className="space-y-2">
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(items.length)} libelle="comptes" />
+        <KpiCrm valeur={formatPrice(semaine)} libelle="cette semaine" sous="nouveaux inscrits" />
+        <KpiCrm valeur={formatPrice(enLigne)} libelle="en ligne" sous="vus il y a moins de 5 min"
+          ton={enLigne > 0 ? 'bon' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(muets)} libelle="sans annonce"
+          sous={items.length ? `${Math.round(muets / items.length * 100)} % des comptes` : undefined}
+          ton={items.length > 0 && muets / items.length > 0.7 ? 'alerte' : 'neutre'} />
+      </KpisCrm>
+      {bloques > 0 && (
+        <p className="px-1 text-[12.5px] text-gray-500">
+          {formatPrice(bloques)} compte{bloques > 1 ? 's' : ''} bloqué{bloques > 1 ? 's' : ''} ou restreint{bloques > 1 ? 's' : ''}.
+        </p>
+      )}
+
       {/* Chercher quelqu'un, et voir qui est là maintenant. Sur une liste qui
           grandit, le nom qu'on cherche est rarement en haut. */}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 shadow-card">
@@ -2634,6 +2714,9 @@ function ModBtn({ active, onClick, disabled, icon, label, tone }: { active: bool
 function ReportsTab({ onChanged }: { onChanged?: () => void }) {
   const [items, setItems] = useState<Report[] | null>(null)
   const [err, setErr] = useState('')
+  // On ouvre sur les signalements OUVERTS : c'est la seule raison de venir ici.
+  const [vue, setVue] = useState('ouverts')
+  const [q, setQ] = useState('')
   const load = () => { setItems(null); setErr(''); fetchReports().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
@@ -2673,10 +2756,54 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
 
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  const ouverts = items.filter((r) => r.status === 'open')
+  // Un signalement ouvert depuis plus de 48 h, c'est une annonce que trois
+  // personnes ont peut-être vue et signalée depuis. C'est le seul chiffre de
+  // cet onglet qui appelle une action tout de suite.
+  const vieux = ouverts.filter((r) => Date.now() - r.createdAt > 2 * 86400_000)
+  const masqueesSig = items.filter((r) => r.listingHidden).length
+  // Les annonces signalées PLUSIEURS fois : trois personnes qui disent la même
+  // chose se trompent rarement.
+  const parAnnonce = new Map<string, number>()
+  for (const r of ouverts) parAnnonce.set(r.listingId, (parAnnonce.get(r.listingId) ?? 0) + 1)
+  const repetes = [...parAnnonce.values()].filter((n) => n >= 2).length
+
+  const vus = items.filter((r) => {
+    if (vue === 'ouverts' && r.status !== 'open') return false
+    if (vue === 'vieux' && !vieux.includes(r)) return false
+    if (vue === 'traites' && r.status !== 'resolved') return false
+    return contient(r.listingTitle, q) || contient(r.reason, q)
+      || contient(r.details, q) || contient(r.reporterEmail, q)
+  })
+
   return (
     <div className="space-y-2">
-      <RowHead count={items.length} label="signalement" />
-      {items.map((r) => (
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(ouverts.length)} libelle="ouverts"
+          ton={ouverts.length > 0 ? 'alerte' : 'bon'} />
+        <KpiCrm valeur={formatPrice(vieux.length)} libelle="depuis 48 h"
+          ton={vieux.length > 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(repetes)} libelle="signalés plusieurs fois"
+          sous="la même annonce" ton={repetes > 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(masqueesSig)} libelle="annonces déjà masquées" />
+      </KpisCrm>
+
+      <AttenteCrm n={vieux.length}
+        phrase={`${vieux.length} signalement${vieux.length > 1 ? 's' : ''} ouvert${vieux.length > 1 ? 's' : ''} depuis plus de 48 h`}
+        action={<button onClick={() => setVue('vieux')}
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-extrabold text-white">Les voir</button>} />
+
+      <PucesCrm valeur={vue} onChange={setVue} puces={[
+        { id: 'ouverts', label: 'Ouverts', n: ouverts.length, alerte: ouverts.length > 0 },
+        ...(vieux.length > 0 ? [{ id: 'vieux', label: 'Depuis 48 h', n: vieux.length, alerte: true }] : []),
+        { id: 'traites', label: 'Traités', n: items.length - ouverts.length },
+        { id: 'tous', label: 'Tous', n: items.length },
+      ]} />
+
+      <BarreCrm q={q} onQ={setQ} placeholder="Chercher une annonce, un motif, un signaleur…" />
+
+      {vus.map((r) => (
         <div key={r.id} className={`rounded-2xl bg-white p-3 shadow-card ${r.status === 'open' ? 'ring-1 ring-red-100' : 'opacity-70'}`}>
           <div className="flex items-start gap-2">
             <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${r.status === 'open' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-400'}`}>
@@ -2717,7 +2844,9 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
           </div>
         </div>
       ))}
-      {items.length === 0 && <Empty>Aucun signalement. 🎉</Empty>}
+      {vus.length === 0 && (
+        <Empty>{items.length === 0 ? 'Aucun signalement. 🎉' : 'Rien dans cette vue.'}</Empty>
+      )}
     </div>
   )
 }
@@ -2726,6 +2855,9 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
 function ContactTab({ onChanged }: { onChanged?: () => void }) {
   const [items, setItems] = useState<ContactMessage[] | null>(null)
   const [err, setErr] = useState('')
+  // On ouvre sur ce qui n'a pas été traité : le reste est de l'archive.
+  const [vue, setVue] = useState('attente')
+  const [q, setQ] = useState('')
   const load = () => { setItems(null); setErr(''); fetchContactMessages().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
@@ -2787,8 +2919,43 @@ function ContactTab({ onChanged }: { onChanged?: () => void }) {
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
   return (
     <div className="space-y-2">
-      <RowHead count={items.length} label="message" />
-      {items.map((m) => {
+      {(() => {
+        const attente = items.filter((m) => !m.handled)
+        // Un message sans réponse depuis 48 h : la personne a écrit et n'a rien
+        // reçu. C'est ce qui fait écrire « votre site ne répond pas » ailleurs.
+        const vieuxMsg = attente.filter((m) => Date.now() - m.createdAt > 2 * 86400_000)
+        return (
+          <>
+            <KpisCrm>
+              <KpiCrm valeur={formatPrice(attente.length)} libelle="en attente"
+                ton={attente.length > 0 ? 'alerte' : 'bon'} />
+              <KpiCrm valeur={formatPrice(vieuxMsg.length)} libelle="depuis 48 h"
+                ton={vieuxMsg.length > 0 ? 'alerte' : 'neutre'} />
+              <KpiCrm valeur={formatPrice(items.length - attente.length)} libelle="traités" />
+              <KpiCrm valeur={formatPrice(items.filter((m) => Date.now() - m.createdAt < 7 * 86400_000).length)}
+                libelle="cette semaine" />
+            </KpisCrm>
+            <AttenteCrm n={vieuxMsg.length}
+              phrase={`${vieuxMsg.length} message${vieuxMsg.length > 1 ? 's' : ''} sans réponse depuis plus de 48 h`}
+              action={<button onClick={() => setVue('vieux')}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-extrabold text-white">Les voir</button>} />
+            <PucesCrm valeur={vue} onChange={setVue} puces={[
+              { id: 'attente', label: 'En attente', n: attente.length, alerte: attente.length > 0 },
+              ...(vieuxMsg.length > 0 ? [{ id: 'vieux', label: 'Depuis 48 h', n: vieuxMsg.length, alerte: true }] : []),
+              { id: 'traites', label: 'Traités', n: items.length - attente.length },
+              { id: 'tous', label: 'Tous', n: items.length },
+            ]} />
+            <BarreCrm q={q} onQ={setQ} placeholder="Chercher un nom, un e-mail, un sujet…" />
+          </>
+        )
+      })()}
+      {items.filter((m) => {
+        if (vue === 'attente' && m.handled) return false
+        if (vue === 'traites' && !m.handled) return false
+        if (vue === 'vieux' && (m.handled || Date.now() - m.createdAt <= 2 * 86400_000)) return false
+        return contient(m.name, q) || contient(m.email, q)
+          || contient(m.subject, q) || contient(m.message, q)
+      }).map((m) => {
         const open = openId === m.id
         return (
           <div key={m.id} className={`overflow-hidden rounded-2xl bg-white shadow-card ${m.handled ? '' : 'ring-1 ring-primary-100'}`}>
@@ -2995,6 +3162,8 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [items, setItems] = useState<AdminAd[] | null>(null)
   const [err, setErr] = useState('')
   const [preview, setPreview] = useState<AdminAd | null>(null) // pub ouverte en grand
+  const [vueAds, setVueAds] = useState('toutes')
+  const [qAds, setQAds] = useState('')
   const load = () => { setItems(null); setErr(''); fetchAdminAds().then(setItems).catch((e) => setErr((e as Error).message)) }
   useEffect(load, [])
 
@@ -3160,6 +3329,37 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
         </button>
       </div>
 
+      {/* Ce qui attend une décision, avant la liste. Une demande de publicité
+          non validée, c'est un annonceur qui a PAYÉ et qui attend son écran. */}
+      {(() => {
+        const attente = items.filter((a) => a.status === 'pending')
+        const actives = items.filter((a) => a.status === 'active')
+        const recettes = items
+          .filter((a) => ['active', 'expired', 'merged'].includes(a.status))
+          .reduce((s2, a) => s2 + (a.price ?? 0), 0)
+        const vieuxA = attente.filter((a) => Date.now() - (a.createdAt ?? Date.now()) > 86400_000)
+        return (
+          <>
+            <KpisCrm>
+              <KpiCrm valeur={formatPrice(attente.length)} libelle="à valider"
+                sous="l’annonceur a payé" ton={attente.length > 0 ? 'alerte' : 'bon'} />
+              <KpiCrm valeur={formatPrice(actives.length)} libelle="à l’écran" ton="bon" />
+              <KpiCrm valeur={formatPrice(recettes)} libelle="recettes" sous="FCFA, diffusées" />
+              <KpiCrm valeur={formatPrice(items.length)} libelle="campagnes" sous="depuis le début" />
+            </KpisCrm>
+            <AttenteCrm n={vieuxA.length}
+              phrase={`${vieuxA.length} publicité${vieuxA.length > 1 ? 's' : ''} payée${vieuxA.length > 1 ? 's' : ''} ${vieuxA.length > 1 ? 'attendent' : 'attend'} validation depuis plus de 24 h`} />
+            <PucesCrm valeur={vueAds} onChange={setVueAds} puces={[
+              { id: 'toutes', label: 'Toutes', n: items.length },
+              ...(attente.length > 0 ? [{ id: 'pending', label: 'À valider', n: attente.length, alerte: true }] : []),
+              { id: 'active', label: 'À l’écran', n: actives.length },
+              { id: 'expired', label: 'Terminées', n: items.filter((a) => a.status === 'expired').length },
+            ]} />
+            <BarreCrm q={qAds} onQ={setQAds} placeholder="Chercher un titre, un e-mail…" />
+          </>
+        )
+      })()}
+
       {/* Demandes & diffusions */}
       <div className="rounded-2xl border border-line bg-white px-4 py-3 shadow-card">
         <p className="font-display text-[15px] font-extrabold text-ink">Publicités · {items.length}</p>
@@ -3167,7 +3367,11 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
           <Empty>Aucune publicité pour l’instant.</Empty>
         ) : (
           <div className="divide-y divide-line">
-            {items.map((a) => {
+            {items.filter((a) => {
+              if (vueAds !== 'toutes' && a.status !== vueAds) return false
+              return contient(a.title, qAds) || contient(a.email, qAds)
+                || contient(a.description, qAds)
+            }).map((a) => {
               const [pillLabel, pillCls] = AD_STATUS_PILL[a.status] ?? AD_STATUS_PILL.pending
               return (
                 <div key={a.id} className="py-3">
