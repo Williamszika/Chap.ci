@@ -40,6 +40,7 @@ import { VerifiedBadge } from '../components/VerifiedBadge'
 import { fetchVerifyStatus, sendEmailCode, confirmEmailCode, type VerifyStatus } from '../lib/verify'
 import { MyAdsPanel } from '../components/MyAdsPanel'
 import { MesAnnonces } from '../components/MesAnnonces'
+import { MesCommandes } from '../components/MesCommandes'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { useIsAdmin } from '../lib/useIsAdmin'
@@ -51,7 +52,7 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { priceLabel, formatFCFA, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { categories } from '../data/categories'
-import { fetchOrders, updateOrderStatus } from '../lib/orders'
+import { fetchOrders } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
 import { fetchMyListings, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
@@ -80,7 +81,6 @@ export function Profile() {
   const { user, enabled, signOut, refreshUser } = useAuth()
   const isAdmin = useIsAdmin()
   const { place } = useGeo()
-  const toast = useToast()
   const [seller] = useLocalStorage('chapci.seller.v1', { name: '', phone: '' })
   const location = useLocation()
 
@@ -149,6 +149,17 @@ export function Profile() {
     .slice(0, 4)
   const catBarColors = ['bg-primary-500', 'bg-ivoire-green', 'bg-accent-gold', 'bg-accent-sky']
 
+  // Recharge les deux listes de commandes après une action (finaliser, annuler).
+  const reloadOrders = useRef(async () => {})
+  reloadOrders.current = async () => {
+    if (!user) return
+    const [a, v] = await Promise.all([
+      fetchOrders(user.id, 'buyer').catch(() => purchases),
+      fetchOrders(user.id, 'seller').catch(() => sales),
+    ])
+    setPurchases(a); setSales(v)
+  }
+
   useEffect(() => {
     if (!user) return
     let active = true
@@ -168,15 +179,6 @@ export function Profile() {
     fetchSellerAnalytics(period).then((a) => active && setAnalytics(a)).catch(() => {})
     return () => { active = false }
   }, [user, tab, period])
-
-  async function markReceived(order: Order) {
-    try {
-      await updateOrderStatus(order.id, 'finalise')
-      setPurchases((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: 'finalise' } : o)))
-    } catch {
-      toast.error('Action impossible pour le moment.')
-    }
-  }
 
   async function logout() {
     try { await signOut() } catch { /* ignore */ }
@@ -352,42 +354,19 @@ export function Profile() {
           </div>
         )}
 
-        {/* ACHATS */}
+        {/* COMMANDES — ce qu'on vend et ce qu'on achète, au même endroit */}
         {tab === 'achats' &&
           (!user ? (
-            <Empty text="Connectez-vous pour voir vos demandes d’achat." />
-          ) : purchases.length === 0 ? (
-            <Empty text="Aucune demande d’achat. Cliquez « Acheter » sur une annonce pour envoyer une demande au vendeur." cta />
+            <Empty text="Connectez-vous pour voir vos commandes." />
+          ) : purchases.length === 0 && sales.length === 0 ? (
+            <Empty text="Aucune commande pour l’instant. Cliquez « Acheter » sur une annonce pour envoyer une demande au vendeur." cta />
           ) : (
-            <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
-              {purchases.map((o) => (
-                <OrderCard
-                  key={o.id}
-                  order={o}
-                  who={`Vendeur : ${o.otherName}`}
-                  onOpen={() => o.conversationId && navigate(`/messages/${o.conversationId}`)}
-                  footer={
-                    <div className="flex flex-wrap gap-2">
-                      {o.conversationId && (
-                        <button onClick={() => navigate(`/messages/${o.conversationId}`)} className="btn-outline flex-1 py-2 text-sm">
-                          <MessageCircle size={16} /> Discuter
-                        </button>
-                      )}
-                      {o.status === 'en_cours' && (
-                        <button onClick={() => markReceived(o)} className="btn-primary flex-1 py-2 text-sm">
-                          <CheckCircle2 size={16} /> Article reçu
-                        </button>
-                      )}
-                      {o.status === 'finalise' && o.items[0]?.listingId && (
-                        <Link to={`/annonce/${o.items[0].listingId}`} className="btn-outline flex-1 py-2 text-sm">
-                          <Star size={16} /> Laisser un avis
-                        </Link>
-                      )}
-                    </div>
-                  }
-                />
-              ))}
-            </div>
+            <MesCommandes
+              ventes={sales}
+              achats={purchases}
+              avis={myReviews}
+              onRecharger={() => reloadOrders.current()}
+            />
           ))}
 
         {/* VENTES */}

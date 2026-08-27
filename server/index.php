@@ -1942,6 +1942,11 @@ function migrate(PDO $pdo): void {
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN reminder_count $intT"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // QUAND la vente s'est conclue. Sans cette date, « ce mois-ci » comptait la
+  // date de la DEMANDE : une commande demandée le 29 juillet et payée le
+  // 2 août sortait du mois d'août, et le total du vendeur était faux.
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN finalized_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // Suivi : la vue de page a-t-elle été faite en étant CONNECTÉ (1) ou en simple
   // visiteur (0) ? Un drapeau, pas un identifiant : on n'écrit jamais QUI a vu la
   // page, seulement s'il avait un compte ouvert. Aucune donnée personnelle
@@ -6824,6 +6829,10 @@ try {
         'id' => $o['id'], 'buyerId' => $o['buyer_id'], 'sellerId' => $o['seller_id'],
         'conversationId' => $o['conversation_id'], 'status' => $o['status'] ?: 'en_cours',
         'createdAt' => iso_to_ms($o['created_at']), 'items' => $items,
+        // Commandes conclues avant l'ajout de la colonne : on retombe sur la
+        // date de demande plutôt que d'afficher un vide.
+        'finalizedAt' => ($o['status'] ?? '') === 'finalise'
+          ? iso_to_ms($o['finalized_at'] ?: $o['created_at']) : null,
         'otherName' => ($pn->fetch()['full_name'] ?? null) ?: 'Utilisateur',
       ];
     }
@@ -6832,15 +6841,24 @@ try {
 
   if (count($seg) === 2 && $seg[0] === 'orders' && $method === 'PATCH') {
     $u = require_user($pdo, $secret); $b = body();
-    $st = $pdo->prepare('SELECT seller_id FROM orders WHERE id = ?'); $st->execute([$seg[1]]);
+    $st = $pdo->prepare('SELECT buyer_id, seller_id, finalized_at FROM orders WHERE id = ?');
+    $st->execute([$seg[1]]);
     $o = $st->fetch();
     if (!$o) jerr('Commande introuvable.', 404);
-    if ($o['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $vendeur  = (string) $o['seller_id'] === (string) $u['id'];
+    $acheteur = (string) $o['buyer_id'] === (string) $u['id'];
+    if (!$vendeur && !$acheteur) jerr('Non autorisé.', 403);
     // Statut restreint à une liste blanche (pas de valeur arbitraire en base).
     $status = (string) ($b['status'] ?? 'en_cours');
     if (!in_array($status, ['en_cours', 'finalise', 'annule'], true)) jerr('Statut de commande invalide.', 400);
-    $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $seg[1]]);
-    jout(['ok' => true]);
+    // L'acheteur peut confirmer qu'il a reçu — c'est sa moitié de la vente.
+    // Annuler ou rouvrir reste au vendeur : lui seul sait si l'objet est parti.
+    if (!$vendeur && $status !== 'finalise') jerr('Seul le vendeur peut annuler ou rouvrir cette commande.', 403);
+    // La date de conclusion se pose une fois et ne bouge plus.
+    $fin = $status === 'finalise' ? ($o['finalized_at'] ?: now_iso()) : null;
+    $pdo->prepare('UPDATE orders SET status = ?, finalized_at = ? WHERE id = ?')
+        ->execute([$status, $fin, $seg[1]]);
+    jout(['ok' => true, 'finalizedAt' => $fin ? iso_to_ms($fin) : null]);
   }
 
   if ($path === 'purchased' && $method === 'GET') {

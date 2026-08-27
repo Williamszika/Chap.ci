@@ -136,6 +136,8 @@ export interface Order {
   conversationId: string | null
   status: OrderStatus
   createdAt: number
+  /** Quand la vente s'est conclue (null tant qu'elle ne l'est pas). */
+  finalizedAt?: number | null
   items: OrderItem[]
   // enrichissements
   otherName?: string
