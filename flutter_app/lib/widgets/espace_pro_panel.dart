@@ -654,7 +654,12 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
           if (quand > 0)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(tempsEcouleTr(context, quand),
+              // Moins de 24 h : la forme courte des maquettes (« 12 min »,
+              // « 1 h ») ; au-delà, le temps relatif habituel (« hier »…).
+              child: Text(
+                  DateTime.now().millisecondsSinceEpoch - quand < 86400000
+                      ? dureeTr(context, quand)
+                      : tempsEcouleTr(context, quand),
                   style: const TextStyle(
                       fontSize: 9.5, color: ChapColors.gray500)),
             ),

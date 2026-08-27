@@ -437,7 +437,7 @@ const Map<String, Map<String, String>> _t = {
   'pro.tab.avis': {'fr': "avis", 'en': "reviews", 'es': "reseñas", 'pt': "avaliações", 'ar': "تقييمات", 'zh': "条评价"},
   'pro.tab.aucunAvis': {'fr': "Pas encore d’avis", 'en': "No reviews yet", 'es': "Aún sin reseñas", 'pt': "Ainda sem avaliações", 'ar': "لا تقييمات بعد", 'zh': "暂无评价"},
   'pro.tab.total': {'fr': "Annonces au total", 'en': "Listings in total", 'es': "Anuncios en total", 'pt': "Anúncios no total", 'ar': "إجمالي الإعلانات", 'zh': "信息总数"},
-  'pro.tab.note': {'fr': "Le badge PRO apparaît sur vos annonces et votre page vendeur.", 'en': "The PRO badge appears on your listings and your seller page.", 'es': "La insignia PRO aparece en sus anuncios y su página de vendedor.", 'pt': "O selo PRO aparece nos seus anúncios e na sua página de vendedor.", 'ar': "تظهر شارة « محترف » على إعلاناتكم وصفحتكم كبائعين.", 'zh': "专业徽章会显示在您的信息和卖家主页上。"},
+  'pro.tab.note': {'fr': "Chiffres réels de votre compte, mis à jour en continu.", 'en': "Real numbers from your account, updated continuously.", 'es': "Cifras reales de su cuenta, actualizadas en continuo.", 'pt': "Números reais da sua conta, atualizados em contínuo.", 'ar': "أرقام حقيقية من حسابكم، تُحدَّث باستمرار.", 'zh': "来自您账户的真实数据，持续更新。"},
   'pro.tab.publier': {'fr': "Publier une annonce", 'en': "Post a listing", 'es': "Publicar un anuncio", 'pt': "Publicar um anúncio", 'ar': "نشر إعلان", 'zh': "发布信息"},
   // Le tableau de bord professionnel façon CRM (période, tendances, activité).
   'pro.tab.jours7': {'fr': "7 jours", 'en': "7 days", 'es': "7 días", 'pt': "7 dias", 'ar': "7 أيام", 'zh': "7 天"},

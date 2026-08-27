@@ -131,32 +131,37 @@ class _MonCompteViewState extends State<MonCompteView> {
       child: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          _entete(),
           // Pour un compte PRO approuvé, l'onglet Compte devient l'espace
-          // professionnel : le tableau de bord de marque PREND LA PLACE des
-          // trois chiffres simples (demande du Patron, 26/08). Les annonces
-          // restent en dessous — c'est l'inventaire du professionnel. Le
+          // professionnel : le tableau de bord de marque arrive TOUT EN HAUT,
+          // comme sur les maquettes validées par le Patron (27/08) — la carte
+          // du profil vient après, et les annonces restent en dessous. Le
           // bouton Publier du panneau est masqué : l'onglet a déjà le sien.
           FutureBuilder<Map<String, dynamic>>(
             future: _infos,
             builder: (context, infos) {
               if (infos.data?['pro'] == true) {
-                return const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
-                  child: EspaceProPanel(avecPublier: false),
-                );
+                return Column(children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 6, 16, 0),
+                    child: EspaceProPanel(avecPublier: false),
+                  ),
+                  _entete(),
+                ]);
               }
-              return FutureBuilder<List<Listing>>(
-                future: _annonces,
-                builder: (context, snap) {
-                  final annonces = snap.data ?? const <Listing>[];
-                  if (snap.connectionState == ConnectionState.done &&
-                      annonces.isNotEmpty) {
-                    return _chiffres(annonces);
-                  }
-                  return const SizedBox.shrink();
-                },
-              );
+              return Column(children: [
+                _entete(),
+                FutureBuilder<List<Listing>>(
+                  future: _annonces,
+                  builder: (context, snap) {
+                    final annonces = snap.data ?? const <Listing>[];
+                    if (snap.connectionState == ConnectionState.done &&
+                        annonces.isNotEmpty) {
+                      return _chiffres(annonces);
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ]);
             },
           ),
           Padding(
