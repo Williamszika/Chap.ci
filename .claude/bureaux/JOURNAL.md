@@ -4316,3 +4316,14 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Tout s'appuie sur des données que `admin/stats` et `visit_series` savent déjà servir
   (à ajouter côté serveur : compteur de demandes Pro en attente et les valeurs de la
   période précédente pour les flèches). **Ne pas coder sans le « j'applique » du Patron.**
+
+### 2026-08-27 (nuit) — [Livraison] Zip complet + feu vert du Patron pour la v1.22 aux tests fermés
+- « Créer le zip complet de tout et faire la mise à jour de l'app de test. »
+  ① `chapcicomplet.zip` envoyé (remplace tous les précédents — mêmes empreintes que
+  chapcitableaupro : API `faaba1380883` · SEO `c57f0f1c6e55` · Site `1b399f6634a0`).
+  ② **Décision du Patron : la v1.22 part aux tests fermés sans attendre le verdict de
+  la v1.21** — elle la remplacera dans la file d'examen, sans risque pour l'échéance
+  du 31/08 (la v1.22 porte aussi targetSdk 36) ; le compte à rebours des 14 jours de
+  test n'est pas affecté. Fiche v1.22 du registre mise à jour (commit `28db01e`),
+  instructions de build données pour le Mac (pull → pub get → preparer_plateformes →
+  build appbundle) avec les étapes Play Console et les notes de version.
