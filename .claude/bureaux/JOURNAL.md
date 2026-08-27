@@ -4430,3 +4430,7 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   garni + captures), pas un dessin. Les trois défauts de la page vendeur (logo rogné,
   nom personnel au lieu du nom commercial, bouton Retour mal placé) n'ont été vus que
   parce que la page a été photographiée pour l'aperçu.
+- **Extrait par le Patron le 27/08 à 14 h 02, du premier coup.** Empreintes vérifiées
+  au curl : API `13c1c36ead45` ✓ · SEO `c57f0f1c6e55` ✓ · Site `c3cc823e7858` ✓.
+  Route `POST /pro/vitrine` confirmée vivante en production (refuse « Non authentifié »
+  au lieu de « Route inconnue »). La vitrine professionnelle est EN LIGNE.
