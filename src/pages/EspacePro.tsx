@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  BadgeCheck, BarChart3, Eye, Heart, Hourglass, Loader2, LogIn,
-  MessageSquare, Package, Plus, Star, Store,
+  BadgeCheck, Eye, Handshake, Heart, Hourglass, Loader2, LogIn,
+  MessageSquare, Package, Plus, Zap,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { phpProStatut, phpProDemande, phpProTableau } from '../lib/php'
 import { TYPES_PRO, labelTypePro } from '../data/secteursPro'
-import { timeAgo } from '../lib/format'
+import { formatFCFA, formatPrice, timeAgo } from '../lib/format'
+import { mediaUrl, thumbUrl } from '../lib/native'
 
 /**
  * L'espace professionnel du site — le pendant exact de l'écran « Devenir
@@ -39,6 +40,21 @@ interface Tableau {
     note: number | null
     avis: number
   }
+  periode: number
+  kpi: Record<'vues' | 'contacts' | 'favoris' | 'ventes', { n: number; prev: number }>
+  tauxReponse: number | null
+  aRepondre: { n: number; noms: string[] }
+  serie: { jour: string; n: number }[]
+  top: {
+    id: string; titre: string; prix: number; image: string | null
+    vues: number; favoris: number; contacts: number
+    etat: 'une' | 'active' | 'vendue' | 'masquee'
+  }[]
+  activite: {
+    type: 'contact' | 'favori' | 'avis' | 'vente' | 'record'
+    quand: number; nom?: string; annonce?: string
+    note?: number; commentaire?: string; prix?: number; n?: number
+  }[]
 }
 
 export function EspacePro() {
@@ -115,84 +131,349 @@ function Coquille({ children }: { children: React.ReactNode }) {
 
 /* ---- Le tableau de bord professionnel ------------------------------------ */
 
+const JOURS_COURTS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam']
+
+/** « jeu 21 » à partir d'un jour ISO « 2026-08-21 ». */
+function jourCourt(jour: string): string {
+  const d = new Date(`${jour}T12:00:00Z`)
+  return `${JOURS_COURTS[d.getUTCDay()]} ${d.getUTCDate()}`
+}
+
+/** La flèche de tendance d'un chiffre clé, comparée à la période précédente. */
+function Delta({ n, prev, absolu = false }: { n: number; prev: number; absolu?: boolean }) {
+  if (prev <= 0 && n <= 0) return <span className="chip-delta bg-cream-100 text-gray-500">—</span>
+  if (prev <= 0) return <span className="chip-delta bg-emerald-50 text-emerald-700">▲ +{n}</span>
+  const diff = n - prev
+  if (absolu) {
+    if (diff === 0) return <span className="chip-delta bg-cream-100 text-gray-500">=</span>
+    return diff > 0
+      ? <span className="chip-delta bg-emerald-50 text-emerald-700">▲ {diff}</span>
+      : <span className="chip-delta bg-red-50 text-red-600">▼ {Math.abs(diff)}</span>
+  }
+  const pct = Math.round((diff / prev) * 100)
+  if (pct === 0) return <span className="chip-delta bg-cream-100 text-gray-500">=</span>
+  return pct > 0
+    ? <span className="chip-delta bg-emerald-50 text-emerald-700">▲ {pct} %</span>
+    : <span className="chip-delta bg-red-50 text-red-600">▼ {Math.abs(pct)} %</span>
+}
+
+function Kpi({ icone, valeur, libelle, delta }: {
+  icone: React.ReactNode; valeur: React.ReactNode; libelle: string; delta: React.ReactNode
+}) {
+  return (
+    <div className="rounded-2xl border border-line bg-white p-3.5 shadow-card">
+      <span className="text-primary-600">{icone}</span>
+      <p className="tnum mt-1.5 font-display text-xl font-extrabold leading-tight text-ink">{valeur}</p>
+      <p className="text-[11px] text-gray-500">{libelle}</p>
+      <p className="mt-1">{delta}</p>
+    </div>
+  )
+}
+
+/** La courbe des vues, jour par jour, sur la période choisie. */
+function GraphVues({ serie }: { serie: { jour: string; n: number }[] }) {
+  const L = 660; const H = 200; const BAS = 168; const HAUT = 16; const G = 34
+  const max = Math.max(5, ...serie.map((p) => p.n))
+  // Une échelle « ronde » : le plafond est arrondi au cran supérieur lisible.
+  const cran = max <= 10 ? 2 : max <= 25 ? 5 : max <= 50 ? 10 : max <= 100 ? 20 : max <= 250 ? 50 : 100
+  const plafond = Math.ceil(max / cran) * cran
+  const x = (i: number) => serie.length < 2 ? G : G + (i * (L - G - 12)) / (serie.length - 1)
+  const y = (n: number) => BAS - (n / plafond) * (BAS - HAUT)
+  const pts = serie.map((p, i) => `${x(i).toFixed(1)},${y(p.n).toFixed(1)}`).join(' ')
+  const iMax = serie.reduce((m, p, i) => (p.n > serie[m].n ? i : m), 0)
+  const dernier = serie[serie.length - 1]
+  // Sur 30 jours, on n'étiquette qu'un jour sur cinq pour garder l'axe lisible.
+  const pas = serie.length > 10 ? 5 : 1
+  return (
+    <svg viewBox={`0 0 ${L} ${H + 28}`} className="mt-2 w-full" role="img"
+      aria-label="Courbe des vues de vos annonces, jour par jour">
+      <defs>
+        <linearGradient id="aire-vues" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#F77F00" stopOpacity=".28" />
+          <stop offset="1" stopColor="#F77F00" stopOpacity=".02" />
+        </linearGradient>
+      </defs>
+      {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+        <line key={f} x1={G} x2={L - 12} y1={BAS - f * (BAS - HAUT)} y2={BAS - f * (BAS - HAUT)}
+          stroke="#EFE6D7" strokeWidth="1" />
+      ))}
+      {[0, 0.5, 1].map((f) => (
+        <text key={f} x={G - 6} y={BAS - f * (BAS - HAUT) + 3.5} fontSize="10"
+          fill="#9A9287" textAnchor="end" className="tnum">{Math.round(f * plafond)}</text>
+      ))}
+      {serie.length > 1 && (
+        <>
+          <path fill="url(#aire-vues)" d={`M${pts.split(' ').join(' L')} L${x(serie.length - 1)},${BAS} L${x(0)},${BAS} Z`} />
+          <polyline fill="none" stroke="#F77F00" strokeWidth="2.5" strokeLinejoin="round" points={pts} />
+        </>
+      )}
+      {serie[iMax].n > 0 && (
+        <>
+          <circle cx={x(iMax)} cy={y(serie[iMax].n)} r="4.5" fill="#F77F00" stroke="#fff" strokeWidth="2" />
+          <text x={x(iMax)} y={y(serie[iMax].n) - 9} fontSize="11" fontWeight="800"
+            fill="#C05E00" textAnchor="middle" className="tnum">{serie[iMax].n}</text>
+        </>
+      )}
+      {dernier && iMax !== serie.length - 1 && (
+        <circle cx={x(serie.length - 1)} cy={y(dernier.n)} r="4" fill="#fff" stroke="#F77F00" strokeWidth="2.5" />
+      )}
+      {serie.map((p, i) => {
+        const fin = i === serie.length - 1
+        if (!fin && i % pas !== 0) return null
+        return (
+          <text key={p.jour} x={x(i)} y={H + 18} fontSize="10.5" textAnchor="middle"
+            fill={fin ? '#1B1A17' : '#6B6459'} fontWeight={fin ? 800 : 400}>
+            {fin ? 'auj.' : jourCourt(p.jour)}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
+const ETATS: Record<string, { texte: string; classe: string }> = {
+  une: { texte: 'À la une', classe: 'bg-cream-100 text-primary-700' },
+  active: { texte: 'Active', classe: 'bg-emerald-50 text-emerald-700' },
+  vendue: { texte: 'Vendue', classe: 'bg-gray-100 text-gray-500' },
+  masquee: { texte: 'Masquée', classe: 'bg-gray-100 text-gray-500' },
+}
+
 /** Le tableau de bord professionnel — aussi affiché en tête de la page
- *  Compte pour les comptes approuvés (`dansCompte` masque l'action « Mes
- *  annonces », redondante à cet endroit). */
+ *  Compte pour les comptes approuvés (`dansCompte` masque le lien « Toutes
+ *  mes annonces », redondant à cet endroit). */
 export function TableauPro({ dansCompte = false }: { dansCompte?: boolean } = {}) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [periode, setPeriode] = useState<7 | 30>(7)
   const [t, setT] = useState<Tableau | null>(null)
   const [erreur, setErreur] = useState('')
   useEffect(() => {
-    phpProTableau<Tableau>().then(setT).catch((e) => setErreur((e as Error).message))
-  }, [])
+    phpProTableau<Tableau>(periode).then(setT).catch((e) => setErreur((e as Error).message))
+  }, [periode])
 
   if (erreur) return <p className="rounded-2xl bg-white p-6 text-center text-sm text-red-600 shadow-card">{erreur}</p>
   if (!t) return <div className="grid place-items-center py-20"><Loader2 className="animate-spin text-primary-500" size={24} /></div>
 
   const s = t.stats
+  const k = t.kpi
+  const maxVuesTop = Math.max(1, ...t.top.map((a) => a.vues))
   return (
     <div className="space-y-4">
-      {/* L'en-tête de marque : le badge, le nom commercial, l'ancienneté. */}
+      {/* L'en-tête de marque : badge, nom commercial, note, période, actions. */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 p-5 text-white shadow-card md:p-6">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider">
-          <BadgeCheck size={14} /> Compte professionnel
-        </span>
-        <p className="mt-3 font-display text-2xl font-extrabold leading-tight md:text-3xl">{t.pro.nom}</p>
-        <p className="mt-1 text-sm text-white/85">
-          {labelTypePro(t.pro.type)}
-          {t.pro.secteur ? <> · {t.pro.secteur}</> : null}
-        </p>
-        {t.pro.depuis != null && (
-          <p className="mt-0.5 text-xs text-white/70">Professionnel depuis {timeAgo(t.pro.depuis)}</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider">
+              <BadgeCheck size={14} /> Compte professionnel
+            </span>
+            <p className="mt-3 font-display text-2xl font-extrabold leading-tight md:text-3xl">{t.pro.nom}</p>
+            <p className="mt-1 text-sm text-white/85">
+              {labelTypePro(t.pro.type)}
+              {t.pro.secteur ? <> · {t.pro.secteur}</> : null}
+            </p>
+            <p className="mt-0.5 text-xs text-white/70">
+              {s.note != null ? <>★ {s.note} ({s.avis} avis) · </> : null}
+              {t.pro.depuis != null ? <>Professionnel depuis {timeAgo(t.pro.depuis).replace('il y a ', '')}</> : null}
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+            <div className="flex self-stretch rounded-full bg-white/20 p-1 sm:self-end">
+              {([7, 30] as const).map((p) => (
+                <button key={p} onClick={() => setPeriode(p)}
+                  className={`flex-1 rounded-full px-4 py-1.5 text-[13px] font-bold transition sm:flex-none ${
+                    periode === p ? 'bg-white text-primary-700' : 'text-white/90'}`}>
+                  {p} jours
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 self-stretch sm:self-end">
+              <button onClick={() => navigate('/publier')}
+                className="flex-1 rounded-xl bg-white px-4 py-2 text-center text-[13px] font-extrabold text-primary-700 shadow sm:flex-none">
+                <Plus size={15} className="mr-1 inline-block align-[-2px]" />Publier
+              </button>
+              {user && (
+                <Link to={`/vendeur/${user.id}`}
+                  className="flex-1 rounded-xl border-[1.5px] border-white/70 px-4 py-2 text-center text-[13px] font-bold text-white sm:flex-none">
+                  Ma page vendeur
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Les six chiffres clés de la période, chacun avec sa tendance. */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <Kpi icone={<Eye size={17} />} valeur={formatPrice(k.vues.n)}
+          libelle="Vues d’annonces" delta={<Delta n={k.vues.n} prev={k.vues.prev} />} />
+        <Kpi icone={<MessageSquare size={17} />} valeur={k.contacts.n}
+          libelle="Contacts reçus" delta={<Delta n={k.contacts.n} prev={k.contacts.prev} />} />
+        <Kpi icone={<Heart size={17} />} valeur={k.favoris.n}
+          libelle="Favoris reçus" delta={<Delta n={k.favoris.n} prev={k.favoris.prev} />} />
+        <Kpi icone={<Zap size={17} />} valeur={t.tauxReponse != null ? `${t.tauxReponse} %` : '—'}
+          libelle="Taux de réponse"
+          delta={t.tauxReponse == null
+            ? <span className="chip-delta bg-cream-100 text-gray-500">Pas encore de contact</span>
+            : t.tauxReponse >= 80
+              ? <span className="chip-delta bg-cream-100 text-primary-700">Répond vite</span>
+              : <span className="chip-delta bg-cream-100 text-gray-500">À améliorer</span>} />
+        <Kpi icone={<Handshake size={17} />} valeur={k.ventes.n}
+          libelle="Ventes conclues" delta={<Delta n={k.ventes.n} prev={k.ventes.prev} absolu />} />
+        <Kpi icone={<Package size={17} />} valeur={s.annoncesActives}
+          libelle="Annonces en ligne"
+          delta={<span className="chip-delta bg-cream-100 text-gray-500">{s.annoncesTotal} au total</span>} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* La courbe des vues. */}
+        <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5 lg:col-span-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-display text-[15px] font-extrabold text-ink">Vues de vos annonces</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                {periode} derniers jours, comparés aux {periode} précédents
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="tnum font-display text-2xl font-extrabold text-ink">
+                {formatPrice(k.vues.n)}
+              </p>
+              <Delta n={k.vues.n} prev={k.vues.prev} />
+            </div>
+          </div>
+          <GraphVues serie={t.serie} />
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {/* La carte « à faire » : les messages qui attendent. */}
+          {t.aRepondre.n > 0 && (
+            <div className="rounded-2xl border border-[#F3D9B8] bg-cream-100 p-4 md:p-5">
+              <p className="font-display text-[15px] font-extrabold text-ink">
+                ⏳ {t.aRepondre.n} message{t.aRepondre.n > 1 ? 's' : ''} sans réponse
+              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-gray-600">
+                {t.aRepondre.noms.length > 0 ? <>{t.aRepondre.noms.join(', ')} attend{t.aRepondre.n > 1 ? 'ent' : ''} depuis plus de 24 h. </> : null}
+                Répondre vite fait monter votre taux de réponse — et vos ventes.
+              </p>
+              <button onClick={() => navigate('/messages')} className="btn-primary mt-3 py-2.5 text-[13px]">
+                Répondre maintenant
+              </button>
+            </div>
+          )}
+
+          {/* Le fil d'activité. */}
+          <div className="flex-1 rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
+            <p className="font-display text-[15px] font-extrabold text-ink">Activité récente</p>
+            {t.activite.length === 0 ? (
+              <p className="mt-3 text-xs text-gray-500">
+                Vos contacts, favoris, avis et ventes apparaîtront ici.
+              </p>
+            ) : (
+              <div className="mt-2">
+                {t.activite.map((e, i) => <Evenement key={i} e={e} premier={i === 0} />)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Le classement des annonces. */}
+      <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <p className="font-display text-[15px] font-extrabold text-ink">Vos annonces qui marchent</p>
+            <p className="mt-0.5 text-xs text-gray-500">Classées par vues sur les {periode} derniers jours</p>
+          </div>
+          {!dansCompte && (
+            <Link to="/compte" className="whitespace-nowrap text-xs font-bold text-primary-700">
+              Toutes mes annonces →
+            </Link>
+          )}
+        </div>
+        {t.top.length === 0 ? (
+          <div className="mt-4 rounded-xl bg-cream-100 p-5 text-center">
+            <p className="text-sm text-gray-600">Publiez votre première annonce pour voir vos chiffres ici.</p>
+            <button onClick={() => navigate('/publier')} className="btn-primary mx-auto mt-3 py-2.5 text-[13px]">
+              <Plus size={16} /> Publier une annonce
+            </button>
+          </div>
+        ) : (
+          <div className="mt-2 divide-y divide-line">
+            {t.top.map((a) => (
+              <button key={a.id} onClick={() => navigate(`/annonce/${a.id}`)}
+                className="flex w-full items-center gap-3 py-2.5 text-left">
+                {a.image ? (
+                  <img src={mediaUrl(thumbUrl(a.image))} alt="" loading="lazy"
+                    className="h-10 w-[52px] flex-shrink-0 rounded-lg border border-line object-cover" />
+                ) : (
+                  <span className="grid h-10 w-[52px] flex-shrink-0 place-items-center rounded-lg bg-cream-100 text-lg">📦</span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-bold text-ink">{a.titre}</span>
+                  <span className="text-xs font-extrabold text-primary-700">{formatFCFA(a.prix)}</span>
+                  <span className="mt-1 block h-[5px] w-24 overflow-hidden rounded-full bg-cream-100">
+                    <span className="block h-full rounded-full bg-primary-500"
+                      style={{ width: `${Math.round((a.vues / maxVuesTop) * 100)}%` }} />
+                  </span>
+                </span>
+                <span className="tnum whitespace-nowrap text-right text-xs text-gray-500">
+                  <b className="text-[13px] text-ink">{a.vues}</b> vues<br />
+                  {a.favoris} ❤ · {a.contacts} 💬
+                </span>
+                <span className={`chip-delta ${ETATS[a.etat].classe}`}>{ETATS[a.etat].texte}</span>
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Les chiffres du compte — la vue d'un coup d'œil. */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Chiffre icone={<Package size={18} />} valeur={s.annoncesActives} libelle="Annonces en ligne" />
-        <Chiffre icone={<Eye size={18} />} valeur={s.vues} libelle="Vues au total" />
-        <Chiffre icone={<Heart size={18} />} valeur={s.favoris} libelle="Favoris reçus" />
-        <Chiffre icone={<MessageSquare size={18} />} valeur={s.conversations} libelle="Conversations" />
-        <Chiffre
-          icone={<Star size={18} />}
-          valeur={s.note != null ? `${s.note} ★` : '—'}
-          libelle={s.avis > 0 ? `${s.avis} avis` : 'Pas encore d’avis'}
-        />
-        <Chiffre icone={<BarChart3 size={18} />} valeur={s.annoncesTotal} libelle="Annonces au total" />
-      </div>
-
-      {/* Les gestes du quotidien. */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <button onClick={() => navigate('/publier')} className="btn-primary justify-center py-3">
-          <Plus size={18} /> Publier une annonce
-        </button>
-        {user && (
-          <Link to={`/vendeur/${user.id}`} className="btn-outline justify-center py-3 text-center">
-            <Store size={18} /> Ma page vendeur
-          </Link>
-        )}
-        {!dansCompte && (
-          <Link to="/compte" className="btn-outline justify-center py-3 text-center">
-            <Package size={18} /> Mes annonces
-          </Link>
-        )}
-      </div>
-
-      <p className="px-1 text-xs leading-relaxed text-gray-500">
-        Le badge <b>PRO</b> apparaît sur vos annonces et votre page vendeur. Les chiffres
-        ci-dessus couvrent l’ensemble de votre compte, depuis le début.
+      <p className="px-1 text-center text-xs leading-relaxed text-gray-400">
+        Chiffres réels de votre compte, mis à jour en continu · Les tendances comparent
+        la période choisie à la précédente
       </p>
     </div>
   )
 }
 
-function Chiffre({ icone, valeur, libelle }: { icone: React.ReactNode; valeur: number | string; libelle: string }) {
+/** Une ligne du fil d'activité. */
+function Evenement({ e, premier }: { e: Tableau['activite'][number]; premier: boolean }) {
+  const rendu = (() => {
+    switch (e.type) {
+      case 'contact': return {
+        icone: '💬', fond: 'bg-cream-100',
+        titre: e.nom ? `Nouveau contact — ${e.nom}` : 'Nouveau contact',
+        texte: e.annonce ? `sur « ${e.annonce} »` : '',
+      }
+      case 'favori': return {
+        icone: '❤️', fond: 'bg-red-50',
+        titre: 'Nouveau favori', texte: e.annonce ? `sur « ${e.annonce} »` : '',
+      }
+      case 'avis': return {
+        icone: '⭐', fond: 'bg-emerald-50',
+        titre: `Nouvel avis — ${e.note ?? '?'} étoile${(e.note ?? 0) > 1 ? 's' : ''}`,
+        texte: e.commentaire ? `« ${e.commentaire} »` : '',
+      }
+      case 'vente': return {
+        icone: '🤝', fond: 'bg-emerald-50',
+        titre: 'Vente conclue',
+        texte: e.annonce ? `« ${e.annonce} »${e.prix ? ` — ${formatFCFA(e.prix)}` : ''}` : '',
+      }
+      default: return {
+        icone: '👁️', fond: 'bg-cream-100',
+        titre: 'Record de vues', texte: `${e.n ?? 0} vues en une journée, votre meilleur score`,
+      }
+    }
+  })()
   return (
-    <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary-50 text-primary-600">{icone}</span>
-      <p className="tnum mt-2 font-display text-xl font-extrabold text-ink">{valeur}</p>
-      <p className="text-xs text-gray-500">{libelle}</p>
+    <div className={`flex items-start gap-2.5 py-2 ${premier ? '' : 'border-t border-line'}`}>
+      <span className={`grid h-7 w-7 flex-shrink-0 place-items-center rounded-full text-[13px] ${rendu.fond}`}>
+        {rendu.icone}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-bold text-ink">{rendu.titre}</span>
+        {rendu.texte && <span className="block truncate text-[11px] text-gray-500">{rendu.texte}</span>}
+      </span>
+      <span className="whitespace-nowrap pt-0.5 text-[10.5px] text-gray-400">{timeAgo(e.quand)}</span>
     </div>
   )
 }

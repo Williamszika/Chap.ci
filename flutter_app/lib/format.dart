@@ -18,6 +18,17 @@ String formatFCFA(num montant) {
   return '$signe$tampon${_nbsp}FCFA';
 }
 
+/// 1146 -> « 1 146 » (séparateur de milliers insécable, sans unité).
+String formatNombre(num n) {
+  final entier = n.round().abs().toString();
+  final tampon = StringBuffer();
+  for (int i = 0; i < entier.length; i++) {
+    if (i > 0 && (entier.length - i) % 3 == 0) tampon.write(_nbsp);
+    tampon.write(entier[i]);
+  }
+  return '${n < 0 ? '-' : ''}$tampon';
+}
+
 /// Heure locale courte « 14:05 » à partir d'un timestamp en millisecondes.
 String heureCourte(int ms) {
   final d = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();

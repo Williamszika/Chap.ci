@@ -7059,6 +7059,10 @@ try {
   // Le tableau de bord de l'ESPACE PROFESSIONNEL : les chiffres du compte,
   // réservés aux dossiers approuvés. Chaque agrégat est best-effort (try/catch
   // par table) : une table absente rend 0, jamais un 500.
+  // Le tableau de bord professionnel, façon CRM : chiffres de la période (7 ou
+  // 30 jours) avec tendance vs période précédente, taux de réponse, messages en
+  // attente, série des vues, top des annonces et fil d'activité. Chaque bloc est
+  // en best-effort : une table manquante donne des zéros, jamais une erreur.
   if ($path === 'pro/tableau' && $method === 'GET') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at
@@ -7069,20 +7073,31 @@ try {
       jerr('Réservé aux comptes professionnels approuvés.', 403);
     }
     $uid = (string) $u['id'];
-    $stats = ['annoncesActives' => 0, 'annoncesTotal' => 0, 'vues' => 0,
-              'favoris' => 0, 'conversations' => 0, 'note' => null, 'avis' => 0];
+    $periode = (($_GET['periode'] ?? '7') === '30') ? 30 : 7;
+    $now = time();
+    $jour = fn(int $t) => gmdate('Y-m-d', $t);
+    $debCur  = $now - ($periode - 1) * 86400;
+    $debPrev = $debCur - $periode * 86400;
+    $jCur = $jour($debCur); $jPrev = $jour($debPrev);
+    $tCur = $jCur . 'T00:00:00Z'; $tPrev = $jPrev . 'T00:00:00Z';
+
+    // Les annonces du compte : la matière première de tous les blocs.
+    $annonces = [];
     try {
-      $q = $pdo->prepare('SELECT COUNT(*) AS total,
-               SUM(CASE WHEN (sold IS NULL OR sold = 0) AND (hidden IS NULL OR hidden = 0)
-                        THEN 1 ELSE 0 END) AS actives,
-               COALESCE(SUM(views), 0) AS vues
-             FROM listings WHERE user_id = ?');
+      $q = $pdo->prepare('SELECT id, title, price, images, sold, hidden, featured,
+                                 COALESCE(views, 0) AS vues FROM listings WHERE user_id = ?');
       $q->execute([$uid]);
-      $l = $q->fetch() ?: [];
-      $stats['annoncesTotal'] = (int) ($l['total'] ?? 0);
-      $stats['annoncesActives'] = (int) ($l['actives'] ?? 0);
-      $stats['vues'] = (int) ($l['vues'] ?? 0);
-    } catch (Throwable $e) { /* colonnes pas encore migrées : zéros */ }
+      foreach ($q->fetchAll() as $l) $annonces[(string) $l['id']] = $l;
+    } catch (Throwable $e) { /* colonnes pas encore migrées */ }
+    $ids = array_keys($annonces);
+    $in = $ids ? implode(',', array_fill(0, count($ids), '?')) : '';
+
+    $stats = ['annoncesActives' => 0, 'annoncesTotal' => count($annonces), 'vues' => 0,
+              'favoris' => 0, 'conversations' => 0, 'note' => null, 'avis' => 0];
+    foreach ($annonces as $l) {
+      $stats['vues'] += (int) $l['vues'];
+      if (empty($l['sold']) && empty($l['hidden'])) $stats['annoncesActives']++;
+    }
     try {
       $q = $pdo->prepare('SELECT COUNT(*) FROM favorites f
                           JOIN listings l ON l.id = f.listing_id WHERE l.user_id = ?');
@@ -7101,6 +7116,198 @@ try {
       $stats['avis'] = (int) ($n['n'] ?? 0);
       $stats['note'] = $stats['avis'] > 0 ? round((float) $n['moy'], 1) : null;
     } catch (Throwable $e) { /* idem */ }
+
+    // Les chiffres de la période, chacun avec sa valeur précédente pour la flèche.
+    $kpi = ['vues' => ['n' => 0, 'prev' => 0], 'contacts' => ['n' => 0, 'prev' => 0],
+            'favoris' => ['n' => 0, 'prev' => 0], 'ventes' => ['n' => 0, 'prev' => 0]];
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) FROM listing_view_days
+                            WHERE day >= ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$jCur], $ids));
+        $kpi['vues']['n'] = (int) $q->fetchColumn();
+        $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) FROM listing_view_days
+                            WHERE day >= ? AND day < ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$jPrev, $jCur], $ids));
+        $kpi['vues']['prev'] = (int) $q->fetchColumn();
+      } catch (Throwable $e) {}
+    }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ? AND created_at >= ?');
+      $q->execute([$uid, $tCur]); $kpi['contacts']['n'] = (int) $q->fetchColumn();
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations
+                          WHERE seller_id = ? AND created_at >= ? AND created_at < ?');
+      $q->execute([$uid, $tPrev, $tCur]); $kpi['contacts']['prev'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM favorites f JOIN listings l ON l.id = f.listing_id
+                          WHERE l.user_id = ? AND f.created_at >= ?');
+      $q->execute([$uid, $tCur]); $kpi['favoris']['n'] = (int) $q->fetchColumn();
+      $q = $pdo->prepare('SELECT COUNT(*) FROM favorites f JOIN listings l ON l.id = f.listing_id
+                          WHERE l.user_id = ? AND f.created_at >= ? AND f.created_at < ?');
+      $q->execute([$uid, $tPrev, $tCur]); $kpi['favoris']['prev'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare("SELECT COUNT(*) FROM orders
+                          WHERE seller_id = ? AND status = 'finalise' AND created_at >= ?");
+      $q->execute([$uid, $tCur]); $kpi['ventes']['n'] = (int) $q->fetchColumn();
+      $q = $pdo->prepare("SELECT COUNT(*) FROM orders
+                          WHERE seller_id = ? AND status = 'finalise' AND created_at >= ? AND created_at < ?");
+      $q->execute([$uid, $tPrev, $tCur]); $kpi['ventes']['prev'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) {}
+
+    // Le taux de réponse (conversations où le vendeur a écrit au moins une fois)
+    // et les conversations qui attendent une réponse depuis plus de 24 h.
+    $tauxReponse = null;
+    $aRepondre = ['n' => 0, 'noms' => []];
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ?');
+      $q->execute([$uid]);
+      $convTotal = (int) $q->fetchColumn();
+      if ($convTotal > 0) {
+        $q = $pdo->prepare('SELECT COUNT(DISTINCT c.id) FROM conversations c
+                            JOIN messages m ON m.conversation_id = c.id AND m.sender_id = c.seller_id
+                            WHERE c.seller_id = ?');
+        $q->execute([$uid]);
+        $tauxReponse = (int) round((int) $q->fetchColumn() / $convTotal * 100);
+      }
+      $limite = gmdate('Y-m-d\TH:i:s\Z', $now - 86400);
+      $q = $pdo->prepare(
+        'SELECT p.full_name FROM conversations c
+           LEFT JOIN profiles p ON p.id = c.buyer_id
+          WHERE c.seller_id = ?
+            AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)
+            AND (SELECT m.sender_id FROM messages m WHERE m.conversation_id = c.id
+                  ORDER BY m.created_at DESC LIMIT 1) <> c.seller_id
+            AND (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) < ?');
+      $q->execute([$uid, $limite]);
+      $attente = $q->fetchAll();
+      $aRepondre['n'] = count($attente);
+      foreach (array_slice($attente, 0, 3) as $c) {
+        $p = trim((string) (preg_split('/\s+/', trim((string) ($c['full_name'] ?? '')))[0] ?? ''));
+        if ($p !== '') $aRepondre['noms'][] = $p;
+      }
+    } catch (Throwable $e) {}
+
+    // La série des vues, jour par jour, sur la période (jours vides = 0).
+    $serie = [];
+    $parJour = [];
+    $vuesAnnonce = [];
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT day, listing_id, COALESCE(SUM(n),0) AS s FROM listing_view_days
+                            WHERE day >= ? AND listing_id IN ($in) GROUP BY day, listing_id");
+        $q->execute(array_merge([$jCur], $ids));
+        foreach ($q->fetchAll() as $d) {
+          $parJour[$d['day']] = ($parJour[$d['day']] ?? 0) + (int) $d['s'];
+          $vuesAnnonce[(string) $d['listing_id']] = ($vuesAnnonce[(string) $d['listing_id']] ?? 0) + (int) $d['s'];
+        }
+      } catch (Throwable $e) {}
+    }
+    for ($i = $periode - 1; $i >= 0; $i--) {
+      $d = $jour($now - $i * 86400);
+      $serie[] = ['jour' => $d, 'n' => $parJour[$d] ?? 0];
+    }
+
+    // Le top des annonces : vues de la période d'abord, vues cumulées ensuite.
+    $top = [];
+    if ($ids) {
+      $favAnnonce = []; $convAnnonce = [];
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM favorites
+                            WHERE listing_id IN ($in) GROUP BY listing_id");
+        $q->execute($ids);
+        foreach ($q->fetchAll() as $d) $favAnnonce[(string) $d['listing_id']] = (int) $d['c'];
+      } catch (Throwable $e) {}
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM conversations
+                            WHERE seller_id = ? AND listing_id IN ($in) GROUP BY listing_id");
+        $q->execute(array_merge([$uid], $ids));
+        foreach ($q->fetchAll() as $d) $convAnnonce[(string) $d['listing_id']] = (int) $d['c'];
+      } catch (Throwable $e) {}
+      $classees = $annonces;
+      uasort($classees, function ($a, $b) use ($vuesAnnonce) {
+        $va = $vuesAnnonce[(string) $a['id']] ?? 0;
+        $vb = $vuesAnnonce[(string) $b['id']] ?? 0;
+        if ($va !== $vb) return $vb <=> $va;
+        return ((int) $b['vues']) <=> ((int) $a['vues']);
+      });
+      foreach (array_slice($classees, 0, 5, true) as $l) {
+        $k = (string) $l['id'];
+        $imgs = $l['images'] ? (json_decode((string) $l['images'], true) ?: []) : [];
+        $etat = !empty($l['sold']) ? 'vendue'
+              : (!empty($l['hidden']) ? 'masquee'
+              : (!empty($l['featured']) ? 'une' : 'active'));
+        $top[] = ['id' => $k, 'titre' => (string) $l['title'], 'prix' => (int) ($l['price'] ?? 0),
+                  'image' => is_string($imgs[0] ?? null) ? $imgs[0] : null,
+                  'vues' => $vuesAnnonce[$k] ?? 0, 'favoris' => $favAnnonce[$k] ?? 0,
+                  'contacts' => $convAnnonce[$k] ?? 0, 'etat' => $etat];
+      }
+    }
+
+    // Le fil d'activité : contacts, favoris, avis, ventes — et le record de vues
+    // s'il est récent. Trié du plus frais au plus ancien, six événements.
+    $activite = [];
+    $titreDe = fn($lid) => (string) ($annonces[(string) $lid]['title'] ?? '');
+    try {
+      $q = $pdo->prepare('SELECT c.created_at, c.listing_id, p.full_name FROM conversations c
+                          LEFT JOIN profiles p ON p.id = c.buyer_id
+                          WHERE c.seller_id = ? ORDER BY c.created_at DESC LIMIT 6');
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $mots = preg_split('/\s+/', trim((string) ($e2['full_name'] ?? ''))) ?: [];
+        $nom = (string) ($mots[0] ?? '');
+        if (!empty($mots[1])) $nom .= ' ' . mb_strtoupper(mb_substr((string) $mots[1], 0, 1)) . '.';
+        $activite[] = ['type' => 'contact', 'quand' => iso_to_ms($e2['created_at']),
+                       'nom' => $nom, 'annonce' => $titreDe($e2['listing_id'])];
+      }
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare('SELECT f.created_at, f.listing_id FROM favorites f
+                          JOIN listings l ON l.id = f.listing_id
+                          WHERE l.user_id = ? ORDER BY f.created_at DESC LIMIT 6');
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $activite[] = ['type' => 'favori', 'quand' => iso_to_ms($e2['created_at']),
+                       'annonce' => $titreDe($e2['listing_id'])];
+      }
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare('SELECT rating, comment, created_at FROM reviews
+                          WHERE seller_id = ? ORDER BY created_at DESC LIMIT 6');
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $activite[] = ['type' => 'avis', 'quand' => iso_to_ms($e2['created_at']),
+                       'note' => (int) $e2['rating'],
+                       'commentaire' => mb_substr(trim((string) ($e2['comment'] ?? '')), 0, 90)];
+      }
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare("SELECT o.created_at, oi.title, oi.price FROM orders o
+                          LEFT JOIN order_items oi ON oi.order_id = o.id
+                          WHERE o.seller_id = ? AND o.status = 'finalise'
+                          ORDER BY o.created_at DESC LIMIT 6");
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $activite[] = ['type' => 'vente', 'quand' => iso_to_ms($e2['created_at']),
+                       'annonce' => (string) ($e2['title'] ?? ''), 'prix' => (int) ($e2['price'] ?? 0)];
+      }
+    } catch (Throwable $e) {}
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT day, COALESCE(SUM(n),0) AS s FROM listing_view_days
+                            WHERE listing_id IN ($in) GROUP BY day ORDER BY s DESC, day DESC LIMIT 1");
+        $q->execute($ids);
+        $rec = $q->fetch();
+        if ($rec && (int) $rec['s'] > 0 && (string) $rec['day'] >= $jour($now - 29 * 86400)) {
+          $activite[] = ['type' => 'record', 'quand' => iso_to_ms($rec['day'] . 'T12:00:00Z'),
+                         'n' => (int) $rec['s']];
+        }
+      } catch (Throwable $e) {}
+    }
+    usort($activite, fn($a, $b) => $b['quand'] <=> $a['quand']);
+    $activite = array_slice($activite, 0, 6);
+
     jout([
       'pro' => [
         'nom' => (string) ($r['pro_nom'] ?? ''),
@@ -7109,6 +7316,13 @@ try {
         'depuis' => iso_to_ms($r['pro_decide_at'] ?? null),
       ],
       'stats' => $stats,
+      'periode' => $periode,
+      'kpi' => $kpi,
+      'tauxReponse' => $tauxReponse,
+      'aRepondre' => $aRepondre,
+      'serie' => $serie,
+      'top' => $top,
+      'activite' => $activite,
     ]);
   }
 

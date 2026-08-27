@@ -651,8 +651,8 @@ export async function phpProDemande(d: {
 }): Promise<void> {
   await req('/pro/demande', { method: 'POST', body: d })
 }
-export async function phpProTableau<T>(): Promise<T> {
-  return req<T>('/pro/tableau')
+export async function phpProTableau<T>(periode: 7 | 30 = 7): Promise<T> {
+  return req<T>(`/pro/tableau?periode=${periode}`)
 }
 
 // ---- Administration ---------------------------------------------------------
