@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mediaUrl, thumbUrl } from '../lib/native'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MessageCircle, LogIn, Plus, X, Zap } from 'lucide-react'
+import { ArrowLeft, Bot, MessageCircle, LogIn, Plus, X, Zap } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
 import { createReponse, deleteReponse, fetchReponses, type ReponsePrete } from '../lib/api'
+import { phpReponseAuto, phpEnregistrerReponseAuto } from '../lib/php'
+import { Bascule } from '../components/Bascule'
 import { timeAgo } from '../lib/format'
 import type { Conversation } from '../types'
 
@@ -74,9 +76,16 @@ export function ConversationList({ activeId }: { activeId?: string }) {
 
   const moi = user?.id
 
-  /** Une conversation « sans réponse » : le dernier mot est à l'autre. */
+  /**
+   * Une conversation « sans réponse » : le dernier mot HUMAIN est à l'autre.
+   * La réponse automatique du vendeur ne compte pas — sinon cet écran se
+   * viderait tout seul et l'acheteur attendrait quand même.
+   */
   const sansReponse = useCallback(
-    (c: Conversation) => !c.archived && !!c.lastSenderId && c.lastSenderId !== moi,
+    (c: Conversation) => {
+      const dernier = c.dernierHumain ?? c.lastSenderId
+      return !c.archived && !!dernier && dernier !== moi
+    },
     [moi],
   )
 
@@ -106,7 +115,8 @@ export function ConversationList({ activeId }: { activeId?: string }) {
     const unread = unreadConvIds.has(c.id)
     const isActive = c.id === activeId
     const attend = sansReponse(c)
-    const jaiRepondu = !!c.lastSenderId && c.lastSenderId === moi
+    const dernier = c.dernierHumain ?? c.lastSenderId
+    const jaiRepondu = !!dernier && dernier === moi
     return (
       <Link
         key={c.id}
@@ -143,7 +153,8 @@ export function ConversationList({ activeId }: { activeId?: string }) {
           </div>
           <p className={`truncate text-sm ${attend || unread ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
             {c.lastMessage
-              ? jaiRepondu ? `Vous : « ${c.lastMessage} »` : `« ${c.lastMessage} »`
+              ? c.lastAuto ? `Réponse automatique : « ${c.lastMessage} »`
+                : jaiRepondu ? `Vous : « ${c.lastMessage} »` : `« ${c.lastMessage} »`
               : 'Nouvelle conversation'}
           </p>
           {c.listingTitle && (
@@ -249,13 +260,109 @@ export function ConversationList({ activeId }: { activeId?: string }) {
             )}
 
             {(compte.acheteurs > 0 || filtre === 'sans') && (
-              <div className="px-4 md:pb-4">
+              <div className="space-y-3 px-4 md:pb-4">
+                <ReponseAutomatique />
                 <ReponsesPretes />
               </div>
             )}
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Trois phrases proposées à qui n'a pas encore écrit la sienne. */
+const MODELES_AUTO = [
+  'Bonjour et merci pour votre message. Je vous réponds dans la journée.',
+  'Bonjour ! Nous sommes ouverts du lundi au samedi. Je reviens vers vous très vite.',
+  'Merci de votre intérêt. Dites-moi la quantité et votre commune, je vous fais un prix.',
+]
+
+/**
+ * « 🤖 Réponse automatique » — la phrase qui part toute seule quand un acheteur
+ * écrit pour la première fois.
+ *
+ * Elle achète du temps, elle ne remplace personne : le serveur la marque comme
+ * automatique, elle ne compte PAS dans le taux de réponse et la conversation
+ * reste dans « Sans réponse » tant que le vendeur n'a pas écrit lui-même. Le
+ * bloc le dit, parce qu'un vendeur qui croirait le contraire perdrait ses
+ * acheteurs en pensant les avoir servis.
+ */
+function ReponseAutomatique() {
+  const [texte, setTexte] = useState('')
+  const [active, setActive] = useState(false)
+  const [chargee, setChargee] = useState(false)
+  const [modifie, setModifie] = useState(false)
+  const [occupe, setOccupe] = useState(false)
+  const [erreur, setErreur] = useState('')
+
+  useEffect(() => {
+    let actif = true
+    phpReponseAuto()
+      .then((r) => { if (!actif) return; setTexte(r.texte); setActive(r.active) })
+      .catch(() => {})
+      .finally(() => actif && setChargee(true))
+    return () => { actif = false }
+  }, [])
+
+  const enregistrer = async (t: string, a: boolean) => {
+    setOccupe(true); setErreur('')
+    try {
+      const r = await phpEnregistrerReponseAuto({ texte: t, active: a })
+      setTexte(r.texte); setActive(r.active); setModifie(false)
+    } catch (e) { setErreur((e as Error).message) }
+    finally { setOccupe(false) }
+  }
+
+  if (!chargee) return null
+
+  return (
+    <div className="rounded-2xl border border-accent-ocre/30 bg-cream-100 p-3.5">
+      <div className="flex items-start gap-3">
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 font-display text-[13.5px] font-extrabold text-ink">
+            <Bot size={15} className="text-primary-600" /> Réponse automatique
+          </span>
+          <span className="mt-0.5 block text-[12px] leading-relaxed text-gray-600">
+            Part toute seule quand un acheteur vous écrit pour la première fois.
+          </span>
+        </span>
+        <button onClick={() => enregistrer(texte, !active)} disabled={occupe || (!active && !texte.trim())}
+          aria-label={active ? 'Désactiver' : 'Activer'} className="shrink-0 disabled:opacity-40">
+          <Bascule active={active} />
+        </button>
+      </div>
+
+      <textarea value={texte} maxLength={400}
+        onChange={(e) => { setTexte(e.target.value); setModifie(true) }}
+        rows={2} placeholder="Votre phrase d’accueil…"
+        className="mt-2.5 w-full resize-none rounded-xl bg-white px-3 py-2 text-[13px] leading-relaxed text-ink outline-none ring-1 ring-line focus:ring-primary-400" />
+
+      {texte.trim() === '' && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {MODELES_AUTO.map((m) => (
+            <button key={m} onClick={() => { setTexte(m); setModifie(true) }}
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-white px-3 py-1.5 text-left text-[11.5px] font-semibold text-gray-600 ring-1 ring-dashed ring-line transition hover:text-primary-700">
+              <Plus size={11} className="shrink-0" /> <span className="truncate">{m}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {modifie && (
+        <button onClick={() => enregistrer(texte, active)} disabled={occupe}
+          className="mt-2 w-full rounded-xl bg-ink py-2 text-[12.5px] font-extrabold text-white disabled:opacity-50">
+          Enregistrer la phrase
+        </button>
+      )}
+      {erreur && <p className="mt-2 text-[11.5px] font-semibold text-red-600">{erreur}</p>}
+
+      <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+        Elle ne compte pas comme votre réponse : la conversation reste dans
+        « Sans réponse » tant que vous n’avez pas écrit vous-même, et votre taux de
+        réponse ne bouge pas.
+      </p>
     </div>
   )
 }

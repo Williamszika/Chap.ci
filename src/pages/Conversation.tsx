@@ -183,6 +183,12 @@ export function Conversation() {
           ? prev.filter((m) => m.id !== optimistic.id)
           : prev.map((m) => (m.id === optimistic.id ? saved : m)),
       )
+      // La réponse automatique du vendeur, s'il en a une : elle apparaît dans
+      // la seconde, au lieu d'attendre le prochain sondage.
+      if (saved.auto) {
+        const auto = saved.auto
+        setMessages((prev) => (prev.some((m) => m.id === auto.id) ? prev : [...prev, auto]))
+      }
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
       setText(body)
@@ -355,6 +361,9 @@ export function Conversation() {
                         <p className="whitespace-pre-wrap break-words">{m.body}</p>
                       )}
                       <div className={`mt-1 text-[11px] ${mine ? 'text-white/75' : 'text-gray-500'}`}>
+                        {/* Une réponse automatique se dit : l'acheteur doit
+                            savoir qu'une vraie personne n'a pas encore lu. */}
+                        {m.auto && <span className="mr-1 font-bold">🤖 Réponse automatique ·</span>}
                         {hhmm(m.createdAt)}
                       </div>
                     </div>

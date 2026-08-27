@@ -32,7 +32,7 @@ export async function sendMessage(
   conversationId: string,
   _senderId: string,
   body: string,
-): Promise<Message> {
+): Promise<Message & { auto?: Message | null }> {
   return php.phpSendMessage(conversationId, body)
 }
 

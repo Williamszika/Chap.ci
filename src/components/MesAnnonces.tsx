@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle, Check, Eye, EyeOff, Megaphone, MoreHorizontal, Pencil,
-  PlusCircle, RotateCw, Search, Trash2,
+  PlusCircle, RotateCw, Search, Trash2, X,
 } from 'lucide-react'
 import { mediaUrl, thumbUrl } from '../lib/native'
+import { phpQuiFavori, type QuiFavori } from '../lib/php'
 import { priceLabel } from '../lib/format'
 import { timeAgo } from '../lib/format'
 import { activePromo } from '../lib/promo'
@@ -48,6 +49,9 @@ export function MesAnnonces({ annonces, onRecharger, filtreInitial, onFiltreCons
   const [cherche, setCherche] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  // Qui a mis CETTE annonce en favori — la feuille s'ouvre sur le ❤ d'une ligne.
+  const [qui, setQui] = useState<{ titre: string; gens: QuiFavori[] } | null>(null)
+  const [quiCharge, setQuiCharge] = useState(false)
   const promo = filtreInitial === 'promo'
 
   const compte = useMemo(() => ({
@@ -73,6 +77,15 @@ export function MesAnnonces({ annonces, onRecharger, filtreInitial, onFiltreCons
     else tri_.sort((a, b) => b.price - a.price)
     return tri_
   }, [annonces, etat, tri, cherche, promo])
+
+  /** Ouvre la liste de ceux qui suivent l'annonce. */
+  const ouvrirQui = async (id: string) => {
+    setQuiCharge(true)
+    setQui({ titre: '', gens: [] })
+    try { setQui(await phpQuiFavori(id)) }
+    catch (e) { setQui(null); toast.error((e as Error).message) }
+    finally { setQuiCharge(false) }
+  }
 
   // Une action met la ligne en attente, agit, puis recharge la liste.
   const agir = async (id: string, faire: () => Promise<unknown>, echec: string) => {
@@ -166,9 +179,19 @@ export function MesAnnonces({ annonces, onRecharger, filtreInitial, onFiltreCons
                     </p>
                   </Link>
 
+                  {/* Le ❤ est cliquable : il ouvre la liste des personnes qui
+                      suivent l'annonce. Un chiffre seul ne dit pas à qui
+                      republier, ni pour quelle commune baisser le prix. */}
                   <div className="tnum shrink-0 text-right text-[11px] text-gray-500">
                     <p><b className="text-[13px] text-ink">{l.views ?? 0}</b> vues</p>
-                    <p>{l.favoris ?? 0} ❤ · {l.contacts ?? 0} 💬</p>
+                    <p>
+                      <button onClick={() => ouvrirQui(l.id)}
+                        disabled={(l.favoris ?? 0) === 0}
+                        className="font-semibold underline decoration-dotted underline-offset-2 disabled:no-underline disabled:opacity-100">
+                        {l.favoris ?? 0} ❤
+                      </button>
+                      {' · '}{l.contacts ?? 0} 💬
+                    </p>
                   </div>
 
                   <span className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-extrabold ${
@@ -232,9 +255,56 @@ export function MesAnnonces({ annonces, onRecharger, filtreInitial, onFiltreCons
       )}
 
       <p className="px-1 text-center text-[11.5px] leading-relaxed text-gray-400">
-        Les chiffres de chaque annonce se mettent à jour en continu · une annonce masquée
-        vous dit pourquoi, et le bouton la répare
+        Les chiffres de chaque annonce se mettent à jour en continu · appuyez sur le ❤ pour
+        voir qui suit l’annonce · une annonce masquée vous dit pourquoi, et le bouton la répare
       </p>
+
+      {/* QUI SUIT CETTE ANNONCE */}
+      {qui && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setQui(null)}>
+          <div className="max-h-[75vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4 pb-8"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-display text-[15px] font-extrabold text-ink">Qui suit cette annonce</p>
+                {qui.titre && <p className="mt-0.5 truncate text-[12px] text-gray-500">{qui.titre}</p>}
+              </div>
+              <button onClick={() => setQui(null)} aria-label="Fermer"
+                className="shrink-0 rounded-lg p-1.5 text-gray-400"><X size={18} /></button>
+            </div>
+
+            {quiCharge ? (
+              <p className="py-10 text-center text-sm text-gray-400">Chargement…</p>
+            ) : qui.gens.length === 0 ? (
+              <p className="py-10 text-center text-sm text-gray-500">Personne pour l’instant.</p>
+            ) : (
+              <div className="mt-3 divide-y divide-line">
+                {qui.gens.map((g, i) => (
+                  <div key={g.id || i} className="flex items-center gap-3 py-2.5">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-cream-100 font-display text-[15px] font-extrabold text-primary-700">
+                      {g.avatar
+                        ? <img src={mediaUrl(g.avatar)} alt="" className="h-full w-full object-cover" />
+                        : (g.nom.trim().charAt(0) || '?').toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-bold text-ink">{g.nom}</span>
+                      <span className="mt-0.5 block text-[11.5px] text-gray-500">
+                        {g.commune ? `${g.commune} · ` : ''}{timeAgo(g.quand)}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="mt-3 rounded-xl bg-cream-100 px-3 py-2 text-[11.5px] leading-relaxed text-gray-600">
+              Vous ne pouvez pas leur écrire : sur Chap.ci, c’est l’acheteur qui ouvre la
+              conversation. Ce que cette liste sert : savoir pour quelle commune ajuster le
+              prix, et quelle annonce republier.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

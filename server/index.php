@@ -2052,6 +2052,17 @@ function migrate(PDO $pdo): void {
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN essouffle_at $ts"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // LA RÉPONSE AUTOMATIQUE d'un professionnel. Le drapeau `auto` sur le message
+  // est ce qui empêche le mensonge : une réponse écrite par la machine ne doit
+  // JAMAIS compter comme une réponse du vendeur, ni faire disparaître la
+  // conversation de « sans réponse ». Sinon le taux de réponse affiché serait
+  // celui d'un robot, et l'acheteur le découvrirait en attendant trois jours.
+  try { $pdo->exec("ALTER TABLE messages ADD COLUMN auto $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_auto_reply $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_auto_reply_on $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // Suivi : la vue de page a-t-elle été faite en étant CONNECTÉ (1) ou en simple
   // visiteur (0) ? Un drapeau, pas un identifiant : on n'écrit jamais QUI a vu la
   // page, seulement s'il avait un compte ouvert. Aucune donnée personnelle
@@ -6192,8 +6203,15 @@ try {
       $supprLe = $estAcheteur ? ($c['buyer_deleted_at'] ?? null) : ($c['seller_deleted_at'] ?? null);
       $archLe  = $estAcheteur ? ($c['buyer_archived_at'] ?? null) : ($c['seller_archived_at'] ?? null);
       $epingle = (bool) ($estAcheteur ? ($c['buyer_pinned_at'] ?? null) : ($c['seller_pinned_at'] ?? null));
-      $lm = $pdo->prepare('SELECT body,sender_id,created_at,deleted_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+      $lm = $pdo->prepare('SELECT body,sender_id,created_at,deleted_at,auto FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
       $lm->execute([$c['id']]); $last = $lm->fetch();
+      // Le dernier expéditeur HUMAIN — celui qui décide si la conversation
+      // attend encore une réponse. Une réponse automatique ne clôt rien.
+      $dh = $pdo->prepare('SELECT sender_id FROM messages WHERE conversation_id = ?
+                             AND (auto IS NULL OR auto = 0)
+                           ORDER BY created_at DESC LIMIT 1');
+      $dh->execute([$c['id']]);
+      $dernierHumain = $dh->fetchColumn() ?: null;
       $lastAt = $last['created_at'] ?? $c['created_at'];
       // Supprimée de MON côté et aucun message plus récent que ma suppression :
       // on la cache. Un message postérieur la fait réapparaître.
@@ -6215,6 +6233,8 @@ try {
         'lastMessage' => $apercu,
         'lastAt' => iso_to_ms($lastAt),
         'lastSenderId' => $last['sender_id'] ?? null,
+        'dernierHumain' => $dernierHumain,
+        'lastAuto' => !empty($last['auto']),
         'archived' => (bool) $archivee,
         'pinned' => $epingle,
         'blockedByMe' => isset($jaiBloque[(string) $otherId]),
@@ -6268,6 +6288,7 @@ try {
         'id' => $m['id'], 'conversationId' => $m['conversation_id'], 'senderId' => $m['sender_id'],
         'body' => empty($m['deleted_at']) ? $m['body'] : null,
         'deleted' => !empty($m['deleted_at']),
+        'auto' => !empty($m['auto']),
         'createdAt' => iso_to_ms($m['created_at']),
       ], $ms->fetchAll()));
     }
@@ -6302,7 +6323,44 @@ try {
       $senderName = trim((string) ($sn->fetch()['full_name'] ?? '')) ?: 'Un utilisateur';
       notify($pdo, (string) $recipient, 'message', 'Nouveau message',
         $senderName . ' vous a envoyé un message.', '#/messages/' . $convId);
-      jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'], 'body' => $bodyTxt, 'createdAt' => iso_to_ms($ts)]);
+
+      // LA RÉPONSE AUTOMATIQUE. Elle part quand un ACHETEUR écrit à un
+      // professionnel approuvé qui l'a activée, et seulement tant que le
+      // vendeur n'a JAMAIS écrit dans cette conversation : au deuxième message
+      // de l'acheteur, il ne veut plus lire la même phrase.
+      //
+      // Elle est marquée `auto = 1`. Elle ne compte donc ni dans le taux de
+      // réponse, ni pour sortir la conversation de « sans réponse » : le
+      // vendeur doit toujours répondre lui-même. Une réponse automatique
+      // achète du temps, elle ne remplace personne.
+      $auto = null;
+      if ((string) $u['id'] === (string) $conv['buyer_id']) {
+        try {
+          $ar = $pdo->prepare('SELECT pro_status, pro_auto_reply, pro_auto_reply_on, pro_nom
+                               FROM users WHERE id = ?');
+          $ar->execute([$conv['seller_id']]);
+          $v = $ar->fetch() ?: [];
+          $texte = trim((string) ($v['pro_auto_reply'] ?? ''));
+          if ((string) ($v['pro_status'] ?? '') === 'approuve'
+              && !empty($v['pro_auto_reply_on']) && $texte !== '') {
+            $deja = $pdo->prepare('SELECT COUNT(*) FROM messages
+                                   WHERE conversation_id = ? AND sender_id = ?');
+            $deja->execute([$convId, $conv['seller_id']]);
+            if ((int) $deja->fetchColumn() === 0) {
+              $autoId = uuid();
+              $autoTs = gmdate('Y-m-d\TH:i:s\Z', time() + 1); // après le message reçu
+              $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at,auto)
+                             VALUES (?,?,?,?,?,1)')
+                  ->execute([$autoId, $convId, $conv['seller_id'], $texte, $autoTs]);
+              $auto = ['id' => $autoId, 'conversationId' => $convId,
+                       'senderId' => (string) $conv['seller_id'], 'body' => $texte,
+                       'createdAt' => iso_to_ms($autoTs), 'auto' => true];
+            }
+          }
+        } catch (Throwable $e) { /* une réponse auto ratée ne casse pas l'envoi */ }
+      }
+      jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'],
+            'body' => $bodyTxt, 'createdAt' => iso_to_ms($ts), 'auto' => $auto]);
     }
   }
 
@@ -6739,10 +6797,35 @@ try {
       } catch (Throwable $e) {
         $pdo->prepare('INSERT INTO favorites (user_id,listing_id,created_at) VALUES (?,?,?)')->execute([$u['id'], $lid, now_iso()]);
       }
-      // Notifie le vendeur (anonymisé), sauf pour ses propres annonces.
+      // Notifie le vendeur, sauf pour ses propres annonces.
+      //
+      // POUR UN PROFESSIONNEL APPROUVÉ, la personne est NOMMÉE (demande du
+      // Patron du 27/08) : un vendeur qui sait qui suit son annonce sait quoi
+      // republier et à quel prix. Pour tous les autres, la notification reste
+      // anonyme comme avant.
+      //
+      // Ce que cela n'ouvre PAS : le vendeur ne peut toujours pas écrire le
+      // premier — la création d'une conversation est réservée à l'acheteur
+      // (route POST /conversations). Nommer ne donne donc aucun moyen de
+      // relancer quelqu'un qui n'a rien demandé.
       if (!empty($l['user_id']) && $l['user_id'] !== $u['id']) {
+        $pro = false;
+        try {
+          $ps = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+          $ps->execute([$l['user_id']]);
+          $pro = (string) ($ps->fetchColumn() ?: '') === 'approuve';
+        } catch (Throwable $e) { /* base pas migrée : on reste anonyme */ }
+        $qui = 'Une personne';
+        if ($pro) {
+          try {
+            $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
+            $pn->execute([$u['id']]);
+            $nomFav = trim((string) ($pn->fetch()['full_name'] ?? ''));
+            if ($nomFav !== '') $qui = $nomFav;
+          } catch (Throwable $e) { /* pas de nom : on reste anonyme */ }
+        }
         notify($pdo, (string) $l['user_id'], 'favorite', 'Nouveau favori ❤️',
-          'Une personne a ajouté « ' . $l['title'] . ' » à ses favoris.', '#/annonce/' . $lid);
+          $qui . ' a ajouté « ' . $l['title'] . ' » à ses favoris.', '#/annonce/' . $lid);
       }
     }
     jout(['ok' => true]);
@@ -6751,6 +6834,65 @@ try {
     $u = require_user($pdo, $secret);
     $pdo->prepare('DELETE FROM favorites WHERE user_id = ? AND listing_id = ?')->execute([$u['id'], $seg[1]]);
     jout(['ok' => true]);
+  }
+
+  // QUI a mis MON annonce en favori. Réservé au propriétaire, et seulement
+  // s'il est professionnel approuvé : c'est une information de vendeur, pas
+  // une liste de curieux ouverte à tous.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'favoris' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $ls = $pdo->prepare('SELECT user_id, title FROM listings WHERE id = ?');
+    $ls->execute([$seg[1]]);
+    $l = $ls->fetch();
+    if (!$l) jerr('Annonce introuvable.', 404);
+    if ((string) $l['user_id'] !== (string) $u['id']) jerr('Cette annonce n’est pas la vôtre.', 403);
+    $ps = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $ps->execute([$u['id']]);
+    if ((string) ($ps->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    try {
+      $q = $pdo->prepare('SELECT f.created_at, p.id AS pid, p.full_name, p.avatar_url, p.commune
+                          FROM favorites f LEFT JOIN profiles p ON p.id = f.user_id
+                          WHERE f.listing_id = ? ORDER BY f.created_at DESC LIMIT 100');
+      $q->execute([$seg[1]]);
+      jout(['titre' => (string) $l['title'], 'gens' => array_map(fn($r) => [
+        'id' => (string) ($r['pid'] ?? ''),
+        'nom' => trim((string) ($r['full_name'] ?? '')) ?: 'Utilisateur',
+        'avatar' => (string) ($r['avatar_url'] ?? ''),
+        'commune' => (string) ($r['commune'] ?? ''),
+        'quand' => iso_to_ms($r['created_at']),
+      ], $q->fetchAll())]);
+    } catch (Throwable $e) { jout(['titre' => (string) $l['title'], 'gens' => []]); }
+  }
+
+  // ---------- RÉPONSE AUTOMATIQUE DU PROFESSIONNEL ----------
+  // Le texte qui part tout seul quand un acheteur écrit pour la première fois.
+  if ($path === 'pro/reponse-auto' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    try {
+      $st = $pdo->prepare('SELECT pro_auto_reply, pro_auto_reply_on FROM users WHERE id = ?');
+      $st->execute([$u['id']]);
+      $r = $st->fetch() ?: [];
+      jout(['texte' => (string) ($r['pro_auto_reply'] ?? ''), 'active' => !empty($r['pro_auto_reply_on'])]);
+    } catch (Throwable $e) { jout(['texte' => '', 'active' => false]); }
+  }
+  if ($path === 'pro/reponse-auto' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $b = body();
+    $texte = trim(mb_substr((string) ($b['texte'] ?? ''), 0, 400));
+    $active = !empty($b['active']);
+    // Activer sans texte n'aurait aucun effet : on le dit plutôt que de
+    // laisser croire que quelque chose part.
+    if ($active && $texte === '') jerr('Écrivez d’abord la phrase qui partira.');
+    $pdo->prepare('UPDATE users SET pro_auto_reply = ?, pro_auto_reply_on = ? WHERE id = ?')
+        ->execute([$texte, $active ? 1 : 0, $u['id']]);
+    jout(['ok' => true, 'texte' => $texte, 'active' => $active]);
   }
 
   // ---------- NOTIFICATIONS ----------
@@ -7719,8 +7861,12 @@ try {
       $q->execute([$uid]);
       $convTotal = (int) $q->fetchColumn();
       if ($convTotal > 0) {
+        // `m.auto` exclu : une réponse écrite par la machine n'est pas une
+        // réponse du vendeur. Sinon le taux afficherait 100 % dès le premier
+        // jour, et l'acheteur découvrirait le contraire en attendant.
         $q = $pdo->prepare('SELECT COUNT(DISTINCT c.id) FROM conversations c
                             JOIN messages m ON m.conversation_id = c.id AND m.sender_id = c.seller_id
+                                           AND (m.auto IS NULL OR m.auto = 0)
                             WHERE c.seller_id = ?');
         $q->execute([$uid]);
         $tauxReponse = (int) round((int) $q->fetchColumn() / $convTotal * 100);
@@ -7732,8 +7878,10 @@ try {
           WHERE c.seller_id = ?
             AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)
             AND (SELECT m.sender_id FROM messages m WHERE m.conversation_id = c.id
+                   AND (m.auto IS NULL OR m.auto = 0)
                   ORDER BY m.created_at DESC LIMIT 1) <> c.seller_id
-            AND (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id) < ?');
+            AND (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id
+                   AND (m.auto IS NULL OR m.auto = 0)) < ?');
       $q->execute([$uid, $limite]);
       $attente = $q->fetchAll();
       $aRepondre['n'] = count($attente);

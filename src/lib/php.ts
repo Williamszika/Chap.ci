@@ -447,8 +447,15 @@ export async function phpFetchConversations(): Promise<Conversation[]> {
 export async function phpFetchMessages(conversationId: string): Promise<Message[]> {
   return req<Message[]>(`/conversations/${conversationId}/messages`)
 }
-export async function phpSendMessage(conversationId: string, body: string): Promise<Message> {
-  return req<Message>(`/conversations/${conversationId}/messages`, { method: 'POST', body: { body } })
+/**
+ * Envoie un message. Le serveur peut renvoyer, dans `auto`, la RÉPONSE
+ * AUTOMATIQUE que le vendeur professionnel a fait partir dans la foulée :
+ * l'acheteur la voit arriver tout de suite, sans attendre le prochain sondage.
+ */
+export async function phpSendMessage(
+  conversationId: string, body: string,
+): Promise<Message & { auto?: Message | null }> {
+  return req(`/conversations/${conversationId}/messages`, { method: 'POST', body: { body } })
 }
 /** Supprime un de MES messages (pour tout le monde). */
 export async function phpDeleteMessage(conversationId: string, messageId: string): Promise<void> {
@@ -687,6 +694,21 @@ export async function phpAdminProFiche(d: {
   userId: string; nom: string; type: string; secteur: string; numero: string; tel: string
 }): Promise<{ change: number }> {
   return req('/admin/pro/fiche', { method: 'POST', body: d })
+}
+
+/** Qui a mis mon annonce en favori (professionnel approuvé, propriétaire seul). */
+export interface QuiFavori { id: string; nom: string; avatar: string; commune: string; quand: number }
+export async function phpQuiFavori(listingId: string): Promise<{ titre: string; gens: QuiFavori[] }> {
+  return req(`/listings/${listingId}/favoris`)
+}
+
+/** La réponse automatique du professionnel : le texte, et s'il est activé. */
+export interface ReponseAuto { texte: string; active: boolean }
+export async function phpReponseAuto(): Promise<ReponseAuto> {
+  return req<ReponseAuto>('/pro/reponse-auto')
+}
+export async function phpEnregistrerReponseAuto(d: ReponseAuto): Promise<ReponseAuto> {
+  return req<ReponseAuto>('/pro/reponse-auto', { method: 'POST', body: d })
 }
 
 /** Le chemin de l'acheteur : vues → favoris → contacts → ventes, heures, communes. */

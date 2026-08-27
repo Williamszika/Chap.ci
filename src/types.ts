@@ -93,6 +93,14 @@ export interface Conversation {
   lastAt?: number
   /** id de l'expéditeur du dernier message (pour détecter les non-lus) */
   lastSenderId?: string
+  /**
+   * Le dernier expéditeur HUMAIN — hors réponse automatique. C'est lui qui dit
+   * si la conversation attend encore une réponse : une phrase envoyée par la
+   * machine ne clôt rien.
+   */
+  dernierHumain?: string | null
+  /** Le dernier message est-il la réponse automatique du vendeur ? */
+  lastAuto?: boolean
   /** Archivée de MON côté (masquée de la liste principale). */
   archived?: boolean
   /** J'ai bloqué l'autre / l'autre m'a bloqué. */
@@ -108,6 +116,8 @@ export interface Message {
   createdAt: number
   /** Supprimé pour tout le monde (le corps est vidé). */
   deleted?: boolean
+  /** Réponse automatique du vendeur — affichée comme telle, jamais comptée. */
+  auto?: boolean
 }
 
 // — Panier & commandes —
