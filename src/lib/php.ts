@@ -666,6 +666,89 @@ export async function phpProVitrine(
   return req('/pro/vitrine', { method: 'POST', body: d })
 }
 
+/** Un jour d'ouverture de la fiche professionnelle. */
+export interface Horaire { ouvert: boolean; de: string; a: string }
+
+/** La fiche professionnelle : ce que les acheteurs voient sur la page vendeur. */
+export async function phpProFiche(d: {
+  nom: string; type: string; secteur: string; numero: string; tel: string
+  description: string; horaires?: Horaire[]
+}): Promise<void> {
+  await req('/pro/fiche', { method: 'POST', body: d })
+}
+
+/** Le chemin de l'acheteur : vues → favoris → contacts → ventes, heures, communes. */
+export interface ProEntonnoir {
+  periode: number
+  entonnoir: { vues: number; favoris: number; contacts: number; ventes: number }
+  /** 24 cases, une par heure : combien de vues à cette heure-là. */
+  heures: number[]
+  communes: { nom: string; n: number; pct: number }[]
+}
+export async function phpProEntonnoir(periode: 7 | 30 = 7): Promise<ProEntonnoir> {
+  return req<ProEntonnoir>(`/pro/entonnoir?periode=${periode}`)
+}
+
+/**
+ * Ce que chacun accepte de recevoir. Le magasin est `profiles.notif_prefs` —
+ * la MÊME colonne que consulte le serveur avant chaque notification. Le PUT
+ * fusionne : envoyer une seule case n'efface pas les autres.
+ */
+export async function phpReglagesNotifs(): Promise<Record<string, boolean>> {
+  try { return await req<Record<string, boolean>>('/notifications/prefs') }
+  catch { return {} }
+}
+export async function phpEnregistrerReglagesNotifs(reglages: Record<string, boolean>): Promise<void> {
+  await req('/notifications/prefs', { method: 'PUT', body: reglages })
+}
+
+/** L'état de sécurité du compte : appareils, connexions, mot de passe, 2FA. */
+export interface Securite {
+  twofa: boolean
+  motDePasseLe: number | null
+  appareils: { nom: string; depuis: number; vuLe: number | null }[]
+  connexions: { quand: number; appareil: string; ip: string }[]
+}
+export async function phpSecurite(): Promise<Securite> {
+  return req<Securite>('/securite')
+}
+
+/**
+ * Montrer (ou retirer) ma position sur mes annonces DÉJÀ publiées. Éteindre
+ * efface les coordonnées ; rallumer y remet celle du profil.
+ */
+export async function phpPositionAnnonces(montrer: boolean): Promise<{ annonces: number; sansPosition?: boolean }> {
+  return req('/position/annonces', { method: 'POST', body: { montrer } })
+}
+
+/** MON profil complet (téléphone, commune, adresse) — pour les réglages. */
+export interface MonProfil {
+  fullName: string; firstName: string; lastName: string; gender: string
+  birthDate: string; phone: string; bio: string; avatarUrl: string
+  regionId: string; cityId: string; commune: string; address: string
+  lat: number | null; lng: number | null; email: string
+}
+export async function phpMonProfil(): Promise<MonProfil> {
+  return req<MonProfil>('/profile')
+}
+
+/** Mes favoris avec le prix retenu au moment de l'enregistrement. */
+export interface FavoriDetail {
+  listingId: string
+  titre: string
+  prix: number
+  prixAlors: number | null
+  image: string | null
+  commune: string
+  vendue: boolean
+  retiree: boolean
+  vendeurId: string
+  createdAt: number
+}
+export async function phpFavorisDetail(): Promise<FavoriDetail[]> {
+  return req<FavoriDetail[]>('/favorites/detail')
+}
+
 // ---- Administration ---------------------------------------------------------
 export async function phpAdminStats<T>(): Promise<T> {
   return req<T>('/admin/stats')

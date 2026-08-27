@@ -200,7 +200,7 @@ curl -sS -H 'X-Cron-Key: <CLE_CRON>' 'https://chap.ci/api/cron/security?days=7' 
   invalide » incompréhensibles de juillet.
 - Ces endpoints sont en **lecture seule** (aucun effet de bord). Les routes qui
   **écrivent ou envoient** (`backup`, `cleanup`, `digest`, `report-email`,
-  `activation-relance`, `review-invites`, `alerts`, `suggestions`) sont **interdites**
+  `activation-relance`, `review-invites`, `rappels-pro`, `alerts`, `suggestions`) sont **interdites**
   aux bureaux — `cron/backup` en particulier crée une sauvegarde à chaque appel et le
   serveur n'en garde que 7.
 - Un bureau qui parle de « baisse de trafic » ou « pic d'échecs » **cite les

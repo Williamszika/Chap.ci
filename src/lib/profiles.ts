@@ -23,6 +23,12 @@ export async function fetchProfile(id: string): Promise<PublicProfile | null> {
   return php.phpFetchProfile(id)
 }
 
+/** MON profil, avec ce que la fiche publique ne rend pas (téléphone, adresse). */
+export async function fetchMyProfile(): Promise<php.MonProfil> {
+  return php.phpMonProfil()
+}
+export type { MonProfil } from './php'
+
 export interface ProfileFields {
   full_name?: string
   bio?: string

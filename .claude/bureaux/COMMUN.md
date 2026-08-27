@@ -83,7 +83,7 @@ Elles écrivent, envoient des e-mails ou déclenchent des sauvegardes. Les appel
 une ronde produit des envois en double et fausse les journaux :
 
 `backup` · `cleanup` · `digest` · `report` · `report-email` · `ads-expiring` ·
-`seo` · `activation-relance` · `review-invites` · `alerts` · `suggestions`
+`seo` · `activation-relance` · `review-invites` · `rappels-pro` · `alerts` · `suggestions`
 
 Deux exceptions écrites : **🛡️ Le Gardien** pour `cleanup` et la modération,
 **🗂️ Le Secrétariat** pour `report-email`, une fois par semaine.

@@ -132,7 +132,7 @@ Onze routines dans `.claude/bureaux/`, un `routine-*.md` par bureau.
 
 **Les routes cron qui écrivent ou envoient ne s'appellent pas depuis un bureau** :
 `backup`, `cleanup`, `digest`, `report`, `report-email`, `ads-expiring`, `seo`,
-`activation-relance`, `review-invites`, `alerts`, `suggestions`. Deux exceptions
+`activation-relance`, `review-invites`, `rappels-pro`, `alerts`, `suggestions`. Deux exceptions
 écrites : 🛡️ Le Gardien pour `cleanup` et la modération, 🗂️ Le Secrétariat pour
 `report-email` une fois par semaine.
 

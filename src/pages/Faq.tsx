@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Search, Plus, Minus, MessageSquare } from 'lucide-react'
+import { Search, Plus, Minus, MessageSquare, LifeBuoy } from 'lucide-react'
 import { useTraductionPage } from '../lib/langue'
+import { useAuth } from '../store/AuthContext'
+import { isPhp } from '../lib/backend'
+import { phpProStatut } from '../lib/php'
 import { chargerFaq, type TexteFaq } from '../i18n/faq'
+
+/** Ce qu'un professionnel vient chercher ici — le mot cherché, pas l'étiquette. */
+const RACCOURCIS_PRO: [string, string][] = [
+  ['Bien photographier', 'photo'],
+  ['Fixer le bon prix', 'prix'],
+  ['Éviter les arnaques', 'arnaque'],
+  ['Être payé en sécurité', 'paiement'],
+]
 
 type QA = { q: string; a: React.ReactNode }
 type Section = { title: string; icon: string; slug: string; items: QA[] }
@@ -298,8 +309,18 @@ function Item({ qa, open, onToggle }: { qa: QA; open: boolean; onToggle: () => v
 
 export function Faq() {
   const { search } = useLocation()
+  const { user } = useAuth()
   const { t, dir } = useTraductionPage<TexteFaq>(chargerFaq)
   const [query, setQuery] = useState('')
+  // Le bloc « Pour les professionnels » ne s'affiche qu'aux dossiers approuvés :
+  // ailleurs, ce serait quatre raccourcis de plus sur une page déjà longue.
+  const [estPro, setEstPro] = useState(false)
+  useEffect(() => {
+    if (!isPhp || !user) { setEstPro(false); return }
+    phpProStatut<{ status?: string }>()
+      .then((s2) => setEstPro(s2.status === 'approuve'))
+      .catch(() => setEstPro(false))
+  }, [user])
   // Clé d'ouverture = "sectionIndex:itemIndex". La 1re question est ouverte par défaut.
   const [openKey, setOpenKey] = useState<string | null>('0:0')
 
@@ -369,6 +390,27 @@ export function Faq() {
           />
         </div>
 
+        {/* POUR LES PROFESSIONNELS — quatre raccourcis vers ce qu'un vendeur
+            vient réellement chercher ici. Chacun remplit la recherche
+            ci-dessus : ce sont des mots qui trouvent, pas des étiquettes. */}
+        {estPro && !query && (
+          <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-accent-ocre/30 bg-cream-100 p-4">
+            <p className="font-display text-[14px] font-extrabold text-ink">💼 Pour les professionnels</p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {RACCOURCIS_PRO.map(([label, mot]) => (
+                <button key={label} onClick={() => setQuery(mot)}
+                  className="rounded-full bg-white px-3.5 py-2 text-[12.5px] font-semibold text-gray-700 ring-1 ring-line transition hover:text-primary-700">
+                  {label}
+                </button>
+              ))}
+              <Link to="/aide?rubrique=vendre"
+                className="rounded-full bg-white px-3.5 py-2 text-[12.5px] font-semibold text-gray-700 ring-1 ring-line transition hover:text-primary-700">
+                Tous les conseils vendeur
+              </Link>
+            </div>
+          </div>
+        )}
+
         {filtered.length === 0 ? (
           <div className="mx-auto max-w-md py-14 text-center">
             <p className="text-4xl">🔎</p>
@@ -413,9 +455,24 @@ export function Faq() {
               ? t.contactTexte
               : 'Notre équipe est là pour vous aider. Écrivez-nous, on revient vers vous rapidement.'}
           </p>
-          <Link to="/contact" className="btn-primary mt-4 inline-flex">
-            <MessageSquare size={18} /> {t ? t.contactBouton : 'Nous contacter'}
-          </Link>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Link to="/contact" className="btn-primary inline-flex">
+              <MessageSquare size={18} /> {t ? t.contactBouton : 'Nous contacter'}
+            </Link>
+            {/* Membres : la messagerie de l'équipe, où l'on voit vos annonces —
+                ce n'est pas le même canal que le formulaire public. */}
+            {user && (
+              <Link to="/assistance" className="btn-outline inline-flex bg-white">
+                <LifeBuoy size={18} /> Écrire à l’équipe
+              </Link>
+            )}
+          </div>
+          {user && (
+            <p className="mt-2 text-[11px] text-primary-800/70">
+              Une vraie personne vous répond, et voit vos annonces · réponse sous 24 h,
+              du lundi au samedi
+            </p>
+          )}
         </div>
       </div>
     </div>

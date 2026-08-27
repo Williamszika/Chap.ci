@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Loader2, Megaphone, ArrowRight, RefreshCw, AlertTriangle } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
-import { fetchMyAds, type MyAd, type MyAds } from '../lib/ads'
+import { fetchMyAds, fetchAdTariff, AD_FALLBACK_TARIFF, type AdTariff, type MyAd, type MyAds } from '../lib/ads'
 import { formatFCFA, formatPrice } from '../lib/format'
 import { AdStatsChart } from './AdStatsChart'
 
@@ -69,6 +69,7 @@ function Chiffre({ value, label, sub }: { value: string; label: string; sub?: st
 export function MyAdsPanel() {
   const navigate = useNavigate()
   const [data, setData] = useState<MyAds | null>(null)
+  const [tarif, setTarif] = useState<AdTariff>(AD_FALLBACK_TARIFF)
   const [err, setErr] = useState('')
 
   const load = () => {
@@ -76,6 +77,8 @@ export function MyAdsPanel() {
     fetchMyAds().then(setData).catch((e) => setErr((e as Error).message))
   }
   useEffect(load, [])
+  // Le tarif réel du compte : un membre ne paie pas le prix d'un visiteur.
+  useEffect(() => { fetchAdTariff().then(setTarif).catch(() => {}) }, [])
 
   if (err) {
     return (
@@ -170,6 +173,22 @@ export function MyAdsPanel() {
                       </div>
                     )}
 
+                    {/* CE QUE LA CAMPAGNE A RAPPORTÉ. On ne dit pas « grâce à
+                        cette publicité » : personne ne peut le prouver. On dit
+                        ce qui s'est passé pendant, et l'annonceur juge. */}
+                    {(st === 'active' || st === 'expired') && a.pendant
+                      && (a.pendant.contacts > 0 || a.pendant.ventes > 0) && (
+                      <p className="mt-2 rounded-lg bg-ivoire-green/10 px-3 py-2 text-[12px] leading-relaxed text-gray-700">
+                        <b className="text-ivoire-green-dark">{n(a.pendant.contacts)} contact{a.pendant.contacts > 1 ? 's' : ''}</b>
+                        {a.pendant.ventes > 0 && <> et <b className="text-ivoire-green-dark">{n(a.pendant.ventes)} vente{a.pendant.ventes > 1 ? 's' : ''}</b> ({formatFCFA(a.pendant.montant)})</>}
+                        {' '}pendant cette campagne, pour <b className="tnum">{formatFCFA(a.price)}</b> dépensés.
+                        <span className="mt-0.5 block text-[11px] text-gray-500">
+                          Ce sont les mêmes dates, pas une preuve : nous ne savons pas d’où vient
+                          chaque acheteur.
+                        </span>
+                      </p>
+                    )}
+
                     {/* Motif de refus : sans lui, l'annonceur refait la même erreur. */}
                     {st === 'rejected' && a.rejectReason && (
                       <p className="mt-2 rounded-lg border-l-[3px] border-red-500 bg-red-50 px-3 py-2 text-[12.5px] leading-relaxed text-gray-700">
@@ -227,6 +246,21 @@ export function MyAdsPanel() {
               </div>
             )
           })}
+        </div>
+      </section>
+
+      {/* METTRE UNE ANNONCE EN AVANT — les trois formules, au tarif réel du
+          compte (les membres n'ont pas le même prix que les visiteurs). */}
+      <section className="rounded-2xl border border-accent-ocre/30 bg-cream-100 p-4 text-center">
+        <p className="font-display text-[15px] font-extrabold text-ink">Mettre une annonce en avant</p>
+        <p className="mt-0.5 text-xs text-gray-600">Trois formules, payables par Wave ou Orange Money</p>
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {([['day', '1 jour'], ['week', '1 semaine'], ['month', '1 mois']] as const).map(([k, lab]) => (
+            <Link key={k} to={`/publicite?formule=${k}`}
+              className="rounded-full bg-white px-3.5 py-2 text-[12.5px] font-bold text-gray-700 ring-1 ring-line transition hover:text-primary-700">
+              {lab} · <b className="tnum text-primary-700">{formatPrice(tarif.prices[k])} F</b>
+            </Link>
+          ))}
         </div>
       </section>
 

@@ -128,6 +128,12 @@ export interface MyAd {
   status: string; rejectReason?: string
   createdAt?: number; startsAt?: number; expiresAt?: number
   views: number; clicks: number; ctr: number
+  /**
+   * Ce qui s'est passé PENDANT la diffusion : contacts reçus, ventes conclues
+   * et leur montant. Une coïncidence de dates, jamais une attribution — rien
+   * ne prouve que cet acheteur-là venait de la bannière.
+   */
+  pendant?: { contacts: number; ventes: number; montant: number }
 }
 export interface MyAds {
   ads: MyAd[]

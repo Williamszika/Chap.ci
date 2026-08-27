@@ -5,7 +5,7 @@ import {
   LogOut, MessageSquare, Package, Plus, Zap,
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
-import { phpProStatut, phpProDemande, phpProTableau, phpProVitrine } from '../lib/php'
+import { phpProStatut, phpProDemande, phpProTableau, phpProVitrine, type Horaire } from '../lib/php'
 import { TYPES_PRO, labelTypePro } from '../data/secteursPro'
 import { formatFCFA, formatPrice, timeAgo } from '../lib/format'
 import { mediaUrl, thumbUrl } from '../lib/native'
@@ -30,11 +30,13 @@ interface Statut {
   motif?: string
 }
 
-interface Tableau {
+export interface Tableau {
   pro: {
     nom: string; type: string; secteur: string; depuis: number | null
     numero?: string; tel?: string
     banniere?: string; logo?: string
+    /** Ce que fait l'entreprise, et ses sept jours d'ouverture. */
+    description?: string; horaires?: Horaire[] | null
   }
   /** Tout le compte, pour les tuiles et la fiche d'entreprise de la page Compte. */
   compte?: {
@@ -256,7 +258,8 @@ const ETATS: Record<string, { texte: string; classe: string }> = {
 export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
   dansCompte?: boolean
   /** Ouvre un onglet interne de la page Compte (annonces, achats, ventes, pubs, params). */
-  onOnglet?: (onglet: 'annonces' | 'achats' | 'ventes' | 'pubs' | 'params') => void
+  onOnglet?: (onglet: 'annonces' | 'achats' | 'ventes' | 'pubs' | 'params'
+    | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse') => void
   onDeconnexion?: () => void
 } = {}) {
   const { user } = useAuth()
@@ -579,11 +582,11 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
               sous={`${c.commandesEnCours} en cours · ${c.commandesFinalisees} finalisée${c.commandesFinalisees > 1 ? 's' : ''}`}
               onClick={() => onOnglet?.('achats')} />
             <Tuile emoji="❤️" fond="#FBEAE7" titre="Mes favoris"
-              sous={`${c.favorisEnregistres} annonce${c.favorisEnregistres > 1 ? 's' : ''} enregistrée${c.favorisEnregistres > 1 ? 's' : ''}`}
+              sous={`${c.favorisEnregistres} annonce${c.favorisEnregistres > 1 ? 's' : ''} surveillée${c.favorisEnregistres > 1 ? 's' : ''}`}
               onClick={() => navigate('/favoris')} />
             <Tuile emoji="📊" fond="#E4F5EC" titre="Statistiques de vente"
-              sous="Vues, demandes, ventes par période"
-              onClick={() => onOnglet?.('ventes')} />
+              sous="Le chemin de l’acheteur, vos heures, vos communes"
+              onClick={() => onOnglet?.('stats')} />
             <Tuile emoji="📣" fond="#FFF3E4" titre="Mes publicités"
               sous={c.pubsActives > 0
                 ? `${c.pubsActives} campagne${c.pubsActives > 1 ? 's' : ''} active${c.pubsActives > 1 ? 's' : ''}${finPub ? ` · se termine ${finPub}` : ''}`
@@ -603,9 +606,10 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
                 <p className="font-display text-[15px] font-extrabold text-ink">Fiche professionnelle</p>
                 <p className="mt-0.5 text-xs text-gray-500">Ce que les acheteurs voient sur votre page vendeur</p>
               </div>
-              <Link to="/pro" className="whitespace-nowrap text-xs font-bold text-primary-700">
+              <button onClick={() => onOnglet?.('fiche')}
+                className="whitespace-nowrap text-xs font-bold text-primary-700">
                 Modifier ma fiche →
-              </Link>
+              </button>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-4 xl:grid-cols-4">
               <Champ etiquette="Nom commercial" valeur={t.pro.nom} />
@@ -629,19 +633,19 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Tuile emoji="👤" fond="#EDEFF2" titre="Profil & photo"
               sous={[c.nom, c.email].filter(Boolean).join(' · ')}
-              onClick={() => onOnglet?.('params')} />
+              onClick={() => onOnglet?.('profil')} />
             <Tuile emoji="🔔" fond="#FFF3E4" titre="Notifications"
-              sous="Messages, favoris, e-mail de secours"
-              onClick={() => navigate('/notifications')} />
+              sous="Messages, favoris, rappels du professionnel"
+              onClick={() => onOnglet?.('notifs')} />
             <Tuile emoji="🔒" fond="#E4F5EC" titre="Sécurité"
               sous="Mot de passe · double authentification"
               badge={c.twofa
                 ? <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 text-[11px] font-extrabold text-emerald-700">✓</span>
                 : undefined}
-              onClick={() => onOnglet?.('params')} />
+              onClick={() => onOnglet?.('securite')} />
             <Tuile emoji="📍" fond="#E8EEFB" titre="Adresse & localisation"
               sous={c.commune ? `${c.commune} · position enregistrée` : 'Ajoutez votre commune'}
-              onClick={() => onOnglet?.('params')} />
+              onClick={() => onOnglet?.('adresse')} />
             <Tuile emoji="❓" fond="#FFF3E4" titre="Aide & support"
               sous="Questions fréquentes, conseils vendeur"
               onClick={() => navigate('/aide')} />

@@ -436,6 +436,78 @@ function pays_nom(?string $code): string {
   return $noms[$code] ?? ($code !== '' ? $code : 'Inconnu');
 }
 
+/**
+ * Un nom d'appareil lisible tiré de la signature du navigateur.
+ * « Mozilla/5.0 (iPhone; CPU iPhone OS 17_5…) » → « iPhone ». On ne cherche
+ * pas la précision : le Patron doit reconnaître SES appareils dans la liste,
+ * et repérer celui qui n'est pas à lui.
+ */
+function nom_appareil(string $ua): string {
+  $ua = trim($ua);
+  if ($ua === '') return 'Appareil inconnu';
+  $paires = [
+    'iPhone' => 'iPhone', 'iPad' => 'iPad', 'Android' => 'Téléphone Android',
+    'Macintosh' => 'Mac', 'Mac OS X' => 'Mac', 'Windows' => 'Ordinateur Windows',
+    'CrOS' => 'Chromebook', 'Linux' => 'Ordinateur Linux',
+  ];
+  foreach ($paires as $motif => $nom) {
+    if (stripos($ua, $motif) !== false) return $nom;
+  }
+  return 'Appareil inconnu';
+}
+
+/**
+ * Une adresse IP tronquée : « 41.207.12.88 » → « 41.207.•.• ». Assez pour
+ * reconnaître « ce n'est pas moi », pas assez pour pister quelqu'un.
+ */
+function masque_ip(string $ip): string {
+  $ip = trim($ip);
+  if ($ip === '') return '';
+  if (strpos($ip, ':') !== false) {            // IPv6
+    $bouts = explode(':', $ip);
+    return implode(':', array_slice($bouts, 0, 2)) . ':•';
+  }
+  $bouts = explode('.', $ip);
+  if (count($bouts) !== 4) return '•';
+  return $bouts[0] . '.' . $bouts[1] . '.•.•';
+}
+
+/**
+ * Contacts reçus et ventes conclues PENDANT la diffusion d'une publicité.
+ * Une coïncidence de dates, pas une attribution : on ne sait pas d'où vient
+ * un acheteur. L'écran doit le dire avec les mêmes mots.
+ */
+function ad_retombees(PDO $pdo, string $userId, array $ad): array {
+  $debut = $ad['starts_at'] ?? null;
+  if (!$debut || !in_array($ad['status'] ?? '', ['active', 'expired', 'merged'], true)) {
+    return ['contacts' => 0, 'ventes' => 0, 'montant' => 0];
+  }
+  $fin = $ad['expires_at'] ?? now_iso();
+  if (strtotime((string) $fin) > time()) $fin = now_iso();
+  $contacts = 0; $ventes = 0; $montant = 0;
+  try {
+    $q = $pdo->prepare('SELECT COUNT(*) FROM conversations
+                        WHERE seller_id = ? AND created_at >= ? AND created_at <= ?');
+    $q->execute([$userId, $debut, $fin]);
+    $contacts = (int) $q->fetchColumn();
+  } catch (Throwable $e) { /* 0 */ }
+  try {
+    $q = $pdo->prepare("SELECT o.id FROM orders o WHERE o.seller_id = ? AND o.status = 'finalise'
+                        AND COALESCE(o.finalized_at, o.created_at) >= ?
+                        AND COALESCE(o.finalized_at, o.created_at) <= ?");
+    $q->execute([$userId, $debut, $fin]);
+    $ids = array_column($q->fetchAll(), 'id');
+    $ventes = count($ids);
+    if ($ids) {
+      $in = implode(',', array_fill(0, count($ids), '?'));
+      $q2 = $pdo->prepare("SELECT COALESCE(SUM(price),0) FROM order_items WHERE order_id IN ($in)");
+      $q2->execute($ids);
+      $montant = (int) $q2->fetchColumn();
+    }
+  } catch (Throwable $e) { /* 0 */ }
+  return ['contacts' => $contacts, 'ventes' => $ventes, 'montant' => $montant];
+}
+
 /** Journalise un événement de sécurité. Ne casse JAMAIS la requête en cas d'erreur. */
 function log_security_event(PDO $pdo, string $kind, ?string $email = null, string $detail = ''): void {
   try {
@@ -607,6 +679,17 @@ function notify(PDO $pdo, string $userId, string $type, string $title, string $b
     $title = mb_substr($title, 0, 120); $body = mb_substr($body, 0, 240); $link = mb_substr($link, 0, 200);
     $pdo->prepare('INSERT INTO notifications (id,user_id,type,title,body,link,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)')
         ->execute([$id, $userId, $type, $title, $body, $link, now_iso()]);
+    // HEURES CALMES — rien qui sonne entre 22 h et 6 h. La notification est
+    // quand même ÉCRITE : elle attend dans la cloche, on la lira au réveil.
+    // Seul le push, qui allume l'écran, est retenu. (Abidjan est à UTC+0 :
+    // l'heure du serveur est l'heure du Patron.)
+    // Défaut : ALLUMÉ. Personne n'a demandé à être réveillé à trois heures du
+    // matin, et l'interrupteur est désormais visible dans Compte →
+    // Notifications pour qui veut le contraire.
+    if (!isset($prefs['calme']) || $prefs['calme']) {
+      $h = (int) gmdate('G');
+      if ($h >= 22 || $h < 6) return;
+    }
     // Pas de réglage « push » ici : le vrai interrupteur est l'abonnement du
     // navigateur lui-même. Refuser l'autorisation, ou l'éteindre depuis le
     // compte, efface la ligne de `push_subs` — il n'y a alors rien à joindre,
@@ -1887,6 +1970,12 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, user_id $id, endpoint VARCHAR(500), p256dh $txt, auth_secret $txt,
       agent $txt, created_at $ts, last_ok_at $ts, fails $intT
     )$eng",
+    // L'HEURE des vues, en plus du jour. « 1 146 vues cette semaine » ne dit
+    // pas quand publier ; « c'est à 20 h qu'on vous regarde » le dit. On ne
+    // note QUE l'heure et le compte — jamais qui a regardé.
+    "CREATE TABLE IF NOT EXISTS listing_view_hours (
+      listing_id $id, day VARCHAR(10), hour $intT, n $intT, PRIMARY KEY (listing_id, day, hour)
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -1946,6 +2035,22 @@ function migrate(PDO $pdo): void {
   // date de la DEMANDE : une commande demandée le 29 juillet et payée le
   // 2 août sortait du mois d'août, et le total du vendeur était faux.
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN finalized_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Le prix de l'annonce AU MOMENT où on l'a mise en favori. Sans ce repère,
+  // « prix baissé » est indémontrable : on ne connaît que le prix d'aujourd'hui.
+  try { $pdo->exec("ALTER TABLE favorites ADD COLUMN price_at $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // La fiche du professionnel : ce qu'il fait, et quand on peut lui écrire.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_description $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_horaires $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Marqueurs des rappels du professionnel. Sans eux, « message sans réponse »
+  // repartirait chaque nuit sur la même conversation : au troisième matin, la
+  // personne coupe toutes les notifications, y compris celles qui servent.
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_reminded_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN essouffle_at $ts"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // Suivi : la vue de page a-t-elle été faite en étant CONNECTÉ (1) ou en simple
   // visiteur (0) ? Un drapeau, pas un identifiant : on n'écrit jamais QUI a vu la
@@ -5838,6 +5943,18 @@ try {
           try { $pdo->prepare('INSERT INTO listing_view_days (listing_id, day, n) VALUES (?, ?, 1)')->execute([$seg[1], $today]); }
           catch (Throwable $e) { $pdo->prepare('UPDATE listing_view_days SET n = n + 1 WHERE listing_id = ? AND day = ?')->execute([$seg[1], $today]); }
         }
+        // Même compte, à l'heure près — c'est ce qui répond à « quand
+        // publier ? ». Heure d'Abidjan (UTC+0), la même que le serveur.
+        // Best-effort : une vue ne doit jamais échouer pour une statistique.
+        try {
+          $heure = (int) gmdate('G');
+          $uh = $pdo->prepare('UPDATE listing_view_hours SET n = n + 1 WHERE listing_id = ? AND day = ? AND hour = ?');
+          $uh->execute([$seg[1], $today, $heure]);
+          if ($uh->rowCount() < 1) {
+            try { $pdo->prepare('INSERT INTO listing_view_hours (listing_id, day, hour, n) VALUES (?, ?, ?, 1)')->execute([$seg[1], $today, $heure]); }
+            catch (Throwable $e) { $uh->execute([$seg[1], $today, $heure]); }
+          }
+        } catch (Throwable $e) { /* table absente : la vue reste comptée */ }
       }
     }
     jout(['ok' => true]);
@@ -6567,13 +6684,61 @@ try {
     $st = $pdo->prepare('SELECT listing_id FROM favorites WHERE user_id = ?'); $st->execute([$u['id']]);
     jout(array_map(fn($r) => $r['listing_id'], $st->fetchAll()));
   }
+  // Le détail de mes favoris : le prix retenu au moment de l'enregistrement —
+  // qui permet de dire « prix baissé » sans deviner — ET l'annonce elle-même.
+  //
+  // La liste publique écarte les annonces vendues ou masquées. Une annonce
+  // mise en favori puis vendue disparaissait donc sans un mot : le vendeur
+  // croyait l'avoir retirée lui-même. Ici on la garde, marquée « vendue ».
+  if ($path === 'favorites/detail' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    try {
+      $st = $pdo->prepare('SELECT f.listing_id, f.price_at, f.created_at,
+                                  l.title, l.price, l.promo_price, l.promo_until, l.images,
+                                  l.commune, l.sold, l.hidden, l.user_id AS vendeur
+                           FROM favorites f LEFT JOIN listings l ON l.id = f.listing_id
+                           WHERE f.user_id = ? ORDER BY f.created_at DESC');
+      $st->execute([$u['id']]);
+      $out = [];
+      foreach ($st->fetchAll() as $r) {
+        if ($r['title'] === null) continue;   // annonce supprimée depuis
+        $imgs = json_decode((string) ($r['images'] ?: '[]'), true) ?: [];
+        $prix = (int) $r['price'];
+        if (!empty($r['promo_price']) && !empty($r['promo_until'])
+            && strtotime((string) $r['promo_until']) > time()) $prix = (int) $r['promo_price'];
+        $out[] = [
+          'listingId' => $r['listing_id'],
+          'titre' => (string) $r['title'],
+          'prix' => $prix,
+          'prixAlors' => $r['price_at'] === null ? null : (int) $r['price_at'],
+          'image' => $imgs[0] ?? null,
+          'commune' => (string) ($r['commune'] ?? ''),
+          'vendue' => !empty($r['sold']),
+          'retiree' => !empty($r['hidden']),
+          'vendeurId' => (string) ($r['vendeur'] ?? ''),
+          'createdAt' => iso_to_ms($r['created_at']),
+        ];
+      }
+      jout($out);
+    } catch (Throwable $e) { jout([]); }
+  }
   if (count($seg) === 2 && $seg[0] === 'favorites' && $method === 'POST') {
     $u = require_user($pdo, $secret); $lid = $seg[1];
-    $ls = $pdo->prepare('SELECT user_id,title FROM listings WHERE id = ?'); $ls->execute([$lid]); $l = $ls->fetch();
+    $ls = $pdo->prepare('SELECT user_id,title,price,promo_price,promo_until FROM listings WHERE id = ?');
+    $ls->execute([$lid]); $l = $ls->fetch();
     if (!$l) jerr('Annonce introuvable.', 404);
     $ex = $pdo->prepare('SELECT 1 FROM favorites WHERE user_id = ? AND listing_id = ?'); $ex->execute([$u['id'], $lid]);
     if (!$ex->fetch()) {
-      $pdo->prepare('INSERT INTO favorites (user_id,listing_id,created_at) VALUES (?,?,?)')->execute([$u['id'], $lid, now_iso()]);
+      // Prix RÉELLEMENT affiché ce jour-là : la promotion si elle court encore.
+      $prix = (int) $l['price'];
+      if (!empty($l['promo_price']) && !empty($l['promo_until'])
+          && strtotime((string) $l['promo_until']) > time()) $prix = (int) $l['promo_price'];
+      try {
+        $pdo->prepare('INSERT INTO favorites (user_id,listing_id,created_at,price_at) VALUES (?,?,?,?)')
+            ->execute([$u['id'], $lid, now_iso(), $prix]);
+      } catch (Throwable $e) {
+        $pdo->prepare('INSERT INTO favorites (user_id,listing_id,created_at) VALUES (?,?,?)')->execute([$u['id'], $lid, now_iso()]);
+      }
       // Notifie le vendeur (anonymisé), sauf pour ses propres annonces.
       if (!empty($l['user_id']) && $l['user_id'] !== $u['id']) {
         notify($pdo, (string) $l['user_id'], 'favorite', 'Nouveau favori ❤️',
@@ -6626,27 +6791,39 @@ try {
     }
     jout(['ok' => true]);
   }
+  // Les reglages de notification vivent dans profiles.notif_prefs — c'est la
+  // colonne que notify() consulte avant chaque envoi. On rend TOUT ce qui y est
+  // ecrit : la liste des cases s'allonge (rappels du professionnel, heures
+  // calmes, alerte prix baisse) et le serveur n'a pas a la connaitre.
   if ($path === 'notifications/prefs' && $method === 'GET') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$u['id']]);
     $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
-    jout([
-      'favorite' => $prefs['favorite'] ?? true,
-      'message'  => $prefs['message']  ?? true,
-      'email'    => $prefs['email']    ?? true,
-    ]);
+    // Les trois historiques gardent leur defaut a vrai : on n'a jamais dit non
+    // tant qu'on n'a pas dit non.
+    foreach (['favorite', 'message', 'email'] as $k) {
+      if (!isset($prefs[$k])) $prefs[$k] = true;
+    }
+    jout($prefs);
   }
   if ($path === 'notifications/prefs' && $method === 'PUT') {
     $u = require_user($pdo, $secret); $b = body();
-    $prefs = [
-      'favorite' => !empty($b['favorite']),
-      'message'  => !empty($b['message']),
-      // Repli par e-mail quand la personne n'est ni sur le site ni joignable en
-      // push. Défaut à vrai : c'est la seule voie qui atteint tout le monde.
-      'email'    => !isset($b['email']) || !empty($b['email']),
-    ];
+    // FUSION, jamais remplacement : l'ecran des favoris n'envoie qu'une case,
+    // et il ne doit pas effacer les six autres au passage.
+    $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$u['id']]);
+    $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
+    foreach (array_slice($b, 0, 40, true) as $k => $v) {
+      $k = mb_substr((string) $k, 0, 40);
+      if ($k === '' || is_array($v)) continue;
+      $prefs[$k] = (bool) $v;
+    }
+    // Repli par e-mail : defaut a vrai, c'est la seule voie qui atteint tout
+    // le monde.
+    if (!isset($prefs['email'])) $prefs['email'] = true;
+    $ex = $pdo->prepare('SELECT id FROM profiles WHERE id = ?'); $ex->execute([$u['id']]);
+    if (!$ex->fetch()) $pdo->prepare('INSERT INTO profiles (id,created_at) VALUES (?,?)')->execute([$u['id'], now_iso()]);
     $pdo->prepare('UPDATE profiles SET notif_prefs = ? WHERE id = ?')->execute([json_encode($prefs), $u['id']]);
-    jout(['ok' => true]);
+    jout(['ok' => true, 'reglages' => (object) $prefs]);
   }
 
   // ---------- NOTIFICATIONS PUSH ----------
@@ -6858,6 +7035,20 @@ try {
     $fin = $status === 'finalise' ? ($o['finalized_at'] ?: now_iso()) : null;
     $pdo->prepare('UPDATE orders SET status = ?, finalized_at = ? WHERE id = ?')
         ->execute([$status, $fin, $seg[1]]);
+    // L'AUTRE partie l'apprend : une vente se conclut à deux, et c'est le
+    // moment où l'on peut demander un avis.
+    if ($status === 'finalise') {
+      $autre = $vendeur ? (string) $o['buyer_id'] : (string) $o['seller_id'];
+      $titre = '';
+      try {
+        $ti = $pdo->prepare('SELECT title FROM order_items WHERE order_id = ? LIMIT 1');
+        $ti->execute([$seg[1]]);
+        $titre = (string) ($ti->fetch()['title'] ?? '');
+      } catch (Throwable $e) { /* le titre est un confort */ }
+      notify($pdo, $autre, 'vente', 'Commande finalisée 🤝',
+             ($titre !== '' ? '« ' . $titre . ' » : ' : '') . 'la commande est marquée finalisée. '
+             . 'Vous pouvez maintenant laisser un avis.', '#/compte');
+    }
     jout(['ok' => true, 'finalizedAt' => $fin ? iso_to_ms($fin) : null]);
   }
 
@@ -7036,6 +7227,16 @@ try {
       $pdo->prepare('INSERT INTO reviews (id,listing_id,seller_id,target_id,kind,reviewer_id,rating,comment,created_at)
         VALUES (?,?,?,?,?,?,?,?,?)')
         ->execute([uuid(), $listingId, ($kind === 'seller' ? $targetId : ($b['sellerId'] ?? '')), $targetId, $kind, $u['id'], $rating, $comment, now_iso()]);
+      // La personne notée l'apprend. Une note qui tombe sans un mot, on la
+      // découvre des semaines plus tard sur sa propre page publique.
+      $nom = '';
+      try {
+        $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$u['id']]);
+        $nom = (string) ($pn->fetch()['full_name'] ?? '');
+      } catch (Throwable $e) { /* le nom est un confort */ }
+      notify($pdo, $targetId, 'avis', 'Nouvel avis ⭐',
+             ($nom !== '' ? $nom : 'Un membre') . ' vous a mis ' . $rating . ' sur 5.',
+             '#/vendeur/' . $targetId);
     }
     jout(['ok' => true]);
   }
@@ -7050,7 +7251,8 @@ try {
     $pro = null;
     try {
       $pq = $pdo->prepare('SELECT pro_status, pro_nom, pro_type, pro_secteur,
-                                  pro_banniere, pro_logo FROM users WHERE id = ?');
+                                  pro_banniere, pro_logo, pro_numero,
+                                  pro_description, pro_horaires FROM users WHERE id = ?');
       $pq->execute([$seg[1]]);
       $pr = $pq->fetch();
       if ($pr && (string) ($pr['pro_status'] ?? '') === 'approuve') {
@@ -7059,7 +7261,12 @@ try {
         $pro = ['nom' => $pr['pro_nom'] ?: null, 'type' => $pr['pro_type'] ?: null,
                 'secteur' => $pr['pro_secteur'] ?: null,
                 'banniere' => $pr['pro_banniere'] ?: null,
-                'logo' => $pr['pro_logo'] ?: null];
+                'logo' => $pr['pro_logo'] ?: null,
+                // Ce que fait l'entreprise et quand on peut lui ecrire : c'est
+                // ce que l'acheteur cherche avant de se decider.
+                'description' => $pr['pro_description'] ?: null,
+                'horaires' => $pr['pro_horaires'] ? (json_decode((string) $pr['pro_horaires'], true) ?: null) : null,
+                'numero' => $pr['pro_numero'] ?: null];
       }
     } catch (Throwable $e) { /* base pas migrée : pas de fiche pro */ }
     jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
@@ -7211,6 +7418,196 @@ try {
           'logo' => (string) ($r2['pro_logo'] ?? '')]);
   }
 
+  // La FICHE professionnelle : la carte de visite que voient les acheteurs.
+  // Un dossier approuvé la modifie sans redéposer de demande — refaire une
+  // demande pour corriger un numéro de téléphone n'aurait aucun sens.
+  if ($path === 'pro/fiche' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $b = body();
+    $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
+    if (mb_strlen($nom) < 2) jerr('Indiquez le nom de votre organisation.');
+    $type = (string) ($b['type'] ?? '');
+    if (!in_array($type, ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
+                          'formation', 'emploi', 'voyage', 'agro', 'sante', 'association'], true)) {
+      jerr('Type d’organisation inconnu.');
+    }
+    $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 60));
+    $numero  = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 60));
+    $tel     = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+    $desc    = trim(mb_substr((string) ($b['description'] ?? ''), 0, 300));
+    // Les horaires : sept jours, chacun ouvert ou fermé avec deux heures.
+    // Stockés en JSON — un tableau de sept, jamais autre chose.
+    $horaires = null;
+    if (array_key_exists('horaires', $b)) {
+      $h = $b['horaires'];
+      if (is_array($h)) {
+        $propre = [];
+        foreach (array_slice($h, 0, 7) as $j) {
+          if (!is_array($j)) continue;
+          $propre[] = [
+            'ouvert' => !empty($j['ouvert']),
+            'de' => mb_substr((string) ($j['de'] ?? ''), 0, 5),
+            'a'  => mb_substr((string) ($j['a'] ?? ''), 0, 5),
+          ];
+        }
+        $horaires = count($propre) === 7 ? json_encode($propre, JSON_UNESCAPED_UNICODE) : null;
+      }
+    }
+    $sql = 'UPDATE users SET pro_nom = ?, pro_type = ?, pro_secteur = ?, pro_numero = ?,
+            pro_tel = ?, pro_description = ?';
+    $vals = [$nom, $type, $secteur, $numero, $tel, $desc];
+    if ($horaires !== null) { $sql .= ', pro_horaires = ?'; $vals[] = $horaires; }
+    $sql .= ' WHERE id = ?'; $vals[] = $u['id'];
+    $pdo->prepare($sql)->execute($vals);
+    jout(['ok' => true]);
+  }
+
+  // LE CHEMIN DE L'ACHETEUR — vues → favoris → contacts → ventes, plus les
+  // heures où l'on est regardé et les communes d'où viennent les acheteurs.
+  // Compter ne suffit pas : c'est l'endroit où l'on perd le monde qui dit quoi
+  // corriger.
+  if ($path === 'pro/entonnoir' && $method === 'GET') {
+    $u = require_user($pdo, $secret); $uid = (string) $u['id'];
+    $jours = (int) ($_GET['periode'] ?? 7);
+    if (!in_array($jours, [7, 30], true)) $jours = 7;
+    $depuisJour = gmdate('Y-m-d', time() - ($jours - 1) * 86400);
+    $depuisIso  = gmdate('Y-m-d\TH:i:s\Z', time() - $jours * 86400);
+
+    $ids = [];
+    try {
+      $st = $pdo->prepare('SELECT id FROM listings WHERE user_id = ?'); $st->execute([$uid]);
+      $ids = array_column($st->fetchAll(), 'id');
+    } catch (Throwable $e) { /* aucune annonce : tout reste à zéro */ }
+    $in = $ids ? implode(',', array_fill(0, count($ids), '?')) : '';
+
+    $vues = 0; $favoris = 0; $contacts = 0; $ventes = 0;
+    $heures = array_fill(0, 24, 0); $communes = [];
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) AS s FROM listing_view_days
+                            WHERE day >= ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$depuisJour], $ids));
+        $vues = (int) $q->fetch()['s'];
+      } catch (Throwable $e) { /* 0 */ }
+      try {
+        $q = $pdo->prepare("SELECT COUNT(*) AS c FROM favorites
+                            WHERE created_at >= ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$depuisIso], $ids));
+        $favoris = (int) $q->fetch()['c'];
+      } catch (Throwable $e) { /* 0 */ }
+      try {
+        $q = $pdo->prepare("SELECT hour, COALESCE(SUM(n),0) AS s FROM listing_view_hours
+                            WHERE day >= ? AND listing_id IN ($in) GROUP BY hour");
+        $q->execute(array_merge([$depuisJour], $ids));
+        foreach ($q->fetchAll() as $r) {
+          $h = (int) $r['hour'];
+          if ($h >= 0 && $h < 24) $heures[$h] = (int) $r['s'];
+        }
+      } catch (Throwable $e) { /* table jeune : le graphique se remplira */ }
+    }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) AS c FROM conversations WHERE seller_id = ? AND created_at >= ?');
+      $q->execute([$uid, $depuisIso]);
+      $contacts = (int) $q->fetch()['c'];
+    } catch (Throwable $e) { /* 0 */ }
+    try {
+      $q = $pdo->prepare("SELECT COUNT(*) AS c FROM orders WHERE seller_id = ? AND status = 'finalise'
+                          AND COALESCE(finalized_at, created_at) >= ?");
+      $q->execute([$uid, $depuisIso]);
+      $ventes = (int) $q->fetch()['c'];
+    } catch (Throwable $e) { /* 0 */ }
+
+    // D'où viennent les acheteurs : la commune de ceux qui ont écrit, et de
+    // ceux qui ont enregistré une annonce. Deux gestes d'intérêt, un seul
+    // classement — sur trente jours, les seuls contacts sont trop peu nombreux
+    // pour dessiner quoi que ce soit.
+    try {
+      $compte = [];
+      $q = $pdo->prepare('SELECT p.commune AS commune FROM conversations c
+                          JOIN profiles p ON p.id = c.buyer_id
+                          WHERE c.seller_id = ? AND c.created_at >= ?');
+      $q->execute([$uid, $depuisIso]);
+      $lignes = $q->fetchAll();
+      if ($ids) {
+        $q2 = $pdo->prepare("SELECT p.commune AS commune FROM favorites f
+                             JOIN profiles p ON p.id = f.user_id
+                             WHERE f.created_at >= ? AND f.listing_id IN ($in)");
+        $q2->execute(array_merge([$depuisIso], $ids));
+        $lignes = array_merge($lignes, $q2->fetchAll());
+      }
+      foreach ($lignes as $r) {
+        $nomC = trim((string) ($r['commune'] ?? ''));
+        if ($nomC === '') continue;
+        $compte[$nomC] = ($compte[$nomC] ?? 0) + 1;
+      }
+      arsort($compte);
+      $totalC = array_sum($compte);
+      foreach (array_slice($compte, 0, 5, true) as $nomC => $n) {
+        $communes[] = ['nom' => $nomC, 'n' => $n,
+                       'pct' => $totalC > 0 ? (int) round($n * 100 / $totalC) : 0];
+      }
+    } catch (Throwable $e) { /* pas de communes : le bloc se tait */ }
+
+    jout([
+      'periode' => $jours,
+      'entonnoir' => ['vues' => $vues, 'favoris' => $favoris, 'contacts' => $contacts, 'ventes' => $ventes],
+      'heures' => $heures,
+      'communes' => $communes,
+    ]);
+  }
+
+  // ---------- SÉCURITÉ DU COMPTE ----------
+  // Les appareils abonnés, les dernières connexions réussies, et la date du
+  // dernier changement de mot de passe. Rien d'autre : on ne rend jamais les
+  // clés de chiffrement d'un abonnement push.
+  if ($path === 'securite' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $email = strtolower(trim((string) ($u['email'] ?? '')));
+    $appareils = []; $connexions = []; $mdpLe = null; $twofa = false;
+    try {
+      $st = $pdo->prepare('SELECT agent, created_at, last_ok_at FROM push_subs WHERE user_id = ? ORDER BY created_at DESC LIMIT 10');
+      $st->execute([$u['id']]);
+      $appareils = array_map(fn($r) => [
+        'nom' => nom_appareil((string) ($r['agent'] ?? '')),
+        'depuis' => iso_to_ms($r['created_at']),
+        'vuLe' => $r['last_ok_at'] ? iso_to_ms($r['last_ok_at']) : null,
+      ], $st->fetchAll());
+    } catch (Throwable $e) { /* aucun appareil abonné */ }
+    if ($email !== '') {
+      try {
+        $st = $pdo->prepare("SELECT ip, ua, created_at FROM security_events
+                             WHERE kind = 'login_ok' AND email = ? ORDER BY created_at DESC LIMIT 5");
+        $st->execute([$email]);
+        $connexions = array_map(fn($r) => [
+          'quand' => iso_to_ms($r['created_at']),
+          'appareil' => nom_appareil((string) ($r['ua'] ?? '')),
+          // L'adresse est tronquée : elle sert à reconnaître « ce n'est pas
+          // moi », pas à pister. Les deux derniers groupes sont masqués.
+          'ip' => masque_ip((string) ($r['ip'] ?? '')),
+        ], $st->fetchAll());
+      } catch (Throwable $e) { /* journal vide */ }
+      try {
+        $st = $pdo->prepare("SELECT created_at FROM security_events
+                             WHERE kind = 'password_changed' AND email = ? ORDER BY created_at DESC LIMIT 1");
+        $st->execute([$email]);
+        $v = $st->fetchColumn();
+        if ($v) $mdpLe = iso_to_ms((string) $v);
+      } catch (Throwable $e) { /* jamais changé */ }
+    }
+    try {
+      $st = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?');
+      $st->execute([$u['id']]);
+      $twofa = !empty($st->fetchColumn());
+    } catch (Throwable $e) { /* colonne absente */ }
+    jout(['twofa' => $twofa, 'motDePasseLe' => $mdpLe,
+          'appareils' => $appareils, 'connexions' => $connexions]);
+  }
+
   // Le tableau de bord professionnel, façon CRM : chiffres de la période (7 ou
   // 30 jours) avec tendance vs période précédente, taux de réponse, messages en
   // attente, série des vues, top des annonces et fil d'activité. Chaque bloc est
@@ -7218,7 +7615,8 @@ try {
   if ($path === 'pro/tableau' && $method === 'GET') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at,
-                                pro_numero, pro_tel, pro_banniere, pro_logo
+                                pro_numero, pro_tel, pro_banniere, pro_logo,
+                                pro_description, pro_horaires
                          FROM users WHERE id = ?');
     $st->execute([$u['id']]);
     $r = $st->fetch() ?: [];
@@ -7498,6 +7896,9 @@ try {
         'tel' => (string) ($r['pro_tel'] ?? ''),
         'banniere' => (string) ($r['pro_banniere'] ?? ''),
         'logo' => (string) ($r['pro_logo'] ?? ''),
+        'description' => (string) ($r['pro_description'] ?? ''),
+        'horaires' => ($r['pro_horaires'] ?? '') !== ''
+          ? (json_decode((string) $r['pro_horaires'], true) ?: null) : null,
       ],
       'compte' => [
         'nom' => (string) ($profil['full_name'] ?? ''),
@@ -7604,6 +8005,59 @@ try {
       'moisRestants'  => max(0, (int) ceil(6 - $mois)),
       'membreDepuis'  => iso_to_ms($r['created_at'] ?? null),
     ]);
+  }
+
+  // MON profil, en entier. `profile/{id}` est la fiche PUBLIQUE : elle ne rend
+  // ni le téléphone, ni l'adresse, ni la commune — et c'est très bien ainsi.
+  // Les écrans de réglages, eux, doivent pouvoir relire ce qu'ils écrivent.
+  if ($path === 'profile' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT full_name, first_name, last_name, gender, birth_date, phone, bio,
+                                avatar_url, region_id, city_id, commune, address, lat, lng
+                         FROM profiles WHERE id = ?');
+    $st->execute([$u['id']]);
+    $p = $st->fetch() ?: [];
+    jout([
+      'fullName' => (string) ($p['full_name'] ?? ''),
+      'firstName' => (string) ($p['first_name'] ?? ''),
+      'lastName' => (string) ($p['last_name'] ?? ''),
+      'gender' => (string) ($p['gender'] ?? ''),
+      'birthDate' => (string) ($p['birth_date'] ?? ''),
+      'phone' => (string) ($p['phone'] ?? ''),
+      'bio' => (string) ($p['bio'] ?? ''),
+      'avatarUrl' => (string) ($p['avatar_url'] ?? ''),
+      'regionId' => (string) ($p['region_id'] ?? ''),
+      'cityId' => (string) ($p['city_id'] ?? ''),
+      'commune' => (string) ($p['commune'] ?? ''),
+      'address' => (string) ($p['address'] ?? ''),
+      'lat' => $p['lat'] === null ? null : (float) $p['lat'],
+      'lng' => $p['lng'] === null ? null : (float) $p['lng'],
+      'email' => (string) ($u['email'] ?? ''),
+    ]);
+  }
+
+  // MONTRER MA POSITION SUR MES ANNONCES — l'interrupteur de l'écran
+  // « Adresse & localisation ». Il agit sur les annonces DÉJÀ publiées, sinon
+  // la phrase « sur mes annonces » serait un mensonge.
+  //
+  // Éteindre efface les coordonnées des annonces ; rallumer y remet la position
+  // du profil, qui n'a jamais bougé. C'est ce qui rend le geste réversible.
+  if ($path === 'position/annonces' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $montrer = !empty(body()['montrer']);
+    if (!$montrer) {
+      $st = $pdo->prepare('UPDATE listings SET lat = NULL, lng = NULL WHERE user_id = ?');
+      $st->execute([$u['id']]);
+      jout(['ok' => true, 'annonces' => $st->rowCount()]);
+    }
+    $q = $pdo->prepare('SELECT lat, lng FROM profiles WHERE id = ?'); $q->execute([$u['id']]);
+    $p = $q->fetch() ?: [];
+    if ($p['lat'] === null || $p['lng'] === null) {
+      jout(['ok' => true, 'annonces' => 0, 'sansPosition' => true]);
+    }
+    $st = $pdo->prepare('UPDATE listings SET lat = ?, lng = ? WHERE user_id = ? AND lat IS NULL');
+    $st->execute([$p['lat'], $p['lng'], $u['id']]);
+    jout(['ok' => true, 'annonces' => $st->rowCount()]);
   }
 
   if ($path === 'profile' && $method === 'PUT') {
@@ -7835,6 +8289,12 @@ try {
         'startsAt' => iso_to_ms($a['starts_at'] ?? null),
         'expiresAt' => iso_to_ms($a['expires_at'] ?? null),
         'views' => $aud['views'], 'clicks' => $aud['clicks'], 'ctr' => $aud['ctr'],
+        // CE QUE LA CAMPAGNE A RAPPORTÉ — les contacts reçus et les ventes
+        // conclues PENDANT sa diffusion. Ce n'est pas une attribution : rien
+        // ne prouve que cet acheteur-là venait de la bannière. C'est une
+        // coïncidence de dates, et c'est ainsi que l'écran le dit. Un chiffre
+        // faussement précis serait pire que pas de chiffre du tout.
+        'pendant' => ad_retombees($pdo, (string) $u['id'], $a),
       ];
     }
     // Courbe consolidée : toutes ses publicités confondues, 30 derniers jours.
@@ -11150,6 +11610,110 @@ try {
   // Pour chaque transaction conclue (réception confirmée OU vente confirmée),
   // on invite par email la partie qui n'a pas encore laissé d'avis. Relance
   // espacée de 3 jours, 2 fois maximum.
+  // ---- LES RAPPELS DU PROFESSIONNEL ------------------------------------------
+  //
+  // Trois rappels, un passage par jour. Chacun a son marqueur : un rappel qui
+  // repart chaque nuit sur la même conversation fait couper TOUTES les
+  // notifications, y compris celles qui font vendre.
+  //
+  // Chaque case se coupe dans Compte → Notifications, et notify() consulte
+  // profiles.notif_prefs avant d'écrire : rien à vérifier ici.
+  if ($path === 'cron/rappels-pro' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $fait = ['sans_reponse' => 0, 'essouffle' => 0, 'bilan' => 0];
+
+    // 1) MESSAGE SANS RÉPONSE — le dernier mot est à l'acheteur depuis 24 h.
+    try {
+      $limite  = gmdate('Y-m-d\TH:i:s\Z', time() - 86400);
+      $reDelai = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400);
+      $convs = $pdo->query('SELECT id, seller_id, buyer_id, listing_id, seller_reminded_at FROM conversations')->fetchAll();
+      foreach ($convs as $c) {
+        if (!empty($c['seller_reminded_at']) && (string) $c['seller_reminded_at'] > $reDelai) continue;
+        $lm = $pdo->prepare('SELECT sender_id, created_at FROM messages
+                             WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+        $lm->execute([$c['id']]);
+        $last = $lm->fetch();
+        if (!$last) continue;
+        if ((string) $last['sender_id'] === (string) $c['seller_id']) continue;   // déjà répondu
+        if ((string) $last['created_at'] > $limite) continue;                     // moins de 24 h
+        $qui = '';
+        $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
+        $pn->execute([$c['buyer_id']]);
+        $qui = (string) ($pn->fetch()['full_name'] ?? '');
+        notify($pdo, (string) $c['seller_id'], 'sans_reponse', 'Un acheteur attend votre réponse ⏳',
+               ($qui !== '' ? $qui : 'Un acheteur') . ' vous a écrit il y a plus de 24 h. '
+               . 'Votre taux de réponse est le premier chiffre qu’un acheteur regarde.',
+               '#/messages/' . $c['id']);
+        $pdo->prepare('UPDATE conversations SET seller_reminded_at = ? WHERE id = ?')
+            ->execute([now_iso(), $c['id']]);
+        $fait['sans_reponse']++;
+      }
+    } catch (Throwable $e) { /* un rappel raté ne casse pas la ronde */ }
+
+    // 2) ANNONCE QUI S'ESSOUFFLE — plus une seule vue depuis dix jours.
+    try {
+      $depuis  = gmdate('Y-m-d', time() - 10 * 86400);
+      $reDelai = gmdate('Y-m-d\TH:i:s\Z', time() - 30 * 86400);
+      $ls = $pdo->query("SELECT id, user_id, title, essouffle_at, created_at FROM listings
+                         WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)")->fetchAll();
+      foreach ($ls as $l) {
+        if (empty($l['user_id'])) continue;
+        if (!empty($l['essouffle_at']) && (string) $l['essouffle_at'] > $reDelai) continue;
+        // Une annonce publiée hier n'est pas « essoufflée » : elle est jeune.
+        if ((string) ($l['created_at'] ?? '') > gmdate('Y-m-d\TH:i:s\Z', time() - 10 * 86400)) continue;
+        $q = $pdo->prepare('SELECT COALESCE(SUM(n),0) FROM listing_view_days WHERE listing_id = ? AND day >= ?');
+        $q->execute([$l['id'], $depuis]);
+        if ((int) $q->fetchColumn() > 0) continue;
+        notify($pdo, (string) $l['user_id'], 'essouffle', 'Une annonce ne bouge plus 💤',
+               '« ' . $l['title'] . ' » n’a pas été vue depuis dix jours. Une nouvelle photo, '
+               . 'un prix ajusté ou une republication la remettent en tête.',
+               '#/modifier/' . $l['id']);
+        $pdo->prepare('UPDATE listings SET essouffle_at = ? WHERE id = ?')->execute([now_iso(), $l['id']]);
+        $fait['essouffle']++;
+      }
+    } catch (Throwable $e) { /* idem */ }
+
+    // 3) BILAN DE LA SEMAINE — le lundi seulement, aux comptes professionnels.
+    if (gmdate('N') === '1') {
+      try {
+        $depuisJour = gmdate('Y-m-d', time() - 7 * 86400);
+        $depuisIso  = gmdate('Y-m-d\TH:i:s\Z', time() - 7 * 86400);
+        $pros = $pdo->query("SELECT id FROM users WHERE pro_status = 'approuve'")->fetchAll();
+        foreach ($pros as $p) {
+          $uid = (string) $p['id'];
+          $lst = $pdo->prepare('SELECT id FROM listings WHERE user_id = ?'); $lst->execute([$uid]);
+          $ids = array_column($lst->fetchAll(), 'id');
+          $vues = 0;
+          if ($ids) {
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) FROM listing_view_days
+                                WHERE day >= ? AND listing_id IN ($in)");
+            $q->execute(array_merge([$depuisJour], $ids));
+            $vues = (int) $q->fetchColumn();
+          }
+          $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ? AND created_at >= ?');
+          $q->execute([$uid, $depuisIso]);
+          $contacts = (int) $q->fetchColumn();
+          $q = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE seller_id = ? AND status = 'finalise'
+                              AND COALESCE(finalized_at, created_at) >= ?");
+          $q->execute([$uid, $depuisIso]);
+          $ventes = (int) $q->fetchColumn();
+          if ($vues === 0 && $contacts === 0 && $ventes === 0) continue;  // rien à raconter
+          notify($pdo, $uid, 'bilan', 'Votre semaine sur Chap.ci 📊',
+                 $vues . ' vue' . ($vues > 1 ? 's' : '') . ', ' . $contacts . ' contact'
+                 . ($contacts > 1 ? 's' : '') . ', ' . $ventes . ' vente' . ($ventes > 1 ? 's' : '')
+                 . '. Le détail est dans Statistiques de vente.',
+                 '#/compte');
+          $fait['bilan']++;
+        }
+      } catch (Throwable $e) { /* idem */ }
+    }
+
+    jout($fait);
+  }
+
   if ($path === 'cron/review-invites' && $method === 'GET') {
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
       jerr('Clé invalide.', 403);

@@ -41,6 +41,11 @@ import { fetchVerifyStatus, sendEmailCode, confirmEmailCode, type VerifyStatus }
 import { MyAdsPanel } from '../components/MyAdsPanel'
 import { MesAnnonces } from '../components/MesAnnonces'
 import { MesCommandes } from '../components/MesCommandes'
+import { StatsPro } from '../components/StatsPro'
+import {
+  FicheProEdit, ProfilPhoto, ReglagesNotifs, SecuriteCompte, AdressePosition,
+  DialogueDeconnexion,
+} from '../components/ReglagesPro'
 import { PasswordStrength } from '../components/PasswordStrength'
 import { checkPassword } from '../lib/password'
 import { useIsAdmin } from '../lib/useIsAdmin'
@@ -57,8 +62,8 @@ import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
 import { fetchMyListings, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
 import { isPhp } from '../lib/backend'
-import { TableauPro } from './EspacePro'
-import { phpProStatut } from '../lib/php'
+import { TableauPro, type Tableau as DonneesPro } from './EspacePro'
+import { phpProStatut, phpProTableau } from '../lib/php'
 import {
   phpNotifPrefs, phpSaveNotifPrefs, type NotifPrefs,
   phpPushDevices, phpPushUnsubscribe, phpPushTest, type PushAppareil,
@@ -68,6 +73,23 @@ import { downscaleImage } from '../lib/image'
 import type { Listing, Order, Review } from '../types'
 
 type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'pubs' | 'params'
+  // Les écrans de la console professionnelle (planches validées le 27/08).
+  | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse'
+
+/** Le titre de chaque écran du compte — un seul endroit où le lire. */
+const TITRES: Partial<Record<Tab, string>> = {
+  ventes: 'Tableau de bord',
+  annonces: 'Mes annonces',
+  achats: 'Mes commandes',
+  pubs: 'Mes publicités',
+  stats: 'Statistiques de vente',
+  fiche: 'Ma fiche professionnelle',
+  profil: 'Profil & photo',
+  notifs: 'Notifications',
+  securite: 'Sécurité',
+  adresse: 'Adresse & localisation',
+  params: 'Compte & sécurité',
+}
 
 const statusLabel: Record<string, { label: string; cls: string }> = {
   en_cours: { label: 'En cours', cls: 'bg-amber-50 text-amber-700' },
@@ -99,6 +121,22 @@ export function Profile() {
     const t = (location.state as { tab?: Tab } | null)?.tab
     if (t) setTab(t)
   }, [location.state])
+
+  // La fiche professionnelle, pour les écrans de la console. `versionPro`
+  // s'incrémente après chaque enregistrement : la console et la fiche relisent
+  // alors les mêmes valeurs, sans qu'on ait à recharger la page.
+  const [proTableau, setProTableau] = useState<DonneesPro | null>(null)
+  const [versionPro, setVersionPro] = useState(0)
+  const rechargerPro = () => setVersionPro((v) => v + 1)
+  useEffect(() => {
+    if (!isPhp || !user || !proApprouve) { setProTableau(null); return }
+    let actif = true
+    phpProTableau<DonneesPro>(7).then((t) => actif && setProTableau(t)).catch(() => {})
+    return () => { actif = false }
+  }, [user, proApprouve, versionPro])
+
+  // ⑭ Se déconnecter : une question, pas un piège.
+  const [demandeSortie, setDemandeSortie] = useState(false)
   const [purchases, setPurchases] = useState<Order[]>([])
   const [sales, setSales] = useState<Order[]>([])
   const [myReviews, setMyReviews] = useState<Review[]>([])
@@ -253,8 +291,14 @@ export function Profile() {
               ses paramètres soient inclus dans son tableau de bord pro ». */}
           {proApprouve && (
             <div className="mt-6">
-              <TableauPro dansCompte onOnglet={setTab} onDeconnexion={logout} />
+              <TableauPro key={versionPro} dansCompte onOnglet={setTab}
+                onDeconnexion={() => setDemandeSortie(true)} />
             </div>
+          )}
+
+          {/* ⑭ Se déconnecter — une question, pas un piège. */}
+          {demandeSortie && (
+            <DialogueDeconnexion onRester={() => setDemandeSortie(false)} onSortir={logout} />
           )}
 
           {!proApprouve && (
@@ -340,17 +384,7 @@ export function Profile() {
             >
               <ArrowLeft size={20} />
             </button>
-            <h1 className="font-display text-xl font-black text-ink">
-              {tab === 'ventes'
-                ? 'Tableau de bord'
-                : tab === 'annonces'
-                  ? 'Mes annonces'
-                  : tab === 'achats'
-                    ? 'Mes commandes'
-                    : tab === 'pubs'
-                      ? 'Mes publicités'
-                      : 'Compte & sécurité'}
-            </h1>
+            <h1 className="font-display text-xl font-black text-ink">{TITRES[tab] ?? 'Compte & sécurité'}</h1>
           </div>
         )}
 
@@ -556,6 +590,39 @@ export function Profile() {
 
         {/* PUBLICITÉS — audience, coût, historique, prolongation */}
         {tab === 'pubs' && user && <MyAdsPanel />}
+
+        {/* STATISTIQUES DE VENTE — le chemin de l'acheteur (planche 2) */}
+        {tab === 'stats' && user && <StatsPro />}
+
+        {/* MA FICHE PROFESSIONNELLE (planche 3) */}
+        {tab === 'fiche' && user && (
+          proTableau ? (
+            <FicheProEdit
+              pro={proTableau.pro}
+              banniere={proTableau.pro.banniere}
+              logo={proTableau.pro.logo}
+              onEnregistre={() => rechargerPro()}
+            />
+          ) : (
+            <Empty text="Votre fiche professionnelle se charge…" />
+          )
+        )}
+
+        {/* PROFIL & PHOTO */}
+        {tab === 'profil' && user && (
+          <ProfilPhoto nomEnseigne={proTableau?.pro.nom} onChange={() => rechargerPro()} />
+        )}
+
+        {/* NOTIFICATIONS */}
+        {tab === 'notifs' && user && <ReglagesNotifs pro={proApprouve} />}
+
+        {/* SÉCURITÉ */}
+        {tab === 'securite' && user && (
+          <SecuriteCompte onMotDePasse={() => setTab('params')} onDoubleAuth={() => setTab('params')} />
+        )}
+
+        {/* ADRESSE & LOCALISATION */}
+        {tab === 'adresse' && user && <AdressePosition onChange={() => rechargerPro()} />}
 
         {/* ANNONCES */}
         {tab === 'annonces' && (
