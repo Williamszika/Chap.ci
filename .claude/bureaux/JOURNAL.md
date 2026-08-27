@@ -4371,3 +4371,27 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - Livraison : `chapcitableaux.zip` (remplace tout). Empreintes : API `d02d56bd2972`
   · SEO `c57f0f1c6e55` · Site `195335cbe419`. L'app v1.22 du téléphone du Patron
   n'est pas concernée par ce zip (elle parle au serveur, qui reste compatible).
+
+### 2026-08-27 (après-midi) — [Développement] Le compte d'un professionnel tient entier dans son tableau de bord
+- Demande : « je veux que lorsqu'un compte est pro, tous ses paramètres soient inclus
+  dans son tableau de bord pro » → aperçu d'abord (méthode acquise), validé par
+  « je veux que ce soit exactement comme sur les images, pas de différences ».
+- Appliqué à l'identique. La page Compte d'un PRO devient une console unique :
+  sous les chiffres, trois sections de tuiles portant chacune leur compteur —
+  **Gérer ma boutique** (annonces, messages avec le nombre de sans-réponse en rouge,
+  commandes, favoris, statistiques, publicités), **Mon entreprise** (fiche
+  professionnelle complète), **Mon compte & sécurité** (profil, notifications,
+  sécurité avec pastille verte si 2FA, adresse, aide, contact) — puis Se déconnecter.
+  La carte de profil et les deux listes de réglages disparaissent pour les pros :
+  elles SONT devenues des tuiles. Les comptes ordinaires : rien ne change.
+- Serveur : `/pro/tableau` gagne un bloc `compte` (fiche + 2FA + annonces masquées et
+  vendues + favoris + commandes en cours/finalisées + campagnes actives et échéance).
+- App : mêmes sections, mais **uniquement les tuiles qui mènent quelque part** —
+  l'app n'a pas d'écran Commandes/Statistiques/Publicités côté vendeur, donc sa
+  section boutique compte 4 tuiles (annonces, messages, favoris, publier) au lieu de 6.
+  Écrit noir sur blanc pour qu'aucun bureau ne croie à un oubli. 30 clés ×6 langues.
+- Vérifié en vrai : banc SQLite garni (fiche complète, 2FA, campagne active), session
+  injectée (la 2FA du compte de test empêche le parcours de connexion du robot), page
+  photographiée ordinateur + téléphone — conforme à la maquette.
+- Livraison `chapciconsolepro.zip` : API `f669afeacadf` · SEO `c57f0f1c6e55` ·
+  Site `7d54e0f73abf`. L'app demande une reconstruction sur le Mac du Patron.
