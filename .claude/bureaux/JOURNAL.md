@@ -4512,3 +4512,37 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Sans danger (personne ne les demande) mais à purger un jour.
 - **Reste en attente du Patron** : la tâche cron quotidienne `rappels-pro`, et la
   question du NOM COMMERCIAL — faut-il le verrouiller comme le type et le RCCM ?
+
+### 2026-08-27 (21 h) — [Design] Qui suit une annonce · la réponse automatique — EN LIGNE
+- **Demande du Patron** : notifier le professionnel quand une de ses annonces est mise en
+  favori ET savoir QUI ; proposer des réponses automatiques quand on le contacte, que le
+  professionnel peut pré-remplir.
+- **Qui suit l'annonce** : la notification nomme la personne (professionnels approuvés
+  seulement ; anonyme pour les autres). Le ❤ de chaque ligne de « Mes annonces » ouvre la
+  liste — nom, commune, date. La commune est ce qui sert : pour quel quartier ajuster le
+  prix, quelle annonce republier. Route `GET /listings/{id}/favoris`, refusée à qui n'est
+  pas propriétaire (403) et aux comptes non professionnels.
+- **Ce que nommer n'ouvre PAS**, et l'écran l'écrit : le vendeur ne peut toujours pas
+  écrire le premier — créer une conversation reste réservé à l'acheteur. Sans cette
+  garantie, la demande aurait donné un outil de relance à qui n'a rien demandé.
+- **La réponse automatique** : `users.pro_auto_reply` + `pro_auto_reply_on`, routes
+  `GET/POST /pro/reponse-auto`, bloc dans Messages avec trois phrases proposées. Elle part
+  au PREMIER message de l'acheteur seulement (vérifié : elle ne repart pas au second).
+- **LE PIÈGE ÉVITÉ, à retenir.** Une réponse automatique qui compterait comme une réponse
+  ferait afficher 100 % de taux de réponse dès le premier jour, viderait l'écran « Sans
+  réponse », et l'acheteur découvrirait le mensonge en attendant trois jours. Le message
+  porte donc `messages.auto = 1`, et TROIS endroits l'excluent : le taux de réponse, la
+  liste `aRepondre` du tableau de bord, et le classement de l'écran Messages via un
+  nouveau champ `dernierHumain` (le dernier expéditeur hors automate). Une conversation à
+  laquelle seule la machine a répondu reste en rouge. L'acheteur voit « 🤖 Réponse
+  automatique » sous la bulle.
+- **Vérifié au banc, parcours complet** : activation · premier message (la phrase part) ·
+  second message (elle ne repart pas) · taux inchangé (89 %) · conversation toujours dans
+  « Sans réponse ». Photographié : la ligne « à répondre » en rouge SOUS la réponse auto.
+- **Extrait par le Patron à 18 h 57.** Empreintes vérifiées : API `d52b45f36843` ✓ ·
+  SEO `c57f0f1c6e55` ✓ · Site `b5ea6e60f0d3` ✓. Les deux nouvelles routes répondent
+  « Non authentifié » et non « Route inconnue ».
+- **Toujours en attente du Patron** : la tâche cron `rappels-pro` ; la question du nom
+  commercial (le verrouiller comme le type et le RCCM ?).
+- **Reste à faire** : reporter les quatorze écrans + ces deux nouveautés dans
+  l'application Flutter, qui n'en a encore aucun.
