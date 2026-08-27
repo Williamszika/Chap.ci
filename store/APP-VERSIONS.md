@@ -123,11 +123,11 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `28db01e` (HEAD au moment où le Patron a demandé le build, 27/08 — contient le rebranding, « la croisée », l'espace pro et le tableau de bord professionnel façon CRM) |
-| Date du build | à construire par le Patron sur son Mac le 27/08/2026 (instructions données ce soir : `git pull` → `flutter pub get` → `dart run tool/preparer_plateformes.dart` → `flutter build appbundle --release`). |
-| Poids de l'AAB | — (à relever après le build : Finder → clic droit sur `app-release.aab` → « Lire les informations ») |
+| **Commit** | `48c5045` (le build réel du 27/08 — rebranding, « la croisée », espace pro, tableau de bord professionnel façon CRM, et le correctif des deux espaces insécables qui avaient cassé le premier essai) |
+| Date du build | **27 août 2026** — construite par le Patron sur son Mac. Premier essai en échec : deux opérateurs `%` du panneau pro avaient reçu une espace insécable (remplacement typographique trop large, mes excuses au compilateur) ; corrigé (`48c5045`), second essai réussi en 41 s. Icônes et splash du nouveau logo régénérés par `preparer_plateformes` au passage. |
+| Poids de l'AAB | **60,3 Mo** (lu dans le Terminal du Patron : « ✓ Built …/app-release.aab (60.3MB) »). |
 | **minSdk 22 · targetSdk 36** | même clé de signature que v1.20/v1.21. |
-| État Play | **DÉCISION DU PATRON DU 27/08 : partir aux tests fermés sans attendre le verdict v1.21.** En téléversant, la v1.22 **remplace la v1.21 dans la file d'examen** — c'est voulu et sans risque pour l'échéance du 31/08 : la v1.22 porte elle aussi `targetSdk 36`. Le compte à rebours des 14 jours de test n'est pas affecté (il dépend des testeurs inscrits, pas des versions). NON VÉRIFIÉ tant que le Patron n'a pas confirmé le téléversement. |
+| État Play | construite le 27/08, **à téléverser aux tests fermés** (décision du Patron : sans attendre le verdict v1.21, qu'elle remplace dans la file d'examen — voulu et sans risque, `targetSdk 36` tenu ; le compte à rebours des 14 jours n'est pas affecté). NON VÉRIFIÉ tant que le Patron n'a pas confirmé l'envoi à l'examen. |
 | Contenu | nouveau logo « chap-chap » partout (icônes, splash, en-tête), animation d'ouverture « la croisée », espace professionnel complet (demande, fiches admin, notifications à lien direct), **tableau de bord professionnel façon CRM** (périodes 7/30 j, tendances, courbe des vues, messages en attente, top annonces avec photos, activité — 27 clés ×6 langues). |
 
 **Ce qu'elle apportera — le rebranding « chap-chap »** : le losange fendu remplace l'épingle

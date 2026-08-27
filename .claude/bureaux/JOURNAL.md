@@ -4327,3 +4327,21 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   test n'est pas affecté. Fiche v1.22 du registre mise à jour (commit `28db01e`),
   instructions de build données pour le Mac (pull → pub get → preparer_plateformes →
   build appbundle) avec les étapes Play Console et les notes de version.
+
+### 2026-08-27 (nuit) — [Livraison] v1.22 construite : 60,3 Mo, prête pour les tests fermés
+- Premier essai de build en échec — et la faute est au Développement : le remplacement
+  typographique « espace insécable avant % » avait aussi touché **deux opérateurs
+  modulo** du panneau pro (`i % pas`, `weekday % 7`). Dart refuse U+00A0 hors des
+  chaînes ; TypeScript l'accepte, d'où un site qui compilait et une app qui non.
+  **Leçon : jamais de remplacement global sur du code — cibler les chaînes.**
+- Correctif `48c5045`, second essai réussi en 41 s : `app-release.aab`, **60,3 Mo**
+  (v1.21 pesait « non relevé » ; la voilà, la référence). Icônes et splash du nouveau
+  logo régénérés proprement par `preparer_plateformes` (targetSdk 36 confirmé au
+  passage dans le Terminal du Patron).
+- À surveiller (pas bloquant) : Flutter avertit que `flutter_web_auth_2` applique
+  encore l'ancien Kotlin Gradle Plugin — « Future versions of Flutter will fail to
+  build ». À la prochaine montée de version de l'app, vérifier si une version du
+  paquet compatible « Built-in Kotlin » est parue.
+- Reste au Patron : téléverser l'AAB (Tests fermés → Créer une release), notes de
+  version fournies, puis « Envoyer les modifications pour examen ». La v1.22 y
+  remplacera la v1.21 — assumé et consigné.
