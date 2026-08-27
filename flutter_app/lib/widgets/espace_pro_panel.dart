@@ -480,7 +480,7 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
       for (var i = 0; i < serie.length; i++)
         if (i == serie.length - 1)
           tr(context, 'pro.tab.auj')
-        else if (i % pas == 0)
+        else if (i % pas == 0)
           _jourCourt('${serie[i]['jour']}', abr)
         else
           ''
@@ -490,7 +490,7 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
   static String _jourCourt(String jour, List<String> abr) {
     final d = DateTime.tryParse('${jour}T12:00:00Z');
     if (d == null || abr.length < 7) return '';
-    return '${abr[d.weekday % 7]} ${d.day}';
+    return '${abr[d.weekday % 7]} ${d.day}';
   }
 
   Widget _ligneTop(Map a, {required bool premier}) {
