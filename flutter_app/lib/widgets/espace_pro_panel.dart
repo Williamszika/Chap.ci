@@ -138,7 +138,7 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                     '★ $note ($avis ${tr(context, 'pro.tab.avis')})',
                   if (depuis is int && depuis > 0)
                     '${tr(context, 'pro.tab.depuis')} '
-                        '${tempsEcouleTr(context, depuis)}',
+                        '${dureeTr(context, depuis)}',
                 ].join(' · '),
                 style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.75),

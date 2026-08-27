@@ -80,6 +80,65 @@ String tempsEcouleTr(BuildContext context, int timestampMs) {
   }
 }
 
+/// Durée nue depuis [timestampMs] (« 7 h », « 3 jours ») — sans le « il y a »,
+/// pour les tournures du type « Professionnel depuis 7 h ».
+String dureeTr(BuildContext context, int timestampMs) {
+  final code = Localizations.localeOf(context).languageCode;
+  final maintenant = DateTime.now().millisecondsSinceEpoch;
+  final secondes = ((maintenant - timestampMs) / 1000).round();
+  final minutes = (secondes / 60).round();
+  final heures = (minutes / 60).round();
+  final jours = (heures / 24).round();
+  final semaines = (jours / 7).round();
+  final mois = (jours / 30).round();
+  final ans = (jours / 365).round();
+
+  switch (code) {
+    case 'en':
+      if (minutes < 60) return '$minutes${_nbsp}min';
+      if (heures < 24) return '$heures${_nbsp}h';
+      if (jours < 7) return '$jours ${jours == 1 ? 'day' : 'days'}';
+      if (semaines < 5) return '$semaines wk';
+      if (mois < 12) return '$mois mo';
+      return '$ans ${ans == 1 ? 'year' : 'years'}';
+    case 'es':
+      if (minutes < 60) return '$minutes${_nbsp}min';
+      if (heures < 24) return '$heures${_nbsp}h';
+      if (jours < 7) return '$jours ${jours == 1 ? 'día' : 'días'}';
+      if (semaines < 5) return '$semaines sem.';
+      if (mois < 12) return '$mois meses';
+      return '$ans años';
+    case 'pt':
+      if (minutes < 60) return '$minutes${_nbsp}min';
+      if (heures < 24) return '$heures${_nbsp}h';
+      if (jours < 7) return '$jours ${jours == 1 ? 'dia' : 'dias'}';
+      if (semaines < 5) return '$semaines sem.';
+      if (mois < 12) return '$mois meses';
+      return '$ans anos';
+    case 'ar':
+      if (minutes < 60) return '$minutes${_nbsp}د';
+      if (heures < 24) return '$heures${_nbsp}س';
+      if (jours < 7) return '$jours أيام';
+      if (semaines < 5) return '$semaines أسابيع';
+      if (mois < 12) return '$mois أشهر';
+      return '$ans سنوات';
+    case 'zh':
+      if (minutes < 60) return '$minutes 分钟';
+      if (heures < 24) return '$heures 小时';
+      if (jours < 7) return '$jours 天';
+      if (semaines < 5) return '$semaines 周';
+      if (mois < 12) return '$mois 个月';
+      return '$ans 年';
+    default: // fr
+      if (minutes < 60) return '$minutes${_nbsp}min';
+      if (heures < 24) return '$heures${_nbsp}h';
+      if (jours < 7) return '$jours${_nbsp}${jours == 1 ? 'jour' : 'jours'}';
+      if (semaines < 5) return '$semaines${_nbsp}sem.';
+      if (mois < 12) return '$mois${_nbsp}mois';
+      return '$ans${_nbsp}an${ans > 1 ? 's' : ''}';
+  }
+}
+
 /// Distance lisible (« à 3 km »), dans la langue de l'application.
 /// Mêmes paliers que `formatDistance` (api/geo.dart).
 String formatDistanceTr(BuildContext context, double km) {
