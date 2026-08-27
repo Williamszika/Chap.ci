@@ -8182,6 +8182,90 @@ try {
           $sem  = $u1(gmdate('Y-m-d\TH:i:s\Z', time() - 7 * 86400));
           return ['jour' => $jour, 'semaine' => $sem, 'parJour' => (int) round($sem / 7)];
         })(),
+        // LES TENDANCES de l'aperçu : chaque grand chiffre avec la valeur de la
+        // période précédente, pour la flèche. Les deux fenêtres (7 et 30 jours)
+        // partent ensemble : le sélecteur du front bascule sans rappeler le
+        // serveur.
+        'tendances' => (function () use ($pdo, $cut): array {
+          $un = function (string $sql, array $args) use ($pdo): int {
+            try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+            catch (Throwable $e) { return 0; }
+          };
+          $fen = function (int $j) use ($un, $cut): array {
+            $d = $cut($j); $d2 = $cut($j * 2);
+            $paire = fn(string $sql) => [
+              'n'    => $un($sql . ' AND created_at >= ?', [$d]),
+              'prev' => $un($sql . ' AND created_at >= ? AND created_at < ?', [$d2, $d]),
+            ];
+            return [
+              'visiteurs' => [
+                'n'    => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits
+                               WHERE (authed = 0 OR authed IS NULL) AND created_at >= ?', [$d]),
+                'prev' => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits
+                               WHERE (authed = 0 OR authed IS NULL) AND created_at >= ? AND created_at < ?',
+                              [$d2, $d]),
+              ],
+              'inscrits'  => $paire('SELECT COUNT(*) FROM users WHERE 1=1'),
+              'annonces'  => $paire('SELECT COUNT(*) FROM listings WHERE 1=1'),
+              'commandes' => $paire('SELECT COUNT(*) FROM orders WHERE 1=1')
+                + ['valeur' => $un('SELECT COALESCE(SUM(oi.price),0) FROM order_items oi
+                                    JOIN orders o ON o.id = oi.order_id WHERE o.created_at >= ?', [$d])],
+              'abonnes'   => $paire('SELECT COUNT(*) FROM newsletter WHERE 1=1'),
+            ];
+          };
+          return ['j7' => $fen(7), 'j30' => $fen(30)];
+        })(),
+        // La note moyenne du site, tous les avis confondus.
+        'noteMoyenne' => (function () use ($pdo): array {
+          try {
+            $r = $pdo->query('SELECT AVG(rating) AS m, COUNT(*) AS n FROM reviews')->fetch();
+            $n = (int) ($r['n'] ?? 0);
+            return ['note' => $n > 0 ? round((float) $r['m'], 1) : null, 'avis' => $n];
+          } catch (Throwable $e) { return ['note' => null, 'avis' => 0]; }
+        })(),
+        // La file « à traiter » : ce que les compteurs seuls ne disent pas —
+        // l'ancienneté des signalements, la dernière demande Pro en attente,
+        // l'heure du dernier message de contact. Chaque champ respecte la
+        // permission de son onglet (null = masqué à ce modérateur).
+        'aTraiter' => (function () use ($pdo, $config, $u): array {
+          $out = ['signalementsVieux' => 0, 'proEnAttente' => null,
+                  'proDernier' => null, 'contactDernier' => null];
+          try {
+            $s = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE status = 'open' AND created_at < ?");
+            $s->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 48 * 3600)]);
+            $out['signalementsVieux'] = (int) $s->fetchColumn();
+          } catch (Throwable $e) {}
+          if (admin_can($config, $pdo, $u, 'users')) {
+            try {
+              $out['proEnAttente'] = (int) $pdo->query(
+                "SELECT COUNT(*) FROM users WHERE pro_status = 'en_attente'")->fetchColumn();
+              $r = $pdo->query("SELECT pro_nom, pro_demande_at FROM users
+                                WHERE pro_status = 'en_attente'
+                                ORDER BY pro_demande_at DESC LIMIT 1")->fetch();
+              if ($r) {
+                $out['proDernier'] = ['nom' => (string) ($r['pro_nom'] ?? ''),
+                                      'quand' => iso_to_ms($r['pro_demande_at'] ?? null)];
+              }
+            } catch (Throwable $e) { $out['proEnAttente'] = 0; }
+          }
+          if (admin_can($config, $pdo, $u, 'contact')) {
+            try {
+              $r = $pdo->query('SELECT created_at FROM contact_messages
+                                WHERE handled = 0 OR handled IS NULL
+                                ORDER BY created_at DESC LIMIT 1')->fetch();
+              if ($r) $out['contactDernier'] = iso_to_ms($r['created_at']);
+            } catch (Throwable $e) {}
+          }
+          return $out;
+        })(),
+        // La courbe « visiteurs et inscriptions » de l'aperçu : 30 jours, le
+        // front n'en montre que 7 quand la période courte est choisie. Même
+        // règle de comptage que l'onglet Visiteurs (public seul, équipe exclue).
+        'serieVisites' => admin_can($config, $pdo, $u, 'visitors')
+          ? array_map(
+              fn($b) => ['jour' => $b['key'], 'visiteurs' => $b['visitors'], 'inscrits' => $b['signups']],
+              visit_series($pdo, 'day')['series'])
+          : null,
         // LE PARCOURS. Quatre marches, dans l'ordre où une personne les monte :
         // elle arrive, elle crée un compte, elle publie, elle vend. Chaque
         // marche est un SOUS-ENSEMBLE de la précédente (sauf la première), donc

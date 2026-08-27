@@ -461,26 +461,107 @@ function VisiteursGeo() {
  * fenêtre choisie, pas l'activité de la fenêtre : sinon un vendeur inscrit
  * l'an dernier gonflerait le « ont publié » des sept derniers jours.
  */
-type FenetreParcours = 'j7' | 'j30' | 'tout'
-const FENETRES: [FenetreParcours, string][] = [
-  ['j7', '7 jours'], ['j30', '30 jours'], ['tout', 'Depuis le début'],
-]
+/* ---- L'aperçu façon CRM (maquette validée par le Patron le 27/08) --------- */
 
-function Parcours({ p }: { p: NonNullable<AdminStats['parcours']> }) {
-  const [fenetre, setFenetre] = useState<FenetreParcours>('j30')
+/** La flèche de tendance d'un chiffre clé, comparée à la période précédente. */
+function ChipTendance({ n, prev, absolu = false }: { n: number; prev: number; absolu?: boolean }) {
+  if (prev <= 0 && n <= 0) return <span className="chip-delta bg-cream-100 text-gray-500">—</span>
+  if (prev <= 0) return <span className="chip-delta bg-emerald-50 text-emerald-700">▲ +{formatPrice(n)}</span>
+  const diff = n - prev
+  if (absolu) {
+    if (diff === 0) return <span className="chip-delta bg-cream-100 text-gray-500">=</span>
+    return diff > 0
+      ? <span className="chip-delta bg-emerald-50 text-emerald-700">▲ {formatPrice(diff)}</span>
+      : <span className="chip-delta bg-red-50 text-red-600">▼ {formatPrice(Math.abs(diff))}</span>
+  }
+  const pct = Math.round((diff / prev) * 100)
+  if (pct === 0) return <span className="chip-delta bg-cream-100 text-gray-500">=</span>
+  return pct > 0
+    ? <span className="chip-delta bg-emerald-50 text-emerald-700">▲ {pct} %</span>
+    : <span className="chip-delta bg-red-50 text-red-600">▼ {Math.abs(pct)} %</span>
+}
+
+const JOURS_ABR = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam']
+function jourAbr(jour: string): string {
+  const d = new Date(`${jour}T12:00:00Z`)
+  return `${JOURS_ABR[d.getUTCDay()]} ${d.getUTCDate()}`
+}
+
+/** La courbe de l'aperçu : visiteurs uniques (ligne) et inscriptions (barres). */
+function CourbeVisites({ serie }: { serie: { jour: string; visiteurs: number; inscrits: number }[] }) {
+  const L = 660; const BAS = 168; const HAUT = 16; const G = 34
+  const max = Math.max(5, ...serie.map((p) => Math.max(p.visiteurs, p.inscrits)))
+  const cran = max <= 10 ? 2 : max <= 25 ? 5 : max <= 50 ? 10 : max <= 100 ? 20 : max <= 250 ? 50 : 100
+  const plafond = Math.ceil(max / cran) * cran
+  const x = (i: number) => serie.length < 2 ? G : G + (i * (L - G - 12)) / (serie.length - 1)
+  const y = (n: number) => BAS - (n / plafond) * (BAS - HAUT)
+  const pts = serie.map((p, i) => `${x(i).toFixed(1)},${y(p.visiteurs).toFixed(1)}`).join(' ')
+  const dernier = serie[serie.length - 1]
+  const pas = serie.length > 10 ? 5 : 1
+  return (
+    <svg viewBox="0 0 660 232" className="mt-2 w-full" role="img"
+      aria-label="Visiteurs uniques et inscriptions, jour par jour">
+      <defs>
+        <linearGradient id="aire-admin" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#F77F00" stopOpacity=".22" />
+          <stop offset="1" stopColor="#F77F00" stopOpacity=".02" />
+        </linearGradient>
+      </defs>
+      {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+        <line key={f} x1={G} x2={648} y1={BAS - f * (BAS - HAUT)} y2={BAS - f * (BAS - HAUT)}
+          stroke="#EFE6D7" strokeWidth="1" />
+      ))}
+      {[0, 0.5, 1].map((f) => (
+        <text key={`y${f}`} x={G - 6} y={BAS - f * (BAS - HAUT) + 3.5} fontSize="10"
+          fill="#9A9287" textAnchor="end" className="tnum">{Math.round(f * plafond)}</text>
+      ))}
+      {serie.map((p, i) => p.inscrits > 0 ? (
+        <rect key={p.jour} x={x(i) - 5} y={y(p.inscrits)} width="10" height={BAS - y(p.inscrits)}
+          rx="2" fill="#009E60" opacity=".85" />
+      ) : null)}
+      {serie.length > 1 && (
+        <>
+          <path fill="url(#aire-admin)"
+            d={`M${pts.split(' ').join(' L')} L${x(serie.length - 1)},${BAS} L${x(0)},${BAS} Z`} />
+          <polyline fill="none" stroke="#F77F00" strokeWidth="2.5" strokeLinejoin="round" points={pts} />
+        </>
+      )}
+      {dernier && dernier.visiteurs > 0 && (
+        <>
+          <circle cx={x(serie.length - 1)} cy={y(dernier.visiteurs)} r="4.5"
+            fill="#F77F00" stroke="#fff" strokeWidth="2" />
+          <text x={x(serie.length - 1)} y={y(dernier.visiteurs) - 9} fontSize="11" fontWeight="800"
+            fill="#C05E00" textAnchor="middle" className="tnum">{dernier.visiteurs}</text>
+        </>
+      )}
+      {serie.map((p, i) => {
+        const fin = i === serie.length - 1
+        if (!fin && i % pas !== 0) return null
+        return (
+          <text key={`e${p.jour}`} x={x(i)} y={226} fontSize="10.5" textAnchor="middle"
+            fill={fin ? '#1B1A17' : '#6B6459'} fontWeight={fin ? 800 : 400}>
+            {fin ? 'auj.' : jourAbr(p.jour)}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
+/** Le parcours — où ça fuit. Quatre marches en barres, la fenêtre suit le
+ *  sélecteur de période de l'aperçu, et la note désigne la marche à réparer. */
+function Parcours({ p, fenetre }: { p: NonNullable<AdminStats['parcours']>; fenetre: 'j7' | 'j30' }) {
   const d = p[fenetre]
-
   const marches = [
-    { e: '🚶', label: 'Sont venus sur le site', n: d.visiteurs, de: null as number | null, quoi: 'visiteurs uniques' },
-    { e: '👤', label: 'Ont créé un compte', n: d.comptes, de: d.visiteurs, quoi: 'des visiteurs' },
-    { e: '📦', label: 'Ont publié une annonce', n: d.publie, de: d.comptes, quoi: 'des inscrits' },
-    { e: '🤝', label: 'Ont vendu', n: d.vendu, de: d.publie, quoi: 'de ceux qui publient' },
+    { e: '🚶', label: 'Arrivés', n: d.visiteurs, de: null as number | null },
+    { e: '👥', label: 'Inscrits', n: d.comptes, de: d.visiteurs },
+    { e: '📦', label: 'Ont publié', n: d.publie, de: d.comptes },
+    { e: '🤝', label: 'Ont vendu', n: d.vendu, de: d.publie },
   ]
-  const plafond = Math.max(1, d.visiteurs, d.comptes)
-
+  const plafond = Math.max(1, ...marches.map((m) => m.n))
   // La marche la plus coûteuse : celle qui perd le plus de MONDE, pas le plus
-  // gros pourcentage. Perdre 136 personnes sur 148 compte plus que perdre 5
-  // vendeurs sur 5, même si le second fait 100 %.
+  // gros pourcentage. Perdre 136 personnes sur 148 compte plus que perdre 4
+  // vendeurs sur 5, même si le second fait 80 %.
   let pire: { i: number; perdus: number } | null = null
   marches.forEach((m, i) => {
     if (m.de === null || m.de === 0) return
@@ -488,80 +569,48 @@ function Parcours({ p }: { p: NonNullable<AdminStats['parcours']> }) {
     if (perdus > 0 && (!pire || perdus > pire.perdus)) pire = { i, perdus }
   })
   const goulot = pire as { i: number; perdus: number } | null
-
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-card">
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="font-display text-base font-bold text-ink">Le parcours</p>
-          <p className="text-xs text-gray-500">De la première visite à la première vente.</p>
-        </div>
-        <div className="flex gap-1 rounded-xl bg-gray-100 p-0.5">
-          {FENETRES.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setFenetre(id)}
-              className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold transition ${
-                fenetre === id ? 'bg-white text-ink shadow-sm' : 'text-gray-500'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <ol className="mt-3">
-        {marches.map((m, i) => {
+    <div className="flex flex-col rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
+      <p className="font-display text-[15px] font-extrabold text-ink">Le parcours — où ça fuit</p>
+      <p className="mt-0.5 text-xs text-gray-500">
+        Les {fenetre === 'j7' ? 7 : 30} derniers jours, marche par marche
+      </p>
+      <div className="mt-3 space-y-2">
+        {marches.map((m) => {
           const taux = m.de && m.de > 0 ? Math.round((m.n / m.de) * 100) : null
-          const perdus = m.de !== null ? Math.max(0, m.de - m.n) : 0
           return (
-            <li key={m.label}>
-              {/* La perte se lit ENTRE deux marches : c'est là qu'elle se produit. */}
-              {i > 0 && m.de !== null && (
-                <p className={`ml-1 border-l-2 py-1 pl-3 text-[12px] ${
-                  goulot?.i === i ? 'border-red-300 font-semibold text-red-600' : 'border-gray-200 text-gray-500'
-                }`}>
-                  {m.de === 0
-                    ? 'Personne à cette marche.'
-                    : perdus === 0
-                      ? 'Personne ne s’arrête ici.'
-                      : `↓ ${formatPrice(perdus)} s’arrêtent ici (${100 - (taux ?? 0)} %)`}
-                </p>
-              )}
-              <div className="flex items-center gap-3 py-1">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gray-100 text-[15px]" aria-hidden>{m.e}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline gap-2">
-                    <b className="font-display text-[19px] leading-none text-ink">{formatPrice(m.n)}</b>
-                    <span className="truncate text-[13px] text-gray-600">{m.label}</span>
-                    {taux !== null && <span className="shrink-0 text-[12px] text-gray-400">{taux} % {m.quoi}</span>}
+            <div key={m.label} className="flex items-center gap-2.5">
+              <span className="w-24 shrink-0 text-xs font-bold text-gray-600">{m.e} {m.label}</span>
+              <span className="h-[26px] flex-1 overflow-hidden rounded-lg bg-cream-100">
+                {m.n > 0 ? (
+                  <span
+                    className="tnum flex h-full min-w-[30px] items-center justify-end rounded-lg bg-gradient-to-r from-primary-500 to-primary-700 px-2 text-xs font-extrabold text-white"
+                    style={{ width: `${Math.max(9, (m.n / plafond) * 100)}%` }}>
+                    {formatPrice(m.n)}
                   </span>
-                  <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                    <span
-                      className={`block h-full rounded-full ${i === 3 ? 'bg-ivoire-green' : 'bg-primary-500'}`}
-                      style={{ width: `${Math.max(m.n > 0 ? 2 : 0, (m.n / plafond) * 100)}%` }}
-                    />
-                  </span>
-                </span>
-              </div>
-            </li>
+                ) : (
+                  <span className="flex h-full items-center px-2 text-xs font-bold text-gray-400">0</span>
+                )}
+              </span>
+              <span className="tnum w-9 shrink-0 text-right text-[11px] text-gray-400">
+                {taux !== null ? `${taux} %` : ''}
+              </span>
+            </div>
           )
         })}
-      </ol>
-
-      <p className="mt-3 rounded-xl bg-cream-100/70 px-3 py-2 text-[12.5px] leading-snug text-gray-700">
+      </div>
+      <p className="mt-3 flex-1 rounded-xl bg-cream-100/70 px-3 py-2 text-[12.5px] leading-snug text-gray-700">
         {d.visiteurs === 0 && d.comptes === 0 ? (
-          <>Aucune donnée sur cette période. Choisissez une fenêtre plus large.</>
+          <>Aucune donnée sur cette période — élargissez à 30 jours.</>
         ) : goulot === null ? (
           <>Aucune perte mesurable sur cette période.</>
         ) : (
           <>
-            <b>La marche qui coûte le plus</b> : « {marches[goulot.i - 1].label} » → « {marches[goulot.i].label} ».
-            {' '}{formatPrice(goulot.perdus)} personne{goulot.perdus > 1 ? 's' : ''} s’arrête{goulot.perdus > 1 ? 'nt' : ''} là.
-            {goulot.i === 1 && ' Le site ne convainc pas de s’inscrire — ou l’inscription arrive trop tôt.'}
-            {goulot.i === 2 && ' Des gens s’inscrivent puis ne publient rien : écrivez-leur depuis l’onglet Utilisateurs, filtre « Sans annonce ».'}
+            <b>La marche à réparer</b> : {formatPrice(marches[goulot.i].de ?? 0)} arrivent à
+            « {marches[goulot.i - 1].label} », {formatPrice(marches[goulot.i].n)} passent à
+            « {marches[goulot.i].label} ».
+            {goulot.i === 1 && ' Chaque % gagné ici vaut plus que tout le reste.'}
+            {goulot.i === 2 && ' Des gens s’inscrivent puis ne publient rien : écrivez-leur (Utilisateurs → « Sans annonce »).'}
             {goulot.i === 3 && ' Des annonces existent mais ne se vendent pas : prix, photos, ou pas assez d’acheteurs.'}
           </>
         )}
@@ -577,33 +626,88 @@ function Overview({ stats, onGo, canSee, owner, email }: {
   owner: boolean
   email: string
 }) {
-  // « Bonjour Fatou » : prénom déduit de l'email (fatou.moderation@… → Fatou).
-  const firstName = (email.split('@')[0] || '').split(/[._-]/)[0]
-  const greet = firstName ? firstName[0].toUpperCase() + firstName.slice(1) : ''
-  const allowed = Object.keys(PERM_LABELS).filter((k) => canSee(k as Tab)).map((k) => PERM_LABELS[k])
-  // 4 grandes cartes de l'artifact : emoji sur tuile teintée, gros chiffre,
-  // libellé + tendance 7 jours (▲ vert) — Signalements en alerte rouge.
-  const cards: { e: string; tint: string; label: string; value: number; tab: Tab; trend?: string | null; alert?: boolean }[] = [
-    { e: '👥', tint: 'bg-sky-100', label: 'Utilisateurs', value: stats.users, tab: 'users', trend: stats.periods && stats.periods.users.week > 0 ? `${formatPrice(stats.periods.users.week)} (7 j)` : null },
-    { e: '📦', tint: 'bg-ivoire-green/15', label: 'Annonces', value: stats.listings, tab: 'listings', trend: stats.periods && stats.periods.listings.week > 0 ? `${formatPrice(stats.periods.listings.week)} (7 j)` : null },
-    { e: '🚶', tint: 'bg-violet-100', label: 'Visites/jour', value: stats.visites?.parJour ?? 0, tab: 'visitors',
-      trend: stats.visites && stats.visites.jour > 0 ? `${formatPrice(stats.visites.jour)} aujourd’hui` : null },
-    { e: '🤝', tint: 'bg-amber-100', label: 'Commandes', value: stats.orders, tab: 'orders' },
-    { e: '🚩', tint: 'bg-red-100', label: 'Signalements', value: stats.reportsOpen ?? 0, tab: 'reports', alert: (stats.reportsOpen ?? 0) > 0 },
-  ]
-  // Un modérateur ne voit que les cartes des sections qu'il peut ouvrir.
-  const visible = cards.filter((c) => canSee(c.tab))
+  const { user } = useAuth()
+  const [periode, setPeriode] = useState<'j7' | 'j30'>('j7')
+  const jours = periode === 'j7' ? 7 : 30
 
-  // Nouvelles inscriptions : 7 derniers jours de la série — le jour le plus
-  // fort est en vert, comme la maquette.
-  const week = (stats.series ?? []).slice(-7).map((d) => ({
-    ...d,
-    letter: 'DLMMJVS'[new Date(d.date + 'T00:00:00Z').getUTCDay()],
-  }))
-  const maxUsers = Math.max(1, ...week.map((d) => d.users))
-  const weekTotal = week.reduce((s, d) => s + d.users, 0)
-
+  // « Bonsoir, Abraham » : le nom du profil s'il existe, sinon le début de
+  // l'email (fatou.moderation@… → Fatou).
+  const heure = new Date().getHours()
+  const salut = heure >= 18 || heure < 5 ? 'Bonsoir' : 'Bonjour'
+  const depuisEmail = (email.split('@')[0] || '').split(/[._-]/)[0]
+  const nom = (user?.user_metadata?.full_name || '').trim()
+    || (depuisEmail ? depuisEmail[0].toUpperCase() + depuisEmail.slice(1) : '')
+  const dateJour = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
   const sec = stats.security
+  const santeOk = sec ? sec.adminsIntegrity !== false && sec.alerts === 0 : null
+
+  const allowed = Object.keys(PERM_LABELS).filter((k) => canSee(k as Tab)).map((k) => PERM_LABELS[k])
+  const firstName = depuisEmail ? depuisEmail[0].toUpperCase() + depuisEmail.slice(1) : ''
+
+  // La file « à traiter » : chaque ligne respecte la permission de son onglet.
+  const at = stats.aTraiter
+  const dossiers: { n: number; titre: string; sous: string; action: string; tab: Tab; rouge?: boolean }[] = []
+  if (canSee('reports')) {
+    const n = stats.reportsOpen ?? 0
+    dossiers.push({
+      n, rouge: n > 0, titre: n > 1 ? 'Signalements ouverts' : 'Signalement ouvert',
+      sous: at && at.signalementsVieux > 0 ? `dont ${at.signalementsVieux} depuis plus de 48 h`
+        : n > 0 ? 'à examiner' : 'rien en attente',
+      action: 'Traiter', tab: 'reports',
+    })
+  }
+  if (canSee('users') && at?.proEnAttente != null) {
+    dossiers.push({
+      n: at.proEnAttente, titre: at.proEnAttente > 1 ? 'Demandes de compte Pro' : 'Demande de compte Pro',
+      sous: at.proEnAttente > 0 && at.proDernier
+        ? `« ${at.proDernier.nom} », ${timeAgo(at.proDernier.quand)}` : 'rien en attente',
+      action: 'Examiner', tab: 'pro',
+    })
+  }
+  if (canSee('contact') && stats.contactOpen != null) {
+    dossiers.push({
+      n: stats.contactOpen, titre: stats.contactOpen > 1 ? 'Messages de contact' : 'Message de contact',
+      sous: stats.contactOpen > 0 && at?.contactDernier ? `reçu ${timeAgo(at.contactDernier)}` : 'rien en attente',
+      action: 'Répondre', tab: 'contact',
+    })
+  }
+  if (canSee('ads') && stats.adsPending != null) {
+    dossiers.push({
+      n: stats.adsPending, titre: 'Publicités en attente',
+      sous: stats.adsPending > 0 ? 'à valider' : 'rien à valider',
+      action: 'Valider', tab: 'ads',
+    })
+  }
+  const totalDossiers = dossiers.reduce((s, d) => s + d.n, 0)
+
+  // Les chiffres clés de la période, chacun derrière sa permission.
+  const t = stats.tendances?.[periode]
+  const kpis: { icone: string; val: string; lib: string; chip: ReactNode; tab: Tab }[] = []
+  if (t) {
+    if (canSee('visitors')) kpis.push({ icone: '🚶', val: formatPrice(t.visiteurs.n), lib: `Visiteurs (${jours} j)`, chip: <ChipTendance n={t.visiteurs.n} prev={t.visiteurs.prev} />, tab: 'visitors' })
+    if (canSee('users')) kpis.push({ icone: '👥', val: formatPrice(t.inscrits.n), lib: 'Nouveaux inscrits', chip: <ChipTendance n={t.inscrits.n} prev={t.inscrits.prev} absolu />, tab: 'users' })
+    if (canSee('listings')) kpis.push({ icone: '📦', val: formatPrice(t.annonces.n), lib: 'Annonces publiées', chip: <ChipTendance n={t.annonces.n} prev={t.annonces.prev} absolu />, tab: 'listings' })
+    if (canSee('orders')) kpis.push({ icone: '🤝', val: formatPrice(t.commandes.n), lib: 'Commandes', chip: <span className="chip-delta bg-cream-100 text-gray-500">{formatFCFA(t.commandes.valeur)}</span>, tab: 'orders' })
+    if (canSee('reviews')) kpis.push({ icone: '⭐', val: stats.noteMoyenne?.note != null ? String(stats.noteMoyenne.note).replace('.', ',') : '—', lib: 'Note moyenne du site', chip: <span className="chip-delta bg-cream-100 text-gray-500">{stats.noteMoyenne?.avis ?? 0} avis</span>, tab: 'reviews' })
+    if (canSee('newsletter')) kpis.push({ icone: '📧', val: formatPrice(stats.newsletter), lib: 'Abonnés newsletter', chip: <ChipTendance n={t.abonnes.n} prev={t.abonnes.prev} absolu />, tab: 'newsletter' })
+  }
+
+  // La courbe : 30 jours reçus, on n'en montre que la période choisie.
+  const serie = (stats.serieVisites ?? []).slice(-jours)
+
+  // L'activité récente : dernières inscriptions et dernières annonces mêlées.
+  const activite: { quand: number; icone: string; fond: string; titre: string; sous: string }[] = [
+    ...(stats.recentUsers ?? []).map((ru) => ({
+      quand: ru.createdAt, icone: '👥', fond: 'bg-emerald-50',
+      titre: `Nouvelle inscription — ${ru.fullName}`, sous: ru.email,
+    })),
+    ...(canSee('listings') ? (stats.recentListings ?? []).map((l) => ({
+      quand: l.createdAt, icone: '📦', fond: 'bg-cream-100',
+      titre: `Nouvelle annonce — « ${l.title} »`,
+      sous: `${formatFCFA(l.price)}${l.commune ? ` · ${l.commune}` : ''}`,
+    })) : []),
+  ].sort((a, b) => b.quand - a.quand).slice(0, 6)
+
   const statusPill = (s?: string): [string, string] =>
     s === 'blocked'
       ? ['BLOQUÉ', 'bg-red-50 text-red-600']
@@ -611,116 +715,186 @@ function Overview({ stats, onGo, canSee, owner, email }: {
         ? ['RESTREINT', 'bg-amber-50 text-amber-700']
         : ['ACTIF', 'bg-ivoire-green/10 text-ivoire-green-dark']
 
-  // Largeur des cartes adaptée au nombre visible (modérateur : pleine largeur).
-  const colsCls = visible.length >= 4 ? 'lg:grid-cols-4' : visible.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
-
   return (
     <div className="space-y-3">
-      {/* Vue modérateur : note de bienvenue personnalisée (artifact) */}
+      {/* Le bandeau sombre : bonjour, l'état du jour, la période. */}
+      <div className="rounded-2xl bg-gradient-to-br from-[#1B1A17] to-[#3A3630] p-5 text-white shadow-card md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider">
+              🛡️ Tableau de bord
+            </span>
+            <p className="mt-3 font-display text-2xl font-extrabold leading-tight md:text-3xl">
+              {salut}{nom ? `, ${nom}` : ''}
+            </p>
+            <p className="mt-1 text-sm text-white/80">Voici Chap.ci aujourd’hui — et ce qui vous attend.</p>
+            <p className="mt-0.5 text-xs text-white/60">
+              {dateJour}
+              {santeOk === true && ' · Tout fonctionne ✓'}
+              {santeOk === false && ' · ⚠ Sécurité à vérifier'}
+            </p>
+          </div>
+          <div className="flex self-stretch rounded-full bg-white/15 p-1 sm:self-auto">
+            {([['j7', '7 jours'], ['j30', '30 jours']] as const).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setPeriode(id)}
+                className={`flex-1 whitespace-nowrap rounded-full px-4 py-1.5 text-[13px] font-bold transition sm:flex-none ${
+                  periode === id ? 'bg-white text-ink' : 'text-white/85'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Vue modérateur : note de bienvenue personnalisée. */}
       {!owner && (
         <div className="rounded-r-xl border-l-[3px] border-primary-500 bg-[#FFF6EC] px-3.5 py-3 text-[13px] leading-relaxed text-gray-700">
-          👋 Bonjour{greet ? ` ${greet}` : ''}. Vous voyez <b>uniquement</b> les fonctions autorisées
+          👋 Bonjour{firstName ? ` ${firstName}` : ''}. Vous voyez <b>uniquement</b> les fonctions autorisées
           par l’administrateur{allowed.length > 0 ? <> : {allowed.map((l, i) => <span key={l}>{i > 0 && ', '}<b>{l}</b></span>)}</> : null}.
           Le reste (utilisateurs, sauvegarde, clé cron…) reste réservé au propriétaire.
         </div>
       )}
 
-      {/* Cartes principales */}
-      <div className={`grid grid-cols-2 gap-3 ${colsCls}`}>
-        {visible.map((c) => (
-          <button
-            key={c.label}
-            type="button"
-            onClick={() => onGo(c.tab)}
-            className={`rounded-2xl bg-white p-4 text-left shadow-card transition hover:shadow-md active:scale-[0.98] ${c.alert ? 'ring-1 ring-red-300' : ''}`}
-          >
-            <span className={`grid h-11 w-11 place-items-center rounded-xl text-[20px] ${c.tint}`} aria-hidden>{c.e}</span>
-            <p className="mt-3 font-display text-[26px] font-extrabold leading-none text-ink md:text-[28px]">{formatPrice(c.value)}</p>
-            <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[13px] text-gray-500">
-              {c.label}
-              {c.alert ? (
-                <span className="font-bold text-red-500">à traiter</span>
-              ) : c.trend ? (
-                <span className="font-bold text-ivoire-green">▲ {c.trend}</span>
-              ) : null}
-            </p>
-          </button>
-        ))}
-      </div>
+      {/* La file « à traiter » : chaque dossier avec son bouton direct. */}
+      {dossiers.length > 0 && (
+        <div className="rounded-2xl border border-[#F3D9B8] bg-cream-100 p-4 md:p-5">
+          <p className="font-display text-[15px] font-extrabold text-ink">
+            {totalDossiers > 0
+              ? `⏳ ${totalDossiers} dossier${totalDossiers > 1 ? 's' : ''} attend${totalDossiers > 1 ? 'ent' : ''} une décision`
+              : '✅ Rien n’attend de décision'}
+          </p>
+          <div className="mt-1">
+            {dossiers.map((d, i) => (
+              <div key={d.titre}
+                className={`flex items-center gap-3 py-2.5 ${i > 0 ? 'border-t border-[#F3D9B8]' : ''}`}>
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-[13px] font-extrabold text-white ${
+                  d.n === 0 ? 'bg-[#D8D0C2]' : d.rouge ? 'bg-red-600' : 'bg-primary-500'}`}>
+                  {d.n}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-bold text-ink">{d.titre}</span>
+                  <span className="block truncate text-[11px] text-gray-500">{d.sous}</span>
+                </span>
+                {d.n > 0 && (
+                  <button type="button" onClick={() => onGo(d.tab)}
+                    className="shrink-0 rounded-xl border border-[#F3D9B8] bg-white px-3 py-1.5 text-xs font-extrabold text-primary-700">
+                    {d.action} →
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Le Parcours : la seule vue qui dise OÙ ça fuit. */}
-      {owner && stats.parcours && <Parcours p={stats.parcours} />}
+      {/* Les chiffres clés de la période, chacun avec sa tendance. */}
+      {kpis.length > 0 && (
+        <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${kpis.length >= 6 ? 'xl:grid-cols-6' : ''}`}>
+          {kpis.map((k) => (
+            <button key={k.lib} type="button" onClick={() => onGo(k.tab)}
+              className="rounded-2xl border border-line bg-white p-3.5 text-left shadow-card transition hover:shadow-md active:scale-[0.98]">
+              <span aria-hidden>{k.icone}</span>
+              <p className="tnum mt-1.5 font-display text-xl font-extrabold leading-tight text-ink">{k.val}</p>
+              <p className="text-[11px] text-gray-500">{k.lib}</p>
+              <p className="mt-1">{k.chip}</p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* La courbe visiteurs + inscriptions, et le parcours. */}
+      {(serie.length > 0 || (owner && stats.parcours)) && (
+        <div className="grid gap-3 lg:grid-cols-3">
+          {serie.length > 0 && (
+            <div className={`flex flex-col rounded-2xl border border-line bg-white p-4 shadow-card md:p-5 ${
+              owner && stats.parcours ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-display text-[15px] font-extrabold text-ink">Visiteurs et inscriptions</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {jours} derniers jours · public uniquement (équipe exclue)
+                  </p>
+                </div>
+                <div className="flex gap-3 text-[11.5px] font-semibold text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-[3px] bg-primary-500" />Visiteurs
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-[3px] bg-ivoire-green" />Inscriptions
+                  </span>
+                </div>
+              </div>
+              <div className="grid flex-1 content-center"><CourbeVisites serie={serie} /></div>
+            </div>
+          )}
+          {owner && stats.parcours && <Parcours p={stats.parcours} fenetre={periode} />}
+        </div>
+      )}
+
+      {/* L'activité récente du site, et la carte Sécurité (propriétaire). */}
+      {(activite.length > 0 || (owner && sec)) && (
+        <div className={`grid gap-3 ${activite.length > 0 && owner && sec ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
+          {activite.length > 0 && (
+            <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
+              <p className="font-display text-[15px] font-extrabold text-ink">Activité récente</p>
+              <div className="mt-2">
+                {activite.map((e, i) => (
+                  <div key={`${e.quand}-${i}`}
+                    className={`flex items-start gap-2.5 py-2 ${i > 0 ? 'border-t border-line' : ''}`}>
+                    <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] ${e.fond}`} aria-hidden>
+                      {e.icone}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-bold text-ink">{e.titre}</span>
+                      <span className="block truncate text-[11px] text-gray-500">{e.sous}</span>
+                    </span>
+                    <span className="whitespace-nowrap pt-0.5 text-[10.5px] text-gray-400">{timeAgo(e.quand)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {owner && sec && (
+            <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
+              <p className="font-display text-[15px] font-extrabold text-ink">🔐 Sécurité</p>
+              <div className="mt-2">
+                {([
+                  ['Intégrité des administrateurs',
+                    sec.adminsIntegrity === false ? 'table modifiée hors interface' : 'aucune modification hors interface',
+                    sec.adminsIntegrity !== false],
+                  ['Connexions échouées (7 j)',
+                    sec.failedLogins > 0 ? `${sec.failedLogins} tentative${sec.failedLogins > 1 ? 's' : ''}` : 'aucune',
+                    sec.failedLogins === 0],
+                  ['2FA du propriétaire', sec.owner2fa ? 'active' : 'inactive — activez-la', sec.owner2fa],
+                  ['Alertes e-mail (7 j)', sec.alerts > 0 ? `${sec.alerts} alerte${sec.alerts > 1 ? 's' : ''}` : 'aucune', sec.alerts === 0],
+                ] as [string, string, boolean][]).map(([titre, sous, ok], i) => (
+                  <div key={titre} className={`flex items-center gap-3 py-2.5 ${i > 0 ? 'border-t border-line' : ''}`}>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-bold text-ink">{titre}</span>
+                      <span className="block truncate text-[11px] text-gray-500">{sous}</span>
+                    </span>
+                    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-extrabold ${
+                      ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                      {ok ? '✓' : '!'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* D'où viennent les visiteurs — pays et ville, par jour / semaine / mois. */}
       {owner && <VisiteursGeo />}
 
-      {/* Graphique en barres + carte Sécurité — propriétaire uniquement (artifact) */}
-      {owner && (
-      <div className={`grid gap-3 ${sec ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : ''}`}>
-        <div className="rounded-2xl bg-white p-4 shadow-card">
-          <p className="font-display text-base font-bold text-ink">Nouvelles inscriptions</p>
-          <p className="text-xs text-gray-400">7 derniers jours{weekTotal > 0 ? ` · ${weekTotal} au total` : ''}</p>
-          <div className="mt-4 flex h-36 items-end justify-around gap-2 md:h-44">
-            {week.map((d) => {
-              const top = d.users === maxUsers && d.users > 0
-              return (
-                <div key={d.date} className="flex h-full w-full max-w-[52px] flex-col items-center justify-end gap-1.5">
-                  <div
-                    title={`${d.users} inscription${d.users > 1 ? 's' : ''}`}
-                    className={`w-full rounded-t-md ${top ? 'bg-gradient-to-b from-ivoire-green to-ivoire-green-dark' : 'bg-gradient-to-b from-primary-500 to-primary-700'}`}
-                    style={{ height: `${Math.max(4, (d.users / maxUsers) * 100)}%` }}
-                  />
-                  <span className="text-[11px] font-semibold text-gray-400">{d.letter}</span>
-                </div>
-              )
-            })}
-          </div>
-          {weekTotal === 0 && (
-            <p className="mt-2 text-center text-xs text-gray-400">Aucune inscription sur les 7 derniers jours.</p>
-          )}
-        </div>
-
-        {/* Sécurité — fournie par le serveur au propriétaire uniquement */}
-        {sec && (
-          <div className="rounded-2xl bg-white p-4 shadow-card">
-            <p className="font-display text-base font-bold text-ink">Sécurité</p>
-            <p className="text-xs text-gray-400">7 derniers jours</p>
-            <dl className="mt-2 divide-y divide-[#F3EADB] text-sm">
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-gray-700">Intégrité admins</dt>
-                <dd className={sec.adminsIntegrity === false ? 'font-bold text-red-600' : sec.adminsIntegrity ? 'font-bold text-ivoire-green' : 'text-gray-400'}>
-                  {sec.adminsIntegrity === false ? '⚠ altérée' : sec.adminsIntegrity ? '✓ ok' : '—'}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-gray-700">Connexions échouées</dt>
-                <dd className="tnum font-semibold text-gray-800">{sec.failedLogins}</dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-gray-700">2FA propriétaire</dt>
-                <dd className={sec.owner2fa ? 'font-bold text-ivoire-green' : 'font-bold text-amber-600'}>
-                  {sec.owner2fa ? '✓ active' : 'inactive'}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between py-2.5">
-                <dt className="text-gray-700">Alertes email</dt>
-                <dd className={sec.alerts > 0 ? 'tnum font-bold text-red-600' : 'text-gray-400'}>
-                  {sec.alerts > 0 ? sec.alerts : 'aucune'}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        )}
-      </div>
-      )}
-
-      {/* Vues de pages — graphique intelligent (permission « Visiteurs ») */}
+      {/* Vues de pages — graphique intelligent (permission « Visiteurs »). */}
       {canSee('visitors') && <PageViewsCard />}
 
-      {/* Vue modérateur : signalements ouverts à traiter (artifact) */}
+      {/* Vue modérateur : signalements ouverts à traiter. */}
       {!owner && canSee('reports') && <ModoReportsPanel onGo={onGo} />}
 
-      {/* Derniers utilisateurs — tableau de l'artifact (permission « Utilisateurs ») */}
+      {/* Derniers utilisateurs (permission « Utilisateurs »). */}
       {canSee('users') && (
       <div className="overflow-hidden rounded-2xl bg-white shadow-card">
         <p className="px-4 pb-2 pt-4 font-display text-base font-bold text-ink">Derniers utilisateurs</p>
@@ -764,6 +938,11 @@ function Overview({ stats, onGo, canSee, owner, email }: {
         )}
       </div>
       )}
+
+      <p className="px-1 text-center text-xs leading-relaxed text-gray-400">
+        Chiffres réels du site, équipe exclue des visites · Les tendances comparent
+        la période choisie à la précédente
+      </p>
     </div>
   )
 }

@@ -50,6 +50,24 @@ export interface AdminStats {
     owner2fa: boolean
     alerts: number
   } | null
+  /** Les tendances de l'aperçu : chaque chiffre avec la valeur de la période précédente. */
+  tendances?: Record<'j7' | 'j30', {
+    visiteurs: { n: number; prev: number }
+    inscrits: { n: number; prev: number }
+    annonces: { n: number; prev: number }
+    commandes: { n: number; prev: number; valeur: number }
+    abonnes: { n: number; prev: number }
+  }>
+  noteMoyenne?: { note: number | null; avis: number }
+  /** La file « à traiter » — chaque champ respecte la permission de son onglet (null = masqué). */
+  aTraiter?: {
+    signalementsVieux: number
+    proEnAttente: number | null
+    proDernier: { nom: string; quand: number } | null
+    contactDernier: number | null
+  }
+  /** 30 jours de visiteurs uniques et d'inscriptions (permission « Visiteurs »). */
+  serieVisites?: { jour: string; visiteurs: number; inscrits: number }[] | null
 }
 
 export type UserStatus = 'active' | 'restricted' | 'blocked'
