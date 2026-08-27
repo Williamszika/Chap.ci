@@ -4415,3 +4415,18 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   ancré après correction (`self-start` : le conteneur s'étirait).
 - Livraison `chapcivitrinepro.zip` : API `13c1c36ead45` · SEO `c57f0f1c6e55` ·
   Site `01e9067d97e9`.
+
+### 2026-08-27 (après-midi) — [Design] La bannière passe derrière les écritures — validé, livré
+- Retour du Patron sur l'aperçu : « il y a un fond orange qui fait qu'on ne peut pas
+  bien voir l'image derrière ». Le bloc plein est supprimé : l'image occupe TOUT le
+  bandeau, le contenu (badge, nom, secteur, note, périodes, boutons) se pose dessus.
+  Lisibilité assurée par un voile en dégradé (0x1F en haut → 0xA6 en bas) et une ombre
+  douce sous le texte — pas de rectangle qui salit la photo. Sans bannière : le
+  dégradé de la marque, inchangé. Site + app.
+- Le logo ne déborde plus vers le haut (il se pose sur l'image, bouton au coin).
+- **Validé par le Patron** (« c'est très bon ») puis livré : `chapcivitrinepro-3.zip`,
+  API `13c1c36ead45` · SEO `c57f0f1c6e55` · Site `c3cc823e7858`.
+- Méthode confirmée une fois de plus : montrer d'abord des PHOTOS DU SITE RÉEL (banc
+  garni + captures), pas un dessin. Les trois défauts de la page vendeur (logo rogné,
+  nom personnel au lieu du nom commercial, bouton Retour mal placé) n'ont été vus que
+  parce que la page a été photographiée pour l'aperçu.
