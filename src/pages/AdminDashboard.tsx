@@ -152,9 +152,21 @@ export function AdminDashboard() {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex shrink-0 items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${tab === id ? 'border border-primary-500 bg-primary-500 text-white shadow-sm' : 'border border-line2 bg-white text-gray-600 hover:bg-cream-100'}`}
+              className={`flex shrink-0 items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
+                tab === id ? 'border border-primary-500 bg-primary-500 text-white shadow-sm'
+                  // Un dossier Pro qui attend teinte SON onglet en orange, même
+                  // non sélectionné : une personne a payé son registre et attend
+                  // une décision, ça ne doit pas se rater d'un coup d'œil. Ton
+                  // clair, et non plein : le plein reste la marque du « vous
+                  // êtes ici », sinon deux onglets orange se disputent la place.
+                  : id === 'pro' && !!stats?.aTraiter?.proEnAttente
+                    ? 'border border-primary-500 bg-primary-100 font-bold text-primary-800'
+                    : 'border border-line2 bg-white text-gray-600 hover:bg-cream-100'}`}
             >
               {label}
+              {id === 'pro' && !!stats?.aTraiter?.proEnAttente && (
+                <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary-500 px-1 text-[10px] font-bold text-white">{stats.aTraiter.proEnAttente}</span>
+              )}
               {id === 'reports' && !!stats?.reportsOpen && (
                 <span className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{stats.reportsOpen}</span>
               )}

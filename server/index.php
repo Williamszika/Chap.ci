@@ -7465,33 +7465,66 @@ try {
     // un compte sur le site, la notification (cloche du site, cloche de
     // l'app, push) via notify().
     try {
-      $equipe = owner_emails($config);
+      // TOUT LE PERSONNEL est prévenu (demande du Patron, 28/08) — auparavant
+      // seuls le Patron et les modérateurs ayant le droit « utilisateurs »
+      // l'étaient, si bien qu'un dossier pouvait dormir tout un week-end parce
+      // que les deux seules personnes habilitées étaient absentes.
+      //
+      // Mais on ne dit pas la même chose à tout le monde : celui qui PEUT
+      // décider reçoit le lien direct vers le dossier ; les autres sont
+      // informés sans lien, parce qu'un lien qui mène à un onglet qu'on n'a pas
+      // le droit de voir est pire que pas de lien du tout.
+      $decideurs = array_map('strtolower', owner_emails($config));
+      $informes = [];
       try {
         foreach ($pdo->query('SELECT email, permissions, blocked FROM admins')->fetchAll() as $a) {
           if ((int) ($a['blocked'] ?? 0) === 1) continue;
+          $mail = strtolower(trim((string) $a['email']));
+          if ($mail === '') continue;
           $perms = json_decode((string) ($a['permissions'] ?? '[]'), true) ?: [];
-          if (in_array('users', $perms, true)) $equipe[] = strtolower(trim((string) $a['email']));
+          if (in_array('users', $perms, true)) $decideurs[] = $mail;
+          else $informes[] = $mail;
         }
       } catch (Throwable $e) { /* table admins absente : le Patron suffit */ }
-      $equipe = array_values(array_unique(array_filter($equipe)));
+      $decideurs = array_values(array_unique(array_filter($decideurs)));
+      // Personne ne reçoit deux fois le même message.
+      $informes = array_values(array_diff(array_unique(array_filter($informes)), $decideurs));
 
-      $inner = '<h2 style="margin-top:0">Nouvelle demande de compte Pro</h2>'
+      $entete = '<h2 style="margin-top:0">Nouvelle demande de compte Pro</h2>'
         . '<p><b>' . htmlspecialchars($nom) . '</b> (' . htmlspecialchars($type) . ')<br>'
         . 'Numéro : ' . htmlspecialchars($numero !== '' ? $numero : '— non fourni —') . '<br>'
-        . 'Compte : ' . htmlspecialchars((string) ($u['email'] ?? '')) . '</p>'
+        . 'Compte : ' . htmlspecialchars((string) ($u['email'] ?? '')) . '</p>';
+      $pourDecideurs = $entete
         . '<p>À valider dans le tableau de bord → Demandes Pro (vérifiez le RCCM sur rccm.ohada.org).</p>';
+      $pourInformes = $entete
+        . '<p>Vous recevez ce message pour information : la décision revient aux '
+        . 'personnes ayant le droit « Utilisateurs ».</p>';
+
       $stEquipe = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1');
-      foreach ($equipe as $to) {
-        send_mail($config, $to, 'Chap.ci — demande de compte Pro : ' . $nom,
-                  email_layout($config, $inner, 'Demande de compte professionnel'));
-        $stEquipe->execute([$to]);
-        $idEquipe = (string) ($stEquipe->fetchColumn() ?: '');
-        if ($idEquipe !== '' && $idEquipe !== (string) $u['id']) {
-          notify($pdo, $idEquipe, 'pro_demande', 'Demande de compte Pro 💼',
-                 $nom . ' (' . $type . ') attend votre décision — Tableau de bord → Demandes Pro.',
-                 '#/admin?onglet=pro&demande=' . $u['id']);
+      $prevenir = function (array $gens, string $corps, string $genre, string $texte, string $lien)
+                  use ($config, $pdo, $stEquipe, $nom, $u): void {
+        foreach ($gens as $to) {
+          send_mail($config, $to, 'Chap.ci — demande de compte Pro : ' . $nom,
+                    email_layout($config, $corps, 'Demande de compte professionnel'));
+          $stEquipe->execute([$to]);
+          $idEquipe = (string) ($stEquipe->fetchColumn() ?: '');
+          // On ne se notifie pas soi-même : un membre de l'équipe peut très
+          // bien déposer sa propre demande de compte professionnel.
+          if ($idEquipe !== '' && $idEquipe !== (string) $u['id']) {
+            notify($pdo, $idEquipe, $genre, 'Demande de compte Pro 💼', $texte, $lien);
+          }
         }
-      }
+      };
+      // Deux GENRES de notification, et c'est volontaire : l'application ouvre
+      // l'écran de décision dès qu'elle voit le type « pro_demande ». L'envoyer
+      // à quelqu'un qui n'a pas le droit « utilisateurs » le ferait atterrir sur
+      // un refus. Le type « pro_demande_info » ne déclenche aucune ouverture.
+      $prevenir($decideurs, $pourDecideurs, 'pro_demande',
+                $nom . ' (' . $type . ') attend votre décision — Tableau de bord → Demandes Pro.',
+                '#/admin?onglet=pro&demande=' . $u['id']);
+      $prevenir($informes, $pourInformes, 'pro_demande_info',
+                $nom . ' (' . $type . ') vient de demander un compte professionnel.',
+                '');
     } catch (Throwable $e) { /* l'e-mail peut rater, le dossier est déposé */ }
     jout(['ok' => true, 'status' => 'en_attente']);
   }

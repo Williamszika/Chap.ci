@@ -4689,3 +4689,36 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Pour le Patron** : la correction Flutter est dans le dépôt mais **n'atteindra
   l'application de test qu'après une reconstruction de l'AAB sur son Mac** — le
   keystore ne quitte pas sa machine.
+
+### 2026-08-28 16:10 — [Bâtisseur] Une demande de compte Pro ne peut plus dormir
+- **Demande du Patron** : « lorsqu'une demande de compte pro arrive, tout le personnel
+  de Chap.ci ; le bouton doit être orange avec le nombre de demandes ; et les admins et
+  les modérateurs reçoivent des notifications dans le site et l'app ».
+- **Ce qui existait déjà, vérifié avant d'écrire quoi que ce soit** : l'e-mail et la
+  notification (cloche du site, cloche de l'app, push) partaient déjà à la déposition
+  d'un dossier ; l'application route même le type `pro_demande` droit sur son écran de
+  décision. Le compteur `aTraiter.proEnAttente` était déjà calculé par `admin/stats`.
+  **Deux des trois demandes étaient donc à moitié faites** — il aurait été facile de
+  tout réécrire.
+- **Ce qui manquait vraiment, et rien d'autre** : (1) seuls le Patron et les modérateurs
+  ayant le droit « utilisateurs » étaient prévenus — un dossier pouvait dormir un
+  week-end entier si ces deux-là étaient absents ; (2) le compteur, déjà calculé,
+  n'était affiché nulle part sur l'onglet.
+- **Deux genres de notification, et c'est le point délicat** : `pro_demande` pour ceux
+  qui peuvent décider (avec le lien direct vers le dossier), `pro_demande_info` pour le
+  reste du personnel (sans lien). L'application ouvre l'écran de décision dès qu'elle
+  voit `pro_demande` : l'envoyer à quelqu'un sans le droit « utilisateurs » l'aurait
+  fait atterrir sur un refus. Un lien qui mène à une porte fermée est pire que pas de
+  lien.
+- **Le bouton** est orange clair, cerclé d'orange, en gras, avec la pastille du nombre —
+  pas orange plein : le plein reste la marque du « vous êtes ici », sinon deux onglets
+  orange se disputent la place.
+- **Vérifié au banc, par une vraie demande déposée** (Aminata Koné → « Quincaillerie
+  Yopougon ») : `patron` et `mariam` (droit « utilisateurs ») reçoivent `pro_demande`
+  avec le lien ; `yao` (droit « annonces » seulement) reçoit `pro_demande_info` sans
+  lien. Trois prévenus au lieu de deux. Bouton mesuré : fond `rgb(255,237,213)`,
+  libellé « Demandes Pro 2 ».
+- **Deux modérateurs ont été ajoutés au banc PAR LA ROUTE OFFICIELLE**
+  (`POST /admin/moderators`, session déverrouillée), jamais par une insertion en base —
+  l'alerte `admins_tampered` se serait déclenchée. Le banc les garde : il n'avait aucun
+  modérateur, ce qui rendait invérifiable toute la logique de permissions.
