@@ -4581,3 +4581,41 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   attendu à 6 h. À vérifier dans Tâches auto : la ligne doit passer au vert.
 - **Reste** : l'application Flutter, qui n'a encore aucun des quatorze écrans ni les
   nouveautés du soir.
+
+### 2026-08-28 03:35 — [Bâtisseur] Les réponses automatiques deviennent trouvables
+- **Fait** : la même fonctionnalité a été demandée TROIS FOIS par le Patron alors
+  qu'elle était construite, déployée et fonctionnelle depuis la veille. Le défaut
+  n'était pas dans le code, il était dans l'endroit : les blocs « Réponse
+  automatique » et « Réponses toutes prêtes » vivaient tout en BAS de la liste des
+  messages, sous la condition `compte.acheteurs > 0 || filtre === 'sans'` — donc
+  invisibles tant qu'aucun acheteur n'avait écrit. On préparait sa phrase d'accueil
+  après avoir raté son premier client.
+- **La leçon, à garder** : une redemande n'est pas un oubli du Patron, c'est un
+  rapport de bogue sur l'emplacement. Avant de reconstruire, chercher où la chose
+  vit et qui peut la voir. `grep` sur le nom du composant a suffi ici — deux minutes
+  contre une journée de reconstruction inutile.
+- **Ce qui a été fait** : les deux blocs sortent dans
+  `src/components/ReponsesAuto.tsx` ; ils ont leur écran (`tab: 'reponses'` de la
+  page Compte), leur tuile dans « Gérer ma boutique » juste sous Messages, et l'écran
+  s'affiche même sans un seul acheteur. La tuile dit l'état sans qu'on l'ouvre —
+  « Active : « … » » + pastille ON, ou « Inactive · n phrases prêtes ». Il ne reste
+  dans Messages qu'une porte d'une ligne, en HAUT.
+- **Le pré-remplissage demandé** : les trois phrases proposées restent affichées même
+  quand une phrase est déjà écrite (un appui la remplace). Avant, elles
+  disparaissaient au premier mot tapé — ce qui était précisément l'inverse de ce
+  qu'il demandait. En revanche, dans « Réponses toutes prêtes », les modèles
+  disparaissent toujours dès qu'une phrase est enregistrée : les reproposer à côté de
+  « Je livre à Yopougon et Cocody, 2 000 FCFA » ne ferait que doubler la même phrase
+  en moins précis.
+- **Serveur** : `/pro/tableau` rend trois champs de plus dans le bloc `pro` —
+  `reponseAuto`, `reponseAutoTexte`, `reponsesPretes` — pour que la tuile connaisse
+  son état sans un second appel. La phrase d'accueil n'est montrée qu'aux comptes
+  approuvés, puisque c'est déjà ce que `POST /pro/reponse-auto` exige : montrer un
+  réglage qui répondrait par un refus est pire que ne pas le montrer.
+- **Empreintes du zip `chapci-reponses-automatiques.zip`** : API `d48d9dd084d7` ·
+  SEO `c57f0f1c6e55` (inchangée) · Site `e3bbb661f8a9`. Fichier repère pour la preuve
+  rouge/vert : `assets/Profile-DIbOckcH.js` (nouveau) contre
+  `assets/Profile-Dz1oGNs-.js` (ancien).
+- **Reste** : l'application Flutter, toujours sans aucun des quatorze écrans ni les
+  nouveautés de ces deux jours ; et la question en attente au Patron — le nom
+  commercial doit-il être verrouillé comme le type, le secteur et le RCCM ?
