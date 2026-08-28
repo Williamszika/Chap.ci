@@ -658,8 +658,14 @@ export async function phpProDemande(d: {
 }): Promise<void> {
   await req('/pro/demande', { method: 'POST', body: d })
 }
-export async function phpProTableau<T>(periode: 7 | 30 = 7): Promise<T> {
-  return req<T>(`/pro/tableau?periode=${periode}`)
+/**
+ * Le tableau de bord professionnel. Sans `userId`, c'est le sien ; avec, c'est
+ * celui d'un autre — réservé aux administrateurs qui ont le droit
+ * « utilisateurs », et rendu en lecture seule (le serveur renvoie `lecture`).
+ */
+export async function phpProTableau<T>(periode: 7 | 30 = 7, userId?: string): Promise<T> {
+  const cible = userId ? `&userId=${encodeURIComponent(userId)}` : ''
+  return req<T>(`/pro/tableau?periode=${periode}${cible}`)
 }
 /** Marquer une annonce vendue, ou la remettre en vente. */
 export async function phpSetListingSold(id: string, sold: boolean): Promise<void> {

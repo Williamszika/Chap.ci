@@ -7759,17 +7759,43 @@ try {
   // en best-effort : une table manquante donne des zéros, jamais une erreur.
   if ($path === 'pro/tableau' && $method === 'GET') {
     $u = require_user($pdo, $secret);
+    $uid = (string) $u['id'];
+    $emailCible = (string) ($u['email'] ?? '');
+
+    // VUE EN LECTURE SEULE D'UN ADMINISTRATEUR. Le Patron teste tout lui-même
+    // et n'a pas de compte professionnel : chaque écran pro lui était donc
+    // invisible, et il redemandait des choses déjà livrées. Un administrateur
+    // qui a le droit « utilisateurs », et dont la session est déverrouillée,
+    // peut regarder la console d'un professionnel telle que celui-ci la voit.
+    // Aucune écriture n'est possible par cette porte : la route est en GET.
+    $vise = trim((string) ($_GET['userId'] ?? ''));
+    $lecture = false;
+    if ($vise !== '' && $vise !== $uid) {
+      if (!admin_can($config, $pdo, $u, 'users')
+          || !admin_unlocked($config, $pdo, $secret, $u)) {
+        jerr('Non autorisé.', 403);
+      }
+      $ce = $pdo->prepare('SELECT email FROM users WHERE id = ?');
+      $ce->execute([$vise]);
+      $emailCible = (string) ($ce->fetchColumn() ?: '');
+      if ($emailCible === '') jerr('Compte introuvable.', 404);
+      $uid = $vise;
+      $lecture = true;
+      // Regarder le tableau de bord de quelqu'un se journalise : c'est un
+      // accès aux données d'un tiers, même sans y toucher.
+      log_security_event($pdo, 'pro_tableau_vue', (string) ($u['email'] ?? ''), $emailCible);
+    }
+
     $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at,
                                 pro_numero, pro_tel, pro_banniere, pro_logo,
                                 pro_description, pro_horaires,
                                 pro_auto_reply, pro_auto_reply_on
                          FROM users WHERE id = ?');
-    $st->execute([$u['id']]);
+    $st->execute([$uid]);
     $r = $st->fetch() ?: [];
     if ((string) ($r['pro_status'] ?? '') !== 'approuve') {
       jerr('Réservé aux comptes professionnels approuvés.', 403);
     }
-    $uid = (string) $u['id'];
     $periode = (($_GET['periode'] ?? '7') === '30') ? 30 : 7;
     $now = time();
     $jour = fn(int $t) => gmdate('Y-m-d', $t);
@@ -8061,7 +8087,7 @@ try {
       ],
       'compte' => [
         'nom' => (string) ($profil['full_name'] ?? ''),
-        'email' => (string) ($u['email'] ?? ''),
+        'email' => $emailCible,
         'commune' => (string) ($profil['commune'] ?? ''),
         // Les identifiants bruts du lieu : la fiche professionnelle en fait
         // « Abidjan · Abobo » sans avoir à interroger une seconde route.
@@ -8085,6 +8111,9 @@ try {
       ],
       'stats' => $stats,
       'periode' => $periode,
+      // Vrai quand un administrateur regarde la console de quelqu'un d'autre :
+      // l'écran se met alors en lecture seule et le dit en haut.
+      'lecture' => $lecture,
       'kpi' => $kpi,
       'tauxReponse' => $tauxReponse,
       'aRepondre' => $aRepondre,

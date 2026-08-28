@@ -60,6 +60,8 @@ export interface Tableau {
     avis: number
   }
   periode: number
+  /** Vrai quand un administrateur regarde la console de quelqu'un d'autre. */
+  lecture?: boolean
   kpi: Record<'vues' | 'contacts' | 'favoris' | 'ventes', { n: number; prev: number }>
   tauxReponse: number | null
   aRepondre: { n: number; noms: string[] }
@@ -260,12 +262,18 @@ const ETATS: Record<string, { texte: string; classe: string }> = {
 /** Le tableau de bord professionnel — aussi affiché en tête de la page
  *  Compte pour les comptes approuvés (`dansCompte` masque le lien « Toutes
  *  mes annonces », redondant à cet endroit). */
-export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
+export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId }: {
   dansCompte?: boolean
   /** Ouvre un onglet interne de la page Compte (annonces, achats, ventes, pubs, params). */
   onOnglet?: (onglet: 'annonces' | 'achats' | 'ventes' | 'pubs' | 'params'
     | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses') => void
   onDeconnexion?: () => void
+  /**
+   * Regarder la console d'UN AUTRE professionnel, en lecture seule. Réservé
+   * aux administrateurs ; le serveur refuse si le droit manque. Tout ce qui
+   * écrit — vitrine, tuiles, déconnexion — disparaît alors de l'écran.
+   */
+  userId?: string
 } = {}) {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -276,9 +284,11 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
   const [erreurImage, setErreurImage] = useState('')
   const champFichier = useRef<HTMLInputElement>(null)
   const cible = useRef<'banniere' | 'logo' | null>(null)
+  const lecture = !!userId
   useEffect(() => {
-    phpProTableau<Tableau>(periode).then(setT).catch((e) => setErreur((e as Error).message))
-  }, [periode])
+    setT(null); setErreur('')
+    phpProTableau<Tableau>(periode, userId).then(setT).catch((e) => setErreur((e as Error).message))
+  }, [periode, userId])
 
   if (erreur) return <p className="rounded-2xl bg-white p-6 text-center text-sm text-red-600 shadow-card">{erreur}</p>
   if (!t) return <div className="grid place-items-center py-20"><Loader2 className="animate-spin text-primary-500" size={24} /></div>
@@ -338,6 +348,20 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
       : 'Répondre même la nuit, en une phrase'
   return (
     <div className="space-y-4">
+      {/* La vue d'un administrateur : on le dit AVANT tout le reste, sinon on
+          croit lire ses propres chiffres et on prend une décision dessus. */}
+      {lecture && (
+        <div className="rounded-2xl border border-[#F3D9B8] bg-cream-100 px-4 py-3">
+          <p className="font-display text-[14px] font-extrabold text-ink">
+            👁️ Vue en lecture seule — la console de {t.pro.nom || 'ce professionnel'}
+          </p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-gray-600">
+            Vous voyez son tableau de bord tel qu’il le voit. Rien n’est modifiable d’ici,
+            et il n’est pas prévenu. Votre passage est inscrit au journal de sécurité.
+          </p>
+        </div>
+      )}
+
       {/* L'en-tête de marque : la VITRINE (bannière + logo), le badge, le nom
           commercial, la note, la période et les actions. La bannière et le logo
           se changent d'ici même (demande du Patron, 27/08). */}
@@ -357,13 +381,15 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
           <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700" />
         )}
 
-        <button onClick={() => choisirImage('banniere')} disabled={envoi !== null}
-          className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60">
-          {envoi === 'banniere'
-            ? <Loader2 size={14} className="animate-spin" />
-            : <Camera size={14} />}
-          {t.pro.banniere ? 'Changer la bannière' : 'Ajouter une bannière'}
-        </button>
+        {!lecture && (
+          <button onClick={() => choisirImage('banniere')} disabled={envoi !== null}
+            className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60">
+            {envoi === 'banniere'
+              ? <Loader2 size={14} className="animate-spin" />
+              : <Camera size={14} />}
+            {t.pro.banniere ? 'Changer la bannière' : 'Ajouter une bannière'}
+          </button>
+        )}
 
         <div className={`relative p-5 md:p-6 ${t.pro.banniere ? 'pt-16 md:pt-20' : ''}`}
           style={t.pro.banniere ? { textShadow: '0 1px 4px rgba(0,0,0,.55)' } : undefined}>
@@ -380,11 +406,13 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
                   </div>
                 )}
               </div>
-              <button onClick={() => choisirImage('logo')} disabled={envoi !== null}
-                aria-label={t.pro.logo ? 'Changer le logo' : 'Ajouter un logo'}
-                className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-primary-600 text-white shadow transition hover:bg-primary-700 disabled:opacity-60">
-                {envoi === 'logo' ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />}
-              </button>
+              {!lecture && (
+                <button onClick={() => choisirImage('logo')} disabled={envoi !== null}
+                  aria-label={t.pro.logo ? 'Changer le logo' : 'Ajouter un logo'}
+                  className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-primary-600 text-white shadow transition hover:bg-primary-700 disabled:opacity-60">
+                  {envoi === 'logo' ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />}
+                </button>
+              )}
             </div>
             <div className="min-w-0">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider">
@@ -412,14 +440,16 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
               ))}
             </div>
             <div className="flex gap-2 self-stretch sm:self-end">
-              <button onClick={() => navigate('/publier')}
-                className="flex-1 rounded-xl bg-white px-4 py-2 text-center text-[13px] font-extrabold text-primary-700 shadow sm:flex-none">
-                <Plus size={15} className="mr-1 inline-block align-[-2px]" />Publier
-              </button>
-              {user && (
-                <Link to={`/vendeur/${user.id}`}
+              {!lecture && (
+                <button onClick={() => navigate('/publier')}
+                  className="flex-1 rounded-xl bg-white px-4 py-2 text-center text-[13px] font-extrabold text-primary-700 shadow sm:flex-none">
+                  <Plus size={15} className="mr-1 inline-block align-[-2px]" />Publier
+                </button>
+              )}
+              {(userId ?? user?.id) && (
+                <Link to={`/vendeur/${userId ?? user?.id}`}
                   className="flex-1 rounded-xl border-[1.5px] border-white/70 px-4 py-2 text-center text-[13px] font-bold text-white sm:flex-none">
-                  Ma page vendeur
+                  {lecture ? 'Sa page vendeur' : 'Ma page vendeur'}
                 </Link>
               )}
             </div>
@@ -428,7 +458,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
         {erreurImage && (
           <p className="mt-3 rounded-xl bg-black/25 px-3 py-2 text-[12.5px] font-medium">{erreurImage}</p>
         )}
-        {(t.pro.banniere || t.pro.logo) && (
+        {!lecture && (t.pro.banniere || t.pro.logo) && (
           <p className="mt-2 text-[11px] text-white/60">
             Votre bannière et votre logo apparaissent aussi sur votre page vendeur.
             {t.pro.banniere && <> <button onClick={() => retirerImage('banniere')} className="underline">Retirer la bannière</button></>}
@@ -494,9 +524,11 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
                 {t.aRepondre.noms.length > 0 ? <>{t.aRepondre.noms.join(', ')} attend{t.aRepondre.n > 1 ? 'ent' : ''} depuis plus de 24 h. </> : null}
                 Répondre vite fait monter votre taux de réponse — et vos ventes.
               </p>
-              <button onClick={() => navigate('/messages', DEPUIS_COMPTE)} className="btn-primary mt-3 py-2.5 text-[13px]">
-                Répondre maintenant
-              </button>
+              {!lecture && (
+                <button onClick={() => navigate('/messages', DEPUIS_COMPTE)} className="btn-primary mt-3 py-2.5 text-[13px]">
+                  Répondre maintenant
+                </button>
+              )}
             </div>
           )}
 
@@ -578,14 +610,14 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
             Gérer ma boutique
           </p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <Tuile emoji="📦" fond="#FFF3E4" titre="Mes annonces"
+            <Tuile inerte={lecture} emoji="📦" fond="#FFF3E4" titre="Mes annonces"
               sous={[
                 `${s.annoncesActives} en ligne`,
                 c.annoncesMasquees > 0 ? `${c.annoncesMasquees} masquée${c.annoncesMasquees > 1 ? 's' : ''}` : '',
                 `${c.annoncesVendues} vendue${c.annoncesVendues > 1 ? 's' : ''}`,
               ].filter(Boolean).join(' · ')}
               onClick={() => onOnglet?.('annonces')} />
-            <Tuile emoji="💬" fond="#EDEFF2" titre="Messages"
+            <Tuile inerte={lecture} emoji="💬" fond="#EDEFF2" titre="Messages"
               sous={t.aRepondre.n > 0
                 ? `${t.aRepondre.n} sans réponse depuis 24 h`
                 : `${s.conversations} conversation${s.conversations > 1 ? 's' : ''}`}
@@ -597,22 +629,22 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
                 BAS de la liste des messages, invisible tant qu'aucun acheteur
                 n'avait écrit : on préparait sa phrase d'accueil après avoir
                 raté le premier client. La tuile dit son état sans l'ouvrir. */}
-            <Tuile emoji="🤖" fond="#EDEFF2" titre="Réponses automatiques"
+            <Tuile inerte={lecture} emoji="🤖" fond="#EDEFF2" titre="Réponses automatiques"
               sous={sousReponses}
               badge={t.pro.reponseAuto
                 ? <span className="grid h-5 place-items-center rounded-full bg-emerald-50 px-2 text-[10.5px] font-extrabold text-emerald-700">ON</span>
                 : undefined}
               onClick={() => onOnglet?.('reponses')} />
-            <Tuile emoji="🛍️" fond="#FFF6E0" titre="Mes commandes"
+            <Tuile inerte={lecture} emoji="🛍️" fond="#FFF6E0" titre="Mes commandes"
               sous={`${c.commandesEnCours} en cours · ${c.commandesFinalisees} finalisée${c.commandesFinalisees > 1 ? 's' : ''}`}
               onClick={() => onOnglet?.('achats')} />
-            <Tuile emoji="❤️" fond="#FBEAE7" titre="Mes favoris"
+            <Tuile inerte={lecture} emoji="❤️" fond="#FBEAE7" titre="Mes favoris"
               sous={`${c.favorisEnregistres} annonce${c.favorisEnregistres > 1 ? 's' : ''} surveillée${c.favorisEnregistres > 1 ? 's' : ''}`}
               onClick={() => navigate('/favoris', DEPUIS_COMPTE)} />
-            <Tuile emoji="📊" fond="#E4F5EC" titre="Statistiques de vente"
+            <Tuile inerte={lecture} emoji="📊" fond="#E4F5EC" titre="Statistiques de vente"
               sous="Le chemin de l’acheteur, vos heures, vos communes"
               onClick={() => onOnglet?.('stats')} />
-            <Tuile emoji="📣" fond="#FFF3E4" titre="Mes publicités"
+            <Tuile inerte={lecture} emoji="📣" fond="#FFF3E4" titre="Mes publicités"
               sous={c.pubsActives > 0
                 ? `${c.pubsActives} campagne${c.pubsActives > 1 ? 's' : ''} active${c.pubsActives > 1 ? 's' : ''}${finPub ? ` · se termine ${finPub}` : ''}`
                 : 'Audience, coût, prolongation'}
@@ -631,10 +663,12 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
                 <p className="font-display text-[15px] font-extrabold text-ink">Fiche professionnelle</p>
                 <p className="mt-0.5 text-xs text-gray-500">Ce que les acheteurs voient sur votre page vendeur</p>
               </div>
-              <button onClick={() => onOnglet?.('fiche')}
-                className="whitespace-nowrap text-xs font-bold text-primary-700">
-                Modifier ma fiche →
-              </button>
+              {!lecture && (
+                <button onClick={() => onOnglet?.('fiche')}
+                  className="whitespace-nowrap text-xs font-bold text-primary-700">
+                  Modifier ma fiche →
+                </button>
+              )}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-4 xl:grid-cols-4">
               <Champ etiquette="Nom commercial" valeur={t.pro.nom} />
@@ -647,8 +681,8 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
               <Champ etiquette="Badge PRO" ton="vert"
                 valeur={t.pro.depuis ? `✓ Actif depuis ${dateCourte(t.pro.depuis)}` : '✓ Actif'} />
               <Champ etiquette="Page publique" ton="orange"
-                valeur={user ? 'Voir ma page vendeur →' : '—'}
-                lien={user ? `/vendeur/${user.id}` : undefined} />
+                valeur={(userId ?? user?.id) ? (lecture ? 'Voir sa page vendeur →' : 'Voir ma page vendeur →') : '—'}
+                lien={(userId ?? user?.id) ? `/vendeur/${userId ?? user?.id}` : undefined} />
             </div>
           </div>
 
@@ -656,25 +690,25 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
             Mon compte &amp; sécurité
           </p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <Tuile emoji="👤" fond="#EDEFF2" titre="Profil & photo"
+            <Tuile inerte={lecture} emoji="👤" fond="#EDEFF2" titre="Profil & photo"
               sous={[c.nom, c.email].filter(Boolean).join(' · ')}
               onClick={() => onOnglet?.('profil')} />
-            <Tuile emoji="🔔" fond="#FFF3E4" titre="Notifications"
+            <Tuile inerte={lecture} emoji="🔔" fond="#FFF3E4" titre="Notifications"
               sous="Messages, favoris, rappels du professionnel"
               onClick={() => onOnglet?.('notifs')} />
-            <Tuile emoji="🔒" fond="#E4F5EC" titre="Sécurité"
+            <Tuile inerte={lecture} emoji="🔒" fond="#E4F5EC" titre="Sécurité"
               sous="Mot de passe · double authentification"
               badge={c.twofa
                 ? <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 text-[11px] font-extrabold text-emerald-700">✓</span>
                 : undefined}
               onClick={() => onOnglet?.('securite')} />
-            <Tuile emoji="📍" fond="#E8EEFB" titre="Adresse & localisation"
+            <Tuile inerte={lecture} emoji="📍" fond="#E8EEFB" titre="Adresse & localisation"
               sous={c.commune ? `${c.commune} · position enregistrée` : 'Ajoutez votre commune'}
               onClick={() => onOnglet?.('adresse')} />
-            <Tuile emoji="❓" fond="#FFF3E4" titre="Aide & support"
+            <Tuile inerte={lecture} emoji="❓" fond="#FFF3E4" titre="Aide & support"
               sous="Questions fréquentes, conseils vendeur"
               onClick={() => navigate('/aide', DEPUIS_COMPTE)} />
-            <Tuile emoji="🛡️" fond="#E4F5EC" titre="Contacter l’équipe"
+            <Tuile inerte={lecture} emoji="🛡️" fond="#E4F5EC" titre="Contacter l’équipe"
               sous="Une question, un doute, une annonce masquée"
               onClick={() => navigate('/assistance', DEPUIS_COMPTE)} />
           </div>
@@ -691,9 +725,11 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
       )}
 
       <p className="px-1 text-center text-xs leading-relaxed text-gray-400">
-        {dansCompte
-          ? <>Chiffres réels de votre compte, mis à jour en continu · Tout votre compte est ici — plus rien à chercher ailleurs</>
-          : <>Chiffres réels de votre compte, mis à jour en continu · Les tendances comparent la période choisie à la précédente</>}
+        {lecture
+          ? <>Vue en lecture seule · Les chiffres sont ceux de ce professionnel, pas les vôtres</>
+          : dansCompte
+            ? <>Chiffres réels de votre compte, mis à jour en continu · Tout votre compte est ici — plus rien à chercher ailleurs</>
+            : <>Chiffres réels de votre compte, mis à jour en continu · Les tendances comparent la période choisie à la précédente</>}
       </p>
     </div>
   )
@@ -706,21 +742,29 @@ function dateCourte(ms: number): string {
 
 /** Une tuile d'accès : emoji sur pastille teintée, titre, sous-titre chiffré,
  *  et à droite soit un compteur, soit le chevron. */
-function Tuile({ emoji, fond, titre, sous, badge, onClick }: {
+function Tuile({ emoji, fond, titre, sous, badge, onClick, inerte = false }: {
   emoji: string; fond: string; titre: string; sous: string
-  badge?: React.ReactNode; onClick: () => void
+  badge?: React.ReactNode; onClick?: () => void
+  /** Vue en lecture seule d'un administrateur : la tuile s'affiche avec son
+   *  chiffre, mais ne mène nulle part — appuyer l'emmènerait dans SES propres
+   *  réglages, pas dans ceux du professionnel qu'il regarde. */
+  inerte?: boolean
 }) {
+  const actif = !inerte && !!onClick
   return (
-    <button onClick={onClick}
-      className="flex items-start gap-3 rounded-2xl border border-line bg-white p-3.5 text-left shadow-card transition hover:shadow-md active:scale-[0.98]">
+    <button onClick={actif ? onClick : undefined} disabled={!actif}
+      className={`flex items-start gap-3 rounded-2xl border border-line bg-white p-3.5 text-left shadow-card ${
+        actif ? 'transition hover:shadow-md active:scale-[0.98]' : 'cursor-default'}`}>
       <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl text-[17px]"
         style={{ background: fond }} aria-hidden>{emoji}</span>
       <span className="min-w-0 flex-1">
         <span className="block text-[13.5px] font-extrabold text-ink">{titre}</span>
         <span className="mt-0.5 block text-[11.5px] leading-snug text-gray-500">{sous}</span>
       </span>
+      {/* Le chevron promet qu'on va quelque part : sur une tuile inerte, il
+          ment. Le compteur, lui, reste — c'est une information. */}
       <span className="grid shrink-0 self-center place-items-center">
-        {badge ?? <span className="text-gray-300" aria-hidden>›</span>}
+        {badge ?? (actif ? <span className="text-gray-300" aria-hidden>›</span> : null)}
       </span>
     </button>
   )

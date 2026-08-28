@@ -40,6 +40,7 @@ import {
   AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
 } from '../lib/ads'
 import { ComptabiliteTab } from '../components/ComptabiliteTab'
+import { TableauPro } from './EspacePro'
 import { AnimatedAdText } from '../components/AnimatedAdText'
 import { AdImageFill } from '../components/AdImageFill'
 import { AdTextControls } from '../components/AdTextControls'
@@ -1871,7 +1872,7 @@ function ProTab() {
   // Un dossier qui attend depuis plus de trois jours : la personne a payé son
   // registre, elle attend, et elle ne le dira pas — elle partira.
   const vieux = items.filter((d) => d.status === 'en_attente'
-    && d.demandeAt != null && Date.now() - d.demandeAt > 3 * 86400_000)
+    && !!d.demandeAt && Date.now() - d.demandeAt > 3 * 86400_000)
   // Sans numéro vérifiable, le dossier ne peut pas être contrôlé au registre :
   // il faut écrire au demandeur avant de décider.
   const sansNumero = items.filter((d) => d.status === 'en_attente' && !d.numero)
@@ -1926,7 +1927,7 @@ function ProTab() {
                 <p className="truncate font-display text-[15px] font-bold text-ink">{d.proNom}</p>
                 <p className="mt-0.5 text-xs text-gray-600">{PRO_TYPES[d.type] ?? d.type}</p>
                 <p className="mt-1 truncate text-xs text-gray-500">
-                  {d.nom ?? '—'} · {d.email}{d.demandeAt != null ? ` · ${timeAgo(d.demandeAt)}` : ''}
+                  {d.nom ?? '—'} · {d.email}{d.demandeAt ? ` · ${timeAgo(d.demandeAt)}` : ''}
                 </p>
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
@@ -1949,6 +1950,10 @@ function ProDetail({ demande: d, onBack }: { demande: AdminProDemande; onBack: (
   const [u, setU] = useState<AdminUserDetail | null>(null)
   const [uErr, setUErr] = useState('')
   const [busy, setBusy] = useState(false)
+  // Regarder sa console telle qu'il la voit. Sans cela, un administrateur qui
+  // n'a pas lui-même de compte professionnel ne peut vérifier AUCUN écran pro :
+  // il décrit des tuiles qu'il n'a jamais vues.
+  const [voirConsole, setVoirConsole] = useState(false)
   useEffect(() => {
     fetchAdminUserDetail(d.userId).then(setU).catch((e) => setUErr((e as Error).message))
   }, [d.userId])
@@ -1972,6 +1977,20 @@ function ProDetail({ demande: d, onBack }: { demande: AdminProDemande; onBack: (
   }
 
   const attente = d.status === 'en_attente'
+
+  // La console du professionnel, en plein écran, telle qu'il la voit.
+  if (voirConsole) {
+    return (
+      <div className="space-y-3">
+        <button onClick={() => setVoirConsole(false)}
+          className="flex items-center gap-1 text-sm font-semibold text-primary-600">
+          ← Revenir au dossier de {d.proNom}
+        </button>
+        <TableauPro dansCompte userId={d.userId} />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-primary-600">
@@ -1996,7 +2015,8 @@ function ProDetail({ demande: d, onBack }: { demande: AdminProDemande; onBack: (
           <InfoLigne l="Numéro officiel" v={d.numero ?? '— non fourni —'} />
           <InfoLigne l="Secteur" v={d.secteur ?? '—'} />
           <InfoLigne l="Téléphone pro" v={d.tel ?? '—'} />
-          <InfoLigne l="Déposée" v={d.demandeAt != null ? timeAgo(d.demandeAt) : '—'} />
+          {/* Une date à zéro n'est pas « il y a 56 ans », c'est une date absente. */}
+          <InfoLigne l="Déposée" v={d.demandeAt ? timeAgo(d.demandeAt) : '— inconnue —'} />
           {d.motif && <InfoLigne l="Motif du refus" v={d.motif} />}
         </dl>
         {attente && (
@@ -2050,6 +2070,25 @@ function ProDetail({ demande: d, onBack }: { demande: AdminProDemande; onBack: (
           changer son type, son secteur ni son numéro depuis son compte : ce
           sont les trois éléments contrôlés avant l'approbation. Quand il
           écrit « mon RCCM a changé », c'est ici que ça se règle. */}
+      {/* VOIR SA CONSOLE. Un administrateur n'a pas forcément de compte
+          professionnel — le Patron n'en a pas — et ne peut donc vérifier aucun
+          écran pro : les tuiles, les statistiques, les réponses automatiques
+          lui sont invisibles. Cette porte les lui ouvre, en lecture seule. */}
+      {d.status === 'approuve' && (
+        <button onClick={() => setVoirConsole(true)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-line2 bg-white p-4 text-left shadow-card transition hover:bg-cream-100">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cream-100 text-lg" aria-hidden>👁️</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-extrabold text-ink">Voir son tableau de bord</span>
+            <span className="mt-0.5 block text-xs leading-snug text-gray-500">
+              Sa console professionnelle telle qu’il la voit — chiffres, tuiles, réglages.
+              En lecture seule : rien n’est modifiable, et il n’est pas prévenu.
+            </span>
+          </span>
+          <span className="shrink-0 text-gray-300" aria-hidden>›</span>
+        </button>
+      )}
+
       {d.status === 'approuve' && <CorrigerFiche demande={d} onFait={onBack} />}
     </div>
   )
