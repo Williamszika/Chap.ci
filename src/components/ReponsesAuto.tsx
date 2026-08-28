@@ -17,7 +17,9 @@ import { Bascule } from './Bascule'
 /** Trois phrases proposées à qui n'a pas encore écrit la sienne. */
 const MODELES_AUTO = [
   'Bonjour et merci pour votre message. Je vous réponds dans la journée.',
-  'Bonjour ! Nous sommes ouverts du lundi au samedi. Je reviens vers vous très vite.',
+  // Espace insécable avant le « ! » : cette phrase part chez l'acheteur, la
+  // typographie française s'y applique comme dans un courrier.
+  'Bonjour ! Nous sommes ouverts du lundi au samedi. Je reviens vers vous très vite.',
   'Merci de votre intérêt. Dites-moi la quantité et votre commune, je vous fais un prix.',
 ]
 

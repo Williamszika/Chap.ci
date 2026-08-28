@@ -624,8 +624,13 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
     final url = (pro['banniere'] as String?) ?? '';
     return GestureDetector(
       onTap: () => _changerImage('banniere'),
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        // 48 dp de haut, la mesure que theme.dart impose déjà à tous les
+        // boutons standards. Celui-ci est fait main, il y échappait.
+        constraints: const BoxConstraints(minHeight: 48),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(12),
@@ -697,27 +702,39 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                   : _image(url),
             ),
           ),
+          // La pastille garde ses 28 dp — à 48 elle mangerait les deux tiers du
+          // logo, qui n'en fait que 68. C'est la ZONE TAPABLE qui passe à
+          // 48×48, transparente autour et alignée en bas à droite : la pastille
+          // ne bouge pas d'un pixel, le pouce ne la manque plus.
           Positioned(
             bottom: 0,
             right: 0,
             child: GestureDetector(
               onTap: () => _changerImage('logo'),
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: ChapColors.orange,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+              behavior: HitTestBehavior.opaque,
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Align(
+                  alignment: Alignment.bottomRight,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: ChapColors.orange,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: _envoiImage == 'logo'
+                        ? const Padding(
+                            padding: EdgeInsets.all(6),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.photo_camera_outlined,
+                            size: 13, color: Colors.white),
+                  ),
                 ),
-                child: _envoiImage == 'logo'
-                    ? const Padding(
-                        padding: EdgeInsets.all(6),
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.photo_camera_outlined,
-                        size: 13, color: Colors.white),
               ),
             ),
           ),

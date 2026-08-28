@@ -512,7 +512,7 @@ function CourbeVisites({ serie }: { serie: { jour: string; visiteurs: number; in
       </defs>
       {[0, 0.25, 0.5, 0.75, 1].map((f) => (
         <line key={f} x1={G} x2={648} y1={BAS - f * (BAS - HAUT)} y2={BAS - f * (BAS - HAUT)}
-          stroke="#EFE6D7" strokeWidth="1" />
+          className="stroke-line" strokeWidth="1" />
       ))}
       {[0, 0.5, 1].map((f) => (
         <text key={`y${f}`} x={G - 6} y={BAS - f * (BAS - HAUT) + 3.5} fontSize="10"

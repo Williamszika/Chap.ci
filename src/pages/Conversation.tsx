@@ -343,7 +343,7 @@ export function Conversation() {
                       <button
                         onClick={() => setMenu({ kind: 'msg', id: m.id })}
                         aria-label="Options du message"
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-gray-400 opacity-60 transition hover:bg-cream-100 md:opacity-0 md:group-hover:opacity-100"
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-400 opacity-60 transition hover:bg-cream-100 md:opacity-0 md:group-hover:opacity-100"
                       >
                         <MoreVertical size={16} />
                       </button>

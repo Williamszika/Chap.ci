@@ -216,7 +216,7 @@ function GraphVues({ serie }: { serie: { jour: string; n: number }[] }) {
       </defs>
       {[0, 0.25, 0.5, 0.75, 1].map((f) => (
         <line key={f} x1={G} x2={L - 12} y1={BAS - f * (BAS - HAUT)} y2={BAS - f * (BAS - HAUT)}
-          stroke="#EFE6D7" strokeWidth="1" />
+          className="stroke-line" strokeWidth="1" />
       ))}
       {[0, 0.5, 1].map((f) => (
         <text key={f} x={G - 6} y={BAS - f * (BAS - HAUT) + 3.5} fontSize="10"
@@ -383,7 +383,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
 
         {!lecture && (
           <button onClick={() => choisirImage('banniere')} disabled={envoi !== null}
-            className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-xl bg-black/45 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60">
+            className="absolute right-3 top-3 z-10 inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-black/45 px-3.5 text-[12px] font-bold text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-60">
             {envoi === 'banniere'
               ? <Loader2 size={14} className="animate-spin" />
               : <Camera size={14} />}
@@ -406,11 +406,16 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
                   </div>
                 )}
               </div>
+              {/* La pastille reste de 32 px — à 44 elle mangerait la moitié du
+                  logo. C'est la ZONE TAPABLE qui passe à 44×44, transparente
+                  autour : le pouce trouve le bouton, l'œil voit la pastille. */}
               {!lecture && (
                 <button onClick={() => choisirImage('logo')} disabled={envoi !== null}
                   aria-label={t.pro.logo ? 'Changer le logo' : 'Ajouter un logo'}
-                  className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-primary-600 text-white shadow transition hover:bg-primary-700 disabled:opacity-60">
-                  {envoi === 'logo' ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />}
+                  className="absolute -bottom-2.5 -right-2.5 grid h-11 w-11 place-items-center disabled:opacity-60">
+                  <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-primary-600 text-white shadow transition hover:bg-primary-700">
+                    {envoi === 'logo' ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />}
+                  </span>
                 </button>
               )}
             </div>

@@ -4655,3 +4655,37 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   `assets/AdminDashboard-aqZsBLvo.js` (nouveau) contre `AdminDashboard-_zkexaok.js`.
 - **Reste** : l'application Flutter ; et la question toujours en attente — le nom
   commercial doit-il être verrouillé comme le type, le secteur et le RCCM ?
+
+### 2026-08-28 14:30 — [Bâtisseur] Les cinq correctifs de l'Atelier, appliqués — et une erreur du Gardien
+- **Rapport de 🎨 L'Atelier appliqué en entier.** Les cinq constats ont été rouverts
+  ligne par ligne avant d'y toucher : les cinq disaient vrai, aux numéros de ligne
+  près (ceux d'`EspacePro.tsx` avaient bougé de quelques lignes dans la journée).
+- **Cibles tactiles** : le « ⋯ » d'un message passe de 32 à 44 px (mesuré au banc :
+  44×44). La vitrine professionnelle est corrigée **des deux côtés dans le même
+  geste** — site et application — puisque c'est le même défaut porté à l'identique.
+- **Deux écarts assumés par rapport à la proposition, et pourquoi** : le bouton logo
+  n'est PAS passé à 44 (web) ni 48 (app). La pastille visible ne fait que 32 px sur un
+  logo de 80 (68 dans l'app) : l'agrandir en aurait mangé la moitié. C'est la **zone
+  tapable** qui passe à 44/48, transparente autour, la pastille ne bougeant pas d'un
+  pixel — `HitTestBehavior.opaque` côté Flutter. Même bénéfice, aucun changement
+  visuel. Le bouton bannière, lui, gagne bien sa hauteur réelle (mesuré : 166×44).
+- **Tokens** : `stroke="#EFE6D7"` remplacé par `className="stroke-line"` dans les deux
+  courbes (pro et visiteurs). Vérifié dans le CSS construit : `.stroke-line{stroke:#efe6d7}`
+  — le token rend exactement l'ancienne couleur, régression refermée sans risque.
+- **Typographie** : espace insécable avant le « ! » de la phrase-modèle de réponse
+  automatique. Elle part réellement chez l'acheteur.
+- **⚠️ Le rapport de 🛡️ Le Gardien contient une erreur de fait, vérifiée deux fois** :
+  il annonce que la production sert `10a030c` (API `d48d9dd084d7`, Site `e3bbb661f8a9`)
+  et qu'un zip resterait à extraire. **C'est faux.** `/api/health` répond
+  `empreinte 156f84618e6c` · `empreinteSite 456053ad0e1b`, déposé à 04:47 — soit le
+  commit `67363e6`, la vue console pro. Dépôt et production concordent ; la seule
+  différence est `c05c9df`, qui n'est qu'une entrée de journal. Sa lecture des
+  empreintes était périmée. Le reste de sa ronde (garde d'accès, CSP, cron, modération)
+  a été recoupé et tient.
+- **À retenir sur la méthode** : un rapport de bureau se recoupe avant d'agir. Ici la
+  fausse alerte aurait coûté un zip refait pour rien ; à l'inverse, les cinq constats
+  de l'Atelier, eux, se sont tous vérifiés. L'un n'excuse pas l'autre, et ne le
+  condamne pas non plus.
+- **Pour le Patron** : la correction Flutter est dans le dépôt mais **n'atteindra
+  l'application de test qu'après une reconstruction de l'AAB sur son Mac** — le
+  keystore ne quitte pas sa machine.
