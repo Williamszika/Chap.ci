@@ -7393,11 +7393,23 @@ try {
     $pro = null;
     try {
       $pq = $pdo->prepare('SELECT pro_status, pro_nom, pro_type, pro_secteur,
-                                  pro_banniere, pro_logo, pro_numero,
+                                  pro_banniere, pro_logo, pro_numero, pro_decide_at,
                                   pro_description, pro_horaires FROM users WHERE id = ?');
       $pq->execute([$seg[1]]);
       $pr = $pq->fetch();
       if ($pr && (string) ($pr['pro_status'] ?? '') === 'approuve') {
+        // Les VENTES CONCLUES, rendues publiques à la demande du Patron
+        // (28/08). C'est le chiffre qui distingue une boutique qui tourne d'une
+        // vitrine à l'arrêt — et il ne se gonfle pas tout seul : il faut que
+        // l'acheteur ait confirmé la réception.
+        $ventes = 0;
+        try {
+          $vq = $pdo->prepare("SELECT COUNT(*) FROM orders
+                               WHERE seller_id = ? AND status = 'finalise'");
+          $vq->execute([$seg[1]]);
+          $ventes = (int) $vq->fetchColumn();
+        } catch (Throwable $e) { /* table absente : zéro, pas d'erreur */ }
+
         // La vitrine part avec la fiche : une bannière que personne ne voit
         // ne sert à rien — c'est justement ce que le professionnel montre.
         $pro = ['nom' => $pr['pro_nom'] ?: null, 'type' => $pr['pro_type'] ?: null,
@@ -7408,7 +7420,14 @@ try {
                 // ce que l'acheteur cherche avant de se decider.
                 'description' => $pr['pro_description'] ?: null,
                 'horaires' => $pr['pro_horaires'] ? (json_decode((string) $pr['pro_horaires'], true) ?: null) : null,
-                'numero' => $pr['pro_numero'] ?: null];
+                // LE NUMÉRO NE SORT PLUS. Le Patron a tranché le 28/08 : la page
+                // dit « Registre vérifié », pas le numéro. Le laisser dans la
+                // réponse le rendrait public quand même — il suffit de regarder
+                // ce que la page reçoit. Ne pas l'envoyer est la seule façon de
+                // ne pas le publier.
+                'registreVerifie' => trim((string) ($pr['pro_numero'] ?? '')) !== '',
+                'ventes' => $ventes,
+                'depuis' => iso_to_ms($pr['pro_decide_at'] ?? null)];
       }
     } catch (Throwable $e) { /* base pas migrée : pas de fiche pro */ }
     jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,

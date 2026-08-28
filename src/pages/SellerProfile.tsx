@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check, Timer } from 'lucide-react'
+import { categories } from '../data/categories'
+import {
+  EnTeteVitrine, ChiffresVitrine, PastilleOuverture, CarteHoraires, AProposVitrine,
+  FiltresBoutique, etatOuverture, pucesDeBoutique, filtrerParPuce, contientVitrine,
+  delaiPhrase,
+} from '../components/Vitrine'
 import { mediaUrl } from '../lib/native'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { useApp } from '../store/AppContext'
@@ -62,14 +68,6 @@ export function SellerProfile() {
     return () => { vivant = false }
   }, [id])
 
-  const delaiCourt = (s: number): string => {
-    if (s < 60) return 'moins d’une minute'
-    if (s < 3600) return `${Math.round(s / 60)} min`
-    if (s < 86400) { const h = Math.round(s / 3600); return `${h} h` }
-    const j = Math.round(s / 86400)
-    return `${j} jour${j > 1 ? 's' : ''}`
-  }
-
   // Contacter le vendeur : ouvre (ou crée) la conversation via l'une de ses annonces.
   async function contactSeller() {
     if (!user) {
@@ -101,133 +99,86 @@ export function SellerProfile() {
     toast.success(next ? `Vous suivez ${displayName}.` : `Vous ne suivez plus ${displayName}.`)
   }
 
+  // ─── LA VITRINE (planches validées le 28/08) ─────────────────────────────
+  // Un compte professionnel approuvé a droit à la vitrine complète ; un
+  // vendeur ordinaire garde la page simple, qui lui va très bien.
+  const pro = profile?.pro ?? null
+  const etat = etatOuverture(pro?.horaires)
+  const horaires = pro?.horaires && pro.horaires.length === 7 ? pro.horaires : null
+
+  // ④ Chercher et filtrer DANS la boutique.
+  const [q, setQ] = useState('')
+  const [puce, setPuce] = useState('tout')
+  const nomCategorie = (cid: string) =>
+    categories.find((c) => c.id === cid)?.name ?? cid
+  const puces = useMemo(
+    () => pucesDeBoutique(sellerListings, nomCategorie),
+    [sellerListings],
+  )
+  const annoncesVues = useMemo(() => {
+    const parPuce = filtrerParPuce(sellerListings, puce)
+    if (!q.trim()) return parPuce
+    return parPuce.filter((l) => contientVitrine(l.title, q)
+      || contientVitrine(l.description, q)
+      || contientVitrine(nomCategorie(l.categoryId), q))
+  }, [sellerListings, puce, q])
+
+  const fleche = (
+    <button onClick={() => navigate(-1)} aria-label="Retour"
+      className="grid h-11 w-11 place-items-center rounded-full bg-white/85 text-ink shadow-card backdrop-blur transition active:scale-95">
+      <ArrowLeft size={20} />
+    </button>
+  )
+
   return (
     <div className="min-h-screen bg-cream-200 md:mx-auto md:max-w-4xl">
-      {/* La bannière du professionnel — l'image qu'il a choisie dans son
-          espace pro. Les vendeurs ordinaires gardent le dégradé de la marque. */}
-      {profile?.pro?.banniere && (
-        <div className="relative h-32 w-full overflow-hidden md:h-44">
-          <img src={mediaUrl(profile.pro.banniere)} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#FFF6EA] to-transparent" />
-        </div>
-      )}
+      {pro ? (
+        <>
+          {/* ① L'en-tête de boutique */}
+          <EnTeteVitrine pro={pro} nom={displayName} lieu={location} retour={fleche}
+            badge={profile?.badge ? <VerifiedBadge kind={profile.badge} size={20} /> : undefined} />
 
-      {/* Couverture + en-tête vendeur */}
-      <header className={`safe-top relative bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 pt-3 ${
-        profile?.pro?.banniere ? '' : 'overflow-hidden'}`}>
-        <button
-          onClick={() => navigate(-1)}
-          aria-label="Retour"
-          className={`grid h-10 w-10 place-items-center rounded-full bg-white/80 text-ink shadow-card backdrop-blur transition active:scale-95 ${
-            profile?.pro?.banniere ? 'absolute left-4 -top-14 z-10' : ''}`}
-        >
-          <ArrowLeft size={20} />
-        </button>
+          {/* ③ Ouvert ou fermé, à la minute — la question qu'on se pose AVANT
+              d'écrire. Les horaires partaient déjà du serveur ; la page les
+              jetait. */}
+          {etat && <div className="px-4 pb-3"><PastilleOuverture etat={etat} /></div>}
 
-        <div className="mt-1 flex flex-col items-center text-center">
-          {/* Avatar — le logo du professionnel s'il en a un. */}
-          <div className={`grid h-24 w-24 place-items-center overflow-hidden bg-ivoire-green font-display text-4xl font-black text-white shadow-card ring-4 ring-white md:h-28 md:w-28 ${
-            profile?.pro?.logo ? 'rounded-3xl' : 'rounded-full'} ${profile?.pro?.banniere ? '-mt-16 md:-mt-20' : ''}`}>
-            {profile?.pro?.logo ? (
-              <img src={mediaUrl(profile.pro.logo)} alt={displayName} className="h-full w-full object-cover" />
-            ) : profile?.avatarUrl ? (
-              <img src={mediaUrl(profile.avatarUrl)} alt={displayName} className="h-full w-full object-cover" />
-            ) : (
-              displayName.charAt(0).toUpperCase()
-            )}
-          </div>
+          {/* ② Les quatre chiffres, choisis pour l'acheteur */}
+          <ChiffresVitrine reponse={reponse} note={avg} avis={count}
+            ventes={pro.ventes ?? 0} depuis={pro.depuis} />
 
-          {/* Nom + badge vérifié (bleu, uniquement si le vendeur est vérifié) */}
-          <h1 className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 font-display text-2xl font-black text-ink">
-            <span className="break-words">{displayName}</span>
-            {profile?.badge && <VerifiedBadge kind={profile.badge} size={22} />}
-          </h1>
-
-          {/* Métadonnées */}
-          {(location || count === 0) && (
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-sm text-gray-500">
-              {location && (
-                <span className="flex items-center gap-1">
-                  <MapPin size={14} className="text-primary-500" /> {location}
-                </span>
-              )}
-              {count === 0 && <span>Nouveau vendeur</span>}
-            </div>
-          )}
-
-          {/* Statistiques */}
-          <div className="mt-5 flex items-start justify-center gap-8 md:gap-12">
-            <div className="text-center">
-              <p className="tnum font-display text-xl font-black text-ink">{sellerListings.length}</p>
-              <p className="text-xs text-gray-500">annonces</p>
-            </div>
-            <div className="text-center">
-              <p className="tnum font-display text-xl font-black text-ink">{count > 0 ? avg.toFixed(1) : '—'}</p>
-              {count > 0 && (
-                <div className="mt-0.5 flex justify-center">
-                  <Stars value={avg} size={11} />
-                </div>
-              )}
-              <p className="text-xs text-gray-500">note</p>
-            </div>
-            <div className="text-center">
-              <p className="tnum font-display text-xl font-black text-ink">{count}</p>
-              <p className="text-xs text-gray-500">avis</p>
-            </div>
-          </div>
-
-          {reponse != null && (
-            <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-ivoire-green/10 px-3 py-1 text-xs font-semibold text-ivoire-green-dark">
-              <Timer size={13} /> Répond en {delaiCourt(reponse)} en général
-            </p>
-          )}
-
-          {/* Actions */}
-          <div className="mt-6 flex w-full max-w-xs items-center justify-center gap-3">
-            <button
-              onClick={contactSeller}
-              disabled={busy}
-              className="txt-legible inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
-            >
+          <div className="flex gap-3 px-4 py-4">
+            <button onClick={contactSeller} disabled={busy}
+              className="txt-legible inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60">
               <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
             </button>
-            <button
-              onClick={toggleFollow}
-              aria-pressed={following}
-              className={`btn-outline flex-1 ${following ? 'border-ivoire-green text-ivoire-green' : ''}`}
-            >
-              {following ? (
-                <>
-                  <Check size={18} /> Suivi
-                </>
-              ) : (
-                <>
-                  <Plus size={18} /> Suivre
-                </>
-              )}
+            <button onClick={toggleFollow} aria-pressed={following}
+              className={`btn-outline flex-1 ${following ? 'border-ivoire-green text-ivoire-green' : ''}`}>
+              {following ? <><Check size={18} /> Suivi</> : <><Plus size={18} /> Suivre</>}
             </button>
           </div>
-        </div>
-      </header>
+        </>
+      ) : (
+        <SimpleEnTete
+          nom={displayName} avatar={profile?.avatarUrl} badge={profile?.badge}
+          lieu={location} annonces={sellerListings.length} note={avg} avis={count}
+          reponse={reponse} nouveau={count === 0} retour={fleche}
+          busy={busy} following={following}
+          onContacter={contactSeller} onSuivre={toggleFollow} />
+      )}
 
-      {/* Onglets / filtres */}
+      {/* Onglets */}
       <nav className="no-scrollbar flex gap-2 overflow-x-auto border-t border-line bg-white/70 px-4 py-3 backdrop-blur">
-        <button
-          onClick={() => setTab('annonces')}
-          className={`chip ${tab === 'annonces' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
-        >
+        <button onClick={() => setTab('annonces')}
+          className={`chip ${tab === 'annonces' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}>
           Annonces · {sellerListings.length}
         </button>
-        <button
-          onClick={() => setTab('avis')}
-          className={`chip ${tab === 'avis' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
-        >
+        <button onClick={() => setTab('avis')}
+          className={`chip ${tab === 'avis' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}>
           Avis · {count}
         </button>
-        <button
-          onClick={() => setTab('apropos')}
-          className={`chip ${tab === 'apropos' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
-        >
+        <button onClick={() => setTab('apropos')}
+          className={`chip ${tab === 'apropos' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}>
           À propos
         </button>
       </nav>
@@ -241,10 +192,21 @@ export function SellerProfile() {
             <p className="text-sm text-gray-500">Aucune annonce active.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 px-4 py-4 md:grid-cols-3 lg:grid-cols-4">
-            {sellerListings.map((l) => (
-              <ListingCard key={l.id} listing={l} />
-            ))}
+          <div className="space-y-3 py-4">
+            {/* ④ La recherche et les puces — seulement quand il y a de quoi
+                filtrer : sous six annonces, elles encombrent au lieu d'aider. */}
+            {pro && sellerListings.length >= 6 && (
+              <FiltresBoutique q={q} onQ={setQ} puce={puce} onPuce={setPuce} puces={puces} />
+            )}
+            {annoncesVues.length === 0 ? (
+              <p className="px-4 py-12 text-center text-sm text-gray-500">
+                Rien ne correspond dans cette boutique.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 lg:grid-cols-4">
+                {annoncesVues.map((l) => <ListingCard key={l.id} listing={l} />)}
+              </div>
+            )}
           </div>
         )
       ) : tab === 'avis' ? (
@@ -275,7 +237,7 @@ export function SellerProfile() {
                   </div>
                   {r.comment && <p className="mt-1 text-sm text-gray-600">{r.comment}</p>}
                   <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-500">
-                    <MapPin size={11} /> {timeAgo(r.createdAt)}
+                    {timeAgo(r.createdAt)}
                     {clickable && <span className="ml-auto font-semibold text-primary-500">Voir l’annonce ›</span>}
                   </p>
                 </Comp>
@@ -284,23 +246,94 @@ export function SellerProfile() {
           </div>
         )
       ) : (
-        // À propos
-        <div className="px-4 py-4">
-          <div className="card p-4">
-            <h2 className="mb-2 font-display text-base font-bold text-ink">À propos</h2>
-            {profile?.bio ? (
-              <p className="text-sm leading-relaxed text-gray-600">{profile.bio}</p>
-            ) : (
-              <p className="text-sm text-gray-500">Ce vendeur n’a pas encore ajouté de description.</p>
-            )}
-            {location && (
-              <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-500">
-                <MapPin size={14} className="text-primary-500" /> {location}
-              </p>
-            )}
-          </div>
+        // ⑤ À propos : la description de l'ENTREPRISE, et le registre vérifié.
+        <div className="space-y-3 px-4 py-4">
+          {pro ? (
+            <AProposVitrine pro={pro} bio={profile?.bio} lieu={location} reponse={reponse} />
+          ) : (
+            <div className="card p-4">
+              <h2 className="mb-2 font-display text-base font-bold text-ink">À propos</h2>
+              {profile?.bio ? (
+                <p className="text-sm leading-relaxed text-gray-600">{profile.bio}</p>
+              ) : (
+                <p className="text-sm text-gray-500">Ce vendeur n’a pas encore ajouté de description.</p>
+              )}
+              {location && (
+                <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-500">
+                  <MapPin size={14} className="text-primary-500" /> {location}
+                </p>
+              )}
+            </div>
+          )}
+          {horaires && <CarteHoraires horaires={horaires} />}
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * L'en-tête d'un vendeur ORDINAIRE — inchangé, et c'est voulu : la vitrine est
+ * ce que le professionnel a mérité en faisant vérifier son dossier. Un
+ * particulier qui vend son frigo n'a ni logo, ni horaires, ni registre.
+ */
+function SimpleEnTete({ nom, avatar, badge, lieu, annonces, note, avis, reponse, nouveau,
+                        retour, busy, following, onContacter, onSuivre }: {
+  nom: string; avatar?: string; badge?: 'admin' | 'anciennete' | ''
+  lieu: string | null; annonces: number; note: number; avis: number
+  reponse: number | null; nouveau: boolean; retour: React.ReactNode
+  busy: boolean; following: boolean
+  onContacter: () => void; onSuivre: () => void
+}) {
+  return (
+    <header className="safe-top relative overflow-hidden bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 pt-3">
+      {retour}
+      <div className="mt-1 flex flex-col items-center text-center">
+        <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full bg-ivoire-green font-display text-4xl font-black text-white shadow-card ring-4 ring-white md:h-28 md:w-28">
+          {avatar ? <img src={mediaUrl(avatar)} alt={nom} className="h-full w-full object-cover" />
+            : nom.charAt(0).toUpperCase()}
+        </div>
+        <h1 className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 font-display text-2xl font-black text-ink">
+          <span className="break-words">{nom}</span>
+          {badge && <VerifiedBadge kind={badge} size={22} />}
+        </h1>
+        {(lieu || nouveau) && (
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 text-sm text-gray-500">
+            {lieu && <span className="flex items-center gap-1"><MapPin size={14} className="text-primary-500" /> {lieu}</span>}
+            {nouveau && <span>Nouveau vendeur</span>}
+          </div>
+        )}
+        <div className="mt-5 flex items-start justify-center gap-8 md:gap-12">
+          <div className="text-center">
+            <p className="tnum font-display text-xl font-black text-ink">{annonces}</p>
+            <p className="text-xs text-gray-500">annonces</p>
+          </div>
+          <div className="text-center">
+            <p className="tnum font-display text-xl font-black text-ink">{avis > 0 ? note.toFixed(1) : '—'}</p>
+            {avis > 0 && <div className="mt-0.5 flex justify-center"><Stars value={note} size={11} /></div>}
+            <p className="text-xs text-gray-500">note</p>
+          </div>
+          <div className="text-center">
+            <p className="tnum font-display text-xl font-black text-ink">{avis}</p>
+            <p className="text-xs text-gray-500">avis</p>
+          </div>
+        </div>
+        {reponse != null && (
+          <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-ivoire-green/10 px-3 py-1 text-xs font-semibold text-ivoire-green-dark">
+            <Timer size={13} /> Répond en {delaiPhrase(reponse)} en général
+          </p>
+        )}
+        <div className="mt-6 flex w-full max-w-xs items-center justify-center gap-3">
+          <button onClick={onContacter} disabled={busy}
+            className="txt-legible inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60">
+            <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
+          </button>
+          <button onClick={onSuivre} aria-pressed={following}
+            className={`btn-outline flex-1 ${following ? 'border-ivoire-green text-ivoire-green' : ''}`}>
+            {following ? <><Check size={18} /> Suivi</> : <><Plus size={18} /> Suivre</>}
+          </button>
+        </div>
+      </div>
+    </header>
   )
 }

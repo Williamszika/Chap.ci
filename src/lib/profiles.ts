@@ -16,6 +16,20 @@ export interface PublicProfile {
     secteur?: string | null
     banniere?: string | null
     logo?: string | null
+    /** Ce que fait l'entreprise — écrit dans sa fiche, montré aux acheteurs. */
+    description?: string | null
+    /** Les sept jours d'ouverture, de dimanche à samedi. */
+    horaires?: { ouvert: boolean; de: string; a: string }[] | null
+    /**
+     * Vrai si le numéro officiel a été contrôlé au registre par l'équipe.
+     * Le NUMÉRO lui-même ne sort pas du serveur (décision du Patron, 28/08) :
+     * la page dit « Registre vérifié », elle ne publie pas l'immatriculation.
+     */
+    registreVerifie?: boolean
+    /** Ventes conclues — celles que l'acheteur a confirmées reçues. */
+    ventes?: number
+    /** Date d'approbation du dossier, en millisecondes. */
+    depuis?: number | null
   } | null
 }
 

@@ -4722,3 +4722,35 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   (`POST /admin/moderators`, session déverrouillée), jamais par une insertion en base —
   l'alerte `admins_tampered` se serait déclenchée. Le banc les garde : il n'avait aucun
   modérateur, ce qui rendait invérifiable toute la logique de permissions.
+
+### 2026-08-28 18:20 — [Bâtisseur] La vitrine du professionnel
+- **Le Patron a tranché** sur les trois questions du dossier de propositions :
+  ventes conclues **publiques**, registre affiché en **« vérifié » sans le numéro**,
+  et **la vitrine avant l'application**. Les cinq propositions sont construites.
+- **Le constat qui a tout déclenché, et qu'il faut retenir** : `GET /profile/{id}`
+  envoyait DÉJÀ, à chaque visiteur, la description de l'entreprise, les sept jours
+  d'horaires et le numéro RCCM. La page les jetait — le type TypeScript ne les
+  déclarait même pas. Trois des cinq propositions n'ont donc demandé aucune donnée
+  nouvelle. **Avant d'ouvrir une route, regarder ce que celle qui existe envoie déjà.**
+- **Le numéro RCCM ne sort plus du serveur.** Le Patron a choisi « Registre vérifié »
+  sans le numéro ; le laisser dans la réponse JSON l'aurait rendu public quand même,
+  qu'on le dessine ou non. `registreVerifie` (booléen) le remplace. Ce qui part dans
+  la réponse EST public.
+- **Le piège des horaires, attrapé au banc** : le tableau enregistré commence au
+  **lundi** (`JOURS` de ReglagesPro.tsx), `Date.getDay()` commence au **dimanche**.
+  La première version annonçait « Fermé » un vendredi à 17 h sur une boutique ouverte
+  jusqu'à 18 h. Une boutique dite fermée alors qu'elle est ouverte, c'est un acheteur
+  qui va ailleurs. Corrigé par `indexJour()`, et **un banc de dix cas** couvre
+  désormais la semaine entière plus les tableaux vides — `scratchpad/banc-horaires.mjs`.
+- **Ce qui a été refusé, et c'est un choix** : les vues, les abonnés, les graphiques.
+  Ce sont les chiffres du VENDEUR. Devant l'acheteur ils n'aident pas, et une boutique
+  neuve qui affiche « 3 vues » se dessert. Les quatre chiffres retenus répondent à la
+  seule question de l'acheteur : « est-ce que quelqu'un va me répondre ? » — le délai
+  de réponse passe en premier, en vert.
+- **Le vendeur ordinaire garde sa page telle quelle** (`SimpleEnTete`). La vitrine est
+  ce qu'un professionnel obtient en faisant vérifier son dossier ; un particulier qui
+  vend son frigo n'a ni logo, ni horaires, ni registre.
+- **La recherche et les puces n'apparaissent qu'à partir de six annonces** : en dessous
+  elles encombrent au lieu d'aider.
+- **Reste** : l'application Flutter n'a rien de tout cela — ni la vitrine, ni les
+  quatorze écrans de la console. L'écart avec le site continue de se creuser.
