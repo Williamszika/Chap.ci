@@ -4619,3 +4619,39 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Reste** : l'application Flutter, toujours sans aucun des quatorze écrans ni les
   nouveautés de ces deux jours ; et la question en attente au Patron — le nom
   commercial doit-il être verrouillé comme le type, le secteur et le RCCM ?
+
+### 2026-08-28 04:50 — [Bâtisseur] L'administrateur peut voir la console d'un professionnel
+- **Fait** : le Patron ne trouvait pas la tuile « Réponses automatiques » livrée la
+  veille. Ce n'était pas l'écran : **son compte n'est pas un compte professionnel
+  approuvé**, et toute la section « Gérer ma boutique » (`dansCompte && c`, avec
+  `proApprouve`) n'existe que pour ceux-là. Deux jours de suite, il n'a pas trouvé une
+  chose livrée — la première fois par ma faute d'emplacement, la seconde par une cause
+  structurelle : **il vérifie tout lui-même, et aucune fonctionnalité professionnelle
+  ne lui est accessible.**
+- **La leçon, à garder à côté de celle d'hier** : quand on livre une fonctionnalité
+  réservée à un rôle, se demander **si celui qui la validera possède ce rôle**. Sinon
+  on lui décrit des écrans qu'il ne peut pas atteindre, et on prend sa question pour
+  un oubli.
+- **Ce qui a été construit** : Demandes Pro → dossier approuvé → « Voir son tableau de
+  bord ». La console du professionnel s'affiche entière, telle qu'il la voit. Tout ce
+  qui écrit disparaît (vitrine, Publier, Modifier ma fiche, Répondre maintenant,
+  déconnexion) ; les tuiles gardent leur compteur, perdent leur chevron et ne cliquent
+  plus — appuyer aurait emmené l'administrateur dans SES propres réglages, ce qui est
+  précisément le genre de piège qu'on ne voit qu'une fois en production.
+- **Serveur** : `GET /pro/tableau?userId=…`, réservé au droit « utilisateurs » ET à une
+  session déverrouillée. Route en GET : aucune écriture possible par cette porte.
+  Journalisé en `pro_tableau_vue` (qui regarde → qui est regardé).
+- **Trois boucles rouge/vert passées au banc**, et c'est ce qui compte ici : simple
+  utilisateur visant le pro → « Non autorisé » ; sans jeton → 401 ; **administrateur
+  authentifié mais session NON déverrouillée → « Non autorisé »**. La troisième est la
+  seule qui vérifiait vraiment quelque chose : les deux premières auraient pu passer
+  sur une garde à moitié écrite.
+- **Au passage** : un dossier sans date affichait « Déposée : il y a 56 ans » — un zéro
+  lu comme 1970. Zéro n'est pas une date, c'est une date absente ; elle s'écrit
+  « — inconnue — » et ne compte plus parmi les dossiers en souffrance depuis trois
+  jours. Le compteur d'alerte mentait à la hausse.
+- **Empreintes du zip `chapci-voir-console-pro.zip`** : API `156f84618e6c` ·
+  SEO `c57f0f1c6e55` (inchangée) · Site `456053ad0e1b`. Repère rouge/vert :
+  `assets/AdminDashboard-aqZsBLvo.js` (nouveau) contre `AdminDashboard-_zkexaok.js`.
+- **Reste** : l'application Flutter ; et la question toujours en attente — le nom
+  commercial doit-il être verrouillé comme le type, le secteur et le RCCM ?
