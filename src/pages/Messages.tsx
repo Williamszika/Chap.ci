@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mediaUrl, thumbUrl } from '../lib/native'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bot, MessageCircle, LogIn, Plus, X, Zap } from 'lucide-react'
+import { ArrowLeft, Bot, MessageCircle, LogIn } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
-import { createReponse, deleteReponse, fetchReponses, type ReponsePrete } from '../lib/api'
-import { phpReponseAuto, phpEnregistrerReponseAuto } from '../lib/php'
-import { Bascule } from '../components/Bascule'
 import { timeAgo } from '../lib/format'
 import type { Conversation } from '../types'
 
@@ -20,13 +17,6 @@ import type { Conversation } from '../types'
  */
 
 type Filtre = 'sans' | 'toutes' | 'acheteurs' | 'archivees'
-
-/** Trois phrases proposées tant que le vendeur n'en a enregistré aucune. */
-const MODELES = [
-  'Oui, c’est disponible.',
-  'Je livre à…',
-  'Mon dernier prix est…',
-]
 
 /** Initiale d'affichage de l'avatar, dérivée du nom de l'interlocuteur. */
 function avatarInitial(name?: string): string {
@@ -222,30 +212,55 @@ export function ConversationList({ activeId }: { activeId?: string }) {
           </div>
         ) : (
           <div className="space-y-3 pb-4 md:pb-0">
-            {/* Filtrer — « sans réponse » d'abord, c'est le tas qui coûte cher. */}
-            <div className="no-scrollbar flex gap-2 overflow-x-auto bg-white px-4 py-3">
-              {compte.sans > 0 && (
-                <button onClick={() => setFiltre('sans')}
-                  className={`chip-etat ${filtre === 'sans' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600 ring-1 ring-red-200'}`}>
-                  Sans réponse · {compte.sans}
-                </button>
-              )}
-              <button onClick={() => setFiltre('toutes')}
-                className={`chip-etat ${filtre === 'toutes' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
-                Toutes · {compte.toutes}
-              </button>
+            {/* Le raccourci vers les réponses automatiques, EN HAUT et sur une
+                seule ligne. Les deux réglages vivaient au bas de cette liste :
+                le Patron, qui les avait demandés, ne les a jamais vus et les a
+                redemandés deux fois. Ils ont maintenant leur écran ; ici il ne
+                reste que la porte. */}
+            <div className="bg-white">
               {compte.acheteurs > 0 && (
-                <button onClick={() => setFiltre('acheteurs')}
-                  className={`chip-etat ${filtre === 'acheteurs' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
-                  Acheteurs
-                </button>
+                <div className="px-4 pt-3">
+                  <button onClick={() => navigate('/compte', { state: { tab: 'reponses' } })}
+                    className="flex w-full items-center gap-2.5 rounded-xl border border-accent-ocre/30 bg-cream-100 px-3 py-2.5 text-left">
+                    <Bot size={16} className="shrink-0 text-primary-600" />
+                    <span className="min-w-0 flex-1 text-[12.5px] font-bold text-ink">
+                      Répondre plus vite
+                      {/* « du professionnel » : la phrase d'accueil est réservée
+                          aux comptes approuvés, autant le dire avant le clic. */}
+                      <span className="mt-0.5 block text-[11.5px] font-medium leading-snug text-gray-600">
+                        Vos phrases toutes prêtes, et la réponse automatique du professionnel.
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-gray-400" aria-hidden>›</span>
+                  </button>
+                </div>
               )}
-              {compte.archivees > 0 && (
-                <button onClick={() => setFiltre('archivees')}
-                  className={`chip-etat ${filtre === 'archivees' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
-                  Archivées
+
+              {/* Filtrer — « sans réponse » d'abord, c'est le tas qui coûte cher. */}
+              <div className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-3">
+                {compte.sans > 0 && (
+                  <button onClick={() => setFiltre('sans')}
+                    className={`chip-etat ${filtre === 'sans' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600 ring-1 ring-red-200'}`}>
+                    Sans réponse · {compte.sans}
+                  </button>
+                )}
+                <button onClick={() => setFiltre('toutes')}
+                  className={`chip-etat ${filtre === 'toutes' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
+                  Toutes · {compte.toutes}
                 </button>
-              )}
+                {compte.acheteurs > 0 && (
+                  <button onClick={() => setFiltre('acheteurs')}
+                    className={`chip-etat ${filtre === 'acheteurs' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
+                    Acheteurs
+                  </button>
+                )}
+                {compte.archivees > 0 && (
+                  <button onClick={() => setFiltre('archivees')}
+                    className={`chip-etat ${filtre === 'archivees' ? 'bg-ink text-white' : 'bg-white text-gray-600 ring-1 ring-line'}`}>
+                    Archivées
+                  </button>
+                )}
+              </div>
             </div>
 
             {liste.length === 0 ? (
@@ -258,204 +273,9 @@ export function ConversationList({ activeId }: { activeId?: string }) {
             ) : (
               <div className="divide-y divide-line bg-white">{liste.map(renderRow)}</div>
             )}
-
-            {(compte.acheteurs > 0 || filtre === 'sans') && (
-              <div className="space-y-3 px-4 md:pb-4">
-                <ReponseAutomatique />
-                <ReponsesPretes />
-              </div>
-            )}
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-/** Trois phrases proposées à qui n'a pas encore écrit la sienne. */
-const MODELES_AUTO = [
-  'Bonjour et merci pour votre message. Je vous réponds dans la journée.',
-  'Bonjour ! Nous sommes ouverts du lundi au samedi. Je reviens vers vous très vite.',
-  'Merci de votre intérêt. Dites-moi la quantité et votre commune, je vous fais un prix.',
-]
-
-/**
- * « 🤖 Réponse automatique » — la phrase qui part toute seule quand un acheteur
- * écrit pour la première fois.
- *
- * Elle achète du temps, elle ne remplace personne : le serveur la marque comme
- * automatique, elle ne compte PAS dans le taux de réponse et la conversation
- * reste dans « Sans réponse » tant que le vendeur n'a pas écrit lui-même. Le
- * bloc le dit, parce qu'un vendeur qui croirait le contraire perdrait ses
- * acheteurs en pensant les avoir servis.
- */
-function ReponseAutomatique() {
-  const [texte, setTexte] = useState('')
-  const [active, setActive] = useState(false)
-  const [chargee, setChargee] = useState(false)
-  const [modifie, setModifie] = useState(false)
-  const [occupe, setOccupe] = useState(false)
-  const [erreur, setErreur] = useState('')
-
-  useEffect(() => {
-    let actif = true
-    phpReponseAuto()
-      .then((r) => { if (!actif) return; setTexte(r.texte); setActive(r.active) })
-      .catch(() => {})
-      .finally(() => actif && setChargee(true))
-    return () => { actif = false }
-  }, [])
-
-  const enregistrer = async (t: string, a: boolean) => {
-    setOccupe(true); setErreur('')
-    try {
-      const r = await phpEnregistrerReponseAuto({ texte: t, active: a })
-      setTexte(r.texte); setActive(r.active); setModifie(false)
-    } catch (e) { setErreur((e as Error).message) }
-    finally { setOccupe(false) }
-  }
-
-  if (!chargee) return null
-
-  return (
-    <div className="rounded-2xl border border-accent-ocre/30 bg-cream-100 p-3.5">
-      <div className="flex items-start gap-3">
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 font-display text-[13.5px] font-extrabold text-ink">
-            <Bot size={15} className="text-primary-600" /> Réponse automatique
-          </span>
-          <span className="mt-0.5 block text-[12px] leading-relaxed text-gray-600">
-            Part toute seule quand un acheteur vous écrit pour la première fois.
-          </span>
-        </span>
-        <button onClick={() => enregistrer(texte, !active)} disabled={occupe || (!active && !texte.trim())}
-          aria-label={active ? 'Désactiver' : 'Activer'} className="shrink-0 disabled:opacity-40">
-          <Bascule active={active} />
-        </button>
-      </div>
-
-      <textarea value={texte} maxLength={400}
-        onChange={(e) => { setTexte(e.target.value); setModifie(true) }}
-        rows={2} placeholder="Votre phrase d’accueil…"
-        className="mt-2.5 w-full resize-none rounded-xl bg-white px-3 py-2 text-[13px] leading-relaxed text-ink outline-none ring-1 ring-line focus:ring-primary-400" />
-
-      {texte.trim() === '' && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {MODELES_AUTO.map((m) => (
-            <button key={m} onClick={() => { setTexte(m); setModifie(true) }}
-              className="inline-flex max-w-full items-center gap-1 rounded-full bg-white px-3 py-1.5 text-left text-[11.5px] font-semibold text-gray-600 ring-1 ring-dashed ring-line transition hover:text-primary-700">
-              <Plus size={11} className="shrink-0" /> <span className="truncate">{m}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {modifie && (
-        <button onClick={() => enregistrer(texte, active)} disabled={occupe}
-          className="mt-2 w-full rounded-xl bg-ink py-2 text-[12.5px] font-extrabold text-white disabled:opacity-50">
-          Enregistrer la phrase
-        </button>
-      )}
-      {erreur && <p className="mt-2 text-[11.5px] font-semibold text-red-600">{erreur}</p>}
-
-      <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-        Elle ne compte pas comme votre réponse : la conversation reste dans
-        « Sans réponse » tant que vous n’avez pas écrit vous-même, et votre taux de
-        réponse ne bouge pas.
-      </p>
-    </div>
-  )
-}
-
-/**
- * « ⚡ Réponses toutes prêtes » — les phrases qu'on retape vingt fois par jour,
- * enregistrées une bonne fois. Elles se posent d'un appui dans la conversation.
- */
-function ReponsesPretes() {
-  const [liste, setListe] = useState<ReponsePrete[]>([])
-  const [chargee, setChargee] = useState(false)
-  const [saisie, setSaisie] = useState<string | null>(null)
-  const [occupe, setOccupe] = useState(false)
-
-  useEffect(() => {
-    fetchReponses()
-      .then(setListe)
-      .catch(() => {})
-      .finally(() => setChargee(true))
-  }, [])
-
-  const ajouter = async (texte: string) => {
-    const t = texte.trim()
-    if (!t || occupe) return
-    setOccupe(true)
-    try {
-      const creee = await createReponse(t)
-      setListe((p) => [...p, creee])
-      setSaisie(null)
-    }
-    catch { /* la phrase reste dans le champ, le vendeur réessaie */ }
-    finally { setOccupe(false) }
-  }
-
-  const retirer = async (id: string) => {
-    setListe((p) => p.filter((r) => r.id !== id))
-    try { await deleteReponse(id) } catch { /* rechargée au prochain passage */ }
-  }
-
-  if (!chargee) return null
-
-  return (
-    <div className="rounded-2xl border border-accent-ocre/30 bg-cream-100 p-3.5">
-      <p className="flex items-center gap-1.5 font-display text-[13.5px] font-extrabold text-ink">
-        <Zap size={15} className="text-primary-600" /> Réponses toutes prêtes
-      </p>
-      <p className="mt-0.5 text-[12px] leading-relaxed text-gray-600">
-        Un appui, la phrase s’écrit dans la conversation — vous n’avez plus qu’à envoyer.
-      </p>
-
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        {liste.map((r) => (
-          <span key={r.id}
-            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 ring-1 ring-line">
-            <span className="truncate">{r.texte}</span>
-            <button onClick={() => retirer(r.id)} aria-label="Retirer cette réponse"
-              className="shrink-0 text-gray-400 transition hover:text-red-600">
-              <X size={13} />
-            </button>
-          </span>
-        ))}
-
-        {/* Aucune enregistrée : on propose les trois plus utiles, à prendre d'un appui. */}
-        {liste.length === 0 && MODELES.map((m) => (
-          <button key={m} onClick={() => ajouter(m)} disabled={occupe}
-            className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 ring-1 ring-dashed ring-line transition hover:text-primary-700 disabled:opacity-50">
-            <Plus size={12} /> {m}
-          </button>
-        ))}
-
-        {liste.length < 12 && saisie === null && (
-          <button onClick={() => setSaisie('')}
-            className="inline-flex items-center gap-1 rounded-full bg-primary-500 px-3 py-1.5 text-[12px] font-extrabold text-white transition active:scale-95">
-            <Plus size={13} /> Créer
-          </button>
-        )}
-      </div>
-
-      {saisie !== null && (
-        <form onSubmit={(e) => { e.preventDefault(); ajouter(saisie) }} className="mt-2.5 flex gap-2">
-          <input autoFocus value={saisie} onChange={(e) => setSaisie(e.target.value)}
-            maxLength={400} placeholder="Votre phrase, telle qu’elle partira…"
-            className="min-w-0 flex-1 rounded-full border border-line bg-white px-3.5 py-2 text-[13px] outline-none focus:border-primary-400" />
-          <button type="submit" disabled={occupe || !saisie.trim()}
-            className="shrink-0 rounded-full bg-ink px-4 py-2 text-[12.5px] font-extrabold text-white disabled:opacity-40">
-            Enregistrer
-          </button>
-          <button type="button" onClick={() => setSaisie(null)} aria-label="Annuler"
-            className="shrink-0 rounded-full px-2 text-gray-400">
-            <X size={16} />
-          </button>
-        </form>
-      )}
     </div>
   )
 }

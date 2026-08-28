@@ -7761,7 +7761,8 @@ try {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at,
                                 pro_numero, pro_tel, pro_banniere, pro_logo,
-                                pro_description, pro_horaires
+                                pro_description, pro_horaires,
+                                pro_auto_reply, pro_auto_reply_on
                          FROM users WHERE id = ?');
     $st->execute([$u['id']]);
     $r = $st->fetch() ?: [];
@@ -8051,6 +8052,12 @@ try {
         'description' => (string) ($r['pro_description'] ?? ''),
         'horaires' => ($r['pro_horaires'] ?? '') !== ''
           ? (json_decode((string) $r['pro_horaires'], true) ?: null) : null,
+        // La réponse automatique, pour que la tuile du tableau de bord dise
+        // d'un coup d'œil si elle est active — et laquelle part.
+        'reponseAuto' => !empty($r['pro_auto_reply_on'])
+          && trim((string) ($r['pro_auto_reply'] ?? '')) !== '',
+        'reponseAutoTexte' => trim((string) ($r['pro_auto_reply'] ?? '')),
+        'reponsesPretes' => $compteur('SELECT COUNT(*) FROM quick_replies WHERE user_id = ?', [$uid]),
       ],
       'compte' => [
         'nom' => (string) ($profil['full_name'] ?? ''),

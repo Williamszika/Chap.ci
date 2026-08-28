@@ -38,6 +38,9 @@ export interface Tableau {
     banniere?: string; logo?: string
     /** Ce que fait l'entreprise, et ses sept jours d'ouverture. */
     description?: string; horaires?: Horaire[] | null
+    /** La réponse automatique : active ou non, sa phrase, et le nombre de
+     *  phrases toutes prêtes — de quoi renseigner la tuile sans second appel. */
+    reponseAuto?: boolean; reponseAutoTexte?: string; reponsesPretes?: number
   }
   /** Tout le compte, pour les tuiles et la fiche d'entreprise de la page Compte. */
   compte?: {
@@ -261,7 +264,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
   dansCompte?: boolean
   /** Ouvre un onglet interne de la page Compte (annonces, achats, ventes, pubs, params). */
   onOnglet?: (onglet: 'annonces' | 'achats' | 'ventes' | 'pubs' | 'params'
-    | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse') => void
+    | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses') => void
   onDeconnexion?: () => void
 } = {}) {
   const { user } = useAuth()
@@ -323,6 +326,16 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
   // « se termine dans 6 j » : le compte à rebours d'une campagne en cours.
   const joursPub = c?.pubFin ? Math.ceil((c.pubFin - Date.now()) / 86400000) : 0
   const finPub = joursPub > 1 ? `dans ${joursPub} j` : joursPub === 1 ? 'demain' : joursPub === 0 ? "aujourd’hui" : ''
+  // L'état des réponses automatiques, en une ligne : la phrase entière ferait
+  // trois lignes dans la tuile, on n'en montre que le début.
+  const nPretes = t.pro.reponsesPretes ?? 0
+  const phraseAuto = (t.pro.reponseAutoTexte ?? '').trim()
+  const apercuAuto = phraseAuto.length > 44 ? `${phraseAuto.slice(0, 44).trimEnd()}…` : phraseAuto
+  const sousReponses = t.pro.reponseAuto
+    ? (apercuAuto ? `Active : « ${apercuAuto} »` : 'Active')
+    : nPretes > 0
+      ? `Inactive · ${nPretes} phrase${nPretes > 1 ? 's' : ''} prête${nPretes > 1 ? 's' : ''}`
+      : 'Répondre même la nuit, en une phrase'
   return (
     <div className="space-y-4">
       {/* L'en-tête de marque : la VITRINE (bannière + logo), le badge, le nom
@@ -580,6 +593,16 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion }: {
                 ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-extrabold text-white">{t.aRepondre.n}</span>
                 : undefined}
               onClick={() => navigate('/messages', DEPUIS_COMPTE)} />
+            {/* La réponse automatique se règle ici. Elle a longtemps vécu au
+                BAS de la liste des messages, invisible tant qu'aucun acheteur
+                n'avait écrit : on préparait sa phrase d'accueil après avoir
+                raté le premier client. La tuile dit son état sans l'ouvrir. */}
+            <Tuile emoji="🤖" fond="#EDEFF2" titre="Réponses automatiques"
+              sous={sousReponses}
+              badge={t.pro.reponseAuto
+                ? <span className="grid h-5 place-items-center rounded-full bg-emerald-50 px-2 text-[10.5px] font-extrabold text-emerald-700">ON</span>
+                : undefined}
+              onClick={() => onOnglet?.('reponses')} />
             <Tuile emoji="🛍️" fond="#FFF6E0" titre="Mes commandes"
               sous={`${c.commandesEnCours} en cours · ${c.commandesFinalisees} finalisée${c.commandesFinalisees > 1 ? 's' : ''}`}
               onClick={() => onOnglet?.('achats')} />

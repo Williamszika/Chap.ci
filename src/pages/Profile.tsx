@@ -43,6 +43,7 @@ import { MesAnnonces } from '../components/MesAnnonces'
 import { MesCommandes } from '../components/MesCommandes'
 import { DEPUIS_COMPTE } from '../components/RetourCompte'
 import { StatsPro } from '../components/StatsPro'
+import { ReponsesAuto } from '../components/ReponsesAuto'
 import {
   FicheProEdit, ProfilPhoto, ReglagesNotifs, SecuriteCompte, AdressePosition,
   DialogueDeconnexion,
@@ -75,7 +76,7 @@ import type { Listing, Order, Review } from '../types'
 
 type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'pubs' | 'params'
   // Les écrans de la console professionnelle (planches validées le 27/08).
-  | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse'
+  | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses'
 
 /** Le titre de chaque écran du compte — un seul endroit où le lire. */
 const TITRES: Partial<Record<Tab, string>> = {
@@ -84,6 +85,7 @@ const TITRES: Partial<Record<Tab, string>> = {
   achats: 'Mes commandes',
   pubs: 'Mes publicités',
   stats: 'Statistiques de vente',
+  reponses: 'Réponses automatiques',
   fiche: 'Ma fiche professionnelle',
   profil: 'Profil & photo',
   notifs: 'Notifications',
@@ -594,6 +596,13 @@ export function Profile() {
 
         {/* STATISTIQUES DE VENTE — le chemin de l'acheteur (planche 2) */}
         {tab === 'stats' && user && <StatsPro />}
+
+        {/* RÉPONSES AUTOMATIQUES — la phrase d'accueil et les phrases prêtes.
+            Elles vivaient au bas de la liste des messages, où personne ne les
+            trouvait : elles ont maintenant leur écran et leur tuile. */}
+        {tab === 'reponses' && user && (
+          <ReponsesAuto pro={proApprouve} onChange={() => rechargerPro()} />
+        )}
 
         {/* MA FICHE PROFESSIONNELLE (planche 3) */}
         {tab === 'fiche' && user && (
