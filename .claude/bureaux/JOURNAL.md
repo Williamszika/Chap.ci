@@ -4546,3 +4546,38 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   commercial (le verrouiller comme le type et le RCCM ?).
 - **Reste à faire** : reporter les quatorze écrans + ces deux nouveautés dans
   l'application Flutter, qui n'en a encore aucun.
+
+### 2026-08-28 (nuit) — [Design] Le tableau de bord administrateur au vocabulaire CRM — EN LIGNE
+- **Demande du Patron** : « utiliser les fonctionnalités CRM pour enrichir le tableau de
+  bord administrateur, sauf Aperçu qui est déjà bien. Faire les autres options. »
+- **Neuf onglets repris** : Commandes, Conversations, Avis, Abonnés (premier lot), puis
+  Annonces, Utilisateurs, Demandes Pro, Signalements, Contact, Publicités.
+- **Le même patron partout**, dans `src/components/CrmAdmin.tsx` : quatre chiffres en
+  tête (`KpiCrm`), des puces qui filtrent avec leur compteur (`PucesCrm`), une recherche
+  sans accents (`BarreCrm`, `contient`), et la ligne rouge « ce qui attend une décision »
+  (`AttenteCrm`). Chaque onglet s'ouvre sur le tas à traiter, plus sur l'archive.
+- **Ce qui a été choisi comme chiffre d'alerte**, onglet par onglet — c'est là qu'est le
+  travail, pas dans les puces : commande ouverte depuis 15 jours · acheteur sans réponse
+  depuis 48 h · avis 1–2 étoiles et vendeurs qui en accumulent DEUX · annonce sans photo ·
+  part des comptes sans annonce (rouge au-delà de 70 %) · dossier pro en attente depuis
+  3 jours ou sans numéro vérifiable · signalement ouvert depuis 48 h et annonce signalée
+  plusieurs fois · message de contact sans réponse depuis 48 h · publicité PAYÉE non
+  validée depuis 24 h.
+- **Serveur** : `admin/conversations` rend `sansReponse` et `lastAt`, calculés en excluant
+  les réponses automatiques. Sans cela, la case « sans réponse » de l'administration se
+  viderait le jour où un professionnel active son message d'accueil — le même piège que
+  côté vendeur, à l'autre bout de l'application.
+- **Non touchés, et c'est délibéré** : Aperçu (demande du Patron), Visiteurs (a déjà son
+  entonnoir), Comptabilité, Campagnes, Modérateurs, Emails, Sauvegarde, Tâches auto — ce
+  sont des outils, pas des listes.
+- **Deux pièges de banc à retenir** : (1) rejouer la même adresse à dièse ne recharge pas
+  l'application — repasser par l'accueil entre deux écrans ; (2) un onglet à pastille
+  s'appelle « Signalements 2 » pour Playwright : chercher le nom AU DÉBUT, pas le nom
+  exact. Deux captures muettes ont été perdues là-dessus.
+- **Extrait par le Patron à 21 h 43.** Empreintes vérifiées : API `75aaa22f9251` ✓ ·
+  SEO `c57f0f1c6e55` ✓ · Site `09e971636c61` ✓, plus le fichier repère du nouveau zip
+  en 200.
+- **La tâche cron `rappels-pro` a été posée par le Patron** ce soir. Premier passage
+  attendu à 6 h. À vérifier dans Tâches auto : la ligne doit passer au vert.
+- **Reste** : l'application Flutter, qui n'a encore aucun des quatorze écrans ni les
+  nouveautés du soir.
