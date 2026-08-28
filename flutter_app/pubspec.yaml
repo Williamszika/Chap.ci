@@ -5,8 +5,11 @@ publish_to: "none"
 # La version affichée + le versionCode Android (après le +).
 # ⚠️ Le nombre après le + DOIT être supérieur au dernier versionCode téléversé
 #    sur le Play Store. Dernier téléversé : 22 (v1.21, envoyée à l'examen le
-#    26/08). Donc 23 — la v1.22, celle du nouveau logo « chap-chap ».
-version: 1.22.0+23
+#    26/08). La v1.22 (code 23) a été construite le 27/08 mais JAMAIS téléversée.
+#    Six commits de code Flutter sont venus depuis — vitrine du professionnel,
+#    compte entier dans le tableau de bord, cibles tactiles : ce n'est plus la
+#    v1.22 qu'on construirait. Donc 24, la v1.23.
+version: 1.23.0+24
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

@@ -119,6 +119,42 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 
 ---
 
+## v1.23 — versionCode 24
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `À COMPLÉTER` — le commit de la montée de version (`git log --oneline -1` juste après). |
+| Date du build | **NON CONSTRUITE** au moment où cette fiche est écrite. Préparée le 28/08 à la demande du Patron : « mettre l'application à jour sur l'iPhone ». |
+| Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
+| minSdk 22 · targetSdk 36 | même clé de signature que v1.20/v1.21/v1.22. |
+| État Play | **NON VÉRIFIÉ** — rien n'est prévu côté Play pour celle-ci ; la v1.21 reste en examen, la v1.22 (code 23) a été construite le 27/08 mais jamais téléversée. Le code 23 est donc libre : il n'a jamais atteint la console. |
+| État App Store | **AUCUN.** Voir « Ce que la v1.23 change pour iOS » ci-dessous. |
+| Contenu | les six commits Flutter posés depuis le build de la v1.22 (`48c5045`) : finitions du tableau Pro sur téléphone, onglet Compte des comptes Pro conforme aux maquettes, **le compte entier tenant dans le tableau de bord**, **la vitrine du professionnel** (bannière + logo posés depuis le tableau), la bannière passée derrière tout le bandeau, et la cible tactile des deux boutons de vitrine portée à 48 dp. Quatre fichiers, 765 lignes ajoutées. |
+
+**Ce que la v1.23 ne contient PAS, et il faut le dire.** Les quatorze écrans de la
+console professionnelle livrés sur le SITE du 26 au 28/08 ne sont pas dans
+l'application : ni les statistiques de vente (entonnoir, heures, communes), ni les
+réponses automatiques, ni le détail des favoris, ni les écrans Sécurité et Adresse, ni
+« qui a mis en favori ». Vérifié par recherche dans `flutter_app/lib/` : aucune de ces
+routes n'y est appelée. L'application reste en retard d'un chantier entier sur le site.
+
+**Ce que la v1.23 change pour iOS : rien, et c'est le sujet.** `tool/preparer_plateformes.dart`
+génère déjà `ios/` entièrement configuré — bundle `ci.chap.app`, nom « Chap.ci »,
+autorisations, schéma d'URL Google. Il n'a simplement jamais été exécuté sur un Mac
+avec Xcode. Aucune version iOS n'a jamais existé, et **le compte Apple Developer
+(99 $/an) n'est pas ouvert** — d'après ce fichier, non revérifié auprès du Patron.
+
+> ⚠️ **La table « État des deux boutiques » de ce fichier dit « Mac + Xcode — non
+> disponible ». C'EST PÉRIMÉ** : le Patron a construit la v1.20 puis la v1.22 sur son
+> Mac (fiches ci-dessous, dates du 26 et 27/08). La ligne a été laissée telle quelle
+> pour ne pas réécrire un état que seul le Patron peut confirmer, mais aucun bureau ne
+> doit en conclure que le volet iOS est bloqué faute de machine. Ce qui manque est le
+> compte Apple, pas l'ordinateur — et pour une installation sur SON PROPRE iPhone,
+> même le compte payant n'est pas nécessaire (provisionnement gratuit d'Xcode,
+> application valable 7 jours).
+
+---
+
 ## v1.22 — versionCode 23
 
 | Champ | Valeur |
