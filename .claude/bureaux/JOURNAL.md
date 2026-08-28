@@ -4754,3 +4754,30 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   elles encombrent au lieu d'aider.
 - **Reste** : l'application Flutter n'a rien de tout cela — ni la vitrine, ni les
   quatorze écrans de la console. L'écart avec le site continue de se creuser.
+
+### 2026-08-28 19:40 — [Bâtisseur] Le nom de la boutique sur les cartes d'annonces
+- **Le Patron a choisi l'option 3** parmi trois aperçus comparatifs : on NOMME le
+  vendeur au lieu de l'étiqueter « PRO ». Un nom se reconnaît d'une annonce à
+  l'autre ; une étiquette non. Et c'est la seule des trois qui ne dévalorise pas le
+  particulier — il n'a pas d'enseigne, donc il a une ligne de moins, pas une marque
+  en moins.
+- **Encore une donnée déjà dans le tuyau** : `listing_out()` émettait déjà
+  `sellerPro` (vrai/faux) sur CHAQUE annonce, calculé par les trois requêtes qui
+  joignent `users`. Le site ne le lisait nulle part — il n'était même pas dans le
+  type `Listing`. Troisième fois cette semaine. **Le réflexe à prendre : avant
+  d'ouvrir une route, lire ce que celle qui existe envoie déjà.**
+- **Ce qui a été ajouté** : `u.pro_nom AS seller_enseigne` dans les trois jointures,
+  et `sellerEnseigne` dans `listing_out()` — **uniquement si le dossier est
+  approuvé**. Un nom commercial saisi dans une demande EN ATTENTE n'a été vérifié
+  par personne ; l'afficher laisserait n'importe qui se donner une enseigne.
+- **Le détail qui distingue le travail soigné du travail mécanique** :
+  `ListingCard` reçoit `dansBoutique`. Sur la vitrine, les dix cartes auraient
+  répété « 🏪 Zika Fête » dix fois — le nom sert à reconnaître un vendeur AILLEURS,
+  pas là où on est déjà. Vérifié au banc : 10 cartes le portent sur Explorer, 0 sur
+  la vitrine.
+- **Deux options écartées, et pourquoi** : le cadre orange autour de la carte —
+  dessiné puis jeté, parce que sur une grille à deux colonnes il ne dit pas
+  « professionnel », il dit « publicité », et « À la une » occupe déjà cet orange.
+  Et un badge « Particulier » sur les autres cartes : étiqueter les deux camps
+  transforme un marché en deux marchés. Le silence est la bonne valeur par défaut
+  pour la majorité.

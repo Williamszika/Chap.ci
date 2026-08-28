@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { mediaUrl, thumbUrl } from '../lib/native'
 import { Link } from 'react-router-dom'
-import { Heart, MapPin, BadgeCheck, Truck } from 'lucide-react'
+import { Heart, MapPin, BadgeCheck, Truck, Store } from 'lucide-react'
 import { VerifiedBadge } from './VerifiedBadge'
 import type { Listing } from '../types'
 import { formatFCFA } from '../lib/format'
@@ -20,7 +20,16 @@ import { PromoTag } from './PromoTag'
  * compte : décider si la vignette part TOUT DE SUITE ou attend le défilement.
  * Voir plus bas, sur l'attribut `loading`.
  */
-export function ListingCard({ listing, rang = 99 }: { listing: Listing; rang?: number }) {
+export function ListingCard({ listing, rang = 99, dansBoutique = false }: {
+  listing: Listing
+  rang?: number
+  /**
+   * On est DÉJÀ sur la page de cette boutique : répéter son nom sur chacune
+   * des dix cartes ne renseigne personne, ça encombre. Le nom sert à
+   * reconnaître un vendeur AILLEURS — dans l'accueil, dans la recherche.
+   */
+  dansBoutique?: boolean
+}) {
   const { isFavorite, toggleFavorite } = useApp()
   const { position } = useGeo()
   const fav = isFavorite(listing.id)
@@ -165,6 +174,17 @@ export function ListingCard({ listing, rang = 99 }: { listing: Listing; rang?: n
         <p className="mt-1 line-clamp-2 min-h-[2.25rem] text-[13px] font-medium leading-snug text-gray-700">
           {listing.title}
         </p>
+        {/* LE NOM DE LA BOUTIQUE (choix du Patron, 28/08 — option 3).
+            On nomme le vendeur au lieu de l'étiqueter « PRO » : un nom se
+            reconnaît d'une annonce à l'autre, une étiquette non. Et le
+            particulier ne perd rien — il n'a pas d'enseigne, il a simplement
+            une ligne de moins, pas une marque en moins. */}
+        {listing.sellerEnseigne && !dansBoutique && (
+          <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-primary-700">
+            <Store size={11} className="shrink-0" />
+            <span className="truncate">{listing.sellerEnseigne}</span>
+          </p>
+        )}
         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-gray-500">
           <MapPin size={12} className="shrink-0" />
           <span className="truncate">

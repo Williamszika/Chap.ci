@@ -4843,9 +4843,19 @@ function listing_out(array $r, bool $withPhone = false): array {
     'sellerId' => $r['user_id'] ?: null,
     // Vendeur vérifié (badge bleu) : présent quand la requête joint users.verified.
     'sellerVerified' => !empty($r['seller_verified']),
-    // Vendeur professionnel (badge PRO bleu) : présent quand la requête joint
-    // users.pro_status. Absent (false) sur une base pas encore migrée.
+    // Vendeur professionnel : présent quand la requête joint users.pro_status.
+    // Absent (false) sur une base pas encore migrée.
     'sellerPro' => (string) ($r['seller_pro'] ?? '') === 'approuve',
+    // LE NOM DE LA BOUTIQUE, montré sur la carte d'annonce (choix du Patron du
+    // 28/08, option 3). On nomme le vendeur au lieu de l'étiqueter : un nom se
+    // reconnaît d'une annonce à l'autre, une étiquette « PRO » non — et le
+    // particulier n'a rien en moins, juste une ligne de moins.
+    //
+    // Uniquement si le dossier est APPROUVÉ : un nom commercial saisi dans une
+    // demande en attente n'a été vérifié par personne, et l'afficher
+    // reviendrait à laisser n'importe qui se donner une enseigne.
+    'sellerEnseigne' => (string) ($r['seller_pro'] ?? '') === 'approuve'
+      ? (trim((string) ($r['seller_enseigne'] ?? '')) ?: null) : null,
     'createdAt' => iso_to_ms($r['created_at']),
     'delivery' => (bool) $r['delivery'], 'featured' => (bool) $r['featured'],
     'promoPrice' => $r['promo_price'] !== null ? (int) $r['promo_price'] : null,
@@ -5558,7 +5568,8 @@ try {
     }
     // $limit et $offset sont des entiers déjà bornés (jamais des chaînes) :
     // interpolation sûre, et on évite le piège du binding LIMIT/OFFSET en PDO.
-    $rows = $pdo->query("SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro FROM listings l
+    $rows = $pdo->query("SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro,
+             u.pro_nom AS seller_enseigne FROM listings l
       LEFT JOIN users u ON u.id = l.user_id
       WHERE (l.hidden IS NULL OR l.hidden = 0) AND (l.sold IS NULL OR l.sold = 0)
       ORDER BY l.created_at DESC LIMIT $limit OFFSET $offset")->fetchAll();
@@ -5653,7 +5664,8 @@ try {
       '#/annonce/' . $id);
     // Indexation instantanée : on signale la nouvelle annonce à tout le net (IndexNow).
     chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $id]);
-    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro FROM listings l
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro,
+             u.pro_nom AS seller_enseigne FROM listings l
       LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?'); $st->execute([$id]);
     jout(listing_out($st->fetch(), true)); // réponse au propriétaire : téléphone inclus
   }
@@ -5718,7 +5730,8 @@ try {
   // id exact (non énumérable) ; l'objet porte ses drapeaux `hidden`/`sold` pour
   // que l'écran affiche le bon état. Pas de téléphone (forme publique).
   if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'GET') {
-    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro FROM listings l
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro,
+             u.pro_nom AS seller_enseigne FROM listings l
       LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?');
     $st->execute([$seg[1]]);
     $row = $st->fetch();

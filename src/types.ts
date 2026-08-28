@@ -48,6 +48,14 @@ export interface Listing {
   sellerId?: string
   /** Vendeur au badge bleu (compte vérifié) — affiché sur la carte. */
   sellerVerified?: boolean
+  /** Le vendeur est un compte professionnel APPROUVÉ. */
+  sellerPro?: boolean
+  /**
+   * Le nom commercial de la boutique, montré sur la carte sous le titre.
+   * `null` pour un particulier — il n'a pas d'enseigne, il a juste une ligne
+   * de moins. Renseigné seulement si le dossier professionnel est approuvé.
+   */
+  sellerEnseigne?: string | null
   createdAt: number // timestamp ms
   delivery: boolean
   /** annonce mise en avant */

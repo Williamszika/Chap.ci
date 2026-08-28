@@ -212,7 +212,7 @@ export function SellerProfile() {
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 lg:grid-cols-4">
-                {annoncesVues.map((l) => <ListingCard key={l.id} listing={l} />)}
+                {annoncesVues.map((l) => <ListingCard key={l.id} listing={l} dansBoutique />)}
               </div>
             )}
           </div>
