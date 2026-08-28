@@ -2,7 +2,7 @@ import { type ReactNode } from 'react'
 import { Clock, Search, Timer } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
 import { labelTypePro } from '../data/secteursPro'
-import { formatPrice } from '../lib/format'
+import { formatFCFA, formatPrice } from '../lib/format'
 import type { PublicProfile } from '../lib/profiles'
 
 /**
@@ -277,6 +277,85 @@ export function ChiffresVitrine({ reponse, note, avis, ventes, depuis }: {
 
 export interface PuceBoutique { id: string; label: string; n: number }
 
+/* ── L'aperçu de la boutique ────────────────────────────────────────────── */
+
+/** Le prix qui compte : celui de la promotion tant qu'elle court. */
+export function prixEffectif(a: { price?: number; promoPrice?: number; promoUntil?: number }): number {
+  const promo = a.promoPrice ?? 0
+  if (promo > 0 && (a.promoUntil ?? 0) > Date.now()) return promo
+  return a.price ?? 0
+}
+
+/** Une annonce en promotion, ici et maintenant. */
+export function enPromotion(a: { promoPrice?: number; promoUntil?: number }): boolean {
+  return (a.promoPrice ?? 0) > 0 && (a.promoUntil ?? 0) > Date.now()
+}
+
+const TRENTE_JOURS = 30 * 86400000
+
+export interface AnnonceApercu {
+  id: string
+  price?: number
+  promoPrice?: number
+  promoUntil?: number
+  createdAt?: number
+  delivery?: boolean
+}
+
+/**
+ * ⑥ L'APERÇU DE LA BOUTIQUE — le dernier des gestes du tableau de bord qui
+ * manquait à la vitrine, et le seul qui manquait vraiment.
+ *
+ * Dans votre administration, l'onglet « Aperçu » répond à « par où je
+ * commence ? ». Ici la question de l'acheteur est la même, posée autrement :
+ * « qu'est-ce que cette boutique vend, et à quel prix ? ». On y répond AVANT
+ * la grille, pas après l'avoir parcourue.
+ *
+ * Les quatre chiffres sont ceux d'un acheteur, pas d'un vendeur : le prix
+ * d'entrée décide s'il reste, la livraison décide s'il peut acheter. Le nombre
+ * de vues, lui, n'a rien à faire ici.
+ */
+export function ApercuBoutique({ annonces, promos, onVoirPromos }: {
+  annonces: AnnonceApercu[]
+  promos: number
+  onVoirPromos: () => void
+}) {
+  const n = annonces.length
+  if (n === 0) return null
+  const prix = annonces.map(prixEffectif).filter((p) => p > 0)
+  const mini = prix.length ? Math.min(...prix) : 0
+  const recentes = annonces.filter((a) => (a.createdAt ?? 0) > Date.now() - TRENTE_JOURS).length
+  const livrees = annonces.filter((a) => a.delivery).length
+
+  return (
+    <div className="space-y-2.5 px-4">
+      <div className="grid grid-cols-4 gap-2">
+        <Chiffre valeur={formatPrice(n)} libelle={n > 1 ? 'annonces en ligne' : 'annonce en ligne'} />
+        <Chiffre fort={mini > 0} valeur={mini > 0 ? formatFCFA(mini) : '—'} libelle="à partir de" />
+        <Chiffre valeur={formatPrice(recentes)}
+          libelle={recentes > 1 ? 'nouveautés ce mois-ci' : 'nouveauté ce mois-ci'} />
+        <Chiffre valeur={livrees > 0 ? formatPrice(livrees) : '—'}
+          libelle={livrees > 1 ? 'avec livraison' : 'avec livraison'} />
+      </div>
+
+      {/* La ligne qui dit par où commencer — l'équivalent, pour l'acheteur, de
+          la ligne rouge « ce qui attend une décision » de votre tableau de
+          bord. Elle n'apparaît que s'il y a vraiment quelque chose à voir. */}
+      {promos > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-accent-ocre/40 bg-cream-100 px-3.5 py-2.5">
+          <p className="text-[13px] font-bold text-ink">
+            🏷️ {promos} annonce{promos > 1 ? 's' : ''} en promotion en ce moment
+          </p>
+          <button onClick={onVoirPromos}
+            className="rounded-lg bg-primary-500 px-3 py-1.5 text-[12px] font-extrabold text-white">
+            Les voir
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * ④ La recherche et les puces — les mêmes briques que le tableau de bord,
  * retournées vers l'acheteur.
@@ -388,7 +467,7 @@ export function AProposVitrine({ pro, bio, lieu, reponse }: {
  * une catégorie n'apparaît que s'il y a des annonces dedans. Une liste de
  * catégories fixes afficherait des filtres qui ne trouvent rien.
  */
-export function pucesDeBoutique<T extends { categoryId?: string; price?: number }>(
+export function pucesDeBoutique<T extends AnnonceApercu & { categoryId?: string }>(
   annonces: T[],
   nomCategorie: (id: string) => string,
 ): PuceBoutique[] {
@@ -403,19 +482,26 @@ export function pucesDeBoutique<T extends { categoryId?: string; price?: number 
   }
   // « Moins de 20 000 F » : le filtre de l'acheteur qui a un budget, pas une
   // catégorie en tête. Il n'apparaît que s'il trie vraiment quelque chose.
-  const petits = annonces.filter((a) => (a.price ?? 0) > 0 && (a.price ?? 0) < 20000).length
+  const petits = annonces.filter((a) => prixEffectif(a) > 0 && prixEffectif(a) < 20000).length
   if (petits > 0 && petits < annonces.length) {
     puces.push({ id: 'petit', label: 'Moins de 20 000 F', n: petits })
+  }
+  // La promotion en dernier, mais c'est elle que vise le bouton « Les voir »
+  // de l'aperçu : les deux doivent parler du même tas.
+  const promos = annonces.filter(enPromotion).length
+  if (promos > 0 && promos < annonces.length) {
+    puces.push({ id: 'promo', label: '🏷️ En promotion', n: promos })
   }
   return puces
 }
 
 /** Applique la puce choisie à la liste. */
-export function filtrerParPuce<T extends { categoryId?: string; price?: number }>(
+export function filtrerParPuce<T extends AnnonceApercu & { categoryId?: string }>(
   annonces: T[], puce: string,
 ): T[] {
   if (puce === 'tout') return annonces
-  if (puce === 'petit') return annonces.filter((a) => (a.price ?? 0) > 0 && (a.price ?? 0) < 20000)
+  if (puce === 'petit') return annonces.filter((a) => prixEffectif(a) > 0 && prixEffectif(a) < 20000)
+  if (puce === 'promo') return annonces.filter(enPromotion)
   if (puce.startsWith('cat:')) {
     const id = puce.slice(4)
     return annonces.filter((a) => a.categoryId === id)

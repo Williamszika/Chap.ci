@@ -4,7 +4,8 @@ import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check, Timer } 
 import { categories } from '../data/categories'
 import {
   EnTeteVitrine, ChiffresVitrine, PastilleOuverture, CarteHoraires, AProposVitrine,
-  FiltresBoutique, etatOuverture, pucesDeBoutique, filtrerParPuce, contientVitrine,
+  FiltresBoutique, ApercuBoutique, etatOuverture, pucesDeBoutique, filtrerParPuce,
+  contientVitrine, enPromotion,
   delaiPhrase,
 } from '../components/Vitrine'
 import { mediaUrl } from '../lib/native'
@@ -115,6 +116,7 @@ export function SellerProfile() {
     () => pucesDeBoutique(sellerListings, nomCategorie),
     [sellerListings],
   )
+  const nPromos = useMemo(() => sellerListings.filter(enPromotion).length, [sellerListings])
   const annoncesVues = useMemo(() => {
     const parPuce = filtrerParPuce(sellerListings, puce)
     if (!q.trim()) return parPuce
@@ -193,10 +195,16 @@ export function SellerProfile() {
           </div>
         ) : (
           <div className="space-y-3 py-4">
-            {/* ④ La recherche et les puces — seulement quand il y a de quoi
-                filtrer : sous six annonces, elles encombrent au lieu d'aider. */}
+            {/* ⑥ L'APERÇU : ce que la boutique vend et à quel prix, AVANT la
+                grille. Puis ④ la recherche et les puces. Les deux n'arrivent
+                qu'à partir de six annonces : en dessous, la grille se lit d'un
+                coup d'œil et tout cet appareillage encombre. */}
             {pro && sellerListings.length >= 6 && (
-              <FiltresBoutique q={q} onQ={setQ} puce={puce} onPuce={setPuce} puces={puces} />
+              <>
+                <ApercuBoutique annonces={sellerListings} promos={nPromos}
+                  onVoirPromos={() => { setPuce('promo'); setQ('') }} />
+                <FiltresBoutique q={q} onQ={setQ} puce={puce} onPuce={setPuce} puces={puces} />
+              </>
             )}
             {annoncesVues.length === 0 ? (
               <p className="px-4 py-12 text-center text-sm text-gray-500">
