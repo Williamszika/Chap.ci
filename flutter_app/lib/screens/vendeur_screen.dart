@@ -7,6 +7,7 @@ import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
+import '../widgets/vitrine_pro.dart';
 import 'conversation_screen.dart';
 import 'listing_detail_screen.dart';
 
@@ -46,6 +47,9 @@ class VendeurScreen extends StatefulWidget {
 
 class _VendeurScreenState extends State<VendeurScreen> {
   ProfilPublic? _profil;
+
+  /// Délai de réponse habituel, en secondes (`null` = jamais contacté).
+  int? _delaiReponse;
   List<Avis>? _avis;
   List<Listing>? _annonces; // null tant que ça charge
   bool _erreur = false;
@@ -75,6 +79,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
     try {
       avis = await ProfilApi.avis(widget.sellerId);
     } catch (_) {/* pas d'avis affichés */}
+    final delai = await ProfilApi.delaiReponse(widget.sellerId);
     try {
       final toutes = await Listing.toutes();
       annonces = toutes.where((l) => l.sellerId == widget.sellerId).toList();
@@ -86,6 +91,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
       _profil = profil;
       _avis = avis;
       _annonces = annonces;
+      _delaiReponse = delai;
       _erreur = erreur;
     });
   }
@@ -138,6 +144,11 @@ class _VendeurScreenState extends State<VendeurScreen> {
   Widget _entete() {
     final nbAnnonces = _annonces?.length ?? 0;
     final nbAvis = _avis?.length ?? 0;
+    // LA VITRINE, pour un compte professionnel approuvé seulement. Un
+    // particulier qui vend son frigo garde la page simple : il n'a ni logo,
+    // ni horaires, ni registre — la vitrine est ce qu'on obtient en faisant
+    // vérifier son dossier.
+    if (_profil?.estPro ?? false) return _enteteVitrine(nbAvis);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
       child: Column(
@@ -228,6 +239,43 @@ class _VendeurScreenState extends State<VendeurScreen> {
           _onglets(nbAnnonces, nbAvis),
         ],
       ),
+    );
+  }
+
+  /// L'EN-TÊTE DE BOUTIQUE — bannière, logo, nom, type et secteur, puis
+  /// l'état d'ouverture et les quatre chiffres de l'acheteur.
+  Widget _enteteVitrine(int nbAvis) {
+    final p = _profil!;
+    final etat = etatOuverture(p.proHoraires);
+    final note = double.tryParse(_note) ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        EnTeteVitrine(profil: p, commune: _commune),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (etat != null) ...[
+                PastilleOuverture(etat: etat),
+                const SizedBox(height: 12),
+              ],
+              ChiffresVitrine(
+                reponseSecondes: _delaiReponse,
+                note: note,
+                avis: nbAvis,
+                ventes: p.proVentes,
+                depuis: p.proDepuis,
+              ),
+              const SizedBox(height: 14),
+              _boutons(),
+              const SizedBox(height: 12),
+              _onglets(_annonces?.length ?? 0, nbAvis),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -403,6 +451,9 @@ class _VendeurScreenState extends State<VendeurScreen> {
           delegate: SliverChildBuilderDelegate(
             (context, i) => ListingCard(
               annonce: a[i],
+              // On est DÉJÀ chez ce vendeur : son nom est écrit en grand
+              // au-dessus, le répéter sur chaque carte n'apprend rien.
+              dansBoutique: true,
               onTap: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => ListingDetailScreen(annonce: a[i]))),
             ),
@@ -489,7 +540,34 @@ class _VendeurScreenState extends State<VendeurScreen> {
   }
 
   List<Widget> _corpsApropos() {
-    final bio = _profil?.bio;
+    final p = _profil;
+    // POUR UN PROFESSIONNEL : la description de l'ENTREPRISE, le registre
+    // vérifié, et les sept jours d'ouverture. Tout cela partait déjà du
+    // serveur ; l'onglet n'affichait que la biographie PERSONNELLE du compte,
+    // si bien qu'une boutique qui avait soigné sa présentation voyait un
+    // « À propos » vide.
+    if (p?.estPro ?? false) {
+      final horaires = p!.proHoraires;
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AProposVitrine(profil: p, commune: _commune),
+                if (horaires != null && horaires.length == 7) ...[
+                  const SizedBox(height: 12),
+                  CarteHoraires(horaires: horaires),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+
+    final bio = p?.bio;
     return [
       SliverToBoxAdapter(
         child: Padding(

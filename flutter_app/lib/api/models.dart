@@ -30,6 +30,12 @@ class Listing {
 
   /// Vendeur professionnel (badge PRO bleu sur l'annonce et la page vendeur).
   final bool sellerPro;
+
+  /// Le nom commercial de la boutique, montré sur la carte d'annonce (choix du
+  /// Patron du 28/08, option 3). `null` pour un particulier : il n'a pas
+  /// d'enseigne, donc une ligne de moins — pas une marque en moins.
+  /// Le serveur ne l'envoie que si le dossier professionnel est APPROUVÉ.
+  final String? sellerEnseigne;
   final int createdAt; // ms
   final bool delivery;
   final bool featured;
@@ -64,6 +70,7 @@ class Listing {
     this.lng,
     this.sellerVerified = false,
     this.sellerPro = false,
+    this.sellerEnseigne,
     this.delivery = false,
     this.featured = false,
     this.promoPrice,
@@ -117,6 +124,9 @@ class Listing {
       sellerId: j['sellerId']?.toString(),
       sellerVerified: j['sellerVerified'] == true,
       sellerPro: j['sellerPro'] == true,
+      sellerEnseigne: (j['sellerEnseigne']?.toString().trim().isNotEmpty ?? false)
+          ? j['sellerEnseigne'].toString().trim()
+          : null,
       createdAt: (j['createdAt'] is num) ? (j['createdAt'] as num).toInt() : 0,
       delivery: j['delivery'] == true,
       featured: j['featured'] == true,

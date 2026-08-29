@@ -129,14 +129,21 @@ raccourcir** — d'où la priorité du recrutement des testeurs sur tout le rest
 | minSdk 22 · targetSdk 36 | même clé de signature que v1.20/v1.21/v1.22. |
 | État Play | **NON VÉRIFIÉ** — rien n'est prévu côté Play pour celle-ci ; la v1.21 reste en examen, la v1.22 (code 23) a été construite le 27/08 mais jamais téléversée. Le code 23 est donc libre : il n'a jamais atteint la console. |
 | État App Store | **AUCUN.** Voir « Ce que la v1.23 change pour iOS » ci-dessous. |
-| Contenu | les six commits Flutter posés depuis le build de la v1.22 (`48c5045`) : finitions du tableau Pro sur téléphone, onglet Compte des comptes Pro conforme aux maquettes, **le compte entier tenant dans le tableau de bord**, **la vitrine du professionnel** (bannière + logo posés depuis le tableau), la bannière passée derrière tout le bandeau, et la cible tactile des deux boutons de vitrine portée à 48 dp. Quatre fichiers, 765 lignes ajoutées. |
+| Contenu | les commits Flutter posés depuis le build de la v1.22 (`48c5045`) : finitions du tableau Pro sur téléphone, onglet Compte conforme aux maquettes, **le compte entier tenant dans le tableau de bord**, **la vitrine du professionnel** (bannière + logo posés depuis le tableau), la bannière derrière tout le bandeau, la cible tactile des boutons de vitrine portée à 48 dp — et, le 29/08, **le rattrapage du site** : le nom de la boutique sur les cartes d'annonces, et **la vitrine côté acheteur** (en-tête de boutique, état ouvert/fermé, les quatre chiffres, description d'entreprise et registre vérifié, sept jours d'horaires). |
 
-**Ce que la v1.23 ne contient PAS, et il faut le dire.** Les quatorze écrans de la
-console professionnelle livrés sur le SITE du 26 au 28/08 ne sont pas dans
-l'application : ni les statistiques de vente (entonnoir, heures, communes), ni les
+**Ce que la v1.23 ne contient PAS, et il faut le dire.** Le rattrapage du 29/08 porte
+sur ce que voit l'ACHETEUR — les cartes et la vitrine. **La console du professionnel
+reste en retard** : ni les statistiques de vente (entonnoir, heures, communes), ni les
 réponses automatiques, ni le détail des favoris, ni les écrans Sécurité et Adresse, ni
 « qui a mis en favori ». Vérifié par recherche dans `flutter_app/lib/` : aucune de ces
-routes n'y est appelée. L'application reste en retard d'un chantier entier sur le site.
+routes n'y est appelée. **L'aperçu de boutique** (quatre chiffres, ligne des
+promotions, recherche et puces) n'est pas porté non plus.
+
+> ⚠️ **AUCUNE DE CES LIGNES DART N'A ÉTÉ COMPILÉE.** L'environnement de développement
+> n'a ni `dart` ni `flutter`. La relecture s'est faite à la main, complétée par un
+> contrôle mécanique de l'équilibre des parenthèses, accolades et crochets de chaque
+> fichier touché, comparé à son état d'origine. **Le premier `flutter run` sur le Mac
+> du Patron est le vrai test** ; s'il échoue, le texte du Terminal suffit à corriger.
 
 **Ce que la v1.23 change pour iOS : rien, et c'est le sujet.** `tool/preparer_plateformes.dart`
 génère déjà `ios/` entièrement configuré — bundle `ci.chap.app`, nom « Chap.ci »,

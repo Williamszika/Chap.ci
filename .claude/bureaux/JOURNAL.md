@@ -4813,3 +4813,39 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Seule proposition neuve, et elle reste ouverte** : trier `text-gray-400` dans
   `CrmAdmin.tsx` et `AdminDashboard.tsx`, jamais passés en revue. Gros volume, à
   faire par petits bouts.
+
+### 2026-08-29 02:30 — [Bâtisseur] L'application rattrape le site, côté acheteur
+- **Demande du Patron : « mettre à jour l'app Flutter ».** Le retard était d'un
+  chantier entier. J'ai commencé par ce que voit l'ACHETEUR — cartes et vitrine —
+  parce que ça touche tout le monde, là où la console du professionnel ne touche que
+  les pros.
+- **Encore la même découverte, la quatrième** : `models.dart` PARSAIT DÉJÀ `sellerPro`
+  sur chaque annonce, et `listing_detail_screen.dart` s'en servait — mais la CARTE ne
+  le lisait pas. Et `ProfilPublic` ne retenait du bloc `pro` que `nom` et `type`,
+  jetant `secteur`, `banniere`, `logo`, `description`, `horaires`, `registreVerifie`,
+  `ventes` et `depuis`. Exactement le défaut que le site avait avant le 28/08.
+- **Porté** : le nom de la boutique sur les cartes (avec `dansBoutique` pour ne pas le
+  répéter dix fois sur sa propre page) ; l'en-tête de boutique ; la pastille
+  ouvert/fermé ; les quatre chiffres ; « à propos » avec la description d'entreprise,
+  le registre vérifié et les sept jours d'horaires. Le délai de réponse, jamais
+  demandé par l'app, l'est maintenant (`ProfilApi.delaiReponse`).
+- **Le piège des jours, à l'envers** : côté site, `getDay()` commence au dimanche et a
+  coûté un « Fermé » sur une boutique ouverte. En Dart, `DateTime.weekday` vaut 1 pour
+  lundi — donc `weekday - 1` tombe juste, sans acrobatie. **Le même code, deux
+  langages, deux conventions** : c'est écrit en commentaire dans les deux fichiers
+  pour que personne ne « corrige » l'un d'après l'autre.
+- **Trois pièges Flutter évités à la relecture, faute de compilateur** :
+  1. `.characters.first` lève sur une chaîne vide — remplacé par un `_initiale()` qui
+     rend « P » quand le nom manque ;
+  2. une `Row` en `CrossAxisAlignment.stretch` dans une `Column` n'a pas de hauteur de
+     référence — enveloppée dans `IntrinsicHeight` ;
+  3. **deux `Transform.translate` empilés** pour faire déborder le logo : un Transform
+     déplace à l'écran mais PAS dans la mise en page, il aurait laissé un trou de sa
+     hauteur. Refait au `Stack` + `Clip.none`, avec la place réservée franchement par
+     un `SizedBox`.
+- **⚠️ RIEN N'A ÉTÉ COMPILÉ.** L'environnement n'a ni `dart` ni `flutter`. Contrôle de
+  remplacement : équilibre des parenthèses/accolades/crochets de chaque fichier touché,
+  comparé à son état d'origine — cinq fichiers, tous au même écart qu'avant. **Ce n'est
+  pas un compilateur.** Le premier `flutter run` sur le Mac du Patron est le vrai test.
+- **Reste au chantier** : l'aperçu de boutique, et les quatorze écrans de la console
+  professionnelle.

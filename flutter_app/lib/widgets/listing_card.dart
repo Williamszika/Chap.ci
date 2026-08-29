@@ -20,8 +20,17 @@ class ListingCard extends StatelessWidget {
   /// fournie et que l'annonce a une position, la carte montre « · à 3 km ».
   final Coords? origine;
 
+  /// On est DÉJÀ sur la page de cette boutique : répéter son nom sur chacune
+  /// des cartes ne renseigne personne, ça encombre. Le nom sert à reconnaître
+  /// un vendeur AILLEURS — à l'accueil, dans la recherche.
+  final bool dansBoutique;
+
   const ListingCard(
-      {super.key, required this.annonce, this.onTap, this.origine});
+      {super.key,
+      required this.annonce,
+      this.onTap,
+      this.origine,
+      this.dansBoutique = false});
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +98,32 @@ class ListingCard extends StatelessWidget {
                       ],
                     ],
                   ),
+                  // LE NOM DE LA BOUTIQUE (choix du Patron, 28/08 — option 3).
+                  // On nomme le vendeur au lieu de l'étiqueter « PRO » : un nom
+                  // se reconnaît d'une annonce à l'autre, une étiquette non.
+                  if (!dansBoutique &&
+                      annonce.sellerEnseigne != null &&
+                      annonce.sellerEnseigne!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.storefront_outlined,
+                            size: 12, color: ChapColors.orangeDark),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            annonce.sellerEnseigne!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: ChapColors.orangeDark),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 3),
                   _ligneLieu(context),
                 ],
