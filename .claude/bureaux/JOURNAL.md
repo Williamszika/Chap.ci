@@ -4849,3 +4849,41 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   pas un compilateur.** Le premier `flutter run` sur le Mac du Patron est le vrai test.
 - **Reste au chantier** : l'aperçu de boutique, et les quatorze écrans de la console
   professionnelle.
+
+### 2026-08-29 04:15 — [Bâtisseur] Trois améliorations du site, dans l'ordre demandé
+- **① Le nom commercial est verrouillé.** `POST /pro/fiche` ne lit plus `nom` — il
+  rejoint le type, le secteur et le numéro derrière la porte admin, qui journalise
+  l'avant → après et prévient l'intéressé. **Il y avait urgence, et c'est ma livraison
+  de la veille qui l'a créée** : le nom est passé sur TOUTES les cartes du site, donc
+  une enseigne approuvée pouvait se renommer « Orange CI » toute seule et voir ce nom
+  s'afficher partout avec la caution de la validation. Un risque de fiche était devenu
+  un risque d'usurpation à l'échelle du site.
+  - **Vérifié dans les deux sens au banc** : le professionnel qui tente le changement
+    reçoit `ok:true` et le nom NE BOUGE PAS (même silence que pour type/secteur/numéro,
+    par cohérence) ; l'équipe, elle, renomme et le journal porte
+    `pro_nom : « Zika Fête » → « Zika Fête & Décoration »`.
+- **② Le sélecteur de langue.** Cinq pages (Aide, CGU, Confidentialité, À propos,
+  Contact) étaient traduites en cinq langues — **vingt-cinq documents écrits, relus,
+  livrés, et atteignables uniquement par l'application**, qui ajoute `?lang=`. Un
+  visiteur du site n'avait aucun bouton.
+  - **Il ne s'affiche QUE sur ces cinq pages, et c'est délibéré.** Le reste du site est
+    en français. Un sélecteur global promettrait un site multilingue et n'en livrerait
+    qu'un coin : l'utilisateur choisirait « English », verrait la FAQ changer et rien
+    d'autre, et conclurait que le site est cassé.
+  - Vérifié : les cinq pages le portent, le texte change réellement, l'adresse gagne
+    `lang=`, et l'arabe bascule la page en droite-à-gauche.
+- **③ La traduction des annonces.** Même histoire : moteur serveur complet (trois
+  moteurs en cascade, cache, 60 traductions neuves/heure), utilisé par l'application,
+  **jamais appelé par le site**. Le bouton est posé sous la description, avec « Voir
+  l'original » et la mémoire de la langue choisie.
+  - **Le repli compte autant que le bouton** : sur 502/503/404, on ouvre Google
+    Traduction dans un onglet, exactement comme l'application. Un bouton qui échoue en
+    silence vaut moins que pas de bouton.
+  - Vérifié au banc de bout en bout : « Location tente 5×5 m » → « Tent rental 5×5 m »,
+    et le retour à l'original rend le texte français.
+- **Une limite de l'environnement, à savoir** : `POST /api/traduire` sur la production
+  répond 403 (page HTML LiteSpeed) depuis ce conteneur, même avec un User-Agent de
+  navigateur, et le navigateur Playwright n'atteint pas chap.ci. **Le moteur n'a donc
+  été prouvé QUE sur le banc.** C'est la même signature que le 403 relevé par le
+  Gardien sur `/api/mod/queue` : un filtre de l'hébergeur, pas notre code. À confirmer
+  par le Patron une fois le zip extrait.

@@ -685,14 +685,31 @@ export interface Horaire { ouvert: boolean; de: string; a: string }
 /**
  * La fiche professionnelle : ce que les acheteurs voient sur la page vendeur.
  *
- * Le TYPE, le SECTEUR et le NUMÉRO n'y sont pas : ce sont les trois éléments
- * que l'équipe a vérifiés avant d'approuver le dossier, et seul un
+ * Le NOM, le TYPE, le SECTEUR et le NUMÉRO n'y sont pas : ce sont les quatre
+ * éléments que l'équipe a vérifiés avant d'approuver le dossier, et seul un
  * administrateur peut les changer (voir phpAdminProFiche).
+ *
+ * Le nom les a rejoints le 29/08 : depuis la veille il s'affiche sur toutes
+ * les cartes d'annonces du site, et une enseigne approuvée pouvait se
+ * renommer toute seule.
  */
 export async function phpProFiche(d: {
-  nom: string; tel: string; description: string; horaires?: Horaire[]
+  tel: string; description: string; horaires?: Horaire[]
 }): Promise<void> {
   await req('/pro/fiche', { method: 'POST', body: d })
+}
+
+/**
+ * Traduire une annonce (`POST /traduire`). Le serveur essaie trois moteurs et
+ * garde le résultat en cache : une annonce = une traduction par langue, pour
+ * toujours. Si aucun moteur ne répond, il rend 502/503 — l'appelant se replie
+ * alors sur Google Traduction dans un onglet, comme le fait l'application.
+ */
+export async function phpTraduire(
+  listingId: string,
+  langue: 'en' | 'es' | 'pt' | 'ar' | 'zh',
+): Promise<{ titre: string; description: string; cache?: boolean }> {
+  return req('/traduire', { method: 'POST', body: { listingId, langue } })
 }
 
 /** Côté équipe : corriger le dossier vérifié d'un professionnel. */

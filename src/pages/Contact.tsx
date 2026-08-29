@@ -5,6 +5,7 @@ import { User, Mail, ChevronDown, Loader2, CheckCircle2, LifeBuoy } from 'lucide
 import { phpContact } from '../lib/php'
 import { useTraductionPage } from '../lib/langue'
 import type { TexteContact } from '../i18n/contact'
+import { ChoixLangue } from '../components/ChoixLangue'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
 
@@ -74,6 +75,7 @@ export function Contact() {
 
   return (
     <div className="min-h-screen pb-16" dir={dir}>
+      <ChoixLangue />
       {/* Héro « info-hero » de l'artifact — dégradé orange doux, titre centré */}
       <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
         <h1 className="font-display text-[26px] font-extrabold tracking-tight text-ink md:text-[34px]">

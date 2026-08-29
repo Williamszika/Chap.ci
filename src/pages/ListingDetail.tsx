@@ -64,6 +64,7 @@ import { ListingCard } from '../components/ListingCard'
 import { PromoTag } from '../components/PromoTag'
 import { Stars } from '../components/Stars'
 import type { Review } from '../types'
+import { TraduireAnnonce, type Traduction } from '../components/TraduireAnnonce'
 
 export function ListingDetail() {
   const { id } = useParams()
@@ -73,6 +74,8 @@ export function ListingDetail() {
   const toast = useToast()
   const { position } = useGeo()
   const listing = id ? getListing(id) : undefined
+  // La traduction affichée, ou null pour le texte d'origine du vendeur.
+  const [traduction, setTraduction] = useState<Traduction | null>(null)
 
   const [imgIndex, setImgIndex] = useState(0)
   // Photo ouverte en plein écran (null = visionneuse fermée).
@@ -536,8 +539,9 @@ export function ListingDetail() {
           )}
 
           {/* Titre */}
-          <h1 className="mt-2 font-display text-xl font-bold leading-snug text-gray-900 md:text-2xl">
-            {listing.title}
+          <h1 className="mt-2 font-display text-xl font-bold leading-snug text-gray-900 md:text-2xl"
+            dir={traduction?.langue === 'ar' ? 'rtl' : undefined}>
+            {traduction ? traduction.titre : listing.title}
           </h1>
 
           {/* Méta : localisation · publié · vues · distance */}
@@ -692,9 +696,15 @@ export function ListingDetail() {
           {/* Description */}
           <div className="mt-5">
             <h2 className="mb-1.5 font-display text-sm font-bold text-gray-900">Description</h2>
-            <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700">
-              {listing.description}
+            <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700"
+              dir={traduction?.langue === 'ar' ? 'rtl' : undefined}>
+              {traduction ? traduction.description : listing.description}
             </p>
+            {/* TRADUIRE — le moteur existait côté serveur, l'application s'en
+                servait, le site ne l'appelait jamais. */}
+            <TraduireAnnonce listingId={listing.id} titre={listing.title}
+              description={listing.description}
+              traduction={traduction} onTraduction={setTraduction} />
           </div>
 
           {/* Vendeur */}

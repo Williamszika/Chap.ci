@@ -137,7 +137,8 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
   onAdresse: () => void
 }) {
   const toast = useToast()
-  const [nom, setNom] = useState(pro.nom ?? '')
+  // Le nom n'est plus modifiable ici : il se lit, il ne s'édite pas.
+  const nom = pro.nom ?? ''
   const type = pro.type === 'commerce' ? 'boutique' : (pro.type ?? 'boutique')
   const secteur = pro.secteur ?? ''
   const numero = pro.numero ?? ''
@@ -168,7 +169,7 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
   const enregistrer = async () => {
     setEnCours(true)
     try {
-      await phpProFiche({ nom, tel, description, horaires })
+      await phpProFiche({ tel, description, horaires })
       onEnregistre()
       toast.success('Votre fiche est à jour.')
     } catch (e) { toast.error((e as Error).message) }
@@ -201,22 +202,26 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
         </p>
       </div>
 
-      <Champ etiquette="Nom commercial">
-        <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80}
-          placeholder="Ex : Zika Fête" className={SAISIE} />
-      </Champ>
-
       {/* CE QUE L'ÉQUIPE A VÉRIFIÉ — en lecture seule.
-          Type, secteur et numéro sont les trois éléments contrôlés avant
+          Nom, type, secteur et numéro sont les quatre éléments contrôlés avant
           l'approbation du dossier : le numéro se vérifie au registre, et c'est
           lui qui porte « entreprise enregistrée » sur la page vendeur. Les
           laisser modifiables, ce serait laisser une boutique approuvée se
-          déclarer association le lendemain, badge compris. */}
+          déclarer association le lendemain, badge compris.
+
+          LE NOM LES A REJOINTS LE 29/08, et il y avait urgence : la veille, le
+          nom commercial est passé sur TOUTES les cartes d'annonces du site. Un
+          professionnel approuvé pouvait se renommer « Orange CI » tout seul et
+          voir ce nom s'afficher partout, avec la caution de la validation. */}
       <div className="rounded-2xl border border-line bg-white p-3.5 shadow-card">
         <p className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-gray-400">
           <Lock size={11} /> Vérifié par l’équipe
         </p>
         <dl className="mt-2 grid gap-2.5 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <dt className="text-[10px] font-extrabold uppercase tracking-[0.07em] text-gray-400">Nom commercial</dt>
+            <dd className="mt-0.5 text-[15px] font-bold text-ink">{nom || '—'}</dd>
+          </div>
           <div>
             <dt className="text-[10px] font-extrabold uppercase tracking-[0.07em] text-gray-400">Type</dt>
             <dd className="mt-0.5 text-[14px] font-semibold text-gray-700">{labelTypePro(type)}</dd>
@@ -233,9 +238,10 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
           </div>
         </dl>
         <p className="mt-2.5 rounded-xl bg-cream-100 px-3 py-2 text-[11.5px] leading-relaxed text-gray-600">
-          Ces trois-là ont été contrôlés avant l’approbation de votre dossier : ils ne se
-          changent pas depuis ici. Une erreur ou un changement réel (nouveau RCCM,
-          changement d’activité) ?{' '}
+          Ces quatre-là ont été contrôlés avant l’approbation de votre dossier : ils ne
+          se changent pas depuis ici. Votre nom apparaît sur toutes vos annonces du site —
+          c’est pourquoi il est protégé comme les autres. Une erreur ou un changement réel
+          (nouveau nom, nouveau RCCM, changement d’activité) ?{' '}
           <Link to="/assistance" className="font-bold text-primary-700">Écrivez à l’équipe</Link>,
           elle le corrige.
         </p>

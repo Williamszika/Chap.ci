@@ -7636,19 +7636,26 @@ try {
       jerr('Réservé aux comptes professionnels approuvés.', 403);
     }
     $b = body();
-    $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
-    if (mb_strlen($nom) < 2) jerr('Indiquez le nom de votre organisation.');
-    // LE TYPE, LE SECTEUR ET LE NUMÉRO NE SE MODIFIENT PAS ICI.
+    // LE NOM, LE TYPE, LE SECTEUR ET LE NUMÉRO NE SE MODIFIENT PAS ICI.
     //
-    // Ces trois-là sont ce que l'équipe a VÉRIFIÉ avant d'approuver le dossier
+    // Ces quatre-là sont ce que l'équipe a VÉRIFIÉ avant d'approuver le dossier
     // — le numéro RCCM se contrôle au registre, et c'est lui qui porte la
     // mention « entreprise enregistrée » sur la page vendeur. Les laisser
     // modifiables, c'est laisser une enseigne approuvée en boutique se
     // déclarer association le lendemain, avec le badge en prime.
     //
+    // LE NOM A REJOINT LES TROIS AUTRES LE 29/08, et il y avait urgence : la
+    // veille, le nom commercial est passé sur TOUTES les cartes d'annonces du
+    // site — accueil, recherche, catégories, favoris. Un professionnel
+    // approuvé pouvait donc se renommer « Orange CI » tout seul et voir ce nom
+    // s'afficher partout, en orange, avec la caution implicite de la
+    // validation de l'équipe. Ce qui n'était qu'un risque de fiche est devenu
+    // un risque d'usurpation à l'échelle du site.
+    //
     // Ils changent par une seule porte : un administrateur ou un modérateur
-    // qui a le droit « utilisateurs » (route admin/pro/fiche). Le corps de la
-    // requête peut les porter, on ne les lit pas.
+    // qui a le droit « utilisateurs » (route admin/pro/fiche), qui journalise
+    // l'avant → après et prévient l'intéressé. Le corps de la requête peut les
+    // porter, on ne les lit pas.
     $tel  = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
     $desc = trim(mb_substr((string) ($b['description'] ?? ''), 0, 300));
     // Les horaires : sept jours, chacun ouvert ou fermé avec deux heures.
@@ -7669,8 +7676,8 @@ try {
         $horaires = count($propre) === 7 ? json_encode($propre, JSON_UNESCAPED_UNICODE) : null;
       }
     }
-    $sql = 'UPDATE users SET pro_nom = ?, pro_tel = ?, pro_description = ?';
-    $vals = [$nom, $tel, $desc];
+    $sql = 'UPDATE users SET pro_tel = ?, pro_description = ?';
+    $vals = [$tel, $desc];
     if ($horaires !== null) { $sql .= ', pro_horaires = ?'; $vals[] = $horaires; }
     $sql .= ' WHERE id = ?'; $vals[] = $u['id'];
     $pdo->prepare($sql)->execute($vals);

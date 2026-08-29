@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTraductionPage } from '../lib/langue'
 import { chargerConditions } from '../i18n/conditions'
 import type { TexteLegal } from '../i18n/legal'
+import { ChoixLangue } from '../components/ChoixLangue'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
 const LAST_UPDATE = '14 juillet 2026'
@@ -59,6 +60,7 @@ export function Terms() {
 
   return (
     <div className="min-h-screen pb-16" dir={dir}>
+      <ChoixLangue />
       {/* En-tête « legal-head » de l'artifact : titre à gauche + filet */}
       <header className="border-b border-line bg-white px-4 pb-4 pt-6 md:-mx-6 md:px-6">
         <h1 className="font-display text-2xl font-extrabold tracking-tight text-ink md:text-[26px]">

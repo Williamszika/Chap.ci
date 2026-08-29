@@ -7,6 +7,7 @@ import { isPhp } from '../lib/backend'
 import { phpProStatut } from '../lib/php'
 import { chargerFaq, type TexteFaq } from '../i18n/faq'
 import { RetourCompte } from '../components/RetourCompte'
+import { ChoixLangue } from '../components/ChoixLangue'
 
 /** Ce qu'un professionnel vient chercher ici — le mot cherché, pas l'étiquette. */
 const RACCOURCIS_PRO: [string, string][] = [
@@ -369,6 +370,7 @@ export function Faq() {
 
   return (
     <div className="min-h-screen pb-16" dir={dir}>
+      <ChoixLangue />
       {/* Héro « info-hero » de l'artifact — dégradé orange doux, titre centré */}
       <section className="relative bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-12">
         <RetourCompte className="absolute left-4 top-4 md:left-8" />

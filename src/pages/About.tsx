@@ -1,6 +1,7 @@
 import { Wordmark } from '../components/Logo'
 import { useTraductionPage } from '../lib/langue'
 import type { TexteAPropos } from '../i18n/apropos'
+import { ChoixLangue } from '../components/ChoixLangue'
 
 // « À propos » du modèle artifact : un héro chaleureux + 4 cartes de valeurs.
 // Le français vit ici ; les autres langues (`?lang=`, posé par l'application)
@@ -20,6 +21,7 @@ export function About() {
 
   return (
     <div className="pb-10" dir={dir}>
+      <ChoixLangue />
       {/* Héro « info-hero » — dégradé orange doux, titre display centré */}
       <section className="bg-[linear-gradient(160deg,#FFF6EC,#FFFDF9)] px-5 py-9 text-center md:-mx-6 md:py-14">
         <h1 className="mx-auto max-w-2xl font-display text-[26px] font-extrabold leading-[1.1] tracking-tight text-ink md:text-[34px]">
