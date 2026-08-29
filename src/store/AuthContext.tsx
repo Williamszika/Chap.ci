@@ -229,9 +229,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, [])
 
-  const sendPasswordReset = useCallback(async (_email: string): Promise<AuthResult> => ({
-    error: 'La réinitialisation par email n’est pas disponible sur ce site. Contactez le support à contact@chap.ci.',
-  }), [])
+  /**
+   * Mot de passe oublié — le code part par e-mail (`/auth/reset/send`).
+   *
+   * Il n'y avait AUCUN flux jusqu'au 29/08 : cette fonction répondait « pas
+   * disponible, contactez le support », et l'équipe n'avait elle-même aucun
+   * outil pour réinitialiser quoi que ce soit. Un utilisateur qui oubliait son
+   * mot de passe était perdu pour de bon.
+   *
+   * Le serveur répond toujours « ok », que le compte existe ou non : sinon la
+   * page devient un annuaire d'adresses inscrites.
+   */
+  const sendPasswordReset = useCallback(async (email: string): Promise<AuthResult> => {
+    try {
+      await php.phpResetSend(email)
+      return {}
+    } catch (e) {
+      return { error: (e as Error).message }
+    }
+  }, [])
 
   const updatePassword = useCallback(async (newPassword: string, currentPassword?: string): Promise<AuthResult> => {
     try {

@@ -4887,3 +4887,33 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   été prouvé QUE sur le banc.** C'est la même signature que le 403 relevé par le
   Gardien sur `/api/mod/queue` : un filtre de l'hébergeur, pas notre code. À confirmer
   par le Patron une fois le zip extrait.
+
+### 2026-08-29 07:40 — [Bâtisseur] Le mot de passe oublié existe enfin
+- **Il n'y avait AUCUN flux.** `sendPasswordReset` répondait « pas disponible, contactez
+  le support », et l'équipe n'avait elle-même aucun outil : la seule route « reset » du
+  serveur efface le site entier. **Un utilisateur qui oubliait son mot de passe était
+  perdu pour de bon** — sauf s'il se connectait par Google.
+- **Ce n'était pas un trou de sécurité** — pas de flux, pas de faille — **mais un piège
+  qui se refermait** : le jour où quelqu'un écrit « c'est moi, réinitialisez-moi », la
+  tentation de le faire à la main est exactement la porte qu'un escroc cherche. Mieux
+  vaut une procédure qui prouve quelque chose qu'un humain qu'on convainc.
+- **Le flux reprend celui de la vérification d'adresse, déjà éprouvé ici** : code à six
+  chiffres, haché en base (bcrypt), quinze minutes, cinq essais, puis destruction.
+- **Quatre décisions de sécurité, chacune vérifiée au banc (dix contrôles)** :
+  1. **La route ne dit jamais si le compte existe** — même réponse dans les deux cas.
+     Sinon elle devient un annuaire : mille adresses testées, la liste des inscrits en
+     sortie. Vérifié : `{"ok":true}` des deux côtés.
+  2. **Toutes les sessions tombent** (`session_version + 1`). C'est ce qui rend la
+     procédure utile quand le compte a été volé. Vérifié : l'ancien jeton passe en 401.
+  3. **La double authentification reste exigée.** Sans cela, la réinitialisation par
+     e-mail devenait le contournement de la 2FA : qui prend la boîte mail prend le
+     compte. Vérifié : sans code 2FA → 401 `mfa_required` ; avec un faux → 401 ; et le
+     mot de passe n'a PAS changé.
+  4. **Le code est à usage unique** et un e-mail prévient que le mot de passe vient de
+     changer — c'est ce message qui fait réagir la victime si ce n'est pas elle.
+- **Un piège de test à retenir** : mon premier parcours navigateur échouait parce que le
+  bouton « Envoyer le code » **remplace** le code posé à la main juste avant. Ce n'était
+  pas un bogue, c'était le bon comportement — et j'ai failli « corriger » du code sain.
+  Le test pose désormais l'empreinte APRÈS l'envoi.
+- **Reste au Patron** : activer la CSP (retirer `-Report-Only` dans le `.htaccess`) —
+  je ne peux pas le faire, ce fichier ne voyage jamais dans un zip.

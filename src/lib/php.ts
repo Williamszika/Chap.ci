@@ -301,6 +301,31 @@ export async function phpMe(): Promise<PhpUser | null> {
     return phpGetStoredUser()
   }
 }
+/**
+ * MOT DE PASSE OUBLIÉ — étape 1 : demander le code par e-mail.
+ *
+ * Répond toujours `ok`, que le compte existe ou non. C'est voulu : une route
+ * qui distingue les deux devient un annuaire — on y teste mille adresses et on
+ * repart avec la liste des inscrits.
+ */
+export async function phpResetSend(email: string): Promise<void> {
+  await req('/auth/reset/send', { method: 'POST', body: { email } })
+}
+
+/**
+ * Étape 2 : le code reçu + le nouveau mot de passe.
+ *
+ * Si le compte a la double authentification, le serveur répond 401 avec
+ * `mfa_required` tant que `code2fa` n'accompagne pas la demande : la
+ * réinitialisation par e-mail ne doit pas devenir le chemin de contournement
+ * de la 2FA.
+ */
+export async function phpResetConfirm(d: {
+  email: string; code: string; password: string; code2fa?: string
+}): Promise<void> {
+  await req('/auth/reset/confirm', { method: 'POST', body: d })
+}
+
 export async function phpUpdatePassword(password: string, currentPassword?: string): Promise<void> {
   // Le serveur invalide les anciens jetons ET repose le cookie de la session
   // courante (P3) : rien à stocker côté navigateur. On efface au passage un

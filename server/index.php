@@ -5210,6 +5210,140 @@ try {
     jout(['token' => $token, 'user' => user_public($pdo, $u)]);
   }
 
+  // ---- MOT DE PASSE OUBLIÉ --------------------------------------------------
+  //
+  // Il n'y en avait AUCUN jusqu'au 29/08 : la page existait, elle répondait
+  // « contactez le support », et l'équipe n'avait elle-même aucun outil pour
+  // réinitialiser quoi que ce soit. Un utilisateur qui oubliait son mot de
+  // passe était perdu pour de bon.
+  //
+  // Ce n'était pas un trou de sécurité — pas de flux, pas de faille — mais un
+  // piège qui se refermait : le jour où quelqu'un écrit « c'est moi,
+  // réinitialisez-moi », la tentation de le faire à la main est exactement la
+  // porte qu'un escroc cherche. Mieux vaut une procédure qui prouve quelque
+  // chose qu'un humain qui se laisse convaincre.
+  //
+  // Le flux reprend celui de la vérification d'adresse, déjà éprouvé ici :
+  // code à six chiffres, haché en base, quinze minutes, cinq essais.
+
+  // Étape 1 — demander le code.
+  if ($path === 'auth/reset/send' && $method === 'POST') {
+    $email = strtolower(trim((string) (body()['email'] ?? '')));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    // 5 demandes par heure et par adresse : de quoi se tromper de boîte, pas
+    // de quoi transformer le site en distributeur d'e-mails.
+    rate_limit($pdo, 'reset_send', $email, 5, 3600);
+
+    $st = $pdo->prepare('SELECT id, password_hash, auth_provider FROM users WHERE LOWER(email) = ? LIMIT 1');
+    $st->execute([$email]);
+    $u = $st->fetch();
+
+    // ON NE DIT JAMAIS SI LE COMPTE EXISTE. La réponse est la même dans tous
+    // les cas — sinon cette route devient un annuaire : on y teste mille
+    // adresses et on repart avec la liste de celles qui sont inscrites.
+    if ($u) {
+      try { $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]); }
+      catch (Throwable $e) {}
+      try { $code = (string) random_int(100000, 999999); }
+      catch (Throwable $e) { $code = (string) mt_rand(100000, 999999); }
+      $pdo->prepare('INSERT INTO email_codes (id,email,code_hash,attempts,created_at,expires_at) VALUES (?,?,?,?,?,?)')
+          ->execute([uuid(), 'reset:' . $email, password_hash($code, PASSWORD_BCRYPT), 0, now_iso(),
+                     gmdate('Y-m-d\TH:i:s\Z', time() + 900)]);
+      $inner = '<h2 style="margin-top:0;color:#111827">Votre code de réinitialisation</h2>'
+        . '<p>Bonjour,</p>'
+        . '<p>Voici le code qui vous permet de choisir un nouveau mot de passe :</p>'
+        . '<p style="font-size:34px;font-weight:800;letter-spacing:10px;color:#1a1f2b;'
+        . 'background:#FFF6EC;border-radius:14px;padding:18px;text-align:center;margin:18px 0">'
+        . $code . '</p>'
+        . '<p>Il est valable <b>15 minutes</b>.</p>'
+        . '<p><b>Vous n\'avez rien demandé ?</b> Ignorez ce message : votre mot de passe '
+        . 'reste celui que vous connaissez, et personne ne peut le changer sans ce code.</p>';
+      send_mail($config, $email, 'Chap.ci — code de réinitialisation : ' . $code,
+                email_layout($config, $inner, 'Mot de passe oublié'));
+      log_security_event($pdo, 'reset_send', $email);
+    } else {
+      // Compte inconnu : on journalise quand même (une rafale d'adresses
+      // inconnues est le signe d'un balayage) et on répond pareil.
+      log_security_event($pdo, 'reset_send_inconnu', $email);
+    }
+    jout(['ok' => true]);
+  }
+
+  // Étape 2 — le code + le nouveau mot de passe.
+  if ($path === 'auth/reset/confirm' && $method === 'POST') {
+    $b = body();
+    $email = strtolower(trim((string) ($b['email'] ?? '')));
+    $saisi = preg_replace('/\D/', '', (string) ($b['code'] ?? ''));
+    $neuf  = (string) ($b['password'] ?? '');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    if (strlen($neuf) < 8) jerr('Mot de passe trop court (8 caractères minimum).');
+    rate_limit($pdo, 'reset_try', $email, 20, 3600);
+
+    $st = $pdo->prepare('SELECT id, code_hash, attempts, expires_at FROM email_codes
+                         WHERE email = ? ORDER BY created_at DESC');
+    $st->execute(['reset:' . $email]);
+    $row = $st->fetch();
+    if (!$row) jerr('Aucun code en cours. Demandez-en un nouveau.');
+    if (strtotime((string) $row['expires_at']) < time()) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]);
+      jerr('Ce code a expiré. Demandez-en un nouveau.');
+    }
+    if ((int) ($row['attempts'] ?? 0) >= 5) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]);
+      log_security_event($pdo, 'reset_trop_essais', $email);
+      jerr('Trop d’essais. Demandez un nouveau code.');
+    }
+    if (!password_verify($saisi, (string) $row['code_hash'])) {
+      $pdo->prepare('UPDATE email_codes SET attempts = attempts + 1 WHERE id = ?')
+          ->execute([$row['id']]);
+      log_security_event($pdo, 'reset_code_faux', $email);
+      jerr('Code incorrect.', 401);
+    }
+
+    $us = $pdo->prepare('SELECT id, totp_enabled, totp_secret, totp_recovery FROM users WHERE LOWER(email) = ? LIMIT 1');
+    $us->execute([$email]);
+    $u = $us->fetch();
+    if (!$u) jerr('Compte introuvable.', 404);
+
+    // LA DOUBLE AUTHENTIFICATION RESTE EXIGÉE. Sans cela, la réinitialisation
+    // par e-mail deviendrait le chemin de contournement de la 2FA : qui prend
+    // la boîte mail prend le compte, et les six chiffres de l'application
+    // n'auraient plus servi à rien.
+    if ((int) ($u['totp_enabled'] ?? 0) === 1) {
+      $code2fa = (string) ($b['code2fa'] ?? '');
+      if ($code2fa === '') {
+        jout(['mfa_required' => true,
+              'message' => 'Entrez le code à 6 chiffres de votre application d’authentification.'], 401);
+      }
+      if (!totp_check((string) $u['totp_secret'], $code2fa)
+          && !recovery_consume($pdo, (string) $u['id'], (string) ($u['totp_recovery'] ?? ''), $code2fa)) {
+        log_security_event($pdo, 'reset_2fa_faux', $email);
+        jerr('Code de double authentification incorrect.', 401);
+      }
+    }
+
+    // Le mot de passe change ET toutes les sessions ouvertes tombent : si
+    // quelqu'un était déjà entré dans le compte, la réinitialisation le met
+    // dehors. C'est le geste qui rend la procédure utile en cas de vol.
+    $pdo->prepare('UPDATE users SET password_hash = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+        ->execute([password_hash($neuf, PASSWORD_BCRYPT), $u['id']]);
+    $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]);
+    log_security_event($pdo, 'reset_ok', $email);
+
+    // On préviens la personne que son mot de passe VIENT de changer : si ce
+    // n'est pas elle, c'est ce message qui la fait réagir.
+    try {
+      $inner = '<h2 style="margin-top:0;color:#111827">Votre mot de passe a été changé</h2>'
+        . '<p>Le mot de passe de votre compte Chap.ci vient d\'être réinitialisé, et '
+        . 'toutes les sessions ouvertes ont été fermées.</p>'
+        . '<p><b>Ce n\'est pas vous ?</b> Écrivez immédiatement à contact@chap.ci.</p>';
+      send_mail($config, $email, 'Chap.ci — votre mot de passe a été changé',
+                email_layout($config, $inner, 'Mot de passe changé'));
+    } catch (Throwable $e) { /* le changement est fait quoi qu'il arrive */ }
+
+    jout(['ok' => true]);
+  }
+
   // ---- Double authentification (2FA / TOTP) ---------------------------------
   // État : la 2FA est-elle active sur mon compte ?
   if ($path === 'auth/2fa/status' && $method === 'GET') {

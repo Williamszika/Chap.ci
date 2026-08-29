@@ -47,23 +47,28 @@ export function ForgotPassword() {
         {sent ? (
           <div className="rounded-2xl border border-ivoire-green/20 bg-ivoire-green/10 p-5 text-center">
             <CheckCircle2 size={40} className="mx-auto text-ivoire-green" />
-            <p className="mt-2 font-bold text-ivoire-green-dark">Email envoyé !</p>
+            <p className="mt-2 font-bold text-ivoire-green-dark">Code envoyé</p>
             <p className="mt-1 text-sm text-ivoire-green-dark">
-              Un lien de réinitialisation a été envoyé à <strong>{email}</strong>. Ouvrez-le pour
-              choisir un nouveau mot de passe.
+              Si un compte existe pour <strong>{email}</strong>, un code à 6 chiffres vient d’y
+              être envoyé. Il est valable 15 minutes.
             </p>
             <p className="mt-2 text-xs text-ivoire-green-dark">
               Pensez à vérifier vos courriers indésirables (spam).
             </p>
-            <button onClick={() => navigate('/connexion')} className="btn-outline mt-4 w-full py-2.5 text-sm">
+            <button
+              onClick={() => navigate('/nouveau-mot-de-passe', { state: { email } })}
+              className="btn-primary mt-4 w-full py-3 text-sm">
+              J’ai reçu le code
+            </button>
+            <button onClick={() => navigate('/connexion')} className="btn-outline mt-2 w-full py-2.5 text-sm">
               Retour à la connexion
             </button>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <p className="text-sm text-gray-600">
-              Entrez l’adresse email de votre compte. Nous vous enverrons un lien pour définir un
-              nouveau mot de passe.
+              Entrez l’adresse email de votre compte. Nous vous enverrons un <b>code à
+              6 chiffres</b> pour choisir un nouveau mot de passe.
             </p>
             <div className="relative">
               <Mail size={18} className="absolute left-3 top-3.5 text-gray-400" />
@@ -80,7 +85,7 @@ export function ForgotPassword() {
             {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
 
             <button type="submit" disabled={busy || !enabled} className="btn-primary w-full py-3.5 text-base">
-              {busy ? <Loader2 size={20} className="animate-spin" /> : 'Envoyer le lien'}
+              {busy ? <Loader2 size={20} className="animate-spin" /> : 'Envoyer le code'}
             </button>
 
             <p className="text-center text-sm text-gray-500">
