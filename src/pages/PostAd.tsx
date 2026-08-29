@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ecrireBrouillon, lireBrouillon, effacerBrouillon, ilYA } from '../lib/brouillon'
+import { ecrireBrouillon, lireBrouillon, effacerBrouillon, ilYA, type Brouillon } from '../lib/brouillon'
+import { poserRelais, lireRelais, retirerRelais, type EtatPhotos } from '../lib/relaisPublier'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown, Gift } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
@@ -157,6 +158,62 @@ export function PostAd() {
   const [brouillon, setBrouillon] = useState(() => (editId ? null : lireBrouillon()))
   const brouillonRepris = useRef(false)
 
+  /* ── L'ÉTAPE DU COMPTE ────────────────────────────────────────────────────
+   * Le formulaire s'affiche à tout le monde. Le compte n'est demandé qu'au
+   * moment d'appuyer sur « Publier » — d'où ces deux états : celui qui ouvre
+   * la demande par-dessus le formulaire (sans le démonter, pour qu'un
+   * « Revenir » ne coûte rien), et celui qui dit ce qu'il advient des photos.
+   */
+  const [demandeCompte, setDemandeCompte] = useState(false)
+  const [sortPhotos, setSortPhotos] = useState<EtatPhotos>('aucune')
+  // Retour d'inscription : ce qui a été remis en place, pour le dire à l'écran.
+  const [retour, setRetour] = useState<EtatPhotos | null>(null)
+
+  // Le relais posé avant de partir vers l'inscription (photos + repère de
+  // passage). Lu UNE seule fois, à l'ouverture : il peut peser trois mégaoctets,
+  // et le relire à chaque rendu du formulaire serait ruineux.
+  const [relais] = useState(() => (editId ? null : lireRelais()))
+
+  /** Remet une saisie sauvegardée dans les champs. Le seul endroit qui le fait. */
+  function appliquerBrouillon(b: Brouillon) {
+    setTitle(b.title); setCategoryId(b.categoryId); setSubcategory(b.subcategory)
+    setAttrs(b.attrs || {}); setCondition(b.condition); setPrice(b.price)
+    setNegotiable(b.negotiable); setDelivery(b.delivery)
+    setDescription(b.description); setLoc(b.loc || {})
+  }
+
+  /* Retour de l'inscription : on remet TOUT en place sans rien demander.
+   *
+   * Ailleurs, la reprise se propose (« Vous aviez commencé une annonce… ») :
+   * quelqu'un qui revient trois jours plus tard vient peut-être publier autre
+   * chose. Ici, non — le visiteur vient de partir créer un compte DEPUIS ce
+   * formulaire, il y a trente secondes, pour cette annonce-là. Lui redemander
+   * s'il veut la reprendre, ce serait faire semblant d'avoir oublié. */
+  const relaisRepris = useRef(false)
+  useEffect(() => {
+    if (editing || !relais || relaisRepris.current) return
+    relaisRepris.current = true
+    if (relais.images.length) setImages(relais.images)
+    const b = lireBrouillon()
+    if (b) { appliquerBrouillon(b); brouillonRepris.current = true; setBrouillon(null) }
+    setRetour(relais.sort)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, relais])
+
+  /* Le relais ne se retire QUE quand le formulaire est réellement à l'écran.
+   *
+   * La tentation était de l'effacer dès qu'on l'a lu. C'est faux, et voici
+   * pourquoi : entre l'inscription et le formulaire, il reste une porte — le
+   * code de confirmation d'adresse. Quelqu'un qui vient de créer son compte y
+   * arrive, ne trouve pas l'e-mail tout de suite, appuie sur « Retour »… et si
+   * le relais avait été vidé, ses photos seraient parties avec, alors qu'il n'a
+   * PAS ENCORE revu son annonce une seule fois.
+   *
+   * Le relais tient donc jusqu'à ce que le formulaire soit vraiment dessiné.
+   * Il meurt de toute façon avec l'onglet. */
+  const formulaireVu = !editing && !!user && !!verifStatus && verifStatus.emailVerified && !demandeCompte
+  useEffect(() => { if (formulaireVu) retirerRelais() }, [formulaireVu])
+
   // Sauvegarde automatique de la saisie, une seconde après la dernière frappe.
   //
   // Uniquement en création : en édition, l'annonce vit déjà sur le serveur, il
@@ -243,10 +300,17 @@ export function PostAd() {
   // `!verifStatus`, une seconde d'attente sur l'état de vérification comptait un
   // « formulaire » que le vendeur n'a jamais vu, puis un « mur_email » : la marche
   // la plus importante de l'entonnoir aurait été gonflée par sa propre mesure.
+  //
+  // ⚠️ `mur_connexion` NE SE COMPTE PLUS ICI. Il comptait autrefois les visiteurs
+  // sans compte à qui l'on refusait le formulaire ; depuis le 29/08 le formulaire
+  // s'affiche à tout le monde, et la marche est envoyée par `demanderLeCompte()`,
+  // au moment où l'on appuie sur « Publier ». Le nom est le même, l'instant a
+  // changé : « mur_connexion » ne mesure plus une porte fermée mais une annonce
+  // écrite qui attend un compte. Le comparer aux chiffres d'avant n'a pas de sens.
   const marche: EtapePublier | null = authLoading
     ? null
     : !user
-      ? 'mur_connexion'
+      ? 'formulaire'
       : !verifStatus
         ? null
         : !verifStatus.emailVerified
@@ -500,10 +564,46 @@ export function PostAd() {
     }
   }
 
+  /**
+   * « Publier » sans compte : on ouvre l'étape du compte, on ne perd rien.
+   *
+   * L'ORDRE EST LE SUJET DE TOUT CE QUI SUIT. Jusqu'au 29/08, le compte se
+   * demandait AVANT le formulaire : un visiteur qui arrivait sur /publier ne
+   * voyait pas ce qu'on lui proposait de remplir, seulement ce qu'on exigeait
+   * de lui. Cinq personnes sur huit s'arrêtaient là, contre une sur huit dans
+   * le formulaire lui-même — le mur coûtait cinq fois plus cher que les quinze
+   * champs qu'il protégeait.
+   *
+   * La RAISON du compte, elle, reste entièrement satisfaite : aucune annonce ne
+   * part sans compte, le vendeur reste identifié, joignable et signalable. On ne
+   * retire pas l'exigence, on la déplace à l'instant où elle se comprend toute
+   * seule — l'annonce est écrite, il ne manque plus que la signature.
+   *
+   * On ne valide RIEN avant d'ouvrir cette étape, volontairement. Exiger un
+   * formulaire complet d'abord reviendrait à faire remplir quinze champs à
+   * quelqu'un pour lui apprendre ensuite qu'il lui faut un compte : le pire des
+   * deux ordres.
+   */
+  function demanderLeCompte() {
+    trackEtapePublier('mur_connexion')
+    // La sauvegarde automatique attend une seconde après la dernière frappe :
+    // quelqu'un qui tape son prix puis appuie aussitôt sur « Publier » partirait
+    // sans lui. On écrit donc tout de suite, sans attendre.
+    ecrireBrouillon({ title, categoryId, subcategory, attrs, condition, price,
+                      negotiable, delivery, description, loc })
+    // Le sort des photos se décide MAINTENANT, pas au retour : l'écran doit
+    // pouvoir promettre ou prévenir, jamais espérer.
+    setSortPhotos(poserRelais(images))
+    setDemandeCompte(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setModeration(null)
+    // Pas de compte : on s'arrête ici, avant toute validation. Voir ci-dessus.
+    if (!user) return demanderLeCompte()
     // Le message d'erreur s'affiche tout en bas d'un formulaire long : seul, il
     // dit CE QUI manque, jamais OÙ. On emmène donc l'utilisateur au champ fautif
     // et on y place le curseur — sur un téléphone, c'est la différence entre
@@ -623,7 +723,10 @@ export function PostAd() {
       toast.success(editing ? 'Annonce mise à jour ✅' : 'Votre annonce est en ligne ✅')
       // Le brouillon a rempli son office : on l'efface, sinon la prochaine
       // publication proposerait de reprendre une annonce déjà en ligne.
-      if (!editing) { effacerBrouillon(); trackPublish(); trackEtapePublier('publiee') } // conversion pixels + dernière marche
+      // `retirerRelais` en plus du brouillon : un aller-retour vers l'inscription
+      // abandonné en cours de route laisserait sinon plusieurs mégaoctets de
+      // photos dans l'onglet, pour une annonce déjà en ligne.
+      if (!editing) { effacerBrouillon(); retirerRelais(); trackPublish(); trackEtapePublier('publiee') } // conversion pixels + dernière marche
       refreshNotifs()
       navigate(`/annonce/${created.id}`)
     } catch (e) {
@@ -651,9 +754,6 @@ export function PostAd() {
     )
   }
 
-  // Publier / modifier une annonce EXIGE un compte connecté : on n'affiche pas le
-  // formulaire aux visiteurs, on les invite à créer un compte ou se connecter
-  // (retour automatique ici après authentification).
   // ── Adresse e-mail non confirmée : on ne publie pas encore ────────────────
   //
   // Le mur arrive ICI, sur l'écran de publication, et nulle part ailleurs.
@@ -680,50 +780,40 @@ export function PostAd() {
     )
   }
 
-  if (!user) {
+  /* MODIFIER une annonce exige un compte, et il n'y a pas d'aménagement possible :
+   * sans session, le serveur ne dit même pas quelle annonce c'est. On garde donc
+   * le mur ici — mais ICI SEULEMENT. Publier, lui, n'en a plus. */
+  if (!user && editing) {
     return (
-      <div className="flex min-h-[72vh] flex-col items-center justify-center gap-5 px-6 text-center">
-        {/* Icône d'INVITATION, pas de restriction. Un cadenas disait « interdit »
-            sur l'écran même où l'on veut donner envie de publier — c'est la page
-            la plus décisive de la conversion visiteur → vendeur.
-            Arbitrage du bureau Design, 27/07. */}
-        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-100 text-primary-600">
-          <UserPlus size={30} />
-        </div>
-        <div>
-          <h1 className="font-display text-2xl font-black text-ink">Connectez-vous pour publier</h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
-            Créez un compte gratuit ou connectez-vous pour mettre votre annonce en ligne.
-          </p>
-          {/* POURQUOI un compte — la question que cet écran laissait sans réponse.
-              C'est ici que se décide la marche la plus fuyante de l'entonnoir : un
-              visiteur à qui l'on demande de s'inscrire sans dire pourquoi s'en va.
-              Le motif est réel et vérifiable sur le site : les annonces portent le
-              nom du vendeur, et un compte est ce qui rend un vendeur joignable et
-              signalable. Proposé par 🤝 Le Concierge, ronde du 17/08. */}
-          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-gray-500">
-            Un compte identifie chaque vendeur auprès des acheteurs&nbsp;: cela limite les
-            faux profils et les arnaques.
-          </p>
-        </div>
-        <div className="flex w-full max-w-xs flex-col gap-2.5">
-          <button
-            onClick={() => navigate('/inscription', { state: { from: location.pathname } })}
-            className="btn-primary w-full py-3"
-          >
-            Créer un compte gratuit
-          </button>
-          <button
-            onClick={() => navigate('/connexion', { state: { from: location.pathname } })}
-            className="btn-outline w-full py-3"
-          >
-            J’ai déjà un compte — Se connecter
-          </button>
-        </div>
-        <button onClick={() => navigate(-1)} className="text-sm font-medium text-gray-500">
-          Retour
-        </button>
-      </div>
+      <EtapeCompte
+        titre="Connectez-vous pour modifier"
+        phrase="Cette annonce est la vôtre : votre compte est ce qui le prouve."
+        photos="aucune"
+        onAller={(dest) => navigate(dest, { state: { from: location.pathname } })}
+        retour={{ libelle: 'Retour', action: () => navigate(-1) }}
+      />
+    )
+  }
+
+  /* L'ÉTAPE DU COMPTE.
+   *
+   * Elle change ce qui est DESSINÉ, pas ce qui est retenu : `PostAd` reste
+   * monté, donc les photos, les champs et la localisation sont toujours en
+   * mémoire. « Revenir à mon annonce » ne coûte rien du tout. C'est ce qui
+   * autorise à demander le compte franchement, sans en faire un piège. */
+  if (!user && demandeCompte) {
+    return (
+      <EtapeCompte
+        titre="Encore une étape : votre compte"
+        phrase="Votre annonce est gardée. Le compte est gratuit, et c’est lui qui identifie chaque vendeur auprès des acheteurs : cela limite les faux profils et les arnaques."
+        photos={sortPhotos}
+        nbPhotos={images.length}
+        onAller={(dest) => navigate(dest, { state: { from: location.pathname } })}
+        retour={{
+          libelle: 'Revenir à mon annonce',
+          action: () => { retirerRelais(); setDemandeCompte(false) },
+        }}
+      />
     )
   }
 
@@ -749,6 +839,57 @@ export function PostAd() {
         </p>
       </header>
 
+      {/* ── Le visiteur sans compte : on lui dit l'ordre des choses ────────────
+          Il voit le formulaire, ce qui est nouveau. Reste à répondre aux deux
+          questions qu'il va se poser en le voyant : « vais-je devoir m'inscrire
+          quand même ? » (oui, à la fin) et « est-ce que je perds tout si je
+          pars ? » (non, sauf les photos — et c'est dit ici, AVANT qu'il les
+          ajoute, pas après). C'est la seule mention des photos qui puisse
+          encore éviter la perte : plus tard, elle ne fait que la constater. */}
+      {!user && !editing && (
+        <div className="mx-auto mb-1 mt-4 w-full max-w-2xl px-4 lg:px-8">
+          {/* Court exprès. Un bandeau qui explique longuement pourquoi on peut
+              enfin voir le formulaire repousse ce formulaire hors de l'écran —
+              il reprend d'une main ce que la réforme donne de l'autre. */}
+          <div className="flex items-start gap-2.5 rounded-2xl border border-line bg-cream-100 px-3.5 py-3">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-600">
+              <UserPlus size={16} />
+            </div>
+            <p className="text-[12.5px] leading-relaxed text-gray-700">
+              <b className="text-ink">Remplissez d’abord, le compte vient à la fin.</b> Votre
+              saisie est gardée sur cet appareil. Vos photos, elles, ne survivent pas toujours
+              à l’aller-retour&nbsp;:{' '}
+              <button
+                type="button"
+                onClick={demanderLeCompte}
+                className="font-bold text-primary-700 underline underline-offset-2"
+              >
+                créez plutôt votre compte avant de les ajouter
+              </button>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Retour de l'inscription : on montre ce qui a été remis en place.
+          Sans cette ligne, le vendeur revient sur un formulaire rempli et se
+          demande d'où ça sort — ou pire, ne regarde pas et ressaisit tout. */}
+      {retour && (
+        <div className="mx-auto mb-1 mt-4 w-full max-w-2xl px-4 lg:px-8">
+          <div className="flex items-start gap-2.5 rounded-2xl border border-ivoire-green/25 bg-ivoire-green/10 p-4">
+            <Check size={18} strokeWidth={3} className="mt-0.5 shrink-0 text-ivoire-green" />
+            <p className="text-[13px] leading-relaxed text-ivoire-green-dark">
+              <b>Votre annonce vous attendait.</b>{' '}
+              {retour === 'gardees'
+                ? 'Tout est revenu, photos comprises. Vérifiez, puis publiez.'
+                : retour === 'perdues'
+                  ? 'Le texte est revenu ; il ne manque que les photos, à remettre ci-dessous.'
+                  : 'Reprenez où vous en étiez.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Reprise d'une saisie interrompue.
           On PROPOSE, on n'impose pas : quelqu'un qui vient publier autre chose
           ne doit pas retrouver l'ancienne annonce dans ses champs. Et on dit
@@ -769,12 +910,8 @@ export function PostAd() {
               <button
                 type="button"
                 onClick={() => {
-                  const b = brouillon
                   brouillonRepris.current = true
-                  setTitle(b.title); setCategoryId(b.categoryId); setSubcategory(b.subcategory)
-                  setAttrs(b.attrs || {}); setCondition(b.condition); setPrice(b.price)
-                  setNegotiable(b.negotiable); setDelivery(b.delivery)
-                  setDescription(b.description); setLoc(b.loc || {})
+                  appliquerBrouillon(brouillon)
                   setBrouillon(null)
                 }}
                 className="rounded-xl bg-primary-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition active:scale-[0.98]"
@@ -1528,6 +1665,94 @@ function AttrInput({
   )
 }
 
+
+/**
+ * L'ÉTAPE DU COMPTE — l'écran qui remplace l'ancien mur de connexion.
+ *
+ * Ce n'est plus le même objet, malgré la ressemblance. Le mur se dressait à
+ * l'ARRIVÉE, devant un formulaire qu'on n'avait pas vu : il demandait de payer
+ * avant de savoir ce qu'on achetait. Cette étape-ci arrive APRÈS la saisie,
+ * quand l'annonce est écrite et qu'il ne manque plus que la signature.
+ *
+ * Trois choses qu'il ne faut pas lui retirer :
+ *
+ * · le POURQUOI. « Un compte identifie chaque vendeur auprès des acheteurs :
+ *   cela limite les faux profils et les arnaques. » Un visiteur à qui l'on
+ *   demande de s'inscrire sans dire pourquoi s'en va. (🤝 Le Concierge, 17/08.)
+ *
+ * · la PROMESSE, et sa nuance sur les photos. On annonce ce qui est gardé, et
+ *   on prévient quand des photos ne tiennent pas — avant le départ, jamais au
+ *   retour.
+ *
+ * · le RETOUR. Un écran d'inscription sans porte de sortie transforme une
+ *   invitation en péage.
+ */
+function EtapeCompte({ titre, phrase, photos, nbPhotos = 0, onAller, retour }: {
+  titre: string
+  phrase: string
+  photos: EtatPhotos
+  nbPhotos?: number
+  onAller: (dest: '/inscription' | '/connexion') => void
+  retour: { libelle: string; action: () => void }
+}) {
+  return (
+    <div className="flex min-h-[72vh] flex-col items-center justify-center gap-5 px-6 text-center">
+      {/* Icône d'INVITATION, pas de restriction. Un cadenas disait « interdit »
+          sur l'écran même où l'on veut donner envie de publier — c'est la page
+          la plus décisive de la conversion visiteur → vendeur.
+          Arbitrage du bureau Design, 27/07. */}
+      <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary-100 text-primary-600">
+        <UserPlus size={30} />
+      </div>
+      <div>
+        <h1 className="text-balance font-display text-2xl font-black text-ink">{titre}</h1>
+        <p className="mx-auto mt-2 max-w-sm text-[13.5px] leading-relaxed text-gray-600">{phrase}</p>
+      </div>
+
+      {photos !== 'aucune' && (
+        <p
+          className={`mx-auto flex max-w-sm items-start gap-2 rounded-2xl px-4 py-3 text-left text-[13px] leading-relaxed ${
+            photos === 'gardees'
+              ? 'bg-ivoire-green/10 text-ivoire-green-dark'
+              // Un avertissement doit se détacher du fond crème de la page :
+              // sans bordure, le bloc « à remettre » se confondait avec elle.
+              : 'border border-primary-200 bg-white text-gray-700'
+          }`}
+        >
+          {photos === 'gardees' ? (
+            <>
+              <Check size={16} strokeWidth={3} className="mt-0.5 shrink-0" />
+              <span>
+                Vos {nbPhotos} photos sont gardées&nbsp;: vous les retrouverez ici après.
+              </span>
+            </>
+          ) : (
+            <>
+              <ShieldAlert size={16} className="mt-0.5 shrink-0 text-primary-600" />
+              <span>
+                <b>Vos {nbPhotos} photos seront à remettre.</b> Elles sont trop lourdes pour
+                être gardées sur le téléphone. Tout le reste — titre, prix, description,
+                localisation — vous attend au retour.
+              </span>
+            </>
+          )}
+        </p>
+      )}
+
+      <div className="flex w-full max-w-xs flex-col gap-2.5">
+        <button onClick={() => onAller('/inscription')} className="btn-primary w-full py-3">
+          Créer un compte gratuit
+        </button>
+        <button onClick={() => onAller('/connexion')} className="btn-outline w-full py-3">
+          J’ai déjà un compte — Se connecter
+        </button>
+      </div>
+      <button onClick={retour.action} className="text-sm font-medium text-gray-500 underline">
+        {retour.libelle}
+      </button>
+    </div>
+  )
+}
 
 /**
  * Mur de confirmation de l'adresse — sur l'écran de publication uniquement.

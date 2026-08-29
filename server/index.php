@@ -1749,9 +1749,16 @@ function migrate(PDO $pdo): void {
     // précisément assaini les 9 et 10 août en excluant l'équipe et les comptes
     // connectés. Une mesure qui abîme une autre mesure ne vaut rien.
     //
-    // `etape` : arrivee · mur_connexion · mur_email · formulaire · echec · publiee
+    // `etape` : arrivee · formulaire · mur_connexion · mur_email · echec · publiee
     // `detail` : pour « echec » seulement, CE QUI a bloqué (photos, titre, prix,
     //            attr:pointures…). Jamais une valeur saisie par l'utilisateur.
+    //
+    // ⚠️ « mur_connexion » A CHANGÉ DE SENS LE 29/08. Il comptait les visiteurs à
+    // qui l'on refusait le formulaire faute de compte ; il compte désormais ceux
+    // qui, ayant écrit leur annonce, appuient sur « Publier » sans compte. Le
+    // formulaire s'affiche à tout le monde depuis ce jour-là — la marche vient
+    // donc APRÈS « formulaire » et non plus avant. Les lignes antérieures au
+    // 29/08 ne se comparent pas aux suivantes.
     "CREATE TABLE IF NOT EXISTS publier_etapes (
       id $id PRIMARY KEY, visitor_id $txt, etape VARCHAR(24), detail VARCHAR(60),
       authed $intT, created_at $ts
@@ -11730,7 +11737,12 @@ try {
         };
         $marches = $par('SELECT etape AS k, COUNT(DISTINCT visitor_id) AS n
                            FROM publier_etapes WHERE created_at >= ? GROUP BY etape');
-        $ordre = ['arrivee', 'mur_connexion', 'mur_email', 'formulaire', 'echec', 'publiee'];
+        // L'ordre RÉEL du parcours depuis le 29/08 : le formulaire s'affiche à
+        // tout le monde, et le compte se demande au moment de publier. Ranger
+        // « mur_connexion » avant « formulaire », comme autrefois, ferait lire
+        // l'entonnoir à l'envers — on croirait perdre des gens à une marche
+        // qu'ils n'ont pas encore atteinte.
+        $ordre = ['arrivee', 'formulaire', 'mur_connexion', 'mur_email', 'echec', 'publiee'];
         $rangees = [];
         foreach ($ordre as $e) $rangees[$e] = $marches[$e] ?? 0;
         return [
