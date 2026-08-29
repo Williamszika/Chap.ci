@@ -4781,3 +4781,35 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Et un badge « Particulier » sur les autres cartes : étiqueter les deux camps
   transforme un marché en deux marchés. Le silence est la bonne valeur par défaut
   pour la majorité.
+
+### 2026-08-29 01:10 — [Bâtisseur] Deux rondes reçues : une verte, une périmée
+- **🛡️ Le Gardien — ronde entièrement verte, et recoupée.** Ses trois empreintes
+  (`e4f92b125031` · `c57f0f1c6e55` · `fa8868b43c59`) correspondent exactement à ce
+  que j'ai mesuré indépendamment sur `/api/health`, et au HEAD `81d6ac1`. **C'est
+  une amélioration à noter** : sa ronde de 10:52 annonçait à tort un écart
+  dépôt/production. Cette fois la lecture est juste. Rien à faire.
+  - Son point ouvert (403 LiteSpeed sur `/api/mod/queue` selon le `User-Agent`
+    `curl/8.5.0`) est une limite de son environnement, pas une faille : le jeton
+    fonctionne dès que l'UA change. À relire comme tel la prochaine fois, et non
+    comme un « jeton invalide ».
+- **🎨 L'Atelier — rapport PÉRIMÉ, aucune action.** Les cinq propositions P1/P2 sont
+  mot pour mot celles de sa ronde précédente, **déjà appliquées, poussées et
+  extraites en production depuis 14 h 28** (commit `f02c2b6`, sept fichiers). Vérifié
+  point par point dans le code d'aujourd'hui :
+  - `Conversation.tsx` bouton ⋯ : `h-11 w-11` ✓ · `PostAd.tsx` unité : `text-gray-500` ✓
+  - vitrine web : `min-h-[44px]` sur la bannière, zone tapable 44×44 sur le logo ✓
+  - vitrine app : logo `width: 48`, bannière `minHeight: 48` ✓
+  - `stroke="#EFE6D7"` : **zéro occurrence restante** dans les deux fichiers ✓
+  - `ReponsesAuto.tsx` : espace insécable présente ✓
+- **La cause, et ce qu'il faut en faire** : ses numéros de ligne correspondent au
+  code d'AVANT le correctif — il a donc audité une copie du dépôt antérieure à
+  `f02c2b6`. **Un bureau doit lire le HEAD à jour avant d'auditer**, sinon il
+  redemande ce qui est fait et fait perdre le temps qu'il prétend faire gagner.
+  C'est le pendant exact de la leçon du 28/08 sur le Patron : une redemande n'est
+  pas forcément un oubli, c'est parfois une lecture périmée.
+- **Un faux positif écarté au passage** : `PostAd.tsx:950` porte encore
+  `text-gray-400`, mais c'est le chevron d'un menu déroulant — du décor pur, que la
+  doctrine du 25/08 exclut explicitement. Ne pas le « corriger » à la prochaine ronde.
+- **Seule proposition neuve, et elle reste ouverte** : trier `text-gray-400` dans
+  `CrmAdmin.tsx` et `AdminDashboard.tsx`, jamais passés en revue. Gros volume, à
+  faire par petits bouts.
