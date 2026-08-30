@@ -36,6 +36,11 @@ class CouleursChap {
 }
 
 /// Les trois images du signe, dans le cadre commun de 200×200.
+///
+/// ⚠️ LA COURONNE EMPORTE SON CŒUR BLANC. Le cœur est la bande blanche du
+/// drapeau et c'est lui qui reçoit le nom : séparé de la couronne, le nom vert
+/// foncé se serait écrit à même le fond crème pendant toute la première moitié
+/// de l'animation, sans rien dessous pour le porter.
 class _Couches {
   static const couronne = 'assets/marque/demarrage_couronne.png';
   static const mot = 'assets/marque/demarrage_mot.png';
@@ -286,9 +291,15 @@ class _EcranDemarrageState extends State<EcranDemarrage>
                       child: Container(
                         width: cote * 0.74,
                         height: cote * 0.22,
+                        // ⚠️ L'ÉCLAT EST AMBRÉ, PLUS BLANC. Depuis que le cœur
+                        // de la couronne est BLANC (proposition B du Patron),
+                        // un reflet blanc glissant sur un cœur blanc ne se voit
+                        // pas : la moitié « et rayonnent » de l'animation
+                        // disparaissait purement et simplement. L'ambre se lit
+                        // sur le blanc et éclaire les lettres vert foncé.
                         decoration: const BoxDecoration(
                           gradient: RadialGradient(
-                            colors: [Color(0x8CFFFFFF), Color(0x00FFFFFF)],
+                            colors: [Color(0x99FFB35C), Color(0x00FFB35C)],
                             stops: [0, 0.62],
                           ),
                         ),

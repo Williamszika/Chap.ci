@@ -147,51 +147,73 @@ export function Home() {
           0 : elle ne coûte rien. */}
       <IndependenceBanner />
 
-      {/* En-tête orange (bannière/héro sur desktop) */}
-      <header className="safe-top flex min-h-[268px] flex-col justify-center bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.22),transparent_62%),linear-gradient(to_bottom,#009E60,#00734A)] px-4 pb-5 pt-4 text-white md:mt-4 md:min-h-[290px] md:rounded-3xl md:px-8 md:pb-7 md:pt-7">
+      {/* EN-TÊTE ORANGE — le drapeau, de haut en bas.
+       *
+       * Le Patron, le 30/08 : « le site doit prendre les couleurs ORANGE BLANC
+       * VERT ». Lues de haut en bas, l'écran donne maintenant exactement cela :
+       * le bandeau ORANGE, le corps de page BLANC crème, la navigation et les
+       * prix VERTS.
+       *
+       * ⚠️ LE TEXTE EST EN ENCRE, PAS EN BLANC, et c'est une MESURE, pas un
+       * goût. Sur l'orange du drapeau (#F77F00), du blanc ne donne que 2,63:1
+       * — au-dessous même du seuil des gros titres. L'encre donne 6,62:1, soit
+       * presque le double de ce que rendait le bandeau vert (3,47:1). C'est
+       * aussi le couple historique de Chap.ci : l'ancienne icône de
+       * l'application était déjà un champ orange et un signe encre.
+       *
+       * Ne repassez pas ce bloc en `text-white` en croyant « harmoniser » : ce
+       * serait rendre l'accueil illisible au soleil pour gagner en uniformité.
+       */}
+      <header className="safe-top flex min-h-[268px] flex-col justify-center bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.26),transparent_62%),linear-gradient(to_bottom,#F77F00,#E06E00)] px-4 pb-5 pt-4 text-ink md:mt-4 md:min-h-[290px] md:rounded-3xl md:px-8 md:pb-7 md:pt-7">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Mark size={38} variant="white" />
             <div className="leading-none">
-              <Wordmark className="text-xl" ci="text-white/90" />
-              <p className="mt-1 text-[11px] font-medium text-white/90 txt-legible">
+              {/* Le « .ci » en vert profond : c'est lui qui pose la troisième
+                  couleur du drapeau dans le bandeau. 3,08:1 sur l'orange, et
+                  c'est du gros texte gras — le seuil qui s'applique est 3. */}
+              <Wordmark className="text-xl" ci="text-[#005C3B]" />
+              <p className="mt-1 text-[11px] font-semibold text-ink/75">
                 Petites annonces · Côte d’Ivoire
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/messages" className="relative rounded-full bg-white/15 p-2" aria-label="Messages">
+            <Link to="/messages" className="relative rounded-full bg-white/35 p-2" aria-label="Messages">
               <MessageSquare size={20} />
               {unreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-primary-500">
+                <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-2 ring-action-400">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </Link>
             {/* Cloche fonctionnelle : ouvre le menu des notifications (P5). */}
-            <NotificationBell align="right" buttonClass="relative rounded-full bg-white/15 p-2 active:scale-95" />
+            <NotificationBell align="right" buttonClass="relative rounded-full bg-white/35 p-2 active:scale-95" />
           </div>
         </div>
 
         {/* Titre « héro » — compact (l'accent visuel est mis sur la bannière pub) */}
         <div className="mt-2.5 md:mt-3.5">
           {/* Desktop : titre (sert de h1 sur grand écran) */}
-          <h1 className="hidden font-display text-2xl font-extrabold leading-tight txt-legible md:block">
-            Achetez et vendez <span className="text-white/90">chap-chap</span> en Côte d’Ivoire 🇨🇮
+          {/* Plus de `txt-legible` ici : son ombre (rgba(80,30,0,.38)) a été
+              dessinée pour DÉTACHER du texte blanc. Sous du texte encre, elle
+              ne fait qu'épaissir les lettres et salir le bandeau. */}
+          <h1 className="hidden font-display text-2xl font-extrabold leading-tight md:block">
+            Achetez et vendez <span className="text-[#005C3B]">chap-chap</span> en Côte d’Ivoire 🇨🇮
           </h1>
-          <p className="mt-1 hidden text-sm text-white txt-legible md:block">
+          <p className="mt-1 hidden text-sm text-ink/80 md:block">
             Voitures, téléphones, immobilier, mode, services — près de chez vous.
           </p>
           {/* Mobile : accroche courte et punchy (le h1 mobile reste le sr-only ci-dessus) */}
-          <p className="font-display text-[17px] font-extrabold leading-tight txt-legible md:hidden">
-            Achetez &amp; vendez <span className="text-white/90">chap-chap</span> 🇨🇮
+          <p className="font-display text-[17px] font-extrabold leading-tight md:hidden">
+            Achetez &amp; vendez <span className="text-[#005C3B]">chap-chap</span> 🇨🇮
           </p>
         </div>
 
         {/* Sélecteur de lieu */}
         <button
           onClick={() => setLocOpen(true)}
-          className="-ml-1.5 mt-2 flex min-h-[44px] items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-sm font-medium text-white/95 md:mt-2.5"
+          className="-ml-1.5 mt-2 flex min-h-[44px] items-center gap-1.5 rounded-lg px-1.5 py-1.5 text-sm font-semibold text-ink/85 md:mt-2.5"
         >
           <MapPin size={16} />
           <span className="max-w-[70vw] truncate">
