@@ -4917,3 +4917,65 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   Le test pose désormais l'empreinte APRÈS l'envoi.
 - **Reste au Patron** : activer la CSP (retirer `-Report-Only` dans le `.htaccess`) —
   je ne peux pas le faire, ce fichier ne voyage jamais dans un zip.
+
+### 2026-08-29 13:27 — [Bâtisseur] Le mur de la publication tombe, l'ordre change
+- **Le mur se dressait à l'ARRIVÉE sur `/publier`** : un visiteur voyait « Connectez-vous
+  pour publier » avant d'avoir vu le formulaire. On lui demandait de s'inscrire sans lui
+  montrer ce qu'on lui proposait de remplir. Le coût, mesuré : **5 personnes sur 8
+  s'arrêtaient au mur, contre 1 sur 8 dans les quinze champs** — le mur coûtait cinq fois
+  plus cher que le formulaire qu'il protégeait.
+- **L'exigence du compte ne bouge pas d'un pouce.** `POST /listings` continue de l'exiger,
+  le vendeur reste identifié, joignable et signalable. Seul l'ordre change : la demande
+  arrive quand l'annonce est écrite et qu'il ne manque que la signature.
+- **Ce qui traverse l'aller-retour.** Le texte l'était déjà (`src/lib/brouillon.ts`,
+  localStorage). Les photos ne l'étaient pas, et pour une bonne raison : trois data:URI
+  font sauter le quota, donc perdent le brouillon EN PLUS des photos. D'où
+  `src/lib/relaisPublier.ts` — **sessionStorage** (quota distinct, mort avec l'onglet),
+  budget de 3 Mo, et l'aveu à l'écran quand il est dépassé. Le sort des photos est décidé
+  À L'ALLER et transporté : sans cela, le retour ne saurait pas distinguer « il n'y en
+  avait pas » de « il y en avait, elles n'ont pas tenu ».
+- **Le piège que le banc a attrapé, et qui était le mien** : j'effaçais le relais dès sa
+  lecture. Faux — entre l'inscription et le formulaire il reste une porte, le code de
+  confirmation d'adresse. Quelqu'un qui y arrive, ne trouve pas l'e-mail et appuie sur
+  « Retour » aurait vu ses photos partir avec, **sans avoir jamais revu son annonce**. Le
+  relais tient désormais jusqu'à ce que le formulaire soit réellement dessiné.
+- **`/modifier/:id` garde son mur** : sans session, le serveur ne dit même pas de quelle
+  annonce il s'agit. Aucun aménagement possible.
+- **L'entonnoir : `mur_connexion` change de sens.** Il comptait les visiteurs à qui l'on
+  REFUSAIT le formulaire ; il compte désormais ceux qui, l'annonce écrite, appuient sur
+  « Publier » sans compte. Il passe donc APRÈS `formulaire` dans `$ordre`. **Les lignes
+  antérieures au 29/08 ne se comparent pas aux suivantes** — écrit à côté de la table et
+  à côté de la mesure.
+- **Vérifié** : 24 contrôles verts au banc (aller-retour complet par une vraie
+  inscription, confirmation d'adresse comprise, **avec rechargement de la page au pire
+  moment** — les photos reviennent), puis **9 contrôles en production** dans un vrai
+  navigateur, via un miroir local qui relaie chap.ci sans rien y écrire (le navigateur du
+  conteneur ne joint pas le site directement). Le fichier servi par chap.ci est identique
+  au bit près à celui testé.
+- **Un rouge instructif** : couper les chunks d'analyse d'image pour accélérer le banc l'a
+  rendu rouge partout — Vite précharge les dépendances d'un module dynamique, et une seule
+  requête refusée fait échouer l'import de `PostAd` en entier. Le rouge était le mien.
+
+### 2026-08-30 01:10 — [Bâtisseur] Inventaire CSP : rien ne cassera à l'activation
+- **Pourquoi** : je répète au Patron depuis trois livraisons d'activer la CSP sans avoir
+  jamais vérifié qu'elle ne casserait rien. Une consigne qu'on répète sans la vérifier
+  finit par être suivie, et c'est là qu'elle coûte cher.
+- **Méthode** : inventaire de TOUTES les origines externes atteintes par le navigateur
+  (`fetch`, scripts injectés, iframes, polices), croisé une à une avec l'en-tête
+  réellement servi. Aucun `fetch` littéral externe, aucune `<iframe>` dans `src/`.
+  - `connect-src` : `api.bigdatacloud.net`, `nominatim.openstreetmap.org`, `ipwho.is`,
+    `ipapi.co` (tous dans `src/lib/geo.ts`) — **les quatre sont autorisés**.
+  - `script-src` : `accounts.google.com/gsi/client`, `connect.facebook.net/fr_FR/sdk.js`,
+    `connect.facebook.net/en_US/fbevents.js`, `analytics.tiktok.com`,
+    `www.googletagmanager.com` — **les cinq sont autorisés**.
+  - `frame-src` : les iframes sont créées par les SDK Google et Facebook ;
+    `accounts.google.com`, `www.facebook.com` et `staticxx.facebook.com` sont listés.
+  - `font-src 'self' data:` suffit : **aucune police externe**, tout est servi par le site.
+- **Conclusion : l'activation est sans danger**, et le retour arrière reste de dix
+  secondes. Confirme aussi la lecture du Gardien sur `translate.googleapis.com` :
+  ce domaine n'est appelé que par PHP (`server/index.php`), jamais par le navigateur — le
+  bouton client ouvre `translate.google.com`, un autre domaine, et dans un onglet.
+- **Restent dans `connect-src` trois entrées devenues inutiles** (`tfhub.dev`,
+  `storage.googleapis.com`, `www.kaggle.com`) : vestiges de l'époque où le modèle
+  d'analyse d'image venait d'un CDN. Elles élargissent la politique sans rien casser —
+  à retirer un jour, sans urgence, et seulement dans le `.htaccess` du serveur.
