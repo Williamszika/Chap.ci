@@ -1,35 +1,47 @@
-/**
- * LE SIGNE CHAP.CI — deux moitiés qui s'écartent, tracées d'un seul trait.
- *
- * L'IDÉE NE CHANGE PAS. Le vide au centre dit toujours la même chose : la
- * plateforme ne s'interpose pas entre l'acheteur et le vendeur. Ce qui change,
- * c'est la FABRICATION — et elle vient d'une méthode que le Patron a repérée
- * chez Kleinanzeigen le 30/08 :
- *
- *   · un trait unique et épais, aucun détail fin ;
- *   · des bouts arrondis, jamais coupés au couteau ;
- *   · une seule couleur, sans dégradé ni seconde teinte.
- *
- * Ces trois règles ont un seul but : tenir à 16 px. L'ancien signe était en
- * aplats pleins (deux losanges fendus) ; à la taille d'un onglet de navigateur,
- * la fente disparaissait et il ne restait qu'une tache. Au trait, le vide
- * central survit jusqu'en bas de l'échelle.
- *
- * ⚠️ CE TRACÉ NE VIENT PLUS DE `marque/1-logo-nouveau/`. Cette construction
- * paramétrée dessinait les aplats de l'ancien signe ; elle ne sait pas produire
- * un monoline. Le tracé ci-dessous est la source de vérité tant que la
- * construction n'a pas été refaite — ne recopiez pas l'ancienne par-dessus.
- *
- * Grille de 96, comme avant, pour que rien de ce qui l'appelle ne bouge.
- * Encombrement réel : x de 15,75 à 80,25, y de 16,75 à 79,25 — centré sur 48.
- */
-const TRACE = 'M 40 22 L 21 48 L 40 74 M 56 22 L 75 48 L 56 74'
-/** Épaisseur du trait sur la grille de 96. Ne se change pas sans refaire l'échelle. */
-const EPAISSEUR = 10.5
+import { NOYAU, FEUILLES, MOT, MOT_X, MOT_Y } from './signeChapci'
 
-/* Le nom `orange` est conservé : il désigne « la couleur de marque », et le
-   renommer obligerait à toucher les cinquante endroits qui l'appellent pour
-   un gain nul. Sa VALEUR, elle, est passée au vert. */
+/**
+ * LE SIGNE CHAP.CI — la couronne de feuillage, retenue par le Patron le 30/08.
+ *
+ * Le dessin lui-même vit dans `signeChapci.ts` (voir l'avertissement qui s'y
+ * trouve : il est REDESSINÉ d'après une photo d'écran, à remplacer par le
+ * fichier vectoriel du prestataire dès qu'il arrive).
+ *
+ * ⚠️ POURQUOI UN `<symbol>` ET UN `<use>`, ET PAS LE SVG EN CLAIR.
+ * La couronne compte SOIXANTE-HUIT feuilles. Dessinée en clair dans `Mark`,
+ * chaque apparition du logo — l'en-tête, le pied de page, une carte — poserait
+ * soixante-huit éléments de plus dans la page. Sur les téléphones d'entrée de
+ * gamme qui font l'essentiel du trafic ici, cela se paie en défilement saccadé.
+ * Le dessin est donc posé UNE FOIS par `SigneDefs`, et chaque logo n'en est
+ * qu'une référence de trois lignes.
+ *
+ * Les deux couleurs passent par l'héritage CSS, ce qui évite un second dessin :
+ * la couronne prend `currentColor`, le nom prend `--signe-mot`. Sur fond clair,
+ * couronne verte et nom blanc ; sur fond vert, l'inverse.
+ */
+export function SigneDefs() {
+  return (
+    <svg width="0" height="0" aria-hidden="true" focusable="false"
+      style={{ position: 'absolute', pointerEvents: 'none' }}>
+      <defs>
+        <symbol id="signe-chapci" viewBox="0 0 200 200">
+          <g fill="currentColor">
+            <polygon points={NOYAU} />
+            {FEUILLES.map(([d, rot], i) => (
+              <path key={i} d={d} transform={`rotate(${rot})`} />
+            ))}
+          </g>
+          <path
+            d={MOT}
+            transform={`translate(${MOT_X} ${MOT_Y})`}
+            fill="var(--signe-mot, #FFFFFF)"
+          />
+        </symbol>
+      </defs>
+    </svg>
+  )
+}
+
 type MarkVariant = 'orange' | 'white'
 
 /**
@@ -46,25 +58,23 @@ export function Mark({
   variant?: MarkVariant
   className?: string
 }) {
-  // #009E60 : le vert du drapeau ivoirien, couleur de marque depuis le 30/08.
-  const trait = variant === 'white' ? '#FFFFFF' : '#009E60'
+  // Sur fond clair : couronne verte, nom blanc. Sur fond vert (variant
+  // `white`) : couronne blanche, nom vert — le nom se lit alors « en creux ».
+  const blanc = variant === 'white'
   return (
     <svg
-      viewBox="0 0 96 96"
+      viewBox="0 0 200 200"
       width={size}
       height={size}
       className={className}
       role="img"
       aria-label="Chap.ci"
+      style={{
+        color: blanc ? '#FFFFFF' : '#009E60',
+        ['--signe-mot' as string]: blanc ? '#009E60' : '#FFFFFF',
+      }}
     >
-      <path
-        d={TRACE}
-        fill="none"
-        stroke={trait}
-        strokeWidth={EPAISSEUR}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <use href="#signe-chapci" />
     </svg>
   )
 }

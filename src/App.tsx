@@ -2,6 +2,7 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useSwipeTabs } from './lib/useSwipeTabs'
 import { useEffect, lazy, Suspense } from 'react'
 import { BottomNav } from './components/BottomNav'
+import { SigneDefs } from './components/Logo'
 import { TopNav } from './components/TopNav'
 import { Footer } from './components/Footer'
 import { LocationGate } from './components/LocationGate'
@@ -109,6 +110,11 @@ function RecoveryGate() {
 export default function App() {
   return (
     <div className="min-h-screen bg-cream-200">
+      {/* Le dessin du signe, posé UNE FOIS pour toute l'application : chaque
+          logo n'en est ensuite qu'une référence. Voir Logo.tsx — la couronne
+          compte soixante-huit feuilles, les répéter coûterait au défilement
+          sur les téléphones d'entrée de gamme. */}
+      <SigneDefs />
       <ScrollToTop />
       <RecoveryGate />
       <SwipeTabs />
