@@ -201,6 +201,44 @@ function render_page(string $title, string $desc, string $img, string $canon, st
     echo '<script type="application/ld+json">'
        . json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
        . "</script>\n";
+
+    // ── LE FIL D'ARIANE DE LA FICHE ──────────────────────────────────────────
+    // Les pages de catégorie en avaient un depuis longtemps ; les fiches
+    // d'annonce, non — alors que ce sont elles qui remplissent le plan de site.
+    // Dans un résultat Google, une fiche s'annonçait donc par son URL nue
+    // (« chap.ci › annonce › 3f7a… »), là où la concurrence affiche
+    // « chap.ci › Matériel Pro ». C'est la même information, déjà présente à
+    // l'écran depuis toujours : elle n'était simplement jamais dite au robot.
+    //
+    // Le libellé vient de `chapci_seo_cats()`, une liste fixe : rien
+    // d'injectable. La catégorie d'une annonce peut néanmoins être absente ou
+    // périmée (deux catégories ont été fondues le 01/08) — on ne fabrique alors
+    // aucun maillon plutôt que d'en fabriquer un vers une page vide.
+    // ⚠️ `$site` est une variable GLOBALE, et cette fonction ne la reçoit pas :
+    // l'écrire ici donnait « "item": "/" » au lieu de « https://chap.ci/ », et
+    // Google ignore purement et simplement un fil d'Ariane aux URL relatives.
+    // On repart donc de `$canon`, qui est absolu par construction. (Attrapé au
+    // banc le 30/08 ; la version d'à côté, `render_sell_page`, ne tombe pas
+    // dans le piège parce qu'elle reçoit `$site` en paramètre.)
+    $racine = preg_replace('#^(https?://[^/]+).*$#', '$1', $canon);
+    $catId = (string) ($l['category_id'] ?? '');
+    $catsFil = chapci_seo_cats();
+    $fil = [['name' => 'Accueil', 'item' => $racine . '/']];
+    if ($catId !== '' && isset($catsFil[$catId])) {
+      $fil[] = ['name' => $catsFil[$catId][0], 'item' => $racine . '/vendre/' . $catId];
+    }
+    $fil[] = ['name' => (string) ($l['title'] ?? ''), 'item' => $canon];
+    $ldFil = ['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => []];
+    foreach ($fil as $ix => $cr) {
+      $ldFil['itemListElement'][] = ['@type' => 'ListItem', 'position' => $ix + 1,
+                                     'name' => $cr['name'], 'item' => $cr['item']];
+    }
+    // Même échappement que ci-dessus, et pour la même raison : le TITRE d'une
+    // annonce entre ici, et il est écrit par un vendeur. `</script>` ne doit
+    // pas pouvoir refermer la balise.
+    echo '<script type="application/ld+json">'
+       . json_encode($ldFil, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)
+       . "</script>\n";
   }
   // Humains : redirection vers l'app. Robots : on garde le contenu.
   if (!$isBot) echo "<script>location.replace(" . json_encode($appUrl) . ");</script>\n";

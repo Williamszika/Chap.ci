@@ -98,6 +98,40 @@ export function ListingDetail() {
   // présentaient jusqu'ici exactement la même fiche. On le charge à part de
   // l'annonce : s'il manque, la fiche s'affiche quand même.
   const [reponse, setReponse] = useState<number | null>(null)
+
+  /* ── CE QUE LA BARRE DU BAS RAPPELLE ────────────────────────────────────────
+   * La barre « Contacter le vendeur / Acheter » est fixée en bas depuis
+   * toujours, et c'est bien. Mais après mille sept cents pixels de défilement —
+   * description, vendeur, avis, PUIS des annonces similaires — elle ne dit plus
+   * de quoi on parle. On vient de faire défiler sous les yeux de l'acheteur
+   * cinq AUTRES articles, et le bouton vert contacte le vendeur du premier.
+   *
+   * On rappelle donc l'article, mais seulement une fois le prix sorti de
+   * l'écran : tant qu'il est visible, une deuxième copie serait du bruit. Et on
+   * rappelle LE PRIX autant que le titre — c'est le chiffre qui décide, et sur
+   * une place de marché il change d'une annonce à l'autre bien plus que le nom.
+   */
+  const reperePrix = useRef<HTMLDivElement | null>(null)
+  const [identiteVisible, setIdentiteVisible] = useState(false)
+  useEffect(() => {
+    const cible = reperePrix.current
+    // Navigateur sans IntersectionObserver : la barre garde ses deux boutons,
+    // exactement comme avant. Rien ne casse, on perd seulement le rappel.
+    if (!cible || typeof IntersectionObserver === 'undefined') return
+    // On veut « le prix est sorti PAR LE HAUT », pas « le prix n'est pas à
+    // l'écran ». Les deux ne sont pas la même chose : sur un écran court, le
+    // repère peut être encore SOUS le pli à l'ouverture, et le rappel
+    // s'afficherait alors qu'on n'a pas commencé à lire. D'où le test sur
+    // `top < 0`, qui distingue « au-dessus » de « en dessous ».
+    // (Une première version réduisait la zone d'observation par `rootMargin`
+    // à une ligne en haut de l'écran — le rappel s'affichait dès l'arrivée.)
+    const obs = new IntersectionObserver(
+      ([e]) => setIdentiteVisible(!e.isIntersecting && e.boundingClientRect.top < 0),
+    )
+    obs.observe(cible)
+    return () => obs.disconnect()
+  }, [listing?.id])
+
   useEffect(() => {
     setReponse(null)
     if (!sellerId) return
@@ -278,6 +312,12 @@ export function ListingDetail() {
   // « Livraison » n'a pas de sens sur un terrain ou une offre d'emploi : on ne
   // l'affiche que là où la catégorie la propose.
   if (form.delivery) attrItems.push({ label: 'Livraison', value: listing.delivery ? 'Possible' : 'Sur place' })
+
+  // Un maillon du fil d'Ariane. La cible tactile fait 32 px de haut — un fil
+  // d'Ariane en petit texte gris est increvable à la souris et intouchable au
+  // pouce, et c'est au pouce que ce site se lit.
+  const filAriane =
+    'inline-flex min-h-[32px] items-center rounded-full bg-primary-50 px-2.5 text-xs font-semibold text-primary-700 transition active:scale-[0.97]'
 
   // Bouton « Contacter » vert ivoire (comme le mockup), dans le même esprit que btn-primary.
   const greenBtn =
@@ -514,6 +554,10 @@ export function ListingDetail() {
 
         {/* Infos — colonne droite */}
         <div className="px-4 pt-4 md:px-0 md:pt-0">
+          {/* Le repère du prix : tant qu'il est à l'écran, la barre du bas se
+              contente de ses deux boutons. Dès qu'il sort, elle rappelle de
+              quoi on parle. Voir `identiteVisible`. */}
+          <div ref={reperePrix} />
           {/* Prix */}
           {promo ? (
             <div>
@@ -568,17 +612,42 @@ export function ListingDetail() {
             )}
           </div>
 
-          {/* Catégorie (navigation) */}
+          {/* ── LE FIL D'ARIANE ────────────────────────────────────────────────
+              Il y avait bien une étiquette de catégorie ici, mais elle menait
+              TOUT à la catégorie : « Mode & Beauté · Chaussures » était un seul
+              lien, et il ouvrait Mode & Beauté en entier. Quelqu'un qui vient
+              de trouver une paire de chaussures et veut en voir d'autres se
+              retrouvait devant des robes et des parfums.
+
+              Chaque niveau est donc son propre lien. On garde l'aspect de
+              pastilles (le fil gris pâle des sites de e-commerce se voit mal au
+              soleil d'Abidjan, et se touche encore moins bien : ces liens font
+              maintenant 32 px de haut). */}
           {cat && (
-            <div className="mt-3">
-              <Link
-                to={`/explorer?cat=${cat.id}`}
-                className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700"
-              >
-                {cat.name}
-                {listing.subcategory ? ` · ${listing.subcategory}` : ''}
-              </Link>
-            </div>
+            <nav aria-label="Fil d’Ariane" className="mt-3">
+              <ol className="flex flex-wrap items-center gap-1.5">
+                <li>
+                  <Link to="/explorer" className={filAriane}>Annonces</Link>
+                </li>
+                <li aria-hidden="true" className="text-gray-300">›</li>
+                <li>
+                  <Link to={`/explorer?cat=${cat.id}`} className={filAriane}>{cat.name}</Link>
+                </li>
+                {listing.subcategory && (
+                  <>
+                    <li aria-hidden="true" className="text-gray-300">›</li>
+                    <li>
+                      <Link
+                        to={`/explorer?cat=${cat.id}&sub=${encodeURIComponent(listing.subcategory)}`}
+                        className={filAriane}
+                      >
+                        {listing.subcategory}
+                      </Link>
+                    </li>
+                  </>
+                )}
+              </ol>
+            </nav>
           )}
 
           {/* Le bandeau : la seule chose à lire avant de se déplacer.
@@ -852,6 +921,31 @@ export function ListingDetail() {
 
       {/* Barre d'action fixe — mobile uniquement */}
       <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-app border-t border-line bg-white px-4 py-3 shadow-nav safe-bottom md:hidden">
+        {/* De QUOI parle ce bouton — voir `identiteVisible` plus haut.
+            N'apparaît qu'une fois le prix sorti de l'écran, et disparaît si
+            l'annonce est vendue (le bandeau gris dit alors tout ce qu'il y a
+            à dire). */}
+        {identiteVisible && !listing.sold && (
+          <div className="mb-2 flex items-center gap-2.5 border-b border-line pb-2">
+            {listing.images?.[0] && (
+              <img
+                src={mediaUrl(listing.images[0])}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-lg border border-line object-cover"
+              />
+            )}
+            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-gray-700">
+              {listing.title}
+            </p>
+            <span className="tnum shrink-0 font-display text-sm font-black text-primary-700">
+              {promo
+                ? formatFCFA(promo.price)
+                : listing.price === 0
+                  ? 'Gratuit'
+                  : formatFCFA(listing.price)}
+            </span>
+          </div>
+        )}
         {listing.sold ? (
           <div className="flex items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 font-display font-semibold text-gray-500">
             <BadgeCheck size={18} /> Article vendu
