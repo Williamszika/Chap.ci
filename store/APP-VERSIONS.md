@@ -180,6 +180,39 @@ promotions, recherche et puces) n'est pas porté non plus.
 > fichier touché, comparé à son état d'origine. **Le premier `flutter run` sur le Mac
 > du Patron est le vrai test** ; s'il échoue, le texte du Terminal suffit à corriger.
 
+**Le 30/08 au soir : LA MARQUE PASSE AU VERT, dans l'application aussi.** La couronne
+de feuillage retenue par le Patron remplace l'ancien signe « chap-chap » partout —
+icône de lancement, écran de démarrage natif, en-tête de l'accueil. Le fond du splash
+n'est plus l'aplat orange : il devient le crème de l'application, si bien que le
+lancement ne saute plus d'une couleur à l'autre au premier rendu.
+
+L'écran de démarrage animé est refait sur la description du Patron — « une tache verte
+qui apparaît, après les lettres s'écrivent et rayonnent, puis l'app s'ouvre » : la
+couronne s'ouvre depuis un point avec son halo, puis le nom et la ligne « Achat, Vente,
+Emplois, Chap » se révèlent de haut en bas sous un reflet qui descend. L'ancien
+`CustomPainter` disparaît : la couronne compte 68 feuilles et deux textes vectorisés,
+elle arrive en PNG à trois densités, **générés depuis `src/components/signeChapci.ts`**
+— la même source que le logo du site, pour qu'ils ne puissent plus diverger.
+
+> **SIX ENDROITS où le changement de couleur avait cassé quelque chose en silence**, et
+> aucun compilateur n'aurait pu le dire — le code restait valide, seules les valeurs
+> s'étaient rejointes. `ChapColors.orange` vaut #009E60 depuis le 30/08 ; partout où le
+> code OPPOSAIT `orange` à `green`, l'opposition s'est refermée :
+>
+> · le dégradé « drapeau » du composeur de publicité rendait **vert, blanc, vert** —
+>   exactement le reproche que le Patron a fait au site le même jour ;
+> · un compte **RESTREINT** s'affichait du même vert qu'un compte **ACTIF**, et dans le
+>   menu de modération « Restreindre » avait la couleur de « Réactiver » ;
+> · « double authentification **NON ACTIVÉE** » s'affichait du vert rassurant ;
+> · « **aucun SMTP configuré** » ne se distinguait plus de « configuré » ;
+> · le graphique du tableau de bord empilait **deux séries de la même couleur** ;
+> · le style « néon » d'une publicité rendait deux auréoles vertes et une orange.
+>
+> Une couleur d'ATTENTION (#96500E, 6,1:1) manquait au thème : l'application empruntait
+> l'orange de la marque pour alerter. C'est ce qui a rendu la panne possible. Elle
+> existe désormais sous `ChapColors.attention`, et un contrôle balaie tout `lib/` pour
+> signaler deux constantes de rôles opposés qui vaudraient la même chose.
+
 **Ce que la v1.23 change pour iOS : rien, et c'est le sujet.** `tool/preparer_plateformes.dart`
 génère déjà `ios/` entièrement configuré — bundle `ci.chap.app`, nom « Chap.ci »,
 autorisations, schéma d'URL Google. Il n'a simplement jamais été exécuté sur un Mac

@@ -221,14 +221,17 @@ class _EmailsScreenState extends State<EmailsScreen> {
       decoration: BoxDecoration(
         color: vert ? const Color(0xFFEAF7F0) : ChapColors.cream100,
         borderRadius: BorderRadius.circular(14),
+        // « Aucun SMTP » est un AVERTISSEMENT — les e-mails partent par le
+        // mail() du serveur, souvent classé en spam. Il empruntait l'orange
+        // de la marque, devenu vert : les deux états se ressemblaient.
         border: Border.all(
-            color: vert ? ChapColors.green : ChapColors.orangeLight),
+            color: vert ? ChapColors.green : ChapColors.attentionClair),
       ),
       child: Row(
         children: [
           Icon(vert ? Icons.check_circle : Icons.info_outline,
               size: 22,
-              color: vert ? ChapColors.greenDark : ChapColors.orangeDark),
+              color: vert ? ChapColors.greenDark : ChapColors.attention),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

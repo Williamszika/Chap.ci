@@ -326,19 +326,25 @@ export function ListingDetail() {
    * geste le plus important d'une fiche d'annonce aurait eu exactement
    * l'apparence de « Enregistrer » ou de « Filtrer ».
    *
-   * Les deux couleurs sont celles du drapeau ; seuls leurs rôles s'échangent.
-   * La règle exacte, pour qu'on ne la déforme pas plus tard : LE VERT PORTE LA
-   * MARQUE ET L'INTERFACE — les prix compris, puisqu'ils suivent `primary`.
-   * L'orange ne garde que DEUX exceptions, toutes deux délibérées : ce bouton,
-   * et les courbes des tableaux de bord, qui doivent se détacher d'un décor
-   * devenu vert.
+   * LA RÈGLE, corrigée le 30/08 après une remarque juste du Patron : « je vois
+   * que les couleurs sont Vert Blanc Vert ». Le drapeau ivoirien est ORANGE,
+   * blanc, vert — réduire l'orange à ce seul bouton faisait perdre au site un
+   * tiers de son identité.
+   *
+   *   · le VERT porte la marque et l'interface : en-tête, navigation, liens,
+   *     prix, le signe ;
+   *   · l'ORANGE porte TOUTES les actions : publier, contacter, valider ;
+   *   · le blanc crème reste le sol.
+   *
+   * Ce bouton est donc de la même famille que `btn-primary`, et non une
+   * exception : les deux se ressemblent parce qu'ils font la même chose.
    *
    * #D95F00 et non #F77F00 : sous du texte blanc, l'orange vif ne donne que
    * 2,9:1. L'orange foncé monte à 4,6:1 — au-dessus du seuil, ce qui compte
    * sur le bouton qu'on cherche en plein soleil.
    */
   const greenBtn =
-    'txt-legible inline-flex items-center justify-center gap-2 rounded-xl bg-ivoire-orange-dark px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(217,95,0,0.55)] transition active:scale-[0.98] hover:brightness-105 disabled:opacity-50'
+    'txt-legible inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-action-600 to-action-700 px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(154,65,0,0.5)] transition active:scale-[0.98] hover:brightness-105 disabled:opacity-50'
 
   // Lien « propre » (crawlable, avec aperçu WhatsApp/Facebook via le serveur).
   const shareUrl = `${window.location.origin}/annonce/${listing.id}`

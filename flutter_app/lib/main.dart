@@ -185,7 +185,10 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _publier,
-        backgroundColor: ChapColors.orange,
+        // « Publier » est L'ACTION de l'application : elle est ORANGE, comme
+        // le rond « + » de la barre du bas sur le site. Le vert porte la
+        // marque et l'interface, jamais le geste principal.
+        backgroundColor: ChapColors.action,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: Text(tr(context, 'action.publier')),
@@ -198,20 +201,20 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
         destinations: [
           NavigationDestination(
               icon: const Icon(Icons.home_outlined),
-              selectedIcon: const Icon(Icons.home, color: ChapColors.orange),
+              selectedIcon: const Icon(Icons.home, color: ChapColors.marque),
               label: tr(context, 'nav.accueil')),
           NavigationDestination(
               icon: const Icon(Icons.grid_view_outlined),
-              selectedIcon: const Icon(Icons.grid_view, color: ChapColors.orange),
+              selectedIcon: const Icon(Icons.grid_view, color: ChapColors.marque),
               label: tr(context, 'nav.explorer')),
           NavigationDestination(
               icon: const Icon(Icons.chat_bubble_outline),
               selectedIcon:
-                  const Icon(Icons.chat_bubble, color: ChapColors.orange),
+                  const Icon(Icons.chat_bubble, color: ChapColors.marque),
               label: tr(context, 'nav.messages')),
           NavigationDestination(
               icon: const Icon(Icons.person_outline),
-              selectedIcon: const Icon(Icons.person, color: ChapColors.orange),
+              selectedIcon: const Icon(Icons.person, color: ChapColors.marque),
               label: tr(context, 'nav.compte')),
         ],
       ),

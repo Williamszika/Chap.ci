@@ -415,7 +415,10 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
             Icons.shield_outlined,
             'Double authentification (vous)',
             sec.proprietaire2fa ? 'Activée' : 'Non activée',
-            sec.proprietaire2fa ? ChapColors.greenDark : ChapColors.orangeDark,
+            // « Non activée » doit ALERTER. Ce n'était plus le cas : depuis le
+            // passage de la marque au vert, `orangeDark` valait #00734A — la
+            // ligne s'affichait du même vert rassurant dans les deux cas.
+            sec.proprietaire2fa ? ChapColors.greenDark : ChapColors.attention,
           ),
           _ligneSecurite(
             Icons.warning_amber_outlined,
@@ -672,9 +675,15 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          _barre(p.annonces / maxi, ChapColors.orange),
+                          // DEUX séries, donc DEUX couleurs. Elles passaient
+                          // par `orange` et `green` : depuis le 30/08 les deux
+                          // constantes valent #009E60, et le graphique
+                          // empilait deux barres vertes indiscernables. Les
+                          // courbes du tableau de bord restent à l'orange,
+                          // comme sur le site, pour se détacher du vert.
+                          _barre(p.annonces / maxi, ChapColors.action),
                           const SizedBox(height: 2),
-                          _barre(p.comptes / maxi, ChapColors.green),
+                          _barre(p.comptes / maxi, ChapColors.marque),
                         ],
                       ),
                     ),
@@ -686,9 +695,9 @@ class _TableauBordScreenState extends State<TableauBordScreen> {
           const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _Legende(couleur: ChapColors.orange, texte: 'Annonces'),
+              _Legende(couleur: ChapColors.action, texte: 'Annonces'),
               SizedBox(width: 16),
-              _Legende(couleur: ChapColors.green, texte: 'Comptes'),
+              _Legende(couleur: ChapColors.marque, texte: 'Comptes'),
             ],
           ),
         ],

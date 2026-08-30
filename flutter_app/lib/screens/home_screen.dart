@@ -131,12 +131,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: TextStyle(
                               fontSize: 26, fontWeight: FontWeight.w900),
                           children: [
+                            // « Chap » en encre, « .ci » en vert — le
+                            // verrouillage du site. Les deux morceaux
+                            // passaient par des constantes devenues
+                            // identiques : le nom sortait tout vert, à côté
+                            // d'une couronne verte.
                             TextSpan(
                                 text: 'Chap',
-                                style: TextStyle(color: ChapColors.orange)),
+                                style: TextStyle(color: ChapColors.ink)),
                             TextSpan(
                                 text: '.ci',
-                                style: TextStyle(color: ChapColors.green)),
+                                style: TextStyle(color: ChapColors.marque)),
                           ],
                         ),
                       ),

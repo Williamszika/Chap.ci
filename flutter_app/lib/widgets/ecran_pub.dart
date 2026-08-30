@@ -461,20 +461,30 @@ class _TexteAnimePubState extends State<_TexteAnimePub>
         famille = 'serif';
         break;
       case 'neon':
+        // Un néon est CHAUD, et il l'était déjà : les trois halos étaient
+        // orange. Deux passaient par `ChapColors.orange` et sont devenus verts
+        // le 30/08, le troisième était écrit en dur — le style rendait deux
+        // auréoles vertes autour d'une orange. Les trois repassent à l'orange.
         ombres = const [
-          Shadow(color: ChapColors.orange, blurRadius: 6),
-          Shadow(color: ChapColors.orange, blurRadius: 18),
+          Shadow(color: ChapColors.actionVif, blurRadius: 6),
+          Shadow(color: ChapColors.actionVif, blurRadius: 18),
           Shadow(color: Color(0xA6F77F00), blurRadius: 34),
         ];
         break;
       case 'ivoire':
         // Dégradé drapeau (orange → blanc → vert), sauf couleur imposée.
+        //
+        // ⚠️ NE PAS repasser par `ChapColors.orange` : il vaut #009E60 depuis
+        // le 30/08. Ce dégradé sortait « vert, blanc, vert » — exactement ce
+        // que le Patron a reproché au site le même jour, reproduit ici dans le
+        // composeur de publicité. Le drapeau se peint avec les rôles, pas avec
+        // les anciens noms.
         if (couleur == null) {
           return ShaderMask(
             shaderCallback: (r) => const LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [ChapColors.orange, Colors.white, ChapColors.green],
+              colors: [ChapColors.actionVif, Colors.white, ChapColors.marque],
               stops: [0.15, 0.5, 0.85],
             ).createShader(r),
             child: _brut(texte, Colors.white, famille, italique, espacement, null),

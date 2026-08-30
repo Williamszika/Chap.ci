@@ -34,6 +34,44 @@ export default {
           800: '#005C3B',
           900: '#00452C',
         },
+        /* L'ACTION — l'orange du drapeau, et il fallait le faire revenir.
+         *
+         * Le 30/08, en passant la marque au vert, l'orange s'était réduit à UN
+         * bouton au fond d'une fiche d'annonce. Le Patron l'a vu tout de suite :
+         * « je vois que les couleurs sont Vert Blanc Vert ». Le drapeau ivoirien
+         * est ORANGE, blanc, vert — un site qui n'en montre que deux tiers ne
+         * dit plus d'où il vient.
+         *
+         * La règle est donc : le VERT porte la marque et l'interface (en-tête,
+         * navigation, liens, prix, le signe) ; l'ORANGE porte TOUTES les actions
+         * (publier, contacter, valider) ; le blanc crème reste le sol. Les trois
+         * couleurs sont présentes sur chaque écran, dans cet ordre d'importance.
+         *
+         * LES TROIS PLANCHERS, MESURÉS et non estimés (scratchpad/contraste.mjs,
+         * formule WCAG 2.1) — les valeurs à l'œil se sont révélées fausses :
+         *
+         *   400 #F77F00  sous du blanc : 2,63:1  → JAMAIS de blanc dessus.
+         *                C'est l'orange du drapeau, pour un aplat sans texte.
+         *   500 #E96A00  3,22:1 → passe le seuil des OBJETS GRAPHIQUES (3:1) :
+         *                le « + » blanc de la barre du bas. À #F77F00 il ne
+         *                donnait que 2,63 — le site le faisait déjà, et non.
+         *   600 #B35700  4,91:1 → passe le seuil du TEXTE (4,5:1). C'était
+         *                #C25A00, annoncé « 4,6:1 » : il en vaut 4,42, donc
+         *                SOUS le seuil. Le haut du dégradé des boutons était
+         *                illisible au sens de la norme.
+         */
+        action: {
+          50: '#FFF4E6',
+          100: '#FFE3C2',
+          200: '#FFC98A',
+          300: '#FFA243',
+          400: '#F77F00', // l'orange du drapeau — aplats et bordures SANS texte
+          500: '#E96A00', // 3,22:1 sous du blanc : plancher d'une ICÔNE blanche
+          600: '#B35700', // 4,91:1 sous du blanc : plancher d'un TEXTE blanc
+          700: '#9A4100', // 6,71:1
+          800: '#7C3600',
+          900: '#5E2900',
+        },
         ivoire: {
           green: '#009E60',
           'green-dark': '#00784A',

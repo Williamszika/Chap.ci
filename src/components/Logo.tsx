@@ -1,4 +1,6 @@
-import { NOYAU, FEUILLES, MOT, MOT_X, MOT_Y } from './signeChapci'
+import {
+  NOYAU, FEUILLES, MOT, MOT_X, MOT_Y, LIGNE, LIGNE_X, LIGNE_Y, SEUIL_LIGNE,
+} from './signeChapci'
 
 /**
  * LE SIGNE CHAP.CI — la couronne de feuillage, retenue par le Patron le 30/08.
@@ -24,6 +26,9 @@ export function SigneDefs() {
     <svg width="0" height="0" aria-hidden="true" focusable="false"
       style={{ position: 'absolute', pointerEvents: 'none' }}>
       <defs>
+        {/* Deux symboles : avec la ligne, et sans. Un seul, dont on masquerait
+            la ligne par du CSS, ne marcherait pas — `<use>` ne laisse pas
+            atteindre l'intérieur d'un symbole pour en cacher une partie. */}
         <symbol id="signe-chapci" viewBox="0 0 200 200">
           <g fill="currentColor">
             <polygon points={NOYAU} />
@@ -34,6 +39,26 @@ export function SigneDefs() {
           <path
             d={MOT}
             transform={`translate(${MOT_X} ${MOT_Y})`}
+            fill="var(--signe-mot, #FFFFFF)"
+          />
+          <path
+            d={LIGNE}
+            transform={`translate(${LIGNE_X} ${LIGNE_Y})`}
+            fill="var(--signe-mot, #FFFFFF)"
+            fillOpacity="0.82"
+          />
+        </symbol>
+        {/* Le même signe SANS la ligne, pour les petites tailles. */}
+        <symbol id="signe-chapci-compact" viewBox="0 0 200 200">
+          <g fill="currentColor">
+            <polygon points={NOYAU} />
+            {FEUILLES.map(([d, rot], i) => (
+              <path key={i} d={d} transform={`rotate(${rot})`} />
+            ))}
+          </g>
+          <path
+            d={MOT}
+            transform={`translate(${MOT_X} 110)`}
             fill="var(--signe-mot, #FFFFFF)"
           />
         </symbol>
@@ -74,7 +99,10 @@ export function Mark({
         ['--signe-mot' as string]: blanc ? '#009E60' : '#FFFFFF',
       }}
     >
-      <use href="#signe-chapci" />
+      {/* Sous 40 px, la ligne « Achat, Vente, Emplois, Chap » ne se lit plus :
+          ses vingt-sept caractères tiendraient dans huit pixels. On sert alors
+          la version compacte — même dessin, sans la salissure. */}
+      <use href={size >= SEUIL_LIGNE ? '#signe-chapci' : '#signe-chapci-compact'} />
     </svg>
   )
 }

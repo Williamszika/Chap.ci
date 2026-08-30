@@ -68,13 +68,26 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/icon.png"
   min_sdk_android: 22
-  adaptive_icon_background: "#F77F00"
+  # Le crème du site — même sol pour l'icône, l'écran de démarrage et les
+  # pages. Ce n'est plus l'orange : la marque est passée au vert le 30/08/2026,
+  # et c'est la COURONNE qui porte la couleur, pas le fond.
+  adaptive_icon_background: "#FFFDF9"
   adaptive_icon_foreground: "assets/icon/icon_maskable.png"
   # iOS refuse toute transparence dans l'icône : on part du logo plein cadre
-  # (sans canal alpha) et on aplatit ce qui resterait sur l'orange de la marque.
+  # (sans canal alpha) et on aplatit ce qui resterait sur le crème.
   image_path_ios: "assets/icon/icon_maskable.png"
   remove_alpha_ios: true
-  background_color_ios: "#F77F00"
+  background_color_ios: "#FFFDF9"
 
 flutter:
   uses-material-design: true
+
+  # Le signe de marque, à trois densités. Flutter va chercher tout seul les
+  # variantes `2.0x/` et `3.0x/` : elles n'ont pas à être déclarées.
+  #
+  # `assets/icon/` et `assets/marque/splash/` ne sont VOLONTAIREMENT pas ici :
+  # ces images-là sont consommées à la construction (flutter_launcher_icons et
+  # flutter_native_splash les recopient dans android/ et ios/). Les embarquer
+  # en plus alourdirait l'APK d'un quart de méga sans que rien ne les lise.
+  assets:
+    - assets/marque/

@@ -105,15 +105,19 @@ select:focus-visible,
     @apply inline-flex items-center gap-0.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-extrabold;
   }
   /* Bouton principal — dégradé orange (artifact) + ombre orangée + police display. */
-  /* Le dégradé part de 600, PAS de 500, et ce n'est pas un détail esthétique :
-     #009E60 sous du texte blanc de 16 px ne donne que 3,5:1, sous les 4,5:1
-     exigés — illisible en plein soleil, c'est-à-dire dans la situation normale
-     ici. #008953 (600) atteint 4,5:1, #005C3B (800) monte à 7:1. Le 500 reste
-     le vert de la marque : le signe, les bordures, les aplats sans texte. */
+  /* LE BOUTON PRINCIPAL EST ORANGE, et c'est le drapeau qui le veut.
+     La marque est verte, mais un site vert-blanc-vert n'est pas ivoirien : le
+     drapeau est orange, blanc, vert. L'orange porte donc toutes les actions —
+     publier, contacter, valider — et il est présent sur chaque écran.
+
+     Le dégradé part de 600 et non de 500 : #F77F00 sous du texte blanc ne
+     donne que 2,9:1. Le site vivait déjà avec ce défaut ; on ne le reconduit
+     pas. #C25A00 atteint 4,6:1, #9A4100 monte à 6,7:1. Le 500 reste l'orange
+     du drapeau, pour les aplats et les icônes qui ne portent pas de texte. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-primary-600 to-primary-800 px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,115,74,0.55)] transition active:scale-[0.98] hover:brightness-[1.08] disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-action-600 to-action-700 px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(154,65,0,0.5)] transition active:scale-[0.98] hover:brightness-[1.08] disabled:opacity-50;
     /* Lisibilité plein soleil : léger relief sur le texte blanc (comme .txt-legible). */
-    text-shadow: 0 1px 2px rgba(0, 50, 30, 0.4);
+    text-shadow: 0 1px 2px rgba(80, 30, 0, 0.4);
   }
   /* Bouton secondaire — bordure « sable » chaude (artifact --line2). */
   .btn-outline {

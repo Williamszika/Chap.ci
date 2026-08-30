@@ -227,8 +227,11 @@ class _UtilisateursScreenState extends State<UtilisateursScreen> {
               itemBuilder: (context) => [
                 _item('active', 'Réactiver', Icons.check_circle_outline,
                     ChapColors.greenDark, u.statut == 'active'),
+                // « Restreindre » portait le même vert que « Réactiver » : dans
+                // un menu de modération, deux gestes opposés de la même
+                // couleur, c'est une fausse manœuvre qui attend son heure.
                 _item('restricted', 'Restreindre', Icons.remove_circle_outline,
-                    ChapColors.orangeDark, u.statut == 'restricted'),
+                    ChapColors.attention, u.statut == 'restricted'),
                 _item('blocked', 'Bloquer', Icons.block,
                     const Color(0xFFB42318), u.statut == 'blocked'),
               ],
@@ -258,7 +261,10 @@ class _UtilisateursScreenState extends State<UtilisateursScreen> {
     final (texte, couleur) = u.bloque
         ? ('Bloqué', const Color(0xFFB42318))
         : u.restreint
-            ? ('Restreint', ChapColors.orangeDark)
+            // Un compte RESTREINT s'affichait du même vert qu'un compte ACTIF
+            // depuis que `orangeDark` vaut #00734A : la restriction devenait
+            // invisible dans la liste. Elle passe à l'ocre d'attention.
+            ? ('Restreint', ChapColors.attention)
             : ('Actif', ChapColors.greenDark);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

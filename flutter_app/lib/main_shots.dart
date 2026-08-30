@@ -73,8 +73,8 @@ Widget _pour(String shot) {
                 child: Text.rich(TextSpan(
                   style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
                   children: [
-                    TextSpan(text: 'Chap', style: TextStyle(color: ChapColors.orange)),
-                    TextSpan(text: '.ci', style: TextStyle(color: ChapColors.green)),
+                    TextSpan(text: 'Chap', style: TextStyle(color: ChapColors.ink)),
+                    TextSpan(text: '.ci', style: TextStyle(color: ChapColors.marque)),
                   ],
                 )),
               ),

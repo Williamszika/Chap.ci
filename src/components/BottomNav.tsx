@@ -38,7 +38,7 @@ export function BottomNav() {
             end={end}
             className={({ isActive }) =>
               `relative flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium ${
-                center ? 'text-primary-600' : isActive ? 'text-primary-600' : 'text-gray-500'
+                center ? 'text-action-700' : isActive ? 'text-primary-600' : 'text-gray-500'
               }`
             }
           >
@@ -53,7 +53,7 @@ export function BottomNav() {
                       s'est simplement vu au moment de repeindre en vert.
                       On dessine donc le disque à part, et la croix EN BLANC. */}
                   {center ? (
-                    <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-primary-500 text-white">
+                    <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-action-500 text-white">
                       <Plus size={19} strokeWidth={3} />
                     </span>
                   ) : (

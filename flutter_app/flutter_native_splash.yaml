@@ -1,41 +1,44 @@
 # Écran de démarrage natif Chap.ci
 #
-# À poser à la racine du projet Flutter, après avoir copié le contenu de
-# fichiers/flutter/splash/ dans assets/marque/splash/.
+# Régénérer après chaque changement de logo :
 #
-#   flutter pub add dev:flutter_native_splash
 #   dart run flutter_native_splash:create
 #
-# Régénérer après chaque changement de logo : le paquet recopie les images
-# dans les dossiers natifs, il ne les lit pas au démarrage.
+# Le paquet RECOPIE les images dans les dossiers natifs, il ne les lit pas au
+# démarrage. Changer le PNG sans relancer cette commande ne change rien à ce
+# que l'utilisateur voit — c'est le piège classique de ce paquet.
+#
+# ⚠️ LE FOND N'EST PLUS ORANGE. Il était #F77F00 plein ; l'application, elle,
+# ouvre sur du crème. Au lancement on voyait donc un aplat orange sauter au
+# crème au premier rendu : un à-coup, à chaque ouverture. Le splash natif,
+# l'écran de démarrage animé et l'accueil partagent désormais le même sol.
+#
+# Les images sortent de `scratchpad/assets-flutter.mjs`, qui les tire de
+# `src/components/signeChapci.ts` — la même source que le logo du site.
 
 flutter_native_splash:
-  # Clair : champ orange, signe encre — la combinaison de l'icône
-  # d'application, mesurée à 6,62:1.
-  color: '#F77F00'
+  # Clair : le crème du site, la couronne verte posée dessus.
+  color: '#FFFDF9'
   image: assets/marque/splash/chapci_splash.png
-  branding: assets/marque/splash/chapci_branding.png
 
-  # Sombre : l'inverse, même rapport de contraste.
+  # Sombre : le fond d'encre. Pas d'`image_dark` : le vert #009E60 et le nom
+  # blanc tiennent sur l'encre comme sur le crème — une seconde image serait
+  # une seconde chose à maintenir, et à oublier.
   color_dark: '#1B1A17'
-  image_dark: assets/marque/splash/chapci_splash_sombre.png
-  branding_dark: assets/marque/splash/chapci_branding_sombre.png
 
-  branding_mode: bottom
-  branding_bottom_padding: 48
+  # Pas de `branding` : la couronne PORTE déjà le nom et la ligne « Achat,
+  # Vente, Emplois, Chap ». Le bandeau du bas répétait « Chap.ci · PETITES
+  # ANNONCES CI » — et son « .ci » était peint en crème, pensé pour l'ancien
+  # fond orange : sur le nouveau fond, il aurait tout simplement disparu.
 
   # Android 12 et au-delà passent par l'API de splash du système : l'icône y
-  # est rognée au cercle central, soit les deux tiers du cadre. Les fichiers
-  # ci-dessous font 1152 px avec le signe inscrit dans le cercle de 768 px,
-  # comme le demande le paquet.
+  # est rognée au cercle central, soit les deux tiers du cadre. Le fichier
+  # ci-dessous fait 1152 px avec le signe inscrit à 58 %, donc à l'intérieur
+  # du cercle de 768 px, comme le demande le paquet.
   android_12:
-    color: '#F77F00'
+    color: '#FFFDF9'
     image: assets/marque/splash/chapci_android12.png
-    branding: assets/marque/splash/chapci_branding.png
-
     color_dark: '#1B1A17'
-    image_dark: assets/marque/splash/chapci_android12_sombre.png
-    branding_dark: assets/marque/splash/chapci_branding_sombre.png
 
   # Le splash natif ne doit pas masquer la barre d'état : l'utilisateur perd
   # l'heure et le réseau pendant le lancement, et la transition vers l'appli
