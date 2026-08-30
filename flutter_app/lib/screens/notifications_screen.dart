@@ -67,6 +67,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           builder: (_) => const DevenirProScreen()));
       return;
     }
+    // NOUVEAUTÉ DU SITE. Sans ce cas, la notification s'affichait bien — icône
+    // par défaut, titre et explication — mais l'appui ne faisait RIEN : plus
+    // bas, `_ouvrir` ne sait traiter qu'un identifiant d'annonce, et une
+    // nouveauté n'en porte pas. Or c'est justement le lien qui explique COMMENT
+    // faire ; une annonce sans sa marche à suivre ne sert à rien.
+    //
+    // On lit le `lien` porté par la notification plutôt que le titre : le texte
+    // est écrit à la main dans le tableau de bord et changera, le lien non.
+    if (n.type == 'nouveaute') {
+      if (n.lien.contains('/guide/pro') || n.lien.contains('/pro')) {
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const DevenirProScreen()));
+      }
+      // Un lien que l'application ne sait pas encore ouvrir ne fait rien de
+      // faux : le titre et le corps ont déjà tout dit, et le site reste là.
+      return;
+    }
     final id = n.annonceId;
     if (id == null) return;
     try {
@@ -248,6 +265,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'annonce':
         ic = Icons.sell_outlined;
         c = ChapColors.greenDark;
+        break;
+      // Une nouveauté du site : ni une vente, ni un acheteur. Le glyphe par
+      // défaut la noyait dans le reste.
+      case 'nouveaute':
+        ic = Icons.auto_awesome_outlined;
+        c = ChapColors.orange;
         break;
       default:
         ic = Icons.notifications_none;

@@ -1941,6 +1941,30 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, user_id $id, type $txt, title $txt, body $txt, link $txt,
       read_flag $intT, created_at $ts
     )$eng",
+    /*
+     * LES ANNONCES DE NOUVEAUTÉ — « le site sait faire quelque chose de plus ».
+     *
+     * Une fonctionnalité livrée que personne ne découvre n'existe pas. Trois
+     * livraisons de suite l'ont prouvé sur ce projet : la réponse automatique du
+     * professionnel, le choix de langue et la traduction d'annonce étaient tous
+     * en ligne et invisibles — le Patron lui-même ne les trouvait pas.
+     *
+     * ⚠️ POURQUOI UNE TABLE, ET PAS UNE SIMPLE BOUCLE. Prévenir tout le monde,
+     * c'est une notification et un envoi push PAR PERSONNE, chacun étant une
+     * requête HTTPS vers Google ou Mozilla, en série (voir `push_vider`). Une
+     * seule requête web n'y suffirait pas : elle expirerait au milieu, et
+     * personne ne saurait qui a été prévenu. On envoie donc par LOTS, et
+     * `curseur` retient où l'on en est — côté serveur, jamais côté navigateur.
+     * Deux clics sur « Envoyer » ne peuvent donc pas notifier deux fois les
+     * mêmes personnes.
+     *
+     * `cible` : tous · pros · non_pros. Annoncer le compte professionnel à ceux
+     * qui en ont déjà un serait la meilleure façon de faire désactiver l'alerte.
+     */
+    "CREATE TABLE IF NOT EXISTS annonces_produit (
+      id $id PRIMARY KEY, titre $txt, corps $txt, lien $txt, cible $txt,
+      curseur $txt, envoyes $intT, cree_par $txt, created_at $ts, termine_at $ts
+    )$eng",
     // Vues quotidiennes par annonce — suivi analytique du tableau de bord vendeur
     // (série des vues par jour, tendances par période).
     "CREATE TABLE IF NOT EXISTS listing_view_days (
@@ -2462,7 +2486,12 @@ function admin_owner_only_features(): array {
   // « invitations » : écrire à des personnes nommées, à leur adresse
   // personnelle, au nom du site. Ce n'est pas de la modération, et un
   // modérateur n'a pas non plus à voir la liste.
-  return ['moderators','emails','backup','automation','invitations'];
+  // « annonces » : prévenir TOUT LE MONDE d'une nouveauté — une notification et
+  // un push par personne. Même famille qu'« invitations » : écrire à des gens
+  // au nom du site, sans possibilité de rappeler le message. Ce n'est pas de la
+  // modération, et un modérateur n'a pas à pouvoir faire sonner tous les
+  // téléphones du pays.
+  return ['moderators','emails','backup','automation','invitations','annonces'];
 }
 /** Libellés FR (pour les cases à cocher de l'UI). */
 function admin_feature_labels(): array {
@@ -2489,6 +2518,7 @@ function admin_feature_for_path(string $path): string {
   if (str_starts_with($path, 'admin/reviews')) return 'reviews';
   if (str_starts_with($path, 'admin/campaign')) return 'campaigns';
   if (str_starts_with($path, 'admin/invitations')) return 'invitations';
+  if (str_starts_with($path, 'admin/annonce')) return 'annonces';
   if ($path === 'admin/newsletter') return 'newsletter';
   if (str_starts_with($path, 'admin/moderators')) return 'moderators';
   if ($path === 'admin/smtp' || $path === 'admin/test-email') return 'emails';
@@ -9178,6 +9208,98 @@ try {
         } catch (Throwable $e) { /* ignore */ }
       }
       jout(['ok' => true, 'deleted' => $deleted, 'backup' => $backupFile, 'accounts' => $withAccounts]);
+    }
+
+    /* ══ ANNONCER UNE NOUVEAUTÉ ═══════════════════════════════════════════════
+     *
+     * Trois routes : composer, envoyer un lot, relire ce qui est parti.
+     *
+     * L'envoi est DÉLIBÉRÉMENT séparé de la composition. Écrire l'annonce ne
+     * prévient personne ; il faut un second geste, et ce geste dit combien de
+     * personnes vont la recevoir. On ne réveille pas six cents téléphones par
+     * un clic ambigu.
+     *
+     * LA PORTE N'EST PAS ICI, et c'est voulu. Le bloc admin exige déjà une
+     * session déverrouillée (423 sinon), puis `admin_feature_for_path()` réclame
+     * la fonctionnalité `annonces` — RÉSERVÉE AU PROPRIÉTAIRE, comme les
+     * invitations. Un premier jet contrôlait tout cela dans chaque route : le
+     * déverrouillage y était déjà acquis, et la permission se serait retrouvée
+     * déclarée à un endroit que personne n'inspecte quand il audite les droits.
+     * Les permissions de ce fichier vivent dans UNE table, qu'on relit d'un
+     * coup d'œil.
+     */
+
+    /** Qui reçoit, selon la cible. Un seul endroit pour cette question. */
+    $annonceQui = function (string $cible, string $curseur, int $limite = 0) use ($pdo): array {
+      $ou = "u.status IS NULL OR u.status NOT IN ('blocked','deleted')";
+      if ($cible === 'pros')     $ou = "u.pro_status = 'approuve' AND ($ou)";
+      if ($cible === 'non_pros') $ou = "(u.pro_status IS NULL OR u.pro_status <> 'approuve') AND ($ou)";
+      // Ordre par `id` : stable, unique, et il donne un curseur qui ne peut pas
+      // sauter quelqu'un ni le servir deux fois — contrairement à un OFFSET,
+      // qui décale dès qu'un compte est créé pendant l'envoi.
+      $sql = "SELECT u.id FROM users u WHERE ($ou) AND u.id > ? ORDER BY u.id ASC";
+      if ($limite > 0) $sql .= ' LIMIT ' . (int) $limite;
+      $st = $pdo->prepare($sql); $st->execute([$curseur]);
+      return array_column($st->fetchAll(), 'id');
+    };
+
+    if ($path === 'admin/annonce' && $method === 'POST') {
+      $b = body();
+      $titre = trim(mb_substr((string) ($b['titre'] ?? ''), 0, 120));
+      $corps = trim(mb_substr((string) ($b['corps'] ?? ''), 0, 240));
+      $lien  = trim(mb_substr((string) ($b['lien'] ?? ''), 0, 200));
+      $cible = in_array($b['cible'] ?? '', ['tous', 'pros', 'non_pros'], true) ? $b['cible'] : 'tous';
+      if (mb_strlen($titre) < 4) jerr('Donnez un titre d’au moins 4 caractères.');
+      if (mb_strlen($corps) < 10) jerr('Expliquez la nouveauté en une phrase au moins.');
+      // Le lien reste INTERNE. Une notification signée Chap.ci qui ouvre un site
+      // extérieur est exactement la forme d'une arnaque par hameçonnage : si
+      // nous nous l'autorisons, nous ne pouvons plus apprendre à personne à s'en
+      // méfier. Et le service worker préfixe déjà par le domaine du site.
+      if ($lien !== '' && !preg_match('#^/[A-Za-z0-9/_\-?=&.%]*$#', $lien)) {
+        jerr('Le lien doit être une page du site, comme « /guide/pro ».');
+      }
+      $id = uuid();
+      $pdo->prepare('INSERT INTO annonces_produit (id,titre,corps,lien,cible,curseur,envoyes,cree_par,created_at,termine_at)
+                     VALUES (?,?,?,?,?,?,0,?,?,NULL)')
+          ->execute([$id, $titre, $corps, $lien, $cible, '', (string) ($u['email'] ?? ''), now_iso()]);
+      log_security_event($pdo, 'annonce_creee', (string) ($u['email'] ?? ''), $titre);
+      jout(['ok' => true, 'id' => $id, 'destinataires' => count($annonceQui($cible, ''))]);
+    }
+
+    if ($path === 'admin/annonce/envoyer' && $method === 'POST') {
+      $b = body();
+      $st = $pdo->prepare('SELECT * FROM annonces_produit WHERE id = ?');
+      $st->execute([(string) ($b['id'] ?? '')]);
+      $a = $st->fetch();
+      if (!$a) jerr('Annonce introuvable.', 404);
+      if (!empty($a['termine_at'])) jout(['ok' => true, 'envoyes' => (int) $a['envoyes'], 'restants' => 0, 'termine' => true]);
+
+      // 40 par lot : chaque destinataire coûte une requête HTTPS vers le service
+      // de notifications de son navigateur, en série. Au-delà, le lot dépasse le
+      // temps d'exécution et l'écran d'en face croit à une panne.
+      $lot = $annonceQui((string) $a['cible'], (string) $a['curseur'], 40);
+      foreach ($lot as $uid) {
+        notify($pdo, (string) $uid, 'nouveaute', (string) $a['titre'], (string) $a['corps'], (string) $a['lien']);
+      }
+      $curseur = $lot ? (string) end($lot) : (string) $a['curseur'];
+      $envoyes = (int) $a['envoyes'] + count($lot);
+      $restants = count($annonceQui((string) $a['cible'], $curseur));
+      $fini = $restants === 0;
+      $pdo->prepare('UPDATE annonces_produit SET curseur = ?, envoyes = ?, termine_at = ? WHERE id = ?')
+          ->execute([$curseur, $envoyes, $fini ? now_iso() : null, (string) $a['id']]);
+      if ($fini) log_security_event($pdo, 'annonce_envoyee', (string) ($u['email'] ?? ''),
+                                    $a['titre'] . ' — ' . $envoyes . ' personnes');
+      jout(['ok' => true, 'envoyes' => $envoyes, 'restants' => $restants, 'termine' => $fini]);
+    }
+
+    if ($path === 'admin/annonces' && $method === 'GET') {
+      $rows = $pdo->query('SELECT * FROM annonces_produit ORDER BY created_at DESC LIMIT 30')->fetchAll();
+      jout(['items' => array_map(fn($r) => [
+        'id' => $r['id'], 'titre' => $r['titre'], 'corps' => $r['corps'], 'lien' => $r['lien'],
+        'cible' => $r['cible'], 'envoyes' => (int) $r['envoyes'],
+        'creePar' => $r['cree_par'], 'creeLe' => iso_to_ms((string) $r['created_at']),
+        'termine' => !empty($r['termine_at']),
+      ], $rows)]);
     }
 
     // Vue d'ensemble : compteurs + activité récente.

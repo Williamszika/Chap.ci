@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { mediaUrl } from '../lib/native'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -34,6 +34,10 @@ import {
   type VisitStats, type VisitRange, type VisitPoint, type ResponseTime, type BackupFile, type ContactMessage,
 } from '../lib/admin'
 import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
+// Annonces de nouveauté : composer, envoyer par lots, relire ce qui est parti.
+import {
+  phpAnnonceCreer, phpAnnonceEnvoyer, phpAnnonces, type AnnonceProduit,
+} from '../lib/php'
 import {
   fetchAdminAds, adminAdAction, adminAdDelete, adminAdBroadcast,
   fetchSeoState, setSeoEnabled, runSeoNow,
@@ -3209,6 +3213,191 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
   )
 }
 
+/**
+ * ANNONCER UNE NOUVEAUTÉ — la cloche, l'application, le téléphone.
+ *
+ * À ne pas confondre avec « Diffuser un message Chap.ci » juste en dessous, qui
+ * pose un bandeau sur l'écran publicitaire et ne prévient personne : il faut
+ * être là au bon moment pour le voir. Ici, chacun reçoit une notification qui
+ * l'attend.
+ *
+ * TROIS GARDE-FOUS, et chacun répare un accident précis :
+ *
+ * · COMPOSER N'ENVOIE RIEN. Le premier bouton enregistre et compte les
+ *   destinataires ; le second seul réveille les téléphones, et il dit combien.
+ *   Un bouton unique intitulé « Envoyer » se clique par réflexe.
+ *
+ * · L'ENVOI SE FAIT PAR LOTS, avec un curseur tenu par le SERVEUR. Prévenir
+ *   six cents personnes, c'est six cents requêtes vers Google et Mozilla, en
+ *   série : une seule requête web expirerait au milieu. Ici l'écran rappelle
+ *   jusqu'à la fin, et rappeler deux fois ne notifie personne deux fois.
+ *
+ * · CE QUI EST PARTI RESTE À L'ÉCRAN. Sans cette liste, la question « est-ce
+ *   que je l'ai déjà envoyée ? » n'a pas de réponse, et on double l'envoi.
+ */
+function PanneauNouveaute() {
+  const [titre, setTitre] = useState('')
+  const [corps, setCorps] = useState('')
+  const [lien, setLien] = useState('')
+  const [cible, setCible] = useState<'tous' | 'pros' | 'non_pros'>('tous')
+  const [creee, setCreee] = useState<{ id: string; destinataires: number } | null>(null)
+  const [progres, setProgres] = useState<{ envoyes: number; restants: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [erreur, setErreur] = useState('')
+  const [passees, setPassees] = useState<AnnonceProduit[]>([])
+
+  const recharger = useCallback(() => { phpAnnonces().then(setPassees).catch(() => {}) }, [])
+  useEffect(() => { recharger() }, [recharger])
+
+  /* Le modèle prêt à l'emploi. Le Patron n'a pas à rédiger une notification :
+     celle-ci est écrite, elle tient dans la place disponible sur un écran de
+     verrouillage, et elle pointe vers le guide qui explique la marche à suivre. */
+  function modelePro() {
+    setTitre('Passez en compte professionnel 💼')
+    setCorps('Le badge PRO sur vos annonces, une vitrine de boutique et un tableau de bord de votre activité. C’est gratuit — voici comment faire.')
+    setLien('/guide/pro')
+    setCible('non_pros')
+    setCreee(null); setProgres(null); setErreur('')
+  }
+
+  async function composer() {
+    setErreur(''); setBusy(true)
+    try {
+      setCreee(await phpAnnonceCreer({ titre: titre.trim(), corps: corps.trim(), lien: lien.trim(), cible }))
+      setProgres(null)
+    } catch (e) { setErreur((e as Error).message) } finally { setBusy(false) }
+  }
+
+  /** Envoie lot après lot jusqu'à la fin, en montrant l'avancement. */
+  async function envoyer() {
+    if (!creee) return
+    setErreur(''); setBusy(true)
+    try {
+      for (;;) {
+        const r = await phpAnnonceEnvoyer(creee.id)
+        setProgres({ envoyes: r.envoyes, restants: r.restants })
+        if (r.termine) break
+      }
+      recharger()
+    } catch (e) { setErreur((e as Error).message) } finally { setBusy(false) }
+  }
+
+  const CIBLES: [typeof cible, string][] = [
+    ['tous', 'Tout le monde'],
+    ['non_pros', 'Ceux qui ne sont pas encore pro'],
+    ['pros', 'Les professionnels seulement'],
+  ]
+
+  return (
+    <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+      <p className="font-display text-[15px] font-extrabold text-ink">🔔 Annoncer une nouveauté</p>
+      <p className="mt-0.5 text-xs text-gray-500">
+        Une notification par personne&nbsp;: la cloche du site, l’application, et le téléphone
+        pour qui a autorisé les notifications. Elle attend d’être lue — contrairement au bandeau
+        d’écran ci-dessous, qu’il faut voir passer.
+      </p>
+
+      <button
+        type="button"
+        onClick={modelePro}
+        className="mt-3 rounded-xl border border-line2 bg-cream-100 px-3.5 py-2 text-[13px] font-bold text-primary-700 transition active:scale-[0.98]"
+      >
+        ✨ Remplir avec « Compte professionnel »
+      </button>
+
+      <input
+        value={titre} onChange={(e) => { setTitre(e.target.value); setCreee(null) }}
+        maxLength={120} placeholder="Titre — ce qu’on lit sur l’écran verrouillé"
+        className="input mt-3"
+      />
+      <textarea
+        value={corps} onChange={(e) => { setCorps(e.target.value); setCreee(null) }}
+        maxLength={240} rows={3}
+        placeholder="Une phrase : ce que ça apporte, et que c’est expliqué au bout du lien."
+        className="input mt-2 resize-none"
+      />
+      <p className="mt-1 text-right text-[11px] text-gray-500">{corps.length}/240</p>
+      <input
+        value={lien} onChange={(e) => { setLien(e.target.value); setCreee(null) }}
+        maxLength={200} placeholder="Page du site à ouvrir — ex. /guide/pro"
+        className="input mt-1"
+      />
+      {/* Le lien reste interne, et le serveur le refuse s'il ne l'est pas. Une
+          notification signée Chap.ci qui ouvre un site extérieur a exactement la
+          forme d'une arnaque : nous ne pourrions plus apprendre à s'en méfier. */}
+      <p className="mt-1 text-[11px] text-gray-500">
+        Uniquement une page de Chap.ci (commençant par «&nbsp;/&nbsp;»).
+      </p>
+
+      <p className="mt-3 text-[13px] font-semibold text-gray-700">Qui la reçoit</p>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {CIBLES.map(([k, label]) => (
+          <button
+            key={k} type="button"
+            onClick={() => { setCible(k); setCreee(null) }}
+            className={`chip ${cible === k ? 'border-primary-500 bg-primary-500 text-white' : ''}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {erreur && (
+        <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-[13px] font-medium text-red-600">{erreur}</p>
+      )}
+
+      {!creee ? (
+        <button onClick={composer} disabled={busy} className="btn-outline mt-3 w-full py-3">
+          {busy ? <Loader2 size={18} className="animate-spin" /> : '① Préparer — ceci n’envoie rien'}
+        </button>
+      ) : (
+        <div className="mt-3 rounded-2xl border border-primary-200 bg-[#FFF6EC] p-3.5">
+          <p className="text-[13px] leading-relaxed text-gray-800">
+            Prête. Elle partira à <b className="tnum">{formatPrice(creee.destinataires)}</b>{' '}
+            {creee.destinataires > 1 ? 'personnes' : 'personne'}.
+            {progres && (
+              <>
+                {' '}<b className="tnum">{formatPrice(progres.envoyes)}</b> prévenue
+                {progres.envoyes > 1 ? 's' : ''}, {formatPrice(progres.restants)} à faire.
+              </>
+            )}
+          </p>
+          <button onClick={envoyer} disabled={busy} className="btn-primary mt-2.5 w-full py-3">
+            {busy
+              ? <><Loader2 size={18} className="animate-spin" /> Envoi en cours…</>
+              : progres && progres.restants === 0
+                ? '✅ Envoyée'
+                : `② Envoyer maintenant à ${formatPrice(creee.destinataires)}`}
+          </button>
+          {busy && (
+            <p className="mt-1.5 text-center text-[11.5px] text-gray-600">
+              Ne fermez pas cette page&nbsp;: l’envoi se fait par lots.
+            </p>
+          )}
+        </div>
+      )}
+
+      {passees.length > 0 && (
+        <div className="mt-4 border-t border-line pt-3">
+          <p className="text-[13px] font-bold text-gray-700">Déjà envoyées</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {passees.map((a) => (
+              <li key={a.id} className="flex items-baseline justify-between gap-3 text-[12.5px]">
+                <span className="min-w-0 flex-1 truncate text-gray-700">
+                  {a.termine ? '✅' : '⏳'} {a.titre}
+                </span>
+                <span className="tnum shrink-0 text-gray-500">
+                  {formatPrice(a.envoyes)} · {new Date(a.creeLe).toLocaleDateString('fr-FR')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AdsTab({ onChanged }: { onChanged?: () => void }) {
   const [items, setItems] = useState<AdminAd[] | null>(null)
   const [err, setErr] = useState('')
@@ -3283,6 +3472,9 @@ function AdsTab({ onChanged }: { onChanged?: () => void }) {
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
   return (
     <div className="space-y-3.5">
+      {/* Annoncer une nouveauté — cloche, application, téléphone */}
+      <PanneauNouveaute />
+
       {/* Bureau de Croissance SEO — diffusions quotidiennes automatiques */}
       <SeoOfficePanel onChanged={load} />
 

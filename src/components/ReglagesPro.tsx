@@ -424,6 +424,10 @@ const CASES_COMPTE: [string, string, string][] = [
   ['favorite', 'Nouveau favori', 'Une annonce est enregistrée'],
   ['vente', 'Vente conclue', 'Une commande est finalisée'],
   ['avis', 'Nouvel avis', 'Un acheteur vous note'],
+  // Coupable comme les autres, et volontairement. Une annonce de nouveauté
+  // qu'on ne peut pas éteindre finit par faire éteindre TOUTES les
+  // notifications — on perdrait les messages d'acheteurs avec.
+  ['nouveaute', 'Nouveautés du site', 'Quand Chap.ci sait faire quelque chose de plus'],
   ['email', 'Recevoir aussi par e-mail', 'Quand vous n’êtes ni sur le site ni joignable sur le téléphone'],
 ]
 const CASES_PRO: [string, string, string][] = [

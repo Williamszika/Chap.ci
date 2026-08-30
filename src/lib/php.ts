@@ -983,6 +983,38 @@ export async function phpAdminAdDelete(id: string): Promise<void> {
 export async function phpAdminAdBroadcast<T>(body: Record<string, unknown>): Promise<T> {
   return req<T>('/admin/ads/broadcast', { method: 'POST', body })
 }
+/* ── ANNONCER UNE NOUVEAUTÉ ─────────────────────────────────────────────────
+ *
+ * À ne pas confondre avec `phpAdminAdBroadcast` juste au-dessus, qui pose un
+ * BANDEAU à l'écran et ne prévient personne. Ici, c'est une notification par
+ * personne : la cloche du site, l'application, et le téléphone si la personne
+ * a autorisé les notifications.
+ *
+ * Composer et envoyer sont deux gestes séparés, et c'est voulu — écrire ne
+ * réveille aucun téléphone. `phpAnnonceEnvoyer` livre UN LOT et dit ce qu'il
+ * reste ; l'écran rappelle jusqu'à `termine`. Le curseur vit sur le serveur :
+ * rappeler deux fois ne peut pas notifier deux fois les mêmes personnes.
+ */
+export interface AnnonceProduit {
+  id: string; titre: string; corps: string; lien: string
+  cible: 'tous' | 'pros' | 'non_pros'
+  envoyes: number; creePar: string; creeLe: number; termine: boolean
+}
+export async function phpAnnonceCreer(body: {
+  titre: string; corps: string; lien: string; cible: 'tous' | 'pros' | 'non_pros'
+}): Promise<{ id: string; destinataires: number }> {
+  return req('/admin/annonce', { method: 'POST', body })
+}
+export async function phpAnnonceEnvoyer(
+  id: string,
+): Promise<{ envoyes: number; restants: number; termine: boolean }> {
+  return req('/admin/annonce/envoyer', { method: 'POST', body: { id } })
+}
+export async function phpAnnonces(): Promise<AnnonceProduit[]> {
+  const d = await req<{ items: AnnonceProduit[] }>('/admin/annonces')
+  return d.items ?? []
+}
+
 export async function phpAdminSeo<T>(): Promise<T> {
   return req<T>('/admin/seo')
 }

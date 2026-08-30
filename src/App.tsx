@@ -70,6 +70,7 @@ const SellerProfile = L('SellerProfile', () => import('./pages/SellerProfile'))
 const About = L('About', () => import('./pages/About'))
 const Faq = L('Faq', () => import('./pages/Faq'))
 const EspacePro = L('EspacePro', () => import('./pages/EspacePro'))
+const GuidePro = L('GuidePro', () => import('./pages/GuidePro'))
 const Notifications = L('Notifications', () => import('./pages/Notifications'))
 const SiteMap = L('SiteMap', () => import('./pages/SiteMap'))
 const AdminDashboard = lazy(() =>
@@ -121,6 +122,9 @@ export default function App() {
           <Route path="/annonce/:id" element={<ListingDetail />} />
           <Route path="/publier" element={<PostAd />} />
           <Route path="/pro" element={<EspacePro />} />
+          {/* Le guide qu'ouvre la notification de nouveauté. Publique : on peut
+              le lire avant d'avoir un compte. */}
+          <Route path="/guide/pro" element={<GuidePro />} />
           <Route path="/modifier/:id" element={<PostAd />} />
           <Route path="/favoris" element={<Favorites />} />
           <Route path="/compte" element={<Profile />} />

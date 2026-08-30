@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Heart, MessageSquare, Trash2, Check, Star, Handshake } from 'lucide-react'
+import { Bell, Heart, MessageSquare, Trash2, Check, Star, Handshake, Sparkles } from 'lucide-react'
 import {
   phpNotifications,
   phpNotifMarkRead,
@@ -29,6 +29,11 @@ function iconFor(type: string) {
     t.includes('note') || t.includes('star')
   )
     return <Star size={18} className="fill-accent-gold text-accent-gold" />
+  // Une nouveauté du site : ni une vente, ni un acheteur — une chose que
+  // Chap.ci sait faire de plus. Elle mérite son propre glyphe, sinon elle se
+  // confond avec le reste et se lit comme du bruit.
+  if (t.includes('nouveaute'))
+    return <Sparkles size={18} className="text-primary-600" />
   return <Bell size={18} className="text-accent-gold" />
 }
 
