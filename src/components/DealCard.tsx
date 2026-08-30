@@ -140,14 +140,18 @@ function Row({
   icon: React.ReactNode
   children: React.ReactNode
 }) {
+  // `ask` = il y a un geste à faire ; `done` = c'est fait. Les deux passaient
+  // par `primary-500` et `ivoire-green`, devenus la MÊME couleur le 30/08 :
+  // une action en attente et une action accomplie s'affichaient du même vert.
+  // `ask` prend donc l'orange, qui est la couleur de l'action sur tout le site.
   const toneCls = {
-    ask: 'bg-primary-50 text-primary-900',
+    ask: 'bg-action-50 text-action-900',
     progress: 'bg-sky-50 text-sky-900',
     review: 'bg-amber-50 text-amber-900',
     done: 'bg-ivoire-green/10 text-ivoire-green-dark',
   }[tone]
   const iconCls = {
-    ask: 'bg-primary-500',
+    ask: 'bg-action-600',
     progress: 'bg-sky-500',
     review: 'bg-amber-500',
     done: 'bg-ivoire-green',

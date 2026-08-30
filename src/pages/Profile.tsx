@@ -188,7 +188,10 @@ export function Profile() {
     .map(([id, n]) => ({ name: categoryName.get(id) ?? id, n }))
     .sort((a, b) => b.n - a.n)
     .slice(0, 4)
-  const catBarColors = ['bg-primary-500', 'bg-ivoire-green', 'bg-accent-gold', 'bg-accent-sky']
+  // Quatre catégories, quatre couleurs DISTINCTES — les deux premières étaient
+  // devenues le même vert le 30/08 et les deux premières barres se
+  // confondaient.
+  const catBarColors = ['bg-action-500', 'bg-ivoire-green', 'bg-accent-gold', 'bg-accent-sky']
 
   // Recharge les deux listes de commandes après une action (finaliser, annuler).
   const reloadOrders = useRef(async () => {})

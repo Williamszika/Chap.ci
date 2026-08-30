@@ -23,9 +23,17 @@ export function Footer() {
   const year = new Date().getFullYear()
 
   const bandeau = (
-    /* Liseré drapeau ivoirien : orange · blanc · vert */
+    /* Liseré drapeau ivoirien : orange · blanc · vert.
+     *
+     * ⚠️ LA PREMIÈRE BANDE NE DOIT JAMAIS REVENIR À `primary`. Elle valait
+     * `bg-primary-500`, qui était l'orange — et qui est devenu le VERT le
+     * 30/08. Le liseré rendait alors « vert · blanc · vert », et c'est le
+     * Patron qui l'a vu, sur son téléphone, en plein soleil. Le drapeau se
+     * peint avec les rôles (`action` = orange, `ivoire-green` = vert), jamais
+     * avec un jeton d'interface qui peut changer de teinte.
+     */
     <div className="flex h-1 w-full">
-      <div className="flex-1 bg-primary-500" />
+      <div className="flex-1 bg-action-400" />
       <div className="flex-1 bg-white" />
       <div className="flex-1 bg-ivoire-green" />
     </div>

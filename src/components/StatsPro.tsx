@@ -138,7 +138,11 @@ export function StatsPro() {
                 <span className="h-6 flex-1 overflow-hidden rounded-lg bg-cream-100">
                   <span
                     className={`flex h-full items-center justify-end rounded-lg px-2 text-[11.5px] font-extrabold text-white ${
-                      et.cle === 'ventes' ? 'bg-ivoire-green' : 'bg-gradient-to-r from-primary-500 to-primary-700'}`}
+                      // Deux séries, donc deux couleurs : les ventes en vert,
+                      // le reste en orange. Elles étaient toutes deux vertes
+                      // depuis que `primary-500` vaut #009E60, et les barres
+                      // ne se distinguaient plus les unes des autres.
+                      et.cle === 'ventes' ? 'bg-ivoire-green' : 'bg-gradient-to-r from-action-500 to-action-700'}`}
                     style={{ width: `${largeur}%`, minWidth: n > 0 ? '2.2rem' : undefined }}>
                     {formatPrice(n)}
                   </span>

@@ -836,7 +836,13 @@ function Overview({ stats, onGo, canSee, owner, email }: {
                 </div>
                 <div className="flex gap-3 text-[11.5px] font-semibold text-gray-500">
                   <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-[3px] bg-primary-500" />Visiteurs
+                    {/* La courbe est tracée en #F77F00 et les barres en
+                        #009E60, écrits en dur dans `CourbeVisites`. La légende,
+                        elle, passait par `primary-500` — devenu vert le 30/08.
+                        Elle annonçait donc DEUX pastilles vertes sous un
+                        graphique orange et vert : une légende qui ment sur ce
+                        qu'elle légende. */}
+                    <span className="h-2.5 w-2.5 rounded-[3px] bg-action-400" />Visiteurs
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-[3px] bg-ivoire-green" />Inscriptions
@@ -1100,7 +1106,13 @@ function PageViewsCard() {
               <div key={i} className="flex h-full w-full max-w-[52px] flex-col items-center justify-end gap-1.5">
                 <div
                   title={`${p.label} : ${p.views} vue${p.views > 1 ? 's' : ''} · ${p.visitors} visiteur${p.visitors > 1 ? 's' : ''}`}
-                  className={`w-full rounded-t-md ${top ? 'bg-gradient-to-b from-ivoire-green to-ivoire-green-dark' : 'bg-gradient-to-b from-primary-500 to-primary-700'}`}
+                  // Le jour le plus fort se détache des autres. Il ne se
+                  // détachait plus : `ivoire-green` et `primary-500` valent la
+                  // même chose depuis le 30/08, et toutes les barres étaient
+                  // vertes. Les barres ordinaires passent à l'orange — comme
+                  // toutes les courbes des tableaux de bord — et le pic garde
+                  // le vert.
+                  className={`w-full rounded-t-md ${top ? 'bg-gradient-to-b from-ivoire-green to-ivoire-green-dark' : 'bg-gradient-to-b from-action-500 to-action-700'}`}
                   style={{ height: `${Math.max(4, (p.views / maxViews) * 100)}%` }}
                 />
                 <span className="text-[10px] font-semibold text-gray-400">{win === 7 ? p.letter : p.label.slice(0, 2)}</span>
@@ -1283,7 +1295,12 @@ function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[];
         ))}
 
         <polygon points={aire} fill="url(#audienceGrad)" />
-        <polyline points={ligne(visiteurs)} fill="none" className="stroke-primary-500" strokeWidth="2" strokeOpacity="0.55" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        {/* Le trait brut des visiteurs, posé SUR une aire orange (#F77F00,
+            juste au-dessus). Il passait par `primary-500`, devenu vert : un
+            trait vert courait au milieu d'une aire orange, et la légende en
+            dessous annonçait du vert pour les visiteurs comme pour les
+            inscriptions. */}
+        <polyline points={ligne(visiteurs)} fill="none" className="stroke-action-400" strokeWidth="2" strokeOpacity="0.55" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <polyline points={ligne(tendance)} fill="none" className="stroke-ivoire-orange-dark" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
 
         {actif != null && (
@@ -1321,7 +1338,7 @@ function CourbeAudience({ points, range, mesureDepuis }: { points: VisitPoint[];
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-600">
-        <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded-full bg-primary-500 opacity-60" /> Visiteurs</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded-full bg-action-400 opacity-60" /> Visiteurs</span>
         <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded-full bg-ivoire-orange-dark" /> Tendance (7 tranches)</span>
         <span className="flex items-center gap-1.5"><span className="h-4 w-2 rounded-sm bg-ivoire-green" /> Inscriptions</span>
       </div>
