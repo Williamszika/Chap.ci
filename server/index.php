@@ -7525,22 +7525,38 @@ try {
     // vraie annonce, mais pas la confirmer côté vendeur. Sans cette condition, un
     // acheteur pourrait poster un faux avis diffamatoire sur un vendeur qu'il a
     // seulement contacté (cohérent avec le garde-fou du cron review-invites).
+    // ⚠️ ON RETIENT LE VENDEUR DE LA VENTE. La colonne `seller_id` de l'avis
+    // était remplie depuis le CORPS DE LA REQUÊTE (`$b['sellerId']`) pour un
+    // avis `kind=buyer`, et depuis `$targetId` pour `kind=seller` — or `kind`
+    // vient lui aussi du client. Les deux chemins laissaient un vendeur poser
+    // sa note sur le dos de quelqu'un d'autre : cette colonne alimente, SANS
+    // filtre sur `kind`, la note du tableau de bord vendeur (« avis », « note »)
+    // et celle de la fiche admin. Signalé par 🛡️ Le Gardien le 30/08, puis
+    // reproduit au banc — la note d'un tiers étranger à la vente montait bien
+    // d'un cran, et le second chemin salissait celle de l'acheteur.
+    //
+    // Le vendeur n'est donc plus DÉCLARÉ, il est LU dans la vente confirmée
+    // qui sert déjà de laissez-passer. Il n'y a plus rien à falsifier.
+    $vente = null;
     if ($listingId) {
       // Portée stricte (Le Gardien) : quand l'avis vise une ANNONCE précise, la
       // vente confirmée doit concerner CETTE annonce — pas n'importe quelle
       // commande entre les deux personnes.
-      $chk = $pdo->prepare('SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
+      $chk = $pdo->prepare('SELECT o.seller_id FROM order_items oi JOIN orders o ON o.id = oi.order_id
         WHERE oi.listing_id = ? AND o.seller_confirmed = 1 AND
           ((o.buyer_id = ? AND o.seller_id = ?) OR (o.seller_id = ? AND o.buyer_id = ?)) LIMIT 1');
       $chk->execute([$listingId, $u['id'], $targetId, $u['id'], $targetId]);
-      if (!$chk->fetch()) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur pour cette annonce.', 403);
+      $vente = $chk->fetch();
+      if (!$vente) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur pour cette annonce.', 403);
     } else {
       // Avis de profil (sans annonce) : une vente confirmée entre les deux suffit.
-      $chk = $pdo->prepare('SELECT 1 FROM orders WHERE seller_confirmed = 1 AND
+      $chk = $pdo->prepare('SELECT seller_id FROM orders WHERE seller_confirmed = 1 AND
         ((buyer_id = ? AND seller_id = ?) OR (seller_id = ? AND buyer_id = ?)) LIMIT 1');
       $chk->execute([$u['id'], $targetId, $u['id'], $targetId]);
-      if (!$chk->fetch()) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur.', 403);
+      $vente = $chk->fetch();
+      if (!$vente) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur.', 403);
     }
+    $vendeurReel = (string) ($vente['seller_id'] ?? '');
     // Un seul avis par personne notée (par annonce). Sinon on met à jour.
     $ex = $pdo->prepare('SELECT id FROM reviews WHERE reviewer_id = ? AND target_id = ? AND (listing_id = ? OR ? = \'\') LIMIT 1');
     $ex->execute([$u['id'], $targetId, $listingId, (string) $listingId]);
@@ -7552,7 +7568,7 @@ try {
     } else {
       $pdo->prepare('INSERT INTO reviews (id,listing_id,seller_id,target_id,kind,reviewer_id,rating,comment,created_at)
         VALUES (?,?,?,?,?,?,?,?,?)')
-        ->execute([uuid(), $listingId, ($kind === 'seller' ? $targetId : ($b['sellerId'] ?? '')), $targetId, $kind, $u['id'], $rating, $comment, now_iso()]);
+        ->execute([uuid(), $listingId, $vendeurReel, $targetId, $kind, $u['id'], $rating, $comment, now_iso()]);
       // La personne notée l'apprend. Une note qui tombe sans un mot, on la
       // découvre des semaines plus tard sur sa propre page publique.
       $nom = '';
@@ -8076,8 +8092,19 @@ try {
       $stats['conversations'] = (int) $q->fetchColumn();
     } catch (Throwable $e) { /* idem */ }
     try {
-      $q = $pdo->prepare('SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews WHERE seller_id = ?');
-      $q->execute([$uid]);
+      // ⚠️ « REÇUS », PAS « ÉCRITS ». Cette requête comptait tous les avis
+      // portant `seller_id = moi`, sans regarder `kind` — or un avis
+      // `kind=buyer` (le vendeur note SON acheteur) porte lui aussi le vendeur
+      // dans cette colonne. Un vendeur qui mettait 1 à un client difficile
+      // faisait donc tomber SA PROPRE note : mesuré au banc, 5 sur un avis
+      // devenait 3 sur deux. Ce n'était pas une attaque, c'était l'usage normal.
+      // La condition ci-dessous est celle, déjà éprouvée, de la page publique
+      // des avis (route GET /reviews) : elle gère aussi les vieilles lignes
+      // sans `target_id` ni `kind`.
+      $q = $pdo->prepare("SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews
+        WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+          AND (kind = 'seller' OR kind IS NULL)");
+      $q->execute([$uid, $uid]);
       $n = $q->fetch() ?: [];
       $stats['avis'] = (int) ($n['n'] ?? 0);
       $stats['note'] = $stats['avis'] > 0 ? round((float) $n['moy'], 1) : null;
@@ -9749,8 +9776,13 @@ try {
 
       $note = null;
       try {
-        $nq = $pdo->prepare('SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews WHERE seller_id = ?');
-        $nq->execute([$uid]);
+        // Même correction que pour le tableau de bord du vendeur : la note
+        // affichée sur la fiche admin doit être celle qu'on a DONNÉE à cette
+        // personne comme vendeuse, pas celle qu'elle a donnée à ses acheteurs.
+        $nq = $pdo->prepare("SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews
+          WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+            AND (kind = 'seller' OR kind IS NULL)");
+        $nq->execute([$uid, $uid]);
         if (($nr = $nq->fetch()) && (int) $nr['n'] > 0) {
           $note = ['moyenne' => round((float) $nr['moy'], 1), 'nombre' => (int) $nr['n']];
         }
@@ -9794,7 +9826,10 @@ try {
           'messages' => $compte('SELECT COUNT(*) FROM messages WHERE sender_id = ?', [$uid]),
           'commandesPassees' => $compte('SELECT COUNT(*) FROM orders WHERE buyer_id = ?', [$uid]),
           'commandesRecues' => $compte('SELECT COUNT(*) FROM orders WHERE seller_id = ?', [$uid]),
-          'avisRecus' => $compte('SELECT COUNT(*) FROM reviews WHERE seller_id = ?', [$uid]),
+          // Le nom du champ dit « reçus » : il doit compter ce qu'on a reçu.
+          'avisRecus' => $compte("SELECT COUNT(*) FROM reviews
+            WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+              AND (kind = 'seller' OR kind IS NULL)", [$uid, $uid]),
           'publicites' => $compte('SELECT COUNT(*) FROM ads WHERE user_id = ?', [$uid]),
         ],
         'note' => $note,
