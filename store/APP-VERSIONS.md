@@ -60,7 +60,7 @@ autrement dit `git log --oneline -1` juste après avoir commité la montée de v
 
 | | Google Play | App Store |
 |---|---|---|
-| Version publiée | ✅ **v1.20 (code 21) — VERDICT REÇU, DISPONIBLE POUR LES TESTEURS** sur le canal fermé, confirmé dans la Play Console par le Patron le **24/08/2026** (« Dernière release : 21 (1.20.0) · Disponible pour certains testeurs · 177 pays/régions »). La refonte Flutter est donc passée l'examen (voir sa fiche plus bas) ; les testeurs peuvent mettre à jour vers la v1.20 (jusque-là ils avaient la **v1.18 (code 19)**, en ligne sur le canal de TEST FERMÉ depuis le 6 août 2026 — première mise en ligne réelle du projet (les v1.9, v1.16 et v1.17 étaient restées en brouillon). Google a notifié « Mise à jour de l'appli publiée », relevé par le Patron le 7 août, puis **confirmé dans la Play Console le 10/08/2026** : « Dernière release : 19 (1.18) », canal actif, 1 pays/région. ⚠️ **Ce n'est PAS la production** (production « Inactif », bloquée par l'exigence « 12 testeurs / 14 jours »). Le canal est ouvert : **11 testeurs inscrits sur 12** — **confirmé dans la Play Console par le Patron le 24/08/2026** (« 11 testeurs actuellement inscrits », écran « Demander un accès en production »). Il ne manque plus qu'**1 inscrit** pour franchir le seuil, après quoi le test doit tourner **14 jours avec au moins 12 testeurs**. Chaque nouvelle recrue doit encore cliquer `play.google.com/apps/testing/ci.chap.app` et installer sur le bon compte Google ; le compte à rebours des 14 jours n'a pas démarré. | **aucune** |
+| Version publiée | ✅ **v1.20 (code 21) — VERDICT REÇU, DISPONIBLE POUR LES TESTEURS** sur le canal fermé, confirmé dans la Play Console par le Patron le **24/08/2026** (« Dernière release : 21 (1.20.0) · Disponible pour certains testeurs · 177 pays/régions »). La refonte Flutter est donc passée l'examen (voir sa fiche plus bas) ; les testeurs peuvent mettre à jour vers la v1.20 (jusque-là ils avaient la **v1.18 (code 19)**, en ligne sur le canal de TEST FERMÉ depuis le 6 août 2026 — première mise en ligne réelle du projet (les v1.9, v1.16 et v1.17 étaient restées en brouillon). Google a notifié « Mise à jour de l'appli publiée », relevé par le Patron le 7 août, puis **confirmé dans la Play Console le 10/08/2026** : « Dernière release : 19 (1.18) », canal actif, 1 pays/région. ⚠️ **Ce n'est PAS la production** (production « Inactif », bloquée par l'exigence « 12 testeurs / 14 jours »). ✅ **LE SEUIL EST FRANCHI ET LE COMPTEUR TOURNE** — confirmé dans la Play Console par le Patron le **30/08/2026** : « 12 testeurs sont actuellement inscrits pour **3 jours sans interruption** », et les deux premiers critères sont barrés. Échéance autour du **10/09/2026**. Le bouton « Demander à publier en production » est grisé jusque-là. ⚠️ Le seul risque est qu'un testeur se désinscrive ou désinstalle : le compteur repart alors de zéro. Détail et écart de dates dans « Le chemin vers la production » plus bas. | **aucune** |
 | Compte développeur | ouvert (personnel, 25 $ une fois) | **non ouvert** (99 $/an) |
 | Machine nécessaire | Android Studio — disponible | **Mac + Xcode — non disponible** |
 | Projet dans le dépôt | non (`/android` ignoré, régénéré par `dart run tool/preparer_plateformes.dart`) | non (`/ios` ignoré, régénéré de même) |
@@ -116,6 +116,34 @@ l'application fonctionne. L'ordre est donc : test interne (vérification) → te
 Les 14 jours ne commencent qu'une fois les 12 testeurs inscrits, et le compteur repart de
 zéro si l'un d'eux se désinscrit. **C'est le seul délai du projet que personne ne peut
 raccourcir** — d'où la priorité du recrutement des testeurs sur tout le reste.
+
+### 🟢 LE COMPTEUR TOURNE — relevé du 30/08/2026
+
+Capture de l'écran « Demander un accès en production » envoyée par le Patron le
+**30/08/2026 à 11h43**. Les deux premiers critères sont **barrés** dans la console,
+c'est-à-dire acquis :
+
+| Critère | État au 30/08 |
+|---|---|
+| Publier une version de test fermé | ✅ barré |
+| Avoir au moins 12 testeurs inscrits | ✅ barré |
+| Tenir 14 jours avec ≥ 12 testeurs | ⏳ **« 12 testeurs sont actuellement inscrits pour 3 jours sans interruption »** |
+
+Le bouton « Demander à publier en production » est **grisé**, et c'est normal : il
+s'allumera au 14ᵉ jour. Échéance calculée : **autour du 10/09/2026**.
+
+⚠️ **Un écart, noté sans le lisser.** La fiche v1.21 dit que le 12ᵉ testeur s'est
+inscrit le 26/08 ; du 26 au 30 il y a quatre jours, la console en compte trois. Deux
+explications possibles : le douzième s'est inscrit le 27, ou bien quelqu'un est sorti
+puis rentré et le compteur est reparti de zéro une fois. **C'est la console qui fait
+foi**, pas notre fiche — et dans les deux cas la conduite à tenir est la même.
+
+**La seule chose qui peut faire perdre ces jours** : qu'un testeur se désinscrive ou
+désinstalle. Le compteur repart alors à zéro, et onze jours d'attente redeviennent
+quatorze. Rien d'autre ne le menace — en particulier, **téléverser une nouvelle version
+sur le canal fermé ne le remet pas à zéro** : le décompte porte sur les inscrits, pas
+sur les versions, et il a continué de tourner pendant l'examen de la v1.21 (téléversée
+le 26/08, le jour même du seuil).
 
 ---
 
