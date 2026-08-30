@@ -4979,3 +4979,27 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   `storage.googleapis.com`, `www.kaggle.com`) : vestiges de l'époque où le modèle
   d'analyse d'image venait d'un CDN. Elles élargissent la politique sans rien casser —
   à retirer un jour, sans urgence, et seulement dans le `.htaccess` du serveur.
+
+### 2026-08-30 11:20 — [Bâtisseur] Les deux points « mineurs » du Gardien, tranchés
+- **Pourquoi cette entrée** : le Gardien les signale « pour info, aucune action ». Sans
+  réponse écrite, ils reviendront à chaque ronde et coûteront une enquête à chaque fois.
+- **Le secret TOTP de `lib/main_shots.dart:564` n'est pas un secret.** `JBSWY3DPEHPK3PXP`
+  est la valeur d'exemple canonique de tous les manuels TOTP : décodée en base32, elle
+  donne `Hello!\xde\xad\xbe\xef` — « Hello! » suivi de « deadbeef ». Et `main_shots.dart`
+  porte son PROPRE `main()` et n'est importé par aucun fichier : il ne se construit que
+  si on le vise explicitement (`flutter run -t lib/main_shots.dart`). L'application
+  réelle part de `lib/main.dart`. **La règle « aucun secret dans le dépôt » n'est pas
+  entamée.** Dossier clos, ne pas le rouvrir.
+- **L'exécution dans `uploads/` ne repose PAS sur le `.htaccess`.** La vraie garantie est
+  en amont, et elle est structurelle : l'extension n'est jamais choisie par l'envoyeur.
+  Elle vient de `$imap[$info[2]]`, c'est-à-dire du type d'image RÉELLEMENT décodé par
+  `getimagesize`, et le nom du fichier est fabriqué par le serveur
+  (`date('Ym') . '-' . uuid() . '.' . $ext`). Téléverser un `.php` est donc impossible
+  par construction, pas par configuration.
+  Le `.htaccess` est la seconde couche, et il se répare tout seul : il est réécrit dès
+  que la sentinelle `script-src 'none'` manque de son contenu — à chaque envoi de photo,
+  pas seulement à la création du dossier.
+- **Méthode du Gardien à saluer** : il ne s'est pas contenté de comparer les empreintes,
+  il a vérifié que le diff des commits déployés vers HEAD était VIDE. C'est ce qui permet
+  d'affirmer « la production sert le dépôt » quand HEAD a avancé sur d'autres fichiers —
+  ici `dda04ed`, qui ne touche que du Dart.
