@@ -148,7 +148,7 @@ export function Home() {
       <IndependenceBanner />
 
       {/* En-tête orange (bannière/héro sur desktop) */}
-      <header className="safe-top flex min-h-[268px] flex-col justify-center bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.22),transparent_62%),linear-gradient(to_bottom,#F77F00,#D95F00)] px-4 pb-5 pt-4 text-white md:mt-4 md:min-h-[290px] md:rounded-3xl md:px-8 md:pb-7 md:pt-7">
+      <header className="safe-top flex min-h-[268px] flex-col justify-center bg-[radial-gradient(75%_120%_at_50%_-15%,rgba(255,255,255,0.22),transparent_62%),linear-gradient(to_bottom,#009E60,#00734A)] px-4 pb-5 pt-4 text-white md:mt-4 md:min-h-[290px] md:rounded-3xl md:px-8 md:pb-7 md:pt-7">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Mark size={38} variant="white" />

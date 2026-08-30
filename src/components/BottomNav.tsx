@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Home, Search, PlusCircle, Heart, User } from 'lucide-react'
+import { Home, Search, PlusCircle, Heart, User, Plus } from 'lucide-react'
 import { useApp } from '../store/AppContext'
 
 const items = [
@@ -45,12 +45,24 @@ export function BottomNav() {
             {({ isActive }) => (
               <>
                 <span className="relative">
-                  <Icon
-                    size={center ? 30 : 23}
-                    className={center ? 'text-primary-500' : ''}
-                    strokeWidth={isActive || center ? 2.4 : 2}
-                    fill={center ? 'currentColor' : 'none'}
-                  />
+                  {/* LE BOUTON CENTRAL — le « + » se voyait-il ? Non.
+                      `PlusCircle` dessine un cercle ET une croix, tous deux en
+                      `currentColor` ; le remplir de cette même couleur peignait
+                      donc la croix sur elle-même. Le rond était plein, le signe
+                      « + » invisible. Le défaut existait déjà en orange — il
+                      s'est simplement vu au moment de repeindre en vert.
+                      On dessine donc le disque à part, et la croix EN BLANC. */}
+                  {center ? (
+                    <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-primary-500 text-white">
+                      <Plus size={19} strokeWidth={3} />
+                    </span>
+                  ) : (
+                    <Icon
+                      size={23}
+                      strokeWidth={isActive ? 2.4 : 2}
+                      fill="none"
+                    />
+                  )}
                   {to === '/favoris' && favorites.length > 0 && (
                     <span className="absolute -right-2 -top-1 min-w-[16px] rounded-full bg-red-500 px-1 text-center text-[9px] font-bold text-white">
                       {favorites.length}

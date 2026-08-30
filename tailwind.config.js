@@ -4,18 +4,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Identité de marque Chap.ci : orange (chap-chap), vert (.ci), encre, crème
+        /* IDENTITÉ CHAP.CI — vert ivoirien (marque), orange (l'action), encre, crème.
+         *
+         * ⚠️ LE 30/08/2026, `primary` EST PASSÉ DE L'ORANGE AU VERT. Décision du
+         * Patron, après comparaison des deux montages. Ce seul bloc emmène les
+         * 556 usages de `primary-*` du front : c'est tout l'intérêt d'avoir un
+         * jeton plutôt que des couleurs écrites en dur.
+         *
+         * L'ORANGE N'EST PAS PARTI. Il reste sous `ivoire.orange`, et il devient
+         * la couleur de L'ACTION : « Contacter le vendeur », le bouton central de
+         * la barre du bas. Sans cela, le bouton le plus important d'une fiche
+         * aurait exactement la couleur de tous les autres. Les deux teintes sont
+         * celles du drapeau ; seuls leurs rôles s'échangent.
+         *
+         * Contraste : #009E60 sur blanc ne donne que 3,5:1 — assez pour un aplat,
+         * une bordure ou une icône, PAS pour du texte blanc de 16 px (il en faut
+         * 4,5). D'où `btn-primary` construit sur 600 → 800 et non sur 500 → 700 :
+         * voir src/index.css. Le 500 reste le vert de la MARQUE, celui du signe.
+         */
         primary: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#FFA243', // orange clair
-          400: '#fb923c',
-          500: '#F77F00', // orange Chap (principal)
-          600: '#ea6a00',
-          700: '#D95F00', // orange foncé
-          800: '#9a4100',
-          900: '#7c3600',
+          50: '#E9F8F0',
+          100: '#C9EFDD',
+          200: '#93DFBC',
+          300: '#55CB98', // vert clair
+          400: '#1BB477',
+          500: '#009E60', // VERT IVOIRIEN — la marque, le signe
+          600: '#008953', // 4,5:1 sur blanc : plancher du texte blanc
+          700: '#00734A', // vert foncé — texte sur fond clair (5,9:1)
+          800: '#005C3B',
+          900: '#00452C',
         },
         ivoire: {
           green: '#009E60',

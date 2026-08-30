@@ -1046,7 +1046,7 @@ function push_repli_email(array $config, PDO $pdo, array $n): void {
       . '<p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280">'
       . 'Vous recevez ce message parce que vous n’étiez pas connecté. Pour être prévenu '
       . 'tout de suite sur votre téléphone, activez les notifications dans '
-      . '<a href="' . htmlspecialchars($site) . '/#/compte" style="color:#D95F00">votre compte</a> — '
+      . '<a href="' . htmlspecialchars($site) . '/#/compte" style="color:#00734A">votre compte</a> — '
       . 'vous pouvez aussi y couper ces e-mails.</p>';
 
     if (send_mail($config, (string) $row['email'], (string) $n['title'], email_layout($config, $inner, (string) $n['body']))) {
@@ -3163,7 +3163,7 @@ function send_report_mail(array $config, string $to, string $subject, string $ht
 /** Bouton d'action réutilisable pour les emails. */
 function email_button(string $href, string $label): string {
   return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px auto">'
-    . '<tr><td style="border-radius:12px;background:#F77F00">'
+    . '<tr><td style="border-radius:12px;background:#009E60">'
     . '<a href="' . htmlspecialchars($href) . '" style="display:inline-block;padding:13px 30px;color:#fff;'
     . 'text-decoration:none;font-weight:bold;font-size:15px;border-radius:12px">' . htmlspecialchars($label) . '</a>'
     . '</td></tr></table>';
@@ -3627,7 +3627,7 @@ function email_layout(array $config, string $inner, string $preheader = ''): str
   // Réseaux sociaux (config.php 'social' => ['Facebook'=>'https://…', …]).
   $social = '';
   foreach (($config['social'] ?? []) as $label => $url) {
-    if ($url) $social .= '<a href="' . htmlspecialchars($url) . '" style="color:#F77F00;text-decoration:none;margin:0 7px">' . htmlspecialchars($label) . '</a>';
+    if ($url) $social .= '<a href="' . htmlspecialchars($url) . '" style="color:#00734A;text-decoration:none;margin:0 7px">' . htmlspecialchars($label) . '</a>';
   }
   $socialRow = $social ? '<p style="margin:8px 0">' . $social . '</p>' : '';
   $domain = preg_replace('#^https?://#', '', $site); // ex : chap.ci
@@ -3641,12 +3641,12 @@ function email_layout(array $config, string $inner, string $preheader = ''): str
     . '<div style="font-size:20px;font-weight:bold;color:#111827;margin-top:8px">' . htmlspecialchars($name) . '</div>'
     . '</a></div>'
     // Carte : filet orange en haut + contenu
-    . '<div style="background:#fff;border:1px solid #eef0f2;border-top:4px solid #F77F00;'
+    . '<div style="background:#fff;border:1px solid #eef0f2;border-top:4px solid #009E60;'
     . 'padding:26px 24px;border-radius:14px;box-shadow:0 1px 3px rgba(16,24,40,0.06)">' . $inner . '</div>'
     // Pied de page
     . '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:18px 8px 4px">'
-    . '<p style="margin:8px 0">Visitez notre site : <a href="' . $site . '" style="color:#F77F00;text-decoration:none;font-weight:bold">' . htmlspecialchars($domain) . '</a></p>'
-    . '<p style="margin:8px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#F77F00;text-decoration:none">' . $contact . '</a></p>'
+    . '<p style="margin:8px 0">Visitez notre site : <a href="' . $site . '" style="color:#00734A;text-decoration:none;font-weight:bold">' . htmlspecialchars($domain) . '</a></p>'
+    . '<p style="margin:8px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#00734A;text-decoration:none">' . $contact . '</a></p>'
     . $socialRow
     . '<p style="margin:8px 0"><a href="' . $site . '/#/confidentialite" style="color:#9ca3af">Confidentialité</a> · '
     . '<a href="' . $site . '/#/conditions" style="color:#9ca3af">Conditions d’utilisation</a></p>'
@@ -4111,7 +4111,7 @@ function invitation_html(array $config, string $message, string $lienTest): stri
     . '<span style="font-size:13px;color:#6b7280;word-break:break-all">' . htmlspecialchars($lienTest) . '</span></p>'
     . '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
     . 'Un souci, une question, une idée ? Répondez simplement à ce message, ou écrivez-nous '
-    . 'depuis <a href="' . htmlspecialchars($site) . '/#/assistance" style="color:#D95F00">l’assistance</a> '
+    . 'depuis <a href="' . htmlspecialchars($site) . '/#/assistance" style="color:#00734A">l’assistance</a> '
     . 'une fois votre compte créé. C’est une vraie personne qui répond.</p>'
     . '<p style="margin:0;font-size:15px;line-height:1.65;color:#374151">Merci — vraiment.</p>';
   return email_layout($config, $inner, 'Deux minutes pour devenir testeur de Chap.ci.');
@@ -4151,9 +4151,9 @@ function email_listing_cards(string $site, array $rows): string {
       : '<div style="width:92px;height:92px;border-radius:10px;background:#fff3e6;text-align:center;line-height:92px;font-size:34px">🛍️</div>';
     $promoActive = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > now_iso());
     $price = $promoActive
-      ? '<span style="color:#F77F00;font-weight:bold;font-size:16px">' . number_format((int) $r['promo_price'], 0, ',', ' ') . ' FCFA</span>'
+      ? '<span style="color:#00734A;font-weight:bold;font-size:16px">' . number_format((int) $r['promo_price'], 0, ',', ' ') . ' FCFA</span>'
         . ' <span style="color:#aaa;text-decoration:line-through;font-size:12px">' . number_format((int) $r['price'], 0, ',', ' ') . '</span>'
-      : '<span style="color:#F77F00;font-weight:bold;font-size:16px">' . number_format((int) $r['price'], 0, ',', ' ') . ' FCFA</span>';
+      : '<span style="color:#00734A;font-weight:bold;font-size:16px">' . number_format((int) $r['price'], 0, ',', ' ') . ' FCFA</span>';
     $loc = $r['commune'] ?: ($r['city_id'] ?: '');
     $cards .=
       '<a href="' . $site . '/#/annonce/' . htmlspecialchars($r['id']) . '" style="display:block;text-decoration:none;color:inherit;border:1px solid #eef0f2;border-radius:12px;overflow:hidden;margin-bottom:12px">'
@@ -4161,7 +4161,7 @@ function email_listing_cards(string $site, array $rows): string {
       . '<td style="width:92px;padding:8px" valign="top">' . $imgCell . '</td>'
       . '<td style="padding:10px 12px 10px 4px" valign="top">'
       . '<div style="font-weight:bold;color:#111827;font-size:15px">' . htmlspecialchars(mb_strimwidth($r['title'], 0, 60, '…')) . '</div>'
-      . '<div style="margin-top:4px">' . $price . ($promoActive ? ' <span style="background:#F77F00;color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:bold">PROMO</span>' : '') . '</div>'
+      . '<div style="margin-top:4px">' . $price . ($promoActive ? ' <span style="background:#009E60;color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:bold">PROMO</span>' : '') . '</div>'
       . ($loc ? '<div style="color:#9ca3af;font-size:12px;margin-top:3px">📍 ' . htmlspecialchars($loc) . '</div>' : '')
       . '</td></tr></table></a>';
   }
@@ -4333,7 +4333,7 @@ function send_report_email(array $config, string $reporter, string $title, strin
     . '</table>'
     . email_button($link, 'Voir l’annonce')
     . '<p style="color:#6b7280;font-size:13px;margin-top:14px">Gérez les signalements depuis votre tableau de bord : '
-    . '<a href="' . $site . '/#/admin" style="color:#F77F00">Modération</a>.</p>';
+    . '<a href="' . $site . '/#/admin" style="color:#00734A">Modération</a>.</p>';
   $html = email_layout($config, $inner, 'Nouveau signalement sur ' . $name);
   $subject = '🚩 Signalement — ' . mb_strimwidth($title, 0, 40, '…');
   foreach ($admins as $to) send_mail($config, $to, $subject, $html);
@@ -4425,7 +4425,7 @@ function send_search_alert(array $config, array $user, string $label, array $row
     . email_listing_cards($site, $rows)
     . email_button($link, 'Voir toutes les annonces')
     . '<p style="color:#6b7280;font-size:13px;margin-top:16px">Vous recevez cet email car vous avez créé une alerte sur '
-    . htmlspecialchars($name) . '. Gérez vos alertes depuis <a href="' . $site . '/#/profil" style="color:#F77F00">votre profil</a>.</p>';
+    . htmlspecialchars($name) . '. Gérez vos alertes depuis <a href="' . $site . '/#/profil" style="color:#00734A">votre profil</a>.</p>';
   $subject = '🔔 ' . $n . ' annonce' . ($n > 1 ? 's' : '') . ' pour « ' . mb_strimwidth($label, 0, 40, '…') . ' »';
   $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
   return send_mail($config, $user['email'], $subject, email_layout($config, $inner, $subject . ' sur ' . $name), $from, $from);
@@ -10809,8 +10809,8 @@ try {
       // Corps : texte de l'admin tel quel + signature + message d'origine cité.
       $inner = '<p style="white-space:pre-wrap;line-height:1.65">' . nl2br($safe($reply)) . '</p>'
              . '<p style="margin-top:22px;line-height:1.5">— L’équipe Chap.ci 🇨🇮<br>'
-             . '<a href="mailto:' . $safe($contactAddr) . '" style="color:#F77F00;text-decoration:none">' . $safe($contactAddr) . '</a>'
-             . ' · <a href="' . $safe(rtrim($config['site_url'] ?? 'https://chap.ci', '/')) . '" style="color:#F77F00;text-decoration:none">chap.ci</a></p>'
+             . '<a href="mailto:' . $safe($contactAddr) . '" style="color:#00734A;text-decoration:none">' . $safe($contactAddr) . '</a>'
+             . ' · <a href="' . $safe(rtrim($config['site_url'] ?? 'https://chap.ci', '/')) . '" style="color:#00734A;text-decoration:none">chap.ci</a></p>'
              . '<hr style="border:none;border-top:1px solid #EFE6D7;margin:22px 0 12px">'
              . '<p style="color:#8B857C;font-size:12px;margin:0 0 6px">Votre message :</p>'
              . '<blockquote style="margin:0;padding:10px 14px;border-left:3px solid #EFE6D7;color:#57534E;font-size:13px;white-space:pre-wrap">'
@@ -12123,9 +12123,9 @@ try {
     $inner =
       '<h2 style="margin-top:0;color:#111827">Rapport Chap.ci 📊</h2>'
       . '<p style="color:#555;font-size:14px;margin:0 0 18px">Récapitulatif automatique — période : ' . $days . ' jours.</p>'
-      . '<h3 style="color:#F77F00;font-size:15px;margin:16px 0 4px">Activité</h3>' . $tbl($act)
-      . '<h3 style="color:#F77F00;font-size:15px;margin:16px 0 4px">Sécurité</h3>' . $secLine
-      . '<h3 style="color:#F77F00;font-size:15px;margin:22px 0 4px">Santé de la base</h3>' . $tbl($health)
+      . '<h3 style="color:#00734A;font-size:15px;margin:16px 0 4px">Activité</h3>' . $tbl($act)
+      . '<h3 style="color:#00734A;font-size:15px;margin:16px 0 4px">Sécurité</h3>' . $secLine
+      . '<h3 style="color:#00734A;font-size:15px;margin:22px 0 4px">Santé de la base</h3>' . $tbl($health)
       . '<p style="color:#9ca3af;font-size:12px;margin-top:22px">Généré automatiquement par le serveur Chap.ci — aucune action requise, sauf en cas d\'alerte sécurité.</p>';
     $html = email_layout($config, $inner, 'Rapport Chap.ci');
     $subject = 'Rapport Chap.ci — ' . gmdate('d/m/Y');

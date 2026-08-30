@@ -63,7 +63,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid #f77f00;
+  outline: 2px solid #009e60;
   outline-offset: 2px;
 }
 
@@ -105,10 +105,15 @@ select:focus-visible,
     @apply inline-flex items-center gap-0.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-extrabold;
   }
   /* Bouton principal — dégradé orange (artifact) + ombre orangée + police display. */
+  /* Le dégradé part de 600, PAS de 500, et ce n'est pas un détail esthétique :
+     #009E60 sous du texte blanc de 16 px ne donne que 3,5:1, sous les 4,5:1
+     exigés — illisible en plein soleil, c'est-à-dire dans la situation normale
+     ici. #008953 (600) atteint 4,5:1, #005C3B (800) monte à 7:1. Le 500 reste
+     le vert de la marque : le signe, les bordures, les aplats sans texte. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-primary-500 to-primary-700 px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(247,127,0,0.55)] transition active:scale-[0.98] hover:brightness-[1.05] disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-primary-600 to-primary-800 px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,115,74,0.55)] transition active:scale-[0.98] hover:brightness-[1.08] disabled:opacity-50;
     /* Lisibilité plein soleil : léger relief sur le texte blanc (comme .txt-legible). */
-    text-shadow: 0 1px 2px rgba(80, 30, 0, 0.38);
+    text-shadow: 0 1px 2px rgba(0, 50, 30, 0.4);
   }
   /* Bouton secondaire — bordure « sable » chaude (artifact --line2). */
   .btn-outline {
@@ -176,7 +181,7 @@ select:focus-visible,
 @keyframes adk-neon { 0%,100%{opacity:1} 8%,12%{opacity:.4} 10%{opacity:.9} 40%{opacity:.6} 42%{opacity:1} }
 @keyframes adk-etirement { from{opacity:0;letter-spacing:.7em} to{opacity:1;letter-spacing:normal} }
 @keyframes adk-compression { from{opacity:0;letter-spacing:-.28em;transform:scaleX(.6)} to{opacity:1;letter-spacing:normal;transform:none} }
-@keyframes adk-glitch { 0%,100%{transform:translate(0);text-shadow:none} 20%{transform:translate(-3px,2px);text-shadow:2px 0 #f77f00,-2px 0 #009e60} 40%{transform:translate(3px,-2px);text-shadow:-2px 0 #f77f00,2px 0 #009e60} 60%{transform:translate(-2px,-1px)} 80%{transform:translate(2px,1px)} }
+@keyframes adk-glitch { 0%,100%{transform:translate(0);text-shadow:none} 20%{transform:translate(-3px,2px);text-shadow:2px 0 #009e60,-2px 0 #009e60} 40%{transform:translate(3px,-2px);text-shadow:-2px 0 #009e60,2px 0 #009e60} 60%{transform:translate(-2px,-1px)} 80%{transform:translate(2px,1px)} }
 @keyframes adk-fonduechelle { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:none} }
 @keyframes adk-tournoie { from{opacity:0;transform:rotate(-360deg) scale(.3)} to{opacity:1;transform:none} }
 @keyframes adk-plonge { 0%{opacity:0;transform:translateY(-140px) scaleY(1.2)} 70%{opacity:1;transform:translateY(0) scaleY(.9)} 85%{transform:scaleY(1.05)} 100%{transform:none} }
@@ -221,7 +226,7 @@ select:focus-visible,
 .ad-anim-oscille { animation-name: adk-oscille; animation-duration: 1.1s }
 .ad-anim-balance { animation-name: adk-balance; animation-duration: 1.1s; transform-origin: top center }
 .ad-anim-vacille { animation-name: adk-vacille; animation-duration: 1.4s }
-.ad-anim-surligne { animation-name: adk-surligne; background: linear-gradient(transparent 62%, rgba(247,127,0,.55) 0) left / 0 100% no-repeat }
+.ad-anim-surligne { animation-name: adk-surligne; background: linear-gradient(transparent 62%, rgba(0,158,96,.55) 0) left / 0 100% no-repeat }
 .ad-anim-machine { animation-name: adk-machine; animation-duration: 2.4s; animation-timing-function: steps(30, end); display: inline-block; overflow: hidden; white-space: nowrap; max-width: fit-content }
 .ad-anim-defilement { animation-name: adk-defilement; animation-duration: 1.1s }
 .ad-anim-flou { animation-name: adk-flou }
@@ -245,11 +250,11 @@ select:focus-visible,
 .ad-style-neon {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 800;
   color: #fff;
-  text-shadow: 0 0 6px #f77f00, 0 0 18px #f77f00, 0 0 38px rgba(247, 127, 0, 0.65);
+  text-shadow: 0 0 6px #009e60, 0 0 18px #009e60, 0 0 38px rgba(0, 158, 96, 0.65);
 }
 .ad-style-ivoire {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-weight: 800;
-  background: linear-gradient(90deg, #f77f00 15%, #ffffff 50%, #009e60 85%);
+  background: linear-gradient(90deg, #009e60 15%, #ffffff 50%, #009e60 85%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 

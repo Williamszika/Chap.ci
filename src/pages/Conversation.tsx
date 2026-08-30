@@ -351,7 +351,7 @@ export function Conversation() {
                     <div
                       className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] md:max-w-[66%] ${
                         mine
-                          ? 'rounded-br-md bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(247,127,0,0.45)]'
+                          ? 'rounded-br-md bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(0,158,96,0.45)]'
                           : 'rounded-bl-md border border-line bg-white text-gray-800 shadow-card'
                       }`}
                     >
@@ -406,7 +406,7 @@ export function Conversation() {
               <button
                 type="submit"
                 disabled={sending || !text.trim()}
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(247,127,0,0.5)] transition active:scale-95 disabled:opacity-40 disabled:shadow-none"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-b from-primary-500 to-primary-700 text-white shadow-[0_4px_12px_-4px_rgba(0,158,96,0.5)] transition active:scale-95 disabled:opacity-40 disabled:shadow-none"
                 aria-label="Envoyer"
               >
                 <Send size={18} />

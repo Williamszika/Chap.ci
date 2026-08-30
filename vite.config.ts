@@ -54,7 +54,7 @@ export default defineConfig({
         short_name: 'Chap.ci',
         description:
           'Achetez et vendez partout en Côte d’Ivoire, chap-chap : Abidjan, Bouaké, Yamoussoukro… par district, région, ville et commune.',
-        theme_color: '#F77F00',
+        theme_color: '#009E60',
         background_color: '#FFFDF9',
         display: 'standalone',
         orientation: 'portrait',

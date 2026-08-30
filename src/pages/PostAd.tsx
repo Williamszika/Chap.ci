@@ -1224,7 +1224,7 @@ export function PostAd() {
                   onClick={() => setCondition(c)}
                   className={`flex-1 rounded-xl border px-4 py-3 text-sm font-bold capitalize transition active:scale-[0.98] ${
                     condition === c
-                      ? 'border-primary-500 bg-primary-500 text-white shadow-[0_6px_16px_-8px_rgba(247,127,0,0.6)]'
+                      ? 'border-primary-500 bg-primary-500 text-white shadow-[0_6px_16px_-8px_rgba(0,158,96,0.6)]'
                       : 'border-line2 bg-white text-gray-700 hover:bg-cream-100'
                   }`}
                 >

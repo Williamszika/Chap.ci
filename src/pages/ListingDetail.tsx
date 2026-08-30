@@ -319,9 +319,26 @@ export function ListingDetail() {
   const filAriane =
     'inline-flex min-h-[32px] items-center rounded-full bg-primary-50 px-2.5 text-xs font-semibold text-primary-700 transition active:scale-[0.97]'
 
-  // Bouton « Contacter » vert ivoire (comme le mockup), dans le même esprit que btn-primary.
+  /* Le bouton « Contacter le vendeur » — EN ORANGE depuis le 30/08.
+   *
+   * Il était vert, pour se détacher d'un site orange. Le site étant passé au
+   * vert, le garder vert le rendait identique à tous les autres boutons : le
+   * geste le plus important d'une fiche d'annonce aurait eu exactement
+   * l'apparence de « Enregistrer » ou de « Filtrer ».
+   *
+   * Les deux couleurs sont celles du drapeau ; seuls leurs rôles s'échangent.
+   * La règle exacte, pour qu'on ne la déforme pas plus tard : LE VERT PORTE LA
+   * MARQUE ET L'INTERFACE — les prix compris, puisqu'ils suivent `primary`.
+   * L'orange ne garde que DEUX exceptions, toutes deux délibérées : ce bouton,
+   * et les courbes des tableaux de bord, qui doivent se détacher d'un décor
+   * devenu vert.
+   *
+   * #D95F00 et non #F77F00 : sous du texte blanc, l'orange vif ne donne que
+   * 2,9:1. L'orange foncé monte à 4,6:1 — au-dessus du seuil, ce qui compte
+   * sur le bouton qu'on cherche en plein soleil.
+   */
   const greenBtn =
-    'txt-legible inline-flex items-center justify-center gap-2 rounded-xl bg-ivoire-green px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.55)] transition active:scale-[0.98] hover:brightness-105 disabled:opacity-50'
+    'txt-legible inline-flex items-center justify-center gap-2 rounded-xl bg-ivoire-orange-dark px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(217,95,0,0.55)] transition active:scale-[0.98] hover:brightness-105 disabled:opacity-50'
 
   // Lien « propre » (crawlable, avec aperçu WhatsApp/Facebook via le serveur).
   const shareUrl = `${window.location.origin}/annonce/${listing.id}`

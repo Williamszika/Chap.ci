@@ -244,8 +244,8 @@ function render_page(string $title, string $desc, string $img, string $canon, st
   if (!$isBot) echo "<script>location.replace(" . json_encode($appUrl) . ");</script>\n";
   echo "<style>body{font-family:system-ui,Arial,sans-serif;margin:0;background:#f4f5f7;color:#111}"
     . ".w{max-width:520px;margin:0 auto;padding:20px}img{max-width:100%;border-radius:14px;display:block}"
-    . ".p{color:#F77F00;font-size:26px;font-weight:800;margin:12px 0}"
-    . "a.btn{display:inline-block;background:#F77F00;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;margin-top:14px}</style>\n";
+    . ".p{color:#00734A;font-size:26px;font-weight:800;margin:12px 0}"
+    . "a.btn{display:inline-block;background:#009E60;color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:700;margin-top:14px}</style>\n";
   echo "</head>\n<body>\n<div class=\"w\">\n";
   echo "<h1 style=\"font-size:20px\">$t</h1>\n";
   if ($i !== '') echo "<img src=\"$i\" alt=\"$t\">\n";
@@ -374,7 +374,7 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
     . "header{display:flex;align-items:center;gap:8px;font-weight:800;font-size:20px}header .ci{color:#009E60}"
     . "h1{font-size:26px;margin:18px 0 6px;line-height:1.2}"
     . ".lead{color:#4b5563;font-size:15px;max-width:640px}"
-    . "a.cta{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(#F98A19,#D95F00);color:#fff;text-decoration:none;padding:14px 22px;border-radius:14px;font-weight:800;margin:16px 0;box-shadow:0 8px 20px -8px rgba(217,95,0,.6)}"
+    . "a.cta{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(#00B36E,#00734A);color:#fff;text-decoration:none;padding:14px 22px;border-radius:14px;font-weight:800;margin:16px 0;box-shadow:0 8px 20px -8px rgba(217,95,0,.6)}"
     . "h2{font-size:18px;margin:28px 0 10px}"
     . "ul.why{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}"
     . "ul.why li{background:#fff;border:1px solid #EFE6D7;border-radius:12px;padding:10px 12px;font-size:14px}"
