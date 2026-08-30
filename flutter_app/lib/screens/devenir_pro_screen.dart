@@ -3,6 +3,7 @@ import '../api/api_client.dart';
 import '../i18n/categories_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../liens_site.dart';
 import '../widgets/espace_pro_panel.dart';
 
 /// Devenir professionnel — le dossier « boutique ».
@@ -251,6 +252,57 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
             Text(tr(context, 'pro.intro'),
                 style:
                     const TextStyle(color: ChapColors.gray600, height: 1.5)),
+            // LE GUIDE — « ce que ça apporte » et les cinq étapes.
+            //
+            // Il vit sur le site et s'ouvre DANS l'app (vue web embarquée),
+            // comme l'aide et les CGU : une seule source à tenir à jour, sinon
+            // le guide du site et celui de l'app divergent en une semaine.
+            // Voir liens_site.dart.
+            //
+            // Il est posé ICI, au-dessus du formulaire, et pas à la place :
+            // quelqu'un qui sait déjà ce qu'il veut ne doit pas traverser une
+            // page d'explication pour arriver aux champs.
+            const SizedBox(height: 14),
+            InkWell(
+              onTap: () => ouvrirPageSite(context, PagesSite.guidePro,
+                  titre: tr(context, 'pro.guideBarre')),
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: ChapColors.cream100,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: ChapColors.line2),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.menu_book_outlined,
+                        size: 22, color: ChapColors.orange),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(tr(context, 'pro.guideTitre'),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14.5,
+                                  color: ChapColors.ink)),
+                          const SizedBox(height: 2),
+                          Text(tr(context, 'pro.guideSous'),
+                              style: const TextStyle(
+                                  fontSize: 12.5,
+                                  height: 1.35,
+                                  color: ChapColors.gray600)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right,
+                        size: 20, color: ChapColors.gray500),
+                  ],
+                ),
+              ),
+            ),
             if (_statut == 'refuse' && (_motif?.isNotEmpty ?? false)) ...[
               const SizedBox(height: 14),
               Container(

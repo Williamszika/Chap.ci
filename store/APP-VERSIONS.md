@@ -157,7 +157,7 @@ le 26/08, le jour même du seuil).
 | minSdk 22 · targetSdk 36 | même clé de signature que v1.20/v1.21/v1.22. |
 | État Play | **NON VÉRIFIÉ** — rien n'est prévu côté Play pour celle-ci ; la v1.21 reste en examen, la v1.22 (code 23) a été construite le 27/08 mais jamais téléversée. Le code 23 est donc libre : il n'a jamais atteint la console. |
 | État App Store | **AUCUN.** Voir « Ce que la v1.23 change pour iOS » ci-dessous. |
-| Contenu | les commits Flutter posés depuis le build de la v1.22 (`48c5045`) : finitions du tableau Pro sur téléphone, onglet Compte conforme aux maquettes, **le compte entier tenant dans le tableau de bord**, **la vitrine du professionnel** (bannière + logo posés depuis le tableau), la bannière derrière tout le bandeau, la cible tactile des boutons de vitrine portée à 48 dp — et, le 29/08, **le rattrapage du site** : le nom de la boutique sur les cartes d'annonces, et **la vitrine côté acheteur** (en-tête de boutique, état ouvert/fermé, les quatre chiffres, description d'entreprise et registre vérifié, sept jours d'horaires). |
+| Contenu | les commits Flutter posés depuis le build de la v1.22 (`48c5045`) : finitions du tableau Pro sur téléphone, onglet Compte conforme aux maquettes, **le compte entier tenant dans le tableau de bord**, **la vitrine du professionnel** (bannière + logo posés depuis le tableau), la bannière derrière tout le bandeau, la cible tactile des boutons de vitrine portée à 48 dp — et, le 29/08, **le rattrapage du site** : le nom de la boutique sur les cartes d'annonces, et **la vitrine côté acheteur** (en-tête de boutique, état ouvert/fermé, les quatre chiffres, description d'entreprise et registre vérifié, sept jours d'horaires). ; et, le **30/08**, **les annonces de nouveauté** : la notification « nouveauté » a son glyphe, l'appui ouvre enfin quelque chose (il ne faisait RIEN — `_ouvrir` ne savait traiter qu'un identifiant d'annonce), et l'écran « Devenir pro » propose le **guide en 5 étapes** en tête, servi par le site dans la vue web comme l'aide et les CGU. |
 
 **Ce que la v1.23 ne contient PAS, et il faut le dire.** Le rattrapage du 29/08 porte
 sur ce que voit l'ACHETEUR — les cartes et la vitrine. **La console du professionnel
@@ -167,6 +167,13 @@ réponses automatiques, ni le détail des favoris, ni les écrans Sécurité et 
 routes n'y est appelée. **L'aperçu de boutique** (quatre chiffres, ligne des
 promotions, recherche et puces) n'est pas porté non plus.
 
+> **Fichiers touchés le 30/08** : `screens/notifications_screen.dart` (glyphe +
+> ouverture), `screens/devenir_pro_screen.dart` (le bouton du guide),
+> `liens_site.dart` (la route `guide/pro` + un titre de barre explicite),
+> `i18n/textes.dart` (3 clés × 6 langues). Ce qui A été prouvé, côté production :
+> l'URL exacte que chargera la vue web — `https://chap.ci/#/guide/pro?lang=…` —
+> affiche bien le guide entier, vérifié en `fr`, `en` et `ar`.
+>
 > ⚠️ **AUCUNE DE CES LIGNES DART N'A ÉTÉ COMPILÉE.** L'environnement de développement
 > n'a ni `dart` ni `flutter`. La relecture s'est faite à la main, complétée par un
 > contrôle mécanique de l'équilibre des parenthèses, accolades et crochets de chaque

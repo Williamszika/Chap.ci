@@ -21,6 +21,10 @@ class PagesSite {
   static const aPropos = 'a-propos';
   static const conditions = 'conditions';
   static const confidentialite = 'confidentialite';
+  /// Le guide du compte professionnel. Il n'est PAS dans `_clesTitres` : les
+  /// six autres pages sont traduites et prennent leur titre de la barre des
+  /// Paramètres, celle-ci s'ouvre depuis un bouton qui donne son propre titre.
+  static const guidePro = 'guide/pro';
 }
 
 /// Titre affiché dans la barre de l'app, par page — les mêmes clés `tr` que
@@ -43,15 +47,19 @@ const Map<String, String> _clesTitres = {
 /// aussi, exprès : le site mémorise la dernière langue reçue pour ses liens
 /// internes, et un `fr` explicite reprend la main sur cette mémoire quand
 /// l'utilisateur revient au français.
-Future<void> ouvrirPageSite(BuildContext context, String route) {
+Future<void> ouvrirPageSite(BuildContext context, String route,
+    {String? titre}) {
   final langue = LangueController.instance.code;
   final suffixe = '?lang=$langue';
   final cle = _clesTitres[route];
-  final titre = cle == null ? 'Chap.ci' : tr(context, cle);
+  // `titre` l'emporte quand l'appelant en donne un : toutes les pages du site
+  // ne sont pas des lignes de l'écran Paramètres, et « Chap.ci » en barre de
+  // titre ne dit pas ce qu'on est en train de lire.
+  final titreFinal = titre ?? (cle == null ? 'Chap.ci' : tr(context, cle));
   return Navigator.of(context).push<void>(MaterialPageRoute<void>(
     builder: (_) => PageSiteScreen(
       url: '$_baseSite$route$suffixe',
-      titre: titre,
+      titre: titreFinal,
     ),
   ));
 }

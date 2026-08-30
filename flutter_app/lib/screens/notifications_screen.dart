@@ -70,11 +70,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // NOUVEAUTÉ DU SITE. Sans ce cas, la notification s'affichait bien — icône
     // par défaut, titre et explication — mais l'appui ne faisait RIEN : plus
     // bas, `_ouvrir` ne sait traiter qu'un identifiant d'annonce, et une
-    // nouveauté n'en porte pas. Or c'est justement le lien qui explique COMMENT
-    // faire ; une annonce sans sa marche à suivre ne sert à rien.
+    // nouveauté n'en porte pas.
     //
     // On lit le `lien` porté par la notification plutôt que le titre : le texte
     // est écrit à la main dans le tableau de bord et changera, le lien non.
+    //
+    // ⚠️ ON OUVRE L'ÉCRAN NATIF, PAS LE GUIDE — et c'est un choix, pas un
+    // raccourci. Sur le site, la notification ouvre `/guide/pro` dont le bouton
+    // mène au formulaire ; dans l'app, ce guide s'afficherait en vue web SANS
+    // session, et ce bouton tomberait sur un mur de connexion. Pire fin
+    // possible pour une invitation.
+    // Intercepter ce bouton n'est pas fiable non plus : le site est en
+    // HashRouter, passer de `#/guide/pro` à `#/pro` est un changement d'ancre
+    // que `onNavigationRequest` ne voit pas.
+    // On atterrit donc sur le formulaire — authentifié, natif — où le guide est
+    // proposé en tête, à un appui. L'explication reste offerte, la fin est une
+    // action au lieu d'une impasse.
     if (n.type == 'nouveaute') {
       if (n.lien.contains('/guide/pro') || n.lien.contains('/pro')) {
         Navigator.of(context).push(MaterialPageRoute(
