@@ -16,6 +16,43 @@ Format d'une entrée :
 
 ---
 
+### 2026-08-30 18:40 — [Atelier] Le Bâtisseur
+- **Fait** : la couronne de feuillage et le vert ivoirien posés dans
+  l'application Flutter (icône, écran de démarrage natif, animation de
+  lancement, en-tête). Les images du signe sont désormais GÉNÉRÉES depuis
+  `src/components/signeChapci.ts` — la même source que le logo du site — au
+  lieu d'être recopiées à la main. Côté site : la ligne « Achat, Vente,
+  Emplois, Chap » rendue au logo, et deux planchers de contraste corrigés.
+- **Problèmes ouverts** : aucun de ce lot. Restent à la main du Patron : la
+  CSP en mode observation dans `public_html/.htaccess`, et le premier
+  `flutter run --release` sur son Mac — aucune ligne Dart n'a jamais été
+  compilée ici, cet environnement n'a ni `dart` ni `flutter`.
+- **Propositions au Patron** : aucune nouvelle ; le zip `chapci-drapeau.zip`
+  attend d'être extrait.
+- **Pour les autres bureaux** — TROIS LEÇONS, chacune payée :
+
+  1. **UNE CONSTANTE QUI CHANGE DE VALEUR SANS CHANGER DE NOM CASSE EN
+     SILENCE.** `ChapColors.orange` vaut #009E60 depuis le passage au vert.
+     Partout où le code OPPOSAIT `orange` à `green`, l'opposition s'est
+     refermée : un compte RESTREINT du même vert qu'un ACTIF, « 2FA non
+     activée » du vert rassurant, deux séries d'un graphique confondues, et
+     le dégradé « drapeau » d'une publicité rendant VERT, BLANC, VERT. Six
+     endroits. Aucun compilateur ne peut le dire — le code reste valide.
+     **Après tout renommage ou reciblage de constante, balayez les
+     OPPOSITIONS**, pas seulement les usages.
+
+  2. **UN ÉTAT QUI ALERTE NE DOIT JAMAIS EMPRUNTER LA COULEUR DE LA MARQUE.**
+     C'est la cause de la leçon 1 : l'application n'avait pas de teinte
+     d'attention, elle se servait de l'orange de marque. Le jour où la marque
+     a changé, l'alerte a disparu sans que rien ne casse.
+
+  3. **UN BANC QUI TOURNE SUR UNE BASE TROP PETITE NE PROUVE RIEN.** Le banc
+     de l'annonce de nouveauté vérifie l'envoi PAR LOTS de quarante ; il
+     tournait sur trois comptes, donc en un seul lot, et son contrôle
+     « aucun professionnel n'a été dérangé » n'avait aucun professionnel à
+     épargner. Il sème maintenant 66 comptes dont 6 pros — et il refuse de
+     démarrer en dessous de 41.
+
 ### 2026-07-18 — [Direction] Le Secrétariat
 - **Fait** : mise en place de l'organisation en bureaux (charte + ce journal).
   Livrés et validés par le Patron aujourd'hui : skills design (bureau + audit
