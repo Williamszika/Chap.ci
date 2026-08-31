@@ -56,7 +56,13 @@ class _Verifier2faScreenState extends State<Verifier2faScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'v2fa.titre'))),
-      body: SingleChildScrollView(
+      // Plafond de largeur : sur tablette, le formulaire ne s'étire pas sur
+      // toute la largeur (même 480 que `register`, `account`, `mot_de_passe`
+      // et `devenir_pro` — c'est la mesure de la maison pour un formulaire).
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,6 +137,8 @@ class _Verifier2faScreenState extends State<Verifier2faScreen> {
                   style: const TextStyle(color: ChapColors.gray700)),
             ),
           ],
+        ),
+          ),
         ),
       ),
     );

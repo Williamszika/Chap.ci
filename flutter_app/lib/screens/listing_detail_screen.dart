@@ -77,10 +77,22 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           ),
         ],
       ),
+      // ⚠️ LE CARROUSEL RESTE PLEINE LARGEUR, LE TEXTE NON. Une photo qui
+      // touche les deux bords est une photo qui respire ; une description
+      // étalée sur toute une tablette fait des lignes de cent cinquante
+      // caractères, et plus personne ne retrouve le début de la suivante.
+      //
+      // 560, c'est `max-w-app` du site — la largeur de la colonne Chap.ci,
+      // déjà validée en ligne. À 14,5 px, cela fait environ 77 caractères par
+      // ligne. (Un plafond à 900, proposé au premier jet, aurait redonné les
+      // lignes trop longues qu'on cherche justement à supprimer.)
       body: ListView(
         children: [
           _carrousel(a),
-          Padding(
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,6 +169,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 const Divider(height: 30, color: ChapColors.line),
                 _vendeur(a),
               ],
+            ),
+          ),
             ),
           ),
         ],

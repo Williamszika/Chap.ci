@@ -78,7 +78,13 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'supp.titre'))),
-      body: SingleChildScrollView(
+      // Formulaire : même 480 que register / account / mot_de_passe.
+      // Plafond de largeur : sur tablette, le contenu ne s’étire pas
+      // sur toute la largeur.
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -161,6 +167,8 @@ class _SupprimerCompteScreenState extends State<SupprimerCompteScreen> {
               ),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

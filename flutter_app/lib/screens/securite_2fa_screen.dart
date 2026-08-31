@@ -132,7 +132,13 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(tr(context, 'item.doubleAuth'))),
-      body: SingleChildScrollView(
+      // Formulaire : même 480 que register / account / mot_de_passe.
+      // Plafond de largeur : sur tablette, le contenu ne s’étire pas
+      // sur toute la largeur.
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
         child: switch (_etape) {
           _Etape.chargement => const Padding(
@@ -144,6 +150,8 @@ class _Securite2faScreenState extends State<Securite2faScreen> {
           _Etape.codesSecours => _vueCodesSecours(),
           _Etape.activee => _vueActivee(),
         },
+      ),
+        ),
       ),
     );
   }
