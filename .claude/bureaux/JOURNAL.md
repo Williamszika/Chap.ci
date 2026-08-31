@@ -2709,3 +2709,97 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   prochain build, sont deux petits chantiers pour le prochain lot.
 
 ---
+
+### 2026-08-31 05:20 — [Sécurité du code] 🔒 Le Serrurier
+- **Fait** : diff complet de la semaine relu (`d9cadbd` → `c1abc28`, 114
+  commits sur 7 jours — dépôt d'abord cloné superficiel, `git fetch
+  --unshallow` nécessaire pour retrouver la vraie fenêtre de 7 jours).
+  Sous-système fouillé (rotation semaine ISO 36 → 0) : **authentification &
+  session**. CI et dépendances vérifiées. Déploiement confirmé par les trois
+  empreintes.
+- **Sous-système de la semaine — authentification & session** :
+  - **Nouveau flux « mot de passe oublié »** (`bb600b0`, server/index.php
+    ~5266-5382, routes `auth/reset/send` et `auth/reset/confirm`) : lu
+    ligne à ligne. Code à 6 chiffres haché bcrypt, expiration 15 min,
+    5 essais max, `rate_limit()` à 5 demandes/heure/adresse côté envoi et
+    20/heure côté vérification, réponse identique que le compte existe ou
+    non (pas d'annuaire), double authentification toujours exigée (401
+    `mfa_required` sans `code2fa`, vérifiée par `totp_check`/
+    `recovery_consume`), `session_version` incrémenté après changement
+    (déconnecte tous les jetons ouverts), e-mail d'alerte à la victime.
+    Reprend exactement le patron déjà éprouvé de la vérification d'e-mail.
+    Aucun défaut trouvé.
+  - **Nouvelle vue admin du tableau de bord d'un professionnel**
+    (`67363e6`, `pro/tableau?userId=`) : seule route de tout le fichier à
+    lire `$_GET['userId']` pour cibler un tiers (vérifié par
+    `grep -n "\$_GET\['userId'\]"` — un seul résultat). Gardée par
+    `admin_can(..., 'users')` ET `admin_unlocked(...)`, journalisée
+    (`pro_tableau_vue`), en lecture seule (route GET, rien n'écrit).
+    Aucun défaut trouvé.
+  - **Nouvelle route `admin/pro/fiche`** (modification par un admin du nom
+    commercial / type / secteur / numéro RCCM / téléphone d'un pro — champs
+    volontairement verrouillés côté self-service depuis le 29/08 à cause du
+    risque d'usurpation de marque signalé dans le code) : reste à
+    l'intérieur du bloc `/admin/*` gardé (contrôle à la ligne ~9092 +
+    `admin_can(admin_feature_for_path($path))` à la ligne ~9100,
+    `admin_feature_for_path('admin/pro/fiche')` → `'users'`), journalise
+    l'avant/après et prévient l'intéressé. Aucun défaut trouvé.
+  - Vérifié en même temps, hors rotation mais dans le diff de la semaine :
+    le correctif `c1abc28` du jour même (note de vendeur falsifiable) —
+    les trois requêtes de comptage (tableau de bord vendeur ligne ~8104,
+    fiche admin ~9782, compteur `avisRecus` ~9830) filtrent maintenant
+    toutes par `target_id` (avec repli `target_id IS NULL AND seller_id`
+    pour les anciennes lignes) au lieu de `seller_id` seul — cohérent
+    partout, rien d'oublié.
+- **Vérifications transverses (checklist habituelle)** :
+  - JSON-LD de `web/seo.php` : `JSON_HEX_TAG` toujours présent aux 3
+    endroits (`json_encode($ld, …)`, `$ldFil`, `$ld` fil d'Ariane), aucun
+    `JSON_UNESCAPED_SLASHES` réintroduit. Le correctif du 30/07 n'a pas
+    régressé.
+  - SQL : aucune concaténation trouvée hors listes blanches déjà connues ;
+    tout le nouveau code de la semaine passe par des `?` liés.
+  - Secrets : rien de committé (`git grep` sur secret/password/token/clé
+    ne remonte que du code de gestion de mot de passe légitime et des
+    textes d'interface).
+  - Flutter : `api_client.dart` reste sur `https://chap.ci/api` ; le seul
+    fichier modifié touchant la navigation interne (`liens_site.dart`)
+    construit son URL à partir de constantes statiques `PagesSite.*`
+    uniquement (tous les appelants vérifiés) — aucune entrée utilisateur
+    n'atteint cette construction d'URL. `pubspec.yaml` : `flutter_web_auth_2`
+    monté 3.1.2 → 5.1.0 (même signature, cassait le build sinon — lu dans
+    le commentaire du fichier), `flutter_localizations` (SDK Flutter
+    officiel) et `flutter_native_splash` (dev-only, écran de démarrage)
+    ajoutés — rien de neuf qui capte des données ou embarque une couche
+    native inhabituelle.
+  - CI (`security-scan.yml`) : déclenchement sur `push: branches: [main]`
+    + `pull_request` — conforme, pas de gaspillage sur les branches de
+    travail.
+  - `npm audit --omit=dev --audit-level=high` : 2 vulnérabilités
+    **modérées** react-router (redirection ouverte par antislash,
+    injection de constructeur via `deserializeErrors()` en SSR) — sous le
+    seuil haute/critique, et la seconde ne s'applique pas ici (le site est
+    un SPA Vite sans rendu serveur). Pas d'alerte.
+  - `php -l server/index.php web/seo.php` : aucune erreur (le binaire
+    `php8.5` n'est pas installé dans cet environnement ; `php` — 8.4 —
+    a servi de repli, même verdict).
+- **Déploiement — les trois empreintes, confirmées identiques** :
+  `curl https://chap.ci/api/health` renvoie maintenant TROIS empreintes
+  publiques (`empreinte`, `empreinteSeo`, `empreinteSite`) — c'est un
+  ajout récent au endpoint, plus pratique que la méthode `</script>` du
+  30/07. Comparées au dépôt : `fb7ad21e4f1c` = `md5sum server/index.php`,
+  `da3b89c5896c` = `md5sum web/seo.php`, `641a56e01f24` = `md5sum
+  dist/index.html` après `npm run build`. Les trois collent : la
+  production exécute exactement le code d'aujourd'hui (`c1abc28`,
+  19:00:04 UTC), correctif du jour compris.
+- **Problèmes ouverts** : aucun — ni faille exploitable, ni défaut de
+  robustesse à hauteur d'un signalement cette semaine.
+- **Propositions au Patron** : aucune cette semaine — rien à corriger.
+- **Pour les autres bureaux** : **Gardien** — `/api/health` expose
+  désormais `empreinteSeo` et `empreinteSite` en plus de `empreinte` : une
+  ronde peut vérifier les trois fichiers d'un coup sans construire le site
+  ni deviner un titre-test, ça vaut le coup de le glisser dans la routine.
+  Rien d'autre en direct à signaler cette fois. **Dev/Atelier** — rien à
+  corriger. **Monteur** — rien à inclure spécifiquement pour la sécurité
+  ce lot-ci.
+
+---
