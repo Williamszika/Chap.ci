@@ -182,8 +182,10 @@ export function ReponsesPretes({ onChange }: { onChange?: () => void } = {}) {
           <span key={r.id}
             className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 ring-1 ring-line">
             <span className="truncate">{r.texte}</span>
+            {/* Zone tapable 44×44 : un vendeur gère ses phrases toutes prêtes
+                entre deux clients, au comptoir et au pouce. */}
             <button onClick={() => retirer(r.id)} aria-label="Retirer cette réponse"
-              className="shrink-0 text-gray-400 transition hover:text-red-600">
+              className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-gray-400 transition hover:text-red-600">
               <X size={13} />
             </button>
           </span>
@@ -218,7 +220,7 @@ export function ReponsesPretes({ onChange }: { onChange?: () => void } = {}) {
             Enregistrer
           </button>
           <button type="button" onClick={() => setSaisie(null)} aria-label="Annuler"
-            className="shrink-0 rounded-full px-2 text-gray-400">
+            className="-m-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-400">
             <X size={16} />
           </button>
         </form>

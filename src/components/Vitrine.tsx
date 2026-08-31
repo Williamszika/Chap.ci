@@ -116,9 +116,13 @@ export function CarteHoraires({ horaires }: { horaires: Horaire[] }) {
               <dt className={cejour ? 'font-bold text-ink' : 'text-gray-600'}>
                 {cejour ? 'Aujourd’hui' : JOURS[i]}
               </dt>
+              {/* « Fermé » est un ÉTAT, pas un décor : c'est précisément ce
+                  qu'un acheteur vérifie avant de se déplacer. Mesuré,
+                  gray-400 ne donne que 2,54:1 sur blanc ; gray-500 monte à
+                  4,83:1, le seuil du texte. */}
               <dd className={h.ouvert
                 ? cejour ? 'font-bold text-ivoire-green-dark' : 'text-gray-700'
-                : 'text-gray-400'}>
+                : 'text-gray-500'}>
                 {h.ouvert && h.de && h.a ? `${h.de} – ${h.a}` : 'Fermé'}
               </dd>
             </div>
@@ -379,9 +383,13 @@ export function FiltresBoutique({ q, onQ, puce, onPuce, puces }: {
           aria-label="Chercher dans cette boutique"
           placeholder="Chercher dans cette boutique…"
           className="w-full bg-transparent text-[13.5px] outline-none placeholder:text-gray-400" />
+        {/* La marge négative agrandit la zone tapable à 44×44 sans déplacer le
+            ✕ ni élargir le champ : le croisillon fait 14 px, un pouce en
+            marchant le ratait. Le commentaire est AU-DESSUS du `&&` : à
+            l'intérieur des parenthèses, ce n'est pas une expression valide. */}
         {q !== '' && (
           <button onClick={() => onQ('')} aria-label="Effacer"
-            className="shrink-0 text-gray-400">✕</button>
+            className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-gray-400">✕</button>
         )}
       </span>
       {puces.length > 1 && (

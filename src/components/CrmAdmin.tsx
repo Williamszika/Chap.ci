@@ -88,8 +88,10 @@ export function BarreCrm({ q, onQ, placeholder, tri, onTri, tris }: {
         <Search size={15} className="shrink-0 text-gray-400" />
         <input value={q} onChange={(e) => onQ(e.target.value)} placeholder={placeholder}
           className="w-full bg-transparent text-[13px] outline-none placeholder:text-gray-400" />
+        {/* Zone tapable 44×44 par marge négative — voir Vitrine.tsx. */}
         {q !== '' && (
-          <button onClick={() => onQ('')} aria-label="Effacer" className="shrink-0 text-gray-400">✕</button>
+          <button onClick={() => onQ('')} aria-label="Effacer"
+            className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-gray-400">✕</button>
         )}
       </span>
       {tris && onTri && (

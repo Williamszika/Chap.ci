@@ -47,7 +47,7 @@ export function ResetPassword() {
     if (!email.trim()) return setError('Entrez l’adresse email de votre compte.')
     if (code.replace(/\D/g, '').length !== 6) return setError('Le code fait 6 chiffres.')
     const check = checkPassword(pw)
-    if (!check.ok) return setError(`Mot de passe trop faible — ajoutez : ${check.missing.join(', ')}.`)
+    if (!check.ok) return setError(`Mot de passe trop faible — ajoutez : ${check.missing.join(', ')}.`)
     if (pw !== confirm) return setError('Les deux mots de passe ne correspondent pas.')
     if (demande2fa && code2fa.replace(/\D/g, '').length < 6) {
       return setError('Entrez le code à 6 chiffres de votre application d’authentification.')
@@ -154,7 +154,7 @@ export function ResetPassword() {
             </button>
 
             <p className="text-center text-sm text-gray-500">
-              Code expiré ou jamais reçu ?{' '}
+              Code expiré ou jamais reçu ?{' '}
               <button type="button" onClick={() => navigate('/mot-de-passe-oublie')}
                 className="font-semibold text-primary-600">
                 En demander un nouveau

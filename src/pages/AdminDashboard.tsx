@@ -408,7 +408,7 @@ function VisiteursGeo() {
       {err ? (
         <p className="py-6 text-center text-sm text-gray-500">Chargement impossible.</p>
       ) : !data ? (
-        <p className="py-6 text-center text-sm text-gray-400">Chargement…</p>
+        <p className="py-6 text-center text-sm text-gray-500">Chargement…</p>
       ) : data.visiteurs === 0 ? (
         <p className="py-6 text-center text-sm text-gray-500">Aucune visite sur cette période.</p>
       ) : (
@@ -1456,7 +1456,7 @@ function VisitorsTab() {
           <MessageSquare size={16} className="text-primary-500" /> Temps de réponse aux messages
         </p>
         {!rt ? (
-          <p className="text-sm text-gray-400">Chargement…</p>
+          <p className="text-sm text-gray-500">Chargement…</p>
         ) : rt.count === 0 ? (
           <p className="text-sm text-gray-500">Pas encore assez de messages pour calculer.</p>
         ) : (
@@ -5254,7 +5254,7 @@ function BackupTab() {
           <button onClick={load} className="text-xs font-semibold text-primary-600"><RefreshCw size={13} className="mr-1 inline" />Actualiser</button>
         </div>
         {!info ? (
-          <p className="py-3 text-sm text-gray-400">Chargement…</p>
+          <p className="py-3 text-sm text-gray-500">Chargement…</p>
         ) : info.backups.length === 0 ? (
           <p className="rounded-xl bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
             Aucune sauvegarde automatique pour l’instant. Programmez le cron ci-dessus.

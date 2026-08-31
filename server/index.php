@@ -9282,7 +9282,14 @@ try {
       // extérieur est exactement la forme d'une arnaque par hameçonnage : si
       // nous nous l'autorisons, nous ne pouvons plus apprendre à personne à s'en
       // méfier. Et le service worker préfixe déjà par le domaine du site.
-      if ($lien !== '' && !preg_match('#^/[A-Za-z0-9/_\-?=&.%]*$#', $lien)) {
+      // ⚠️ `(?!/)` N'EST PAS UN DÉTAIL. Sans lui, « //evil.com » passait : le
+      // motif exigeait bien un « / » en tête, mais un lien qui commence par
+      // DEUX barres est une adresse absolue pour un navigateur — il y met le
+      // protocole de la page et s'en va sur l'autre domaine. Le service worker
+      // passe ce lien tel quel à `openWindow()` : une notification signée
+      // Chap.ci ouvrait donc un site extérieur, exactement l'hameçonnage que
+      // ce contrôle est censé empêcher. Trouvé par 🛡️ Le Gardien le 31/08.
+      if ($lien !== '' && !preg_match('#^/(?!/)[A-Za-z0-9/_\-?=&.%]*$#', $lien)) {
         jerr('Le lien doit être une page du site, comme « /guide/pro ».');
       }
       $id = uuid();

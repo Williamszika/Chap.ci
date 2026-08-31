@@ -51,9 +51,32 @@ self.addEventListener('push', (event) => {
  * Si une fenêtre Chap.ci est déjà ouverte, on la reprend et on la déplace — pas
  * de deuxième onglet. Sinon on en ouvre une.
  */
+/**
+ * Le lien d'une notification, RAMENÉ DE FORCE sur chap.ci.
+ *
+ * ⚠️ DEUXIÈME VERROU, ET IL SERT VRAIMENT. Le serveur refuse déjà les liens
+ * qui sortent du domaine, mais il l'a mal fait un temps : « //evil.com » y
+ * passait, parce qu'il commence bien par une barre. Un lien de ce genre, remis
+ * tel quel à `openWindow()`, emmène l'utilisateur sur un autre site — avec une
+ * notification signée Chap.ci. C'est la forme même de l'hameçonnage.
+ *
+ * Un correctif serveur protège l'avenir ; il ne nettoie pas les lignes déjà
+ * enregistrées. Ce garde-fou-ci les couvre aussi : tout ce qui ne retombe pas
+ * sur notre origine est ramené à l'accueil.
+ */
+function lienInterne(brut) {
+  try {
+    const u = new URL(brut, self.location.origin)
+    return u.origin === self.location.origin ? u.pathname + u.search + u.hash : '/'
+  } catch (e) {
+    return '/'
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const lien = (event.notification.data && event.notification.data.lien) || '/'
+  const lien = lienInterne(
+    (event.notification.data && event.notification.data.lien) || '/')
   event.waitUntil((async () => {
     const fenetres = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const f of fenetres) {
