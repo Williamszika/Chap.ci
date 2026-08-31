@@ -2803,3 +2803,189 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   ce lot-ci.
 
 ---
+
+### 2026-08-31 06:14 — [Livraison] 🔨 Le Monteur
+
+- **Repère vérifié, cohérent** : `flutter_app/pubspec.yaml` porte
+  `version: 1.23.0+24`, qui correspond bien à la tête de
+  `store/APP-VERSIONS.md` (fiche « v1.23 — versionCode 24 »). Le champ
+  **Commit** de cette fiche est resté à `À COMPLÉTER` : c'est normal,
+  cette version n'a pas encore été construite. ⚠️ À ne pas y inscrire
+  `8e72e9e` (le commit qui a fait la montée de version) le jour du build :
+  douze commits `flutter_app/` sont venus **après** lui (voir plus bas) et
+  seraient alors passés sous silence dans le journal. Inscrivez le HEAD
+  réel au moment du build.
+
+- **Version publiée sur chaque boutique, et depuis combien de temps**
+  (d'après le journal, **non confirmé par le Patron** — seul lui a accès
+  aux consoles) :
+  - **Google Play** : la v1.20 (code 21) reste la seule confirmée
+    **disponible pour les testeurs** (verdict reçu le 24/08). La v1.21
+    (code 22) a été envoyée à l'examen le 26/08 — il y a 5 jours — verdict
+    toujours **NON VÉRIFIÉ** d'après le journal. La v1.22 (code 23) a été
+    construite le 27/08 mais **jamais téléversée** (essai en local
+    seulement, sur le téléphone du Patron). Le compteur des 14 jours de
+    test fermé tournait à « 12 testeurs, 3 jours sans interruption » au
+    dernier relevé du 30/08 ; échéance calculée autour du **10/09/2026**.
+  - **App Store** : **aucune version publiée**. Le tableau « État des deux
+    boutiques » de `APP-VERSIONS.md` dit encore « Mac + Xcode — non
+    disponible », mais **ce fichier signale lui-même que c'est périmé** :
+    le Patron a construit la v1.20 et la v1.22 sur son Mac les 26 et
+    27/08. Ce qui bloque réellement n'est donc **pas la machine, mais le
+    compte Apple Developer (99 $/an), qui n'est pas ouvert** — je donne
+    donc la marche à suivre Xcode plus bas, avec cette réserve en tête.
+
+- **Ce que les utilisateurs de l'application n'ont PAS ENCORE** (13
+  commits `flutter_app/` depuis le dernier build réel, `48c5045` du
+  27/08 — déjà listés en détail dans la fiche v1.23 de
+  `APP-VERSIONS.md`, revérifiés ici un par un contre `git log`) :
+  - **La marque passe au vert ivoirien** dans l'application aussi : nouvel
+    icône, nouveau splash, nouvel écran de démarrage animé (la couronne de
+    feuillage qui s'ouvre, puis le nom qui se révèle) — `bf96a2b`,
+    `eeea343`, `4cc7b42`.
+  - **La vitrine du professionnel** : bannière et logo posés depuis le
+    tableau de bord, cibles tactiles portées à 48 dp — `ed0a13f`,
+    `afabd48`, `f02c2b6`.
+  - **Le compte professionnel tient entier dans son tableau de bord**, et
+    l'onglet Compte suit enfin les maquettes validées — `d9a58ee`,
+    `b5dd922`, `2773d24`.
+  - **Le nom de la boutique sur les cartes d'annonces**, et la vitrine
+    côté acheteur (en-tête, ouvert/fermé, les quatre chiffres, horaires) —
+    `22b1dd4`.
+  - **Les notifications de nouveauté** ont enfin un glyphe et un appui qui
+    ouvre quelque chose (il ne faisait rien avant), et le guide « Devenir
+    pro » en 5 étapes est accessible en un clic — `6bdb9b9`, `dda04ed`.
+  - Aucun de ces 13 commits n'a été compilé dans cet environnement (ni
+    `dart` ni `flutter`) : la relecture s'est faite à la main, complétée
+    par un contrôle mécanique de l'équilibre des parenthèses/accolades/
+    crochets des 22 fichiers Dart touchés — les 22 sont équilibrés.
+    **`flutter analyze` sur la machine du Patron reste le vrai test.**
+
+- **Décalage serveur ↔ app repéré, et il concerne un vrai utilisateur
+  bloqué** : le commit serveur `bb600b0` (29/08, « Le mot de passe oublié
+  existe enfin ») a donné au **site** un vrai flux de réinitialisation
+  (code à six chiffres, quinze minutes, cinq essais). Vérifié par lecture
+  de `flutter_app/lib/screens/account_screen.dart:82-101` et
+  `lib/i18n/textes.dart:126` : le bouton « Mot de passe oublié ? » de
+  l'application affiche toujours le message d'avant-`bb600b0` — **« La
+  réinitialisation par e-mail n'est pas encore disponible. Écrivez-nous à
+  contact@chap.ci… »** — dans les six langues. Un utilisateur de
+  l'application qui a perdu son mot de passe se voit donc dire « ce n'est
+  pas possible » alors que ça l'est, sur le site, depuis deux jours. Ce
+  n'est pas un bug de code, c'est un écran qui manque ; à faire au
+  prochain lot (probablement un simple appel à la même route que le site,
+  avec le même flux à trois écrans : e-mail → code → nouveau mot de
+  passe).
+
+- **Verdict : CONSTRUIRE**, sur la seule condition **(c)** : bien plus de
+  trois fonctionnalités visibles ou corrections d'interface accumulées en
+  4 jours (rebranding complet, vitrine pro, tableau de bord pro,
+  notifications cliquables, guide pro, nom de boutique sur les cartes —
+  au moins huit chantiers listés ci-dessus). Aucune correction de sécurité
+  ni exigence de boutique n'est en jeu dans ce lot : c'est pourquoi cette
+  entrée n'a pas déclenché d'alerte au Patron, conformément à la consigne.
+  Le verdict vaut pour les deux boutiques (même code Flutter) ; seul le
+  volet iOS reste retardé par le compte Apple non ouvert.
+
+- **Numéros de version** : déjà posés par le Développement dans
+  `pubspec.yaml` — `1.23.0+24`. Cohérents : le dernier versionCode
+  réellement téléversé sur Play est 22 (v1.21) ; le code 23 (v1.22) a été
+  construit mais jamais envoyé, donc reste libre ; 24 est le suivant,
+  sans saut ni recul. Rien à changer.
+
+- **Notes de version prêtes à coller** :
+
+  **Google Play — « Nouveautés » (376 caractères, sous la limite de
+  500)** :
+  > Nouveau look : Chap.ci passe au vert ivoirien, drapeau bien visible
+  > partout. Les professionnels personnalisent maintenant leur vitrine
+  > (bannière et logo) et gèrent tout leur compte depuis un seul tableau
+  > de bord. Le nom de la boutique s'affiche sur les annonces. Les
+  > notifications de nouveauté s'ouvrent enfin, et le guide pour devenir
+  > professionnel est accessible en un clic.
+
+  **App Store — « Nouveautés de cette version »** :
+  > La marque Chap.ci passe au vert ivoirien : nouvelle icône, nouvel
+  > écran de démarrage, et le drapeau bien visible dans toute
+  > l'application.
+  > Les professionnels peuvent désormais personnaliser leur vitrine avec
+  > une bannière et un logo, et gérer tout leur compte — boutique,
+  > annonces, messages — depuis un seul tableau de bord.
+  > Le nom de la boutique s'affiche sur les annonces, les notifications de
+  > nouveauté s'ouvrent enfin vers le bon écran, et le guide pour devenir
+  > professionnel est accessible en un clic.
+
+- **Captures à refaire — les cinq, dans les trois formats.** Ce n'est pas
+  une capture isolée qui a changé mais la couleur de marque elle-même
+  (`ChapColors.orange` vaut désormais #009E60, vérifié dans
+  `flutter_app/lib/theme.dart`) : elle teinte l'en-tête, la navigation,
+  les prix et le signe sur **chaque** écran. S'y ajoutent des changements
+  propres à l'écran Vendeur (vitrine, bannière/logo) et à l'Accueil (nom
+  de boutique sur les cartes). Aucune des cinq captures actuelles
+  (accueil, annonce, explorer, vendeur, aide) ne reste valable.
+  Formats Play : téléphone (obligatoire), tablette 7", tablette 10".
+  Formats App Store : un jeu iPhone et un jeu iPad — à préparer une fois
+  le compte Apple ouvert ; dimensions à lire dans App Store Connect le
+  jour du dépôt (À CONFIRMER, Apple les fait évoluer).
+
+- **Vérifications avant build** : Flutter **non installé dans cette
+  session** (`flutter`/`dart` introuvables) — `flutter analyze`,
+  `flutter test` et `dart run tool/preparer_plateformes.dart` n'ont pas pu
+  être exécutés. Vérifié par **lecture de code** à la place :
+  - `flutter_app/lib/api/api_client.dart:26` — `baseUrl` par défaut reste
+    `https://chap.ci/api` (https, bon domaine). Aucune alerte.
+  - `flutter_app/tool/preparer_plateformes.dart` — **fichier inchangé**
+    depuis `48c5045` (diff vide) : `applicationId`/bundle `ci.chap.app`
+    intacts sur les deux plateformes, permissions et schémas d'URL
+    identiques. Aucune permission nouvelle à déclarer dans les boutiques.
+  - `flutter_app/pubspec.yaml` — **aucune dépendance ajoutée** depuis
+    `48c5045` ; seule la section `flutter_launcher_icons` a changé de
+    couleur de fond (`#F77F00` → `#FFFDF9`, le crème, cohérent avec le
+    rebranding) et un bloc `assets: - assets/marque/` a été ajouté pour
+    embarquer le nouveau signe. Aucune autorisation nouvelle.
+  - **Non vérifié faute de Flutter** : absence d'avertissement à
+    `flutter analyze`, passage de la suite `flutter test`, succès de
+    `dart run tool/preparer_plateformes.dart`. À faire sur la machine du
+    Patron avant le build — c'est le premier vrai test de ces 13 commits.
+
+- **Marche à suivre — Android / Google Play** (une fois le verdict de la
+  v1.21 en examen confirmé côté Play Console, pour ne pas relancer un
+  examen en cours) :
+  ```
+  cd flutter_app
+  flutter pub get
+  dart run tool/preparer_plateformes.dart
+  flutter build appbundle --release
+  ```
+  AAB attendu dans `build/app/outputs/bundle/release/app-release.aab`
+  (~50-60 Mo, normal — voir les builds précédents). Puis, dans la Play
+  Console : Test fermé (même canal) → Créer une version → téléverser
+  l'AAB → coller les notes de version Play ci-dessus → remplacer les 15
+  captures périmées (5 écrans × 3 formats) → **Envoyer pour examen**.
+  La signature de production reste dans `android/key.properties`, sur la
+  machine du Patron uniquement.
+
+- **Marche à suivre — iOS / App Store** : le Mac est disponible (déjà
+  utilisé pour les builds v1.20 et v1.22), donc voici la marche, avec la
+  réserve du compte Apple :
+  ```
+  cd flutter_app
+  flutter pub get
+  dart run tool/preparer_plateformes.dart
+  open ios/Runner.xcworkspace
+  ```
+  Dans Xcode, onglet *Signing & Capabilities* → choisir la Team (le
+  bundle `ci.chap.app` est déjà en place) → `flutter build ipa`, puis
+  Transporter vers App Store Connect. **Mais** : sans compte Apple
+  Developer ouvert (99 $/an), il n'y a pas de Team à choisir ni de fiche
+  App Store Connect où déposer quoi que ce soit — cette étape reste donc
+  à l'arrêt tant que le compte n'est pas créé. Seule exception : installer
+  l'app sur le propre iPhone du Patron pour test ne demande **aucun**
+  compte payant (provisionnement gratuit d'Xcode, valable 7 jours).
+
+- **Pour les autres bureaux** : **Développement** — l'écran « mot de passe
+  oublié » de l'application est en retard sur le site depuis `bb600b0`
+  (voir décalage ci-dessus) ; petit chantier pour le prochain lot. Rien
+  d'autre à signaler cette semaine.
+
+---
