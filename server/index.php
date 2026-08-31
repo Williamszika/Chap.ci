@@ -3635,14 +3635,36 @@ function email_layout(array $config, string $inner, string $preheader = ''): str
     . '<div style="background:#f4f5f7;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">'
     . '<div style="max-width:520px;margin:auto;color:#1f2937">'
     // En-tête : logo + nom (cliquables → site)
+    //
+    // ⚠️ CE LOGO EST UNE IMAGE DISTANTE, ET GMAIL LA BLOQUE PAR DÉFAUT. Tant
+    // que le lecteur n'a pas cliqué « afficher les images », il ne voit que le
+    // texte de remplacement. C'est pourquoi l'identité ne repose PAS sur lui
+    // seul : le filet du drapeau, juste en dessous, est fait de fonds de
+    // cellules — il s'affiche toujours, images bloquées ou non.
+    //
+    // Le fond crème et l'arrondi de 13 px reprennent ceux de l'icône elle-même
+    // (rayon 42 sur une grille de 200, soit 21 % — 12,6 px à 60 px de large) :
+    // avant, un arrondi de 15 px rognait une seconde fois des coins déjà
+    // arrondis, et la case restait blanche quand l'image ne venait pas.
     . '<div style="text-align:center;padding:8px 0 14px">'
     . '<a href="' . $site . '" style="text-decoration:none;color:inherit;display:inline-block">'
-    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="60" height="60" style="border-radius:15px;display:inline-block">'
+    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="60" height="60" '
+    . 'style="border-radius:13px;display:inline-block;background:#FFFDF9">'
     . '<div style="font-size:20px;font-weight:bold;color:#111827;margin-top:8px">' . htmlspecialchars($name) . '</div>'
     . '</a></div>'
-    // Carte : filet orange en haut + contenu
-    . '<div style="background:#fff;border:1px solid #eef0f2;border-top:4px solid #009E60;'
-    . 'padding:26px 24px;border-radius:14px;box-shadow:0 1px 3px rgba(16,24,40,0.06)">' . $inner . '</div>'
+    // Carte : le filet du DRAPEAU en haut, puis le contenu.
+    // Orange, blanc, vert — les couleurs retenues par le Patron le 30/08. En
+    // trois cellules de tableau plutôt qu'en dégradé ou en bordure : Outlook
+    // ignore l'un et l'autre, il ne se trompe jamais sur un fond de cellule.
+    . '<div style="background:#fff;border:1px solid #eef0f2;'
+    . 'border-radius:14px;box-shadow:0 1px 3px rgba(16,24,40,0.06);overflow:hidden">'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+    . 'style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>'
+    . '<td height="4" style="height:4px;line-height:4px;font-size:0;background:#F77F00">&nbsp;</td>'
+    . '<td height="4" style="height:4px;line-height:4px;font-size:0;background:#FFFDF9">&nbsp;</td>'
+    . '<td height="4" style="height:4px;line-height:4px;font-size:0;background:#009E60">&nbsp;</td>'
+    . '</tr></table>'
+    . '<div style="padding:26px 24px">' . $inner . '</div></div>'
     // Pied de page
     . '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:18px 8px 4px">'
     . '<p style="margin:8px 0">Visitez notre site : <a href="' . $site . '" style="color:#00734A;text-decoration:none;font-weight:bold">' . htmlspecialchars($domain) . '</a></p>'

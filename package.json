@@ -11,7 +11,9 @@
     "lint": "tsc -b --noEmit",
     "banc": "esbuild scripts/banc-formulaires.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/banc.mjs --log-level=error && node node_modules/.cache/banc.mjs",
     "banc:push": "php8.5 scripts/push-vecteur.php && node scripts/push-sw-banc.mjs",
-    "banc:modeles": "node scripts/banc-modeles.mjs"
+    "banc:modeles": "node scripts/banc-modeles.mjs",
+    "marque": "node scripts/generate-icons.mjs && node scripts/generate-marque.mjs && node scripts/poser-signe.mjs && node scripts/verif-signe.mjs",
+    "verif:signe": "node scripts/verif-signe.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

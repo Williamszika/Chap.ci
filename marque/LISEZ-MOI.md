@@ -1,5 +1,30 @@
 # Chap.ci — dossier de remise
 
+> ## ⚠️ ARCHIVE — AUCUN LOGO DE CE DOSSIER N'EST CELUI DU SITE (31/08/2026)
+>
+> Ce dossier est la livraison du bureau de design du **26/08/2026**. Le logo a
+> changé deux fois depuis : le 29/08 (tout vert), puis le **30/08**, où le
+> Patron a retenu la **couronne aux trois couleurs du pays** — orange à gauche,
+> cœur blanc, vert à droite.
+>
+> **Les deux dossiers de logo ci-dessous sont donc périmés, y compris celui qui
+> s'appelle « nouveau ».** Les noms datent du 26/08 ; ils n'ont pas été changés
+> pour ne pas réécrire la remise d'un prestataire, mais ils mentent désormais.
+>
+> Le logo en vigueur ne vit dans aucun fichier d'image : il est dessiné dans
+> **`src/components/signeChapci.ts`**, et toutes les images du site, de
+> l'application et des boutiques en sont générées (voir « Régénérer les images
+> de marque » dans le `README.md` à la racine). Ne recopiez rien d'ici.
+>
+> Ce dossier garde deux usages, et deux seulement :
+> · la mémoire du travail livré ;
+> · les visuels de `3-visuels/` (affiches, posts, stories, flyer), qui restent
+>   utilisables tant qu'on accepte qu'ils portent l'ancienne marque.
+>
+> `scripts/verif-signe.mjs` se sert d'ailleurs de deux images d'ici comme
+> contre-épreuve : il DOIT les refuser. Si un jour il les accepte, c'est le
+> contrôle qui est cassé.
+
 115 fichiers, 12 Mo. Tout ce qui a été fabriqué pour Chap.ci, prêt à poser.
 
 | Dossier             | Quoi                                                     |

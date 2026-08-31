@@ -199,14 +199,31 @@ Deux fichiers à lire avant de toucher au code : [`CLAUDE.md`](CLAUDE.md) pour l
 
 ---
 
-## 🎨 Régénérer les icônes
+## 🎨 Régénérer les images de marque
 
-Les icônes de l'app sont générées à partir de `public/favicon.svg` :
+**Un seul dessin, un seul endroit : `src/components/signeChapci.ts`.** Tout ce
+qui porte le logo en sort, personne ne le recopie. Quatre générateurs, et un
+contrôle qui juge le résultat.
 
 ```bash
-npm i -D sharp
-node scripts/generate-icons.mjs
+node scripts/generate-icons.mjs     # icônes carrées : PWA, application, boutiques, favicon.ico
+node scripts/generate-marque.mjs    # filigrane des photos + les deux écrans d'ouverture
+node scripts/poser-signe.mjs        # favicon.svg + le SVG de démarrage dans index.html
+CHROMIUM_PATH=… node scripts/generate-og.mjs      # les 19 bannières de partage
+CHROMIUM_PATH=… node scripts/generate-store.mjs   # les 2 bannières de Play
+
+node scripts/verif-signe.mjs        # ⬅ c'est LUI qui dit si c'est bon
 ```
+
+Les deux derniers composent du texte et des emoji en couleur : ils ont besoin
+d'un Chromium (`npm i --no-save playwright-core`, puis `CHROMIUM_PATH`). Les
+trois premiers se contentent de `sharp`.
+
+`verif-signe.mjs` balaie les dossiers — il ne lit aucune liste de noms — et
+vérifie sur les pixels que chaque image porte bien la couronne, orange à
+gauche et verte à droite. Il finit par une contre-épreuve : deux logos périmés
+du dossier `marque/` qu'il DOIT refuser. Un contrôle qui ne sait pas dire non
+ne contrôle rien.
 
 ---
 

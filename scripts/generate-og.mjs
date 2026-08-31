@@ -11,22 +11,28 @@
 //  juillet 2026 — et le gabarit n'existait donc nulle part. Ajouter une
 //  catégorie obligeait à le retrouver de mémoire. Il est ici désormais.
 //
-//  ⚠️ Ce script ne réécrit QUE les catégories qu'on lui nomme. Les anciennes
-//  bannières ne sont pas régénérées : elles sont antérieures à ce gabarit, et
-//  les recomposer changerait quinze images en ligne pour rien.
+//  ⚠️ LES DIX-NEUF SONT DÉFINIES ICI DEPUIS LE 31/08/2026. Elles ne l'étaient
+//  pas : seules les quatre du 16/08 figuraient dans ce fichier, les quinze de
+//  juillet n'existaient que sous forme d'images. Le jour où le Patron a
+//  demandé que « tout Chap.ci porte le nouveau logo », ces quinze-là n'ont
+//  donc pas pu suivre le gabarit — il a fallu relire leurs textes sur les
+//  images pour les remettre ici. Leurs mots sont recopiés tels quels ; seul le
+//  gabarit change.
 //
 //  Usage : node scripts/generate-og.mjs voyage a-donner
-//          node scripts/generate-og.mjs            (toutes celles définies ici)
+//          node scripts/generate-og.mjs            (les dix-neuf)
 //
-//  Il faut Playwright et son Chromium — c'est lui qui compose l'image, parce
-//  qu'un rendu HTML donne les emoji en couleur, ce qu'aucune bibliothèque SVG
-//  ne fait ici. Playwright n'est pas une dépendance du projet : installez-le à
-//  part (`npm i --no-save playwright`) le jour où vous ajoutez une catégorie.
+//  Il faut Chromium — c'est lui qui compose l'image, parce qu'un rendu HTML
+//  donne les emoji en couleur, ce qu'aucune bibliothèque SVG ne fait ici.
+//  Playwright n'est pas une dépendance du projet : installez-le à part
+//  (`npm i --no-save playwright-core`) et donnez le chemin du navigateur dans
+//  CHROMIUM_PATH.
 // =============================================================================
-import { chromium } from 'playwright'
+import { chromium } from 'playwright-core'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import * as S from './signe.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ogDir = join(root, 'public', 'og')
@@ -79,7 +85,109 @@ const BANNIERES = {
     sous: 'Vêtements, meubles, cahiers —\nà qui en a besoin.',
     emoji: '🎁',
   },
+
+  // ── Les quinze de juillet 2026 ──────────────────────────────────────────
+  // Textes RELUS SUR LES IMAGES, pas réinventés : le Patron a demandé le
+  // nouveau logo, pas de nouvelles phrases. Elles gardent donc leur tournure
+  // d'origine — « Vendez Agriculture », et non « Vendez vos produits
+  // agricoles » comme les quatre du dessus. Le jour où on voudra les
+  // harmoniser, ce sera une décision à part, et elle se prendra ici.
+  agriculture: {
+    verbe: 'Vendez',
+    titre: 'Agriculture',
+    sous: 'Publiez vos produits agricoles —\ngratuit, en 2 minutes.',
+    emoji: '🌾',
+  },
+  alimentation: {
+    verbe: 'Vendez',
+    titre: 'Alimentation',
+    sous: 'Publiez vos produits alimentaires —\ngratuit, en 2 minutes.',
+    emoji: '🍲',
+  },
+  animaux: {
+    verbe: 'Vendez',
+    titre: 'Animaux',
+    sous: 'Publiez vos animaux —\ngratuit, en 2 minutes.',
+    emoji: '🐐',
+  },
+  bebe: {
+    verbe: 'Vendez',
+    titre: 'Bébé & Enfant',
+    sous: 'Publiez vos articles bébé & enfant —\ngratuit, en 2 minutes.',
+    emoji: '🍼',
+  },
+  electronique: {
+    verbe: 'Vendez',
+    titre: 'Électronique',
+    sous: 'Publiez votre matériel électronique —\ngratuit, en 2 minutes.',
+    emoji: '💻',
+  },
+  emploi: {
+    verbe: 'Vendez',
+    titre: 'Emploi',
+    sous: 'Publiez une offre d’emploi —\ngratuit, en 2 minutes.',
+    emoji: '💼',
+  },
+  immobilier: {
+    verbe: 'Vendez',
+    titre: 'Immobilier',
+    sous: 'Publiez votre bien immobilier —\ngratuit, en 2 minutes.',
+    emoji: '🏡',
+  },
+  loisirs: {
+    verbe: 'Vendez',
+    titre: 'Loisirs & Sport',
+    sous: 'Publiez vos articles de sport —\ngratuit, en 2 minutes.',
+    emoji: '⚽',
+  },
+  maison: {
+    verbe: 'Vendez',
+    titre: 'Maison & Meubles',
+    sous: 'Publiez vos meubles —\ngratuit, en 2 minutes.',
+    emoji: '🛋️',
+  },
+  'materiel-pro': {
+    verbe: 'Vendez',
+    titre: 'Matériel Pro',
+    sous: 'Publiez votre matériel pro —\ngratuit, en 2 minutes.',
+    emoji: '🏗️',
+  },
+  mode: {
+    verbe: 'Vendez',
+    titre: 'Mode & Beauté',
+    sous: 'Publiez vos articles mode & beauté —\ngratuit, en 2 minutes.',
+    emoji: '👗',
+  },
+  sante: {
+    verbe: 'Vendez',
+    titre: 'Santé',
+    sous: 'Publiez vos produits bien-être —\ngratuit, en 2 minutes.',
+    emoji: '🩺',
+  },
+  services: {
+    verbe: 'Vendez',
+    titre: 'Services',
+    sous: 'Publiez vos services —\ngratuit, en 2 minutes.',
+    emoji: '🛠️',
+  },
+  telephones: {
+    verbe: 'Vendez',
+    titre: 'Téléphones',
+    sous: 'Publiez votre téléphone —\ngratuit, en 2 minutes.',
+    emoji: '📱',
+  },
+  vehicules: {
+    verbe: 'Vendez',
+    titre: 'Véhicules',
+    sous: 'Publiez votre voiture —\ngratuit, en 2 minutes.',
+    emoji: '🚗',
+  },
 }
+
+// Le signe, tiré de `src/components/signeChapci.ts` comme partout ailleurs —
+// jamais recopié : une copie d'un dessin est une copie qui se périme.
+const SIGNE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">` +
+  S.signe({ avecLigne: false }) + `</svg>`
 
 const page_html = ({ verbe, titre, sous, emoji }) => `
 <style>
@@ -101,8 +209,17 @@ const page_html = ({ verbe, titre, sous, emoji }) => `
   }
   .bande { position: absolute; right: 0; top: 0; width: 34%; height: 100%; background: rgba(255,253,249,.55) }
   .w { position: relative; padding: 46px 56px }
-  .logo { font-size: 40px; font-weight: 800; letter-spacing: -.02em }
+  /* LE VERROUILLAGE HORIZONTAL : la couronne, puis le nom.
+     Pourquoi les deux et pas la couronne seule — une vignette WhatsApp fait
+     trois cents pixels de large : la couronne y tombe à 19 px, où elle n'est
+     plus qu'un rond. Le nom en gras, lui, se lit encore. Chacun tient à une
+     taille où l'autre lâche. */
+  .logo { display: flex; align-items: center; gap: 15px;
+          font-size: 40px; font-weight: 800; letter-spacing: -.02em }
   .logo .ci { color: #009E60 }
+  /* La couronne SANS sa ligne « Achat, Vente, Emplois, Chap » : à 76 px, elle
+     ne mesurerait que 36 px de large — une salissure grise, pas un mot. */
+  .logo svg { width: 76px; height: 76px; display: block; flex: none }
   .pastille {
     position: absolute; right: 56px; top: 46px; display: flex; align-items: center; gap: 7px;
     background: #009E60; color: #fff; font-size: 16px; font-weight: 800;
@@ -131,7 +248,7 @@ const page_html = ({ verbe, titre, sous, emoji }) => `
 </style>
 <div class="halo"></div><div class="bande"></div>
 <div class="w">
-  <div class="logo">Chap<span class="ci">.ci</span></div>
+  <div class="logo">${SIGNE}<span>Chap<span class="ci">.ci</span></span></div>
   <div class="pastille">100 % ivoirien 🇨🇮</div>
   <h1>${verbe}<span class="cat">${titre}</span></h1>
   <div class="sous">${sous}</div>
