@@ -249,7 +249,30 @@ select:focus-visible,
 .ad-anim-balance { animation-name: adk-balance; animation-duration: 1.1s; transform-origin: top center }
 .ad-anim-vacille { animation-name: adk-vacille; animation-duration: 1.4s }
 .ad-anim-surligne { animation-name: adk-surligne; background: linear-gradient(transparent 62%, rgba(0,158,96,.55) 0) left / 0 100% no-repeat }
-.ad-anim-machine { animation-name: adk-machine; animation-duration: 2.4s; animation-timing-function: steps(30, end); display: inline-block; overflow: hidden; white-space: nowrap; max-width: fit-content }
+/* ⚠️ `white-space: nowrap` est ce qui FAIT la machine à écrire — le texte doit
+   tenir sur une ligne pour que la largeur qui grandit révèle les lettres. Mais
+   `max-width: fit-content` laissait cette ligne dépasser l'écran : mesuré le
+   31/08 sur un téléphone de 360 px, un titre de pub occupait 480 px, centré,
+   donc COUPÉ DE SOIXANTE PIXELS DE CHAQUE CÔTÉ. Le bandeau étant en
+   `overflow-hidden`, rien ne débordait visiblement : le message était
+   simplement amputé à ses deux bouts, sur la page la plus vue du site, pour un
+   annonceur qui a payé. Et il n'entraînait pas le titre seul — le conteneur
+   prenant la largeur de son plus large enfant, la phrase de description était
+   rognée avec lui.
+   `min(fit-content, 100%)` borne la ligne au conteneur. */
+.ad-anim-machine { animation-name: adk-machine; animation-duration: 2.4s; animation-timing-function: steps(30, end); display: inline-block; overflow: hidden; white-space: nowrap; max-width: min(fit-content, 100%) }
+/* Borner ne suffit pas : sur un téléphone, la ligne bornée serait tronquée à
+   droite, et la fin du message perdue. Sous 768 px le texte revient donc à la
+   ligne, et l'apparition remplace la machine à écrire. Le message passe avant
+   l'effet — un annonceur achète sa phrase, pas son animation. */
+@media (max-width: 767px) {
+  .ad-anim-machine {
+    white-space: normal;
+    animation-name: adk-apparition;
+    animation-duration: .9s;
+    animation-timing-function: ease-out;
+  }
+}
 .ad-anim-defilement { animation-name: adk-defilement; animation-duration: 1.1s }
 .ad-anim-flou { animation-name: adk-flou }
 .ad-anim-flouzoom { animation-name: adk-flouzoom }

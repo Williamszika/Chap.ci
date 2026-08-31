@@ -87,7 +87,13 @@ export function PromoBanner() {
             {img && <AdImageFill src={img} />}
             {/* Voile léger : lisibilité du texte sans assombrir l'image. */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-black/20" />
-            <div className="relative flex flex-col items-center gap-3 [text-shadow:0_2px_10px_rgba(0,0,0,.55)]">
+            {/* `w-full min-w-0` : sans eux, cette colonne prend la largeur de
+                son plus large enfant et peut sortir du bandeau — c'est ce qui
+                a coupé un titre de pub des deux côtés sur les téléphones de
+                360 px. La règle CSS de `.ad-anim-machine` répare la cause du
+                jour ; ces deux classes empêchent la MÊME panne de revenir par
+                une autre animation. */}
+            <div className="relative flex w-full min-w-0 flex-col items-center gap-3 [text-shadow:0_2px_10px_rgba(0,0,0,.55)]">
               {ad.title && (
                 <AnimatedAdText
                   text={ad.title}

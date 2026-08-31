@@ -42,6 +42,7 @@
 
 import sharp from 'sharp'
 import { readdirSync, existsSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 
 const RACINE = new URL('..', import.meta.url).pathname
 const ORANGE = [0xf7, 0x7f, 0x00]
@@ -260,6 +261,43 @@ console.log('\n── Le filigrane des photos ' + '─'.repeat(55))
   if (!ok) rouges++
 }
 
+// ── LES CAPTURES D'ÉCRAN DES BOUTIQUES : UNE AUTRE QUESTION ─────────────────
+// On ne peut PAS leur appliquer la règle du drapeau, et c'est un fait du
+// dessin, pas une paresse : sur le bandeau orange de l'accueil la couronne est
+// volontairement monochrome (voir `Mark`, variante « white » — le vert de
+// marque n'y rend que 1,32:1), et sur un téléphone les pages internes n'ont
+// tout simplement pas d'en-tête, donc pas de logo du tout. Une capture juste
+// serait déclarée fausse.
+//
+// La question qui les concerne est autre : SONT-ELLES PLUS VIEILLES QUE LE
+// DESSIN ? Une capture prise avant le dernier changement de marque montre
+// l'ancien logo à tous les visiteurs de Play, et rien ne le signale. On
+// compare donc les dates de commit, ce que git sait dire exactement.
+console.log('\n── Les captures des boutiques sont-elles postérieures au dessin ? ' + '─'.repeat(17))
+{
+  const dateDe = (chemin) => {
+    try {
+      const s = execFileSync('git', ['log', '-1', '--format=%ct', '--', chemin],
+        { cwd: RACINE, encoding: 'utf8' }).trim()
+      return s ? Number(s) * 1000 : 0
+    } catch (e) { return 0 }
+  }
+  const SOURCE = 'src/components/signeChapci.ts'
+  const dessin = dateDe(SOURCE)
+  const jour = (t) => (t ? new Date(t).toISOString().slice(0, 10) : 'jamais commité')
+  console.log(`  le dessin (${SOURCE}) : ${jour(dessin)}`)
+  const captures = [...balayer('store/captures'), ...balayer('marketing/store')]
+    .filter((f) => !/icon-512|feature-graphic/.test(f))
+  for (const f of captures) {
+    const t = dateDe(f)
+    // Une capture jamais commitée vient d'être faite : elle est à jour.
+    const ok = t === 0 || t >= dessin
+    console.log(`  ${ok ? '✅' : '❌'} ${f.padEnd(52)} ${jour(t)}` +
+                (ok ? '' : '  ← ANTÉRIEURE au dessin, elle montre l’ancien logo'))
+    if (!ok) rouges++
+  }
+}
+
 // ── LA CONTRE-ÉPREUVE ───────────────────────────────────────────────────────
 // Un contrôle qui ne peut pas échouer ne contrôle rien. Le 30/08, un premier
 // contrôle de la couronne a été écrit qui rejouait ses propres chiffres : on a
@@ -302,6 +340,9 @@ if (rouges) {
   console.log('   node scripts/generate-marque.mjs')
   console.log('   CHROMIUM_PATH=… node scripts/generate-og.mjs')
   console.log('   CHROMIUM_PATH=… node scripts/generate-store.mjs')
+  console.log('   CHROMIUM_PATH=… node scripts/captures-boutique.mjs   ← les captures')
+  console.log('\n   Une capture n’est reconnue à jour qu’une fois COMMITÉE :')
+  console.log('   c’est la date du commit qui la compare au dessin.')
   process.exit(1)
 }
 console.log('✅ Toutes les images portent la couronne au drapeau.')
