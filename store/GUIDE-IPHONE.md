@@ -6,42 +6,87 @@ qui que ce soit.
 
 ---
 
-## Ce qu'il faut savoir avant de commencer
+## ⚡ L'APPLICATION EST DÉJÀ SUR VOTRE IPHONE ? Six commandes suffisent.
 
-**Il n'existe aucune version iOS de Chap.ci.** Le dossier `ios/` n'a jamais été
-généré sur une machine, et le compte Apple Developer (99 $/an) n'est pas ouvert.
+Vous n'avez **rien** à refaire dans Xcode. Branchez l'iPhone, déverrouillez-le,
+ouvrez le **Terminal**, et tapez ceci ligne par ligne :
 
-**Bonne nouvelle : pour installer sur VOTRE PROPRE iPhone, le compte payant
-n'est pas nécessaire.** Xcode sait installer une application sur un téléphone
-que vous possédez, avec un simple identifiant Apple gratuit. C'est ce que fait
-ce guide.
+```bash
+cd ~/chapci-app
+git checkout claude/ci-marketplace-mobile-app-bnllro
+git pull
+cd flutter_app
+flutter pub get
+dart run tool/preparer_plateformes.dart
+flutter run --release
+```
 
-**Le prix à payer : l'application expire au bout de 7 jours.** Au 8ᵉ jour elle
-refuse de s'ouvrir. Il suffit de refaire l'étape 6 pour repartir pour 7 jours.
-C'est une limite d'Apple, pas un défaut de notre application.
+(Si votre dossier ne s'appelle pas `chapci-app`, remplacez la première ligne par
+le chemin du vôtre. Si `flutter run` dit qu'il ne trouve pas d'appareil, faites
+`flutter devices` d'abord et vérifiez que l'iPhone y figure.)
 
-Si vous voulez qu'elle dure — et qu'elle aille sur les iPhone de vos testeurs
-comme la version Android va sur leurs Android — il faut ouvrir le compte
-Apple Developer. Voir la dernière section.
+Comptez cinq à dix minutes. L'application se remplace toute seule sur le
+téléphone ; vos données et votre session restent.
+
+**Trois choses seulement peuvent vous arrêter :**
+
+| Ce que vous voyez | Ce qu'il faut faire |
+|---|---|
+| Xcode réclame la **Team** / « Signing for Runner requires a development team » | Faites l'**étape 4** une fois, puis relancez `flutter run --release`. |
+| L'iPhone dit **« Développeur non fiable »** | Faites l'**étape 7**. |
+| `flutter devices` ne voit pas l'iPhone | Câble, déverrouillage, « Se fier » — **étape 5**. |
+
+> **Rappel des 7 jours** : avec un identifiant Apple gratuit, l'application cesse
+> de s'ouvrir au bout d'une semaine. Relancer `flutter run --release` repart pour
+> 7 jours — et vous en profitez pour prendre les nouveautés au passage.
+
+**Votre iPhone doit tourner sous iOS 15 ou plus récent.** C'est ce qu'exigent les
+composants de l'application ; en dessous, l'installation refuse. Tout iPhone
+depuis le 6s en est capable.
 
 ---
 
-## Ce que cette version contient, et ce qu'elle ne contient pas
+## Ce que la mise à jour du 1ᵉʳ septembre apporte
 
-**Elle contient** tout le travail Flutter fait depuis le 27 août : la vitrine
-du professionnel (bannière et logo posés depuis son tableau de bord), le compte
-entier tenant dans le tableau de bord, l'onglet Compte conforme aux maquettes,
-et les boutons de vitrine agrandis ce matin.
+Onze changements de l'application depuis le 28 août :
 
-**Elle ne contient PAS** les quatorze écrans de la console professionnelle
-livrés sur le SITE du 26 au 28 août : ni les statistiques de vente, ni les
-réponses automatiques, ni le détail des favoris, ni les écrans Sécurité et
-Adresse, ni « qui a mis en favori ». L'application est en retard d'un chantier
-entier sur le site. Ne les cherchez pas sur le téléphone, ils n'y sont pas.
+- **Le mot de passe oublié marche enfin.** Jusqu'ici, appuyer sur « Mot de passe
+  oublié ? » ouvrait un message disant d'écrire à `contact@chap.ci` — dans les
+  six langues. Le site savait le faire depuis le 29/08. L'application fait
+  maintenant la vraie procédure : code à six chiffres par e-mail, puis nouveau
+  mot de passe. La double authentification reste exigée si le compte l'a activée.
+- **Le nouveau logo partout** — la couronne de feuillage et le vert ivoirien dans
+  l'icône, l'en-tête et l'écran de démarrage ; le drapeau entre dans le signe.
+- **L'écran de démarrage devient une jauge de chargement** au lieu d'une simple
+  animation : on voit où en est l'application.
+- **Le filigrane des photos** porte lui aussi la couronne.
+- **Sur tablette**, le contenu ne s'étire plus sur toute la largeur.
+- **Les annonces de nouveauté** : la cloche a son glyphe, et l'appui ouvre enfin
+  quelque chose — avant, il ne faisait rien du tout.
+- **Le guide du compte professionnel** s'ouvre depuis l'écran « Devenir pro ».
+- **Le nom de la boutique** sur les cartes d'annonces, et la **vitrine du
+  vendeur** côté acheteur (en-tête, horaires, registre vérifié).
+
+**Ce qu'elle ne contient toujours pas** : les réponses automatiques et les écrans
+Sécurité et Adresse de la console professionnelle du SITE. Le tableau de bord
+professionnel de l'application couvre en revanche les statistiques (7/30 jours),
+la courbe des vues, les favoris, les contacts et les avis. Si vous cherchez un
+écran que vous avez vu sur le site et pas sur le téléphone, dites-le-moi.
 
 ---
 
-## La marche à suivre
+## La marche à suivre — PREMIÈRE installation seulement
+
+Ces sept étapes servent la première fois, ou sur un Mac neuf. Si l'application
+est déjà sur votre iPhone, vous n'en avez besoin que si l'encadré du haut vous y
+renvoie.
+
+**Le compte Apple Developer payant n'est pas nécessaire pour votre propre
+iPhone.** Xcode sait installer une application sur un téléphone que vous
+possédez avec un simple identifiant Apple gratuit. Le prix à payer : elle expire
+au bout de 7 jours, et il suffit de refaire l'étape 6 pour repartir. Pour qu'elle
+dure — et qu'elle aille sur les iPhone de vos testeurs — il faut le compte
+payant : voir la dernière section.
 
 ### 1. Préparer le Mac (une seule fois)
 

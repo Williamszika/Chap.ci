@@ -14,16 +14,21 @@ Fiche de livraison, à suivre **au Terminal**. Elle remplace `CONSTRUIRE-L-APP.t
 
 ---
 
-## Xcode ne sert pas ici
+## Cette fiche ne concerne PAS l'iPhone du Patron
 
-Vos testeurs et votre téléphone de test sont sous **Android**. Ce build se fait
-**au Terminal seul**, et il a besoin d'**Android Studio** (pour le SDK Android),
-pas de Xcode.
+Deux chantiers différents, à ne pas confondre :
 
-Xcode ne sert que le jour où vous voudrez une version **iPhone** : c'est un autre
-chantier, avec un compte Apple Developer à 99 $/an et une fiche App Store à
-remplir. Le volet iOS est décrit dans `store/GUIDE-IPHONE.md` ; il n'a **aucun
-lien** avec la mise à jour de l'app de test.
+| | Pour qui | Comment | Où c'est écrit |
+|---|---|---|---|
+| **L'iPhone du Patron** | vous seul | Terminal + Xcode, câble, `flutter run --release` | **`store/GUIDE-IPHONE.md`** |
+| **Le canal de test fermé** | vos 12 testeurs Android | Terminal + Android Studio, AAB, Play Console | cette fiche |
+
+Si votre besoin du jour est **« je veux voir les nouveautés sur mon téléphone »**,
+c'est `store/GUIDE-IPHONE.md` qu'il faut ouvrir, pas celle-ci : six commandes,
+pas de magasin, pas d'examen, pas de keystore.
+
+Cette fiche-ci sert le jour où vos **testeurs** doivent recevoir la mise à jour.
+Elle demande **Android Studio** (pour le SDK Android) ; Xcode n'y sert à rien.
 
 ---
 

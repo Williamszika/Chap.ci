@@ -151,11 +151,12 @@ le 26/08, le jour même du seuil).
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `À COMPLÉTER` — celui de la montée de version, `git log --oneline -1` juste après. |
+| **Commit** | `6e9c17d` — la montée de version. Le code de l'app est ensuite inchangé ; `1ddee70` touche l'outillage (version minimale d'iOS). |
 | Date du build | **NON CONSTRUITE** — le code est prêt dans le dépôt, l'AAB n'existe pas encore. |
 | Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
-| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33` |
-| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. |
+| minSdk 22 · targetSdk **36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33`. *(La ligne portait `targetSdk 35`, recopiée du gabarit ; `build.gradle.kts` écrit 36 depuis la v1.21, et 35 est refusé par Google depuis le 31/08.)* |
+| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. Marche à suivre : **`store/BUILD-v1.24.md`**. |
+| État iPhone | le Patron installe l'app sur son iPhone depuis Xcode, sans passer par un magasin. Marche à suivre : **`store/GUIDE-IPHONE.md`**. |
 
 **Ce qu'elle apporte : le mot de passe oublié.**
 
@@ -177,12 +178,24 @@ leur phrase dans `message` plutôt que dans `error` s'affichaient « Une erreur
 est survenue (code 401) ». C'est le cas de la demande du code à six chiffres —
 la personne serait restée bloquée sans savoir pourquoi.
 
-⚠️ **CE CODE N'A JAMAIS ÉTÉ COMPILÉ.** Il n'y a ni `dart` ni `flutter` dans
-l'environnement où le dépôt est modifié. Il a été vérifié par
-`python3 scripts/verif-flutter.py` (clés de traduction dans les six langues,
-couleurs du thème, méthodes du client d'API, imports, équilibre des blocs) —
-ce qui attrape ce qui casse la fabrication de l'APK, mais ne remplace pas
-`flutter analyze`. **Attendez-vous à devoir corriger au premier build.**
+✅ **CE CODE A ÉTÉ ANALYSÉ, le 01/09/2026.** L'avertissement qui tenait ici —
+« ce code n'a jamais été compilé » — n'est plus vrai : un outillage Flutter
+**3.47.2 / Dart 3.13.2** a été installé dans l'environnement de développement,
+avec le SDK Android 35 et les build-tools. `flutter analyze` a tourné sur les
+60 fichiers Dart : **zéro erreur**, une seule mise en garde (un champ `_proNom`
+inutilisé dans `devenir_pro_screen.dart`) et 30 remarques de style.
+
+⚠️ **Ce qui n'est TOUJOURS pas prouvé : l'édition de liens native.** La
+fabrication de l'APK a été lancée quatre fois et s'est arrêtée à chaque essai sur
+un `429 Too Many Requests` de Maven Central — la sortie réseau de cet
+environnement est partagée et limitée. Le code Dart est donc vérifié ; l'étape
+Gradle qui assemble les plugins Android ne l'est pas. Sur un Mac avec une
+connexion normale, ce `429` ne se produit pas ; s'il se produisait, il suffit de
+relancer la même commande, Gradle garde ce qu'il a déjà téléchargé.
+
+Le contrôle statique `python3 scripts/verif-flutter.py` reste utile et reste en
+place : il tourne en une seconde, là où `flutter analyze` demande 33 s et tout
+l'outillage.
 
 ---
 
