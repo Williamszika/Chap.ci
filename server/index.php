@@ -5011,6 +5011,19 @@ function empreinte_distance(string $a, string $b): int {
  * passer une republication vers une file de relecture est un risque encadré. On
  * choisit donc le signal, pas le verrou — et on dit ce que ça ne fait pas.
  */
+/**
+ * La phrase que lit le relecteur dans sa file, à partir du signal.
+ *
+ * Elle était écrite en toutes lettres à la publication et nulle part ailleurs —
+ * ce qui a laissé la route de MODIFICATION sans aucune empreinte pendant que
+ * celle de publication en avait une. Une seule écriture, deux appels.
+ */
+function photo_signal_texte(?array $signal): ?string {
+  return $signal
+    ? 'ressemble à une photo retirée (' . $signal['distance'] . '/64) : ' . $signal['raison']
+    : null;
+}
+
 function photos_signal(PDO $pdo, array $dataUris): ?array {
   // 16 BITS, ET LE CHIFFRE VIENT DE LA MESURE. Le banc a relevé jusqu'à 14 bits
   // d'écart entre une photo et la MÊME photo rognée de 3 % — un seuil plus bas
@@ -6147,9 +6160,19 @@ try {
     // (app) ; au-delà, c'est une requête forgée qui cherche à saturer le disque
     // (comme /ads plafonne déjà ses visuels à 3). Chaque image reste vérifiée
     // par son contenu réel et limitée à 8 Mo par save_data_uri().
+    // `$brutes` retient les data-URI RETENUES, pour l'empreinte plus bas.
+    // Deux raisons, et la seconde est la plus importante :
+    //  · le plafond de 10 s'applique aussi à l'empreinte — sinon une requête
+    //    forgée à deux cents photos ferait tourner image_empreinte() (décodage
+    //    GD + rééchantillonnage) sur chacune, hors de tout garde-fou ;
+    //  · on n'empreinte que ce qui est PUBLIÉ. Une photo refusée par
+    //    save_data_uri() (format invalide, SVG actif) n'est pas sur l'annonce :
+    //    la signaler enverrait un relecteur chercher une photo absente.
+    $brutes = [];
     foreach (array_slice((array) ($b['images'] ?? []), 0, 10) as $img) {
-      $url = save_data_uri($config, (string) $img, true); // true = filigrane Chap.ci
-      if ($url) $images[] = $url;
+      $img = (string) $img;
+      $url = save_data_uri($config, $img, true); // true = filigrane Chap.ci
+      if ($url) { $images[] = $url; $brutes[] = $img; }
     }
     // Trois photos au minimum. La règle est ici, et pas seulement dans l'écran :
     // un formulaire se contourne, une route non.
@@ -6204,10 +6227,8 @@ try {
     // Et si l'une des photos ressemble à une photo déjà retirée par un humain,
     // on garde la trace de la ressemblance. `photos_signal()` ne refuse jamais —
     // voir le commentaire de la fonction, la mesure interdit de conclure seule.
-    $signal = $images ? photos_signal($pdo, (array) ($b['images'] ?? [])) : null;
-    $photoSignal = $signal
-      ? 'ressemble à une photo retirée (' . $signal['distance'] . '/64) : ' . $signal['raison']
-      : null;
+    $signal = $brutes ? photos_signal($pdo, $brutes) : null;
+    $photoSignal = photo_signal_texte($signal);
 
     $pdo->prepare('INSERT INTO listings
       (id,user_id,title,description,price,negotiable,category_id,subcategory,condition_v,images,
@@ -6570,10 +6591,14 @@ try {
     // Images : on garde les URLs existantes, on enregistre les nouvelles (data-URI).
     // Même plafond qu'à la publication (max 10) — voir POST /listings.
     $images = [];
+    $brutes = []; // les NOUVELLES photos retenues — voir le bloc d'empreinte plus bas
     foreach (array_slice((array) ($b['images'] ?? []), 0, 10) as $img) {
       $img = (string) $img;
       if ($img === '') continue;
-      if (strncmp($img, 'data:', 5) === 0) { $url = save_data_uri($config, $img, true); if ($url) $images[] = $url; }
+      if (strncmp($img, 'data:', 5) === 0) {
+        $url = save_data_uri($config, $img, true);
+        if ($url) { $images[] = $url; $brutes[] = $img; }
+      }
       else $images[] = $img;
     }
     // Trois photos minimum, comme à la publication — mais SANS piéger les
@@ -6605,9 +6630,41 @@ try {
     foncier_exiger((string) ($b['categoryId'] ?? ''), $b['subcategory'] ?? null, $attrs);
     $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
     $promoUntil = !empty($b['promoUntil']) ? gmdate('Y-m-d\TH:i:s\Z', (int) ($b['promoUntil'] / 1000)) : null;
+
+    // ── DES PHOTOS NEUVES SUR UNE ANNONCE DÉJÀ EN LIGNE ──────────────────────
+    //
+    // ⚠️ CE BLOC MANQUAIT, ET SON ABSENCE ANNULAIT LE CONTRÔLE DE LA
+    // PUBLICATION. On publiait trois photos propres avec le filtre du
+    // navigateur — `photos_verifiees` passait à 1 — puis on modifiait
+    // l'annonce pour y glisser une photo interdite : le drapeau restait à 1,
+    // aucune empreinte n'était calculée, et l'annonce ne remontait PAS dans la
+    // file de relecture. Le contrôle se contournait en une modification.
+    //
+    // Cas classique du chemin qui marche cachant celui qui ne marche pas : la
+    // route de publication avait tout, celle de modification n'avait rien, et
+    // rien ne le disait.
+    //
+    // On ne touche à ces colonnes QUE si de nouvelles photos arrivent : garder
+    // les mêmes photos ne change pas ce qu'on sait d'elles.
+    $majPhotos = [];
+    if ($brutes) {
+      // Même règle qu'à la publication : le drapeau du client ne prouve rien,
+      // il ne sert qu'à faire remonter dans la file ce dont personne n'affirme
+      // qu'il a été regardé.
+      $majPhotos['photos_verifiees'] = !empty($b['photosAnalysees']) ? 1 : 0;
+      // Un signal trouvé sur les NOUVELLES photos remplace l'ancien. S'il n'y
+      // en a pas, on garde celui qui était là : la photo qu'il désignait peut
+      // très bien être encore sur l'annonce, et un signal de trop ne coûte
+      // qu'un coup d'œil — l'effacer coûterait une photo manquée.
+      $s = photo_signal_texte(photos_signal($pdo, $brutes));
+      if ($s !== null) $majPhotos['photo_signal'] = $s;
+    }
+    $colsPhotos = '';
+    foreach (array_keys($majPhotos) as $c) $colsPhotos .= ",$c=?";
+
     $pdo->prepare('UPDATE listings SET title=?,description=?,price=?,negotiable=?,category_id=?,subcategory=?,
         condition_v=?,images=?,region_id=?,city_id=?,commune=?,lat=?,lng=?,seller_name=?,seller_phone=?,
-        delivery=?,promo_price=?,promo_until=?,attributes=? WHERE id=?')
+        delivery=?,promo_price=?,promo_until=?,attributes=?' . $colsPhotos . ' WHERE id=?')
       ->execute([
         trim($b['title']), trim($b['description'] ?? ''), (int) ($b['price'] ?? 0),
         !empty($b['negotiable']) ? 1 : 0, $b['categoryId'] ?? '', $b['subcategory'] ?? null,
@@ -6615,7 +6672,8 @@ try {
         $b['regionId'] ?? '', $b['cityId'] ?? '', $b['commune'] ?? null,
         isset($b['lat']) ? (float) $b['lat'] : null, isset($b['lng']) ? (float) $b['lng'] : null,
         $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0,
-        isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, $seg[1],
+        isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson,
+        ...array_values($majPhotos), $seg[1],
       ]);
     // Annonce masquée pour dossier foncier incomplet : la mise à jour vient de
     // passer la validation, elle repart donc en ligne d'elle-même. Le vendeur a
