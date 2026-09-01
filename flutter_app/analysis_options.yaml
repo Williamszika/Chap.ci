@@ -1,3 +1,14 @@
+# Ces quatre dossiers sont FABRIQUÉS, jamais écrits à la main : `build/` par la
+# compilation, `android/`, `ios/` et `web/` par `dart run tool/preparer_plateformes.dart`.
+# Aucun n'entre dans Git (voir .gitignore). Sans cette exclusion, `flutter analyze`
+# rapporte des remarques sur du code que personne ne peut corriger — et le vrai
+# problème, s'il y en a un, se perd dedans.
+analyzer:
+  exclude:
+    - build/**
+    - web/**
+    - android/**
+    - ios/**
 include: package:flutter_lints/flutter.yaml
 
 linter:
