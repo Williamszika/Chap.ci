@@ -225,7 +225,23 @@ export function Home() {
         {/* Barre de recherche (plus grande sur desktop) */}
         <form onSubmit={submitSearch} className="relative mt-2.5 md:mt-3.5 md:max-w-2xl">
           <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400 md:rounded-2xl md:px-5 md:py-3">
-            <Search size={20} className="text-gray-500" />
+            {/* LA LOUPE ENVOIE LA RECHERCHE. Elle ne le faisait pas : c'était un
+                simple dessin, et le bouton « Rechercher » d'à côté est en
+                `hidden md:block`. Sur un téléphone il n'y avait donc AUCUN
+                bouton — il fallait trouver la touche « OK » du clavier virtuel.
+                Signalé par le Patron le 31/08 : « la loupe n'est pas activée,
+                et cela ne recherche pas ».
+                Zone tapable 44×44 par marge négative, comme les boutons « ✕ »
+                (voir Vitrine.tsx). Mesuré : la cible du pouce passe de 20 à
+                44 px, et le dessin se décale de 2 à 3 px vers la droite — pas
+                zéro, mais invisible dans une barre de recherche. */}
+            <button
+              type="submit"
+              aria-label="Rechercher"
+              className="-m-2.5 grid h-11 w-11 shrink-0 place-items-center text-gray-500"
+            >
+              <Search size={20} />
+            </button>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}

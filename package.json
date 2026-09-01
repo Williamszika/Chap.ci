@@ -13,7 +13,8 @@
     "banc:push": "php8.5 scripts/push-vecteur.php && node scripts/push-sw-banc.mjs",
     "banc:modeles": "node scripts/banc-modeles.mjs",
     "marque": "node scripts/generate-icons.mjs && node scripts/generate-marque.mjs && node scripts/poser-signe.mjs && node scripts/verif-signe.mjs",
-    "verif:signe": "node scripts/verif-signe.mjs"
+    "verif:signe": "node scripts/verif-signe.mjs",
+    "banc:recherche": "node scripts/banc-recherche.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

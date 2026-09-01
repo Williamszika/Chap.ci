@@ -36,6 +36,17 @@ Pièges fréquents :
 - Espacement suffisant entre cibles (pas de favori collé au bouton « contacter »).
 - Ne jamais **dépendre d'un seul geste** complexe : une alternative simple existe.
 - Zone tactile ≥ la zone visuelle (padding invisible autour des petites icônes).
+- **Ce qui a l'air d'un bouton DOIT en être un.** Une icône posée dans un
+  formulaire — loupe, flèche, coche — est un bouton aux yeux d'un pouce. Si
+  elle ne fait rien, l'utilisateur conclut que la fonction est cassée, pas que
+  l'icône est décorative.
+- **Un chemin qui marche cache celui qui ne marche pas.** Quand une action a
+  deux voies, testez-les SÉPARÉMENT. Le 31/08/2026, la loupe des quatre barres
+  de recherche n'était qu'un dessin : rien ne partait quand on appuyait dessus.
+  Personne ne l'a vu pendant trois semaines parce que la touche Entrée, elle,
+  marchait — et sur téléphone il n'y avait carrément aucun bouton, le bouton
+  « Rechercher » étant en `hidden md:block`. C'est le Patron qui l'a signalé.
+  Garde-fou permanent : `npm run banc:recherche`.
 
 ## 3. Focus clavier & navigation
 

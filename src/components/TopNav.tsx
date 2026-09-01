@@ -74,7 +74,16 @@ export function TopNav() {
           onSubmit={submitSearch}
           className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400"
         >
-          <Search size={18} className="shrink-0 text-gray-500" />
+          {/* La loupe envoie la recherche — voir Home.tsx. Cette barre-ci
+              n'avait AUCUN bouton, pas même sur grand écran : la touche Entrée
+              était le seul moyen de partir. */}
+          <button
+            type="submit"
+            aria-label="Rechercher"
+            className="-m-2.5 grid h-11 w-11 shrink-0 place-items-center text-gray-500"
+          >
+            <Search size={18} />
+          </button>
           <input
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}

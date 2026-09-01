@@ -181,7 +181,16 @@ export function Browse() {
             }}
             className="flex flex-1 items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-400"
           >
-            <Search size={18} className="text-gray-500" />
+            {/* La loupe envoie la recherche — voir Home.tsx pour le pourquoi.
+                Ici le champ filtre déjà au fil de la frappe, mais la loupe
+                reste ce sur quoi le pouce se pose : elle doit répondre. */}
+            <button
+              type="submit"
+              aria-label="Rechercher"
+              className="-m-2.5 grid h-11 w-11 shrink-0 place-items-center text-gray-500"
+            >
+              <Search size={18} />
+            </button>
             <input
               value={qInput}
               onChange={(e) => setQInput(e.target.value)}
