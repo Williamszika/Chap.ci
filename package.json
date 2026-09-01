@@ -14,7 +14,9 @@
     "banc:modeles": "node scripts/banc-modeles.mjs",
     "marque": "node scripts/generate-icons.mjs && node scripts/generate-marque.mjs && node scripts/poser-signe.mjs && node scripts/verif-signe.mjs",
     "verif:signe": "node scripts/verif-signe.mjs",
-    "banc:recherche": "node scripts/banc-recherche.mjs"
+    "banc:recherche": "node scripts/banc-recherche.mjs",
+    "banc:empreintes": "php scripts/banc-empreintes.php",
+    "banc:photos": "node scripts/banc-photos.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

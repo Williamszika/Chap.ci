@@ -1734,6 +1734,22 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, listing_id $id, reporter_id $id, reason $txt, details $txt,
       status $txt, created_at $ts
     )$eng",
+    // LES PHOTOS RETIRÉES UNE FOIS, QUI NE DOIVENT PAS REVENIR.
+    //
+    // Jusqu'au 01/09/2026, le seul filtre de photos de Chap.ci tournait dans le
+    // NAVIGATEUR (NSFW.js, src/lib/nsfw.ts). Un filtre côté client est une
+    // courtoisie, pas un contrôle : l'application ne l'exécute pas, et n'importe
+    // quel `curl` passe à côté. Le serveur, lui, n'a jamais rien regardé —
+    // vérifié, il ne fait que constater le TYPE du fichier.
+    //
+    // Cette table est le premier contrôle qui vit du bon côté. On y range
+    // l'empreinte des photos qu'un humain a déjà retirées : la même image ne
+    // peut plus être republiée, ni par le site, ni par l'application, ni par
+    // curl. Sur une place de marché, l'interdit qui revient est massivement le
+    // MÊME fichier reposté — c'est donc là que le gain est réel.
+    "CREATE TABLE IF NOT EXISTS images_bloquees (
+      empreinte $txt PRIMARY KEY, raison $txt, listing_id $id, created_at $ts
+    )$eng",
     "CREATE TABLE IF NOT EXISTS visits (
       id $id PRIMARY KEY, visitor_id $txt, path $txt, referrer $txt, created_at $ts
     )$eng",
@@ -2081,6 +2097,14 @@ function migrate(PDO $pdo): void {
   // personne coupe toutes les notifications, y compris celles qui servent.
   try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_reminded_at $ts"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Les photos de cette annonce ont-elles traversé un filtre, et ressemblent-
+  // elles à une photo déjà retirée ? Ajoutées le 01/09/2026 — voir la route de
+  // publication pour ce que ces deux colonnes veulent dire, et surtout pour ce
+  // qu'elles NE veulent PAS dire.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN photos_verifiees $intT"); }
+  catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN photo_signal $txt"); }
+  catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN essouffle_at $ts"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // LA RÉPONSE AUTOMATIQUE d'un professionnel. Le drapeau `auto` sur le message
@@ -4903,6 +4927,124 @@ function avg_response_time(PDO $pdo): array {
   return ['count' => $n, 'avgSeconds' => (int) round(array_sum($deltas) / $n), 'medianSeconds' => (int) round($median)];
 }
 
+// ============================================================================
+//  LE CONTRÔLE DES PHOTOS, CÔTÉ SERVEUR
+//
+//  ⚠️ CE QU'IL FAIT, ET CE QU'IL NE FAIT PAS. Il ne « reconnaît » rien : il n'y
+//  a pas de modèle d'intelligence artificielle ici, et il n'y en aura pas sur un
+//  hébergement mutualisé. Il compare des EMPREINTES : une photo déjà retirée par
+//  un humain ne peut plus revenir.
+//
+//  Pourquoi ce choix plutôt qu'un détecteur automatique côté serveur : les
+//  détecteurs bon marché reposent sur la proportion de « teinte de peau », et
+//  leurs seuils sont réglés sur des peaux claires. Sur Chap.ci, ils se
+//  tromperaient sur une partie des vendeurs et pas sur l'autre. Un contrôle qui
+//  vise mal vaut moins que pas de contrôle : il donne l'illusion d'en avoir un.
+//
+//  L'empreinte est une dHash : l'image est ramenée à 9×8 en gris, et l'on note
+//  seulement, pour chaque pixel, s'il est plus clair que son voisin de droite.
+//  64 comparaisons, 64 bits. Elle survit au redimensionnement, au recadrage
+//  léger, au changement de qualité JPEG et au filigrane — c'est-à-dire à tout ce
+//  qu'on fait pour reposter la même image sans se faire prendre.
+// ============================================================================
+
+/** Empreinte perceptuelle (dHash 64 bits, en hexadécimal) du contenu binaire. */
+function image_empreinte(string $bin): ?string {
+  if (!function_exists('imagecreatefromstring')) return null;
+  $src = @imagecreatefromstring($bin);
+  if (!$src) return null;
+  $p = @imagecreatetruecolor(9, 8);
+  if (!$p) { imagedestroy($src); return null; }
+  imagecopyresampled($p, $src, 0, 0, 0, 0, 9, 8, imagesx($src), imagesy($src));
+  imagedestroy($src);
+  $bits = '';
+  for ($y = 0; $y < 8; $y++) {
+    for ($x = 0; $x < 8; $x++) {
+      // Gris perçu (Rec. 601) : deux couleurs différentes de même clarté ne
+      // doivent pas produire deux empreintes différentes.
+      $g = function (int $c): float {
+        return 0.299 * (($c >> 16) & 255) + 0.587 * (($c >> 8) & 255) + 0.114 * ($c & 255);
+      };
+      $bits .= $g(imagecolorat($p, $x, $y)) > $g(imagecolorat($p, $x + 1, $y)) ? '1' : '0';
+    }
+  }
+  imagedestroy($p);
+  // 64 bits -> 16 caractères hexadécimaux.
+  $hex = '';
+  foreach (str_split($bits, 4) as $quartet) $hex .= dechex(bindec($quartet));
+  return $hex;
+}
+
+/** Distance de Hamming entre deux empreintes hexadécimales de même longueur. */
+function empreinte_distance(string $a, string $b): int {
+  if (strlen($a) !== strlen($b)) return 64;
+  $d = 0;
+  for ($i = 0, $n = strlen($a); $i < $n; $i++) {
+    $x = hexdec($a[$i]) ^ hexdec($b[$i]);
+    while ($x) { $d += $x & 1; $x >>= 1; }
+  }
+  return $d;
+}
+
+/**
+ * ⚠️ CETTE FONCTION NE REFUSE JAMAIS UNE PHOTO. ELLE ALERTE UN HUMAIN.
+ *
+ * C'est une décision prise CONTRE l'intention de départ, et elle vient d'une
+ * mesure. Le banc `scripts/banc-empreintes.php` a comparé, sur les photos
+ * réelles de chap.ci :
+ *
+ *   · la MÊME photo maltraitée comme le ferait quelqu'un qui la republie
+ *     (réenregistrée, redimensionnée, rognée de 3 %, éclaircie, filigranée) :
+ *     jusqu'à 14 bits d'écart, et déjà 4 bits sur un simple redimensionnement ;
+ *   · deux photos DIFFÉRENTES du catalogue : 3 bits d'écart seulement.
+ *
+ * Les deux nuages SE CHEVAUCHENT. Il n'existe donc aucun seuil qui rattrape une
+ * republication sans risquer de refuser une photo légitime.
+ *
+ * Et ce n'est pas un accident du jeu d'essai : la paire à 3 bits, ce sont deux
+ * affiches du MÊME vendeur, même gabarit, un mot de différence. Un vendeur qui
+ * publie une série d'annonces a forcément des photos qui se ressemblent. Bloquer
+ * sur l'empreinte reviendrait à lui refuser toute sa série le jour où une seule
+ * de ses affiches serait retirée.
+ *
+ * Refuser à tort la photo d'un vendeur présent est un dommage certain ; laisser
+ * passer une republication vers une file de relecture est un risque encadré. On
+ * choisit donc le signal, pas le verrou — et on dit ce que ça ne fait pas.
+ */
+function photos_signal(PDO $pdo, array $dataUris): ?array {
+  // 16 BITS, ET LE CHIFFRE VIENT DE LA MESURE. Le banc a relevé jusqu'à 14 bits
+  // d'écart entre une photo et la MÊME photo rognée de 3 % — un seuil plus bas
+  // ne verrait même pas passer la republication la plus paresseuse.
+  //
+  // Ce seuil peut être généreux parce qu'il ne coûte rien de faux : il ne
+  // refuse personne, il ajoute une ligne dans la file d'un relecteur. Le seuil
+  // d'un VERROU aurait dû être serré, et c'est justement pourquoi il n'y a pas
+  // de verrou : à 3 bits, deux affiches légitimes du même vendeur se
+  // confondaient déjà.
+  $SEUIL_SIGNAL = 16;
+  try { $bloquees = $pdo->query('SELECT empreinte, raison FROM images_bloquees')->fetchAll(); }
+  catch (Throwable $e) { return null; } // table absente : aucun signal, aucun blocage
+  if (!$bloquees) return null;
+  $meilleur = null;
+  foreach ($dataUris as $uri) {
+    $uri = (string) $uri;
+    if (strncmp($uri, 'data:', 5) !== 0) continue;
+    $virgule = strpos($uri, ',');
+    if ($virgule === false) continue;
+    $bin = base64_decode(substr($uri, $virgule + 1));
+    if ($bin === false || $bin === '') continue;
+    $emp = image_empreinte($bin);
+    if ($emp === null) continue;
+    foreach ($bloquees as $b) {
+      $d = empreinte_distance($emp, (string) $b['empreinte']);
+      if ($d <= $SEUIL_SIGNAL && ($meilleur === null || $d < $meilleur['distance'])) {
+        $meilleur = ['distance' => $d, 'empreinte' => $emp, 'raison' => (string) ($b['raison'] ?? '')];
+      }
+    }
+  }
+  return $meilleur;
+}
+
 // ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
 /**
  * Applique le filigrane « Chap.ci » (api/watermark.png) au centre d'une image
@@ -6041,10 +6183,37 @@ try {
     // à l'écran. Sinon la règle ne tiendrait pas devant un simple curl.
     foncier_exiger((string) ($b['categoryId'] ?? ''), $b['subcategory'] ?? null, $attrs);
     $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+
+    // ── LES PHOTOS ONT-ELLES TRAVERSÉ UN FILTRE ? ────────────────────────────
+    //
+    // Le seul filtre de photos de Chap.ci (NSFW.js) tourne DANS LE NAVIGATEUR.
+    // C'est une courtoisie du site à lui-même : l'application ne l'exécute pas,
+    // et un `curl` passe à côté sans effort. Jusqu'ici, personne ne le savait au
+    // moment de publier — une annonce avec photos arrivait en ligne sans que
+    // rien n'indique si quoi que ce soit l'avait regardée.
+    //
+    // Le site déclare désormais `photosAnalysees` quand il a fait tourner son
+    // analyse. Ce que le serveur en fait : il le NOTE. Il ne le croit pas.
+    //
+    // ⚠️ CE DRAPEAU N'EST PAS UNE SÉCURITÉ. N'importe qui peut l'envoyer à vrai.
+    // Il ne sert qu'à une chose, et elle suffit : une annonce avec photos dont
+    // le client n'affirme rien remonte en tête de la file de relecture. Ce qui
+    // n'avait AUCUN contrôle avant relecture humaine en a donc un — celui d'y
+    // arriver, au lieu d'attendre un signalement.
+    $photosVerifiees = (!empty($images) && !empty($b['photosAnalysees'])) ? 1 : 0;
+    // Et si l'une des photos ressemble à une photo déjà retirée par un humain,
+    // on garde la trace de la ressemblance. `photos_signal()` ne refuse jamais —
+    // voir le commentaire de la fonction, la mesure interdit de conclure seule.
+    $signal = $images ? photos_signal($pdo, (array) ($b['images'] ?? [])) : null;
+    $photoSignal = $signal
+      ? 'ressemble à une photo retirée (' . $signal['distance'] . '/64) : ' . $signal['raison']
+      : null;
+
     $pdo->prepare('INSERT INTO listings
       (id,user_id,title,description,price,negotiable,category_id,subcategory,condition_v,images,
-       region_id,city_id,commune,lat,lng,seller_name,seller_phone,delivery,featured,promo_price,promo_until,attributes,created_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+       region_id,city_id,commune,lat,lng,seller_name,seller_phone,delivery,featured,promo_price,promo_until,attributes,created_at,
+       photos_verifiees,photo_signal)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
       ->execute([
         $id, $u['id'], trim($b['title']), trim($b['description'] ?? ''), (int) ($b['price'] ?? 0),
         !empty($b['negotiable']) ? 1 : 0, $b['categoryId'] ?? '', $b['subcategory'] ?? null,
@@ -6053,6 +6222,7 @@ try {
         isset($b['lat']) ? (float) $b['lat'] : null, isset($b['lng']) ? (float) $b['lng'] : null,
         $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0, 0,
         isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, now_iso(),
+        $photosVerifiees, $photoSignal,
       ]);
     // Notification de statut : l'annonce a passé la modération et est en ligne.
     notify($pdo, $u['id'], 'listing', 'Annonce publiée ✅',
@@ -11808,6 +11978,44 @@ try {
   // 'moderation' (en-tête X-Service-Token UNIQUEMENT — jamais en query-string,
   // pour éviter toute fuite du jeton dans les journaux/URL). Ce jeton n'ouvre QUE ces
   // routes : lire la file, masquer, signaler. JAMAIS de compte, réglage ni sauvegarde.
+  // Retenir l'empreinte des photos d'une annonce retirée, pour qu'une
+  // republication de la même image se signale d'elle-même la prochaine fois.
+  //
+  // ⚠️ CE N'EST PAS UN BLOCAGE — voir `photos_signal()`. La mesure a montré que
+  // deux affiches d'un même vendeur peuvent être plus proches que la même photo
+  // recadrée : refuser sur cette base condamnerait des vendeurs honnêtes. On
+  // retient donc pour SIGNALER, et un humain tranche à nouveau.
+  if ($path === 'mod/image-retenir' && $method === 'POST') {
+    require_service_token($pdo, 'moderation');
+    $b = body();
+    $listingId = (string) ($b['listingId'] ?? '');
+    $raison = mb_substr(trim((string) ($b['raison'] ?? 'retirée par la modération')), 0, 160);
+    if ($listingId === '') jerr('listingId manquant.');
+    $st = $pdo->prepare('SELECT images FROM listings WHERE id = ?'); $st->execute([$listingId]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    $imgs = json_decode((string) ($row['images'] ?? '[]'), true);
+    if (!is_array($imgs)) $imgs = [];
+    $dir = $config['uploads_dir'];
+    $retenues = 0;
+    foreach ($imgs as $chemin) {
+      $chemin = (string) $chemin;
+      // On ne lit QUE dans le dossier des envois, et jamais un chemin composé
+      // par l'appelant : basename() coupe tout « ../ ».
+      $f = $dir . '/' . basename($chemin);
+      if (!is_file($f)) continue;
+      $emp = image_empreinte((string) file_get_contents($f));
+      if ($emp === null) continue;
+      try {
+        $pdo->prepare('INSERT INTO images_bloquees (empreinte,raison,listing_id,created_at) VALUES (?,?,?,?)')
+          ->execute([$emp, $raison, $listingId, now_iso()]);
+        $retenues++;
+      } catch (Throwable $e) { /* déjà retenue : la clé primaire suffit */ }
+    }
+    log_security_event($pdo, 'image_retenue', null, $listingId . ' · ' . $retenues . ' empreinte(s)');
+    jout(['ok' => true, 'retenues' => $retenues, 'photos' => count($imgs)]);
+  }
+
   if ($path === 'mod/queue' && $method === 'GET') {
     $tok = require_service_token($pdo, 'moderation');
     $limit = min(200, max(1, (int) ($_GET['limit'] ?? 80)));
@@ -11825,6 +12033,15 @@ try {
         'hidden'      => !empty($l['hidden']),
         'createdAt'   => iso_to_ms($l['created_at'] ?? null),
         'risk'        => moderation_risk($l),
+        // ⚠️ CE QUE CES DEUX CHAMPS DISENT AU RELECTEUR.
+        // `photosVerifiees` à faux ne veut PAS dire « photo suspecte » : il veut
+        // dire « personne n'a regardé cette photo ». C'est le cas de toute
+        // annonce publiée depuis l'application, dont le seul filtre du site —
+        // qui tourne dans le navigateur — n'a jamais eu l'occasion de tourner.
+        // Ces annonces-là sont celles à ouvrir en premier.
+        'photosVerifiees' => !empty($l['images']) && $l['images'] !== '[]'
+          ? (bool) ($l['photos_verifiees'] ?? 0) : null,
+        'photoSignal'     => $l['photo_signal'] ?? null,
       ];
     };
     // 1) Signalements ouverts (priorité) + l'annonce liée.

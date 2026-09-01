@@ -1,5 +1,6 @@
 import * as php from './php'
 import type { Listing } from '../types'
+import type { NewListingInput } from '../store/AppContext'
 
 // Le site est 100 % auto-hébergé sur la base TPE Cloud (backend PHP `server/`) :
 // toutes ces fonctions délèguent au client PHP.
@@ -11,7 +12,10 @@ export async function fetchListings(): Promise<Listing[]> {
 
 /** Crée une annonce partagée et renvoie l'annonce créée. */
 export async function createListing(
-  input: Omit<Listing, 'id' | 'createdAt' | 'currency'>,
+  // `NewListingInput` et non `Omit<Listing, …>` : l'entrée porte en plus la
+  // déclaration `photosAnalysees`, qui part bien au serveur. Typée trop
+  // étroitement ici, un lecteur croirait qu'elle est perdue en route.
+  input: NewListingInput,
   _userId: string | null,
 ): Promise<Listing> {
   return php.phpCreateListing(input)

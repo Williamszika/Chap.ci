@@ -22,8 +22,18 @@ const LS_LISTINGS = 'chapci.listings.v1'
 const LS_FAVORITES = 'chapci.favorites.v1'
 const LS_MYIDS = 'chapci.myids.v1'
 
-/** Données nécessaires pour créer une annonce (l'id et la date sont générés). */
-export type NewListingInput = Omit<Listing, 'id' | 'createdAt' | 'currency'>
+/**
+ * Données nécessaires pour créer une annonce (l'id et la date sont générés).
+ *
+ * `photosAnalysees` n'est PAS une propriété de l'annonce : c'est une
+ * déclaration du client au serveur, le temps d'une requête — « l'analyse locale
+ * des photos a bien tourné ici ». Elle ne se lit nulle part après. D'où le
+ * `&` plutôt qu'un champ ajouté à `Listing`, qui la ferait traîner dans tout le
+ * reste du programme.
+ */
+export type NewListingInput = Omit<Listing, 'id' | 'createdAt' | 'currency'> & {
+  photosAnalysees?: boolean
+}
 
 type Mode = 'remote' | 'local'
 

@@ -128,6 +128,18 @@ export function PostAd() {
   const [editIndex, setEditIndex] = useState<number | null>(null) // photo en cours d'édition
   const [checkingPhotos, setCheckingPhotos] = useState(false) // analyse NSFW en cours
   const [photoError, setPhotoError] = useState('') // photos refusées (nudité)
+  /**
+   * Le modèle a-t-il VRAIMENT tourné sur toutes les photos gardées ?
+   *
+   * `classifyImage` ne bloque pas quand il échoue (modèle non chargé, mémoire
+   * insuffisante sur un téléphone d'entrée de gamme) : il rend `label: 'error'`
+   * et laisse passer. C'est le bon choix — refuser une photo parce qu'un modèle
+   * de 3,5 Mo n'a pas pu se charger punirait le vendeur au réseau le plus
+   * faible. Mais il faut alors le DIRE au serveur, sinon « analysée » voudrait
+   * dire « on a essayé ». On envoie donc faux dès qu'une seule photo est passée
+   * sans avoir été réellement examinée.
+   */
+  const photosAnalysees = useRef(true)
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [subcategory, setSubcategory] = useState('')
@@ -477,6 +489,9 @@ export function PostAd() {
       const verdict = await classifyImage(uri)
       if (!mountedRef.current) return // écran fermé pendant l'analyse (P26)
       if (verdict.blocked) { blocked++; continue }
+      // Le modèle n'a pas pu tourner : la photo passe (voir `photosAnalysees`),
+      // mais on cesse d'affirmer au serveur qu'elle a été examinée.
+      if (verdict.label === 'error') photosAnalysees.current = false
       added.push(uri)
     }
     if (!mountedRef.current) return
@@ -698,6 +713,13 @@ export function PostAd() {
       // « État » n'est envoyé que pour les catégories concernées (neutre sinon).
       condition: form.condition ? condition : 'neuf',
       images: finalImages,
+      // Ce que le site affirme au serveur : « ces photos ont traversé l'analyse
+      // locale ». Le serveur ne s'en sert PAS comme d'une sécurité — n'importe
+      // quel client peut mentir — mais pour savoir ce qui n'a été regardé par
+      // PERSONNE et doit donc passer devant un humain. L'application, qui n'a
+      // pas d'analyse embarquée, n'envoie rien : ses annonces remontent en tête
+      // de la file de relecture, et c'est exactement le but.
+      photosAnalysees: finalImages.length > 0 && photosAnalysees.current,
       regionId: loc.regionId!,
       cityId: loc.cityId ?? '',
       commune: loc.commune,
