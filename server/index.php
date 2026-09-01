@@ -4256,21 +4256,30 @@ function email_listing_cards(string $site, array $rows): string {
     if ($img && $img[0] === '/') $img = $site . $img; // /uploads/... -> URL absolue
     $imgCell = ($img && (str_starts_with($img, 'http')))
       ? '<img src="' . htmlspecialchars($img) . '" width="92" height="92" style="width:92px;height:92px;object-fit:cover;display:block;border-radius:10px">'
-      : '<div style="width:92px;height:92px;border-radius:10px;background:#fff3e6;text-align:center;line-height:92px;font-size:34px">🛍️</div>';
+      : '<div style="width:92px;height:92px;border-radius:10px;background:#FFF6EA;text-align:center;line-height:92px;font-size:34px">🛍️</div>';
     $promoActive = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > now_iso());
+    // LE PRIX EN ORANGE PROFOND, comme sur les cartes du site. #B35700 rend
+    // 4,91:1 sur le blanc — l'orange de marque n'y rendrait que 2,3, et un prix
+    // est ce qu'on lit en premier dans une newsletter d'annonces.
+    $prix = fn(int $v) => '<span style="color:#B35700;font-weight:bold;font-size:16px">'
+      . number_format($v, 0, ',', ' ') . ' FCFA</span>';
     $price = $promoActive
-      ? '<span style="color:#00734A;font-weight:bold;font-size:16px">' . number_format((int) $r['promo_price'], 0, ',', ' ') . ' FCFA</span>'
-        . ' <span style="color:#aaa;text-decoration:line-through;font-size:12px">' . number_format((int) $r['price'], 0, ',', ' ') . '</span>'
-      : '<span style="color:#00734A;font-weight:bold;font-size:16px">' . number_format((int) $r['price'], 0, ',', ' ') . ' FCFA</span>';
+      ? $prix((int) $r['promo_price'])
+        // L'ancien prix barré était en #aaa — 2,32:1, illisible. #6F6A5E rend 5,39.
+        . ' <span style="color:#6F6A5E;text-decoration:line-through;font-size:12px">' . number_format((int) $r['price'], 0, ',', ' ') . '</span>'
+      : $prix((int) $r['price']);
     $loc = $r['commune'] ?: ($r['city_id'] ?: '');
     $cards .=
-      '<a href="' . $site . '/#/annonce/' . htmlspecialchars($r['id']) . '" style="display:block;text-decoration:none;color:inherit;border:1px solid #eef0f2;border-radius:12px;overflow:hidden;margin-bottom:12px">'
+      '<a href="' . $site . '/#/annonce/' . htmlspecialchars($r['id']) . '" style="display:block;text-decoration:none;color:inherit;border:1px solid #f0ece3;border-radius:12px;overflow:hidden;margin-bottom:12px">'
       . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr>'
       . '<td style="width:92px;padding:8px" valign="top">' . $imgCell . '</td>'
       . '<td style="padding:10px 12px 10px 4px" valign="top">'
-      . '<div style="font-weight:bold;color:#111827;font-size:15px">' . htmlspecialchars(mb_strimwidth($r['title'], 0, 60, '…')) . '</div>'
+      . '<div style="font-weight:bold;color:#1B1A17;font-size:15px">' . htmlspecialchars(mb_strimwidth($r['title'], 0, 60, '…')) . '</div>'
       . '<div style="margin-top:4px">' . $price . ($promoActive ? ' <span style="background:#009E60;color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:bold">PROMO</span>' : '') . '</div>'
-      . ($loc ? '<div style="color:#9ca3af;font-size:12px;margin-top:3px">📍 ' . htmlspecialchars($loc) . '</div>' : '')
+      // ⚠️ La commune était en #9ca3af : 2,54:1 sur blanc, le même gris trop
+      // pâle que le « Fermé » des horaires corrigé le 31/08. C'est la ligne qui
+      // dit à l'acheteur si l'annonce est près de chez lui. #6F6A5E rend 5,39.
+      . ($loc ? '<div style="color:#6F6A5E;font-size:12px;margin-top:3px">📍 ' . htmlspecialchars($loc) . '</div>' : '')
       . '</td></tr></table></a>';
   }
   return $cards;
