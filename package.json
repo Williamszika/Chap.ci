@@ -16,7 +16,8 @@
     "verif:signe": "node scripts/verif-signe.mjs",
     "banc:recherche": "node scripts/banc-recherche.mjs",
     "banc:empreintes": "php scripts/banc-empreintes.php",
-    "banc:photos": "node scripts/banc-photos.mjs"
+    "banc:photos": "node scripts/banc-photos.mjs",
+    "verif:flutter": "python3 scripts/verif-flutter.py"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

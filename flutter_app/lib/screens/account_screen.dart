@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../widgets/social_buttons.dart';
 import 'mon_compte.dart';
 import 'parametres_screen.dart';
+import 'mot_de_passe_oublie_screen.dart';
 import 'register_screen.dart';
 import 'verifier_2fa_screen.dart';
 
@@ -76,43 +77,23 @@ class _AccountScreenState extends State<AccountScreen> {
     if (mounted) setState(() {});
   }
 
-  /// La réinitialisation par e-mail n'existe pas encore côté serveur (le site
-  /// non plus) : on l'explique honnêtement plutôt que d'afficher un bouton qui
-  /// ne mène à rien.
-  void _motDePasseOublie() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: ChapColors.cream,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.lock_reset, color: ChapColors.orange),
-            const SizedBox(height: 10),
-            Text(tr(context, 'login.oublieTitre'),
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(
-              tr(context, 'login.oublieCorps'),
-              style: const TextStyle(
-                  fontSize: 14, height: 1.5, color: ChapColors.gray700),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(tr(context, 'action.compris'))),
-            ),
-          ],
-        ),
+  /// Mot de passe oublié — la vraie procédure, depuis le 01/09/2026.
+  ///
+  /// Jusque-là, ce bouton ouvrait un panneau disant « pas encore disponible,
+  /// écrivez-nous » : le site avait pourtant la réinitialisation depuis le
+  /// 29/08. L'écran rend l'adresse au retour, pour que la personne n'ait plus
+  /// qu'à taper son nouveau mot de passe.
+  Future<void> _motDePasseOublie() async {
+    final email = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => MotDePasseOublieScreen(emailInitial: _email.text.trim()),
       ),
     );
+    if (!mounted || email == null || email.isEmpty) return;
+    setState(() {
+      _email.text = email;
+      _erreur = null;
+    });
   }
 
   @override

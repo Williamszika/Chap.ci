@@ -122,8 +122,40 @@ const Map<String, Map<String, String>> _t = {
   'login.seConnecter': {'fr': "Se connecter", 'en': "Sign in", 'es': "Iniciar sesión", 'pt': "Entrar", 'ar': "تسجيل الدخول", 'zh': "登录"},
   'login.pasDeCompte': {'fr': "Pas encore de compte ? ", 'en': "No account yet? ", 'es': "¿Aún no tienes cuenta? ", 'pt': "Ainda não tem conta? ", 'ar': "ليس لديك حساب بعد؟ ", 'zh': "还没有账户？ "},
   'login.creerCompte': {'fr': "Créer un compte", 'en': "Create an account", 'es': "Crear una cuenta", 'pt': "Criar uma conta", 'ar': "إنشاء حساب", 'zh': "注册账户"},
+  // ── MOT DE PASSE OUBLIÉ ────────────────────────────────────────────────
+  // Ajoutés le 01/09/2026. Avant, l'application disait « pas encore
+  // disponible, écrivez-nous » — dans les six langues — alors que le site avait
+  // la procédure depuis le 29/08. Quelqu'un qui oubliait son mot de passe
+  // devait écrire un courriel et attendre. Sur une place de marché, il ne
+  // réécrit pas : il s'en va.
+  //
+  // ⚠️ « oubli.envoye » ne dit JAMAIS que le compte existe. Le serveur répond
+  // la même chose dans tous les cas, exprès, pour que la procédure ne devienne
+  // pas un annuaire d'adresses. Le texte doit tenir la même ligne.
+  'oubli.titre': {'fr': "Mot de passe oublié", 'en': "Forgot password", 'es': "Contraseña olvidada", 'pt': "Palavra-passe esquecida", 'ar': "نسيت كلمة المرور", 'zh': "忘记密码"},
+  'oubli.entete': {'fr': "Retrouvez votre compte", 'en': "Recover your account", 'es': "Recupera tu cuenta", 'pt': "Recupere a sua conta", 'ar': "استعد حسابك", 'zh': "找回您的账户"},
+  'oubli.enteteCode': {'fr': "Entrez le code reçu", 'en': "Enter the code you received", 'es': "Introduce el código recibido", 'pt': "Introduza o código recebido", 'ar': "أدخل الرمز المستلم", 'zh': "输入收到的验证码"},
+  'oubli.explication': {'fr': "Indiquez l’adresse e-mail de votre compte. Nous vous envoyons un code à six chiffres.", 'en': "Enter your account's email address. We'll send you a six-digit code.", 'es': "Indica el correo de tu cuenta. Te enviaremos un código de seis dígitos.", 'pt': "Indique o e-mail da sua conta. Enviamos-lhe um código de seis dígitos.", 'ar': "أدخل البريد الإلكتروني لحسابك. سنرسل لك رمزاً من ستة أرقام.", 'zh': "请输入您账户的邮箱，我们将发送六位数验证码。"},
+  'oubli.envoye': {'fr': "Si un compte existe avec cette adresse, un code vient d’être envoyé à", 'en': "If an account exists with this address, a code has just been sent to", 'es': "Si existe una cuenta con esta dirección, se acaba de enviar un código a", 'pt': "Se existir uma conta com este endereço, foi enviado um código para", 'ar': "إذا كان هناك حساب بهذا العنوان، فقد أُرسل رمز إلى", 'zh': "如果该邮箱存在账户，验证码已发送至"},
+  'oubli.spams': {'fr': "Pensez à regarder dans les indésirables.", 'en': "Remember to check your spam folder.", 'es': "Recuerda revisar la carpeta de spam.", 'pt': "Verifique também a pasta de spam.", 'ar': "تحقق أيضاً من مجلد البريد المزعج.", 'zh': "请同时查看垃圾邮件文件夹。"},
+  'oubli.champEmail': {'fr': "Adresse e-mail", 'en': "Email address", 'es': "Correo electrónico", 'pt': "Endereço de e-mail", 'ar': "البريد الإلكتروني", 'zh': "电子邮箱"},
+  'oubli.champCode': {'fr': "Code à 6 chiffres", 'en': "6-digit code", 'es': "Código de 6 dígitos", 'pt': "Código de 6 dígitos", 'ar': "رمز من 6 أرقام", 'zh': "6 位验证码"},
+  'oubli.champNouveau': {'fr': "Nouveau mot de passe", 'en': "New password", 'es': "Nueva contraseña", 'pt': "Nova palavra-passe", 'ar': "كلمة مرور جديدة", 'zh': "新密码"},
+  'oubli.aideLongueur': {'fr': "8 caractères au minimum", 'en': "At least 8 characters", 'es': "Mínimo 8 caracteres", 'pt': "No mínimo 8 caracteres", 'ar': "8 أحرف على الأقل", 'zh': "至少 8 个字符"},
+  'oubli.voir': {'fr': "Afficher le mot de passe", 'en': "Show password", 'es': "Mostrar contraseña", 'pt': "Mostrar palavra-passe", 'ar': "إظهار كلمة المرور", 'zh': "显示密码"},
+  'oubli.champ2fa': {'fr': "Code de l’application d’authentification", 'en': "Authenticator app code", 'es': "Código de la app de autenticación", 'pt': "Código da aplicação de autenticação", 'ar': "رمز تطبيق المصادقة", 'zh': "验证器应用代码"},
+  'oubli.aide2fa': {'fr': "Votre compte a la double authentification.", 'en': "Your account has two-factor authentication.", 'es': "Tu cuenta tiene verificación en dos pasos.", 'pt': "A sua conta tem autenticação de dois fatores.", 'ar': "حسابك مفعّل بالمصادقة الثنائية.", 'zh': "您的账户已启用两步验证。"},
+  'oubli.besoin2fa': {'fr': "Entrez aussi le code à six chiffres de votre application d’authentification.", 'en': "Also enter the six-digit code from your authenticator app.", 'es': "Introduce también el código de seis dígitos de tu app de autenticación.", 'pt': "Introduza também o código de seis dígitos da sua aplicação de autenticação.", 'ar': "أدخل أيضاً الرمز المكوّن من ستة أرقام من تطبيق المصادقة.", 'zh': "还请输入验证器应用中的六位数代码。"},
+  'oubli.emailInvalide': {'fr': "Cette adresse e-mail ne semble pas valide.", 'en': "This email address doesn't look valid.", 'es': "Este correo no parece válido.", 'pt': "Este e-mail não parece válido.", 'ar': "هذا البريد الإلكتروني لا يبدو صالحاً.", 'zh': "该邮箱地址似乎无效。"},
+  'oubli.entrez6': {'fr': "Entrez les six chiffres du code.", 'en': "Enter the six digits of the code.", 'es': "Introduce los seis dígitos del código.", 'pt': "Introduza os seis dígitos do código.", 'ar': "أدخل الأرقام الستة للرمز.", 'zh': "请输入六位数验证码。"},
+  'oubli.tropCourt': {'fr': "Le mot de passe doit faire au moins 8 caractères.", 'en': "The password must be at least 8 characters.", 'es': "La contraseña debe tener al menos 8 caracteres.", 'pt': "A palavra-passe deve ter pelo menos 8 caracteres.", 'ar': "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.", 'zh': "密码至少需要 8 个字符。"},
+  'oubli.envoyer': {'fr': "Envoyer le code", 'en': "Send the code", 'es': "Enviar el código", 'pt': "Enviar o código", 'ar': "إرسال الرمز", 'zh': "发送验证码"},
+  'oubli.changer': {'fr': "Changer mon mot de passe", 'en': "Change my password", 'es': "Cambiar mi contraseña", 'pt': "Alterar a minha palavra-passe", 'ar': "تغيير كلمة المرور", 'zh': "修改我的密码"},
+  'oubli.autreAdresse': {'fr': "Utiliser une autre adresse", 'en': "Use another address", 'es': "Usar otra dirección", 'pt': "Usar outro endereço", 'ar': "استخدام عنوان آخر", 'zh': "使用其他邮箱"},
+  'oubli.succesTitre': {'fr': "Mot de passe changé", 'en': "Password changed", 'es': "Contraseña cambiada", 'pt': "Palavra-passe alterada", 'ar': "تم تغيير كلمة المرور", 'zh': "密码已修改"},
+  'oubli.succesCorps': {'fr': "Toutes les sessions ouvertes ont été fermées. Connectez-vous avec votre nouveau mot de passe.", 'en': "All open sessions have been closed. Sign in with your new password.", 'es': "Se han cerrado todas las sesiones abiertas. Inicia sesión con tu nueva contraseña.", 'pt': "Todas as sessões abertas foram encerradas. Inicie sessão com a nova palavra-passe.", 'ar': "تم إغلاق جميع الجلسات المفتوحة. سجّل الدخول بكلمة المرور الجديدة.", 'zh': "所有已登录的会话均已关闭。请使用新密码登录。"},
+  'oubli.seConnecter': {'fr': "Se connecter", 'en': "Sign in", 'es': "Iniciar sesión", 'pt': "Iniciar sessão", 'ar': "تسجيل الدخول", 'zh': "登录"},
   'login.oublieTitre': {'fr': "Mot de passe oublié", 'en': "Forgot password", 'es': "Contraseña olvidada", 'pt': "Palavra-passe esquecida", 'ar': "نسيت كلمة المرور", 'zh': "忘记密码"},
-  'login.oublieCorps': {'fr': "La réinitialisation par e-mail n’est pas encore disponible. Écrivez-nous à contact@chap.ci et nous vous aiderons — ou, si vous vous êtes inscrit avec Google, utilisez le bouton Google.", 'en': "Password reset by email isn't available yet. Write to us at contact@chap.ci and we'll help — or, if you signed up with Google, use the Google button.", 'es': "El restablecimiento por correo aún no está disponible. Escríbenos a contact@chap.ci y te ayudaremos — o, si te registraste con Google, usa el botón de Google.", 'pt': "A reposição por e-mail ainda não está disponível. Escreva-nos para contact@chap.ci e ajudamos — ou, se se registou com o Google, use o botão Google.", 'ar': "إعادة تعيين كلمة المرور بالبريد غير متاحة بعد. راسلنا على contact@chap.ci وسنساعدك — أو استخدم زر Google إن سجّلت به.", 'zh': "暂不支持通过邮件重置密码。请发邮件至 contact@chap.ci，我们会协助您；若您用 Google 注册，请使用 Google 按钮。"},
 
   // Mon compte (tableau de bord)
   'compte.mesAnnonces': {'fr': "Mes annonces", 'en': "My listings", 'es': "Mis anuncios", 'pt': "Os meus anúncios", 'ar': "إعلاناتي", 'zh': "我的商品"},

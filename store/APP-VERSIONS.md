@@ -147,6 +147,45 @@ le 26/08, le jour même du seuil).
 
 ---
 
+## v1.24 — versionCode 25
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `À COMPLÉTER` — celui de la montée de version, `git log --oneline -1` juste après. |
+| Date du build | **NON CONSTRUITE** — le code est prêt dans le dépôt, l'AAB n'existe pas encore. |
+| Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
+| minSdk 22 · targetSdk 35 | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33` |
+| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. |
+
+**Ce qu'elle apporte : le mot de passe oublié.**
+
+Jusqu'à la v1.23 incluse, appuyer sur « Mot de passe oublié ? » ouvrait un
+panneau disant « la réinitialisation par e-mail n'est pas encore disponible,
+écrivez-nous à contact@chap.ci » — dans les six langues. Le site, lui, avait la
+procédure depuis le 29/08/2026. Quelqu'un qui oubliait son mot de passe devait
+donc écrire un courriel et attendre ; sur une place de marché, il ne réécrit
+pas, il s'en va.
+
+L'application fait maintenant la vraie procédure, celle du serveur : un code à
+six chiffres par e-mail (`/auth/reset/send`), puis le code et le nouveau mot de
+passe (`/auth/reset/confirm`). La double authentification reste exigée quand le
+compte l'a activée — sans quoi la réinitialisation deviendrait le chemin de
+contournement de la 2FA.
+
+Corrigé au passage dans `api_client.dart` : les réponses d'erreur qui portent
+leur phrase dans `message` plutôt que dans `error` s'affichaient « Une erreur
+est survenue (code 401) ». C'est le cas de la demande du code à six chiffres —
+la personne serait restée bloquée sans savoir pourquoi.
+
+⚠️ **CE CODE N'A JAMAIS ÉTÉ COMPILÉ.** Il n'y a ni `dart` ni `flutter` dans
+l'environnement où le dépôt est modifié. Il a été vérifié par
+`python3 scripts/verif-flutter.py` (clés de traduction dans les six langues,
+couleurs du thème, méthodes du client d'API, imports, équilibre des blocs) —
+ce qui attrape ce qui casse la fabrication de l'APK, mais ne remplace pas
+`flutter analyze`. **Attendez-vous à devoir corriger au premier build.**
+
+---
+
 ## v1.23 — versionCode 24
 
 | Champ | Valeur |

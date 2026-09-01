@@ -4,10 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Erreur d'API portant un message DÉJÀ EN FRANÇAIS, prêt à montrer à l'écran.
+///
+/// [donnees] porte le corps JSON de la réponse quand il y en a un. Sans lui,
+/// tout ce que le serveur dit EN PLUS du message se perdait : la
+/// réinitialisation de mot de passe répond `{mfa_required: true}` en 401 pour
+/// réclamer le code à six chiffres, et l'écran n'avait aucun moyen de le voir —
+/// il affichait « une erreur est survenue » et la personne restait bloquée.
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
-  ApiException(this.message, [this.statusCode]);
+  final Map<String, dynamic>? donnees;
+  ApiException(this.message, [this.statusCode, this.donnees]);
   @override
   String toString() => message;
 }
@@ -97,11 +104,18 @@ class ApiClient {
       corps = null;
     }
     if (r.statusCode >= 200 && r.statusCode < 300) return corps;
-    // Le serveur renvoie souvent { error: "message en français" }.
+    // Le serveur renvoie souvent { error: "message en français" } — mais pas
+    // toujours : certaines réponses portent la phrase dans `message` (la
+    // demande du code de double authentification, par exemple). On lit les deux
+    // avant de se rabattre sur un texte générique, et on garde le corps entier
+    // pour que l'écran puisse réagir aux drapeaux qu'il contient.
     final msg = (corps is Map && corps['error'] is String)
         ? corps['error'] as String
-        : 'Une erreur est survenue (code ${r.statusCode}).';
-    throw ApiException(msg, r.statusCode);
+        : (corps is Map && corps['message'] is String)
+            ? corps['message'] as String
+            : 'Une erreur est survenue (code ${r.statusCode}).';
+    throw ApiException(msg, r.statusCode,
+        corps is Map<String, dynamic> ? corps : null);
   }
 
   Future<dynamic> get(String chemin) async {
@@ -277,6 +291,43 @@ class ApiClient {
     final token = (d is Map) ? d['token'] as String? : null;
     if (token != null && token.isNotEmpty) {
       await _enregistrerJeton(token);
+    }
+  }
+
+  /// MOT DE PASSE OUBLIÉ, ÉTAPE 1 — demander le code (`POST /auth/reset/send`).
+  ///
+  /// ⚠️ Le serveur répond TOUJOURS la même chose, que l'adresse existe ou non.
+  /// C'est voulu : sinon cette route deviendrait un annuaire où l'on teste mille
+  /// adresses pour savoir lesquelles ont un compte. L'écran ne doit donc jamais
+  /// dire « cette adresse est inconnue » — il n'en sait rien.
+  Future<void> demanderCodeReinitialisation(String email) async {
+    await post('/auth/reset/send', {'email': email.trim()});
+  }
+
+  /// MOT DE PASSE OUBLIÉ, ÉTAPE 2 — le code et le nouveau mot de passe
+  /// (`POST /auth/reset/confirm`).
+  ///
+  /// Renvoie `true` si le mot de passe est changé, et `false` si le compte a la
+  /// double authentification : il faut alors rappeler avec [code2fa]. Le serveur
+  /// l'exige, et il a raison — sans cela, prendre la boîte mail suffirait à
+  /// prendre le compte, et les six chiffres n'auraient plus servi à rien.
+  ///
+  /// Après un succès, toutes les sessions ouvertes du compte sont fermées : la
+  /// personne se reconnecte avec son nouveau mot de passe.
+  Future<bool> reinitialiserMotDePasse(
+      String email, String code, String nouveau,
+      {String? code2fa}) async {
+    try {
+      await post('/auth/reset/confirm', {
+        'email': email.trim(),
+        'code': code,
+        'password': nouveau,
+        if (code2fa != null && code2fa.isNotEmpty) 'code2fa': code2fa,
+      });
+      return true;
+    } on ApiException catch (e) {
+      if (e.donnees?['mfa_required'] == true) return false;
+      rethrow;
     }
   }
 
