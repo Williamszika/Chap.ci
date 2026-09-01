@@ -4248,7 +4248,30 @@ function digest_listings(PDO $pdo, int $limit = 6): array {
   return $rows;
 }
 /** Rangée de cartes d'annonces cliquables (réutilisée : offres, suggestions, alertes). */
-function email_listing_cards(string $site, array $rows): string {
+/**
+ * LA GRILLE À DEUX COLONNES — la disposition des annonces dans les e-mails.
+ * Demandée par le Patron le 01/09/2026, en remplacement d'une liste de rangées.
+ *
+ * Pourquoi une grille plutôt qu'une liste :
+ *  · six annonces en rangées font un e-mail de deux écrans et demi, qu'on
+ *    parcourt du haut et qu'on abandonne au tiers ; en grille elles tiennent
+ *    en trois rangs ;
+ *  · la photo passe de 92 px de côté à toute la largeur de la carte, soit
+ *    environ 150 px sur un téléphone — sur une place de marché, c'est la photo
+ *    qui vend, pas le titre ;
+ *  · c'est la disposition du site. Un acheteur qui ouvre l'e-mail puis le site
+ *    retrouve la même chose.
+ *
+ * ⚠️ EN TABLEAU, PAS EN FLEX NI EN GRID. Outlook ne connaît ni l'un ni l'autre
+ * et empilerait tout. Deux cellules par rangée, largeurs en pourcentage : c'est
+ * la seule construction que toutes les boîtes mail rendent pareil.
+ *
+ * `$forme` = 'auto' choisit seule : LISTE à une ou deux annonces (une grille
+ * d'un seul élément laisse un trou béant à droite), GRILLE au-delà.
+ */
+function email_listing_cards(string $site, array $rows, string $forme = 'auto'): string {
+  if ($forme === 'auto') $forme = count($rows) <= 2 ? 'liste' : 'grille';
+  if ($forme === 'grille') return email_listing_grid($site, $rows);
   $cards = '';
   foreach ($rows as $r) {
     $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
@@ -4262,11 +4285,11 @@ function email_listing_cards(string $site, array $rows): string {
     // 4,91:1 sur le blanc — l'orange de marque n'y rendrait que 2,3, et un prix
     // est ce qu'on lit en premier dans une newsletter d'annonces.
     $prix = fn(int $v) => '<span style="color:#B35700;font-weight:bold;font-size:16px">'
-      . number_format($v, 0, ',', ' ') . ' FCFA</span>';
+      . email_prix($v) . '</span>';
     $price = $promoActive
       ? $prix((int) $r['promo_price'])
         // L'ancien prix barré était en #aaa — 2,32:1, illisible. #6F6A5E rend 5,39.
-        . ' <span style="color:#6F6A5E;text-decoration:line-through;font-size:12px">' . number_format((int) $r['price'], 0, ',', ' ') . '</span>'
+        . ' <span style="color:#6F6A5E;text-decoration:line-through;font-size:12px">' . email_prix((int) $r['price'], false) . '</span>'
       : $prix((int) $r['price']);
     $loc = $r['commune'] ?: ($r['city_id'] ?: '');
     $cards .=
@@ -4283,6 +4306,91 @@ function email_listing_cards(string $site, array $rows): string {
       . '</td></tr></table></a>';
   }
   return $cards;
+}
+
+/**
+ * UN PRIX QUI NE SE COUPE PAS EN DEUX.
+ *
+ * `number_format(..., ' ')` sépare les milliers par une espace ORDINAIRE : une
+ * boîte mail a donc le droit de renvoyer « 6 500 » sur une ligne et « 000 FCFA »
+ * sur la suivante. Invisible sur un écran large, systématique dans une carte de
+ * grille de 116 px sur un téléphone — et un prix coupé en deux ne se lit plus
+ * comme un prix.
+ *
+ * Espace fine insécable entre les milliers, espace insécable avant « FCFA » :
+ * c'est aussi la typographie française que ce dépôt exige partout.
+ */
+function email_prix(int $v, bool $avecDevise = true): string {
+  $n = number_format($v, 0, ',', "\u{202F}");   // espace fine insécable
+  return $avecDevise ? $n . "\u{00A0}FCFA" : $n;
+}
+
+/** Les éléments d'UNE annonce, communs aux deux dispositions. */
+function email_listing_piece(string $site, array $r): array {
+  $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
+  $img = $imgs[0] ?? '';
+  if ($img && $img[0] === '/') $img = $site . $img; // /uploads/... -> URL absolue
+  $promo = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > now_iso());
+  return [
+    'lien'    => $site . '/#/annonce/' . htmlspecialchars((string) $r['id']),
+    'img'     => (($img && str_starts_with($img, 'http')) ? htmlspecialchars($img) : ''),
+    'titre'   => htmlspecialchars(mb_strimwidth((string) $r['title'], 0, 46, '…')),
+    'prix'    => email_prix((int) ($promo ? $r['promo_price'] : $r['price'])),
+    'barre'   => $promo ? email_prix((int) $r['price'], false) : '',
+    'lieu'    => htmlspecialchars((string) ($r['commune'] ?: ($r['city_id'] ?: ''))),
+    'promo'   => $promo,
+  ];
+}
+
+/** La grille : deux annonces par rangée. Voir `email_listing_cards`. */
+function email_listing_grid(string $site, array $rows): string {
+  $out = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+    . 'style="width:100%;border-collapse:separate;border-spacing:0"><tr>';
+  $n = 0;
+  foreach ($rows as $r) {
+    $p = email_listing_piece($site, $r);
+    // Nouvelle rangée toutes les deux annonces.
+    if ($n > 0 && $n % 2 === 0) $out .= '</tr><tr>';
+    // La photo occupe toute la largeur de la carte. Hauteur FIXE : sans elle,
+    // deux photos de proportions différentes décalent les prix d'une carte à
+    // l'autre, et la grille se met à boiter.
+    $photo = $p['img'] !== ''
+      ? '<img src="' . $p['img'] . '" width="100%" height="132" '
+        . 'style="width:100%;height:132px;object-fit:cover;display:block;border-radius:10px 10px 0 0">'
+      : '<div style="height:132px;line-height:132px;text-align:center;font-size:40px;'
+        . 'background:#FFF6EA;border-radius:10px 10px 0 0">🛍️</div>';
+    // ⚠️ LA PROMO TIENT SUR DEUX LIGNES, PAS UNE. Premier essai : prix, prix
+    // barré et pastille « PROMO » à la suite. Une carte de grille fait 150 px
+    // sur un téléphone — la pastille passait à la ligne et sortait de la carte.
+    // La réduction est ce qui fait cliquer ; elle ne peut pas être ce qui
+    // déborde. Prix et pastille en haut, l'ancien prix juste sous eux.
+    $prix = '<div><span style="color:#B35700;font-weight:bold;font-size:15px">' . $p['prix'] . '</span>'
+      . ($p['promo'] ? ' <span style="background:#009E60;color:#fff;border-radius:5px;padding:1px 5px;'
+        . 'font-size:10px;font-weight:bold">PROMO</span>' : '') . '</div>'
+      // La ligne « au lieu de » est RÉSERVÉE même sans promotion, avec une
+      // espace insécable. Sans elle, la carte en promotion est plus haute que
+      // sa voisine et les deux bords du bas ne s'alignent plus — une grille qui
+      // boite se remarque avant les prix.
+      . '<div style="color:#6F6A5E;font-size:11px;margin-top:1px">'
+      . ($p['barre'] !== ''
+        ? 'au lieu de <span style="text-decoration:line-through">' . $p['barre'] . '</span>'
+        : '&nbsp;')
+      . '</div>';
+    $out .= '<td width="50%" valign="top" style="width:50%;padding:0 5px 12px 5px">'
+      . '<a href="' . $p['lien'] . '" style="display:block;text-decoration:none;color:inherit;'
+      . 'border:1px solid #f0ece3;border-radius:11px;overflow:hidden">'
+      . $photo
+      . '<div style="padding:9px 10px 11px">'
+      . $prix
+      . '<div style="font-size:13px;color:#1B1A17;margin-top:3px;line-height:1.35">' . $p['titre'] . '</div>'
+      . ($p['lieu'] !== '' ? '<div style="color:#6F6A5E;font-size:11.5px;margin-top:3px">📍 ' . $p['lieu'] . '</div>' : '')
+      . '</div></a></td>';
+    $n++;
+  }
+  // Une annonce seule sur la dernière rangée : on ferme avec une cellule vide,
+  // sinon la carte s'étire sur toute la largeur et casse l'alignement.
+  if ($n % 2 === 1) $out .= '<td width="50%" style="width:50%">&nbsp;</td>';
+  return $out . '</tr></table>';
 }
 /** Construit l'email « offres » avec des cartes d'annonces cliquables (type OLX/eBay). */
 function digest_html(array $config, array $rows, string $type, string $context = ''): string {
