@@ -124,6 +124,30 @@ void _configurerIos() {
       return '${m.group(1)}$id${m.group(3)}';
     },
   );
+
+  // ⚠️ LA VERSION MINIMALE D'iOS SE POSE ICI, PAS DANS XCODE.
+  // `flutter create` ne réécrit PAS un project.pbxproj qui existe déjà : un
+  // dossier ios/ fabriqué par un Flutter plus ancien garde sa valeur d'origine
+  // (12.0, voire 11.0). Or les plugins ont monté leurs exigences depuis :
+  // webview_flutter_wkwebview et shared_preferences_foundation réclament 13.0,
+  // google_sign_in_ios 12.0. En dessous, `pod install` s'arrête sur un mur de
+  // texte CocoaPods, à la seule étape que le Patron ne peut pas diagnostiquer.
+  // On force donc la valeur du gabarit Flutter courant (15.0), qui couvre tout.
+  // Conséquence à connaître : l'iPhone doit tourner sous iOS 15 ou plus récent.
+  var releve = 0;
+  pb = pb.replaceAllMapped(
+    RegExp(r'IPHONEOS_DEPLOYMENT_TARGET = ([0-9]+(?:\.[0-9]+)?);'),
+    (m) {
+      final actuel = double.tryParse(m.group(1)!) ?? 0;
+      if (actuel >= _iosMini) return m.group(0)!;
+      releve++;
+      return 'IPHONEOS_DEPLOYMENT_TARGET = $_iosMini;';
+    },
+  );
+  if (releve > 0) {
+    _etape('iOS : version minimale relevée à $_iosMini '
+        '($releve emplacement${releve > 1 ? 's' : ''} — les plugins l’exigent)…');
+  }
   pbxproj.writeAsStringSync(pb);
 
   _etape('iOS : nom « Chap.ci » et autorisations (Info.plist)…');
@@ -145,7 +169,34 @@ void _configurerIos() {
         '</dict>\n</plist>', '$_googleIos</dict>\n</plist>');
   }
   plistFichier.writeAsStringSync(plist);
+
+  // Le Podfile du gabarit laisse `platform :ios` EN COMMENTAIRE : CocoaPods
+  // reprend alors la valeur du project.pbxproj, qu'on vient de relever. Mais un
+  // Podfile plus ancien peut porter la ligne active avec une vieille version,
+  // et elle l'emporte. On la remet d'accord plutôt que de laisser deux sources
+  // se contredire.
+  final podfile = File('ios/Podfile');
+  if (podfile.existsSync()) {
+    final avant = podfile.readAsStringSync();
+    final apres = avant.replaceAllMapped(
+      RegExp(r"^(\s*)platform :ios, '([0-9]+(?:\.[0-9]+)?)'", multiLine: true),
+      (m) {
+        final actuel = double.tryParse(m.group(2)!) ?? 0;
+        if (actuel >= _iosMini) return m.group(0)!;
+        return "${m.group(1)}platform :ios, '$_iosMini'";
+      },
+    );
+    if (apres != avant) {
+      _etape('iOS : Podfile remis à $_iosMini (il portait une version plus ancienne)…');
+      podfile.writeAsStringSync(apres);
+    }
+  }
 }
+
+/// Version minimale d'iOS. C'est celle du gabarit Flutter courant ; elle couvre
+/// le plugin le plus exigeant (13.0 pour webview_flutter et shared_preferences).
+/// La changer veut dire vérifier d'abord `deployment_target` dans les podspecs.
+const double _iosMini = 15.0;
 
 // ─────────────────────────── Rappels finaux ─────────────────────────────────
 
