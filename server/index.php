@@ -3161,11 +3161,19 @@ function send_report_mail(array $config, string $to, string $subject, string $ht
   return @mail($to, mime_h($subject), $body, $headers, '-f' . $from);
 }
 /** Bouton d'action réutilisable pour les emails. */
+/**
+ * Le bouton d'un e-mail — en tableau, la seule forme qu'Outlook rende juste.
+ *
+ * ORANGE DE MARQUE, TEXTE ENCRE. Mesuré : l'encre #1B1A17 sur #F77F00 rend
+ * 6,62:1, quand le blanc sur le vert #009E60 d'avant n'en rendait que 3,47.
+ * Le bouton d'un e-mail est souvent la seule chose à faire du message ; il se
+ * lit au soleil, sur un écran lavé par la lumière, ou il ne sert à rien.
+ */
 function email_button(string $href, string $label): string {
-  return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px auto">'
-    . '<tr><td style="border-radius:12px;background:#009E60">'
-    . '<a href="' . htmlspecialchars($href) . '" style="display:inline-block;padding:13px 30px;color:#fff;'
-    . 'text-decoration:none;font-weight:bold;font-size:15px;border-radius:12px">' . htmlspecialchars($label) . '</a>'
+  return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto 4px">'
+    . '<tr><td style="border-radius:10px;background:#F77F00">'
+    . '<a href="' . htmlspecialchars($href) . '" style="display:inline-block;padding:14px 30px;color:#1B1A17;'
+    . 'text-decoration:none;font-weight:bold;font-size:15px;border-radius:10px">' . htmlspecialchars($label) . '</a>'
     . '</td></tr></table>';
 }
 // =============================================================================
@@ -3614,11 +3622,63 @@ const FONCIER_MOTIF = 'Nouvelle règle sur les ventes immobilières : votre anno
   . 'le ou les documents de propriété que vous détenez, le nom porté dessus, le bornage, la situation '
   . 'juridique et l’occupation du bien. Modifiez-la avec le nouveau formulaire, elle repartira en ligne aussitôt.';
 
-/** Gabarit HTML commun (logo + contenu + pied de page contact/réseaux/légal). */
+/**
+ * L'ADRESSE DU LOGO, AVEC L'EMPREINTE DU FICHIER DEDANS.
+ *
+ * ⚠️ CECI N'EST PAS UNE COQUETTERIE, C'EST LE CŒUR DU PROBLÈME. Le 01/09/2026,
+ * le Patron a reçu son rapport avec le logo du 26 août — trois générations en
+ * arrière — alors que le bon fichier était sur le serveur depuis la veille,
+ * vérifié à l'octet près. La preuve était dans sa capture : le filet du drapeau,
+ * lui, était neuf. Le texte arrivait, l'image non.
+ *
+ * La cause : GMAIL RECOPIE LES IMAGES SUR SES PROPRES SERVEURS et les garde. Or
+ * l'adresse `/icons/icon-192.png` n'avait jamais changé de nom depuis juillet.
+ * Gmail resservait donc sa copie de juillet, et l'aurait resservie dans six mois.
+ *
+ * Un `?v=2` écrit à la main aurait réglé le jour même et rien de plus : au
+ * prochain changement de logo, on aurait oublié de l'incrémenter, et la panne
+ * serait revenue à l'identique. L'empreinte du fichier, elle, change TOUTE
+ * SEULE quand le dessin change. C'est la seule version qui ne se périme pas.
+ */
+function email_logo_url(string $site, ?string $racine = null): string {
+  static $cache = [];
+  $racine ??= __DIR__ . '/..'; // l'API vit dans public_html/api/, les icônes un étage au-dessus
+  if (isset($cache[$racine])) return $site . $cache[$racine];
+  $f = $racine . '/icons/icon-192.png';
+  // ⚠️ LA RETOMBÉE DOIT BOUGER, ELLE AUSSI, ET NE JAMAIS ÊTRE VIDE.
+  // Un `?v=` figé — ou vide, ce qui revient au même — ramènerait la panne du
+  // 01/09 à l'identique et sans bruit. Trois niveaux, aucun constant :
+  //   1. l'empreinte du dessin      → change quand le logo change ;
+  //   2. la date du fichier de l'API → change à chaque dépôt ;
+  //   3. la date du jour             → change tous les jours.
+  // Le troisième niveau existe parce que le deuxième a échoué en essai :
+  // `md5_file` sur un fichier introuvable rend `false`, et `substr(false,0,8)`
+  // rend la chaîne VIDE. La version tombait alors sur `?v=`, une constante.
+  $v = '';
+  if (is_file($f)) $v = (string) md5_file($f);
+  if ($v === '') $v = (string) @filemtime(__FILE__);
+  if ($v === '') $v = date('Ymd');
+  $cache[$racine] = '/icons/icon-192.png?v=' . substr($v, 0, 8);
+  return $site . $cache[$racine];
+}
+
+/**
+ * LE PAGNE — gabarit commun à tous les e-mails de Chap.ci.
+ * Direction retenue par le Patron le 01/09/2026 parmi trois propositions.
+ *
+ * Le bandeau tissé en tête est fait de CELLULES DE TABLEAU, pas d'une image :
+ * il s'affiche donc même quand la boîte mail bloque les images, ce que Gmail
+ * fait à la première ouverture de chaque message. C'était le critère du choix —
+ * une identité qui repose sur une image seule n'existe pas tant que le lecteur
+ * n'a pas cliqué « afficher les images », et beaucoup ne cliquent jamais.
+ *
+ * Tout ce que Chap.ci envoie passe ici : les 31 messages, la newsletter
+ * comprise. Changer ce gabarit les change tous d'un coup.
+ */
 function email_layout(array $config, string $inner, string $preheader = ''): string {
   $site    = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
   $name    = $config['mail_from_name'] ?? 'Chap.ci';
-  $logo    = $site . '/icons/icon-192.png';
+  $logo    = email_logo_url($site);
   $contact = $config['mail_reply_to'] ?? 'contact@chap.ci';
   // Texte d'aperçu (masqué) affiché par les boîtes mail à côté de l'objet.
   $pre = $preheader
@@ -3631,49 +3691,75 @@ function email_layout(array $config, string $inner, string $preheader = ''): str
   }
   $socialRow = $social ? '<p style="margin:8px 0">' . $social . '</p>' : '';
   $domain = preg_replace('#^https?://#', '', $site); // ex : chap.ci
+
+  // Le nom, avec son « .ci » en vert — comme sur le site. Écrit en LETTRES, pas
+  // en image : c'est ce qui reste quand la boîte mail bloque le logo.
+  $nomHtml = str_ends_with($name, '.ci')
+    ? htmlspecialchars(substr($name, 0, -3)) . '<span style="color:#009E60">.ci</span>'
+    : htmlspecialchars($name);
+
   return $pre
-    . '<div style="background:#f4f5f7;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">'
-    . '<div style="max-width:520px;margin:auto;color:#1f2937">'
-    // En-tête : logo + nom (cliquables → site)
+    . '<div style="background:#FFF6EA;padding:0;margin:0;font-family:Arial,Helvetica,sans-serif">'
+    . '<div style="max-width:520px;margin:auto;background:#FFF6EA;color:#3d3a33">'
+    . email_bandeau_pagne()
+    // En-tête : la couronne, puis le nom.
     //
-    // ⚠️ CE LOGO EST UNE IMAGE DISTANTE, ET GMAIL LA BLOQUE PAR DÉFAUT. Tant
-    // que le lecteur n'a pas cliqué « afficher les images », il ne voit que le
-    // texte de remplacement. C'est pourquoi l'identité ne repose PAS sur lui
-    // seul : le filet du drapeau, juste en dessous, est fait de fonds de
-    // cellules — il s'affiche toujours, images bloquées ou non.
+    // ⚠️ LE LOGO EST UNE IMAGE DISTANTE, ET GMAIL LA BLOQUE PAR DÉFAUT. Le nom
+    // en dessous et le bandeau au-dessus sont, eux, du texte et des fonds de
+    // cellules : ils arrivent toujours. L'e-mail reste Chap.ci même quand la
+    // couronne n'est pas chargée — c'est la raison d'être de cette direction.
     //
-    // Le fond crème et l'arrondi de 13 px reprennent ceux de l'icône elle-même
-    // (rayon 42 sur une grille de 200, soit 21 % — 12,6 px à 60 px de large) :
-    // avant, un arrondi de 15 px rognait une seconde fois des coins déjà
-    // arrondis, et la case restait blanche quand l'image ne venait pas.
-    . '<div style="text-align:center;padding:8px 0 14px">'
+    // Fond crème et arrondi de 17 px : les coins de l'icône elle-même (rayon 42
+    // sur une grille de 200, soit 21 % — 14 px à 66 px de large). Sans le fond,
+    // la case reste blanche quand l'image ne vient pas.
+    . '<div style="text-align:center;padding:22px 24px 0">'
     . '<a href="' . $site . '" style="text-decoration:none;color:inherit;display:inline-block">'
-    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="60" height="60" '
-    . 'style="border-radius:13px;display:inline-block;background:#FFFDF9">'
-    . '<div style="font-size:20px;font-weight:bold;color:#111827;margin-top:8px">' . htmlspecialchars($name) . '</div>'
+    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="66" height="66" '
+    . 'style="width:66px;height:66px;border-radius:17px;display:inline-block;background:#FFFDF9">'
+    . '<div style="font-size:22px;font-weight:bold;color:#1B1A17;margin-top:8px;letter-spacing:-0.02em">'
+    . $nomHtml . '</div>'
     . '</a></div>'
-    // Carte : le filet du DRAPEAU en haut, puis le contenu.
-    // Orange, blanc, vert — les couleurs retenues par le Patron le 30/08. En
-    // trois cellules de tableau plutôt qu'en dégradé ou en bordure : Outlook
-    // ignore l'un et l'autre, il ne se trompe jamais sur un fond de cellule.
-    . '<div style="background:#fff;border:1px solid #eef0f2;'
-    . 'border-radius:14px;box-shadow:0 1px 3px rgba(16,24,40,0.06);overflow:hidden">'
-    . '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-    . 'style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>'
-    . '<td height="4" style="height:4px;line-height:4px;font-size:0;background:#F77F00">&nbsp;</td>'
-    . '<td height="4" style="height:4px;line-height:4px;font-size:0;background:#FFFDF9">&nbsp;</td>'
-    . '<td height="4" style="height:4px;line-height:4px;font-size:0;background:#009E60">&nbsp;</td>'
-    . '</tr></table>'
-    . '<div style="padding:26px 24px">' . $inner . '</div></div>'
-    // Pied de page
-    . '<div style="text-align:center;color:#9ca3af;font-size:12px;padding:18px 8px 4px">'
-    . '<p style="margin:8px 0">Visitez notre site : <a href="' . $site . '" style="color:#00734A;text-decoration:none;font-weight:bold">' . htmlspecialchars($domain) . '</a></p>'
-    . '<p style="margin:8px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#00734A;text-decoration:none">' . $contact . '</a></p>'
+    // La carte blanche : tout le message est dedans.
+    . '<div style="background:#ffffff;border-radius:16px;margin:16px 14px;'
+    . 'padding:22px 20px 24px;color:#3d3a33;font-size:15px;line-height:1.55">'
+    . $inner . '</div>'
+    // Pied de page, sur le crème.
+    . '<div style="text-align:center;color:#8a8271;font-size:12px;padding:4px 20px 26px;line-height:1.8">'
+    . '<p style="margin:6px 0">Visitez notre site : <a href="' . $site . '" style="color:#00734A;text-decoration:none;font-weight:bold">' . htmlspecialchars($domain) . '</a></p>'
+    . '<p style="margin:6px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#00734A;text-decoration:none">' . $contact . '</a></p>'
     . $socialRow
-    . '<p style="margin:8px 0"><a href="' . $site . '/#/confidentialite" style="color:#9ca3af">Confidentialité</a> · '
-    . '<a href="' . $site . '/#/conditions" style="color:#9ca3af">Conditions d’utilisation</a></p>'
-    . '<p style="margin:10px 0 0">' . htmlspecialchars($name) . ' — 100% ivoirien 🇨🇮</p>'
+    . '<p style="margin:6px 0"><a href="' . $site . '/#/confidentialite" style="color:#8a8271">Confidentialité</a> · '
+    . '<a href="' . $site . '/#/conditions" style="color:#8a8271">Conditions d’utilisation</a></p>'
+    . '<p style="margin:12px 0 0;color:#00734A;font-weight:bold">100 % ivoirien 🇨🇮</p>'
     . '</div></div></div>';
+}
+
+/**
+ * LE BANDEAU TISSÉ, en tête de chaque e-mail.
+ *
+ * Une trame irrégulière, comme un pagne : des bandes de largeurs inégales qui
+ * ne se répètent pas à intervalle fixe. C'est cette irrégularité qui fait la
+ * différence entre « du tissu » et « des rayures ».
+ *
+ * ⚠️ EN CELLULES DE TABLEAU, ET C'EST TOUT L'INTÉRÊT. Outlook ignore les
+ * dégradés, les bordures et les images de fond ; il ne se trompe jamais sur un
+ * fond de cellule. Et comme ce n'est pas une image, aucune boîte mail ne peut
+ * le bloquer : l'e-mail est reconnaissable avant même d'être chargé.
+ */
+function email_bandeau_pagne(): string {
+  $trame = [3, 1, 2, 1, 4, 1, 2, 3, 1, 2, 1, 3, 2, 1, 4, 1, 2, 1, 3, 2, 1, 4, 2, 1, 2];
+  $tons  = ['#F77F00', '#00734A', '#FFC46B'];
+  $total = array_sum($trame);
+  $cells = '';
+  foreach ($trame as $i => $part) {
+    // Les pourcentages sont calculés à partir de la trame, jamais écrits à la
+    // main : ils tombent forcément juste à 100 %, même si on change la trame.
+    $largeur = round($part / $total * 100, 3);
+    $cells .= '<td width="' . $largeur . '%" height="14" style="width:' . $largeur . '%;'
+      . 'height:14px;line-height:14px;font-size:0;background:' . $tons[$i % 3] . '">&nbsp;</td>';
+  }
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+    . 'style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>' . $cells . '</tr></table>';
 }
 /**
  * Annonce immobilière masquée en attendant sa mise à jour : on explique
