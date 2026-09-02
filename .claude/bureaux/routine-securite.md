@@ -207,6 +207,36 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
        rapport le déclarait vert. C'est la même faute que la sonde à liste de
        noms — une vérification qui ne peut pas échouer.
 
+   LE DOSSIER api/ — LIS LE COMPTEUR, IL PEUT PASSER AU ROUGE.
+   `/api/health` renvoie aussi `fichiersInattendus` : le nombre d'entrées du
+   dossier `api/` de la production qui ne devraient pas y être. Attendu : **0**.
+
+       curl -sS https://chap.ci/api/health | grep -o '"fichiersInattendus":[0-9]*'
+
+   Pourquoi ce chiffre existe. Dans la nuit du 1ᵉʳ au 2 septembre 2026, ce
+   dossier contenait TROIS anciennes copies de l'API — `index-ANCIEN.php`,
+   `indexmax5.php`, « `index (4).php` » —, chacune exécutable, branchée sur la
+   même base, avec les failles corrigées depuis ; plus les scripts de diagnostic
+   du 3 août, jamais retirés ; plus deux extractions de zip au mauvais étage.
+   La ronde du 01/09 à 15:55 et celle du 02/09 à 00:50 ont rendu « entièrement
+   verte » : elles lisaient `/api/health` et le dépôt, et rien de tout cela ne
+   pouvait montrer le dossier. C'est le cas exact du §5 de COMMUN.md.
+
+   Ce que tu fais du chiffre :
+     · 0 → une ligne dans le rapport, « dossier api/ : rien d'inattendu ».
+     · autre chose → **P2**, et tu l'écris tel quel : « `fichiersInattendus` = N ».
+       Tu ne peux pas savoir QUOI d'ici — la route donne un nombre, jamais des
+       noms, exprès : les noms diraient à n'importe qui où chercher. C'est le
+       Patron qui ouvre cPanel → Gestionnaire de fichiers → `public_html/api`
+       et compare à la liste attendue : `index.php`, `config.php`, `.htaccess`,
+       `watermark.png`, `data`, `backups`, plus `error_log`, `smtp.local.php`,
+       `.user.ini`, `php.ini` s'ils existent. Tout le reste est à retirer.
+     · le champ ABSENT de la réponse → l'API servie est antérieure au 02/09 ;
+       tu l'écris, et c'est un écart dépôt/production comme un autre.
+
+   Ne propose jamais d'ajouter les noms à la route « pour aider ». La question
+   a été tranchée le 02/09 en l'écrivant.
+
    QUAND UNE EMPREINTE DIFFÈRE, NE DEVINE PAS LA FENÊTRE DU DIFF.
    Le 05/08 à 15h47, une ronde a bien détecté l'écart, puis a décrit le
    changement en attente comme « le texte du bandeau et des seuils » — alors que

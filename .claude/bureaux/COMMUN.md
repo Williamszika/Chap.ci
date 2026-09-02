@@ -112,6 +112,13 @@ parce qu'ils n'étaient pas dans la liste.
 Fais lire **l'état réel** : `/api/health` pour les empreintes, le Gestionnaire de
 fichiers pour un dossier, une requête qui énumère plutôt qu'une qui confirme.
 
+Depuis le 02/09/2026, `/api/health` renvoie aussi **`fichiersInattendus`** : le nombre
+d'entrées du dossier `api/` de la production qui ne devraient pas y être. Attendu : 0.
+Il a été ajouté parce que deux rondes du Gardien avaient rendu « entièrement verte » un
+dossier qui contenait trois anciennes copies exécutables de l'API — elles ne pouvaient
+pas le voir. La route donne un **nombre, jamais des noms** : c'est le Patron qui ouvre
+le Gestionnaire de fichiers. Ne propose pas d'y ajouter les noms.
+
 Et rappelle-toi que **chaque empreinte ne prouve que son propre fichier** : `empreinte`
 couvre `api/index.php`, `empreinteSeo` couvre `seo.php`, `empreinteSite` couvre
 `index.html`. Conclure sur l'un en lisant l'autre, c'est une vérification qui ne peut pas

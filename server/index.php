@@ -12987,11 +12987,42 @@ try {
     // seo.php et index.html vivent à la racine du site, un cran au-dessus d'api/.
     [$empSeo]  = $somme(__DIR__ . '/../seo.php');
     [$empSite, $deposeSite] = $somme(__DIR__ . '/../index.html');
+    // ── LE DOSSIER api/ CONTIENT-IL AUTRE CHOSE QUE CE QU'IL DOIT ? ──────────
+    //
+    // ⚠️ POURQUOI CE COMPTEUR EXISTE. Dans la nuit du 1ᵉʳ au 2 septembre 2026,
+    // le dossier api/ de la production contenait TROIS anciennes copies de ce
+    // fichier — index-ANCIEN.php, indexmax5.php, « index (4).php » —, chacune
+    // exécutable, chacune branchée sur la même base, chacune avec les failles
+    // corrigées depuis. Plus les scripts de diagnostic du 3 août, jamais
+    // retirés. Plus deux extractions de zip au mauvais étage.
+    //
+    // Le Gardien a rendu « ronde entièrement verte » sur ce dossier. Il lit
+    // cette route et le dépôt ; il ne pouvait pas voir le dossier réel. Une
+    // vérification qui ne peut pas échouer ne vaut rien — celle-ci le peut.
+    //
+    // ON DONNE UN NOMBRE, JAMAIS DES NOMS. Les noms diraient à n'importe qui où
+    // chercher un « reparer-….php ». Le nombre suffit : zéro, rien à faire ;
+    // autre chose, le Patron ouvre le Gestionnaire de fichiers et regarde.
+    //
+    // `smtp.local.php` est toléré : le code le lit encore en secours et le
+    // retire lui-même au premier enregistrement SMTP depuis le tableau de bord.
+    // Le compter ferait un rouge permanent, et un rouge permanent s'ignore.
+    $attendus = ['index.php', 'config.php', '.htaccess', 'watermark.png',
+                 'data', 'backups',
+                 // écrits par PHP ou par cPanel, jamais par une main :
+                 'error_log', 'smtp.local.php', '.user.ini', 'php.ini'];
+    $inattendus = 0;
+    foreach ((@scandir(__DIR__) ?: []) as $f) {
+      if ($f === '.' || $f === '..' || in_array($f, $attendus, true)) continue;
+      $inattendus++;
+    }
     jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION,
           'empreinte' => $empreinte, 'depose' => $depose,
           // Vides si le fichier n'est pas là où on l'attend — ce qui est en soi
           // une information : le site n'a pas été extrait au bon endroit.
-          'empreinteSeo' => $empSeo, 'empreinteSite' => $empSite, 'deposeSite' => $deposeSite]);
+          'empreinteSeo' => $empSeo, 'empreinteSite' => $empSite, 'deposeSite' => $deposeSite,
+          // Zéro attendu. Autre chose : le dossier api/ est à nettoyer.
+          'fichiersInattendus' => $inattendus]);
   }
 
   jerr('Route inconnue: ' . $path, 404);
