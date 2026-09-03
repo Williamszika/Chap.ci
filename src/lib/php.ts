@@ -376,6 +376,26 @@ export async function phpSellerResponseTime(sellerId: string): Promise<SellerRes
   return req(`/seller/response-time?seller_id=${encodeURIComponent(sellerId)}`)
 }
 
+/** « Ça vaut combien ? » — la fourchette du marché sur Chap.ci pour un objet donné. */
+export interface PrixMarche {
+  n: number
+  jours: number
+  base: 'sous-catégorie' | 'marque'
+  minimum: number
+  mediane: number | null
+  p25: number | null
+  p75: number | null
+}
+export async function phpPrixMarche(q: {
+  categoryId: string; subcategory: string; condition?: string; marque?: string; sauf?: string
+}): Promise<PrixMarche> {
+  const p = new URLSearchParams({ categoryId: q.categoryId, subcategory: q.subcategory })
+  if (q.condition) p.set('condition', q.condition)
+  if (q.marque) p.set('marque', q.marque)
+  if (q.sauf) p.set('sauf', q.sauf)
+  return req<PrixMarche>(`/listings/prix-marche?${p.toString()}`)
+}
+
 export async function phpSellerAnalytics(period: string): Promise<SellerAnalytics> {
   return req<SellerAnalytics>(`/seller/analytics?period=${encodeURIComponent(period)}`)
 }

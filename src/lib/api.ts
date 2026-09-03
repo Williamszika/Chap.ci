@@ -47,6 +47,18 @@ export async function fetchSellerResponseTime(sellerId: string) {
 }
 export type { SellerResponseTime } from './php'
 
+/**
+ * « Ça vaut combien ? » — la fourchette du marché. `null` si le serveur ne
+ * répond pas : un blanc, jamais une fausse fourchette.
+ */
+export async function fetchPrixMarche(q: {
+  categoryId: string; subcategory: string; condition?: string; marque?: string; sauf?: string
+}): Promise<php.PrixMarche | null> {
+  try { return await php.phpPrixMarche(q) }
+  catch { return null }
+}
+export type { PrixMarche } from './php'
+
 /** Modifier une annonce. */
 export async function updateListingRemote(id: string, input: Omit<Listing, 'id' | 'createdAt' | 'currency'>): Promise<Listing> {
   return php.phpUpdateListing(id, input)

@@ -6102,6 +6102,65 @@ try {
   }
 
   // ---------- LISTINGS ----------
+  // ── « ÇA VAUT COMBIEN ? » — la fourchette du marché sur Chap.ci ──────────
+  //
+  // Nouveauté n° 3 du 03/09/2026. Le vendeur qui tape son prix voit ce que le
+  // même objet se vend ici ; l'acheteur voit si un prix est dans la moyenne ou
+  // « bien en dessous » — le signal n° 1 de l'arnaque (skill moderation-ci :
+  // « prix trop beau »). Rien de tout cela ne refuse une annonce.
+  //
+  // La base de calcul est la SOUS-CATÉGORIE (et l'état, s'il est donné). Si la
+  // marque est donnée et qu'elle réunit assez d'annonces, on se resserre sur
+  // elle : un iPhone et un Itel ne se vendent pas au même prix dans « Téléphones ».
+  // Sous cinq annonces, on rend le compte mais AUCUNE fourchette : trois prix
+  // ne font pas un marché, et une fausse moyenne ferait plus de mal qu'un blanc.
+  //
+  // Les percentiles se prennent au rang le plus proche sur les prix triés :
+  // simple, déterministe, et le banc peut les recalculer à la main.
+  if ($path === 'listings/prix-marche' && $method === 'GET') {
+    $cat  = trim((string) ($_GET['categoryId'] ?? ''));
+    $sous = trim((string) ($_GET['subcategory'] ?? ''));
+    $etat = trim((string) ($_GET['condition'] ?? ''));
+    $marque = mb_strtolower(trim((string) ($_GET['marque'] ?? '')));
+    $sauf = trim((string) ($_GET['sauf'] ?? '')); // l'annonce qu'on modifie ne se compare pas à elle-même
+    if ($cat === '' || $sous === '') jerr('Catégorie et sous-catégorie requises.', 400);
+    $JOURS = 180;
+    $depuis = gmdate('Y-m-d\TH:i:s\Z', time() - $JOURS * 86400);
+    // 500 annonces récentes au plus : la fourchette d'un marché ne change pas
+    // au-delà, et la requête reste bornée quelle que soit la taille du site.
+    $sql = 'SELECT id, price, condition_v, attributes FROM listings
+            WHERE category_id = ? AND subcategory = ? AND price > 0
+              AND COALESCE(hidden, 0) = 0 AND created_at >= ?';
+    $args = [$cat, $sous, $depuis];
+    if ($etat === 'neuf' || $etat === 'occasion') { $sql .= ' AND condition_v = ?'; $args[] = $etat; }
+    $sql .= ' ORDER BY created_at DESC LIMIT 500';
+    $st = $pdo->prepare($sql); $st->execute($args);
+    $tous = []; $deMarque = [];
+    foreach ($st->fetchAll() as $r) {
+      if ($sauf !== '' && $r['id'] === $sauf) continue;
+      $p = (int) $r['price'];
+      $tous[] = $p;
+      if ($marque !== '') {
+        $a = $r['attributes'] ? (json_decode((string) $r['attributes'], true) ?: []) : [];
+        $m = mb_strtolower(trim((string) ($a['marque'] ?? $a['brand'] ?? '')));
+        if ($m !== '' && $m === $marque) $deMarque[] = $p;
+      }
+    }
+    $MIN = 5;
+    $base = 'sous-catégorie';
+    $prix = $tous;
+    if ($marque !== '' && count($deMarque) >= $MIN) { $prix = $deMarque; $base = 'marque'; }
+    sort($prix);
+    $n = count($prix);
+    $pct = function (float $q) use ($prix, $n): int { return $prix[(int) floor($q * ($n - 1))]; };
+    jout([
+      'n' => $n, 'jours' => $JOURS, 'base' => $base, 'minimum' => $MIN,
+      'mediane' => $n >= $MIN ? $pct(0.5) : null,
+      'p25' => $n >= $MIN ? $pct(0.25) : null,
+      'p75' => $n >= $MIN ? $pct(0.75) : null,
+    ]);
+  }
+
   if ($path === 'listings' && $method === 'GET') {
     // Le public ne voit pas les annonces masquées (par le vendeur ou la modération).
     // Jointure users.verified → badge « vendeur vérifié » affiché sur la carte.

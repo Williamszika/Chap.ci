@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { mediaUrl } from '../lib/native'
 import { rendreAffiche, partagerAffiche } from '../lib/affiche'
+import { PrixMarcheAcheteur } from '../components/PrixMarche'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -635,6 +636,15 @@ export function ListingDetail() {
               )}
             </div>
           )}
+          {/* « Ça vaut combien ? » — un mot à l'acheteur : dans la moyenne, ou
+              bien en dessous (méfiance). Voir lib/prixMarche.ts. */}
+          <PrixMarcheAcheteur
+            categoryId={listing.categoryId}
+            subcategory={listing.subcategory}
+            condition={listing.condition}
+            marque={attributs?.marque}
+            prix={promo ? promo.price : listing.price}
+          />
 
           {/* Titre */}
           <h1 className="mt-2 font-display text-xl font-bold leading-snug text-gray-900 md:text-2xl"

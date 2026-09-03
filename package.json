@@ -18,7 +18,8 @@
     "banc:empreintes": "php scripts/banc-empreintes.php",
     "banc:photos": "node scripts/banc-photos.mjs",
     "verif:flutter": "python3 scripts/verif-flutter.py",
-    "banc:affiche": "node scripts/banc-affiche.mjs"
+    "banc:affiche": "node scripts/banc-affiche.mjs",
+    "banc:prix": "node scripts/banc-prix.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

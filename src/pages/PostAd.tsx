@@ -4,6 +4,7 @@ import { poserRelais, lireRelais, retirerRelais, type EtatPhotos } from '../lib/
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown, Gift } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
+import { PrixMarcheVendeur } from '../components/PrixMarche'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { isPhp } from '../lib/backend'
@@ -1292,6 +1293,16 @@ export function PostAd() {
               FCFA
             </span>
           </div>
+          {/* « Ça vaut combien ? » — la fourchette du marché sur Chap.ci, pendant
+              la saisie. Elle informe, elle n'empêche rien. Voir lib/prixMarche.ts. */}
+          <PrixMarcheVendeur
+            categoryId={categoryId}
+            subcategory={subcategory}
+            condition={condition}
+            marque={attrs.marque}
+            prix={priceNum}
+            sauf={editId ?? undefined}
+          />
           <label className="mt-2.5 flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
