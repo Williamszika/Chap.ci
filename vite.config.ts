@@ -1,10 +1,51 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 
 // Chemin de base : '/' en local, '/Chap.ci/' pour GitHub Pages.
 // Défini via la variable d'environnement VITE_BASE au moment du build.
 const base = process.env.VITE_BASE ?? '/'
+
+// ── LES ICÔNES PORTENT LEUR EMPREINTE DANS LEUR ADRESSE ─────────────────────
+//
+// ⚠️ POURQUOI. Le 3 septembre 2026, le Patron a tapé chap.ci sur son iPad :
+// le site montrait la couronne, l'onglet montrait l'ancienne épingle. Google
+// aussi — son service d'icônes servait encore le « C » sur l'épingle, alors
+// que le serveur servait la couronne depuis deux jours, vérifié octet par
+// octet. Safari, Google, Cloudflare gardent une icône TANT QUE SON ADRESSE NE
+// CHANGE PAS : `/favicon.ico` reste `/favicon.ico`, le cache n'a aucune raison
+// de redemander.
+//
+// C'est la même leçon que le logo des e-mails, que Gmail avait figé sur ses
+// propres serveurs : la solution est dans l'adresse, pas dans le fichier.
+// L'adresse porte les 8 premiers caractères du md5 du fichier — elle change
+// donc EXACTEMENT quand le fichier change, et jamais autrement. Personne n'a de
+// numéro à incrémenter, donc personne ne peut l'oublier.
+//
+// index.html reste propre dans le dépôt : le suffixe est posé au build, par le
+// plugin ci-dessous. seo.php, servi par PHP, calcule le même md5 à la volée.
+const empreinte = (fichier: string): string =>
+  createHash('md5').update(readFileSync(`public/${fichier}`)).digest('hex').slice(0, 8)
+const versionnee = (fichier: string): string => `${fichier}?v=${empreinte(fichier)}`
+
+const iconesPlugin = {
+  name: 'chapci-icones-versionnees',
+  apply: 'build' as const,
+  transformIndexHtml(html: string) {
+    let n = 0
+    const sortie = html.replace(
+      /href="\/(favicon\.svg|favicon\.ico|apple-touch-icon\.png)"/g,
+      (_, f: string) => { n++; return `href="/${versionnee(f)}"` },
+    )
+    // Trois balises dans index.html. Si l'une disparaît ou change de forme, le
+    // build s'arrête ici plutôt que de livrer une icône que les caches
+    // garderont pour toujours.
+    if (n !== 3) throw new Error(`icônes versionnées : ${n} balise(s) trouvée(s) dans index.html, 3 attendues`)
+    return sortie
+  },
+}
 
 // P3 · Content-Security-Policy : limite fortement l'impact d'une éventuelle
 // injection (XSS). script-src SANS 'unsafe-inline' (le point clé). Origines
@@ -45,6 +86,7 @@ export default defineConfig({
   base,
   plugins: [
     cspPlugin,
+    iconesPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -61,27 +103,31 @@ export default defineConfig({
         lang: 'fr',
         // start_url et scope sont dérivés automatiquement du `base` de Vite.
         categories: ['shopping', 'business', 'lifestyle'],
+        // Même empreinte dans l'adresse que pour le favicon (voir `versionnee`
+        // en tête de fichier) : une application déjà installée sur un écran
+        // d'accueil garde son icône tant que l'adresse du manifeste ne change
+        // pas. Avec l'ancienne épingle, donc, jusqu'à ce que ça change.
         icons: [
           {
-            src: 'icons/icon-192.png',
+            src: versionnee('icons/icon-192.png'),
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icons/icon-512.png',
+            src: versionnee('icons/icon-512.png'),
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icons/icon-maskable-192.png',
+            src: versionnee('icons/icon-maskable-192.png'),
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable',
           },
           {
-            src: 'icons/icon-maskable-512.png',
+            src: versionnee('icons/icon-maskable-512.png'),
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

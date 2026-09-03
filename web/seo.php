@@ -164,6 +164,24 @@ function render_page(string $title, string $desc, string $img, string $canon, st
   echo "<title>$t</title>\n";
   echo "<meta name=\"description\" content=\"$d\">\n";
   echo "<link rel=\"canonical\" href=\"$c\">\n";
+  // ── L'ICÔNE, AVEC SON EMPREINTE DANS L'ADRESSE ────────────────────────────
+  // Ces pages sont celles que Google et WhatsApp lisent le plus, et elles ne
+  // déclaraient AUCUNE icône : le robot retombait sur /favicon.ico, dont il
+  // gardait sa copie. Le 03/09/2026, deux jours après le passage à la couronne,
+  // Google servait encore l'ancienne épingle. Les caches ne redemandent une
+  // icône que si son ADRESSE change — d'où les 8 premiers caractères du md5 du
+  // fichier, comme dans vite.config.ts pour index.html.
+  // Trois niveaux, parce que md5_file() rend `false` sur un fichier absent, et
+  // que substr(false) donne '' : un `?v=` vide serait une adresse constante,
+  // et le bug reviendrait sans bruit. (Déjà vécu avec le logo des e-mails.)
+  $vIcone = function (string $f): string {
+    $chemin = __DIR__ . '/' . $f;
+    $v = substr((string) @md5_file($chemin), 0, 8) ?: (string) @filemtime($chemin) ?: date('Ymd');
+    return h('/' . $f . '?v=' . $v);
+  };
+  echo "<link rel=\"icon\" type=\"image/svg+xml\" href=\"" . $vIcone('favicon.svg') . "\">\n";
+  echo "<link rel=\"icon\" href=\"" . $vIcone('favicon.ico') . "\" sizes=\"any\">\n";
+  echo "<link rel=\"apple-touch-icon\" href=\"" . $vIcone('apple-touch-icon.png') . "\">\n";
   echo "<meta property=\"og:type\" content=\"product\">\n";
   echo "<meta property=\"og:title\" content=\"$t\">\n";
   echo "<meta property=\"og:description\" content=\"$d\">\n";
