@@ -5,6 +5,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown, Gift } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
 import { PrixMarcheVendeur } from '../components/PrixMarche'
+import { deviner, devinerDisponible } from '../lib/deviner'
 import { useApp, type NewListingInput } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { isPhp } from '../lib/backend'
@@ -146,6 +147,14 @@ export function PostAd() {
   const [subcategory, setSubcategory] = useState('')
   const [attrs, setAttrs] = useState<Record<string, string>>({})
   const [condition, setCondition] = useState<'neuf' | 'occasion'>('occasion')
+  // « Chap.ci écrit l'annonce » : le moteur de vision lit la première photo et
+  // remplit ce qui est vide. Une seule fois par annonce, jamais par-dessus ce
+  // que la personne a tapé. Les caractéristiques attendent que le formulaire de
+  // la sous-catégorie soit chargé (voir l'effet plus bas).
+  const [devineEnCours, setDevineEnCours] = useState(false)
+  const [devineNote, setDevineNote] = useState<string | null>(null)
+  const devineFait = useRef(false)
+  const devineAttrs = useRef<Record<string, string>>({})
   const [price, setPrice] = useState('')
   const [negotiable, setNegotiable] = useState(false)
   const [promoOn, setPromoOn] = useState(false)
@@ -401,6 +410,27 @@ export function PostAd() {
   // jamais entrer dans les attributs enregistrés.
   const ctxAttrs: Record<string, string> = { ...attrs, _sub: subcategory }
   const champsVisibles = form.fields.filter((f) => !f.when || f.when(ctxAttrs))
+
+  // Les caractéristiques devinées (marque, modèle…) se posent quand le
+  // formulaire de la sous-catégorie est là : on ne garde QUE les clés qu'il
+  // connaît. Le moteur peut dire « couleur : bleu » sur une table ; si le
+  // formulaire des meubles n'a pas de champ couleur, ça ne s'écrit nulle part.
+  useEffect(() => {
+    const restant = devineAttrs.current
+    if (!Object.keys(restant).length || !form.fields.length) return
+    const poses: Record<string, string> = {}
+    for (const f of form.fields) {
+      const v = restant[f.key.toLowerCase()]
+      if (v) poses[f.key] = v
+    }
+    if (!Object.keys(poses).length) return
+    setAttrs((prev) => {
+      const next = { ...prev }
+      for (const [k, v] of Object.entries(poses)) if (!next[k]) next[k] = v
+      return next
+    })
+    for (const k of Object.keys(poses)) delete restant[k.toLowerCase()]
+  }, [form.fields])
   const venteFonciere = categoryId === 'immobilier' && attrs.transaction === 'Vente'
 
   /**
@@ -505,16 +535,43 @@ export function PostAd() {
     if (!added.length) return
     const startIndex = images.length
     setImages((prev) => [...prev, ...added].slice(0, MAX_PHOTOS))
-    // IA locale (MobileNet) : devine l'objet de la 1ʳᵉ photo → propose une
-    // catégorie et un début de description. Ne remplace JAMAIS ce que
-    // l'utilisateur a déjà saisi. Fail-open : sans effet si le modèle ne charge pas.
-    analyzePhoto(added[0])
+    // ── « CHAP.CI ÉCRIT L'ANNONCE » ────────────────────────────────────────
+    // Le moteur de vision (serveur, s'il est configuré) lit la PREMIÈRE photo
+    // et remplit titre, description, catégorie, sous-catégorie, état et
+    // caractéristiques — seulement ce qui est vide, une seule fois par
+    // annonce, jamais en modification. S'il n'est pas là ou qu'il échoue, on
+    // retombe sur l'IA locale (MobileNet), qui ne sait proposer qu'une
+    // catégorie et un début de description. Fail-open dans tous les cas.
+    const local = () => analyzePhoto(added[0])
       .then((r) => {
         if (!mountedRef.current) return
         if (r.categoryId) setCategoryId((c) => c || r.categoryId!)
         if (r.description) setDescription((d) => (d.trim() ? d : r.description!))
       })
       .catch(() => {})
+    const vierge = !editing && !devineFait.current && !title.trim() && !categoryId
+    if (!vierge) { void local(); return }
+    devineFait.current = true
+    setDevineEnCours(true)
+    void (async () => {
+      try {
+        if (!(await devinerDisponible())) { await local(); return }
+        const r = await deviner(added[0])
+        if (!mountedRef.current) return
+        if (r.confiance < 30 || (!r.titre && !r.categoryId)) { await local(); return }
+        if (r.titre) setTitle((t) => t.trim() ? t : r.titre)
+        if (r.description) setDescription((d) => (d.trim() ? d : r.description))
+        if (r.categoryId) setCategoryId((c) => c || r.categoryId)
+        if (r.subcategory) setSubcategory((s) => s || r.subcategory)
+        setCondition(r.etat)
+        devineAttrs.current = r.caracteristiques
+        setDevineNote('Chap.ci a rempli l’annonce à partir de votre photo. Relisez, corrigez ce qui ne va pas, puis publiez.')
+      } catch {
+        await local()
+      } finally {
+        if (mountedRef.current) setDevineEnCours(false)
+      }
+    })()
     // Une seule photo ajoutée : on ouvre directement l'éditeur pour l'embellir.
     if (added.length === 1) setEditIndex(startIndex)
   }
@@ -1079,6 +1136,23 @@ export function PostAd() {
           )}
         </div>
 
+        {/* « Chap.ci écrit l'annonce » : on dit ce qu'on a fait, et qu'il faut
+            relire. Une annonce remplie par une machine et publiée sans un
+            regard, c'est une annonce fausse signée du vendeur. */}
+        {devineEnCours && (
+          <p className="mb-3 flex items-center gap-2 rounded-xl bg-cream-100 px-3 py-2.5 text-sm text-gray-700" aria-live="polite">
+            <Loader2 size={16} className="animate-spin text-primary-600" /> Chap.ci lit votre photo et prépare l’annonce…
+          </p>
+        )}
+        {devineNote && !devineEnCours && (
+          <div className="mb-3 flex items-start gap-2 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-sm text-gray-800" role="status">
+            <Wand2 size={16} className="mt-0.5 shrink-0 text-primary-700" />
+            <span className="flex-1">{devineNote}</span>
+            <button type="button" onClick={() => setDevineNote(null)} aria-label="Fermer" className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-gray-500 hover:bg-white">
+              <X size={14} />
+            </button>
+          </div>
+        )}
         {/* Titre */}
         <Field label="Titre de l’annonce" htmlFor="pa-title" requis>
           <input

@@ -20,7 +20,8 @@
     "verif:flutter": "python3 scripts/verif-flutter.py",
     "banc:affiche": "node scripts/banc-affiche.mjs",
     "banc:prix": "node scripts/banc-prix.mjs",
-    "banc:offres": "node scripts/banc-offres.mjs"
+    "banc:offres": "node scripts/banc-offres.mjs",
+    "banc:deviner": "node scripts/banc-deviner.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

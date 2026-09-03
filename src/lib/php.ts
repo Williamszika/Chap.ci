@@ -502,6 +502,26 @@ export async function phpSendMessage(
 ): Promise<Message & { auto?: Message | null }> {
   return req(`/conversations/${conversationId}/messages`, { method: 'POST', body: { body } })
 }
+/** « Chap.ci écrit l'annonce » — ce que le moteur de vision propose à partir d'une photo. */
+export interface Devine {
+  titre: string
+  description: string
+  categoryId: string
+  subcategory: string
+  etat: 'neuf' | 'occasion'
+  caracteristiques: Record<string, string>
+  confiance: number
+  modele: string
+}
+export interface CatalogueDeviner { id: string; label: string; sous: { id: string; label: string }[] }
+/** Le moteur est-il configuré côté serveur ? Sans clé, l'écran ne propose rien. */
+export async function phpDevinerDisponible(): Promise<boolean> {
+  try { return (await req<{ disponible: boolean }>('/annonce/deviner')).disponible } catch { return false }
+}
+export async function phpDeviner(image: string, catalogue: CatalogueDeviner[]): Promise<Devine> {
+  return req<Devine>('/annonce/deviner', { method: 'POST', body: { image, catalogue } })
+}
+
 /** « Faire une offre » : propose un montant dans la conversation (ou contre-propose). */
 export async function phpProposerOffre(conversationId: string, montant: number): Promise<Message> {
   return req<Message>(`/conversations/${conversationId}/offre`, { method: 'POST', body: { montant } })

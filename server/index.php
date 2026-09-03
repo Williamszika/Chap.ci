@@ -57,6 +57,19 @@ $config += [
   // d'environnement) suffit — rien d'autre à redéployer.
   'traduction_url'       => getenv('CHAPCI_TRADUCTION_URL') ?: '',
   'traduction_cle'       => getenv('CHAPCI_TRADUCTION_CLE') ?: '',
+  // « Chap.ci écrit l'annonce » (03/09/2026) : le moteur de vision qui lit une
+  // photo et propose titre, catégorie, sous-catégorie, état et caractéristiques.
+  // Sans clé, la fonction est simplement absente de l'écran — rien ne casse.
+  // La clé se met dans config.php (ou en variable d'environnement), JAMAIS dans
+  // le dépôt. Le modèle et le quota sont des réglages, avec leur valeur par
+  // défaut ici, comme tout réglage (strict_types ferait d'un réglage absent une
+  // erreur fatale).
+  'vision_url'           => getenv('CHAPCI_VISION_URL')    ?: 'https://api.anthropic.com/v1/messages',
+  'vision_cle'           => getenv('CHAPCI_VISION_CLE')    ?: '',
+  'vision_modele'        => getenv('CHAPCI_VISION_MODELE') ?: 'claude-opus-5',
+  // Par personne et par jour : de quoi publier, pas de quoi faire tourner le
+  // moteur pour rien. Un appel coûte quelques centimes.
+  'vision_quota'         => (int) (getenv('CHAPCI_VISION_QUOTA') ?: 40),
   // SEUILS D'AFFICHAGE DES CHIFFRES PUBLICS.
   //
   // Un compteur n'attire que s'il impressionne. « Déjà 3 Ivoiriens sur Chap.ci »
@@ -1295,7 +1308,8 @@ function http_fetch(string $url, array $opts = []): array {
   if (function_exists('curl_init')) {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    // 15 s par défaut ; un moteur de vision qui lit une photo en veut jusqu'à 60.
+    curl_setopt($ch, CURLOPT_TIMEOUT, (int) ($opts['timeout'] ?? 15));
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     if ($headers) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -1313,7 +1327,7 @@ function http_fetch(string $url, array $opts = []): array {
   $hdr = $headers;
   if ($userpwd) $hdr[] = 'Authorization: Basic ' . base64_encode($userpwd);
   $ctx = stream_context_create([
-    'http' => ['method' => $method, 'header' => implode("\r\n", $hdr), 'content' => $body, 'timeout' => 15, 'ignore_errors' => true],
+    'http' => ['method' => $method, 'header' => implode("\r\n", $hdr), 'content' => $body, 'timeout' => (int) ($opts['timeout'] ?? 15), 'ignore_errors' => true],
     'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
   ]);
   $resp = @file_get_contents($url, false, $ctx);
@@ -6403,6 +6417,142 @@ try {
   //
   // Route publique (les visiteurs lisent les annonces sans compte), throttlée
   // par IP pour que personne n'en fasse un traducteur gratuit à volonté.
+  // ── « CHAP.CI ÉCRIT L'ANNONCE » — le moteur de vision ────────────────────
+  //
+  // Nouveauté n° 1 du 03/09/2026, l'effet « waouh » : le vendeur prend la photo,
+  // le titre, la catégorie, la sous-catégorie, l'état et les caractéristiques
+  // se remplissent ; il corrige et publie. Publier passe de cinq minutes à
+  // trente secondes.
+  //
+  // Même patron que la traduction : un moteur branchable derrière un réglage.
+  // Sans clé (`vision_cle`), GET répond « pas disponible » et l'écran ne montre
+  // rien. Le moteur est l'API Claude (Messages) : la photo en base64, le
+  // catalogue des catégories envoyé PAR LE CLIENT — c'est lui qui le connaît,
+  // le serveur PHP n'en a pas de copie, et une copie divergerait —, et une
+  // réponse contrainte à un schéma JSON. Le serveur VÉRIFIE ensuite que la
+  // catégorie et la sous-catégorie rendues existent dans ce catalogue : un
+  // moteur peut inventer, l'écran ne doit pas le voir.
+  //
+  // Ce que ça ne fait pas : le prix. Un moteur inventerait un chiffre ; le prix
+  // conseillé vient de « Ça vaut combien ? », mesuré sur Chap.ci.
+  //
+  // Le quota (`vision_quota` par personne et par jour) passe par rate_limit(),
+  // donc par le journal de sécurité — chaque appel réussi y est écrit, c'est ce
+  // qui le compte.
+  if ($path === 'annonce/deviner' && $method === 'GET') {
+    jout(['disponible' => (string) ($config['vision_cle'] ?? '') !== '']);
+  }
+  if ($path === 'annonce/deviner' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if ((string) ($config['vision_cle'] ?? '') === '') jerr('Le moteur de vision n’est pas configuré.', 503);
+    $b = body();
+    $image = (string) ($b['image'] ?? '');
+    $catalogue = is_array($b['catalogue'] ?? null) ? $b['catalogue'] : [];
+    if (!preg_match('#^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$#', $image, $m)) jerr('Photo illisible.', 400);
+    if (strlen($m[2]) > 2_000_000) jerr('Photo trop lourde pour le moteur (2 Mo max).', 413);
+    if (!$catalogue) jerr('Catalogue des catégories manquant.', 400);
+    rate_limit($pdo, 'deviner', $u['email'] ?? null, (int) ($config['vision_quota'] ?? 40), 86400);
+
+    // Le catalogue tel que le moteur le lira, et tel qu'on vérifiera sa réponse.
+    $valides = []; $lignes = [];
+    foreach ($catalogue as $c) {
+      $cid = (string) ($c['id'] ?? ''); if ($cid === '') continue;
+      $sous = [];
+      foreach ((array) ($c['sous'] ?? []) as $s) {
+        $sid = (string) ($s['id'] ?? ''); if ($sid === '') continue;
+        $sous[$sid] = (string) ($s['label'] ?? $sid);
+      }
+      $valides[$cid] = $sous;
+      $lignes[] = $cid . ' (' . (string) ($c['label'] ?? $cid) . ') : '
+        . implode(', ', array_map(fn($k, $v) => "$k ($v)", array_keys($sous), $sous));
+    }
+
+    $consigne = "Tu aides un vendeur de Chap.ci, place de marché de Côte d'Ivoire, à rédiger son annonce à partir d'une photo.\n"
+      . "Réponds en français, comme un vendeur ivoirien soigné : titre court et concret (marque et modèle s'ils se voient), "
+      . "description de deux à quatre phrases, honnête, sans inventer ce que la photo ne montre pas.\n"
+      . "Choisis la catégorie et la sous-catégorie UNIQUEMENT dans ce catalogue (identifiants exacts) :\n"
+      . implode("\n", $lignes) . "\n"
+      . "Si l'objet ne va nulle part, mets confiance à 0. N'indique JAMAIS de prix.";
+    $schema = [
+      'type' => 'object', 'additionalProperties' => false,
+      'required' => ['titre', 'description', 'categoryId', 'subcategory', 'etat', 'caracteristiques', 'confiance'],
+      'properties' => [
+        'titre' => ['type' => 'string'],
+        'description' => ['type' => 'string'],
+        'categoryId' => ['type' => 'string'],
+        'subcategory' => ['type' => 'string'],
+        'etat' => ['type' => 'string', 'enum' => ['neuf', 'occasion']],
+        // marque, modele, couleur, taille… — le client garde celles que la
+        // sous-catégorie connaît.
+        'caracteristiques' => ['type' => 'array', 'items' => [
+          'type' => 'object', 'additionalProperties' => false, 'required' => ['cle', 'valeur'],
+          'properties' => ['cle' => ['type' => 'string'], 'valeur' => ['type' => 'string']],
+        ]],
+        'confiance' => ['type' => 'integer'],
+      ],
+    ];
+    $requete = [
+      'model' => (string) $config['vision_modele'],
+      'max_tokens' => 1024,
+      // Une tâche de classification : peu de réflexion suffit, et ça coûte moins.
+      'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
+      // Repli automatique si le modèle décline (voir la doc « fallbacks ») :
+      // une photo d'annonce n'a aucune raison d'être refusée, mais on ne laisse
+      // pas le vendeur devant un écran vide si ça arrive.
+      'fallbacks' => 'default',
+      'system' => $consigne,
+      'messages' => [['role' => 'user', 'content' => [
+        ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => 'image/' . $m[1], 'data' => $m[2]]],
+        ['type' => 'text', 'text' => 'Rédige l’annonce pour cette photo.'],
+      ]]],
+    ];
+    $r = http_fetch((string) $config['vision_url'], [
+      'method' => 'POST', 'timeout' => 60,
+      'headers' => [
+        'Content-Type: application/json',
+        'x-api-key: ' . $config['vision_cle'],
+        'anthropic-version: 2023-06-01',
+        'anthropic-beta: server-side-fallback-2026-07-01',
+      ],
+      'body' => json_encode($requete, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    if ($r['status'] !== 200) {
+      error_log('[chapci] deviner · moteur HTTP ' . $r['status'] . ' · ' . substr($r['body'], 0, 200));
+      jerr('Le moteur n’a pas répondu. Écrivez l’annonce vous-même, ou réessayez.', 502);
+    }
+    $rep = json_decode($r['body'], true);
+    // On lit stop_reason AVANT le contenu : un refus ou une coupure ne se
+    // parsent pas comme une réponse.
+    $stop = (string) ($rep['stop_reason'] ?? '');
+    if ($stop === 'refusal') jerr('Le moteur n’a pas voulu décrire cette photo.', 422);
+    $texte = '';
+    foreach ((array) ($rep['content'] ?? []) as $bloc) if (($bloc['type'] ?? '') === 'text') $texte .= $bloc['text'];
+    $d = json_decode($texte, true);
+    if (!is_array($d) || $stop === 'max_tokens') {
+      error_log('[chapci] deviner · réponse illisible · ' . substr($texte, 0, 200));
+      jerr('Le moteur a répondu de travers. Écrivez l’annonce vous-même, ou réessayez.', 502);
+    }
+    // La vérification : la catégorie et la sous-catégorie DOIVENT être du catalogue.
+    $cat = (string) ($d['categoryId'] ?? ''); $sous = (string) ($d['subcategory'] ?? '');
+    if (!isset($valides[$cat])) { $cat = ''; $sous = ''; }
+    elseif (!isset($valides[$cat][$sous])) $sous = '';
+    $carac = [];
+    foreach ((array) ($d['caracteristiques'] ?? []) as $kv) {
+      $k = mb_strtolower(trim((string) ($kv['cle'] ?? ''))); $v = trim((string) ($kv['valeur'] ?? ''));
+      if ($k !== '' && $v !== '' && mb_strlen($v) <= 120) $carac[$k] = $v;
+    }
+    log_security_event($pdo, 'deviner', $u['email'] ?? null, $cat . '/' . $sous);
+    jout([
+      'titre' => mb_substr(trim((string) ($d['titre'] ?? '')), 0, 120),
+      'description' => mb_substr(trim((string) ($d['description'] ?? '')), 0, 2000),
+      'categoryId' => $cat, 'subcategory' => $sous,
+      'etat' => in_array($d['etat'] ?? '', ['neuf', 'occasion'], true) ? $d['etat'] : 'occasion',
+      'caracteristiques' => $carac,
+      'confiance' => max(0, min(100, (int) ($d['confiance'] ?? 0))),
+      'modele' => (string) ($rep['model'] ?? $config['vision_modele']),
+    ]);
+  }
+
   if ($path === 'traduire' && $method === 'POST') {
     $b = body();
     $listingId = (string) ($b['listingId'] ?? '');
