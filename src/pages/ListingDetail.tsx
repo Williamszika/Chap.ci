@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { mediaUrl } from '../lib/native'
+import { rendreAffiche, partagerAffiche } from '../lib/affiche'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -81,6 +82,7 @@ export function ListingDetail() {
   // Photo ouverte en plein écran (null = visionneuse fermée).
   const [viewer, setViewer] = useState<number | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
+  const [afficheEnCours, setAfficheEnCours] = useState(false)
   const [busy, setBusy] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
   const [purchased, setPurchased] = useState(false)
@@ -368,6 +370,35 @@ export function ListingDetail() {
       catch { /* annulé -> on ouvre le menu */ }
     }
     setShareOpen(true)
+  }
+
+  /**
+   * L'affiche pour le statut WhatsApp : 1080 × 1920, fabriquée dans le
+   * téléphone, envoyée au partage du système (WhatsApp y est en tête) ou
+   * téléchargée si le navigateur ne sait pas partager un fichier.
+   * Voir `lib/affiche.ts` pour le pourquoi.
+   */
+  async function affiche() {
+    if (!listing) return
+    setAfficheEnCours(true)
+    try {
+      const p = activePromo(listing)
+      const blob = await rendreAffiche({
+        id: listing.id,
+        titre: listing.title,
+        prix: listing.price === 0 ? 'Gratuit' : formatFCFA(p ? p.price : listing.price),
+        prixBarre: p ? formatFCFA(p.original) : undefined,
+        photo: listing.images[0] ? mediaUrl(listing.images[0]) : undefined,
+        lieu: locationLabel(listing.regionId, listing.cityId, listing.commune),
+        etat: listing.condition === 'neuf' ? 'Neuf' : 'Occasion',
+      })
+      const fait = await partagerAffiche(blob, `chapci-${listing.id}.png`, `${shareText}\n${shareUrl}`)
+      if (fait === 'telecharge') toast.success('Affiche enregistrée dans vos images : collez-la en statut WhatsApp.')
+    } catch {
+      toast.error('L’affiche n’a pas pu être fabriquée. Réessayez, ou partagez le lien.')
+    } finally {
+      setAfficheEnCours(false)
+    }
   }
 
   function requireAuth(): boolean {
@@ -1012,6 +1043,8 @@ export function ListingDetail() {
           text={shareText}
           onNative={share}
           hasNative={typeof navigator !== 'undefined' && !!navigator.share}
+          onAffiche={affiche}
+          afficheEnCours={afficheEnCours}
           onClose={() => setShareOpen(false)}
         />
       )}
@@ -1019,10 +1052,13 @@ export function ListingDetail() {
   )
 }
 
-/** Feuille de partage : WhatsApp, Facebook, copier le lien, partage natif. */
+/** Feuille de partage : WhatsApp, Facebook, copier le lien, l'affiche pour le statut, partage natif. */
 function ShareSheet({
-  url, text, onClose, onNative, hasNative,
-}: { url: string; text: string; onClose: () => void; onNative: () => void; hasNative: boolean }) {
+  url, text, onClose, onNative, hasNative, onAffiche, afficheEnCours,
+}: {
+  url: string; text: string; onClose: () => void; onNative: () => void; hasNative: boolean
+  onAffiche: () => void; afficheEnCours: boolean
+}) {
   const [copied, setCopied] = useState(false)
   const wa = `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`
   const fb = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`
@@ -1051,8 +1087,19 @@ function ShareSheet({
             <span className="text-xs font-medium text-gray-700">{copied ? 'Copié !' : 'Copier'}</span>
           </button>
         </div>
+        {/* L'affiche pour le statut : c'est LÀ que ça se vend à Abidjan. Une
+            image 1080 × 1920 fabriquée dans le téléphone — voir lib/affiche.ts. */}
+        <button
+          onClick={onAffiche}
+          disabled={afficheEnCours}
+          aria-busy={afficheEnCours}
+          className="btn-primary mt-4 flex w-full items-center justify-center gap-2 py-3 text-sm disabled:opacity-60"
+        >
+          <span aria-hidden="true">📣</span>
+          {afficheEnCours ? 'Fabrication de l’affiche…' : 'Affiche pour mon statut WhatsApp'}
+        </button>
         {hasNative && (
-          <button onClick={() => { onClose(); onNative() }} className="btn-outline mt-4 w-full py-2.5 text-sm">
+          <button onClick={() => { onClose(); onNative() }} className="btn-outline mt-2 w-full py-2.5 text-sm">
             Plus d’options…
           </button>
         )}
