@@ -16,9 +16,12 @@ import {
   phpArchiveConversation,
   phpBlockConversation,
   phpReportConversation,
+  phpProposerOffre,
+  phpRepondreOffre,
 } from '../lib/php'
 import { fetchReponses, type ReponsePrete } from '../lib/api'
 import { DealCard } from '../components/DealCard'
+import { OffreSheet, OffreCarte } from '../components/Offre'
 import type { Conversation as Conv, Message } from '../types'
 
 /** Une ligne du menu d'actions (feuille du bas). */
@@ -99,6 +102,10 @@ export function Conversation() {
   const { user } = useAuth()
   const { markRead, refresh } = useNotifications()
   const [conv, setConv] = useState<Conv | null>(null)
+  // « Faire une offre » : la feuille du montant, et le verrou pendant qu'une
+  // réponse (accepter / refuser) part au serveur.
+  const [offreOuverte, setOffreOuverte] = useState(false)
+  const [offreEnCours, setOffreEnCours] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -194,6 +201,38 @@ export function Conversation() {
       setText(body)
     } finally {
       setSending(false)
+    }
+  }
+
+  /** « Proposer un prix » — sert aussi de contre-proposition. */
+  async function proposerOffre(montant: number) {
+    if (!id) return
+    const saved = await phpProposerOffre(id, montant)
+    setMessages((prev) => {
+      // Ma précédente offre encore ouverte est « remplacée » côté serveur :
+      // on le reflète tout de suite, sans attendre le prochain sondage.
+      const maj = prev.map((m) => (m.offre && m.offre.par === user?.id && m.offre.statut === 'proposee'
+        ? { ...m, offre: { ...m.offre, statut: 'remplacee' as const } } : m))
+      return maj.some((m) => m.id === saved.id) ? maj : [...maj, saved]
+    })
+    setOffreOuverte(false)
+  }
+
+  async function repondreOffre(mid: string, action: 'accepter' | 'refuser') {
+    if (!id) return
+    setOffreEnCours(true)
+    try {
+      const r = await phpRepondreOffre(id, mid, action)
+      setMessages((prev) => {
+        const maj = prev.map((m) => (m.id === mid ? { ...m, offre: r.offre } : m))
+        return maj.some((m) => m.id === r.message.id) ? maj : [...maj, r.message]
+      })
+    } catch {
+      // Le serveur a dit non (offre déjà close, ou plus la mienne à traiter) :
+      // on relit le fil plutôt que d'afficher un état qu'on a deviné.
+      try { setMessages(await fetchMessages(id)) } catch { /* le prochain sondage le fera */ }
+    } finally {
+      setOffreEnCours(false)
     }
   }
 
@@ -357,6 +396,15 @@ export function Conversation() {
                     >
                       {m.deleted ? (
                         <p className={`whitespace-pre-wrap break-words italic ${mine ? 'text-white/80' : 'text-gray-500'}`}>Message supprimé</p>
+                      ) : m.offre ? (
+                        <OffreCarte
+                          message={m}
+                          moi={user.id}
+                          mine={mine}
+                          enCours={offreEnCours}
+                          onRepondre={(action) => void repondreOffre(m.id, action)}
+                          onContre={() => setOffreOuverte(true)}
+                        />
                       ) : (
                         <p className="whitespace-pre-wrap break-words">{m.body}</p>
                       )}
@@ -387,6 +435,18 @@ export function Conversation() {
               onSubmit={send}
               className="safe-bottom sticky bottom-0 flex items-center gap-2 border-t border-line bg-white px-3 py-3 md:rounded-b-3xl"
             >
+              {/* « Proposer un prix » : l'offre structurée, à la place de
+                  « dernier prix ? ». Sert aussi de contre-proposition. */}
+              {conv?.listingId && (
+                <button
+                  type="button"
+                  onClick={() => setOffreOuverte(true)}
+                  aria-label="Proposer un prix"
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cream-100 text-primary-600 transition active:scale-95"
+                >
+                  <Tag size={18} />
+                </button>
+              )}
               {reponses.length > 0 && (
                 <button
                   type="button"
@@ -417,6 +477,16 @@ export function Conversation() {
           {/* Réponses toutes prêtes — un appui pose la phrase dans la barre de
               saisie. On n'envoie pas à la place du vendeur : il relit, il
               complète le prix ou la commune, puis il envoie. */}
+          {offreOuverte && (
+            <OffreSheet
+              // Le point de départ : la dernière offre du fil, sinon rien — la
+              // conversation ne connaît pas le prix de l'annonce.
+              prix={[...messages].reverse().find((m) => m.offre)?.offre?.montant ?? 0}
+              titre="Proposer un prix"
+              onClose={() => setOffreOuverte(false)}
+              onEnvoyer={proposerOffre}
+            />
+          )}
           {feuilleReponses && (
             <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setFeuilleReponses(false)}>
               <div className="w-full max-w-md rounded-t-3xl bg-white p-4 pb-6" onClick={(e) => e.stopPropagation()}>

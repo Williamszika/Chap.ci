@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { mediaUrl } from '../lib/native'
 import { rendreAffiche, partagerAffiche } from '../lib/affiche'
 import { PrixMarcheAcheteur } from '../components/PrixMarche'
+import { OffreSheet } from '../components/Offre'
+import { phpProposerOffre } from '../lib/php'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -22,6 +24,7 @@ import {
   Maximize2,
   ChevronRight,
   Timer,
+  Tag,
 } from 'lucide-react'
 import { fetchSellerResponseTime } from '../lib/api'
 import { BrandBadge } from '../components/BrandLogo'
@@ -84,6 +87,7 @@ export function ListingDetail() {
   const [viewer, setViewer] = useState<number | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [afficheEnCours, setAfficheEnCours] = useState(false)
+  const [offreOuverte, setOffreOuverte] = useState(false)
   const [busy, setBusy] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
   const [purchased, setPurchased] = useState(false)
@@ -455,6 +459,19 @@ export function ListingDetail() {
       toast.error('Impossible d’ouvrir la conversation.')
       setBusy(false)
     }
+  }
+
+  /**
+   * « Faire une offre » : la conversation s'ouvre (ou se retrouve), l'offre y
+   * part, et on y emmène l'acheteur — c'est là que la suite se passe.
+   */
+  async function faireOffre(montant: number) {
+    if (isDemo) return demoNotice()
+    if (!requireAuth() || !listing || !user) return
+    const convId = await getOrCreateConversation(listing, user.id)
+    await phpProposerOffre(convId, montant)
+    setOffreOuverte(false)
+    navigate(`/messages/${convId}`)
   }
 
   async function submitReview() {
@@ -889,6 +906,11 @@ export function ListingDetail() {
                   <button onClick={askQuestion} disabled={busy} className={`${greenBtn} flex-1`}>
                     <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
                   </button>
+                  {listing.price > 0 && !listing.sold && (
+                    <button onClick={() => { if (requireAuth()) setOffreOuverte(true) }} disabled={busy} className="btn-outline flex-1">
+                      <Tag size={18} /> Faire une offre
+                    </button>
+                  )}
                   <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
                     <ShoppingBag size={18} /> Acheter
                   </button>
@@ -1047,6 +1069,14 @@ export function ListingDetail() {
         />
       )}
 
+      {offreOuverte && listing && (
+        <OffreSheet
+          prix={promo ? promo.price : listing.price}
+          titre="Faire une offre"
+          onClose={() => setOffreOuverte(false)}
+          onEnvoyer={faireOffre}
+        />
+      )}
       {shareOpen && (
         <ShareSheet
           url={shareUrl}

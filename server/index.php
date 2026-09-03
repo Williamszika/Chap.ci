@@ -2114,6 +2114,12 @@ function migrate(PDO $pdo): void {
   // celui d'un robot, et l'acheteur le découvrirait en attendant trois jours.
   try { $pdo->exec("ALTER TABLE messages ADD COLUMN auto $intT"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // « Faire une offre » (03/09/2026) : une offre est un message qui porte, en
+  // plus de son texte, un JSON {montant, statut, par}. Elle vit dans la
+  // conversation parce que « dernier prix ? » s'y disait déjà — et parce que
+  // notifications, non-lus, blocages et suppression y sont déjà réglés.
+  try { $pdo->exec("ALTER TABLE messages ADD COLUMN offre $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_auto_reply $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_auto_reply_on $intT"); }
@@ -6922,6 +6928,16 @@ try {
         if ($lr = $ls->fetch()) { $lt = $lr['title']; $imgs = json_decode($lr['images'] ?: '[]', true); $li = $imgs[0] ?? null; }
       }
       $apercu = $last ? (!empty($last['deleted_at']) ? 'Message supprimé' : $last['body']) : null;
+      // L'offre qui M'attend : la dernière de l'autre, encore « proposée ».
+      // C'est elle que la liste des messages montre en pastille — « 3 offres
+      // reçues » se voit là où le vendeur répond, pas dans un tableau à part.
+      $offreEnAttente = null;
+      $oa = $pdo->prepare('SELECT offre FROM messages WHERE conversation_id = ? AND sender_id <> ? AND offre IS NOT NULL
+                           ORDER BY created_at DESC LIMIT 1');
+      $oa->execute([$c['id'], $id]);
+      if (($oj = $oa->fetchColumn()) && ($od = json_decode((string) $oj, true)) && ($od['statut'] ?? '') === 'proposee') {
+        $offreEnAttente = (int) $od['montant'];
+      }
       $out[] = [
         'id' => $c['id'], 'listingId' => $c['listing_id'], 'buyerId' => $c['buyer_id'],
         'sellerId' => $c['seller_id'], 'createdAt' => iso_to_ms($c['created_at']),
@@ -6931,6 +6947,7 @@ try {
         'lastSenderId' => $last['sender_id'] ?? null,
         'dernierHumain' => $dernierHumain,
         'lastAuto' => !empty($last['auto']),
+        'offreEnAttente' => $offreEnAttente,
         'archived' => (bool) $archivee,
         'pinned' => $epingle,
         'blockedByMe' => isset($jaiBloque[(string) $otherId]),
@@ -6985,6 +7002,7 @@ try {
         'body' => empty($m['deleted_at']) ? $m['body'] : null,
         'deleted' => !empty($m['deleted_at']),
         'auto' => !empty($m['auto']),
+        'offre' => !empty($m['offre']) ? (json_decode((string) $m['offre'], true) ?: null) : null,
         'createdAt' => iso_to_ms($m['created_at']),
       ], $ms->fetchAll()));
     }
@@ -7061,6 +7079,93 @@ try {
   }
 
   // ---- Supprimer un de MES messages (pour tout le monde) --------------------
+  // ── « FAIRE UNE OFFRE » — la négociation, structurée ─────────────────────
+  //
+  // Nouveauté n° 4 du 03/09/2026. Au lieu de « dernier prix ? » dans le chat :
+  // un montant, que l'autre accepte, refuse, ou contre-propose. Une offre est
+  // un MESSAGE de la conversation (colonne `offre`, JSON {montant, statut,
+  // par}) : elle hérite des notifications, des non-lus, des blocages et de la
+  // suppression, sans rien réinventer. Son texte (« Offre : 120 000 FCFA »)
+  // reste lisible par une application qui ne connaît pas encore les offres.
+  //
+  // Les états : proposee → acceptee | refusee ; une nouvelle offre du même
+  // auteur rend la précédente « remplacee ». Répond seul le DESTINATAIRE de
+  // l'offre ; l'auteur ne peut pas accepter sa propre offre — c'est le banc
+  // qui le vérifie, pas l'écran.
+  //
+  // Accepter n'est pas payer, et ne change pas le prix affiché de l'annonce :
+  // c'est une parole donnée dans la conversation. Le paiement reste ce qu'il
+  // est aujourd'hui — en main propre, ou à la livraison.
+  if (count($seg) >= 3 && $seg[0] === 'conversations' && $seg[2] === 'offre' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $convId = $seg[1];
+    $cs = $pdo->prepare('SELECT * FROM conversations WHERE id = ?'); $cs->execute([$convId]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $autre = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+    // Même règle que pour un message : bloqué d'un côté ou de l'autre, rien ne passe.
+    $bk = $pdo->prepare('SELECT 1 FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)');
+    $bk->execute([$u['id'], $autre, $autre, $u['id']]);
+    if ($bk->fetch()) jerr('Vous ne pouvez plus écrire dans cette conversation.', 403);
+    $b = body();
+    $sn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $sn->execute([$u['id']]);
+    $nom = trim((string) ($sn->fetch()['full_name'] ?? '')) ?: 'Un utilisateur';
+
+    if (count($seg) === 3) {
+      // ── Proposer ──
+      $montant = (int) ($b['montant'] ?? 0);
+      if ($montant <= 0 || $montant > 1000000000) jerr('Indiquez un montant en FCFA.', 400);
+      // Ma précédente offre encore ouverte est remplacée : une seule parole à la fois.
+      $prec = $pdo->prepare('SELECT id, offre FROM messages WHERE conversation_id = ? AND sender_id = ? AND offre IS NOT NULL');
+      $prec->execute([$convId, $u['id']]);
+      foreach ($prec->fetchAll() as $pm) {
+        $po = json_decode((string) $pm['offre'], true) ?: [];
+        if (($po['statut'] ?? '') === 'proposee') {
+          $po['statut'] = 'remplacee';
+          $pdo->prepare('UPDATE messages SET offre = ? WHERE id = ?')->execute([json_encode($po), $pm['id']]);
+        }
+      }
+      $id = uuid(); $ts = now_iso();
+      $offre = ['montant' => $montant, 'statut' => 'proposee', 'par' => (string) $u['id']];
+      $texte = 'Offre : ' . number_format($montant, 0, ',', ' ') . ' FCFA';
+      $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at,offre) VALUES (?,?,?,?,?,?)')
+          ->execute([$id, $convId, $u['id'], $texte, $ts, json_encode($offre)]);
+      notify($pdo, (string) $autre, 'message', 'Nouvelle offre',
+        $nom . ' vous propose ' . number_format($montant, 0, ',', ' ') . ' FCFA.', '#/messages/' . $convId);
+      jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'], 'body' => $texte,
+            'createdAt' => iso_to_ms($ts), 'offre' => $offre]);
+    }
+
+    // ── Répondre : /conversations/{id}/offre/{messageId} ──
+    $mid = (string) ($seg[3] ?? '');
+    $action = (string) ($b['action'] ?? '');
+    if (!in_array($action, ['accepter', 'refuser'], true)) jerr('Action inconnue.', 400);
+    $ms = $pdo->prepare('SELECT * FROM messages WHERE id = ? AND conversation_id = ? AND offre IS NOT NULL');
+    $ms->execute([$mid, $convId]);
+    $m = $ms->fetch();
+    if (!$m) jerr('Offre introuvable.', 404);
+    $o = json_decode((string) $m['offre'], true) ?: [];
+    // Seul le DESTINATAIRE répond. L'auteur qui « accepte » sa propre offre
+    // fabriquerait une preuve d'accord que personne n'a donné.
+    if ((string) $m['sender_id'] === (string) $u['id']) jerr('Vous ne pouvez pas répondre à votre propre offre.', 403);
+    if (($o['statut'] ?? '') !== 'proposee') jerr('Cette offre n’est plus ouverte.', 409);
+    $o['statut'] = $action === 'accepter' ? 'acceptee' : 'refusee';
+    $o['repondu'] = now_iso();
+    $pdo->prepare('UPDATE messages SET offre = ? WHERE id = ?')->execute([json_encode($o), $mid]);
+    // La réponse s'écrit aussi en clair dans le fil : la conversation se relit
+    // sans avoir à deviner l'état d'une pastille.
+    $rid = uuid(); $rts = now_iso();
+    $rtexte = ($action === 'accepter' ? 'Offre acceptée : ' : 'Offre refusée : ')
+            . number_format((int) $o['montant'], 0, ',', ' ') . ' FCFA';
+    $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at) VALUES (?,?,?,?,?)')
+        ->execute([$rid, $convId, $u['id'], $rtexte, $rts]);
+    notify($pdo, (string) $m['sender_id'], 'message', $action === 'accepter' ? 'Offre acceptée ✅' : 'Offre refusée',
+      $nom . ($action === 'accepter' ? ' accepte votre offre de ' : ' refuse votre offre de ')
+      . number_format((int) $o['montant'], 0, ',', ' ') . ' FCFA.', '#/messages/' . $convId);
+    jout(['ok' => true, 'offre' => $o, 'message' => ['id' => $rid, 'conversationId' => $convId,
+          'senderId' => $u['id'], 'body' => $rtexte, 'createdAt' => iso_to_ms($rts)]]);
+  }
+
   if (count($seg) === 4 && $seg[0] === 'conversations' && $seg[2] === 'messages' && $method === 'DELETE') {
     $u = require_user($pdo, $secret); $convId = $seg[1]; $msgId = $seg[3];
     $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$convId]);

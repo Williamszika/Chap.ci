@@ -502,6 +502,16 @@ export async function phpSendMessage(
 ): Promise<Message & { auto?: Message | null }> {
   return req(`/conversations/${conversationId}/messages`, { method: 'POST', body: { body } })
 }
+/** « Faire une offre » : propose un montant dans la conversation (ou contre-propose). */
+export async function phpProposerOffre(conversationId: string, montant: number): Promise<Message> {
+  return req<Message>(`/conversations/${conversationId}/offre`, { method: 'POST', body: { montant } })
+}
+/** Accepte ou refuse une offre reçue. Renvoie l'offre mise à jour et le message écrit dans le fil. */
+export async function phpRepondreOffre(
+  conversationId: string, messageId: string, action: 'accepter' | 'refuser',
+): Promise<{ ok: true; offre: NonNullable<Message['offre']>; message: Message }> {
+  return req(`/conversations/${conversationId}/offre/${messageId}`, { method: 'POST', body: { action } })
+}
 /** Supprime un de MES messages (pour tout le monde). */
 export async function phpDeleteMessage(conversationId: string, messageId: string): Promise<void> {
   await req(`/conversations/${conversationId}/messages/${messageId}`, { method: 'DELETE' })

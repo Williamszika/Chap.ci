@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mediaUrl, thumbUrl } from '../lib/native'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bot, MessageCircle, LogIn } from 'lucide-react'
+import { ArrowLeft, Bot, MessageCircle, LogIn, Tag } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { useNotifications } from '../store/NotificationsContext'
-import { timeAgo } from '../lib/format'
+import { timeAgo, formatFCFA } from '../lib/format'
 import type { Conversation } from '../types'
 
 /**
@@ -141,6 +141,13 @@ export function ConversationList({ activeId }: { activeId?: string }) {
               </span>
             )}
           </div>
+          {/* Une offre qui M'attend : c'est ici que le vendeur la voit avant
+              d'ouvrir — « 3 offres reçues » se lit ligne par ligne. */}
+          {c.offreEnAttente != null && (
+            <p className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-extrabold text-amber-800">
+              <Tag size={11} /> Offre : {formatFCFA(c.offreEnAttente)}
+            </p>
+          )}
           <p className={`truncate text-sm ${attend || unread ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
             {c.lastMessage
               ? c.lastAuto ? `Réponse automatique : « ${c.lastMessage} »`

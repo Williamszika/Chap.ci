@@ -114,6 +114,8 @@ export interface Conversation {
   /** J'ai bloqué l'autre / l'autre m'a bloqué. */
   blockedByMe?: boolean
   blockedMe?: boolean
+  /** Le montant de la dernière offre de l'autre encore ouverte — celle qui M'attend. */
+  offreEnAttente?: number | null
 }
 
 export interface Message {
@@ -126,6 +128,20 @@ export interface Message {
   deleted?: boolean
   /** Réponse automatique du vendeur — affichée comme telle, jamais comptée. */
   auto?: boolean
+  /**
+   * « Faire une offre » : le message porte un montant et un état. Seul le
+   * destinataire y répond ; une nouvelle offre du même auteur remplace la
+   * précédente. Voir components/Offre.tsx.
+   */
+  offre?: Offre
+}
+
+export interface Offre {
+  montant: number
+  statut: 'proposee' | 'acceptee' | 'refusee' | 'remplacee'
+  /** id de l'auteur de l'offre */
+  par: string
+  repondu?: string
 }
 
 // — Panier & commandes —
