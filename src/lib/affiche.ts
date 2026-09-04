@@ -263,13 +263,19 @@ export async function rendreAffiche(d: AfficheDonnees): Promise<Blob> {
  * Envoie l'affiche à WhatsApp (ou ailleurs) par le partage du système ; si le
  * navigateur ne sait pas partager un fichier, la télécharge. Renvoie ce qui a
  * été fait, pour que l'écran dise la bonne phrase.
+ *
+ * ⚠️ L'IMAGE PART SEULE, SANS TEXTE. Le 4 septembre 2026, deux essais du Patron
+ * (iPhone, puis WhatsApp sur Mac) ont donné deux statuts SANS l'affiche : quand
+ * WhatsApp reçoit une image ET un texte qui contient un lien, il garde le lien,
+ * fabrique sa propre carte d'aperçu, et jette l'image. Le lien est déjà écrit
+ * sur l'affiche ; le texte n'apportait rien qu'elle n'ait déjà.
  */
-export async function partagerAffiche(blob: Blob, nom: string, texte: string): Promise<'partage' | 'telecharge'> {
+export async function partagerAffiche(blob: Blob, nom: string): Promise<'partage' | 'telecharge'> {
   const fichier = new File([blob], nom, { type: 'image/png' })
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
   if (nav.share && nav.canShare?.({ files: [fichier] })) {
     try {
-      await nav.share({ files: [fichier], text: texte })
+      await nav.share({ files: [fichier] })
       return 'partage'
     } catch (e) {
       // Annulé par la personne : rien à faire, et surtout pas un téléchargement

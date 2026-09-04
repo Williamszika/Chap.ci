@@ -726,7 +726,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   Future<void> _affiche(BuildContext ctx, Listing a) async {
     if (_afficheEnCours) return;
     setState(() => _afficheEnCours = true);
-    final url = 'https://chap.ci/annonce/${a.id}';
     final box = ctx.findRenderObject() as RenderBox?;
     final origine =
         box != null ? box.localToGlobal(Offset.zero) & box.size : null;
@@ -744,9 +743,8 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         lieu: locationLabel(a.regionId, a.cityId, a.commune),
         etat: a.condition == 'neuf' ? 'Neuf' : 'Occasion',
       ));
-      await partagerAffiche(png, 'chapci-${a.id}.png',
-          '${a.title} — ${formatFCFA(a.prixAffiche)}\n$url',
-          origine: origine);
+      // L'image part seule : voir l'avertissement sur partagerAffiche.
+      await partagerAffiche(png, 'chapci-${a.id}.png', origine: origine);
     } catch (_) {
       if (mounted) _info(context, tr(context, 'partage.afficheEchec'));
     } finally {

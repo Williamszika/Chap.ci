@@ -366,12 +366,16 @@ Future<Uint8List> rendreAffiche(AfficheDonnees d) async {
 /// s'ancrer. Le fichier part de la mémoire : share_plus l'écrit lui-même dans
 /// le dossier temporaire, rien ne reste dans la galerie sans que la personne
 /// l'y mette.
-Future<void> partagerAffiche(Uint8List png, String nom, String texte,
-    {Rect? origine}) async {
+///
+/// ⚠️ L'IMAGE PART SEULE, SANS TEXTE. Le 4 septembre 2026, deux essais du
+/// Patron depuis le site (iPhone, puis WhatsApp sur Mac) ont donné deux statuts
+/// SANS l'affiche : quand WhatsApp reçoit une image ET un texte qui contient un
+/// lien, il garde le lien, fabrique sa propre carte d'aperçu, et jette l'image.
+/// Le lien est déjà écrit sur l'affiche ; le texte n'apportait rien de plus.
+Future<void> partagerAffiche(Uint8List png, String nom, {Rect? origine}) async {
   await SharePlus.instance.share(ShareParams(
     files: [XFile.fromData(png, mimeType: 'image/png', name: nom)],
     fileNameOverrides: [nom],
-    text: texte,
     sharePositionOrigin: origine,
   ));
 }
