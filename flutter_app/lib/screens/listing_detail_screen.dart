@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../affiche.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
 import '../data/formulaires/registre.dart';
+import '../data/locations.dart';
 import '../format.dart';
 import '../i18n/categories_i18n.dart';
 import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/bouton_favori.dart';
+import '../widgets/offre.dart';
+import '../widgets/prix_marche.dart';
 import 'conversation_screen.dart';
 import 'vendeur_screen.dart';
 
@@ -43,6 +47,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   bool _montreTraduction = false;
   bool _traductionEnCours = false;
 
+  // L'affiche pour le statut WhatsApp se fabrique en une seconde environ :
+  // le bouton de partage montre une roue pendant ce temps, et refuse un
+  // second appui.
+  bool _afficheEnCours = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,9 +79,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           ),
           Builder(
             builder: (btnContext) => IconButton(
-              icon: const Icon(Icons.share_outlined),
+              icon: _afficheEnCours
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: ChapColors.orange))
+                  : const Icon(Icons.share_outlined),
               tooltip: tr(context, 'action.partager'),
-              onPressed: () => _partager(btnContext, a),
+              onPressed:
+                  _afficheEnCours ? null : () => _menuPartage(btnContext, a),
             ),
           ),
         ],
@@ -109,6 +125,17 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         color: ChapColors.gray900)),
                 const SizedBox(height: 10),
                 _prix(a),
+                // « Ça vaut combien ? » : un mot pour l'acheteur, sous le
+                // prix. Rien tant que le serveur n'a pas cinq annonces.
+                if (a.prixAffiche > 0)
+                  PrixMarcheAcheteur(
+                    categoryId: a.categoryId,
+                    subcategory: a.subcategory,
+                    condition: a.condition,
+                    marque: a.attributes['marque']?.toString(),
+                    prix: a.prixAffiche,
+                  ),
+                if (a.price > 0 && !a.sold) _boutonOffre(a),
                 const SizedBox(height: 12),
                 _badges(a),
                 const SizedBox(height: 8),
@@ -590,6 +617,141 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {/* pas de navigateur : tant pis, sans casser l'écran */}
+  }
+
+  /// « Faire une offre » : sous le prix, quand l'annonce a un prix et n'est
+  /// pas vendue. L'offre part dans la conversation avec le vendeur.
+  Widget _boutonOffre(Listing a) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: () => _faireOffre(a),
+          icon: const Icon(Icons.local_offer_outlined, size: 18),
+          label: Text(tr(context, 'offre.faire')),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: ChapColors.marqueSombre,
+            side: const BorderSide(color: ChapColors.marque),
+            minimumSize: const Size(0, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
+            textStyle:
+                const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// La conversation s'ouvre (ou se retrouve), l'offre y part comme premier
+  /// message, et on y va. Mêmes refus polis que « Contacter » : non connecté,
+  /// vendeur injoignable, propre annonce.
+  Future<void> _faireOffre(Listing a) async {
+    if (!ApiClient.instance.connecte) {
+      _info(context, tr(context, 'annonce.contacterConnexion'));
+      return;
+    }
+    if (a.sellerId == null || a.sellerId!.isEmpty) {
+      _info(context, tr(context, 'annonce.contacterImpossible'));
+      return;
+    }
+    final monId = await ApiClient.instance.monId();
+    if (!mounted) return;
+    if (a.sellerId == monId) {
+      _info(context, tr(context, 'annonce.proprAnnonce'));
+      return;
+    }
+    final montant = await montrerFeuilleOffre(context,
+        prix: a.prixAffiche, titre: tr(context, 'offre.faire'));
+    if (montant == null || !mounted) return;
+    try {
+      final convId = await Conversation.ouvrirAvec(a.id, a.sellerId!);
+      await Offre.proposer(convId, montant);
+      if (!mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ConversationScreen(
+            conversationId: convId, titre: a.sellerName, autreId: a.sellerId),
+      ));
+    } on ApiException catch (e) {
+      if (mounted) _info(context, e.message);
+    }
+  }
+
+  /// Le bouton de partage ouvre un petit choix : le lien (la feuille native,
+  /// comme avant) ou l'affiche pour le statut WhatsApp — c'est LÀ que ça se
+  /// vend à Abidjan.
+  void _menuPartage(BuildContext ctx, Listing a) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Text('📣', style: TextStyle(fontSize: 22)),
+              title: Text(tr(context, 'partage.affiche'),
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(tr(context, 'partage.afficheAide'),
+                  style: const TextStyle(fontSize: 12)),
+              onTap: () {
+                Navigator.pop(sheet);
+                _affiche(ctx, a);
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.link, color: ChapColors.marqueSombre),
+              title: Text(tr(context, 'partage.lien')),
+              onTap: () {
+                Navigator.pop(sheet);
+                _partager(ctx, a);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// L'affiche 1080 × 1920, fabriquée dans le téléphone puis remise à la
+  /// feuille de partage du système (WhatsApp y est en tête). Voir
+  /// `lib/affiche.dart` pour le pourquoi et la composition.
+  Future<void> _affiche(BuildContext ctx, Listing a) async {
+    if (_afficheEnCours) return;
+    setState(() => _afficheEnCours = true);
+    final url = 'https://chap.ci/annonce/${a.id}';
+    final box = ctx.findRenderObject() as RenderBox?;
+    final origine =
+        box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+    try {
+      final src = a.images.isNotEmpty
+          ? ImageSource.resoudre(a.images.first)
+          : const ImageSource();
+      final png = await rendreAffiche(AfficheDonnees(
+        id: a.id,
+        titre: a.title,
+        prix: a.price == 0 ? 'Gratuit' : formatFCFA(a.prixAffiche),
+        prixBarre: a.enPromo ? formatFCFA(a.price) : null,
+        photoOctets: src.bytes,
+        photoUrl: src.url,
+        lieu: locationLabel(a.regionId, a.cityId, a.commune),
+        etat: a.condition == 'neuf' ? 'Neuf' : 'Occasion',
+      ));
+      await partagerAffiche(png, 'chapci-${a.id}.png',
+          '${a.title} — ${formatFCFA(a.prixAffiche)}\n$url',
+          origine: origine);
+    } catch (_) {
+      if (mounted) _info(context, tr(context, 'partage.afficheEchec'));
+    } finally {
+      if (mounted) setState(() => _afficheEnCours = false);
+    }
   }
 
   /// Ouvre la feuille de partage native (réseaux sociaux, WhatsApp, « Copier »…)

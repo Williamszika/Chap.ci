@@ -569,6 +569,50 @@ const Map<String, Map<String, String>> _t = {
   'annonce.traduire': {'fr': "Traduire", 'en': "Translate", 'es': "Traducir", 'pt': "Traduzir", 'ar': "ترجمة", 'zh': "翻译"},
   'annonce.voirOriginal': {'fr': "Voir l’original", 'en': "See original", 'es': "Ver original", 'pt': "Ver original", 'ar': "عرض النص الأصلي", 'zh': "查看原文"},
   'annonce.traductionAuto': {'fr': "Traduction automatique", 'en': "Automatic translation", 'es': "Traducción automática", 'pt': "Tradução automática", 'ar': "ترجمة آلية", 'zh': "机器翻译"},
+
+  // Partage : le lien, ou l'affiche pour le statut WhatsApp (nouveauté du 03/09/2026)
+  'partage.lien': {'fr': "Partager le lien", 'en': "Share the link", 'es': "Compartir el enlace", 'pt': "Partilhar a ligação", 'ar': "مشاركة الرابط", 'zh': "分享链接"},
+  'partage.affiche': {'fr': "Affiche pour mon statut WhatsApp", 'en': "Poster for my WhatsApp status", 'es': "Cartel para mi estado de WhatsApp", 'pt': "Cartaz para o meu estado do WhatsApp", 'ar': "ملصق لحالة واتساب", 'zh': "制作 WhatsApp 状态海报"},
+  'partage.afficheAide': {'fr': "Une belle image avec la photo, le prix et le lien.", 'en': "A clean image with the photo, the price and the link.", 'es': "Una imagen limpia con la foto, el precio y el enlace.", 'pt': "Uma imagem limpa com a foto, o preço e a ligação.", 'ar': "صورة أنيقة تحوي الصورة والسعر والرابط.", 'zh': "一张包含照片、价格和链接的精美图片。"},
+  'partage.afficheEchec': {'fr': "L’affiche n’a pas pu être fabriquée. Réessayez, ou partagez le lien.", 'en': "The poster could not be made. Try again, or share the link.", 'es': "No se pudo crear el cartel. Inténtalo de nuevo o comparte el enlace.", 'pt': "Não foi possível criar o cartaz. Tente novamente ou partilhe a ligação.", 'ar': "تعذّر إنشاء الملصق. حاول مجدداً أو شارك الرابط.", 'zh': "海报制作失败。请重试，或分享链接。"},
+
+  // « Ça vaut combien ? » — la fourchette de prix (nouveauté du 03/09/2026)
+  'prix.entre': {'fr': "entre {a} et {b}", 'en': "between {a} and {b}", 'es': "entre {a} y {b}", 'pt': "entre {a} e {b}", 'ar': "بين {a} و{b}", 'zh': "{a} 至 {b}"},
+  'prix.baseMarque': {'fr': "cette marque", 'en': "this brand", 'es': "esta marca", 'pt': "esta marca", 'ar': "هذه العلامة", 'zh': "该品牌"},
+  'prix.baseObjet': {'fr': "ce type d’objet", 'en': "this kind of item", 'es': "este tipo de artículo", 'pt': "este tipo de artigo", 'ar': "هذا النوع من الأغراض", 'zh': "此类物品"},
+  'prix.vendeur': {'fr': "Sur Chap.ci, {base} se vend {fourchette} ({n} annonces récentes).", 'en': "On Chap.ci, {base} sells for {fourchette} ({n} recent listings).", 'es': "En Chap.ci, {base} se vende {fourchette} ({n} anuncios recientes).", 'pt': "No Chap.ci, {base} vende-se {fourchette} ({n} anúncios recentes).", 'ar': "على Chap.ci، يُباع {base} {fourchette} ({n} إعلانات حديثة).", 'zh': "在 Chap.ci 上，{base}的售价为{fourchette}（近期 {n} 条信息）。"},
+  'prix.moyen': {'fr': "Votre prix est dans la moyenne.", 'en': "Your price is in the usual range.", 'es': "Tu precio está en la media.", 'pt': "O seu preço está na média.", 'ar': "سعرك ضمن المعدّل.", 'zh': "您的价格处于平均水平。"},
+  'prix.haut': {'fr': "Votre prix est au-dessus : ça peut se vendre moins vite.", 'en': "Your price is above: it may sell more slowly.", 'es': "Tu precio está por encima: puede venderse más despacio.", 'pt': "O seu preço está acima: pode vender mais devagar.", 'ar': "سعرك أعلى: قد يتأخر البيع.", 'zh': "您的价格偏高：可能会卖得慢一些。"},
+  'prix.bas': {'fr': "Votre prix est bien en dessous : vérifiez qu’il ne manque pas un zéro.", 'en': "Your price is well below: check you haven't dropped a zero.", 'es': "Tu precio está muy por debajo: comprueba que no falte un cero.", 'pt': "O seu preço está muito abaixo: verifique se não falta um zero.", 'ar': "سعرك أقل بكثير: تأكد أنه لا ينقص صفر.", 'zh': "您的价格远低于市场：请检查是否少了一个零。"},
+  'prix.acheteurBas': {'fr': "Bien en dessous du marché ({fourchette}) — méfiance : ne payez rien avant d’avoir vu l’objet.", 'en': "Well below the market ({fourchette}) — be careful: pay nothing before seeing the item.", 'es': "Muy por debajo del mercado ({fourchette}): cuidado, no pagues nada antes de ver el artículo.", 'pt': "Muito abaixo do mercado ({fourchette}) — cuidado: não pague nada antes de ver o artigo.", 'ar': "أقل بكثير من السوق ({fourchette}) — احذر: لا تدفع شيئاً قبل رؤية الغرض.", 'zh': "远低于市场价（{fourchette}）——请谨慎：看到物品前不要付款。"},
+  'prix.acheteurMoyen': {'fr': "Prix dans la moyenne sur Chap.ci", 'en': "Price in the usual range on Chap.ci", 'es': "Precio en la media en Chap.ci", 'pt': "Preço na média no Chap.ci", 'ar': "سعر ضمن المعدّل على Chap.ci", 'zh': "价格处于 Chap.ci 平均水平"},
+  'prix.acheteurHaut': {'fr': "Prix au-dessus de la moyenne sur Chap.ci", 'en': "Price above the usual range on Chap.ci", 'es': "Precio por encima de la media en Chap.ci", 'pt': "Preço acima da média no Chap.ci", 'ar': "سعر أعلى من المعدّل على Chap.ci", 'zh': "价格高于 Chap.ci 平均水平"},
+  'prix.acheteurDetail': {'fr': "({fourchette}, {n} annonces)", 'en': "({fourchette}, {n} listings)", 'es': "({fourchette}, {n} anuncios)", 'pt': "({fourchette}, {n} anúncios)", 'ar': "({fourchette}، {n} إعلانات)", 'zh': "（{fourchette}，{n} 条信息）"},
+
+  // « Faire une offre » — la négociation structurée (nouveauté du 03/09/2026)
+  'offre.faire': {'fr': "Faire une offre", 'en': "Make an offer", 'es': "Hacer una oferta", 'pt': "Fazer uma oferta", 'ar': "تقديم عرض", 'zh': "出价"},
+  'offre.proposer': {'fr': "Proposer un prix", 'en': "Propose a price", 'es': "Proponer un precio", 'pt': "Propor um preço", 'ar': "اقتراح سعر", 'zh': "提议价格"},
+  'offre.votre': {'fr': "Votre offre", 'en': "Your offer", 'es': "Tu oferta", 'pt': "A sua oferta", 'ar': "عرضك", 'zh': "您的出价"},
+  'offre.recue': {'fr': "Offre reçue", 'en': "Offer received", 'es': "Oferta recibida", 'pt': "Oferta recebida", 'ar': "عرض مستلم", 'zh': "收到出价"},
+  'offre.prixAffiche': {'fr': "Prix affiché : {prix}", 'en': "Listed price: {prix}", 'es': "Precio indicado: {prix}", 'pt': "Preço indicado: {prix}", 'ar': "السعر المعروض: {prix}", 'zh': "标价：{prix}"},
+  'offre.moins': {'fr': "soit {p} % de moins que le prix affiché", 'en': "that is {p}% below the listed price", 'es': "es decir, un {p} % menos que el precio indicado", 'pt': "ou seja, {p} % abaixo do preço indicado", 'ar': "أي أقل بنسبة {p}٪ من السعر المعروض", 'zh': "比标价低 {p}%"},
+  'offre.auPrix': {'fr': "au prix affiché", 'en': "at the listed price", 'es': "al precio indicado", 'pt': "ao preço indicado", 'ar': "بالسعر المعروض", 'zh': "与标价相同"},
+  'offre.auDessus': {'fr': "au-dessus du prix affiché", 'en': "above the listed price", 'es': "por encima del precio indicado", 'pt': "acima do preço indicado", 'ar': "أعلى من السعر المعروض", 'zh': "高于标价"},
+  'offre.montantRequis': {'fr': "Indiquez un montant en FCFA.", 'en': "Enter an amount in FCFA.", 'es': "Indica un importe en FCFA.", 'pt': "Indique um montante em FCFA.", 'ar': "أدخل مبلغاً بالفرنك (FCFA).", 'zh': "请输入金额（FCFA）。"},
+  'offre.envoyer': {'fr': "Envoyer l’offre", 'en': "Send the offer", 'es': "Enviar la oferta", 'pt': "Enviar a oferta", 'ar': "إرسال العرض", 'zh': "发送出价"},
+  'offre.parole': {'fr': "Accepter une offre n’est pas un paiement : c’est une parole donnée. Le paiement se fait en main propre, ou à la livraison.", 'en': "Accepting an offer is not a payment: it is a promise. Payment happens in person, or on delivery.", 'es': "Aceptar una oferta no es un pago: es una palabra dada. El pago se hace en persona o en la entrega.", 'pt': "Aceitar uma oferta não é um pagamento: é uma palavra dada. O pagamento faz-se em mãos, ou na entrega.", 'ar': "قبول العرض ليس دفعاً: إنه وعد. يتم الدفع يداً بيد أو عند التسليم.", 'zh': "接受出价不等于付款，只是一种承诺。付款在当面交易或送货时进行。"},
+  'offre.enAttente': {'fr': "En attente", 'en': "Pending", 'es': "Pendiente", 'pt': "Pendente", 'ar': "قيد الانتظار", 'zh': "待回复"},
+  'offre.acceptee': {'fr': "Acceptée ✅", 'en': "Accepted ✅", 'es': "Aceptada ✅", 'pt': "Aceite ✅", 'ar': "مقبول ✅", 'zh': "已接受 ✅"},
+  'offre.refusee': {'fr': "Refusée", 'en': "Declined", 'es': "Rechazada", 'pt': "Recusada", 'ar': "مرفوض", 'zh': "已拒绝"},
+  'offre.remplacee': {'fr': "Remplacée", 'en': "Replaced", 'es': "Reemplazada", 'pt': "Substituída", 'ar': "مستبدَل", 'zh': "已替换"},
+  'offre.accepter': {'fr': "Accepter", 'en': "Accept", 'es': "Aceptar", 'pt': "Aceitar", 'ar': "قبول", 'zh': "接受"},
+  'offre.refuser': {'fr': "Refuser", 'en': "Decline", 'es': "Rechazar", 'pt': "Recusar", 'ar': "رفض", 'zh': "拒绝"},
+  'offre.contre': {'fr': "Contre-proposer", 'en': "Counter-offer", 'es': "Contraoferta", 'pt': "Contraproposta", 'ar': "عرض مضاد", 'zh': "还价"},
+  'offre.chip': {'fr': "Offre : {montant}", 'en': "Offer: {montant}", 'es': "Oferta: {montant}", 'pt': "Oferta: {montant}", 'ar': "عرض: {montant}", 'zh': "出价：{montant}"},
+
+  // « Chap.ci écrit l'annonce » — la photo remplit le formulaire (nouveauté du 03/09/2026)
+  'deviner.enCours': {'fr': "Chap.ci lit votre photo…", 'en': "Chap.ci is reading your photo…", 'es': "Chap.ci está leyendo tu foto…", 'pt': "O Chap.ci está a ler a sua foto…", 'ar': "Chap.ci يقرأ صورتك…", 'zh': "Chap.ci 正在识别您的照片…"},
+  'deviner.note': {'fr': "Chap.ci a rempli l’annonce à partir de votre photo. Relisez, corrigez ce qui ne va pas, puis publiez.", 'en': "Chap.ci filled in the listing from your photo. Read it over, fix what's wrong, then post.", 'es': "Chap.ci ha rellenado el anuncio a partir de tu foto. Revísalo, corrige lo que no esté bien y publica.", 'pt': "O Chap.ci preencheu o anúncio a partir da sua foto. Releia, corrija o que estiver errado e publique.", 'ar': "ملأ Chap.ci الإعلان من صورتك. راجعه وصحّح ما يلزم ثم انشر.", 'zh': "Chap.ci 已根据您的照片填写了信息。请检查并修改不准确之处，然后发布。"},
 };
 
 /// Le texte de la clé [cle] dans la langue de l'application.

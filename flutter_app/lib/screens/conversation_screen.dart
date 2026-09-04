@@ -5,6 +5,7 @@ import '../api/messaging.dart';
 import '../format.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../widgets/offre.dart';
 import 'vendeur_screen.dart';
 
 /// La conversation (le fil de discussion) acheteur ↔ vendeur.
@@ -36,6 +37,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   String? _monId;
   bool _chargement = true;
   bool _envoi = false;
+  // Une offre (proposition ou réponse) est en route : les boutons des cartes
+  // d'offre se désactivent, pour ne pas accepter deux fois.
+  bool _offreEnCours = false;
   String? _erreur;
   Timer? _minuteur;
   late bool _bloque;
@@ -80,6 +84,54 @@ class _ConversationScreenState extends State<ConversationScreen> {
       if (mounted) setState(() => _erreur = e.message);
     } finally {
       if (mounted) setState(() => _envoi = false);
+    }
+  }
+
+  /// « Proposer un prix » : l'offre structurée, à la place de « dernier
+  /// prix ? ». Sert aussi de contre-proposition. Le point de départ de la
+  /// feuille est la dernière offre du fil, sinon rien.
+  Future<void> _proposerOffre() async {
+    if (_offreEnCours) return;
+    num reference = 0;
+    for (final m in _messages.reversed) {
+      if (m.offre != null) {
+        reference = m.offre!.montant;
+        break;
+      }
+    }
+    final montant = await montrerFeuilleOffre(context,
+        prix: reference, titre: tr(context, 'offre.proposer'));
+    if (montant == null || !mounted) return;
+    setState(() {
+      _offreEnCours = true;
+      _erreur = null;
+    });
+    try {
+      await Offre.proposer(widget.conversationId, montant);
+      await _rafraichir();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _erreur = e.message);
+    } finally {
+      if (mounted) setState(() => _offreEnCours = false);
+    }
+  }
+
+  /// Accepter ou refuser l'offre d'en face. Le serveur a le dernier mot
+  /// (offre déjà close, plus la mienne à traiter) : on relit le fil quoi
+  /// qu'il dise, pour que l'écran montre l'état vrai.
+  Future<void> _repondreOffre(Msg m, String action) async {
+    if (_offreEnCours) return;
+    setState(() {
+      _offreEnCours = true;
+      _erreur = null;
+    });
+    try {
+      await Offre.repondre(widget.conversationId, m.id, action);
+    } on ApiException catch (e) {
+      _toast(e.message);
+    } finally {
+      await _rafraichir();
+      if (mounted) setState(() => _offreEnCours = false);
     }
   }
 
@@ -235,11 +287,23 @@ class _ConversationScreenState extends State<ConversationScreen> {
                           fontSize: 13.5,
                           fontStyle: FontStyle.italic,
                           color: mien ? Colors.white70 : ChapColors.gray500))
-                  : Text(m.body,
-                      style: TextStyle(
-                          fontSize: 14.5,
-                          height: 1.3,
-                          color: mien ? Colors.white : ChapColors.gray900)),
+                  : m.offre != null
+                      // Une offre : le montant, l'état, et les boutons pour
+                      // celui qui doit répondre.
+                      ? OffreCarte(
+                          offre: m.offre!,
+                          monId: _monId,
+                          mien: mien,
+                          enCours: _offreEnCours,
+                          onRepondre: (action) => _repondreOffre(m, action),
+                          onContre: _proposerOffre,
+                        )
+                      : Text(m.body,
+                          style: TextStyle(
+                              fontSize: 14.5,
+                              height: 1.3,
+                              color:
+                                  mien ? Colors.white : ChapColors.gray900)),
               const SizedBox(height: 2),
               Text(heureCourte(m.createdAt),
                   style: TextStyle(
@@ -550,6 +614,25 @@ class _ConversationScreenState extends State<ConversationScreen> {
         ),
         child: Row(
           children: [
+            // « Proposer un prix » : l'offre structurée, à la place de
+            // « dernier prix ? ». Sert aussi de contre-proposition.
+            Material(
+              color: ChapColors.cream100,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _offreEnCours ? null : _proposerOffre,
+                child: Tooltip(
+                  message: tr(context, 'offre.proposer'),
+                  child: const Padding(
+                    padding: EdgeInsets.all(11),
+                    child: Icon(Icons.local_offer_outlined,
+                        color: ChapColors.marqueSombre, size: 18),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: TextField(
                 controller: _saisie,

@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
+import '../format.dart';
 import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
@@ -143,17 +144,41 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ),
         ],
       ),
-      subtitle: Text(
-        c.lastMessage?.trim().isNotEmpty == true
-            ? c.lastMessage!
-            : (c.listingTitle ?? tr(context, 'msg.nouvelle')),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          color: nonLu ? ChapColors.gray900 : ChapColors.gray600,
-          fontWeight: nonLu ? FontWeight.w600 : FontWeight.normal,
-        ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            c.lastMessage?.trim().isNotEmpty == true
+                ? c.lastMessage!
+                : (c.listingTitle ?? tr(context, 'msg.nouvelle')),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              color: nonLu ? ChapColors.gray900 : ChapColors.gray600,
+              fontWeight: nonLu ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+          // Une offre qui M'attend : c'est ici que le vendeur la voit avant
+          // d'ouvrir — « trois offres reçues » se lit ligne par ligne.
+          if (c.offreEnAttente != null)
+            Container(
+              margin: const EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '🏷️ ${tr(context, 'offre.chip').replaceFirst('{montant}', formatFCFA(c.offreEnAttente!))}',
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF92400E)),
+              ),
+            ),
+        ],
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,

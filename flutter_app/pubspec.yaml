@@ -9,7 +9,11 @@ publish_to: "none"
 #    Six commits de code Flutter sont venus depuis — vitrine du professionnel,
 #    compte entier dans le tableau de bord, cibles tactiles : ce n'est plus la
 #    v1.22 qu'on construirait. Donc 24, la v1.23.
-version: 1.24.0+25
+#    La v1.24 (code 25, mot de passe oublié) n'a pas été construite non plus ;
+#    la v1.25 (code 26) l'englobe et porte les quatre nouveautés du 03/09 :
+#    affiche WhatsApp, « Ça vaut combien ? », offres, annonce écrite depuis
+#    la photo. L'historique complet est dans store/APP-VERSIONS.md.
+version: 1.25.0+26
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -48,6 +52,11 @@ dependencies:
   # Glisser une conversation à gauche/droite pour révéler des actions
   # (épingler, archiver, bloquer, supprimer).
   flutter_slidable: ^3.1.0
+  # Réduire la photo à 768 px et la recomprimer en JPEG avant de l'envoyer au
+  # moteur de vision (« Chap.ci écrit l'annonce ») : dart:ui ne sait exporter
+  # qu'en PNG, cinq fois plus lourd pour le forfait. Pur Dart, sans code natif —
+  # rien à changer côté Xcode ni Gradle.
+  image: ^4.9.2
 
 dev_dependencies:
   flutter_test:

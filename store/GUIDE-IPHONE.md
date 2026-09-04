@@ -46,6 +46,39 @@ depuis le 6s en est capable.
 
 ---
 
+## Ce que la mise à jour du 4 septembre apporte — v1.25
+
+Les quatre nouveautés mises en ligne sur le site le 3 septembre, dans
+l'application, aux mêmes endroits :
+
+- **L'affiche pour le statut WhatsApp.** Sur une annonce, le bouton Partager
+  (en haut à droite) propose désormais « Affiche pour mon statut WhatsApp » :
+  une image 1080 × 1920 avec la photo, le prix en pastille verte, la couronne
+  et le lien, fabriquée dans le téléphone, remise à la feuille de partage.
+- **« Ça vaut combien ? »** En publiant, sous le prix : « Sur Chap.ci, ce type
+  d'objet se vend entre X et Y » et un mot sur le prix tapé. Sur une annonce,
+  sous le prix : « dans la moyenne », « au-dessus », ou « bien en dessous —
+  méfiance ». Rien ne s'affiche tant qu'il n'y a pas cinq annonces récentes
+  dans la sous-catégorie.
+- **Faire une offre.** Sur une annonce, le bouton « Faire une offre » sous le
+  prix ; dans une conversation, l'étiquette à gauche du champ de saisie. L'offre
+  arrive dans le fil avec Accepter / Refuser / Contre-proposer pour l'autre, et
+  la liste des messages montre « Offre : 45 000 FCFA » tant qu'elle attend.
+- **Chap.ci écrit l'annonce.** En publiant, dès la première photo : le titre,
+  la catégorie, la sous-catégorie, l'état, la description et les
+  caractéristiques (marque, modèle…) se remplissent tout seuls, avec une
+  bannière « Relisez, corrigez, puis publiez ». **Uniquement si la clé du
+  moteur est dans `config.php` sur le serveur** — sans elle, le formulaire
+  reste celui d'hier, sans message. La vérification est la même que pour le
+  site : `https://chap.ci/api/annonce/deviner` doit répondre
+  `"disponible": true`.
+
+Pour les prendre : l'encadré du haut, les six commandes. Une nouvelle
+bibliothèque Dart (`image`, pure Dart, sans code natif) entre dans
+`flutter pub get` ; Xcode n'a rien de plus à faire.
+
+---
+
 ## Ce que la mise à jour du 1ᵉʳ septembre apporte
 
 Onze changements de l'application depuis le 28 août :

@@ -19,6 +19,11 @@ class Conversation {
   final bool blockedByMe; // j'ai bloqué l'autre
   final bool blockedMe; // l'autre m'a bloqué
 
+  /// Une offre de l'AUTRE qui M'attend (montant), ou `null`. C'est la
+  /// pastille « Offre : 45 000 FCFA » de la liste : le vendeur la voit avant
+  /// d'ouvrir — « trois offres reçues » se lit ligne par ligne.
+  final num? offreEnAttente;
+
   const Conversation({
     required this.id,
     this.listingId,
@@ -34,6 +39,7 @@ class Conversation {
     this.pinned = false,
     this.blockedByMe = false,
     this.blockedMe = false,
+    this.offreEnAttente,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> j) => Conversation(
@@ -51,6 +57,8 @@ class Conversation {
         pinned: j['pinned'] == true,
         blockedByMe: j['blockedByMe'] == true,
         blockedMe: j['blockedMe'] == true,
+        offreEnAttente:
+            (j['offreEnAttente'] is num) ? j['offreEnAttente'] as num : null,
       );
 
   /// Supprime la conversation de MON côté (l'autre garde la sienne).
@@ -109,6 +117,49 @@ class Conversation {
   }
 }
 
+/// « FAIRE UNE OFFRE » — la négociation structurée (nouveauté n° 4 du
+/// 03/09/2026, portée du site). Une offre est un MESSAGE qui porte un montant
+/// et un état ; elle vit dans le fil, avec le reste de la discussion.
+///
+/// Accepter n'est pas payer, et ne change pas le prix affiché de l'annonce :
+/// c'est une parole donnée dans la conversation. C'est écrit sous le bouton,
+/// parce qu'un acheteur qui croit avoir « acheté » en acceptant se sentirait
+/// floué à la remise en main propre.
+class Offre {
+  final num montant;
+
+  /// 'proposee' | 'acceptee' | 'refusee' | 'remplacee'
+  final String statut;
+
+  /// L'id de qui a fait l'offre.
+  final String par;
+
+  const Offre({required this.montant, required this.statut, required this.par});
+
+  bool get ouverte => statut == 'proposee';
+
+  factory Offre.fromJson(Map<String, dynamic> j) => Offre(
+        montant: (j['montant'] is num) ? j['montant'] as num : 0,
+        statut: (j['statut'] ?? 'proposee').toString(),
+        par: (j['par'] ?? '').toString(),
+      );
+
+  /// Propose un montant dans la conversation. Ma précédente offre encore
+  /// ouverte, s'il y en a une, passe « remplacée » côté serveur.
+  static Future<void> proposer(String conversationId, num montant) async {
+    await ApiClient.instance
+        .post('/conversations/$conversationId/offre', {'montant': montant});
+  }
+
+  /// Accepte ou refuse l'offre portée par le message [messageId]. Seul le
+  /// destinataire le peut ; le serveur refuse le reste (403, 409).
+  static Future<void> repondre(
+      String conversationId, String messageId, String action) async {
+    await ApiClient.instance.post(
+        '/conversations/$conversationId/offre/$messageId', {'action': action});
+  }
+}
+
 /// Un message dans une conversation.
 class Msg {
   final String id;
@@ -118,6 +169,9 @@ class Msg {
   final int createdAt;
   final bool deleted; // supprimé pour tout le monde
 
+  /// Non nul quand le message EST une offre (montant + état).
+  final Offre? offre;
+
   const Msg({
     required this.id,
     required this.conversationId,
@@ -125,6 +179,7 @@ class Msg {
     required this.body,
     required this.createdAt,
     this.deleted = false,
+    this.offre,
   });
 
   factory Msg.fromJson(Map<String, dynamic> j) => Msg(
@@ -135,6 +190,9 @@ class Msg {
         createdAt:
             (j['createdAt'] is num) ? (j['createdAt'] as num).toInt() : 0,
         deleted: j['deleted'] == true,
+        offre: (j['offre'] is Map)
+            ? Offre.fromJson(Map<String, dynamic>.from(j['offre'] as Map))
+            : null,
       );
 
   /// Supprime un de MES messages (pour tout le monde).

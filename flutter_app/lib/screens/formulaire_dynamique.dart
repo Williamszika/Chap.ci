@@ -196,6 +196,101 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
     _notifier();
   }
 
+  /// « CHAP.CI ÉCRIT L'ANNONCE » : pose les caractéristiques lues sur la photo
+  /// (clé de champ en minuscules → valeur) dans les champs ENCORE VIDES.
+  ///
+  /// Chaque valeur est vérifiée contre le champ qui la reçoit : une puce ne
+  /// prend qu'une option de sa liste (« samsung » → « Samsung »), un choix
+  /// multiple ne garde que les options reconnues, un nombre ne garde que ses
+  /// chiffres, une bascule ne s'allume que sur « oui ». Ce que le moteur
+  /// invente ne rentre pas — sauf dans un champ qui accepte la saisie libre,
+  /// où c'est la personne qui relit.
+  ///
+  /// L'ordre du schéma est respecté : la marque se pose avant le modèle, dont
+  /// la liste dépend d'elle.
+  void appliquerSuggestions(Map<String, String> suggestions) {
+    if (suggestions.isEmpty) return;
+    var change = false;
+    for (final c in widget.schema.champs) {
+      final v = suggestions[c.cle.toLowerCase()]?.trim();
+      if (v == null || v.isEmpty) continue;
+      final actuel = _vals[c.cle];
+      final vide = actuel == null ||
+          actuel == '' ||
+          actuel == false ||
+          (actuel is List && actuel.isEmpty);
+      if (!vide) continue;
+
+      if (c.type == TypeChamp.bascule) {
+        if (RegExp(r'^(oui|yes|true|1)$', caseSensitive: false).hasMatch(v)) {
+          _vals[c.cle] = true;
+          change = true;
+        }
+        continue;
+      }
+
+      final options = c.optionsPour(_vals);
+      if (options.isNotEmpty) {
+        if (c.multi) {
+          final retenues = <String>[];
+          for (final part in v.split(RegExp(r'[,;/]'))) {
+            final o = _optionProche(options, part);
+            if (o != null && !retenues.contains(o)) retenues.add(o);
+          }
+          if (retenues.isNotEmpty) {
+            _vals[c.cle] = retenues;
+            change = true;
+          }
+        } else {
+          final o = _optionProche(options, v);
+          if (o != null) {
+            _vals[c.cle] = o;
+            change = true;
+          } else if (c.libre != null) {
+            _libre.add(c.cle);
+            _vals[c.cle] = v;
+            _controleur(c.cle).text = v;
+            change = true;
+          }
+        }
+        continue;
+      }
+
+      final texte =
+          c.type == TypeChamp.nombre ? v.replaceAll(RegExp(r'[^0-9]'), '') : v;
+      if (texte.isEmpty) continue;
+      _vals[c.cle] = texte;
+      _controleur(c.cle).text = texte;
+      change = true;
+    }
+    if (change && mounted) {
+      setState(() {});
+      _notifier();
+    }
+  }
+
+  /// L'option de la liste qui correspond à [v] : égalité d'abord, puis
+  /// inclusion (« Samsung Galaxy A12 » retrouve « Samsung »), à condition
+  /// d'avoir au moins trois lettres — sinon « a » retrouverait tout.
+  static String? _optionProche(List<String> options, String v) {
+    final n = _plat(v);
+    if (n.isEmpty) return null;
+    for (final o in options) {
+      if (_plat(o) == n) return o;
+    }
+    if (n.length < 3) return null;
+    for (final o in options) {
+      final po = _plat(o);
+      if (po.length >= 3 && (po.contains(n) || n.contains(po))) return o;
+    }
+    return null;
+  }
+
+  static String _plat(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r"[\s\-_’'.]+"), ' ')
+      .trim();
+
   void _notifier() => widget.onChange(_construireEtat());
 
   void _maj(VoidCallback f) {

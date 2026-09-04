@@ -150,12 +150,16 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> post(String chemin, Map<String, dynamic> corps) async {
+  /// [timeout] ne se donne que pour les routes qui attendent un tiers — le
+  /// moteur de vision met trois à dix secondes, parfois plus. Partout
+  /// ailleurs, les 15 s de [_timeout] restent la règle.
+  Future<dynamic> post(String chemin, Map<String, dynamic> corps,
+      {Duration? timeout}) async {
     try {
       final r = await http
           .post(_uri(chemin),
               headers: _entetes(avecCorps: true), body: jsonEncode(corps))
-          .timeout(_timeout);
+          .timeout(timeout ?? _timeout);
       return _traiter(r);
     } on TimeoutException {
       throw ApiException('Connexion trop lente. Réessayez.');

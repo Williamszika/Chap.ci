@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
+import '../api/deviner.dart';
 import '../data/categories.dart';
 import '../i18n/categories_i18n.dart';
 import '../i18n/textes.dart';
@@ -11,6 +12,7 @@ import '../data/locations.dart';
 import '../data/formulaires/registre.dart';
 import '../data/formulaires/schema.dart';
 import '../theme.dart';
+import '../widgets/prix_marche.dart';
 import '../widgets/selecteur_lieu.dart';
 import 'formulaire_dynamique.dart';
 import 'verifier_email_screen.dart';
@@ -67,9 +69,21 @@ class _PublierScreenState extends State<PublierScreen> {
   bool _livraison = false;
   bool _envoi = false;
 
+  // « CHAP.CI ÉCRIT L'ANNONCE » — une seule fois par annonce, sur la première
+  // photo, jamais par-dessus ce que la personne a déjà tapé. `_devineFait`
+  // verrouille : même si la personne retire la photo et en remet une, le
+  // moteur n'est pas rappelé (chaque lecture coûte).
+  bool _devineFait = false;
+  bool _devineEnCours = false;
+  bool _devineNote = false;
+
   /// Le formulaire détaillé de la sous-catégorie choisie, ou `null` s'il n'est
   /// pas encore porté (le formulaire de base suffit alors).
   Schema? get _schema => schemaPour(_categorie, _sousCategorie);
+
+  /// Le prix tel qu'il est tapé, pour « Ça vaut combien ? ».
+  int get _prixSaisi =>
+      int.tryParse(_prix.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
 
   @override
   void dispose() {
@@ -110,6 +124,7 @@ class _PublierScreenState extends State<PublierScreen> {
     if (source == null) return;
 
     final picker = imgpick.ImagePicker();
+    final avant = _photos.length;
     try {
       if (source == imgpick.ImageSource.gallery) {
         final xs = await picker.pickMultiImage(
@@ -125,11 +140,146 @@ class _PublierScreenState extends State<PublierScreen> {
         if (x != null) await _ajouter(x);
       }
       if (mounted) setState(() {});
+      // La PREMIÈRE photo de l'annonce : le moteur la lit et remplit ce qui
+      // est encore vide. Les suivantes ne déclenchent rien.
+      if (avant == 0 && _photos.isNotEmpty) _lancerDevine(_photos.first);
     } catch (_) {
       if (mounted) {
         _dialogue(tr(context, 'pub.photo'), tr(context, 'pub.photoErreur'));
       }
     }
+  }
+
+  /// Demande au serveur de lire la photo, et applique ce qu'il en dit dans
+  /// les champs ENCORE VIDES. Silencieux à chaque refus (moteur éteint, quota
+  /// du jour, réseau) : le formulaire reste celui d'hier, personne n'a à
+  /// savoir qu'une aide a été tentée.
+  Future<void> _lancerDevine(_Photo p) async {
+    if (_devineFait || _titre.text.trim().isNotEmpty || _categorie != null) {
+      return;
+    }
+    _devineFait = true;
+    if (!await devinerDisponible()) return;
+    if (!mounted) return;
+    setState(() => _devineEnCours = true);
+    try {
+      final r = await deviner(p.bytes);
+      if (!mounted || r == null) return;
+      // Sous 30 de confiance, le moteur hésite : mieux vaut un formulaire vide
+      // qu'un formulaire faux à corriger champ par champ.
+      if (r.confiance < 30) return;
+      _appliquerDevine(r);
+    } on ApiException {
+      // 503 (pas de clé), 429 (quota), 422 (photo refusée), 502 (moteur) :
+      // on se tait, comme le site.
+    } catch (_) {
+      // Photo indécodable, isolat interrompu : idem.
+    } finally {
+      if (mounted) setState(() => _devineEnCours = false);
+    }
+  }
+
+  void _appliquerDevine(Devine r) {
+    setState(() {
+      if (_titre.text.trim().isEmpty && r.titre.isNotEmpty) {
+        _titre.text = r.titre.length > 80 ? r.titre.substring(0, 80) : r.titre;
+      }
+      if (_description.text.trim().isEmpty && r.description.isNotEmpty) {
+        _description.text = r.description.length > 1500
+            ? r.description.substring(0, 1500)
+            : r.description;
+      }
+      // La catégorie proposée a déjà été vérifiée par le serveur contre le
+      // catalogue envoyé ; on revérifie ici, parce que c'est gratuit et que
+      // le sélecteur n'accepterait pas une valeur hors liste.
+      if (_categorie == null &&
+          r.categoryId.isNotEmpty &&
+          categories.any((c) => c.id == r.categoryId)) {
+        _categorie = r.categoryId;
+        _sousCategorie = null;
+        _etatForm = null;
+        _cleForm = null;
+        if (sousDe(r.categoryId).contains(r.subcategory)) {
+          _sousCategorie = r.subcategory;
+          _cleForm = schemaPour(_categorie, _sousCategorie) != null
+              ? GlobalKey<FormulaireDynamiqueState>()
+              : null;
+        }
+      }
+      if (r.etat == 'neuf' || r.etat == 'occasion') _condition = r.etat;
+      _devineNote = true;
+    });
+    // Les caractéristiques (marque, modèle…) vont dans le formulaire détaillé,
+    // qui n'existe qu'après ce rebuild : on attend l'image suivante.
+    if (r.caracteristiques.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _cleForm?.currentState?.appliquerSuggestions(r.caracteristiques);
+      });
+    }
+  }
+
+  /// La bannière du moteur : la roue pendant la lecture, puis la note
+  /// « Chap.ci a rempli l'annonce… » que la personne peut refermer.
+  Widget _bandeauDevine() {
+    if (_devineEnCours) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: ChapColors.cream100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: ChapColors.marque)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(tr(context, 'deviner.enCours'),
+                  style: const TextStyle(
+                      fontSize: 13, color: ChapColors.gray700)),
+            ),
+          ],
+        ),
+      );
+    }
+    if (!_devineNote) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF7EF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ChapColors.marque.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.auto_awesome, size: 18, color: ChapColors.marqueSombre),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(tr(context, 'deviner.note'),
+                  style: const TextStyle(
+                      fontSize: 13, height: 1.35, color: ChapColors.greenDark)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: ChapColors.gray600),
+            tooltip: tr(context, 'action.annuler'),
+            onPressed: () => setState(() => _devineNote = false),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _ajouter(imgpick.XFile x) async {
@@ -254,6 +404,7 @@ class _PublierScreenState extends State<PublierScreen> {
             _titreSection(tr(context, 'pub.photos')),
             _photosSection(),
             const SizedBox(height: 18),
+            _bandeauDevine(),
             _titreSection(tr(context, 'pub.details')),
             TextFormField(
               controller: _titre,
@@ -268,7 +419,12 @@ class _PublierScreenState extends State<PublierScreen> {
                   : null,
             ),
             const SizedBox(height: 12),
+            // La clé change avec la valeur : un `DropdownButtonFormField` ne
+            // relit son `initialValue` qu'à sa création, et le moteur de
+            // vision pose la catégorie SANS passer par le sélecteur. Sans
+            // cette clé, la case resterait vide alors que l'état est rempli.
             DropdownButtonFormField<String>(
+              key: ValueKey('categorie:${_categorie ?? ''}'),
               initialValue: _categorie,
               isExpanded: true,
               decoration:
@@ -290,6 +446,7 @@ class _PublierScreenState extends State<PublierScreen> {
             if (_categorie != null && sousDe(_categorie!).isNotEmpty) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                key: ValueKey('sous:${_categorie ?? ''}:${_sousCategorie ?? ''}'),
                 initialValue: _sousCategorie,
                 isExpanded: true,
                 decoration: InputDecoration(
@@ -348,6 +505,8 @@ class _PublierScreenState extends State<PublierScreen> {
                 labelText: _schema?.prixLabel ?? tr(context, 'pub.prix'),
                 suffixText: 'FCFA',
               ),
+              // « Ça vaut combien ? » relit le prix à chaque frappe.
+              onChanged: (_) => setState(() {}),
               validator: (v) {
                 final n = int.tryParse((v ?? '').replaceAll(RegExp(r'[^0-9]'), ''));
                 return (n == null || n <= 0)
@@ -355,6 +514,16 @@ class _PublierScreenState extends State<PublierScreen> {
                     : null;
               },
             ),
+            // La fourchette de la sous-catégorie sur Chap.ci, et où se situe
+            // le prix tapé. Une aide, jamais un blocage.
+            if (_categorie != null && _sousCategorie != null)
+              PrixMarcheVendeur(
+                categoryId: _categorie!,
+                subcategory: _sousCategorie,
+                condition: _schema?.etat != false ? _condition : null,
+                marque: _etatForm?.attributs['marque'],
+                prix: _prixSaisi,
+              ),
             CheckboxListTile(
               value: _negociable,
               onChanged: (v) => setState(() => _negociable = v ?? false),
