@@ -174,6 +174,13 @@ void _configurerIos() {
   if (!plist.contains('NSPhotoLibraryUsageDescription')) {
     plist = plist.replaceFirst(
         '</dict>\n</plist>', '$_permsIos</dict>\n</plist>');
+  } else if (!plist.contains('NSMicrophoneUsageDescription')) {
+    // Un dossier ios/ préparé AVANT la vidéo de quinze secondes (04/09/2026)
+    // a déjà les autres clés : on n'ajoute que celle du micro.
+    plist = plist.replaceFirst('</dict>\n</plist>',
+        '\t<key>NSMicrophoneUsageDescription</key>\n'
+        '\t<string>Pour filmer votre annonce avec le son.</string>\n'
+        '</dict>\n</plist>');
   }
   // Connexion Google : le schéma d'URL (client ID iOS inversé) et le GIDClientID
   // doivent être dans l'Info.plist, sinon la redirection Google échoue sur iOS.
@@ -319,7 +326,12 @@ const _permsIos =
     '\t<key>NSPhotoLibraryUsageDescription</key>\n'
     '\t<string>Pour choisir les photos de vos annonces.</string>\n'
     '\t<key>NSCameraUsageDescription</key>\n'
-    '\t<string>Pour prendre une photo de votre annonce.</string>\n'
+    '\t<string>Pour prendre une photo ou filmer votre annonce.</string>\n'
+    // La vidéo de quinze secondes se filme AVEC le son : iOS refuse
+    // d'enregistrer une vidéo sans cette clé, et l'app se fermerait sans un
+    // mot au moment d'appuyer sur « Filmer ».
+    '\t<key>NSMicrophoneUsageDescription</key>\n'
+    '\t<string>Pour filmer votre annonce avec le son.</string>\n'
     '\t<key>NSLocationWhenInUseUsageDescription</key>\n'
     '\t<string>Pour placer votre annonce à l’endroit exact.</string>\n';
 

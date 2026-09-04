@@ -214,6 +214,19 @@ moteur de vision (`lib/api/controle_photos.dart`, un appel par lot, photos
 réduites à 768 px) et retire celles qu'il refuse. Ne s'allume qu'avec la clé
 dans `config.php` ; sans elle, rien ne change.
 
+Chantier 6 : **la vidéo de quinze secondes par annonce** — « c'est ainsi
+qu'on vend sur WhatsApp à Abidjan ». En publiant, sous les photos, la tuile
+« Ajouter une vidéo » : filmer (l'appareil s'arrête tout seul à 15 s) ou
+choisir dans la galerie (la durée est lue avant d'accepter ; plus de 16 s ou
+plus de 15 Mo, refus expliqué). Elle part APRÈS l'annonce, en multipart
+(`ApiClient.televerser`, `POST /listings/{id}/video`) ; un échec d'envoi laisse
+l'annonce en ligne et le dit. Sur la fiche, une pastille « ▶ Vidéo · 15 s »
+sur les photos ouvre le lecteur plein écran (`lib/screens/video_screen.dart`,
+paquet `video_player`) — rien ne se télécharge avant l'appui. En modification :
+« Remplacer » / « Retirer ». Deux plugins natifs de plus : `video_player` et
+l'autorisation micro iOS (`NSMicrophoneUsageDescription`, posée par
+`tool/preparer_plateformes.dart`). Test `video_test.dart` : sept contrôles.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

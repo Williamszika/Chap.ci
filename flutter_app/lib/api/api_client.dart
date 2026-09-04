@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -179,6 +180,32 @@ class ApiClient {
       return _traiter(r);
     } on TimeoutException {
       throw ApiException('Connexion trop lente. Réessayez.');
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw ApiException('Pas de connexion. Vérifiez votre réseau.');
+    }
+  }
+
+  /// Envoie UN fichier en multipart (la vidéo de quinze secondes d'une
+  /// annonce : `POST /listings/{id}/video`, champ `video`).
+  ///
+  /// Pas de base64 dans un JSON pour dix mégaoctets : le multipart part tel
+  /// quel, sans gonfler d'un tiers. Le délai est de deux minutes — dix
+  /// mégaoctets sur une 3G d'Abidjan, c'est long, et couper à quinze secondes
+  /// serait couper à chaque fois. On n'annonce pas de type MIME : le serveur
+  /// ne le croirait pas, il lit le type dans les premiers octets du fichier.
+  Future<dynamic> televerser(String chemin, String champ, Uint8List octets,
+      {required String nom}) async {
+    try {
+      final req = http.MultipartRequest('POST', _uri(chemin));
+      req.headers.addAll(_entetes());
+      req.files.add(http.MultipartFile.fromBytes(champ, octets, filename: nom));
+      final flux = await req.send().timeout(const Duration(minutes: 2));
+      final r = await http.Response.fromStream(flux);
+      return _traiter(r);
+    } on TimeoutException {
+      throw ApiException('L’envoi a pris trop de temps. Réessayez sur un meilleur réseau.');
     } on ApiException {
       rethrow;
     } catch (_) {

@@ -14,7 +14,7 @@ import { locationLabel } from '../data/locations'
 import { TYPES_PRO } from '../data/secteursPro'
 import { KpiCrm, KpisCrm, PucesCrm, BarreCrm, AttenteCrm, contient } from '../components/CrmAdmin'
 import {
-  fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, fetchAdminOrders,
+  fetchAdminStats, fetchAdminUsers, fetchAdminListings, deleteAdminListing, removeAdminListingVideo, fetchAdminOrders,
   fetchModerators, saveModerator, removeModerator, blockModerator, adminRole, sendTestEmail, getSmtp, saveSmtp,
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
@@ -50,7 +50,7 @@ import { AnimatedAdText } from '../components/AnimatedAdText'
 import { AdImageFill } from '../components/AdImageFill'
 import { AdTextControls } from '../components/AdTextControls'
 import { downscaleListingImage } from '../lib/image'
-import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown } from 'lucide-react'
+import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown, Film, VideoOff } from 'lucide-react'
 
 type Tab = 'overview' | 'listings' | 'users' | 'pro' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
 
@@ -1811,6 +1811,14 @@ function ListingsTab() {
     catch (e) { alert((e as Error).message) }
   }
 
+  // La vidéo de quinze secondes se retire SANS retirer l'annonce : une vidéo
+  // qui enfreint les règles sur une annonce dont les photos sont correctes.
+  const retirerVideo = async (l: AdminListing) => {
+    if (!confirm(`Retirer la vidéo de « ${l.title} » ? L’annonce et ses photos restent en ligne.`)) return
+    try { await removeAdminListingVideo(l.id); setItems((p) => (p ?? []).map((x) => (x.id === l.id ? { ...x, video: null } : x))) }
+    catch (e) { alert((e as Error).message) }
+  }
+
   if (err) return <ErrRetry msg={err} onRetry={load} />
   if (!items) return <Center><Loader2 className="animate-spin" size={20} /></Center>
 
@@ -1885,6 +1893,16 @@ function ListingsTab() {
             <p className="tnum text-sm font-bold text-primary-600">{l.price === 0 ? 'Gratuit' : formatFCFA(l.price)}</p>
             <p className="truncate text-xs text-gray-500">{l.sellerEmail || l.sellerName || '—'} · {timeAgo(l.createdAt)}</p>
           </div>
+          {l.video && (
+            <>
+              <a href={mediaUrl(l.video)} target="_blank" rel="noreferrer" aria-label="Voir la vidéo" title="Voir la vidéo" className="shrink-0 rounded-xl p-2 text-primary-600 transition hover:bg-primary-50">
+                <Film size={18} />
+              </a>
+              <button onClick={() => retirerVideo(l)} aria-label="Retirer la vidéo" title="Retirer la vidéo (l’annonce reste)" className="shrink-0 rounded-xl p-2 text-gray-600 transition hover:bg-gray-100">
+                <VideoOff size={18} />
+              </button>
+            </>
+          )}
           <button onClick={() => basculer(l)} aria-label={l.hidden ? 'Réafficher' : 'Masquer'} className="shrink-0 rounded-xl p-2 text-gray-600 transition hover:bg-gray-100">
             {l.hidden ? <Eye size={18} /> : <EyeOff size={18} />}
           </button>

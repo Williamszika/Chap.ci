@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
+import 'package:video_player/video_player.dart';
 import '../api/api_client.dart';
 import '../api/controle_photos.dart';
 import '../api/deviner.dart';
@@ -97,6 +99,7 @@ class _PublierScreenState extends State<PublierScreen> {
       }
       // Jamais de remplissage automatique par-dessus une annonce existante.
       _devineFait = true;
+      _videoExistante = a.video;
     }
     if (_schema != null) _cleForm = GlobalKey<FormulaireDynamiqueState>();
   }
@@ -140,6 +143,17 @@ class _PublierScreenState extends State<PublierScreen> {
   bool _devineFait = false;
   bool _devineEnCours = false;
   bool _devineNote = false;
+
+  // LA VIDÉO DE QUINZE SECONDES (chantier 6 du 04/09/2026). Facultative, une
+  // seule, après les photos. Elle ne part pas avec le JSON de l'annonce : elle
+  // est envoyée en multipart une fois l'annonce en ligne, et un envoi qui
+  // échoue ne défait pas la publication — on le dit, c'est tout.
+  Uint8List? _videoOctets;
+  String? _videoNom;
+  String? _videoExistante; // en modification : l'adresse déjà en ligne
+  bool _videoRetiree = false;
+  bool _videoEnvoi = false;
+  static const int _videoMaxMo = 15; // le plafond du serveur (video_max_mo)
 
   /// Le formulaire détaillé de la sous-catégorie choisie, ou `null` s'il n'est
   /// pas encore porté (le formulaire de base suffit alors).
@@ -424,6 +438,119 @@ class _PublierScreenState extends State<PublierScreen> {
     }
   }
 
+  /// Choisir ou filmer la vidéo. L'appareil photo s'arrête tout seul à quinze
+  /// secondes ; une vidéo de la galerie, elle, peut durer trois minutes — on
+  /// lit sa durée avant d'accepter, comme le site.
+  Future<void> _choisirVideo() async {
+    final source = await showModalBottomSheet<imgpick.ImageSource>(
+      context: context,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.video_library_outlined,
+                  color: ChapColors.orange),
+              title: Text(tr(context, 'pub.videoGalerie')),
+              onTap: () =>
+                  Navigator.pop(context, imgpick.ImageSource.gallery),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.videocam_outlined, color: ChapColors.orange),
+              title: Text(tr(context, 'pub.videoFilmer')),
+              onTap: () => Navigator.pop(context, imgpick.ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    final imgpick.XFile? x;
+    try {
+      x = await imgpick.ImagePicker().pickVideo(
+          source: source, maxDuration: const Duration(seconds: 15));
+    } catch (_) {
+      return;
+    }
+    if (x == null || !mounted) return;
+    final octets = await x.readAsBytes();
+    final mo = octets.length / 1024 / 1024;
+    if (mo > _videoMaxMo) {
+      if (mounted) {
+        _dialogue(
+            tr(context, 'pub.video'),
+            tr(context, 'pub.videoTropLourde')
+                .replaceFirst('{mo}', mo.toStringAsFixed(0))
+                .replaceFirst('{max}', '$_videoMaxMo'));
+      }
+      return;
+    }
+    final duree = await _dureeVideo(x.path);
+    if (!mounted) return;
+    if (duree == null) {
+      _dialogue(tr(context, 'pub.video'), tr(context, 'pub.videoIllisible'));
+      return;
+    }
+    if (duree.inSeconds > 16) {
+      _dialogue(
+          tr(context, 'pub.video'),
+          tr(context, 'pub.videoTropLongue')
+              .replaceFirst('{s}', '${duree.inSeconds}'));
+      return;
+    }
+    setState(() {
+      _videoOctets = octets;
+      _videoNom = x!.name.isNotEmpty ? x.name : 'video.mp4';
+      _videoRetiree = false;
+    });
+  }
+
+  /// La durée d'un fichier vidéo, lue par le lecteur ; null s'il ne sait pas
+  /// le lire (ce n'est alors pas une vidéo qu'un acheteur pourra voir).
+  Future<Duration?> _dureeVideo(String chemin) async {
+    final c = VideoPlayerController.file(File(chemin));
+    try {
+      await c.initialize();
+      return c.value.duration;
+    } catch (_) {
+      return null;
+    } finally {
+      await c.dispose();
+    }
+  }
+
+  void _retirerVideo() {
+    setState(() {
+      _videoOctets = null;
+      _videoNom = null;
+      if (_videoExistante != null) _videoRetiree = true;
+    });
+  }
+
+  /// Envoie (ou retire) la vidéo une fois l'annonce en ligne. Rend le message
+  /// d'échec, ou null si tout va bien.
+  Future<String?> _envoyerVideo(String id) async {
+    if (_videoOctets == null && !_videoRetiree) return null;
+    if (mounted) setState(() => _videoEnvoi = true);
+    try {
+      if (_videoOctets != null) {
+        await ApiClient.instance.televerser('/listings/$id/video', 'video',
+            _videoOctets!, nom: _videoNom ?? 'video.mp4');
+      } else {
+        await ApiClient.instance.delete('/listings/$id/video');
+      }
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    } finally {
+      if (mounted) setState(() => _videoEnvoi = false);
+    }
+  }
+
   Future<void> _publier() async {
     if (!_formKey.currentState!.validate()) return;
     if (_categorie == null) {
@@ -504,17 +631,40 @@ class _PublierScreenState extends State<PublierScreen> {
         'photosAnalysees': _photosControlees && _photos.any((p) => p.bytes != null),
       };
       final a = widget.annonce;
+      String id;
       if (a != null) {
         // La promotion en cours n'est pas éditable ici : on la renvoie telle
         // quelle, sinon le serveur l'effacerait avec la mise à jour.
         if (a.promoPrice != null) corps['promoPrice'] = a.promoPrice;
         if (a.promoUntil != null) corps['promoUntil'] = a.promoUntil;
         await ApiClient.instance.put('/listings/${a.id}', corps);
+        id = a.id;
       } else {
-        await ApiClient.instance.post('/listings', corps);
+        final d = await ApiClient.instance.post('/listings', corps);
+        id = (d is Map ? d['id']?.toString() : null) ?? '';
       }
 
+      // La vidéo, APRÈS l'annonce. Si elle n'arrive pas, l'annonce est en
+      // ligne quand même : on le dit avant de quitter l'écran.
+      final echecVideo = id.isEmpty ? null : await _envoyerVideo(id);
       if (!mounted) return;
+      if (echecVideo != null) {
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: ChapColors.cream,
+            title: Text(tr(context, 'pub.video')),
+            content: Text(tr(context, 'pub.videoEchec')
+                .replaceFirst('{erreur}', echecVideo)),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(tr(context, 'action.compris'))),
+            ],
+          ),
+        );
+        if (!mounted) return;
+      }
       Navigator.of(context).pop(true); // le shell affiche la confirmation
     } on ApiException catch (e) {
       // Couvre : e-mail non confirmé, modération, moins de 3 photos retenues…
@@ -553,6 +703,8 @@ class _PublierScreenState extends State<PublierScreen> {
           children: [
             _titreSection(tr(context, 'pub.photos')),
             _photosSection(),
+            const SizedBox(height: 14),
+            _videoSection(),
             const SizedBox(height: 18),
             _bandeauDevine(),
             _titreSection(tr(context, 'pub.details')),
@@ -786,6 +938,138 @@ class _PublierScreenState extends State<PublierScreen> {
                 : ChapColors.gray600,
           ),
         ),
+      ],
+    );
+  }
+
+  /// La vidéo de quinze secondes : une tuile « Ajouter une vidéo », ou l'état
+  /// de celle qui est prête / déjà en ligne, avec « Remplacer » et « Retirer ».
+  Widget _videoSection() {
+    final prete = _videoOctets != null;
+    final enLigne = _videoExistante != null && !_videoRetiree && !prete;
+    final Widget corps;
+    if (prete || enLigne) {
+      final mo = prete ? _videoOctets!.length / 1024 / 1024 : null;
+      corps = Container(
+        key: const ValueKey('video-etat'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: ChapColors.cream,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: ChapColors.line2),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.play_circle_outline, color: ChapColors.greenDark),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                prete
+                    ? tr(context, 'pub.videoPrete')
+                        .replaceFirst('{mo}', mo!.toStringAsFixed(1))
+                    : tr(context, 'pub.videoEnLigne'),
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: ChapColors.gray900),
+              ),
+            ),
+            TextButton(
+              onPressed: _videoEnvoi ? null : _choisirVideo,
+              child: Text(tr(context, 'pub.videoRemplacer'),
+                  style: const TextStyle(fontSize: 12.5)),
+            ),
+            TextButton(
+              onPressed: _videoEnvoi ? null : _retirerVideo,
+              child: Text(tr(context, 'pub.videoRetirer'),
+                  style: const TextStyle(
+                      fontSize: 12.5, color: ChapColors.orange)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      corps = InkWell(
+        key: const ValueKey('video-ajouter'),
+        onTap: _videoEnvoi ? null : _choisirVideo,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: ChapColors.cream,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: ChapColors.line2),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                    color: Colors.white, shape: BoxShape.circle),
+                child: const Icon(Icons.videocam_outlined,
+                    color: ChapColors.orange),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr(context, 'pub.videoAjouter'),
+                        style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: ChapColors.gray900)),
+                    const SizedBox(height: 2),
+                    Text(
+                        tr(context,
+                            _videoRetiree ? 'pub.videoSeraRetiree' : 'pub.videoAide'),
+                        style: const TextStyle(
+                            fontSize: 11.5, color: ChapColors.gray600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            text: tr(context, 'pub.video'),
+            style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: ChapColors.gray900),
+            children: [
+              TextSpan(
+                  text: '  ${tr(context, 'pub.videoFacultatif')}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w400, color: ChapColors.gray600)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        corps,
+        if (_videoEnvoi) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: ChapColors.orange)),
+              const SizedBox(width: 8),
+              Text(tr(context, 'pub.videoEnvoi'),
+                  style: const TextStyle(
+                      fontSize: 12, color: ChapColors.gray600)),
+            ],
+          ),
+        ],
       ],
     );
   }

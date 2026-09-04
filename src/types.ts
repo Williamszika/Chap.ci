@@ -76,6 +76,12 @@ export interface Listing {
   views?: number
   /** Combien de personnes l'ont enregistrée (rendu par `listings/mine`). */
   favoris?: number
+  /**
+   * La vidéo de quinze secondes (chantier 6 du 04/09/2026) : l'adresse du
+   * fichier (« /uploads/videos/… »), ou null. Une seule par annonce, envoyée
+   * APRÈS la publication en multipart — jamais dans ce JSON.
+   */
+  video?: string | null
   /** Combien ont écrit au sujet de cette annonce (rendu par `listings/mine`). */
   contacts?: number
 }

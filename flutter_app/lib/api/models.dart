@@ -55,6 +55,12 @@ class Listing {
   /// le détail « État · Taille · Marque… » comme sur le site. Vide si absent.
   final Map<String, dynamic> attributes;
 
+  /// La vidéo de quinze secondes (chantier 6 du 04/09/2026) : l'adresse du
+  /// fichier telle que le serveur la donne (« /uploads/videos/… »), ou null.
+  /// Une seule par annonce ; elle s'envoie APRÈS la publication, en multipart
+  /// (voir `ApiClient.televerser`), jamais dans le JSON de l'annonce.
+  final String? video;
+
   const Listing({
     required this.id,
     required this.title,
@@ -85,7 +91,15 @@ class Listing {
     this.sold = false,
     this.views = 0,
     this.attributes = const {},
+    this.video,
   });
+
+  /// L'adresse lisible de la vidéo (absolue), ou null.
+  String? get videoUrl {
+    final v = video;
+    if (v == null || v.isEmpty) return null;
+    return ImageSource.resoudre(v).url;
+  }
 
   /// Le prix à afficher : le promo s'il est actif, sinon le prix normal.
   num get prixAffiche {
@@ -147,6 +161,9 @@ class Listing {
       attributes: (j['attributes'] is Map)
           ? Map<String, dynamic>.from(j['attributes'] as Map)
           : const {},
+      video: (j['video'] is String && (j['video'] as String).isNotEmpty)
+          ? j['video'] as String
+          : null,
     );
   }
 

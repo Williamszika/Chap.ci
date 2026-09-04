@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Timer,
   Tag,
+  Video,
 } from 'lucide-react'
 import { fetchSellerResponseTime } from '../lib/api'
 import { BrandBadge } from '../components/BrandLogo'
@@ -630,6 +631,31 @@ export function ListingDetail() {
                   <img src={mediaUrl(src)} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* LA VIDÉO DE QUINZE SECONDES (chantier 6 du 04/09/2026). Sous les
+              photos, jamais à leur place : c'est l'objet qui tourne, qui
+              s'allume, qui roule — ce qu'on montre sur WhatsApp avant de
+              conclure. `preload="metadata"` : rien ne se télécharge tant qu'on
+              n'appuie pas, dix mégaoctets ne partent pas sur un forfait pour
+              une fiche qu'on ne fait que survoler. */}
+          {listing.video && (
+            <div className="mt-3 px-4 md:px-0">
+              <div className="overflow-hidden rounded-2xl border border-line bg-black">
+                <video
+                  src={mediaUrl(listing.video)}
+                  poster={listing.images[0] ? mediaUrl(listing.images[0]) : undefined}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="mx-auto max-h-[70vh] w-full"
+                  aria-label={`Vidéo de l’annonce ${listing.title}`}
+                />
+              </div>
+              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-500">
+                <Video size={12} /> La vidéo du vendeur — quinze secondes, l’objet tel qu’il est.
+              </p>
             </div>
           )}
         </div>

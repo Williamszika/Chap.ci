@@ -104,11 +104,16 @@ l'application, aux mêmes endroits :
   réponse automatique et les réponses toutes prêtes. Compte simple : la ligne
   ⚡ au-dessus de Mes annonces. Dans chaque conversation, l'éclair à gauche du
   champ pose une phrase enregistrée d'un appui.
+- **La vidéo de quinze secondes.** En publiant, sous les photos : « Ajouter
+  une vidéo » → Filmer (l'appareil s'arrête à 15 s) ou Choisir dans la galerie.
+  Sur une annonce qui en a une, la pastille « ▶ Vidéo · 15 s » en haut à droite
+  de la photo ouvre le lecteur. La première fois que vous filmez, l'iPhone
+  demande l'accès au micro : dites oui, sinon la vidéo n'a pas de son.
 
-Pour les prendre : l'encadré du haut, les six commandes. Deux nouvelles
-bibliothèques entrent dans `flutter pub get` : `image` (pure Dart) et
-`app_links` (un plugin standard, que CocoaPods installe tout seul lors de
-`flutter run`). Xcode n'a rien de plus à faire.
+Pour les prendre : l'encadré du haut, les six commandes. Trois nouvelles
+bibliothèques entrent dans `flutter pub get` : `image` (pure Dart),
+`app_links` et `video_player` (deux plugins standard, que CocoaPods installe
+tout seul lors de `flutter run`). Xcode n'a rien de plus à faire.
 
 ---
 

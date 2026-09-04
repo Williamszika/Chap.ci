@@ -75,6 +75,12 @@ $config += [
   // voir store/LIENS-UNIVERSELS.md.
   'apple_team_id'        => (string) (getenv('CHAPCI_APPLE_TEAM_ID') ?: ''),
   'android_sha256'       => (string) (getenv('CHAPCI_ANDROID_SHA256') ?: ''),
+  // LA VIDÉO DE QUINZE SECONDES (chantier 6 du 04/09/2026). Le poids maximal
+  // d'une vidéo, en mégaoctets. Quinze secondes de téléphone en 720p font
+  // 8 à 12 Mo ; au-delà, c'est une vidéo qui n'a pas été coupée. Le plafond
+  // RÉEL est le plus petit de cette valeur et de ce que PHP accepte
+  // (upload_max_filesize, post_max_size) — /health le dit dans `videoMaxMo`.
+  'video_max_mo'         => (int) (getenv('CHAPCI_VIDEO_MAX_MO') ?: 15),
   // SEUILS D'AFFICHAGE DES CHIFFRES PUBLICS.
   //
   // Un compteur n'attire que s'il impressionne. « Déjà 3 Ivoiriens sur Chap.ci »
@@ -2092,6 +2098,10 @@ function migrate(PDO $pdo): void {
   // Les favoris qui préviennent (04/09/2026) : l'avertissement « se termine
   // dans 7 jours » n'est envoyé qu'une fois par annonce.
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN expire_prevenu $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // La vidéo de quinze secondes (04/09/2026) : l'adresse publique du fichier
+  // (« /uploads/videos/… »), une seule par annonce, NULL sans vidéo.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN video $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN listing_id $id"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
@@ -5780,6 +5790,79 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
   return rtrim($config['uploads_path'], '/') . '/' . $name;
 }
 
+// =============================================================================
+//  LA VIDÉO DE QUINZE SECONDES PAR ANNONCE (chantier 6 du 04/09/2026)
+//
+//  C'est ainsi qu'on vend sur WhatsApp à Abidjan : une courte vidéo de l'objet
+//  qui tourne, qui s'allume, qui roule. Une par annonce, quinze secondes,
+//  après les photos — jamais à leur place (trois photos restent exigées).
+//
+//  Le fichier arrive en multipart (champ `video`), pas en data-URI comme les
+//  photos : dix mégaoctets en base64 dans un JSON, c'est treize mégaoctets à
+//  faire tenir en mémoire deux fois, et un forfait qui fond pour rien. Il est
+//  vérifié PAR SON CONTENU (finfo), jamais par son nom ni par le type annoncé,
+//  et rangé dans uploads/videos/ — sous le .htaccess d'uploads/ qui interdit
+//  déjà toute exécution. Le serveur ne transcode pas : pas de ffmpeg sur
+//  l'hébergement mutualisé, et un téléphone produit déjà du H.264 lisible
+//  partout. Les quinze secondes se coupent DANS le client (l'enregistreur du
+//  téléphone s'arrête à 15 s ; le site lit la durée avant d'envoyer) — le
+//  serveur, lui, tient le poids, et c'est le poids qui coûte.
+// =============================================================================
+
+/** « 20M », « 512K », « 2G » → octets. 0 si vide ou illimité. */
+function ini_octets(string $v): int {
+  $v = trim($v);
+  if ($v === '' || $v === '-1') return 0;
+  $n = (float) $v;
+  switch (strtolower(substr($v, -1))) {
+    case 'g': $n *= 1024; // et on continue
+    case 'm': $n *= 1024;
+    case 'k': $n *= 1024;
+  }
+  return (int) $n;
+}
+
+/** Le plafond RÉEL d'une vidéo : le réglage, borné par ce que PHP accepte. */
+function video_limite_octets(array $config): int {
+  $limite = max(1, (int) ($config['video_max_mo'] ?? 15)) * 1024 * 1024;
+  foreach (['upload_max_filesize', 'post_max_size'] as $cle) {
+    $ini = ini_octets((string) ini_get($cle));
+    if ($ini > 0 && $ini < $limite) $limite = $ini;
+  }
+  return $limite;
+}
+
+/** Le chemin sur le disque d'une vidéo dont on a l'adresse publique, ou null
+ *  si l'adresse n'est pas une des nôtres. `basename` neutralise toute
+ *  traversée de chemin ; l'extension est contrôlée pour ne jamais toucher
+ *  autre chose qu'une vidéo. */
+function video_chemin_local(array $config, ?string $url): ?string {
+  if (!$url || !str_contains($url, '/uploads/videos/')) return null;
+  $nom = basename((string) (parse_url($url, PHP_URL_PATH) ?: $url));
+  $ext = strtolower(pathinfo($nom, PATHINFO_EXTENSION));
+  if (!in_array($ext, ['mp4', 'mov', 'webm', '3gp', 'm4v'], true)) return null;
+  $dir = $config['uploads_dir'] ?? null;
+  if (!$dir) return null;
+  $chemin = rtrim($dir, '/') . '/videos/' . $nom;
+  return is_file($chemin) ? $chemin : null;
+}
+
+/** Retire le fichier vidéo d'une annonce, s'il est chez nous. Ne lève jamais. */
+function video_supprimer(array $config, ?string $url): void {
+  $chemin = video_chemin_local($config, $url);
+  if ($chemin) @unlink($chemin);
+}
+
+/** Retire les vidéos des annonces visées par `$where` — À APPELER AVANT le
+ *  DELETE des lignes, sinon on ne sait plus quels fichiers sont orphelins. */
+function videos_supprimer_annonces(PDO $pdo, array $config, string $where, array $params): void {
+  try {
+    $st = $pdo->prepare("SELECT video FROM listings WHERE ($where) AND video IS NOT NULL AND video <> ''");
+    $st->execute($params);
+    foreach ($st->fetchAll() as $r) video_supprimer($config, (string) $r['video']);
+  } catch (Throwable $e) { /* colonne absente sur une base pas encore migrée */ }
+}
+
 // ---- Mise en forme des lignes -> JSON attendu par le frontend ---------------
 //
 // $withPhone : le téléphone du vendeur n'est JAMAIS renvoyé par défaut. Il ne
@@ -5824,6 +5907,9 @@ function listing_out(array $r, bool $withPhone = false): array {
     'hiddenReason' => !empty($r['hidden']) ? ($r['hidden_reason'] ?: null) : null,
     'sold' => !empty($r['sold']),
     'views' => (int) ($r['views'] ?? 0),
+    // La vidéo de quinze secondes : son adresse publique, ou null. `?? null`
+    // pour une base pas encore migrée (la colonne arrive au premier appel).
+    'video' => (isset($r['video']) && (string) $r['video'] !== '') ? (string) $r['video'] : null,
   ];
 }
 
@@ -6447,6 +6533,7 @@ try {
               'push_subs' => 'user_id'] as $tbl => $col) {
       try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
     }
+    videos_supprimer_annonces($pdo, $config, 'user_id = ?', [$id]); // les vidéos, avant les lignes
     $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
@@ -7574,12 +7661,93 @@ try {
     jout(['ok' => true, 'hidden' => (bool) $hidden]);
   }
 
+  // ---------- LA VIDÉO DE QUINZE SECONDES ----------
+  // POST /listings/{id}/video — multipart, champ `video`. Le propriétaire
+  // seulement. Remplace la vidéo précédente s'il y en avait une.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'video' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id, video FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    // Vingt vidéos par heure et par compte : personne n'en met autant, et une
+    // requête forgée ne remplit pas le disque. Compté par le journal, comme
+    // le contrôle des photos.
+    rate_limit($pdo, 'video_ajout', $u['email'] ?? null, 20, 3600);
+    log_security_event($pdo, 'video_ajout', $u['email'] ?? null, $seg[1]);
+    $limite = video_limite_octets($config);
+    $limiteMo = max(1, (int) floor($limite / 1024 / 1024));
+    $f = $_FILES['video'] ?? null;
+    if (!$f) {
+      // Au-delà de post_max_size, PHP vide $_FILES sans un mot : la seule
+      // trace est la taille annoncée par le client.
+      $annonce = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+      $postMax = ini_octets((string) ini_get('post_max_size'));
+      if ($annonce > 0 && $postMax > 0 && $annonce > $postMax) {
+        jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à quinze secondes.', 413);
+      }
+      jerr('Aucune vidéo reçue (champ « video » attendu).');
+    }
+    $erreur = (int) ($f['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($erreur === UPLOAD_ERR_INI_SIZE || $erreur === UPLOAD_ERR_FORM_SIZE) {
+      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à quinze secondes.', 413);
+    }
+    if ($erreur !== UPLOAD_ERR_OK || empty($f['tmp_name']) || !is_uploaded_file((string) $f['tmp_name'])) {
+      jerr('La vidéo n’est pas arrivée entière. Réessayez.');
+    }
+    $taille = (int) ($f['size'] ?? 0);
+    if ($taille <= 0) jerr('La vidéo est vide.');
+    if ($taille > $limite) {
+      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à quinze secondes.', 413);
+    }
+    // Le type RÉEL, lu dans les premiers octets — jamais le nom du fichier ni
+    // ce que le client annonce. Un .mp4 qui est un script ne passe pas.
+    $mime = '';
+    try { $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->file((string) $f['tmp_name']); }
+    catch (Throwable $e) { $mime = ''; }
+    $exts = ['video/mp4' => 'mp4', 'video/quicktime' => 'mov', 'video/webm' => 'webm',
+             'video/3gpp' => '3gp', 'video/x-m4v' => 'm4v'];
+    if (!isset($exts[$mime])) {
+      log_security_event($pdo, 'video_refusee', $u['email'] ?? null, $mime ?: 'type inconnu');
+      jerr('Ce fichier n’est pas une vidéo lisible (MP4, MOV, WebM ou 3GP attendu).', 415);
+    }
+    $dir = rtrim((string) $config['uploads_dir'], '/') . '/videos';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    if (!is_dir($dir) || !is_writable($dir)) jerr('Le dossier des vidéos n’est pas accessible en écriture.', 500);
+    $nom = date('Ym') . '-' . uuid() . '.' . $exts[$mime];
+    if (!@move_uploaded_file((string) $f['tmp_name'], "$dir/$nom")) jerr('La vidéo n’a pas pu être enregistrée. Réessayez.', 500);
+    @chmod("$dir/$nom", 0644);
+    $url = rtrim((string) $config['uploads_path'], '/') . '/videos/' . $nom;
+    // L'ancienne vidéo ne sert plus à personne : on la retire tout de suite,
+    // sinon chaque remplacement laisserait dix mégaoctets orphelins.
+    video_supprimer($config, (string) ($row['video'] ?? ''));
+    $pdo->prepare('UPDATE listings SET video = ? WHERE id = ?')->execute([$url, $seg[1]]);
+    jout(['ok' => true, 'video' => $url, 'octets' => $taille]);
+  }
+
+  // DELETE /listings/{id}/video — le propriétaire, ou un administrateur (une
+  // vidéo qui enfreint les règles se retire sans retirer l'annonce).
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'video' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id, video FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    video_supprimer($config, (string) ($row['video'] ?? ''));
+    $pdo->prepare('UPDATE listings SET video = NULL WHERE id = ?')->execute([$seg[1]]);
+    if ($row['user_id'] !== $u['id']) log_security_event($pdo, 'admin_video_deleted', $u['email'] ?? null, $seg[1]);
+    jout(['ok' => true]);
+  }
+
   if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'DELETE') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
     $row = $st->fetch();
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    // La vidéo part avec l'annonce — avant la ligne, sinon on ne sait plus
+    // quel fichier était le sien.
+    videos_supprimer_annonces($pdo, $config, 'id = ?', [$seg[1]]);
     $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[1]]);
     jout(['ok' => true]);
   }
@@ -11345,6 +11513,7 @@ try {
                 'quick_replies' => 'user_id', 'push_subs' => 'user_id'] as $tbl => $col) {
         try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
       }
+      videos_supprimer_annonces($pdo, $config, 'user_id = ?', [$id]); // les vidéos, avant les lignes
       $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
       $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
       $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
@@ -11426,6 +11595,7 @@ try {
       $st->execute([$seg[2]]);
       $row = $st->fetch();
       $motif = mb_substr(trim((string) (body()['motif'] ?? '')), 0, 400);
+      videos_supprimer_annonces($pdo, $config, 'id = ?', [$seg[2]]); // la vidéo, avant la ligne
       $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[2]]);
       // Les signalements qui la visaient n'ont plus d'objet : on les clôt, sans
       // quoi la file de modération garderait des lignes pointant vers le vide.
@@ -11497,6 +11667,7 @@ try {
         if ($l = $ls->fetch()) {
           $titre = mb_substr(trim((string) $l['title']), 0, 60);
           if ($action === 'supprimer') {
+            videos_supprimer_annonces($pdo, $config, 'id = ?', [$rep['listing_id']]);
             $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$rep['listing_id']]);
             if (!empty($l['user_id'])) {
               notify($pdo, (string) $l['user_id'], 'listing', 'Annonce retirée',
@@ -14043,7 +14214,12 @@ try {
           // une information : le site n'a pas été extrait au bon endroit.
           'empreinteSeo' => $empSeo, 'empreinteSite' => $empSite, 'deposeSite' => $deposeSite,
           // Zéro attendu. Autre chose : le dossier api/ est à nettoyer.
-          'fichiersInattendus' => $inattendus]);
+          'fichiersInattendus' => $inattendus,
+          // Le poids maximal RÉEL d'une vidéo d'annonce (réglage borné par ce
+          // que PHP accepte). Si c'est moins que 15, l'hébergement plafonne :
+          // cPanel → Sélectionner une version PHP → Options →
+          // upload_max_filesize et post_max_size.
+          'videoMaxMo' => (int) floor(video_limite_octets($config) / 1024 / 1024)]);
   }
 
   jerr('Route inconnue: ' . $path, 404);

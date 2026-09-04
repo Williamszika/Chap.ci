@@ -222,6 +222,11 @@ export async function setAdminListingHidden(id: string, hidden: boolean, motif =
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminSetListingHidden(id, hidden, motif)
 }
+/** Retirer la vidéo d'une annonce sans retirer l'annonce (une vidéo qui enfreint les règles). */
+export async function removeAdminListingVideo(id: string): Promise<void> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpRetirerVideo(id)
+}
 export async function fetchAdminUserDetail(id: string): Promise<AdminUserDetail> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminUserDetail<AdminUserDetail>(id)

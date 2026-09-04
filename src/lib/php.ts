@@ -402,6 +402,52 @@ export async function phpSellerAnalytics(period: string): Promise<SellerAnalytic
 export async function phpUpdateListing(id: string, input: NewListingInput): Promise<Listing> {
   return req<Listing>(`/listings/${id}`, { method: 'PUT', body: input })
 }
+
+// ---- La vidéo de quinze secondes (chantier 6 du 04/09/2026) -----------------
+//
+// Elle part en multipart, APRÈS que l'annonce existe : dix mégaoctets en
+// base64 dans le JSON de publication, c'est treize mégaoctets à tenir deux
+// fois en mémoire, et un envoi qui échoue emporterait l'annonce avec lui.
+// Le plafond du serveur est de 15 Mo (réglage `video_max_mo`, borné par ce
+// que PHP accepte) ; le même nombre est ici pour le dire AVANT l'envoi.
+export const VIDEO_MAX_MO = 15
+export async function phpTeleverserVideo(id: string, fichier: File): Promise<string> {
+  const fd = new FormData()
+  fd.append('video', fichier, fichier.name || 'video.mp4')
+  const headers: Record<string, string> = {}
+  const token = phpGetToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  // Deux minutes : dix mégaoctets sur une 3G d'Abidjan, c'est long, et un
+  // envoi coupé à quinze secondes serait un envoi qui n'aboutit jamais.
+  const ctrl = new AbortController()
+  const minuterie = window.setTimeout(() => ctrl.abort(), 120_000)
+  let res: Response
+  try {
+    res = await fetch(`${API}/listings/${encodeURIComponent(id)}/video`, {
+      method: 'POST', headers, credentials: 'include', body: fd, signal: ctrl.signal,
+    })
+  } catch (e) {
+    throw new ApiError(
+      (e as Error)?.name === 'AbortError'
+        ? 'L’envoi de la vidéo a pris trop de temps. Réessayez sur un meilleur réseau.'
+        : 'Connexion au serveur impossible. Vérifiez votre connexion internet et réessayez.',
+      0,
+    )
+  } finally {
+    window.clearTimeout(minuterie)
+  }
+  const text = await res.text()
+  let data: { ok?: boolean; video?: string; error?: string } = {}
+  try { data = text ? JSON.parse(text) : {} } catch {
+    throw new ApiError(res.ok ? 'Réponse inattendue du serveur.' : `Erreur ${res.status}`, res.ok ? 0 : res.status)
+  }
+  if (!res.ok) throw new ApiError(data.error || `Erreur ${res.status}`, res.status)
+  return data.video ?? ''
+}
+/** Retire la vidéo d'une annonce (le vendeur, ou un administrateur). L'annonce reste. */
+export async function phpRetirerVideo(id: string): Promise<void> {
+  await req(`/listings/${encodeURIComponent(id)}/video`, { method: 'DELETE' })
+}
 export async function phpSetListingHidden(id: string, hidden: boolean): Promise<void> {
   await req(`/listings/${id}/visibility`, { method: 'POST', body: { hidden } })
 }

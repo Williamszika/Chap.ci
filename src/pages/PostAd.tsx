@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { ecrireBrouillon, lireBrouillon, effacerBrouillon, ilYA, type Brouillon } from '../lib/brouillon'
 import { poserRelais, lireRelais, retirerRelais, type EtatPhotos } from '../lib/relaisPublier'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown, Gift } from 'lucide-react'
+import { ArrowLeft, Plus, X, MapPin, Check, Lock, UserPlus, LocateFixed, Tag, Wand2, ShieldAlert, ShieldCheck, BookOpen, Loader2, ChevronDown, Gift, Video } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
 import { PrixMarcheVendeur } from '../components/PrixMarche'
 import { deviner, devinerDisponible } from '../lib/deviner'
@@ -175,6 +175,21 @@ export function PostAd() {
   const [submitting, setSubmitting] = useState(false)
   const prefilled = useRef(false)
 
+  /* ── LA VIDÉO DE QUINZE SECONDES (chantier 6 du 04/09/2026) ──────────────
+   * Facultative, une seule, après les photos. Elle ne part PAS avec le JSON
+   * de l'annonce : elle est envoyée en multipart une fois l'annonce en ligne
+   * (voir `submit`), et un échec d'envoi ne défait pas la publication.
+   */
+  const [video, setVideo] = useState<File | null>(null)
+  const [videoApercu, setVideoApercu] = useState('')
+  // En modification : la vidéo déjà en ligne, et si la personne l'a retirée.
+  const [videoExistante, setVideoExistante] = useState<string | null>(null)
+  const [videoRetiree, setVideoRetiree] = useState(false)
+  const [videoErreur, setVideoErreur] = useState('')
+  const [videoEnvoi, setVideoEnvoi] = useState(false)
+  const videoRef = useRef<HTMLInputElement>(null)
+  useEffect(() => () => { if (videoApercu) URL.revokeObjectURL(videoApercu) }, [videoApercu])
+
   // Brouillon local — voir src/lib/brouillon.ts pour le pourquoi.
   // On ne propose la reprise QU'EN création : en édition, le formulaire est déjà
   // rempli par l'annonce existante, une reprise l'écraserait.
@@ -258,6 +273,7 @@ export function PostAd() {
     prefilled.current = true
     const l = editListing
     setImages(l.images ?? [])
+    setVideoExistante(l.video ?? null); setVideoRetiree(false)
     setTitle(l.title ?? '')
     setCategoryId(l.categoryId ?? '')
     setSubcategory(l.subcategory ?? '')
@@ -491,6 +507,51 @@ export function PostAd() {
     promoOn && promoPctNum > 0 && promoPctNum < 100 && priceNum > 0
       ? { percent: promoPctNum, price: Math.floor(priceNum * (1 - promoPctNum / 100)) }
       : null
+
+  /** La durée d'un fichier vidéo, lue par le navigateur ; -1 s'il ne sait pas le lire. */
+  function dureeVideo(f: File): Promise<number> {
+    return new Promise((resolve) => {
+      const v = document.createElement('video')
+      v.preload = 'metadata'
+      const url = URL.createObjectURL(f)
+      const fin = (d: number) => { URL.revokeObjectURL(url); resolve(d) }
+      v.onloadedmetadata = () => fin(Number.isFinite(v.duration) ? v.duration : 0)
+      v.onerror = () => fin(-1)
+      v.src = url
+    })
+  }
+
+  /* La vidéo se vérifie ICI, avant tout envoi : le poids (quinze secondes en
+   * 720p font moins de 15 Mo) et la durée. Le serveur, lui, ne connaît que le
+   * poids — il ne décode pas. Une vidéo de deux minutes qui pèserait moins de
+   * 15 Mo passerait donc chez lui ; c'est le navigateur qui la refuse. */
+  async function onVideo(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    setVideoErreur('')
+    const mo = f.size / 1024 / 1024
+    if (mo > php.VIDEO_MAX_MO) {
+      setVideoErreur(`Vidéo trop lourde (${mo.toFixed(0)} Mo, ${php.VIDEO_MAX_MO} Mo au maximum). Quinze secondes en 720p suffisent : coupez-la dans Photos, puis réessayez.`)
+      return
+    }
+    const d = await dureeVideo(f)
+    if (d < 0) { setVideoErreur('Ce fichier n’est pas une vidéo lisible. Un MP4 ou un MOV pris avec votre téléphone convient.'); return }
+    if (d > 16) {
+      setVideoErreur(`Votre vidéo dure ${Math.round(d)} s : coupez-la à quinze secondes (Photos → Modifier), puis réessayez. Quinze secondes, c’est ce que l’acheteur regarde jusqu’au bout.`)
+      return
+    }
+    if (videoApercu) URL.revokeObjectURL(videoApercu)
+    setVideo(f)
+    setVideoApercu(URL.createObjectURL(f))
+    setVideoRetiree(false)
+  }
+
+  function retirerVideo() {
+    if (videoApercu) URL.revokeObjectURL(videoApercu)
+    setVideo(null); setVideoApercu(''); setVideoErreur('')
+    if (videoExistante) setVideoRetiree(true)
+  }
 
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -811,6 +872,19 @@ export function PostAd() {
       const created = editing && editId
         ? await updateListing(editId, input)
         : await addListing(input)
+      // La vidéo, APRÈS l'annonce, en multipart. Si elle n'arrive pas, l'annonce
+      // est en ligne quand même : on le dit, et on n'annule rien.
+      if (isPhp && (video || (videoRetiree && !video))) {
+        setVideoEnvoi(true)
+        try {
+          if (video) await php.phpTeleverserVideo(created.id, video)
+          else await php.phpRetirerVideo(created.id)
+        } catch (e) {
+          toast.error(`L’annonce est en ligne, mais pas sa vidéo : ${(e as Error).message}`)
+        } finally {
+          setVideoEnvoi(false)
+        }
+      }
       // Notification de statut : l'annonce a passé la modération (texte + photos
       // analysées à l'ajout) et est en ligne. Toast immédiat + la cloche est
       // rafraîchie (le serveur y a déposé une notification « Annonce publiée »).
@@ -1149,6 +1223,67 @@ export function PostAd() {
             </p>
           )}
         </div>
+
+        {/* LA VIDÉO DE QUINZE SECONDES — facultative, après les photos. C'est
+            ainsi qu'on vend sur WhatsApp à Abidjan : l'objet qui tourne, qui
+            s'allume, qui roule. Rien n'est envoyé avant que l'annonce soit en
+            ligne ; le navigateur vérifie le poids et la durée avant. */}
+        {isPhp && (
+          <div className="mb-5">
+            <p className="mb-2 text-sm font-semibold text-gray-800">
+              Une vidéo de quinze secondes <span className="font-normal text-gray-500">(facultatif)</span>
+            </p>
+            {video && videoApercu ? (
+              <div className="overflow-hidden rounded-2xl border border-line bg-black">
+                <video src={videoApercu} controls playsInline muted preload="metadata" className="mx-auto max-h-64 w-full" />
+                <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 text-xs text-gray-600">
+                  <span className="truncate">{video.name} · {(video.size / 1024 / 1024).toFixed(1)} Mo</span>
+                  <button type="button" onClick={retirerVideo} className="inline-flex shrink-0 items-center gap-1 font-semibold text-red-600">
+                    <X size={13} /> Retirer
+                  </button>
+                </div>
+              </div>
+            ) : videoExistante && !videoRetiree ? (
+              <div className="overflow-hidden rounded-2xl border border-line bg-black">
+                <video src={mediaUrl(videoExistante)} controls playsInline preload="metadata" className="mx-auto max-h-64 w-full" />
+                <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 text-xs text-gray-600">
+                  <span>Votre vidéo, déjà en ligne.</span>
+                  <div className="flex shrink-0 gap-3">
+                    <button type="button" onClick={() => videoRef.current?.click()} className="font-semibold text-primary-600">Remplacer</button>
+                    <button type="button" onClick={retirerVideo} className="inline-flex items-center gap-1 font-semibold text-red-600">
+                      <X size={13} /> Retirer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => videoRef.current?.click()}
+                className="flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-line2 bg-cream-100 px-4 py-3 text-left transition md:hover:border-primary-300 md:hover:bg-primary-50"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-primary-600 shadow-sm"><Video size={20} /></span>
+                <span className="text-sm">
+                  <b className="font-semibold text-gray-800">Ajouter une vidéo</b>
+                  <span className="block text-xs text-gray-500">
+                    {videoRetiree ? 'La vidéo en ligne sera retirée à l’enregistrement.' : 'Quinze secondes, l’objet qui tourne ou qui s’allume — comme sur WhatsApp.'}
+                  </span>
+                </span>
+              </button>
+            )}
+            <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={onVideo} />
+            {videoErreur && (
+              <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+                <ShieldAlert size={14} className="mt-0.5 shrink-0" /> {videoErreur}
+              </p>
+            )}
+            {videoEnvoi && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <Loader2 size={13} className="animate-spin" /> Envoi de la vidéo… Ne fermez pas la page.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* « Chap.ci écrit l'annonce » : on dit ce qu'on a fait, et qu'il faut
             relire. Une annonce remplie par une machine et publiée sans un

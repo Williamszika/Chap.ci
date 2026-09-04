@@ -18,6 +18,7 @@ import '../widgets/offre.dart';
 import '../widgets/prix_marche.dart';
 import 'conversation_screen.dart';
 import 'vendeur_screen.dart';
+import 'video_screen.dart';
 
 /// Fiche d'une annonce — le détail complet : photos, prix, état, description,
 /// vendeur, et le bouton « Contacter ».
@@ -257,6 +258,42 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.5)),
+              ),
+            ),
+          // LA VIDÉO DE QUINZE SECONDES (chantier 6 du 04/09/2026) : une
+          // pastille sur les photos, jamais le lecteur — rien ne se
+          // télécharge tant qu'on n'appuie pas, et dix mégaoctets ne partent
+          // pas sur un forfait pour une fiche qu'on ne fait que survoler.
+          if (a.videoUrl != null)
+            Positioned(
+              top: 14,
+              right: 14,
+              child: Material(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(999),
+                child: InkWell(
+                  key: const ValueKey('pastille-video'),
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) =>
+                          VideoScreen(url: a.videoUrl!, titre: a.title))),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.play_arrow_rounded,
+                            size: 18, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(tr(context, 'annonce.video'),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           if (a.images.length > 1)

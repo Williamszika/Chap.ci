@@ -58,6 +58,7 @@ dependencies:
   # rien à changer côté Xcode ni Gradle.
   image: ^4.9.2
   app_links: ^7.2.1
+  video_player: ^2.14.0
 
 dev_dependencies:
   flutter_test:
