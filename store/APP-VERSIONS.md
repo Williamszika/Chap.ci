@@ -147,6 +147,61 @@ le 26/08, le jour même du seuil).
 
 ---
 
+## v1.25 — versionCode 26
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | `4b7a22c` — le code ET la montée de version, dans le même commit. |
+| Date du build | **NON CONSTRUITE** — le code est prêt dans le dépôt, l'AAB n'existe pas encore. |
+| Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
+| minSdk 22 · targetSdk **36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33`. |
+| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. La marche à suivre Android reste celle de **`store/BUILD-v1.24.md`** (mêmes commandes, seul le numéro change). |
+| État iPhone | le Patron installe l'app sur son iPhone depuis Xcode : les six commandes en tête de **`store/GUIDE-IPHONE.md`**. |
+
+**Ce qu'elle apporte : les quatre nouveautés du 3 septembre, celles du site,
+dans l'application.** La v1.24 (mot de passe oublié) n'ayant jamais été
+construite, la v1.25 l'englobe.
+
+1. **L'affiche pour le statut WhatsApp** — sur une annonce, Partager → « Affiche
+   pour mon statut WhatsApp ». Une image 1080 × 1920 dessinée dans le téléphone
+   (`lib/affiche.dart`), aux cotes exactes de celle du site : la couronne aux
+   68 pétales de `signe_feuilles.dart`, la photo en « cover », la pastille verte
+   du prix cerclée de blanc, l'appel orange, le lien. Sans photo, un filigrane.
+2. **« Ça vaut combien ? »** — sous le prix, en publiant et sur la fiche. Mêmes
+   seuils que le site (`lib/api/prix_marche.dart` : 60 % du bas, 140 % du haut),
+   rien sous cinq annonces.
+3. **Faire une offre** — bouton sur la fiche, étiquette dans le composeur de la
+   conversation, carte d'offre dans la bulle (Accepter / Refuser /
+   Contre-proposer), pastille « Offre : … » dans la liste des messages.
+4. **Chap.ci écrit l'annonce** — sur la première photo, le titre, la catégorie,
+   la sous-catégorie, l'état, la description et les caractéristiques se
+   remplissent ; bannière « Relisez, corrigez, puis publiez ». La photo part
+   réduite à 768 px en JPEG (bibliothèque `image`, pure Dart). **Ne s'allume que
+   si `vision_cle` est dans `api/config.php`** — sinon le formulaire reste celui
+   d'hier, sans un mot.
+
+Tout est dans les six langues (`textes.dart` : 472 clés vérifiées).
+
+✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
+93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
+toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,
+dont la relecture pixel par pixel du PNG de l'affiche — crème du fond, vert de
+la pastille, orange de l'appel, photo dans son cadre — et le formulaire
+Smartphones rempli par suggestion (« samsung » → « Samsung », une valeur hors
+liste refusée, un champ déjà rempli jamais écrasé).
+
+⚠️ **Douze tests anciens échouent, et ce n'est pas nouveau** : 2FA, suppression
+de compte, écran pub, vendeur. Ils ont été relancés sur l'arbre D'AVANT ce
+commit : mêmes rouges. Ils sont à reprendre un jour, mais ils ne disent rien
+de la v1.25.
+
+⚠️ **Toujours pas prouvé : la fabrication de l'APK/AAB.** Même cause qu'en v1.24
+(Maven Central répond 429 depuis cet environnement). La bibliothèque `image`
+ajoutée est pure Dart — aucun plugin natif, donc rien de neuf pour Gradle ni
+CocoaPods ; mais c'est une déduction, pas une preuve.
+
+---
+
 ## v1.24 — versionCode 25
 
 | Champ | Valeur |
