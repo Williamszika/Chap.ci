@@ -26,11 +26,13 @@
 //  L'affiche est en FRANÇAIS quelle que soit la langue de l'application : elle
 //  s'adresse aux contacts du vendeur, en Côte d'Ivoire, pas au vendeur.
 // =============================================================================
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 
@@ -384,14 +386,23 @@ Future<Uint8List> rendreAffiche(AfficheDonnees d) async {
 /// — c'est donc lui qui ramène vers l'annonce (et vers l'application, le jour
 /// où les liens universels seront en place). Une seule ligne, l'adresse : la
 /// légende se pose par-dessus le bas de l'image, et trois lignes recouvraient
-/// le bouton (vu le 04/09/2026 sur le premier statut posté). Même règle que
-/// le site (`src/lib/affiche.ts`).
-Future<void> partagerAffiche(Uint8List png, String nom,
+/// le bouton (vu le 04/09/2026 sur le premier statut posté).
+///
+/// ⚠️ SUR IPHONE, WHATSAPP JETTE LE TEXTE ET GARDE L'IMAGE (vu le 04/09/2026 à
+/// 06:27, depuis le site). Sur iOS, le lien est donc COPIÉ dans le
+/// presse-papiers et l'image part seule ; l'écran dit à la personne de le
+/// coller dans la légende. Sur Android, le texte devient la légende tout seul.
+/// Renvoie `true` quand le lien a été copié (l'écran le dit alors).
+/// Même règle que le site (`src/lib/affiche.ts`).
+Future<bool> partagerAffiche(Uint8List png, String nom,
     {String? legende, Rect? origine}) async {
+  final copier = legende != null && Platform.isIOS;
+  if (copier) await Clipboard.setData(ClipboardData(text: legende));
   await SharePlus.instance.share(ShareParams(
     files: [XFile.fromData(png, mimeType: 'image/png', name: nom)],
     fileNameOverrides: [nom],
-    text: legende,
+    text: copier ? null : legende,
     sharePositionOrigin: origine,
   ));
+  return copier;
 }

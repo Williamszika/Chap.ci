@@ -283,18 +283,28 @@ export async function rendreAffiche(d: AfficheDonnees): Promise<Blob> {
  * sont déjà dessus, et trois lignes de légende recouvraient le bouton (vu le
  * 04/09/2026 sur le premier statut posté).
  *
- * Le 04/09/2026, trois statuts « sans l'affiche » ont d'abord fait croire que
- * WhatsApp jetait l'image dès qu'un texte l'accompagnait ; ils venaient en
- * fait de l'icône WhatsApp (le lien seul). L'image seule, elle, passe : c'est
- * prouvé. L'image AVEC la légende est ce que ce code envoie ; si un téléphone
- * ne garde que le texte, c'est ici qu'il faudra revenir.
+ * ⚠️ SUR IPHONE, WHATSAPP JETTE LE TEXTE ET GARDE L'IMAGE. Vu le 04/09/2026 à
+ * 06:27 : l'affiche est arrivée dans le statut, sans la légende que ce code
+ * lui donnait. (Le matin, trois statuts sans image avaient fait croire au
+ * contraire ; ils venaient de l'icône WhatsApp, le lien seul.) Sur iPhone, le
+ * lien est donc COPIÉ dans le presse-papiers par l'écran, au moment de
+ * l'appui — pas ici : Safari n'autorise la copie que dans la foulée du geste,
+ * et l'affiche met une seconde à se fabriquer — et l'image part seule ; la
+ * personne colle le lien dans la légende. Sur Android, le texte devient la
+ * légende tout seul.
  */
+export function surIphone(): boolean {
+  const ua = navigator.userAgent
+  // L'iPad récent se présente en « Macintosh » ; le tactile le trahit.
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
 export async function partagerAffiche(blob: Blob, nom: string, legende?: string): Promise<'partage' | 'telecharge'> {
   const fichier = new File([blob], nom, { type: 'image/png' })
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
   if (nav.share && nav.canShare?.({ files: [fichier] })) {
     try {
-      await nav.share(legende ? { files: [fichier], text: legende } : { files: [fichier] })
+      await nav.share(legende && !surIphone() ? { files: [fichier], text: legende } : { files: [fichier] })
       return 'partage'
     } catch (e) {
       // Annulé par la personne : rien à faire, et surtout pas un téléchargement

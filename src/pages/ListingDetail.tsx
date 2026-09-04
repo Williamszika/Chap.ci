@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { mediaUrl } from '../lib/native'
-import { rendreAffiche, partagerAffiche } from '../lib/affiche'
+import { rendreAffiche, partagerAffiche, surIphone } from '../lib/affiche'
 import { PrixMarcheAcheteur } from '../components/PrixMarche'
 import { OffreSheet } from '../components/Offre'
 import { phpProposerOffre } from '../lib/php'
@@ -385,6 +385,14 @@ export function ListingDetail() {
    */
   async function affiche() {
     if (!listing) return
+    // Sur iPhone, WhatsApp jette le texte qui accompagne une image : le lien
+    // est copié ICI, dans la foulée de l'appui (Safari le refuse plus tard),
+    // et la personne le colle dans la légende du statut. Voir lib/affiche.ts.
+    const lienCopie = surIphone()
+    if (lienCopie) {
+      navigator.clipboard?.writeText(shareUrl).catch(() => { /* on le dira quand même : coller ne coûte rien */ })
+      toast.show('🔗 Le lien est copié : dans WhatsApp, appuyez sur « Ajouter une légende » et collez-le.')
+    }
     setAfficheEnCours(true)
     try {
       const p = activePromo(listing)
@@ -1141,7 +1149,7 @@ function ShareSheet({
           {afficheEnCours ? 'Fabrication de l’affiche…' : 'Affiche pour mon statut WhatsApp'}
         </button>
         <p className="mt-1.5 text-center text-xs text-gray-500">
-          Une image avec le prix, et le lien en légende. Dans WhatsApp, choisissez « Mon statut ».
+          Une image avec le prix. Dans WhatsApp, choisissez « Mon statut » et mettez le lien en légende : il est copié pour vous.
         </p>
         {hasNative && (
           <button onClick={() => { onClose(); onNative() }} className="btn-outline mt-2 w-full py-2.5 text-sm">

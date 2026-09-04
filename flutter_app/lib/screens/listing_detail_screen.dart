@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -744,9 +745,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         etat: a.condition == 'neuf' ? 'Neuf' : 'Occasion',
       ));
       // La légende, c'est l'adresse et rien d'autre : le seul endroit
-      // cliquable d'un statut. Voir l'avertissement sur partagerAffiche.
+      // cliquable d'un statut. Sur iPhone, elle est copiée et la personne la
+      // colle — on le lui dit AVANT que la feuille ne s'ouvre, pour qu'elle
+      // le lise. Voir l'avertissement sur partagerAffiche.
+      final lien = 'https://chap.ci/annonce/${a.id}';
+      if (Platform.isIOS && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(context, 'partage.lienCopie')),
+          duration: const Duration(seconds: 6),
+        ));
+      }
       await partagerAffiche(png, 'chapci-${a.id}.png',
-          legende: 'https://chap.ci/annonce/${a.id}', origine: origine);
+          legende: lien, origine: origine);
     } catch (_) {
       if (mounted) _info(context, tr(context, 'partage.afficheEchec'));
     } finally {
