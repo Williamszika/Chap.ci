@@ -15,6 +15,7 @@ import '../screens/messages_screen.dart';
 import '../screens/modifier_profil_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/publier_screen.dart';
+import '../screens/reponses_screen.dart';
 import '../screens/securite_2fa_screen.dart';
 
 /// Le tableau de bord de l'ESPACE PROFESSIONNEL, façon CRM — le panneau d'un
@@ -472,6 +473,12 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                   tr(context, 'pro.tuile.publierSous'),
                   onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const PublierScreen()))),
+              // Les réponses : automatique (pro) et toutes prêtes. Sur le site,
+              // elles se cachaient au bas des messages et le Patron a redemandé
+              // deux fois une fonction déjà en ligne. Ici, une tuile.
+              _tuile('⚡', ChapColors.cream100, tr(context, 'pro.tuile.reponses'),
+                  tr(context, 'pro.tuile.reponsesSous'),
+                  onTap: () => _ouvrir(const ReponsesScreen(pro: true))),
             ],
           ),
 

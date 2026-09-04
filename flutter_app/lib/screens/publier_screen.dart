@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../api/deviner.dart';
+import '../api/models.dart';
 import '../data/categories.dart';
 import '../i18n/categories_i18n.dart';
 import '../i18n/textes.dart';
@@ -17,12 +18,29 @@ import '../widgets/selecteur_lieu.dart';
 import 'formulaire_dynamique.dart';
 import 'verifier_email_screen.dart';
 
-/// Une photo choisie (les octets + son type), en attente d'envoi.
+/// Une photo de l'annonce : NOUVELLE (les octets + son type, en attente
+/// d'envoi) ou EXISTANTE (déjà sur le serveur : on renvoie son adresse telle
+/// quelle, le serveur la garde sans la retéléverser).
 class _Photo {
-  final Uint8List bytes;
+  final Uint8List? bytes;
   final String mime;
-  const _Photo(this.bytes, this.mime);
-  String get dataUri => 'data:$mime;base64,${base64Encode(bytes)}';
+
+  /// L'adresse telle que le serveur l'a donnée (`/uploads/…` ou absolue) :
+  /// c'est elle qu'on lui rend, pas la version résolue pour l'affichage.
+  final String? existante;
+
+  /// L'adresse affichable de la photo existante.
+  final String? affichage;
+
+  const _Photo(this.bytes, this.mime, {this.existante, this.affichage});
+
+  /// Ce qui part au serveur : l'adresse d'origine, ou la photo en data-URI.
+  String get envoi =>
+      existante ?? 'data:$mime;base64,${base64Encode(bytes!)}';
+
+  ImageProvider get image => bytes != null
+      ? MemoryImage(bytes!) as ImageProvider
+      : NetworkImage(affichage ?? existante ?? '');
 }
 
 /// Publier une annonce — version 1 : le formulaire de base + les photos.
@@ -35,7 +53,16 @@ class PublierScreen extends StatefulWidget {
   /// directement un formulaire détaillé). L'app réelle n'en passe pas.
   final String? initialCategorie;
   final String? initialSous;
-  const PublierScreen({super.key, this.initialCategorie, this.initialSous});
+
+  /// MODIFIER une annonce existante (chantier 2 du 04/09/2026 : jusqu'ici, un
+  /// vendeur devait retourner sur le site pour corriger un prix — il gardait
+  /// le site et oubliait l'application). Le formulaire se préremplit, les
+  /// photos déjà en ligne restent, et l'enregistrement passe par
+  /// `PUT /listings/{id}` au lieu de `POST /listings`.
+  final Listing? annonce;
+
+  const PublierScreen(
+      {super.key, this.initialCategorie, this.initialSous, this.annonce});
   @override
   State<PublierScreen> createState() => _PublierScreenState();
 }
@@ -46,7 +73,43 @@ class _PublierScreenState extends State<PublierScreen> {
     super.initState();
     _categorie = widget.initialCategorie;
     _sousCategorie = widget.initialSous;
+    final a = widget.annonce;
+    if (a != null) {
+      _titre.text = a.title;
+      _prix.text = a.price.round().toString();
+      _description.text = a.description;
+      _tel.text = a.sellerPhone ?? '';
+      _categorie = a.categoryId;
+      _sousCategorie = a.subcategory;
+      _condition = a.condition == 'neuf' ? 'neuf' : 'occasion';
+      _negociable = a.negotiable;
+      _livraison = a.delivery;
+      _lieu = Lieu(regionId: a.regionId, cityId: a.cityId, commune: a.commune);
+      if (a.lat != null && a.lng != null) _gpsCoords = Coords(a.lat!, a.lng!);
+      for (final src in a.images) {
+        final r = ImageSource.resoudre(src);
+        if (r.bytes != null) {
+          _photos.add(_Photo(r.bytes, 'image/jpeg'));
+        } else if (r.url != null) {
+          _photos.add(_Photo(null, 'image/jpeg', existante: src, affichage: r.url));
+        }
+      }
+      // Jamais de remplissage automatique par-dessus une annonce existante.
+      _devineFait = true;
+    }
     if (_schema != null) _cleForm = GlobalKey<FormulaireDynamiqueState>();
+  }
+
+  bool get _modification => widget.annonce != null;
+
+  /// Le nombre de photos exigé : trois pour une nouvelle annonce ; en
+  /// modification, la même règle que le serveur — on peut en ajouter, pas
+  /// retirer toutes celles qui étaient là (au moins une, au plus trois).
+  int get _photosMinimum {
+    final a = widget.annonce;
+    if (a == null) return 3;
+    final avant = a.images.length;
+    return avant < 1 ? 1 : (avant > 3 ? 3 : avant);
   }
 
   final _formKey = GlobalKey<FormState>();
@@ -159,11 +222,13 @@ class _PublierScreenState extends State<PublierScreen> {
       return;
     }
     _devineFait = true;
+    final octets = p.bytes;
+    if (octets == null) return;
     if (!await devinerDisponible()) return;
     if (!mounted) return;
     setState(() => _devineEnCours = true);
     try {
-      final r = await deviner(p.bytes);
+      final r = await deviner(octets);
       if (!mounted || r == null) return;
       // Sous 30 de confiance, le moteur hésite : mieux vaut un formulaire vide
       // qu'un formulaire faux à corriger champ par champ.
@@ -305,7 +370,7 @@ class _PublierScreenState extends State<PublierScreen> {
           tr(context, 'pub.localisationAide'));
       return;
     }
-    if (_photos.length < 3) {
+    if (_photos.length < _photosMinimum) {
       _dialogue(tr(context, 'pub.photos'), tr(context, 'pub.photosAide'));
       return;
     }
@@ -346,7 +411,7 @@ class _PublierScreenState extends State<PublierScreen> {
       // commune / ville — comme le site : toute annonce porte un point, pour
       // que la distance s'affiche même sans GPS.
       final coords = _gpsCoords ?? coordsFor(_lieu.cityId, _lieu.commune);
-      await ApiClient.instance.post('/listings', {
+      final corps = <String, dynamic>{
         'title': _titre.text.trim(),
         'description': _description.text.trim(),
         'price': int.tryParse(_prix.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
@@ -354,7 +419,9 @@ class _PublierScreenState extends State<PublierScreen> {
         'categoryId': _categorie,
         'subcategory': _sousCategorie,
         'condition': _condition,
-        'images': _photos.map((p) => p.dataUri).toList(),
+        // Les photos existantes repartent par leur adresse, les nouvelles en
+        // data-URI : le serveur garde les unes et téléverse les autres.
+        'images': _photos.map((p) => p.envoi).toList(),
         'regionId': _lieu.regionId,
         'cityId': _lieu.cityId ?? '',
         if (_lieu.commune != null) 'commune': _lieu.commune,
@@ -364,7 +431,17 @@ class _PublierScreenState extends State<PublierScreen> {
         'sellerPhone': _tel.text.trim(),
         'delivery': _livraison,
         if (attributs.isNotEmpty) 'attributes': attributs,
-      });
+      };
+      final a = widget.annonce;
+      if (a != null) {
+        // La promotion en cours n'est pas éditable ici : on la renvoie telle
+        // quelle, sinon le serveur l'effacerait avec la mise à jour.
+        if (a.promoPrice != null) corps['promoPrice'] = a.promoPrice;
+        if (a.promoUntil != null) corps['promoUntil'] = a.promoUntil;
+        await ApiClient.instance.put('/listings/${a.id}', corps);
+      } else {
+        await ApiClient.instance.post('/listings', corps);
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true); // le shell affiche la confirmation
@@ -395,7 +472,9 @@ class _PublierScreenState extends State<PublierScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(tr(context, 'pub.titre'))),
+      appBar: AppBar(
+          title: Text(tr(
+              context, _modification ? 'pub.modifierTitre' : 'pub.titre'))),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -473,7 +552,14 @@ class _PublierScreenState extends State<PublierScreen> {
               FormulaireDynamique(
                 key: _cleForm,
                 schema: _schema!,
-                images: _photos.map((p) => p.bytes).toList(),
+                images: _photos.map((p) => p.image).toList(),
+                // En modification, les réponses déjà données — tant que la
+                // sous-catégorie est celle de l'annonce : un autre formulaire
+                // n'a pas les mêmes questions.
+                initiales: (widget.annonce != null &&
+                        _sousCategorie == widget.annonce!.subcategory)
+                    ? widget.annonce!.attributes
+                    : null,
                 onChange: (e) => setState(() => _etatForm = e),
               ),
               const SizedBox(height: 6),
@@ -580,7 +666,8 @@ class _PublierScreenState extends State<PublierScreen> {
                       width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : Text(tr(context, 'pub.publierMonAnnonce')),
+                  : Text(tr(context,
+                      _modification ? 'pub.enregistrerModifs' : 'pub.publierMonAnnonce')),
             ),
           ],
         ),
@@ -616,12 +703,14 @@ class _PublierScreenState extends State<PublierScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          '${_photos.length}/3 photos minimum'
-          '${_photos.length >= 3 ? '  ✓' : ''}',
+          tr(context, 'pub.photosMinimum')
+                  .replaceFirst('{n}', '${_photos.length}')
+                  .replaceFirst('{min}', '$_photosMinimum') +
+              (_photos.length >= _photosMinimum ? '  ✓' : ''),
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: _photos.length >= 3
+            color: _photos.length >= _photosMinimum
                 ? ChapColors.greenDark
                 : ChapColors.gray600,
           ),
@@ -637,8 +726,17 @@ class _PublierScreenState extends State<PublierScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.memory(_photos[i].bytes,
-                width: 92, height: 92, fit: BoxFit.cover),
+            child: Image(
+                image: _photos[i].image,
+                width: 92,
+                height: 92,
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => Container(
+                    width: 92,
+                    height: 92,
+                    color: ChapColors.cream100,
+                    child: const Icon(Icons.broken_image_outlined,
+                        color: ChapColors.line2))),
           ),
           Positioned(
             top: 2,

@@ -44,6 +44,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Timer? _minuteur;
   late bool _bloque;
   late bool _archive;
+  // « ⚡ Réponses toutes prêtes » : les phrases enregistrées du compte, posées
+  // d'un appui. Chargées en silence ; sans phrase, pas de bouton.
+  List<ReponsePrete> _pretes = const [];
 
   @override
   void initState() {
@@ -57,6 +60,9 @@ class _ConversationScreenState extends State<ConversationScreen> {
     _monId = await ApiClient.instance.monId();
     await _rafraichir();
     if (mounted) setState(() => _chargement = false);
+    ReponsePrete.mes().then((p) {
+      if (mounted) setState(() => _pretes = p);
+    }).catchError((_) {/* pas de phrases, pas de bouton */});
     // Relève régulière tant que l'écran est ouvert.
     _minuteur = Timer.periodic(
         const Duration(seconds: 4), (_) => _rafraichir());
@@ -603,6 +609,87 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 
+  /// Un bouton rond de la barre de saisie (offre, réponses prêtes).
+  Widget _rond(IconData icone, String libelle, VoidCallback? onTap) {
+    return Material(
+      color: ChapColors.cream100,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Tooltip(
+          message: libelle,
+          child: Padding(
+            padding: const EdgeInsets.all(11),
+            child: Icon(icone, color: ChapColors.marqueSombre, size: 18),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// La feuille des phrases enregistrées : un appui pose la phrase dans le
+  /// champ — elle ne part pas toute seule, la personne relit d'abord.
+  void _feuilleReponses() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ChapColors.cream,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('⚡ ${tr(context, 'conv.reponsesPretes')}',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final r in _pretes)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Material(
+                          color: ChapColors.cream100,
+                          borderRadius: BorderRadius.circular(14),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () {
+                              _saisie.text = r.texte;
+                              _saisie.selection = TextSelection.collapsed(
+                                  offset: r.texte.length);
+                              Navigator.pop(ctx);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              child: Text(r.texte,
+                                  style: const TextStyle(
+                                      fontSize: 14.5,
+                                      color: ChapColors.gray900)),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(tr(context, 'conv.reponsesGerer'),
+                  style: const TextStyle(
+                      fontSize: 12, color: ChapColors.gray500)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _saisieBarre() {
     return SafeArea(
       top: false,
@@ -616,23 +703,16 @@ class _ConversationScreenState extends State<ConversationScreen> {
           children: [
             // « Proposer un prix » : l'offre structurée, à la place de
             // « dernier prix ? ». Sert aussi de contre-proposition.
-            Material(
-              color: ChapColors.cream100,
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: _offreEnCours ? null : _proposerOffre,
-                child: Tooltip(
-                  message: tr(context, 'offre.proposer'),
-                  child: const Padding(
-                    padding: EdgeInsets.all(11),
-                    child: Icon(Icons.local_offer_outlined,
-                        color: ChapColors.marqueSombre, size: 18),
-                  ),
-                ),
-              ),
-            ),
+            _rond(Icons.local_offer_outlined, tr(context, 'offre.proposer'),
+                _offreEnCours ? null : _proposerOffre),
             const SizedBox(width: 8),
+            // « ⚡ Réponses toutes prêtes » : la phrase se pose dans le champ,
+            // la personne la relit, l'ajuste, puis envoie.
+            if (_pretes.isNotEmpty) ...[
+              _rond(Icons.bolt_outlined, tr(context, 'conv.reponsesPretes'),
+                  _feuilleReponses),
+              const SizedBox(width: 8),
+            ],
             Expanded(
               child: TextField(
                 controller: _saisie,

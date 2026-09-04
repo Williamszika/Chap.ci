@@ -7,6 +7,8 @@ import '../theme.dart';
 import '../widgets/espace_pro_panel.dart';
 import 'listing_detail_screen.dart';
 import 'modifier_profil_screen.dart';
+import 'publier_screen.dart';
+import 'reponses_screen.dart';
 import 'verifier_email_screen.dart';
 
 /// Le contenu de l'onglet Compte quand on est connecté : l'identité (avec l'état
@@ -133,6 +135,66 @@ class _MonCompteViewState extends State<MonCompteView> {
     }
   }
 
+  /// « Modifier » : le formulaire de publication, prérempli. Au retour, la
+  /// liste se recharge et un mot confirme — sinon on ne sait pas si le prix
+  /// corrigé est bien parti.
+  Future<void> _modifier(Listing a) async {
+    final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => PublierScreen(annonce: a)));
+    if (ok == true && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(tr(context, 'pub.modifiee'))));
+      _recharger();
+    }
+  }
+
+  /// La ligne « ⚡ Réponses toutes prêtes » d'un compte simple (le compte pro
+  /// a sa tuile dans la console). Une fonction qu'on ne trouve pas n'existe
+  /// pas : elle est ici, au-dessus des annonces.
+  Widget _ligneReponses() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Material(
+        color: ChapColors.cream,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const ReponsesScreen(pro: false))),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: ChapColors.line),
+            ),
+            child: Row(
+              children: [
+                const Text('⚡', style: TextStyle(fontSize: 20)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tr(context, 'compte.reponses'),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: ChapColors.gray900)),
+                      Text(tr(context, 'compte.reponsesSous'),
+                          style: const TextStyle(
+                              fontSize: 12, color: ChapColors.gray600)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: ChapColors.gray500),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _supprimer(Listing a) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -202,6 +264,7 @@ class _MonCompteViewState extends State<MonCompteView> {
                     return const SizedBox.shrink();
                   },
                 ),
+                if (infos.data?['aCompte'] == true) _ligneReponses(),
               ]);
             },
           ),
@@ -618,6 +681,9 @@ class _MonCompteViewState extends State<MonCompteView> {
             Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => ListingDetailScreen(annonce: a)));
             break;
+          case 'modifier':
+            _modifier(a);
+            break;
           case 'masquer':
             _action(() => ApiClient.instance
                 .post('/listings/${a.id}/visibility', {'hidden': true}));
@@ -633,6 +699,8 @@ class _MonCompteViewState extends State<MonCompteView> {
       },
       itemBuilder: (context) => [
         PopupMenuItem(value: 'voir', child: Text(tr(context, 'menu.voir'))),
+        PopupMenuItem(
+            value: 'modifier', child: Text(tr(context, 'menu.modifier'))),
         if (a.hidden)
           PopupMenuItem(
               value: 'afficher', child: Text(tr(context, 'menu.remettre')))

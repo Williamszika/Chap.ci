@@ -26,6 +26,11 @@ class Listing {
   final double? lng;
   final String sellerName;
   final String? sellerId; // le compte vendeur (pour ouvrir une conversation)
+
+  /// Le téléphone laissé sur l'annonce. Le serveur ne l'envoie qu'à son
+  /// propriétaire (`/listings/mine`) : c'est pour le préremplir quand il
+  /// modifie son annonce, pas pour l'afficher.
+  final String? sellerPhone;
   final bool sellerVerified;
 
   /// Vendeur professionnel (badge PRO bleu sur l'annonce et la page vendeur).
@@ -62,6 +67,7 @@ class Listing {
     required this.sellerName,
     required this.createdAt,
     this.sellerId,
+    this.sellerPhone,
     this.subcategory,
     this.commune,
     this.regionId,
@@ -122,6 +128,9 @@ class Listing {
       lng: (j['lng'] is num) ? (j['lng'] as num).toDouble() : null,
       sellerName: (j['sellerName'] ?? 'Vendeur').toString(),
       sellerId: j['sellerId']?.toString(),
+      sellerPhone: (j['sellerPhone']?.toString().trim().isNotEmpty ?? false)
+          ? j['sellerPhone'].toString().trim()
+          : null,
       sellerVerified: j['sellerVerified'] == true,
       sellerPro: j['sellerPro'] == true,
       sellerEnseigne: (j['sellerEnseigne']?.toString().trim().isNotEmpty ?? false)

@@ -160,6 +160,85 @@ class Offre {
   }
 }
 
+/// « ⚡ RÉPONSES TOUTES PRÊTES » — les phrases qu'on retape vingt fois par jour
+/// (« Oui, c'est disponible. », « Je livre à… »), enregistrées une bonne fois.
+/// Elles se posent d'un appui dans la conversation. Douze au maximum : au-delà,
+/// on ne les retrouve plus. Portées du site le 04/09/2026 (chantier 2 :
+/// l'application à égalité).
+class ReponsePrete {
+  final String id;
+  final String texte;
+  final int createdAt;
+  const ReponsePrete({required this.id, required this.texte, required this.createdAt});
+
+  factory ReponsePrete.fromJson(Map<String, dynamic> j) => ReponsePrete(
+        id: (j['id'] ?? '').toString(),
+        texte: (j['texte'] ?? '').toString(),
+        createdAt: (j['createdAt'] is num) ? (j['createdAt'] as num).toInt() : 0,
+      );
+
+  /// Les phrases proposées tant que le vendeur n'en a enregistré aucune.
+  static const List<String> modeles = [
+    'Oui, c’est disponible.',
+    'Je livre à…',
+    'Mon dernier prix est…',
+  ];
+
+  static const int maximum = 12;
+
+  static Future<List<ReponsePrete>> mes() async {
+    final d = await ApiClient.instance.get('/reponses');
+    if (d is! List) return const [];
+    return d.whereType<Map<String, dynamic>>().map(ReponsePrete.fromJson).toList();
+  }
+
+  static Future<ReponsePrete> ajouter(String texte) async {
+    final d = await ApiClient.instance.post('/reponses', {'texte': texte.trim()});
+    if (d is Map<String, dynamic>) return ReponsePrete.fromJson(d);
+    throw ApiException('La phrase n’a pas été enregistrée.');
+  }
+
+  static Future<void> supprimer(String id) async {
+    await ApiClient.instance.delete('/reponses/$id');
+  }
+}
+
+/// « 🤖 RÉPONSE AUTOMATIQUE » — la phrase qui part toute seule quand un acheteur
+/// écrit pour la première fois. Réservée aux comptes professionnels approuvés
+/// (le serveur le vérifie). Elle achète du temps, elle ne remplace personne :
+/// elle ne compte pas dans le taux de réponse, et la conversation reste dans
+/// « Sans réponse » tant que le vendeur n'a pas écrit lui-même.
+class ReponseAuto {
+  final String texte;
+  final bool active;
+  const ReponseAuto({required this.texte, required this.active});
+
+  factory ReponseAuto.fromJson(Map<String, dynamic> j) => ReponseAuto(
+        texte: (j['texte'] ?? '').toString(),
+        active: j['active'] == true,
+      );
+
+  /// Trois phrases d'accueil proposées, pour ne pas partir d'une page blanche.
+  static const List<String> modeles = [
+    'Bonjour et merci pour votre message. Je vous réponds dans la journée.',
+    'Bonjour ! Nous sommes ouverts du lundi au samedi. Je reviens vers vous très vite.',
+    'Merci de votre intérêt. Dites-moi la quantité et votre commune, je vous fais un prix.',
+  ];
+
+  static Future<ReponseAuto> lire() async {
+    final d = await ApiClient.instance.get('/pro/reponse-auto');
+    if (d is Map<String, dynamic>) return ReponseAuto.fromJson(d);
+    return const ReponseAuto(texte: '', active: false);
+  }
+
+  static Future<ReponseAuto> enregistrer(String texte, bool active) async {
+    final d = await ApiClient.instance
+        .post('/pro/reponse-auto', {'texte': texte.trim(), 'active': active});
+    if (d is Map<String, dynamic>) return ReponseAuto.fromJson(d);
+    throw ApiException('La phrase n’a pas été enregistrée.');
+  }
+}
+
 /// Un message dans une conversation.
 class Msg {
   final String id;

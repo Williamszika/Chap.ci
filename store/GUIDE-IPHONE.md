@@ -97,6 +97,13 @@ l'application, aux mêmes endroits :
   est là (`lib/liens_entrants.dart`), mais il ne s'allume qu'avec le compte
   Apple payant et deux réglages : tout est dans `store/LIENS-UNIVERSELS.md`.
   En attendant, ces liens ouvrent le site, comme avant.
+- **Modifier son annonce.** Mon compte → une annonce → ⋮ → Modifier : le
+  formulaire arrive prérempli, les photos en ligne restent, on corrige le prix
+  et on enregistre. Jusqu'ici, il fallait retourner sur le site.
+- **Les réponses.** Compte pro : la tuile ⚡ Réponses de la console, avec la
+  réponse automatique et les réponses toutes prêtes. Compte simple : la ligne
+  ⚡ au-dessus de Mes annonces. Dans chaque conversation, l'éclair à gauche du
+  champ pose une phrase enregistrée d'un appui.
 
 Pour les prendre : l'encadré du haut, les six commandes. Deux nouvelles
 bibliothèques entrent dans `flutter pub get` : `image` (pure Dart) et

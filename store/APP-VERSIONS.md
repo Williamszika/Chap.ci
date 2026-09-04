@@ -189,6 +189,14 @@ titre long passe en trois lignes, et l'application **reçoit les liens**
 pour ouvrir la fiche quand un contact appuie sur ce lien — actif seulement le
 jour où les déclarations de `store/LIENS-UNIVERSELS.md` sont en place.
 
+Puis, le soir du 04/09 (chantier 2 des six demandés, « l'application à
+égalité avec le site ») : **modifier son annonce** depuis Mon compte
+(formulaire prérempli, photos en ligne conservées, `PUT /listings/{id}`), et
+les **réponses** — la réponse automatique du compte pro et les réponses toutes
+prêtes, avec l'éclair dans la barre de saisie de chaque conversation
+(`lib/screens/reponses_screen.dart`). Test `publier_modification_test.dart` :
+chaque champ prérempli, puces cochées à partir des attributs enregistrés.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

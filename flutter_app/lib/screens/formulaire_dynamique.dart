@@ -32,9 +32,11 @@ class FormulaireDynamique extends StatefulWidget {
   final Schema schema;
   final ValueChanged<EtatFormulaire> onChange;
 
-  /// Les photos déjà choisies (leurs octets), pour lier une couleur à l'une
-  /// d'elles. Le moteur ne les modifie pas ; il pointe juste dessus.
-  final List<Uint8List> images;
+  /// Les photos déjà choisies, pour lier une couleur à l'une d'elles. Des
+  /// `ImageProvider` plutôt que des octets : en modification d'annonce, les
+  /// photos déjà en ligne sont des adresses, pas des octets (04/09/2026). Le
+  /// moteur ne les modifie pas ; il pointe juste dessus.
+  final List<ImageProvider> images;
 
   /// Valeurs de départ, pour rouvrir un formulaire déjà rempli (édition d'une
   /// annonce) ou présenter un exemple. Les clés sont celles des attributs.
@@ -64,8 +66,24 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
   void initState() {
     super.initState();
     if (widget.initiales != null) {
+      // Les attributs d'une annonce existante arrivent SÉRIALISÉS, comme
+      // _serialiser() les a écrits : un choix multiple est « M, L, XL », une
+      // bascule est « Oui ». On les remet dans la forme interne, sinon les
+      // puces resteraient vides sous une valeur pourtant enregistrée.
       widget.initiales!.forEach((k, v) {
-        _vals[k] = v is List ? List<String>.from(v.map((e) => e.toString())) : v;
+        Champ? champ;
+        for (final c in widget.schema.champs) {
+          if (c.cle == k) { champ = c; break; }
+        }
+        if (v is List) {
+          _vals[k] = List<String>.from(v.map((e) => e.toString()));
+        } else if (champ != null && champ.type == TypeChamp.bascule) {
+          _vals[k] = v == true || v.toString().trim().toLowerCase() == 'oui';
+        } else if (champ != null && champ.multi && v is String) {
+          _vals[k] = v.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        } else {
+          _vals[k] = v;
+        }
       });
     }
     // On remonte l'état initial (les champs requis encore vides) dès le montage,
@@ -718,8 +736,15 @@ class FormulaireDynamiqueState extends State<FormulaireDynamique> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.memory(widget.images[i],
-                          width: 48, height: 48, fit: BoxFit.cover),
+                      child: Image(
+                          image: widget.images[i],
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) => Container(
+                              width: 48,
+                              height: 48,
+                              color: ChapColors.cream100)),
                     ),
                     if (choisi == i)
                       Positioned.fill(
