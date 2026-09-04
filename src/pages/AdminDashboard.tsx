@@ -322,7 +322,7 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
         )}
 
         {owner && left !== null && (
-          <p className="mt-2.5 text-xs text-gray-400">
+          <p className="mt-2.5 text-xs text-gray-500">
             {left > 0 ? (
               <>Expire dans <b className="tnum font-bold text-primary-700">{mmss(left)}</b></>
             ) : (
@@ -342,7 +342,7 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
             <Mail size={16} /> Recevoir un code par email
           </button>
         ) : (
-          <p className="mt-3.5 text-[11px] leading-relaxed text-gray-400">
+          <p className="mt-3.5 text-[11px] leading-relaxed text-gray-500">
             Vous n’avez pas le code ? Demandez-le à l’administrateur principal du site.
           </p>
         )}
@@ -459,7 +459,7 @@ function VisiteursGeo() {
       )}
 
       {data && data.sansVille > 0 && data.villesActives && (
-        <p className="mt-3 text-[11px] text-gray-400">
+        <p className="mt-3 text-[11px] text-gray-500">
           {formatPrice(data.sansVille)} visite{data.sansVille > 1 ? 's' : ''} sans ville identifiée
           (réseau ou VPN masquant la localisation).
         </p>
@@ -2889,7 +2889,7 @@ function ReportsTab({ onChanged }: { onChanged?: () => void }) {
               </p>
               <a href={`#/annonce/${r.listingId}`} className="block truncate text-sm text-primary-600 hover:underline">{r.listingTitle}</a>
               {r.details && <p className="mt-1 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">{r.details}</p>}
-              <p className="mt-1 text-[11px] text-gray-400">Signalé par {r.reporterEmail || '—'} · {timeAgo(r.createdAt)}</p>
+              <p className="mt-1 text-[11px] text-gray-500">Signalé par {r.reporterEmail || '—'} · {timeAgo(r.createdAt)}</p>
               {/* Trois issues, et elles closent le signalement avec elles :
                   rien à reprocher, l'annonce est corrigeable, l'annonce n'a
                   rien à faire ici. */}

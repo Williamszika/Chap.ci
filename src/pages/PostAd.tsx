@@ -1507,7 +1507,7 @@ export function PostAd() {
               onClick={() => setLocOpen(true)}
               className="mt-2 w-full text-center text-xs text-gray-500 underline"
             >
-              La détection a échoué ? Choisir manuellement
+              La détection a échoué ? Choisir manuellement
             </button>
           )}
         </Field>
