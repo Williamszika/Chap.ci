@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
+import '../api/controle_photos.dart';
 import '../api/deviner.dart';
 import '../api/models.dart';
 import '../data/categories.dart';
@@ -203,6 +204,9 @@ class _PublierScreenState extends State<PublierScreen> {
         if (x != null) await _ajouter(x);
       }
       if (mounted) setState(() {});
+      // Le contrôle anti-nudité des photos AJOUTÉES, par le serveur (chantier
+      // 5) — silencieux quand le moteur est éteint.
+      await _controlerNouvelles(avant);
       // La PREMIÈRE photo de l'annonce : le moteur la lit et remplit ce qui
       // est encore vide. Les suivantes ne déclenchent rien.
       if (avant == 0 && _photos.isNotEmpty) _lancerDevine(_photos.first);
@@ -287,6 +291,31 @@ class _PublierScreenState extends State<PublierScreen> {
   /// La bannière du moteur : la roue pendant la lecture, puis la note
   /// « Chap.ci a rempli l'annonce… » que la personne peut refermer.
   Widget _bandeauDevine() {
+    if (_controleEnCours && !_devineEnCours) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: ChapColors.cream100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: ChapColors.marque)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(tr(context, 'pub.controleEnCours'),
+                  style: const TextStyle(
+                      fontSize: 13, color: ChapColors.gray700)),
+            ),
+          ],
+        ),
+      );
+    }
     if (_devineEnCours) {
       return Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -353,6 +382,46 @@ class _PublierScreenState extends State<PublierScreen> {
     final mime = x.mimeType ??
         (x.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
     _photos.add(_Photo(bytes, mime));
+  }
+
+  // Le contrôle anti-nudité par le serveur : vrai tant que TOUTES les photos
+  // neuves ont été contrôlées (c'est ce que `photosAnalysees` promet au
+  // serveur) ; faux dès qu'un lot est passé sans verdict.
+  bool _photosControlees = true;
+  bool _controleEnCours = false;
+
+  /// Contrôle les photos ajoutées à partir de l'index [depuis] ; retire celles
+  /// que le moteur refuse et le dit. Sans moteur : rien, comme avant.
+  Future<void> _controlerNouvelles(int depuis) async {
+    final nouvelles = _photos.skip(depuis).where((p) => p.bytes != null).toList();
+    if (nouvelles.isEmpty) return;
+    setState(() => _controleEnCours = true);
+    try {
+      final verdicts = await controlerPhotos([for (final p in nouvelles) p.bytes!]);
+      if (!mounted) return;
+      if (verdicts == null) {
+        _photosControlees = false;
+        return;
+      }
+      var refusees = 0;
+      for (var i = nouvelles.length - 1; i >= 0; i--) {
+        if (verdicts[i].refusee) {
+          final idx = _photos.indexOf(nouvelles[i]);
+          if (idx >= 0) {
+            _photos.removeAt(idx);
+            _cleForm?.currentState?.photoRetiree(idx);
+          }
+          refusees++;
+        }
+      }
+      if (refusees > 0) {
+        setState(() {});
+        _dialogue(tr(context, 'pub.photos'),
+            tr(context, 'pub.photosRefusees').replaceFirst('{n}', '$refusees'));
+      }
+    } finally {
+      if (mounted) setState(() => _controleEnCours = false);
+    }
   }
 
   Future<void> _publier() async {
@@ -431,6 +500,8 @@ class _PublierScreenState extends State<PublierScreen> {
         'sellerPhone': _tel.text.trim(),
         'delivery': _livraison,
         if (attributs.isNotEmpty) 'attributes': attributs,
+        // Vrai seulement si le serveur a contrôlé chaque photo neuve.
+        'photosAnalysees': _photosControlees && _photos.any((p) => p.bytes != null),
       };
       final a = widget.annonce;
       if (a != null) {

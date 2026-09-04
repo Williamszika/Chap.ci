@@ -524,6 +524,12 @@ export async function phpDeviner(image: string, catalogue: CatalogueDeviner[]): 
   return req<Devine>('/annonce/deviner', { method: 'POST', body: { image, catalogue } })
 }
 
+/** Le contrôle des photos par le moteur (chantier 5 du 04/09/2026) : un verdict par photo, dans l'ordre. */
+export interface VerdictPhoto { refusee: boolean; motif: 'ok' | 'nudite' | 'sexuel' | 'mineur' | string }
+export async function phpControlerPhotos(images: string[]): Promise<{ verdicts: VerdictPhoto[]; modele: string }> {
+  return req('/photos/controle', { method: 'POST', body: { images } })
+}
+
 /** « Faire une offre » : propose un montant dans la conversation (ou contre-propose). */
 export async function phpProposerOffre(conversationId: string, montant: number): Promise<Message> {
   return req<Message>(`/conversations/${conversationId}/offre`, { method: 'POST', body: { montant } })

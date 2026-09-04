@@ -6972,6 +6972,107 @@ try {
   if ($path === 'annonce/deviner' && $method === 'GET') {
     jout(['disponible' => (string) ($config['vision_cle'] ?? '') !== '']);
   }
+  // ── LE CONTRÔLE DES PHOTOS PAR LE MOTEUR (chantier 5 du 04/09/2026) ──────────
+  //
+  // Jusqu'ici, la nudité était filtrée DANS le téléphone du vendeur par un
+  // modèle de 5,4 Mo (TensorFlow + NSFW.js) téléchargé à la première photo :
+  // sur un forfait ivoirien, c'est le prix d'une annonce. Quand la clé du
+  // moteur de vision est en place, le contrôle se fait ici, sur les mêmes
+  // photos réduites à 768 px que « Chap.ci écrit l'annonce », en UN appel pour
+  // toutes les photos ajoutées d'un coup. Le site et l'application ne chargent
+  // alors jamais le modèle local ; sans clé, le site garde son modèle (repli),
+  // l'application ne contrôle pas (elle ne contrôlait pas avant).
+  //
+  // Les règles sont celles de la modération (skill moderation-ci) : refuser la
+  // nudité, la pornographie, tout acte sexuel, tout mineur dénudé ; LAISSER
+  // PASSER le maillot de bain et la lingerie présentés comme des articles de
+  // mode. Le moteur répond photo par photo, dans l'ordre.
+  if ($path === 'photos/controle' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if ((string) ($config['vision_cle'] ?? '') === '') jerr('Le moteur de vision n’est pas configuré.', 503);
+    $b = body();
+    $images = is_array($b['images'] ?? null) ? array_values($b['images']) : [];
+    if (!$images) jerr('Aucune photo à contrôler.', 400);
+    if (count($images) > 8) jerr('Huit photos au plus par contrôle.', 400);
+    $blocs = [];
+    foreach ($images as $i => $img) {
+      if (!is_string($img) || !preg_match('#^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$#', $img, $m)) jerr('Photo ' . ($i + 1) . ' illisible.', 400);
+      if (strlen($m[2]) > 2_000_000) jerr('Photo ' . ($i + 1) . ' trop lourde pour le moteur (2 Mo max).', 413);
+      $blocs[] = ['type' => 'text', 'text' => 'Photo ' . $i . ' :'];
+      $blocs[] = ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => 'image/' . $m[1], 'data' => $m[2]]];
+    }
+    $blocs[] = ['type' => 'text', 'text' => 'Contrôle ces ' . count($images) . ' photo(s), dans l’ordre, index 0 à ' . (count($images) - 1) . '.'];
+    // Même quota que la rédaction : un appel par lot de photos, pas par photo.
+    // rate_limit() COMPTE les événements du journal : chaque tentative s'y
+    // inscrit avant l'appel, sinon le quota ne ferme jamais (vu au banc).
+    rate_limit($pdo, 'controle_photos', $u['email'] ?? null, (int) ($config['vision_quota'] ?? 40), 86400);
+    log_security_event($pdo, 'controle_photos', $u['email'] ?? null, (string) count($images));
+
+    $consigne = "Tu contrôles les photos d'une annonce sur Chap.ci, place de marché de Côte d'Ivoire, avant leur publication.\n"
+      . "Pour CHAQUE photo, dis si elle est REFUSÉE. Est refusée : la nudité (seins, sexe, fesses nus), la pornographie, "
+      . "tout acte ou pose sexuelle, tout mineur dénudé ou sexualisé. Motif : « nudite », « sexuel » ou « mineur ».\n"
+      . "N'est PAS refusée, motif « ok » : un maillot de bain, de la lingerie ou des sous-vêtements présentés comme des articles "
+      . "de mode (sur cintre, sur mannequin, ou portés sans mise en scène sexuelle), et tout le reste — objets, véhicules, "
+      . "animaux, nourriture, maisons, personnes habillées. Dans le doute sur un article de mode, laisse passer.";
+    $schema = [
+      'type' => 'object', 'additionalProperties' => false, 'required' => ['photos'],
+      'properties' => ['photos' => ['type' => 'array', 'items' => [
+        'type' => 'object', 'additionalProperties' => false, 'required' => ['index', 'refusee', 'motif'],
+        'properties' => [
+          'index' => ['type' => 'integer'],
+          'refusee' => ['type' => 'boolean'],
+          'motif' => ['type' => 'string', 'enum' => ['ok', 'nudite', 'sexuel', 'mineur']],
+        ],
+      ]]],
+    ];
+    $requete = [
+      'model' => (string) $config['vision_modele'],
+      'max_tokens' => 512,
+      'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
+      'fallbacks' => 'default',
+      'system' => $consigne,
+      'messages' => [['role' => 'user', 'content' => $blocs]],
+    ];
+    $r = http_fetch((string) $config['vision_url'], [
+      'method' => 'POST', 'timeout' => 60,
+      'headers' => [
+        'Content-Type: application/json',
+        'x-api-key: ' . $config['vision_cle'],
+        'anthropic-version: 2023-06-01',
+        'anthropic-beta: server-side-fallback-2026-07-01',
+      ],
+      'body' => json_encode($requete, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    if ($r['status'] !== 200) {
+      error_log('[chapci] controle photos · moteur HTTP ' . $r['status'] . ' · ' . substr($r['body'], 0, 200));
+      jerr('Le moteur n’a pas répondu.', 502);
+    }
+    $rep = json_decode($r['body'], true);
+    $stop = (string) ($rep['stop_reason'] ?? '');
+    // Un refus du moteur de REGARDER ces photos est lui-même un verdict : le
+    // client refuse tout le lot. C'est 422, pas 502 — rien n'est en panne.
+    if ($stop === 'refusal') jerr('Le moteur n’a pas voulu regarder ces photos.', 422);
+    $texte = '';
+    foreach ((array) ($rep['content'] ?? []) as $bloc) if (($bloc['type'] ?? '') === 'text') $texte .= $bloc['text'];
+    $d = json_decode($texte, true);
+    if (!is_array($d) || !is_array($d['photos'] ?? null) || $stop === 'max_tokens') {
+      error_log('[chapci] controle photos · réponse illisible · ' . substr($texte, 0, 200));
+      jerr('Le moteur a répondu de travers.', 502);
+    }
+    // Une photo dont le moteur n'a rien dit passe : le filet reste la
+    // modération humaine et le signalement, comme avant.
+    $verdicts = array_fill(0, count($images), ['refusee' => false, 'motif' => 'ok']);
+    foreach ($d['photos'] as $p) {
+      $i = (int) ($p['index'] ?? -1);
+      if ($i < 0 || $i >= count($images)) continue;
+      $refusee = !empty($p['refusee']);
+      $verdicts[$i] = ['refusee' => $refusee, 'motif' => $refusee ? (string) ($p['motif'] ?? 'nudite') : 'ok'];
+    }
+    $refusees = count(array_filter($verdicts, fn($v) => $v['refusee']));
+    if ($refusees > 0) log_security_event($pdo, 'photos_refusees', $u['email'] ?? null, (string) $refusees);
+    jout(['verdicts' => $verdicts, 'modele' => (string) ($rep['model'] ?? $config['vision_modele'])]);
+  }
+
   if ($path === 'annonce/deviner' && $method === 'POST') {
     $u = require_user($pdo, $secret);
     if ((string) ($config['vision_cle'] ?? '') === '') jerr('Le moteur de vision n’est pas configuré.', 503);

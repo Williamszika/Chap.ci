@@ -208,6 +208,12 @@ push) ceux qui ont une annonce en favori quand son prix baisse ou une semaine
 avant qu'elle n'expire ; l'application gagne l'interrupteur « Mes favoris :
 baisse de prix, fin d'annonce » dans Paramètres → Notifications.
 
+Chantier 5 : **le contrôle des photos par le serveur** — l'application, qui
+n'avait aucun filtre anti-nudité, envoie désormais les photos ajoutées au
+moteur de vision (`lib/api/controle_photos.dart`, un appel par lot, photos
+réduites à 768 px) et retire celles qu'il refuse. Ne s'allume qu'avec la clé
+dans `config.php` ; sans elle, rien ne change.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

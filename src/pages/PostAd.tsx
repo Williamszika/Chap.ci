@@ -34,6 +34,7 @@ import { locationLabel, resolveLocationByName } from '../data/locations'
 import { placeholderImage, emojiFor } from '../lib/placeholder'
 import { downscaleListingImage } from '../lib/image'
 import { classifyImage } from '../lib/nsfw'
+import { controlerPhotosServeur } from '../lib/controlePhotos'
 import { PhotoEditor } from '../components/PhotoEditor'
 import { useLocalStorage } from '../lib/useLocalStorage'
 import { getBestPosition, reverseGeocode } from '../lib/geo'
@@ -502,6 +503,7 @@ export function PostAd() {
     setCheckingPhotos(true)
     const added: string[] = []
     let blocked = 0
+    const candidats: string[] = []
     for (const file of files.slice(0, room)) {
       let uri: string | null = null
       try {
@@ -515,15 +517,27 @@ export function PostAd() {
           reader.readAsDataURL(file)
         })
       }
-      if (!uri) continue
-      // Analyse anti-nudité (locale, gratuite). Ne bloque pas en cas d'échec.
-      const verdict = await classifyImage(uri)
-      if (!mountedRef.current) return // écran fermé pendant l'analyse (P26)
-      if (verdict.blocked) { blocked++; continue }
-      // Le modèle n'a pas pu tourner : la photo passe (voir `photosAnalysees`),
-      // mais on cesse d'affirmer au serveur qu'elle a été examinée.
-      if (verdict.label === 'error') photosAnalysees.current = false
-      added.push(uri)
+      if (uri) candidats.push(uri)
+    }
+    // ── LE CONTRÔLE ANTI-NUDITÉ : le serveur d'abord, le modèle local en repli
+    // (chantier 5 du 04/09/2026, « le poids sur 3G »). Quand le moteur de
+    // vision est allumé, un seul appel contrôle tout le lot, et le modèle de
+    // 5,4 Mo n'est jamais téléchargé. Sinon, la photo par photo d'avant.
+    const verdicts = await controlerPhotosServeur(candidats)
+    if (!mountedRef.current) return // écran fermé pendant le contrôle (P26)
+    if (verdicts) {
+      candidats.forEach((uri, i) => { if (verdicts[i]?.refusee) blocked++; else added.push(uri) })
+    } else {
+      for (const uri of candidats) {
+        // Analyse anti-nudité (locale, gratuite). Ne bloque pas en cas d'échec.
+        const verdict = await classifyImage(uri)
+        if (!mountedRef.current) return // écran fermé pendant l'analyse (P26)
+        if (verdict.blocked) { blocked++; continue }
+        // Le modèle n'a pas pu tourner : la photo passe (voir `photosAnalysees`),
+        // mais on cesse d'affirmer au serveur qu'elle a été examinée.
+        if (verdict.label === 'error') photosAnalysees.current = false
+        added.push(uri)
+      }
     }
     if (!mountedRef.current) return
     setCheckingPhotos(false)

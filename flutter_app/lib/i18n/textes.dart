@@ -611,6 +611,10 @@ const Map<String, Map<String, String>> _t = {
   'offre.contre': {'fr': "Contre-proposer", 'en': "Counter-offer", 'es': "Contraoferta", 'pt': "Contraproposta", 'ar': "عرض مضاد", 'zh': "还价"},
   'offre.chip': {'fr': "Offre : {montant}", 'en': "Offer: {montant}", 'es': "Oferta: {montant}", 'pt': "Oferta: {montant}", 'ar': "عرض: {montant}", 'zh': "出价：{montant}"},
 
+  // Le contrôle des photos par le serveur (chantier 5 du 04/09/2026)
+  'pub.controleEnCours': {'fr': "Contrôle des photos…", 'en': "Checking the photos…", 'es': "Comprobando las fotos…", 'pt': "A verificar as fotos…", 'ar': "جارٍ فحص الصور…", 'zh': "正在检查照片…"},
+  'pub.photosRefusees': {'fr': "{n} photo(s) refusée(s) : contenu à caractère sexuel ou nudité. Ces photos sont interdites sur Chap.ci.", 'en': "{n} photo(s) refused: sexual content or nudity. These photos are not allowed on Chap.ci.", 'es': "{n} foto(s) rechazada(s): contenido sexual o desnudez. Estas fotos están prohibidas en Chap.ci.", 'pt': "{n} foto(s) recusada(s): conteúdo sexual ou nudez. Estas fotos são proibidas no Chap.ci.", 'ar': "{n} صورة مرفوضة: محتوى جنسي أو عُري. هذه الصور ممنوعة على Chap.ci.", 'zh': "{n} 张照片被拒绝：含有色情或裸露内容。Chap.ci 禁止此类照片。"},
+
   // Les favoris qui préviennent (chantier 4 du 04/09/2026)
   'notif.favorisSuivi': {'fr': "Mes favoris : baisse de prix, fin d’annonce", 'en': "My favourites: price drops, listing ending", 'es': "Mis favoritos: bajadas de precio, fin del anuncio", 'pt': "Os meus favoritos: descidas de preço, fim do anúncio", 'ar': "مفضلاتي: انخفاض السعر، انتهاء الإعلان", 'zh': "我的收藏：降价、信息即将结束"},
 
