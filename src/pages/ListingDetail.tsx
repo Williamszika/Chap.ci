@@ -397,8 +397,9 @@ export function ListingDetail() {
         lieu: locationLabel(listing.regionId, listing.cityId, listing.commune),
         etat: listing.condition === 'neuf' ? 'Neuf' : 'Occasion',
       })
-      // L'image part seule : voir l'avertissement sur partagerAffiche.
-      const fait = await partagerAffiche(blob, `chapci-${listing.id}.png`)
+      // La légende, c'est l'adresse et rien d'autre : le seul endroit cliquable
+      // d'un statut. Voir l'avertissement sur partagerAffiche.
+      const fait = await partagerAffiche(blob, `chapci-${listing.id}.png`, shareUrl)
       if (fait === 'telecharge') toast.success('Affiche enregistrée dans vos images : collez-la en statut WhatsApp.')
     } catch {
       toast.error('L’affiche n’a pas pu être fabriquée. Réessayez, ou partagez le lien.')
@@ -1140,7 +1141,7 @@ function ShareSheet({
           {afficheEnCours ? 'Fabrication de l’affiche…' : 'Affiche pour mon statut WhatsApp'}
         </button>
         <p className="mt-1.5 text-center text-xs text-gray-500">
-          Une image, avec le prix et le lien dessus. Dans WhatsApp, choisissez « Mon statut ».
+          Une image avec le prix, et le lien en légende. Dans WhatsApp, choisissez « Mon statut ».
         </p>
         {hasNative && (
           <button onClick={() => { onClose(); onNative() }} className="btn-outline mt-2 w-full py-2.5 text-sm">

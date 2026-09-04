@@ -378,15 +378,20 @@ Future<Uint8List> rendreAffiche(AfficheDonnees d) async {
 /// le dossier temporaire, rien ne reste dans la galerie sans que la personne
 /// l'y mette.
 ///
-/// ⚠️ L'IMAGE PART SEULE, SANS TEXTE. Le 4 septembre 2026, deux essais du
-/// Patron depuis le site (iPhone, puis WhatsApp sur Mac) ont donné deux statuts
-/// SANS l'affiche : quand WhatsApp reçoit une image ET un texte qui contient un
-/// lien, il garde le lien, fabrique sa propre carte d'aperçu, et jette l'image.
-/// Le lien est déjà écrit sur l'affiche ; le texte n'apportait rien de plus.
-Future<void> partagerAffiche(Uint8List png, String nom, {Rect? origine}) async {
+/// ⚠️ LE LIEN PART EN LÉGENDE, ET RIEN D'AUTRE. Dans un statut, rien n'est
+/// cliquable sur l'image : le bouton orange est une image de bouton. La seule
+/// chose sur laquelle un contact peut appuyer, c'est un lien dans la légende
+/// — c'est donc lui qui ramène vers l'annonce (et vers l'application, le jour
+/// où les liens universels seront en place). Une seule ligne, l'adresse : la
+/// légende se pose par-dessus le bas de l'image, et trois lignes recouvraient
+/// le bouton (vu le 04/09/2026 sur le premier statut posté). Même règle que
+/// le site (`src/lib/affiche.ts`).
+Future<void> partagerAffiche(Uint8List png, String nom,
+    {String? legende, Rect? origine}) async {
   await SharePlus.instance.share(ShareParams(
     files: [XFile.fromData(png, mimeType: 'image/png', name: nom)],
     fileNameOverrides: [nom],
+    text: legende,
     sharePositionOrigin: origine,
   ));
 }

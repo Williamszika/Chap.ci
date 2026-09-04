@@ -743,8 +743,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         lieu: locationLabel(a.regionId, a.cityId, a.commune),
         etat: a.condition == 'neuf' ? 'Neuf' : 'Occasion',
       ));
-      // L'image part seule : voir l'avertissement sur partagerAffiche.
-      await partagerAffiche(png, 'chapci-${a.id}.png', origine: origine);
+      // La légende, c'est l'adresse et rien d'autre : le seul endroit
+      // cliquable d'un statut. Voir l'avertissement sur partagerAffiche.
+      await partagerAffiche(png, 'chapci-${a.id}.png',
+          legende: 'https://chap.ci/annonce/${a.id}', origine: origine);
     } catch (_) {
       if (mounted) _info(context, tr(context, 'partage.afficheEchec'));
     } finally {

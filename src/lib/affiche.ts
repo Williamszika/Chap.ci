@@ -274,18 +274,27 @@ export async function rendreAffiche(d: AfficheDonnees): Promise<Blob> {
  * navigateur ne sait pas partager un fichier, la télécharge. Renvoie ce qui a
  * été fait, pour que l'écran dise la bonne phrase.
  *
- * ⚠️ L'IMAGE PART SEULE, SANS TEXTE. Le 4 septembre 2026, deux essais du Patron
- * (iPhone, puis WhatsApp sur Mac) ont donné deux statuts SANS l'affiche : quand
- * WhatsApp reçoit une image ET un texte qui contient un lien, il garde le lien,
- * fabrique sa propre carte d'aperçu, et jette l'image. Le lien est déjà écrit
- * sur l'affiche ; le texte n'apportait rien qu'elle n'ait déjà.
+ * ⚠️ LE LIEN PART EN LÉGENDE, ET RIEN D'AUTRE. Dans un statut, rien n'est
+ * cliquable sur l'image : le bouton orange est une image de bouton. La seule
+ * chose sur laquelle un contact peut appuyer, c'est un lien dans la légende
+ * — c'est donc lui qui ramène vers l'annonce (et vers l'application, le jour
+ * où les liens universels seront en place). La légende se pose par-dessus le
+ * bas de l'image : une seule ligne, l'adresse, pas le titre ni le prix — ils
+ * sont déjà dessus, et trois lignes de légende recouvraient le bouton (vu le
+ * 04/09/2026 sur le premier statut posté).
+ *
+ * Le 04/09/2026, trois statuts « sans l'affiche » ont d'abord fait croire que
+ * WhatsApp jetait l'image dès qu'un texte l'accompagnait ; ils venaient en
+ * fait de l'icône WhatsApp (le lien seul). L'image seule, elle, passe : c'est
+ * prouvé. L'image AVEC la légende est ce que ce code envoie ; si un téléphone
+ * ne garde que le texte, c'est ici qu'il faudra revenir.
  */
-export async function partagerAffiche(blob: Blob, nom: string): Promise<'partage' | 'telecharge'> {
+export async function partagerAffiche(blob: Blob, nom: string, legende?: string): Promise<'partage' | 'telecharge'> {
   const fichier = new File([blob], nom, { type: 'image/png' })
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean }
   if (nav.share && nav.canShare?.({ files: [fichier] })) {
     try {
-      await nav.share({ files: [fichier] })
+      await nav.share(legende ? { files: [fichier], text: legende } : { files: [fichier] })
       return 'partage'
     } catch (e) {
       // Annulé par la personne : rien à faire, et surtout pas un téléchargement
