@@ -21,6 +21,7 @@
     "banc:affiche": "node scripts/banc-affiche.mjs",
     "banc:prix": "node scripts/banc-prix.mjs",
     "banc:offres": "node scripts/banc-offres.mjs",
+    "banc:entonnoir": "node scripts/banc-entonnoir.mjs",
     "banc:deviner": "node scripts/banc-deviner.mjs"
   },
   "dependencies": {

@@ -885,6 +885,29 @@ export async function phpFavorisDetail(): Promise<FavoriDetail[]> {
 export async function phpAdminStats<T>(): Promise<T> {
   return req<T>('/admin/stats')
 }
+
+/**
+ * L'entonnoir hebdomadaire du tableau de bord (04/09/2026) : huit semaines,
+ * les quatre marches — visiteurs → fiches vues → contacts → annonces. Les
+ * taux se calculent à l'écran ; le serveur ne rend que des comptes.
+ */
+export interface SemaineEntonnoir {
+  numero: number
+  /** Lundi, « 2026-08-31 ». */
+  debut: string
+  /** Dimanche, inclus. */
+  fin: string
+  /** La semaine courante, incomplète : à ne pas comparer aux autres. */
+  enCours: boolean
+  visiteurs: number
+  fichesVues: number
+  contacts: number
+  annonces: number
+}
+export interface AdminEntonnoir { semaines: SemaineEntonnoir[]; genereLe: string }
+export async function phpAdminEntonnoir(): Promise<AdminEntonnoir> {
+  return req<AdminEntonnoir>('/admin/entonnoir')
+}
 export async function phpAdminUsers<T>(): Promise<T> {
   return req<T>('/admin/users')
 }

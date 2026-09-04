@@ -2554,7 +2554,7 @@ function admin_feature_labels(): array {
 /** Fonctionnalité requise par une route /admin/* (« » = pas de restriction fine). */
 function admin_feature_for_path(string $path): string {
   if ($path === 'admin/check' || $path === 'admin/me' || str_starts_with($path, 'admin/unlock')) return '';
-  if ($path === 'admin/stats') return 'overview';
+  if ($path === 'admin/stats' || $path === 'admin/entonnoir') return 'overview';
   if (str_starts_with($path, 'admin/pro')) return 'users';
   if ($path === 'admin/visits' || $path === 'admin/response-time' || $path === 'admin/geo') return 'visitors';
   if (str_starts_with($path, 'admin/listings')) return 'listings';
@@ -10109,6 +10109,51 @@ try {
     }
 
     // Vue d'ensemble : compteurs + activité récente.
+    // ── L'ENTONNOIR HEBDOMADAIRE : visiteurs → fiches vues → contacts → annonces
+    //
+    // Demande du Patron, 04/09/2026 : « mesurer avant d'améliorer — sans ce
+    // chiffre, chaque amélioration reste une opinion ». Huit semaines ISO
+    // (lundi → dimanche, en UTC, Abidjan est à UTC+0), les quatre marches, et
+    // le taux d'une marche à la suivante calculé côté écran.
+    //
+    //   visiteurs   : personnes distinctes, PUBLIC seulement — même règle que la
+    //                 carte du haut (authed = 0 ou NULL ; l'équipe et les comptes
+    //                 connectés sont exclus depuis les 9 et 10 août) ;
+    //   fichesVues  : la somme de listing_view_days (une ligne par annonce et par
+    //                 jour) — des vues de fiche, pas des pages vues ;
+    //   contacts    : les conversations ouvertes cette semaine-là ;
+    //   annonces    : les annonces créées cette semaine-là.
+    //
+    // La semaine en cours est incomplète : l'écran la marque « en cours » et
+    // ne la compare pas aux autres. Les visites sont purgées après 120 jours
+    // (cron/cleanup) : huit semaines restent dans la fenêtre.
+    if ($path === 'admin/entonnoir' && $method === 'GET') {
+      $aujourdhui = strtotime(gmdate('Y-m-d') . ' 00:00:00 UTC');
+      $lundi = $aujourdhui - (((int) gmdate('N', $aujourdhui)) - 1) * 86400;
+      $iso = fn(int $t) => gmdate('Y-m-d\TH:i:s\Z', $t);
+      $jour = fn(int $t) => gmdate('Y-m-d', $t);
+      $compter = function (string $sql, array $args) use ($pdo): int {
+        try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+        catch (Throwable $e) { return 0; }
+      };
+      $semaines = [];
+      for ($i = 7; $i >= 0; $i--) {
+        $debut = $lundi - $i * 7 * 86400;
+        $fin = $debut + 7 * 86400;
+        $semaines[] = [
+          'numero'     => (int) gmdate('W', $debut),
+          'debut'      => $jour($debut),
+          'fin'        => $jour($fin - 86400),
+          'enCours'    => $i === 0,
+          'visiteurs'  => $compter('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ? AND created_at < ? AND (authed = 0 OR authed IS NULL)', [$iso($debut), $iso($fin)]),
+          'fichesVues' => $compter('SELECT COALESCE(SUM(n),0) FROM listing_view_days WHERE day >= ? AND day < ?', [$jour($debut), $jour($fin)]),
+          'contacts'   => $compter('SELECT COUNT(*) FROM conversations WHERE created_at >= ? AND created_at < ?', [$iso($debut), $iso($fin)]),
+          'annonces'   => $compter('SELECT COUNT(*) FROM listings WHERE created_at >= ? AND created_at < ?', [$iso($debut), $iso($fin)]),
+        ];
+      }
+      jout(['semaines' => $semaines, 'genereLe' => now_iso()]);
+    }
+
     if ($path === 'admin/stats' && $method === 'GET') {
       $count = fn(string $t) => (int) $pdo->query("SELECT COUNT(*) AS c FROM $t")->fetch()['c'];
       $ordersByStatus = [];

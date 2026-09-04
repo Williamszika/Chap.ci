@@ -37,6 +37,7 @@ import { fetchNewsletter, type Subscriber } from '../lib/newsletter'
 // Annonces de nouveauté : composer, envoyer par lots, relire ce qui est parti.
 import {
   phpAnnonceCreer, phpAnnonceEnvoyer, phpAnnonces, type AnnonceProduit,
+  phpAdminEntonnoir, type AdminEntonnoir,
 } from '../lib/php'
 import {
   fetchAdminAds, adminAdAction, adminAdDelete, adminAdBroadcast,
@@ -569,6 +570,92 @@ function CourbeVisites({ serie }: { serie: { jour: string; visiteurs: number; in
 
 /** Le parcours — où ça fuit. Quatre marches en barres, la fenêtre suit le
  *  sélecteur de période de l'aperçu, et la note désigne la marche à réparer. */
+/**
+ * L'ENTONNOIR HEBDOMADAIRE — visiteurs → fiches vues → contacts → annonces.
+ *
+ * Demande du Patron, 04/09/2026 : « mesurer avant d'améliorer ; sans ce
+ * chiffre, chaque amélioration reste une opinion ». Huit semaines, une ligne
+ * par semaine, et sous chaque marche le taux depuis la précédente. La ligne
+ * de lecture, en tête, dit la semaine passée en une phrase — c'est elle qu'on
+ * relit le lundi pour savoir si la semaine d'avant a servi à quelque chose.
+ *
+ * Le « Parcours » d'à côté suit des PERSONNES (arrivé → inscrit → a publié) ;
+ * celui-ci suit des ACTES, semaine par semaine. Les deux se complètent.
+ */
+function EntonnoirHebdo() {
+  const [data, setData] = useState<AdminEntonnoir | null>(null)
+  const [erreur, setErreur] = useState(false)
+  useEffect(() => {
+    let vivant = true
+    phpAdminEntonnoir().then((d) => { if (vivant) setData(d) }).catch(() => { if (vivant) setErreur(true) })
+    return () => { vivant = false }
+  }, [])
+  if (erreur) return null
+  const semaines = data?.semaines ?? []
+  const taux = (n: number, de: number) => (de > 0 ? `${Math.round((n / de) * 100)} %` : '—')
+  const jourCourt = (iso: string) => {
+    const d = new Date(`${iso}T00:00:00Z`)
+    return `${d.getUTCDate()} ${d.toLocaleDateString('fr-FR', { month: 'short', timeZone: 'UTC' })}`
+  }
+  // La dernière semaine COMPLÈTE : c'est elle qui se lit, la courante ment
+  // encore (elle n'a que quelques jours).
+  const complete = [...semaines].reverse().find((s) => !s.enCours)
+  const lecture = complete && complete.visiteurs > 0
+    ? `Semaine ${complete.numero} : ${formatPrice(complete.visiteurs)} visiteurs, ${formatPrice(complete.fichesVues)} fiches vues, ${formatPrice(complete.contacts)} contacts, ${formatPrice(complete.annonces)} annonces publiées — ${complete.fichesVues > 0 ? `1 fiche sur ${Math.max(1, Math.round(complete.fichesVues / Math.max(1, complete.contacts)))} mène à un contact` : 'aucune fiche ouverte'}.`
+    : null
+  type Marche = 'visiteurs' | 'fichesVues' | 'contacts' | 'annonces'
+  const colonnes: { cle: Marche; label: string; de: Marche | null }[] = [
+    { cle: 'visiteurs', label: 'Visiteurs', de: null },
+    { cle: 'fichesVues', label: 'Fiches vues', de: 'visiteurs' },
+    { cle: 'contacts', label: 'Contacts', de: 'fichesVues' },
+    { cle: 'annonces', label: 'Annonces publiées', de: 'visiteurs' },
+  ]
+  return (
+    <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-display text-[15px] font-extrabold text-ink">L’entonnoir, semaine par semaine</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Visiteurs → fiches vues → contacts → annonces publiées · public uniquement (équipe exclue) · sous chaque chiffre, le taux depuis la marche d’avant
+          </p>
+        </div>
+      </div>
+      {lecture && <p className="mt-3 rounded-xl bg-cream-100 px-3 py-2 text-[12.5px] font-semibold text-ink">{lecture}</p>}
+      {!data ? (
+        <p className="mt-3 text-xs text-gray-500">Chargement…</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[520px] text-xs">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
+                <th className="py-1.5 pr-3 font-semibold">Semaine</th>
+                {colonnes.map((c) => <th key={c.cle} className="py-1.5 pr-3 text-right font-semibold">{c.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {semaines.map((s) => (
+                <tr key={s.debut} className={`border-t border-line ${s.enCours ? 'text-gray-500' : 'text-ink'}`}>
+                  <td className="py-2 pr-3 align-top">
+                    <span className="font-bold">S{s.numero}</span>
+                    <span className="ml-1.5 text-[11px] text-gray-500">{jourCourt(s.debut)} – {jourCourt(s.fin)}</span>
+                    {s.enCours && <span className="ml-1.5 rounded-md bg-cream-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-500">en cours</span>}
+                  </td>
+                  {colonnes.map((c) => (
+                    <td key={c.cle} className="tnum py-2 pr-3 text-right align-top">
+                      <span className="block font-extrabold">{formatPrice(s[c.cle])}</span>
+                      {c.de && <span className="block text-[10.5px] text-gray-500">{taux(s[c.cle], s[c.de])}</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Parcours({ p, fenetre }: { p: NonNullable<AdminStats['parcours']>; fenetre: 'j7' | 'j30' }) {
   const d = p[fenetre]
   const marches = [
@@ -820,6 +907,9 @@ function Overview({ stats, onGo, canSee, owner, email }: {
           ))}
         </div>
       )}
+
+      {/* L'entonnoir hebdomadaire : les actes, semaine par semaine. */}
+      {(owner || canSee('visitors')) && <EntonnoirHebdo />}
 
       {/* La courbe visiteurs + inscriptions, et le parcours. */}
       {(serie.length > 0 || (owner && stats.parcours)) && (
