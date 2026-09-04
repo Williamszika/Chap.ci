@@ -21,9 +21,29 @@ dart run tool/preparer_plateformes.dart
 flutter run --release
 ```
 
-(Si votre dossier ne s'appelle pas `chapci-app`, remplacez la première ligne par
-le chemin du vôtre. Si `flutter run` dit qu'il ne trouve pas d'appareil, faites
-`flutter devices` d'abord et vérifiez que l'iPhone y figure.)
+**Si la première ligne répond `cd: no such file or directory: …/chapci-app`,
+arrêtez-vous là** : le dossier n'est plus sur le Mac (c'est arrivé le 1ᵉʳ et le
+4 septembre 2026), et toutes les lignes suivantes échoueront l'une après
+l'autre. Tapez ceci à la place, qui récupère le code une fois pour toutes,
+puis fait la même chose que les six commandes :
+
+```bash
+cd ~
+git clone --branch claude/ci-marketplace-mobile-app-bnllro https://github.com/Williamszika/Chap.ci.git chapci-app
+cd ~/chapci-app/flutter_app
+flutter pub get
+dart run tool/preparer_plateformes.dart
+flutter run --release
+```
+
+Le dossier `ios/` étant refait à neuf, Xcode peut redemander une fois qui vous
+êtes (« Signing for Runner requires a development team ») : c'est l'**étape 4**
+ci-dessous, puis `flutter run --release` à nouveau. Les fois suivantes, les six
+commandes du haut suffisent.
+
+(Si `flutter run` dit qu'il ne trouve pas d'appareil, faites `flutter devices`
+d'abord et vérifiez que l'iPhone y figure. L'encadré « A new version of Flutter
+is available » est sans importance : ne faites pas `flutter upgrade` maintenant.)
 
 Comptez cinq à dix minutes. L'application se remplace toute seule sur le
 téléphone ; vos données et votre session restent.
