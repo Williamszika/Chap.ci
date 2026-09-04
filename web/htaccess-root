@@ -20,6 +20,15 @@ RewriteRule ^vendeur/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
 RewriteRule ^vendre/([A-Za-z0-9-]+)(/[A-Za-z0-9-]+)?/?$ seo.php [L,QSA]
 RewriteRule ^sitemap\.xml$ seo.php [L]
 
+# Les liens qui ouvrent l'application (liens universels iOS, App Links Android) :
+# le téléphone lit ici que chap.ci reconnaît l'application ci.chap.app. seo.php
+# fabrique ces deux fichiers à partir de api/config.php (apple_team_id,
+# android_sha256) et répond 404 tant qu'ils sont vides. Voir
+# store/LIENS-UNIVERSELS.md. ⚠️ Ce fichier n'étant plus déployé par le zip
+# (depuis le 02/08/2026), ces deux lignes s'ajoutent À LA MAIN sur le serveur.
+RewriteRule ^\.well-known/apple-app-site-association$ seo.php [L]
+RewriteRule ^\.well-known/assetlinks\.json$ seo.php [L]
+
 # IndexNow : fichier de vérification {clé}.txt à la racine -> seo.php
 # (uniquement si aucun vrai fichier de ce nom n'existe déjà)
 RewriteCond %{REQUEST_FILENAME} !-f

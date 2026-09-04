@@ -7,6 +7,7 @@ import 'ecran_demarrage.dart';
 import 'favoris.dart';
 import 'i18n/langues.dart';
 import 'i18n/textes.dart';
+import 'liens_entrants.dart';
 import 'notifications.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
@@ -37,6 +38,11 @@ Future<void> main() async {
   runApp(const ChapApp());
 }
 
+/// Le navigateur de l'application, accessible hors de l'arbre des widgets :
+/// c'est par lui qu'un lien https://chap.ci/annonce/… reçu de l'extérieur
+/// ouvre la fiche (voir liens_entrants.dart).
+final navigateurCle = GlobalKey<NavigatorState>();
+
 class ChapApp extends StatelessWidget {
   const ChapApp({super.key});
   @override
@@ -48,6 +54,7 @@ class ChapApp extends StatelessWidget {
       animation: LangueController.instance,
       builder: (context, _) => MaterialApp(
         title: 'Chap.ci',
+        navigatorKey: navigateurCle,
         debugShowCheckedModeBanner: false,
         theme: chapTheme(),
         locale: LangueController.instance.locale,
@@ -122,11 +129,16 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // L'accueil est monté, le navigateur existe : on peut ouvrir la fiche
+    // qu'un lien https://chap.ci/annonce/… demande — celui qui a lancé
+    // l'application comme ceux qui arriveront pendant qu'elle tourne.
+    LiensEntrants.instance.demarrer(navigateurCle);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    LiensEntrants.instance.arreter();
     _pages.dispose();
     super.dispose();
   }

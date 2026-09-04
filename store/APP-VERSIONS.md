@@ -182,6 +182,13 @@ construite, la v1.25 l'englobe.
 
 Tout est dans les six langues (`textes.dart` : 472 clés vérifiées).
 
+Ajouté le même jour, après le premier statut posté : l'affiche part avec
+l'adresse de l'annonce en **légende** (seul endroit cliquable d'un statut), le
+titre long passe en trois lignes, et l'application **reçoit les liens**
+`https://chap.ci/annonce/…` (`lib/liens_entrants.dart`, paquet `app_links`)
+pour ouvrir la fiche quand un contact appuie sur ce lien — actif seulement le
+jour où les déclarations de `store/LIENS-UNIVERSELS.md` sont en place.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

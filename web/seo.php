@@ -70,6 +70,54 @@ if (preg_match('#^/([A-Za-z0-9]{8,64})\.txt$#', $uri, $mk)) {
   exit;
 }
 
+// ------------------------------------ /.well-known/… : l'application, déclarée --
+// Les liens universels (iOS) et App Links (Android) : pour qu'une adresse
+// https://chap.ci/annonce/… ouvre l'APPLICATION quand elle est installée, le
+// téléphone vient lire ici que chap.ci reconnaît cette application. Deux
+// identifiants, que seul le Patron possède, se posent dans api/config.php :
+//   'apple_team_id'  => 'ABCDE12345'   (Apple Developer → Membership → Team ID)
+//   'android_sha256' => 'AA:BB:…'      (Play Console → Intégrité de l'app →
+//                                       empreinte SHA-256 de la clé de signature)
+// Tant qu'ils manquent, ces adresses répondent 404 et rien ne change : le lien
+// ouvre le site. Les deux règles de routage vont dans le .htaccess racine
+// (web/htaccess-root). Voir store/LIENS-UNIVERSELS.md.
+if ($uri === '/.well-known/apple-app-site-association') {
+  $team = strtoupper(trim((string) ($cfg['apple_team_id'] ?? '')));
+  if (!preg_match('/^[A-Z0-9]{10}$/', $team)) { http_response_code(404); exit; }
+  $appId = $team . '.ci.chap.app';
+  // Les deux écritures : « components/appIDs » (iOS 13+) et « paths/appID »
+  // (plus ancien). Apple lit celle qu'il connaît, ignore l'autre.
+  $aasa = ['applinks' => ['apps' => [], 'details' => [[
+    'appID' => $appId,
+    'appIDs' => [$appId],
+    'paths' => ['/annonce/*', '/vendeur/*'],
+    'components' => [['/' => '/annonce/*'], ['/' => '/vendeur/*']],
+  ]]]];
+  header('Content-Type: application/json');
+  header('Cache-Control: public, max-age=3600');
+  echo json_encode($aasa, JSON_UNESCAPED_SLASHES);
+  exit;
+}
+if ($uri === '/.well-known/assetlinks.json') {
+  $brut = $cfg['android_sha256'] ?? '';
+  $liste = is_array($brut) ? $brut : preg_split('/[\s,;]+/', (string) $brut);
+  $empreintes = [];
+  foreach ($liste as $e) {
+    $e = strtoupper(trim((string) $e));
+    // Une empreinte SHA-256 : 32 octets, en hexadécimal séparé par « : ».
+    if (preg_match('/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/', $e)) $empreintes[] = $e;
+  }
+  if (!$empreintes) { http_response_code(404); exit; }
+  header('Content-Type: application/json');
+  header('Cache-Control: public, max-age=3600');
+  echo json_encode([[
+    'relation' => ['delegate_permission/common.handle_all_urls'],
+    'target' => ['namespace' => 'android_app', 'package_name' => 'ci.chap.app',
+                 'sha256_cert_fingerprints' => $empreintes],
+  ]], JSON_UNESCAPED_SLASHES);
+  exit;
+}
+
 // --------------------------------------------------------------- sitemap.xml --
 if (preg_match('#/sitemap\.xml$#', $uri)) {
   header('Content-Type: application/xml; charset=utf-8');

@@ -57,6 +57,7 @@ dependencies:
   # qu'en PNG, cinq fois plus lourd pour le forfait. Pur Dart, sans code natif —
   # rien à changer côté Xcode ni Gradle.
   image: ^4.9.2
+  app_links: ^7.2.1
 
 dev_dependencies:
   flutter_test:

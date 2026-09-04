@@ -70,6 +70,11 @@ $config += [
   // Par personne et par jour : de quoi publier, pas de quoi faire tourner le
   // moteur pour rien. Un appel coûte quelques centimes.
   'vision_quota'         => (int) (getenv('CHAPCI_VISION_QUOTA') ?: 40),
+  // Les liens qui ouvrent l'application (lus par web/seo.php, /.well-known/…).
+  // Vides tant que le Patron n'a pas le compte Apple payant ni la clé Play :
+  // voir store/LIENS-UNIVERSELS.md.
+  'apple_team_id'        => (string) (getenv('CHAPCI_APPLE_TEAM_ID') ?: ''),
+  'android_sha256'       => (string) (getenv('CHAPCI_ANDROID_SHA256') ?: ''),
   // SEUILS D'AFFICHAGE DES CHIFFRES PUBLICS.
   //
   // Un compteur n'attire que s'il impressionne. « Déjà 3 Ivoiriens sur Chap.ci »

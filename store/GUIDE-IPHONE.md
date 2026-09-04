@@ -93,9 +93,15 @@ l'application, aux mêmes endroits :
   site : `https://chap.ci/api/annonce/deviner` doit répondre
   `"disponible": true`.
 
-Pour les prendre : l'encadré du haut, les six commandes. Une nouvelle
-bibliothèque Dart (`image`, pure Dart, sans code natif) entre dans
-`flutter pub get` ; Xcode n'a rien de plus à faire.
+- **Les liens `chap.ci/annonce/…` peuvent ouvrir l'application** — le code
+  est là (`lib/liens_entrants.dart`), mais il ne s'allume qu'avec le compte
+  Apple payant et deux réglages : tout est dans `store/LIENS-UNIVERSELS.md`.
+  En attendant, ces liens ouvrent le site, comme avant.
+
+Pour les prendre : l'encadré du haut, les six commandes. Deux nouvelles
+bibliothèques entrent dans `flutter pub get` : `image` (pure Dart) et
+`app_links` (un plugin standard, que CocoaPods installe tout seul lors de
+`flutter run`). Xcode n'a rien de plus à faire.
 
 ---
 

@@ -104,6 +104,19 @@ void _configurerAndroid() {
     manifest = manifest.replaceFirst('</manifest>', '$_queriesAndroid</manifest>');
   }
 
+  // Les liens qui ouvrent l'application (App Links) : https://chap.ci/annonce/…
+  // et /vendeur/… arrivent dans MainActivity, que lib/liens_entrants.dart
+  // écoute. `autoVerify` demande à Android de vérifier, à l'installation, que
+  // chap.ci déclare bien cette application (/.well-known/assetlinks.json,
+  // servi par web/seo.php quand `android_sha256` est dans config.php). Sans
+  // cette déclaration en ligne, rien ne casse : le lien ouvre le navigateur.
+  // Le filtre se glisse APRÈS le premier </intent-filter> du manifeste, celui
+  // du lanceur, qui est dans MainActivity.
+  if (!manifest.contains('android:autoVerify')) {
+    manifest = manifest.replaceFirst(
+        '</intent-filter>', '</intent-filter>\n$_liensAndroid');
+  }
+
   manifestFichier.writeAsStringSync(manifest);
 }
 
@@ -148,6 +161,7 @@ void _configurerIos() {
     _etape('iOS : version minimale relevée à $_iosMini '
         '($releve emplacement${releve > 1 ? 's' : ''} — les plugins l’exigent)…');
   }
+  pb = _liensIos(pb);
   pbxproj.writeAsStringSync(pb);
 
   _etape('iOS : nom « Chap.ci » et autorisations (Info.plist)…');
@@ -198,6 +212,30 @@ void _configurerIos() {
 /// La changer veut dire vérifier d'abord `deployment_target` dans les podspecs.
 const double _iosMini = 15.0;
 
+/// Les liens universels iOS (https://chap.ci/annonce/… ouvre l'application).
+///
+/// ⚠️ SUR DEMANDE SEULEMENT : `CHAPCI_LIENS_UNIVERSELS=1 dart run tool/…`.
+/// Le droit « Associated Domains » n'existe qu'avec l'Apple Developer Program
+/// payant. Avec l'identifiant Apple gratuit qui installe l'application sur
+/// l'iPhone du Patron, Xcode REFUSE de signer une application qui le réclame :
+/// « Provisioning profile doesn't support the Associated Domains capability »,
+/// et `flutter run` s'arrête net. Le poser d'office aurait cassé l'installation
+/// qui marche aujourd'hui. Le jour du compte payant, une variable d'environnement
+/// suffit — rien à cliquer dans Xcode.
+String _liensIos(String pb) {
+  if (Platform.environment['CHAPCI_LIENS_UNIVERSELS'] != '1') return pb;
+  _etape('iOS : liens universels (applinks:chap.ci — compte Apple payant requis)…');
+  File('ios/Runner/Runner.entitlements').writeAsStringSync(_entitlementsIos);
+  if (pb.contains('CODE_SIGN_ENTITLEMENTS')) return pb;
+  // Le réglage se pose dans les configurations du Runner (Debug, Release,
+  // Profile) — celles dont le bundle est ci.chap.app, pas les RunnerTests.
+  return pb.replaceAll(
+    'PRODUCT_BUNDLE_IDENTIFIER = ci.chap.app;',
+    'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;\n'
+        '\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = ci.chap.app;',
+  );
+}
+
 // ─────────────────────────── Rappels finaux ─────────────────────────────────
 
 void _rappels() {
@@ -239,6 +277,31 @@ const _queriesAndroid =
     '            <data android:scheme="https"/>\n'
     '        </intent>\n'
     '    </queries>\n';
+
+// Les App Links (voir _configurerAndroid) : les deux chemins que l'application
+// sait ouvrir. Pas la racine ni les autres pages : elles restent au site.
+const _liensAndroid =
+    '            <intent-filter android:autoVerify="true">\n'
+    '                <action android:name="android.intent.action.VIEW"/>\n'
+    '                <category android:name="android.intent.category.DEFAULT"/>\n'
+    '                <category android:name="android.intent.category.BROWSABLE"/>\n'
+    '                <data android:scheme="https" android:host="chap.ci" android:pathPrefix="/annonce/"/>\n'
+    '                <data android:scheme="https" android:host="chap.ci" android:pathPrefix="/vendeur/"/>\n'
+    '            </intent-filter>\n';
+
+// Le droit « Associated Domains » d'iOS : la contrepartie du fichier
+// /.well-known/apple-app-site-association servi par le site. Voir _liensIos.
+const _entitlementsIos = '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>com.apple.developer.associated-domains</key>
+\t<array>
+\t\t<string>applinks:chap.ci</string>
+\t</array>
+</dict>
+</plist>
+''';
 
 // Activité de rappel de flutter_web_auth_2 : capte le retour de la connexion
 // Facebook web (schéma privé `chapci://`).
