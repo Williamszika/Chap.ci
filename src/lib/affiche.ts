@@ -220,12 +220,22 @@ export async function rendreAffiche(d: AfficheDonnees): Promise<Blob> {
   }
   ctx.textAlign = 'left'
 
-  // ── Le titre, deux lignes au plus ─────────────────────────────────────────
+  // ── Le titre : deux lignes à 68 px ; s'il n'y tient pas, trois à 56 px ──
+  // Le premier statut posté (04/09/2026) disait « Formation sur
+  // l'installation … » : les deux lignes avaient mangé « Sage 100 SQL », le
+  // seul mot que l'acheteur cherche. Trois lignes un peu plus petites gardent
+  // le titre lisible de loin ET entier plus souvent.
   ctx.fillStyle = ENCRE
   ctx.font = `800 68px ${POLICE}`
-  const titre = lignes(ctx, d.titre, L - 2 * MARGE, 2)
+  let titre = lignes(ctx, d.titre, L - 2 * MARGE, 2)
+  let pas = 80
+  if (titre.some((l) => l.endsWith('…'))) {
+    ctx.font = `800 56px ${POLICE}`
+    titre = lignes(ctx, d.titre, L - 2 * MARGE, 3)
+    pas = 64
+  }
   let y = py + ph + 64 + 90
-  for (const l of titre) { ctx.fillText(l, MARGE, y); y += 80 }
+  for (const l of titre) { ctx.fillText(l, MARGE, y); y += pas }
 
   // ── Lieu et état ──────────────────────────────────────────────────────────
   ctx.fillStyle = GRIS

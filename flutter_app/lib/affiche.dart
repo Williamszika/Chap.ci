@@ -331,12 +331,23 @@ Future<Uint8List> rendreAffiche(AfficheDonnees d) async {
     );
   }
 
-  // ── Le titre, deux lignes au plus ─────────────────────────────────────────
-  final styleTitre = _style(68, FontWeight.w800, _encre);
+  // ── Le titre : deux lignes à 68 px ; s'il n'y tient pas, trois à 56 px ──
+  // Le premier statut posté (04/09/2026) disait « Formation sur
+  // l'installation … » : les deux lignes avaient mangé « Sage 100 SQL », le
+  // seul mot que l'acheteur cherche. Trois lignes un peu plus petites gardent
+  // le titre lisible de loin ET entier plus souvent. Même règle que le site.
+  var styleTitre = _style(68, FontWeight.w800, _encre);
+  var titre = couperLignes(d.titre, styleTitre, _l - 2 * _marge, 2);
+  var pas = 80.0;
+  if (titre.any((l) => l.endsWith('…'))) {
+    styleTitre = _style(56, FontWeight.w800, _encre);
+    titre = couperLignes(d.titre, styleTitre, _l - 2 * _marge, 3);
+    pas = 64.0;
+  }
   var y = py + ph + 64 + 90;
-  for (final l in couperLignes(d.titre, styleTitre, _l - 2 * _marge, 2)) {
+  for (final l in titre) {
     _ecrire(canvas, l, _marge, y, styleTitre);
-    y += 80;
+    y += pas;
   }
 
   // ── Lieu et état ──────────────────────────────────────────────────────────
