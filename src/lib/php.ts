@@ -446,6 +446,8 @@ export interface NotifPrefs {
   message: boolean
   /** Repli par e-mail quand la personne n'est ni sur le site, ni joignable en push. */
   email: boolean
+  /** Mes favoris : baisse de prix, fin d'annonce dans une semaine (04/09/2026). Absent = permis. */
+  favori_suivi?: boolean
 }
 export async function phpNotifPrefs(): Promise<NotifPrefs> {
   try { return await req<NotifPrefs>('/notifications/prefs') }

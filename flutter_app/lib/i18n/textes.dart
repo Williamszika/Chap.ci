@@ -611,6 +611,9 @@ const Map<String, Map<String, String>> _t = {
   'offre.contre': {'fr': "Contre-proposer", 'en': "Counter-offer", 'es': "Contraoferta", 'pt': "Contraproposta", 'ar': "عرض مضاد", 'zh': "还价"},
   'offre.chip': {'fr': "Offre : {montant}", 'en': "Offer: {montant}", 'es': "Oferta: {montant}", 'pt': "Oferta: {montant}", 'ar': "عرض: {montant}", 'zh': "出价：{montant}"},
 
+  // Les favoris qui préviennent (chantier 4 du 04/09/2026)
+  'notif.favorisSuivi': {'fr': "Mes favoris : baisse de prix, fin d’annonce", 'en': "My favourites: price drops, listing ending", 'es': "Mis favoritos: bajadas de precio, fin del anuncio", 'pt': "Os meus favoritos: descidas de preço, fim do anúncio", 'ar': "مفضلاتي: انخفاض السعر، انتهاء الإعلان", 'zh': "我的收藏：降价、信息即将结束"},
+
   // Modifier son annonce depuis l'application (chantier 2 du 04/09/2026)
   'pub.modifierTitre': {'fr': "Modifier l’annonce", 'en': "Edit listing", 'es': "Modificar el anuncio", 'pt': "Editar o anúncio", 'ar': "تعديل الإعلان", 'zh': "编辑信息"},
   'pub.enregistrerModifs': {'fr': "Enregistrer les modifications", 'en': "Save changes", 'es': "Guardar los cambios", 'pt': "Guardar as alterações", 'ar': "حفظ التعديلات", 'zh': "保存修改"},

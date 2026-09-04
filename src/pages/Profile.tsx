@@ -761,7 +761,7 @@ export function Profile() {
  */
 function NotificationSettings() {
   const toast = useToast()
-  const [prefs, setPrefs] = useState<NotifPrefs>({ favorite: true, message: true, email: true })
+  const [prefs, setPrefs] = useState<NotifPrefs>({ favorite: true, message: true, email: true, favori_suivi: true })
   const [loaded, setLoaded] = useState(false)
   const [etat, setEtat] = useState<EtatPush | null>(null)
   const [appareils, setAppareils] = useState<PushAppareil[]>([])
@@ -937,6 +937,7 @@ function NotificationSettings() {
       <div className="space-y-1">
         <ToggleRow label="Messages" desc="Quand vous recevez un nouveau message" on={prefs.message} onToggle={() => toggle('message')} disabled={!loaded} />
         <ToggleRow label="Favoris" desc="Quand une personne ajoute votre annonce à ses favoris" on={prefs.favorite} onToggle={() => toggle('favorite')} disabled={!loaded} />
+        <ToggleRow label="Mes favoris" desc="Quand le prix d’un favori baisse, ou qu’il se termine dans une semaine" on={prefs.favori_suivi !== false} onToggle={() => toggle('favori_suivi')} disabled={!loaded} />
         <ToggleRow label="E-mail de secours" desc="Un e-mail seulement si vous n’êtes ni sur le site, ni joignable sur un appareil" on={prefs.email} onToggle={() => toggle('email')} disabled={!loaded} />
       </div>
     </section>

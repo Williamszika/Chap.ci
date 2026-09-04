@@ -2089,6 +2089,10 @@ function migrate(PDO $pdo): void {
   // Suivi de transaction : annonce vendue, confirmation vendeur, relance d'avis.
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN sold $intT"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Les favoris qui préviennent (04/09/2026) : l'avertissement « se termine
+  // dans 7 jours » n'est envoyé qu'une fois par annonce.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN expire_prevenu $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN listing_id $id"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN seller_confirmed $intT"); }
@@ -4615,6 +4619,33 @@ function send_report_email(array $config, string $reporter, string $title, strin
 
 // ---- Recherches sauvegardées (alertes email) --------------------------------
 /** Retire les accents pour une recherche insensible (miroir de normalize() côté React). */
+// ---- LES FAVORIS QUI PRÉVIENNENT (chantier 4 du 04/09/2026) --------------------
+/** Le prix qu'un acheteur voit : la promotion si elle court, sinon le prix. */
+function listing_prix_effectif(int $prix, $promo, $promoUntil): int {
+  $p = (int) ($promo ?? 0);
+  if ($p > 0 && (empty($promoUntil) || (string) $promoUntil > now_iso())) return $p;
+  return $prix;
+}
+/**
+ * Prévient tous ceux qui ont l'annonce en favori — sauf son vendeur — d'un
+ * type unique, `favori_suivi`, que chacun peut couper dans ses réglages
+ * (notify() lit profiles.notif_prefs ; absent = permis). Renvoie le nombre de
+ * personnes prévenues. Deux cents au plus par annonce : au-delà, c'est une
+ * campagne, pas une notification.
+ */
+function favoris_prevenir(PDO $pdo, string $listingId, string $sauf, string $titre, string $corps): int {
+  try {
+    $st = $pdo->prepare('SELECT user_id FROM favorites WHERE listing_id = ? AND user_id <> ? LIMIT 200');
+    $st->execute([$listingId, $sauf]);
+    $n = 0;
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $uid) {
+      notify($pdo, (string) $uid, 'favori_suivi', $titre, $corps, '#/annonce/' . $listingId);
+      $n++;
+    }
+    return $n;
+  } catch (Throwable $e) { return 0; }
+}
+
 // ── SYNONYMES (généré) ── GÉNÉRÉ par scripts/synonymes.mjs depuis src/data/synonymes.json — NE PAS MODIFIER À LA MAIN.
 // 79 groupes, 327 mots, 53 locutions. Relancez : npm run synonymes
 const RECHERCHE_LOCUTIONS = [
@@ -7288,7 +7319,7 @@ try {
   // Modifier son annonce.
   if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'PUT') {
     $u = require_user($pdo, $secret); $b = body();
-    $st = $pdo->prepare('SELECT user_id, hidden, hidden_reason, images FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $st = $pdo->prepare('SELECT user_id, hidden, hidden_reason, images, price, promo_price, promo_until FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
     $row = $st->fetch();
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
@@ -7389,6 +7420,18 @@ try {
         isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson,
         ...array_values($majPhotos), $seg[1],
       ]);
+    // LES FAVORIS QUI PRÉVIENNENT (chantier 4 du 04/09/2026) : le prix baisse —
+    // par le prix lui-même ou par une promotion — et ceux qui ont mis
+    // l'annonce en favori l'apprennent. C'est l'acheteur qui revient sans
+    // qu'on le paie. On compare le prix EFFECTIF d'avant (promo active ou
+    // prix) au prix effectif d'après ; une hausse ou un prix égal ne dit rien.
+    $avantEff = listing_prix_effectif((int) ($row['price'] ?? 0), $row['promo_price'] ?? null, $row['promo_until'] ?? null);
+    $apresEff = listing_prix_effectif((int) ($b['price'] ?? 0), isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil);
+    if ($apresEff > 0 && $avantEff > 0 && $apresEff < $avantEff) {
+      favoris_prevenir($pdo, $seg[1], (string) $u['id'], 'Baisse de prix sur un favori 💚',
+        '« ' . mb_substr(trim($b['title']), 0, 60) . ' » passe de ' . number_format($avantEff, 0, ',', ' ')
+        . ' à ' . number_format($apresEff, 0, ',', ' ') . ' FCFA.');
+    }
     // Annonce masquée pour dossier foncier incomplet : la mise à jour vient de
     // passer la validation, elle repart donc en ligne d'elle-même. Le vendeur a
     // fait ce qu'on lui demandait ; lui imposer une démarche de plus serait une
@@ -13447,6 +13490,25 @@ try {
     // Journal de sécurité de plus de 180 jours.
     $d2 = gmdate('Y-m-d\TH:i:s\Z', time() - 180 * 86400);
     $st = $pdo->prepare('DELETE FROM security_events WHERE created_at < ?'); $st->execute([$d2]); $done['evenements_securite_purges'] = $st->rowCount();
+    // LES FAVORIS QUI PRÉVIENNENT (chantier 4 du 04/09/2026) : une semaine
+    // avant qu'une annonce n'expire (90 jours, juste en dessous), ceux qui
+    // l'ont mise en favori l'apprennent — « c'est le moment d'écrire au
+    // vendeur ». Une fois par annonce (expire_prevenu), quel que soit le
+    // nombre de passages du cron.
+    try {
+      $d83 = gmdate('Y-m-d\TH:i:s\Z', time() - 83 * 86400);
+      $d90 = gmdate('Y-m-d\TH:i:s\Z', time() - 90 * 86400);
+      $st = $pdo->prepare('SELECT id, user_id, title FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)
+        AND created_at < ? AND created_at >= ? AND (expire_prevenu IS NULL OR expire_prevenu = 0) LIMIT 200');
+      $st->execute([$d83, $d90]);
+      $prevenus = 0;
+      foreach ($st->fetchAll() as $l) {
+        $prevenus += favoris_prevenir($pdo, (string) $l['id'], (string) $l['user_id'], 'Un favori se termine bientôt ⏳',
+          '« ' . mb_substr((string) $l['title'], 0, 60) . ' » disparaît dans 7 jours : c’est le moment d’écrire au vendeur.');
+        $pdo->prepare('UPDATE listings SET expire_prevenu = 1 WHERE id = ?')->execute([$l['id']]);
+      }
+      $done['favoris_prevenus_expiration'] = $prevenus;
+    } catch (Throwable $e) { $done['favoris_prevenus_expiration'] = 'erreur : ' . $e->getMessage(); }
     // Annonces actives non vendues de plus de 90 jours → masquées (expirées), pas supprimées.
     $d3 = gmdate('Y-m-d\TH:i:s\Z', time() - 90 * 86400);
     $st = $pdo->prepare('UPDATE listings SET hidden = 1 WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) AND created_at < ?');

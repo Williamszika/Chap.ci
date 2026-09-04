@@ -42,6 +42,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
   // Préférences de notifications (défauts serveur : tout à vrai).
   bool _notifMessage = true;
   bool _notifFavori = true;
+  bool _notifFavoriSuivi = true; // mes favoris : baisse de prix, fin d'annonce
   bool _notifEmail = true;
   bool _notifPretes = false;
   bool _notifEnvoi = false;
@@ -80,6 +81,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
         setState(() {
           _notifMessage = d['message'] != false;
           _notifFavori = d['favorite'] != false;
+          _notifFavoriSuivi = d['favori_suivi'] != false;
           _notifEmail = d['email'] != false;
           _notifPretes = true;
         });
@@ -103,6 +105,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
       await ApiClient.instance.put('/notifications/prefs', {
         'message': _notifMessage,
         'favorite': _notifFavori,
+        'favori_suivi': _notifFavoriSuivi,
         'email': _notifEmail,
       });
     } on ApiException catch (e) {
@@ -470,6 +473,17 @@ class _ParametresScreenState extends State<ParametresScreen> {
         valeur: _notifFavori,
         onChange: (v) =>
             _majNotifs(() => _notifFavori = v, () => _notifFavori = !v),
+      ),
+      // Mes favoris : le prix d'un favori baisse, ou il se termine dans une
+      // semaine (chantier 4 du 04/09/2026).
+      _interrupteur(
+        icone: Icons.favorite_border,
+        fond: const Color(0xFFFBEAE7),
+        teinte: const Color(0xFFB42318),
+        titre: tr(context, 'notif.favorisSuivi'),
+        valeur: _notifFavoriSuivi,
+        onChange: (v) => _majNotifs(
+            () => _notifFavoriSuivi = v, () => _notifFavoriSuivi = !v),
       ),
       _interrupteur(
         icone: Icons.mark_email_read_outlined,

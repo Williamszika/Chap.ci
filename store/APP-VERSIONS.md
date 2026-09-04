@@ -197,6 +197,17 @@ prêtes, avec l'éclair dans la barre de saisie de chaque conversation
 (`lib/screens/reponses_screen.dart`). Test `publier_modification_test.dart` :
 chaque champ prérempli, puces cochées à partir des attributs enregistrés.
 
+Chantier 3 : **la recherche qui comprend** dans Explorer — synonymes
+ivoiriens (« télé » ⇔ « TV », « gbaka », « djossi »), débuts de mots, fautes
+de frappe, valeurs des attributs (`lib/recherche.dart`, dictionnaire généré
+`lib/data/synonymes.dart`, jumeau exact du site). Test `recherche_test.dart` :
+trente questions, les mêmes que le banc du site.
+
+Chantier 4 : **les favoris qui préviennent** — le serveur notifie (cloche,
+push) ceux qui ont une annonce en favori quand son prix baisse ou une semaine
+avant qu'elle n'expire ; l'application gagne l'interrupteur « Mes favoris :
+baisse de prix, fin d'annonce » dans Paramètres → Notifications.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

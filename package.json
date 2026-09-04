@@ -23,6 +23,7 @@
     "banc:offres": "node scripts/banc-offres.mjs",
     "banc:entonnoir": "node scripts/banc-entonnoir.mjs",
     "banc:comprendre": "node scripts/banc-comprendre.mjs",
+    "banc:favoris": "node scripts/banc-favoris.mjs",
     "synonymes": "node scripts/synonymes.mjs",
     "prebuild": "node scripts/synonymes.mjs",
     "banc:deviner": "node scripts/banc-deviner.mjs"
