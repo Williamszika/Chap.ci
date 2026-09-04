@@ -39,6 +39,7 @@ const serveur = spawn('php', ['-S', `127.0.0.1:${PORT}`, 'index.php'], {
 // port, et le banc suivant a parlé à un serveur dont la base avait été effacée
 // — il a attendu sans fin. (Jamais `pkill -f` avec un motif : il tue le shell
 // qui le lance, exit 144.)
+serveur.unref() // sinon node attend le serveur détaché après le dernier « ✅ » (vu le 04/09/2026)
 const fini = () => {
   try { process.kill(serveur.pid) } catch { /* déjà parti */ }
   try { process.kill(-serveur.pid) } catch { /* déjà parti */ }
@@ -143,3 +144,4 @@ dire(S.every((s, i) => i === 0 || s.debut > S[i - 1].debut), 'les semaines sont 
 console.log()
 if (rouges) { console.log(`❌ ${rouges} contrôle(s) rouge(s).`); process.exit(1) }
 console.log('✅ L’entonnoir compte juste, semaine par semaine.')
+process.exit(0)

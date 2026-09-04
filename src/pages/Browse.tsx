@@ -14,13 +14,26 @@ import { Sheet } from '../components/Sheet'
 import { categories, categoryById } from '../data/categories'
 import { formFor } from '../data/categoryForms'
 import { locationLabel } from '../data/locations'
-import type { LocationFilter } from '../types'
+import { correspond, preparer, type TextePrepare } from '../lib/recherche'
+import type { Listing, LocationFilter } from '../types'
 
 function normalize(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
+}
+
+/**
+ * Le texte d'une annonce tel que la recherche le lit : titre, description,
+ * sous-catégorie, nom de la catégorie (« voiture » trouve la catégorie
+ * Véhicules), et les VALEURS des attributs — une marque saisie dans le
+ * formulaire mais absente du titre se cherche aussi.
+ */
+function texteRecherche(l: Listing): string {
+  const catName = categoryById(l.categoryId)?.name ?? ''
+  const attrs = Object.values(l.attributes ?? {}).filter((v) => typeof v === 'string' || typeof v === 'number').join(' ')
+  return `${l.title} ${l.description} ${l.subcategory ?? ''} ${catName} ${attrs}`
 }
 
 type Sort = 'recent' | 'prix-asc' | 'prix-desc' | 'distance'
@@ -95,6 +108,14 @@ export function Browse() {
     setParams(p, { replace: true })
   }
 
+  // Chaque annonce est préparée une fois (mots, groupes de synonymes) ; la
+  // frappe ne refait que la comparaison.
+  const prepares = useMemo(() => {
+    const m = new Map<string, TextePrepare>()
+    for (const l of listings) m.set(l.id, preparer(texteRecherche(l)))
+    return m
+  }, [listings])
+
   const results = useMemo(() => {
     const nq = normalize(q)
     let out = listings.filter((l) => {
@@ -132,12 +153,10 @@ export function Browse() {
         }
       }
       if (nq) {
-        // On inclut le NOM de la catégorie dans la recherche : « voiture » /
-        // « véhicule » trouve les annonces de la catégorie Véhicules même si le
-        // mot n'est pas dans le titre.
-        const catName = categoryById(l.categoryId)?.name ?? ''
-        const hay = normalize(`${l.title} ${l.description} ${l.subcategory ?? ''} ${catName}`)
-        if (!hay.includes(nq)) return false
+        // La recherche qui comprend (lib/recherche.ts) : synonymes ivoiriens,
+        // débuts de mots, fautes de frappe — mot par mot, pas la phrase entière.
+        const p = prepares.get(l.id) ?? preparer(texteRecherche(l))
+        if (!correspond(p, q)) return false
       }
       return true
     })

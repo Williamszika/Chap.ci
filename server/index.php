@@ -4615,6 +4615,492 @@ function send_report_email(array $config, string $reporter, string $title, strin
 
 // ---- Recherches sauvegardées (alertes email) --------------------------------
 /** Retire les accents pour une recherche insensible (miroir de normalize() côté React). */
+// ── SYNONYMES (généré) ── GÉNÉRÉ par scripts/synonymes.mjs depuis src/data/synonymes.json — NE PAS MODIFIER À LA MAIN.
+// 79 groupes, 327 mots, 53 locutions. Relancez : npm run synonymes
+const RECHERCHE_LOCUTIONS = [
+  ['atelier de couture', 'atelierdecouture'],
+  ['groupe electrogene', 'groupeelectrogene'],
+  ['bluetooth speaker', 'bluetoothspeaker'],
+  ['plaque de cuisson', 'plaquedecuisson'],
+  ['salon de coiffure', 'salondecoiffure'],
+  ['accessoires auto', 'accessoiresauto'],
+  ['bouteille de gaz', 'bouteilledegaz'],
+  ['chaise de bureau', 'chaisedebureau'],
+  ['local commercial', 'localcommercial'],
+  ['pieces detachees', 'piecesdetachees'],
+  ['soutien scolaire', 'soutienscolaire'],
+  ['banane plantain', 'bananeplantain'],
+  ['bracelet montre', 'braceletmontre'],
+  ['chargeur rapide', 'chargeurrapide'],
+  ['eau de toilette', 'eaudetoilette'],
+  ['femme de menage', 'femmedemenage'],
+  ['machine a laver', 'machinealaver'],
+  ['panneau solaire', 'panneausolaire'],
+  ['table de bureau', 'tabledebureau'],
+  ['billet d avion', 'billetdavion'],
+  ['brasseur d air', 'brasseurdair'],
+  ['entrer coucher', 'entrercoucher'],
+  ['entrer coucher', 'entrercoucher'],
+  ['garde d enfant', 'gardedenfant'],
+  ['huile de palme', 'huiledepalme'],
+  ['jamais utilise', 'jamaisutilise'],
+  ['piece detachee', 'piecedetachee'],
+  ['plaque solaire', 'plaquesolaire'],
+  ['sous emballage', 'sousemballage'],
+  ['aide menagere', 'aidemenagere'],
+  ['deuxieme main', 'deuxiememain'],
+  ['pret a porter', 'pretaporter'],
+  ['haut parleur', 'hautparleur'],
+  ['jamais servi', 'jamaisservi'],
+  ['seconde main', 'secondemain'],
+  ['baby sitter', 'babysitter'],
+  ['huile rouge', 'huilerouge'],
+  ['kit solaire', 'kitsolaire'],
+  ['poids lourd', 'poidslourd'],
+  ['riz parfume', 'rizparfume'],
+  ['deja servi', 'dejaservi'],
+  ['ecran plat', 'ecranplat'],
+  ['garde robe', 'garderobe'],
+  ['lave linge', 'lavelinge'],
+  ['sac a main', 'sacamain'],
+  ['chap chap', 'chapchap'],
+  ['chap chap', 'chapchap'],
+  ['jeu video', 'jeuvideo'],
+  ['riz local', 'rizlocal'],
+  ['woro woro', 'woroworo'],
+  ['woro woro', 'woroworo'],
+  ['a donner', 'adonner'],
+  ['smart tv', 'smarttv'],
+];
+const RECHERCHE_GROUPES = [
+  'accessoiresauto' => 'pieces',
+  'accu' => 'batterie',
+  'accumulateur' => 'batterie',
+  'adonner' => 'gratuit',
+  'aidemenagere' => 'menagere',
+  'airpods' => 'ecouteurs',
+  'appart' => 'appartement',
+  'appartement' => 'appartement',
+  'apple' => 'iphone',
+  'apt' => 'appartement',
+  'armoire' => 'armoire',
+  'atcheke' => 'attieke',
+  'atelierdecouture' => 'couture',
+  'attieke' => 'attieke',
+  'auto' => 'voiture',
+  'automobile' => 'voiture',
+  'babouche' => 'sandale',
+  'babysitter' => 'nounou',
+  'baffle' => 'enceinte',
+  'bagnole' => 'voiture',
+  'bambin' => 'bebe',
+  'bananeplantain' => 'igname',
+  'bar' => 'maquis',
+  'basket' => 'chaussure',
+  'baskets' => 'chaussure',
+  'batterie' => 'batterie',
+  'bazin' => 'pagne',
+  'bebe' => 'bebe',
+  'becane' => 'moto',
+  'belier' => 'mouton',
+  'benne' => 'camion',
+  'berger' => 'chien',
+  'bicyclette' => 'velo',
+  'bijou' => 'bijou',
+  'bijoux' => 'bijou',
+  'billet' => 'billet',
+  'billetdavion' => 'billet',
+  'bluetoothspeaker' => 'enceinte',
+  'boeuf' => 'boeuf',
+  'bonbonne' => 'bouteilledegaz',
+  'bonne' => 'menagere',
+  'bouc' => 'chevre',
+  'boulot' => 'emploi',
+  'bouquin' => 'livre',
+  'bouteilledegaz' => 'bouteilledegaz',
+  'boutique' => 'boutique',
+  'bovin' => 'boeuf',
+  'braceletmontre' => 'montre',
+  'brasseur' => 'ventilateur',
+  'brasseurdair' => 'ventilateur',
+  'brebis' => 'mouton',
+  'bureau' => 'bureau',
+  'buvette' => 'maquis',
+  'cable' => 'chargeur',
+  'cabri' => 'chevre',
+  'cadeau' => 'gratuit',
+  'caisse' => 'voiture',
+  'camion' => 'camion',
+  'canape' => 'canape',
+  'cartable' => 'sac',
+  'casque' => 'ecouteurs',
+  'cellulaire' => 'telephone',
+  'chaine' => 'bijou',
+  'chaisedebureau' => 'bureau',
+  'chambre' => 'chambre',
+  'chapchap' => 'chapchap',
+  'chargeur' => 'chargeur',
+  'chargeurrapide' => 'chargeur',
+  'chat' => 'chat',
+  'chaton' => 'chat',
+  'chauffeur' => 'chauffeur',
+  'chaussure' => 'chaussure',
+  'chaussures' => 'chaussure',
+  'cheveux' => 'meche',
+  'chevre' => 'chevre',
+  'chien' => 'chien',
+  'chiot' => 'chien',
+  'claquette' => 'sandale',
+  'clim' => 'climatiseur',
+  'climatiseur' => 'climatiseur',
+  'coaching' => 'cours',
+  'coiffeur' => 'coiffure',
+  'coiffeuse' => 'coiffure',
+  'coiffure' => 'coiffure',
+  'collier' => 'bijou',
+  'conducteur' => 'chauffeur',
+  'congelateur' => 'congelateur',
+  'congelo' => 'congelateur',
+  'console' => 'jeuvideo',
+  'copieur' => 'imprimante',
+  'coq' => 'poulet',
+  'cosmetique' => 'creme',
+  'cours' => 'cours',
+  'coursier' => 'demenagement',
+  'couture' => 'couture',
+  'couturier' => 'couture',
+  'couturiere' => 'couture',
+  'creme' => 'creme',
+  'cuisiniere' => 'cuisiniere',
+  'dejaservi' => 'occasion',
+  'demenagement' => 'demenagement',
+  'depannage' => 'reparation',
+  'depanneur' => 'reparation',
+  'deuxiememain' => 'occasion',
+  'divan' => 'canape',
+  'djossi' => 'emploi',
+  'don' => 'gratuit',
+  'driver' => 'chauffeur',
+  'duplex' => 'maison',
+  'earbuds' => 'ecouteurs',
+  'eaudetoilette' => 'parfum',
+  'ecouteurs' => 'ecouteurs',
+  'ecranplat' => 'tele',
+  'embauche' => 'emploi',
+  'emploi' => 'emploi',
+  'enceinte' => 'enceinte',
+  'enfant' => 'bebe',
+  'entrercoucher' => 'chambre',
+  'fauteuil' => 'canape',
+  'femmedemenage' => 'menagere',
+  'formalites' => 'visa',
+  'formation' => 'cours',
+  'fragrance' => 'parfum',
+  'frigidaire' => 'frigo',
+  'frigo' => 'frigo',
+  'fringue' => 'vetement',
+  'fringues' => 'vetement',
+  'gardedenfant' => 'nounou',
+  'garderobe' => 'armoire',
+  'gaz' => 'bouteilledegaz',
+  'gaziniere' => 'cuisiniere',
+  'gbaka' => 'gbaka',
+  'generateur' => 'groupeelectrogene',
+  'generatrice' => 'groupeelectrogene',
+  'godasse' => 'chaussure',
+  'gouvernante' => 'menagere',
+  'gratuit' => 'gratuit',
+  'greffage' => 'meche',
+  'groupe' => 'groupeelectrogene',
+  'groupeelectrogene' => 'groupeelectrogene',
+  'gsm' => 'telephone',
+  'habit' => 'vetement',
+  'haojue' => 'moto',
+  'hautparleur' => 'enceinte',
+  'huile' => 'huile',
+  'huiledepalme' => 'huile',
+  'huilerouge' => 'huile',
+  'igname' => 'igname',
+  'imprimante' => 'imprimante',
+  'ipad' => 'tablette',
+  'iphone' => 'iphone',
+  'jakarta' => 'moto',
+  'jamaisservi' => 'neuf',
+  'jamaisutilise' => 'neuf',
+  'jante' => 'pneu',
+  'jeuvideo' => 'jeuvideo',
+  'job' => 'emploi',
+  'kia' => 'camion',
+  'kita' => 'pagne',
+  'kitsolaire' => 'panneausolaire',
+  'lace' => 'meche',
+  'landau' => 'poussette',
+  'laptop' => 'ordinateur',
+  'lavelinge' => 'machinealaver',
+  'laveuse' => 'machinealaver',
+  'lit' => 'matelas',
+  'literie' => 'matelas',
+  'livraison' => 'demenagement',
+  'livre' => 'livre',
+  'local' => 'boutique',
+  'localcommercial' => 'boutique',
+  'lot' => 'terrain',
+  'lotion' => 'creme',
+  'lotissement' => 'terrain',
+  'machinealaver' => 'machinealaver',
+  'magasin' => 'boutique',
+  'maison' => 'maison',
+  'manette' => 'jeuvideo',
+  'manioc' => 'igname',
+  'manuel' => 'livre',
+  'maquis' => 'maquis',
+  'matelas' => 'matelas',
+  'meche' => 'meche',
+  'meches' => 'meche',
+  'menagere' => 'menagere',
+  'minibus' => 'gbaka',
+  'minicar' => 'gbaka',
+  'minou' => 'chat',
+  'mobile' => 'telephone',
+  'montre' => 'montre',
+  'moto' => 'moto',
+  'motocyclette' => 'moto',
+  'mouton' => 'mouton',
+  'neuf' => 'neuf',
+  'notebook' => 'ordinateur',
+  'nounou' => 'nounou',
+  'nourrice' => 'nounou',
+  'nourrisson' => 'bebe',
+  'occasion' => 'occasion',
+  'offert' => 'gratuit',
+  'ordi' => 'ordinateur',
+  'ordinateur' => 'ordinateur',
+  'oreillettes' => 'ecouteurs',
+  'pagne' => 'pagne',
+  'panneausolaire' => 'panneausolaire',
+  'parcelle' => 'terrain',
+  'parfum' => 'parfum',
+  'parure' => 'bijou',
+  'passeport' => 'visa',
+  'pc' => 'ordinateur',
+  'penderie' => 'armoire',
+  'perruque' => 'meche',
+  'phone' => 'telephone',
+  'photocopieuse' => 'imprimante',
+  'piece' => 'chambre',
+  'piecedetachee' => 'pieces',
+  'pieces' => 'pieces',
+  'piecesdetachees' => 'pieces',
+  'pintade' => 'poulet',
+  'placard' => 'armoire',
+  'plantain' => 'igname',
+  'plaquedecuisson' => 'cuisiniere',
+  'plaquesolaire' => 'panneausolaire',
+  'playstation' => 'jeuvideo',
+  'pneu' => 'pneu',
+  'pneus' => 'pneu',
+  'poidslourd' => 'camion',
+  'portable' => 'telephone',
+  'poste' => 'emploi',
+  'poule' => 'poulet',
+  'poulet' => 'poulet',
+  'poussette' => 'poussette',
+  'poussin' => 'poulet',
+  'pretaporter' => 'vetement',
+  'promo' => 'promo',
+  'promotion' => 'promo',
+  'ps4' => 'jeuvideo',
+  'ps5' => 'jeuvideo',
+  'rapide' => 'chapchap',
+  'rechaud' => 'cuisiniere',
+  'recrutement' => 'emploi',
+  'reduction' => 'promo',
+  'refrigerateur' => 'frigo',
+  'remise' => 'promo',
+  'reparateur' => 'reparation',
+  'reparation' => 'reparation',
+  'repetiteur' => 'cours',
+  'repetitrice' => 'cours',
+  'residence' => 'maison',
+  'restaurant' => 'maquis',
+  'resto' => 'maquis',
+  'riz' => 'riz',
+  'rizlocal' => 'riz',
+  'rizparfume' => 'riz',
+  'rob' => 'robe',
+  'robe' => 'robe',
+  'roman' => 'livre',
+  'roue' => 'pneu',
+  'sac' => 'sac',
+  'sacamain' => 'sac',
+  'sacoche' => 'sac',
+  'salon' => 'canape',
+  'salondecoiffure' => 'coiffure',
+  'sandale' => 'sandale',
+  'sandales' => 'sandale',
+  'sanili' => 'moto',
+  'scelle' => 'neuf',
+  'scooter' => 'scooter',
+  'secondemain' => 'occasion',
+  'smartphone' => 'telephone',
+  'smarttv' => 'tele',
+  'sneakers' => 'chaussure',
+  'sofa' => 'canape',
+  'soin' => 'creme',
+  'solaire' => 'panneausolaire',
+  'solde' => 'promo',
+  'soldes' => 'promo',
+  'sommier' => 'matelas',
+  'soulier' => 'chaussure',
+  'sousemballage' => 'neuf',
+  'soutienscolaire' => 'cours',
+  'speaker' => 'enceinte',
+  'split' => 'climatiseur',
+  'studio' => 'chambre',
+  'surgelateur' => 'congelateur',
+  'tab' => 'tablette',
+  'tabledebureau' => 'bureau',
+  'tablette' => 'tablette',
+  'tailleur' => 'couture',
+  'taureau' => 'boeuf',
+  'taxi' => 'taxi',
+  'technicien' => 'reparation',
+  'tele' => 'tele',
+  'telephone' => 'telephone',
+  'televiseur' => 'tele',
+  'television' => 'tele',
+  'tennis' => 'chaussure',
+  'tenue' => 'vetement',
+  'terrain' => 'terrain',
+  'ticket' => 'billet',
+  'tissage' => 'meche',
+  'tissu' => 'pagne',
+  'tong' => 'sandale',
+  'transport' => 'demenagement',
+  'travail' => 'emploi',
+  'tresses' => 'coiffure',
+  'tubercule' => 'igname',
+  'tv' => 'tele',
+  'urgent' => 'chapchap',
+  'utilise' => 'occasion',
+  'vache' => 'boeuf',
+  'velo' => 'velo',
+  'ventilateur' => 'ventilateur',
+  'ventilo' => 'ventilateur',
+  'vespa' => 'scooter',
+  'vetement' => 'vetement',
+  'villa' => 'maison',
+  'visa' => 'visa',
+  'vite' => 'chapchap',
+  'vlisco' => 'pagne',
+  'voiture' => 'voiture',
+  'vol' => 'billet',
+  'volaille' => 'poulet',
+  'vtt' => 'velo',
+  'wax' => 'pagne',
+  'woroworo' => 'taxi',
+  'xbox' => 'jeuvideo',
+];
+// ── FIN SYNONYMES (généré) ──
+
+// ---- LA RECHERCHE QUI COMPREND (chantier 3 du 04/09/2026) ---------------------
+// Jumeau PHP de src/lib/recherche.ts et flutter_app/lib/recherche.dart : mêmes
+// règles, même dictionnaire (le bloc généré ci-dessus), mêmes questions posées
+// par le banc. Sert aux alertes des recherches enregistrées et à ?q= sur
+// GET /listings. Une requête est découpée en mots, et chaque mot doit se
+// retrouver dans l'annonce : par son groupe de synonymes, par un début de mot
+// dès quatre lettres, ou à une faute près dès cinq lettres. Un nombre ne se
+// cherche qu'exactement.
+function recherche_normaliser(string $s): string {
+  $s = str_replace(['œ', 'æ'], ['oe', 'ae'], search_norm($s));
+  $s = trim((string) preg_replace('/[^a-z0-9]+/', ' ', $s));
+  $s = ' ' . $s . ' ';
+  foreach (RECHERCHE_LOCUTIONS as [$loc, $mot]) {
+    if (strpos($s, " $loc ") !== false) $s = str_replace(" $loc ", " $mot ", $s);
+  }
+  return trim($s);
+}
+function recherche_singulier(string $m): string {
+  $n = strlen($m);
+  if ($n > 3 && ($m[$n - 1] === 's' || $m[$n - 1] === 'x')) return substr($m, 0, -1);
+  return $m;
+}
+function recherche_groupe(string $m): string {
+  return RECHERCHE_GROUPES[$m] ?? RECHERCHE_GROUPES[recherche_singulier($m)] ?? recherche_singulier($m);
+}
+/** Les mots d'un texte, locutions soudées. */
+function recherche_mots(string $texte): array {
+  return array_values(array_filter(explode(' ', recherche_normaliser($texte)), 'strlen'));
+}
+/** Une annonce préparée : ses mots, et l'ensemble de leurs groupes. */
+function recherche_preparer(string $texte): array {
+  $mots = recherche_mots($texte);
+  $groupes = [];
+  foreach ($mots as $m) $groupes[recherche_groupe($m)] = true;
+  return ['mots' => $mots, 'groupes' => $groupes];
+}
+/** Distance de Damerau-Levenshtein (alignement optimal). */
+function recherche_distance(string $a, string $b): int {
+  $la = strlen($a); $lb = strlen($b);
+  if ($la === 0) return $lb;
+  if ($lb === 0) return $la;
+  $avant2 = []; $avant = range(0, $lb);
+  for ($i = 1; $i <= $la; $i++) {
+    $ligne = [$i];
+    for ($j = 1; $j <= $lb; $j++) {
+      $cout = $a[$i - 1] === $b[$j - 1] ? 0 : 1;
+      $v = min($avant[$j] + 1, $ligne[$j - 1] + 1, $avant[$j - 1] + $cout);
+      if ($i > 1 && $j > 1 && $a[$i - 1] === $b[$j - 2] && $a[$i - 2] === $b[$j - 1]) $v = min($v, $avant2[$j - 2] + 1);
+      $ligne[] = $v;
+    }
+    $avant2 = $avant; $avant = $ligne;
+  }
+  return $avant[$lb];
+}
+/** Le mot est-il dans le dictionnaire des synonymes ? */
+function recherche_connu(string $mot): bool {
+  return isset(RECHERCHE_GROUPES[$mot]) || isset(RECHERCHE_GROUPES[recherche_singulier($mot)]);
+}
+/** Un mot du dictionnaire se cherche par son groupe, et par lui seul : « clim »
+ *  ne doit pas rattraper la « climatisation » d'une voiture. */
+function recherche_correspond_mot(array $annonce, string $mot): bool {
+  if (isset($annonce['groupes'][recherche_groupe($mot)])) return true;
+  if (ctype_digit($mot) || recherche_connu($mot)) return false;
+  $n = strlen($mot);
+  if ($n >= 4) {
+    foreach ($annonce['mots'] as $t) if (strncmp($t, $mot, $n) === 0) return true;
+  }
+  if ($n >= 5) {
+    $tolerance = $n >= 9 ? 2 : 1;
+    foreach ($annonce['mots'] as $t) {
+      if (ctype_digit($t) || abs(strlen($t) - $n) > $tolerance) continue;
+      if (recherche_distance($t, $mot) <= $tolerance) return true;
+    }
+  }
+  return false;
+}
+/** Les mots qu'on cherche vraiment dans une requête (sans les mots de liaison). */
+function recherche_mots_requete(string $requete): array {
+  static $liaison = ['de','du','des','la','le','les','un','une','en','au','aux','et','ou','pour','avec','sur','dans','the','d','l'];
+  return array_values(array_filter(recherche_mots($requete),
+    fn($m) => !in_array($m, $liaison, true) && (strlen($m) > 1 || ctype_digit($m))));
+}
+/** L'annonce répond-elle à la requête ? Chaque mot doit s'y retrouver ; vide = oui. */
+function recherche_correspond(array $annonce, string $requete): bool {
+  foreach (recherche_mots_requete($requete) as $m) if (!recherche_correspond_mot($annonce, $m)) return false;
+  return true;
+}
+/** Le texte d'une annonce tel que la recherche le lit : titre, description,
+ *  sous-catégorie, nom de la catégorie, et les VALEURS des attributs (une
+ *  marque saisie dans le formulaire mais absente du titre se cherche aussi). */
+function listing_texte_recherche(array $l): string {
+  $attrs = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+  $valeurs = [];
+  foreach ($attrs as $v) if (is_scalar($v)) $valeurs[] = (string) $v;
+  return ($l['title'] ?? '') . ' ' . ($l['description'] ?? '') . ' ' . ($l['subcategory'] ?? '') . ' '
+    . category_label($l['category_id'] ?? null) . ' ' . implode(' ', $valeurs);
+}
+
 function search_norm(string $s): string {
   $s = function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
   return strtr($s, [
@@ -4660,10 +5146,10 @@ function search_matching_listings(PDO $pdo, string $paramsStr, string $sinceIso 
       $isPromo = !empty($l['promo_price']) && (empty($l['promo_until']) || $l['promo_until'] > $now);
       if (!$isPromo) continue;
     }
-    if ($q !== '') {
-      $hay = search_norm(($l['title'] ?? '') . ' ' . ($l['description'] ?? ''));
-      if (strpos($hay, $q) === false) continue;
-    }
+    // La recherche qui comprend (synonymes, débuts de mots, fautes) — la même
+    // que celle du site et de l'application, pour qu'une alerte enregistrée
+    // trouve ce que la personne aurait trouvé en cherchant elle-même.
+    if ($q !== '' && !recherche_correspond(recherche_preparer(listing_texte_recherche($l)), $q)) continue;
     // Filtres par attributs de catégorie (a_<clé> = valeur ; a_<clé>_min/max = plage).
     $attrs = $l['attributes'] ? (json_decode($l['attributes'], true) ?: []) : [];
     $attrOk = true;
@@ -6208,6 +6694,14 @@ try {
       LEFT JOIN users u ON u.id = l.user_id
       WHERE (l.hidden IS NULL OR l.hidden = 0) AND (l.sold IS NULL OR l.sold = 0)
       ORDER BY l.created_at DESC LIMIT $limit OFFSET $offset")->fetchAll();
+    // ?q= : la recherche qui comprend, côté serveur — la même que celle du site
+    // et de l'application. Le site filtre encore chez lui ; cette entrée sert
+    // au banc, aux alertes, et au jour où la recherche passera côté serveur.
+    $q = trim((string) ($_GET['q'] ?? ''));
+    if ($q !== '') {
+      $rows = array_values(array_filter($rows,
+        fn($l) => recherche_correspond(recherche_preparer(listing_texte_recherche($l)), $q)));
+    }
     jout(array_map('listing_out', $rows));
   }
 

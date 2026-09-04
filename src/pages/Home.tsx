@@ -14,6 +14,7 @@ import {
   PlusCircle,
 } from 'lucide-react'
 import { categories } from '../data/categories'
+import { correspond, preparer } from '../lib/recherche'
 import { PromoBanner } from '../components/PromoBanner'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { Mark, Wordmark } from '../components/Logo'
@@ -87,7 +88,9 @@ export function Home() {
     }
     for (const l of listings) {
       if (out.length >= 8) break
-      if (norm(l.title).includes(nq)) add(l.title, `/explorer?q=${encodeURIComponent(l.title)}`, 'ad')
+      // La recherche qui comprend (lib/recherche.ts) : « télé » propose les
+      // titres qui disent « TV », une faute de frappe propose quand même.
+      if (correspond(preparer(l.title), q)) add(l.title, `/explorer?q=${encodeURIComponent(l.title)}`, 'ad')
     }
     return out.slice(0, 8)
   }, [q, listings])

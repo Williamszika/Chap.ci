@@ -7,6 +7,7 @@ import '../data/coords.dart';
 import '../data/formulaires/registre.dart';
 import '../i18n/categories_i18n.dart';
 import '../i18n/textes.dart';
+import '../recherche.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
 import 'listing_detail_screen.dart';
@@ -85,20 +86,6 @@ class _BrowseScreenState extends State<BrowseScreen> {
     }
   }
 
-  // Minuscule + sans accents, pour une recherche indulgente.
-  String _plat(String s) {
-    s = s.toLowerCase();
-    const acc = {
-      'à': 'a', 'â': 'a', 'ä': 'a', 'á': 'a', 'ã': 'a',
-      'ç': 'c', 'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-      'î': 'i', 'ï': 'i', 'í': 'i', 'ì': 'i',
-      'ô': 'o', 'ö': 'o', 'ó': 'o', 'ò': 'o', 'õ': 'o',
-      'û': 'u', 'ü': 'u', 'ú': 'u', 'ù': 'u',
-    };
-    acc.forEach((a, b) => s = s.replaceAll(a, b));
-    return s;
-  }
-
   List<String> _communes(List<Listing> toutes) {
     final set = <String>{};
     for (final a in toutes) {
@@ -114,8 +101,17 @@ class _BrowseScreenState extends State<BrowseScreen> {
   /// l'état se règle par catégorie.
   bool get _montrerEtat => _categorie != null && categorieAEtat(_categorie!);
 
+  // Chaque annonce est préparée une fois (mots, groupes de synonymes), la
+  // frappe ne refait que la comparaison. Voir lib/recherche.dart.
+  final Map<String, TextePrepare> _prepares = {};
+  TextePrepare _preparee(Listing a) => _prepares.putIfAbsent(
+      a.id,
+      () => preparerRecherche(
+          '${a.title} ${a.description} ${a.subcategory ?? ''} ${nomCategorie(a.categoryId)} '
+          '${a.attributes.values.where((v) => v is String || v is num).join(' ')}'));
+
   List<Listing> _filtrer(List<Listing> toutes) {
-    final q = _plat(_recherche.trim());
+    final q = _recherche.trim();
     var r = toutes.where((a) {
       if (a.sold) return false;
       if (_categorie != null && a.categoryId != _categorie) return false;
@@ -123,10 +119,9 @@ class _BrowseScreenState extends State<BrowseScreen> {
         return false;
       }
       if (_commune != null && a.commune != _commune) return false;
-      if (q.isNotEmpty) {
-        final texte = _plat('${a.title} ${a.description}');
-        if (!texte.contains(q)) return false;
-      }
+      // La recherche qui comprend : synonymes ivoiriens, débuts de mots,
+      // fautes de frappe — mot par mot, pas la phrase entière.
+      if (q.isNotEmpty && !correspondRecherche(_preparee(a), q)) return false;
       return true;
     }).toList();
 
