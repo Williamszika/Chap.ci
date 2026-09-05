@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 /// l'icône dessinée au trait (les mêmes tracés que le site, en coordonnées
 /// 24 × 24 — l'application n'embarque aucune police d'icônes de marques).
 ///
-/// WhatsApp n'y est pas, à dessein : le numéro du vendeur ne sort jamais du
-/// serveur, et un lien wa.me est un numéro.
+/// WhatsApp en premier, décision du Patron du 05/09/2026 : c'est le canal par
+/// lequel on vend à Abidjan, et c'est le professionnel qui choisit de publier
+/// son WhatsApp Business (le numéro personnel d'un vendeur ordinaire, lui, ne
+/// sort toujours pas du serveur).
 class DefReseau {
   final String id;
   final String nom;
@@ -28,6 +30,7 @@ class DefReseau {
 }
 
 const reseaux = <DefReseau>[
+  DefReseau('whatsapp', 'WhatsApp', [Color(0xFF25D366)], Colors.white, 'reseaux.ph.whatsapp'),
   DefReseau('facebook', 'Facebook', [Color(0xFF1877F2)], Colors.white, 'reseaux.ph.nom'),
   DefReseau('instagram', 'Instagram',
       [Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF)], Colors.white, 'reseaux.ph.nom'),
@@ -64,9 +67,14 @@ List<(DefReseau, String)> reseauxPresents(Map<String, String>? r) {
 
 /* ── Les icônes, au trait ─────────────────────────────────────────────────── */
 
-/// Les tracés SVG (24 × 24). Trait de 2 pour tous, sauf le fantôme Snapchat,
-/// plein — sur le jaune, un trait fin disparaît.
+/// Les tracés SVG (24 × 24). Trait de 2 pour tous, sauf ce que `_pleins`
+/// désigne : le fantôme Snapchat (sur le jaune, un trait fin disparaît) et
+/// le combiné de WhatsApp.
 const _traces = <String, List<String>>{
+  'whatsapp': [
+    'M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3z',
+    'M9.2 7.6c.2-.3.6-.3.9-.1l1.1 1.6c.2.3.1.6-.1.8l-.7.7c.6 1.2 1.6 2.2 2.8 2.8l.7-.7c.2-.2.5-.3.8-.1l1.6 1.1c.3.2.3.6.1.9l-.6.9c-.3.4-.8.6-1.3.5-3-.6-5.6-3.2-6.2-6.2-.1-.5.1-1 .5-1.3z',
+  ],
   'facebook': ['M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z'],
   'instagram': [
     'M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z',
@@ -95,8 +103,31 @@ const _traces = <String, List<String>>{
   ],
 };
 
+/// Les tracés qui se REMPLISSENT au lieu de se tracer : id → indices.
+const _pleins = <String, Set<int>>{'snapchat': {0}, 'whatsapp': {1}};
+
 /// Les tracés d'un réseau (pour les tests, qui les peignent eux-mêmes).
 List<String> tracesDe(String id) => _traces[id] ?? const [];
+
+/// Peint l'icône d'un réseau dans le repère 24 × 24 du canvas — le widget et
+/// le test passent par ici, pour dessiner exactement la même chose.
+void peindreIcone(Canvas canvas, String id, Color encre) {
+  final traces = _traces[id];
+  if (traces == null) return;
+  final trait = Paint()
+    ..color = encre
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = id == 'x' ? 2.4 : 2
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
+  final plein = Paint()
+    ..color = encre
+    ..style = PaintingStyle.fill;
+  for (var i = 0; i < traces.length; i++) {
+    final rempli = _pleins[id]?.contains(i) ?? false;
+    canvas.drawPath(cheminSvg(traces[i]), rempli ? plein : trait);
+  }
+}
 
 /// Un tracé SVG (M, L, H, V, C, S, Q, A, Z et leurs minuscules) → un Path.
 /// Juste ce qu'il faut pour les neuf icônes ci-dessus — rien de plus.
@@ -222,20 +253,9 @@ class _PeintreReseau extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final traces = _traces[id];
-    if (traces == null) return;
     final k = size.width / 24;
     canvas.scale(k, k);
-    final plein = id == 'snapchat';
-    final peinture = Paint()
-      ..color = couleur
-      ..style = plein ? PaintingStyle.fill : PaintingStyle.stroke
-      ..strokeWidth = id == 'x' ? 2.4 : 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    for (final d in traces) {
-      canvas.drawPath(cheminSvg(d), peinture);
-    }
+    peindreIcone(canvas, id, couleur);
   }
 
   @override

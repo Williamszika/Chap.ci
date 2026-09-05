@@ -110,9 +110,9 @@ l'application, aux mêmes endroits :
   de la photo ouvre le lecteur. La première fois que vous filmez, l'iPhone
   demande l'accès au micro : dites oui, sinon la vidéo n'a pas de son.
 - **Les réseaux sociaux du professionnel** (05/09). Mon compte, console pro →
-  tuile 🔗 Réseaux sociaux : neuf champs (Facebook, Instagram, TikTok,
-  YouTube, Snapchat, LinkedIn, X, Telegram, site web), un nom d'utilisateur
-  ou l'adresse de la page. Sur la page vendeur, sous Contacter : les pastilles
+  tuile 🔗 Réseaux sociaux : dix champs (WhatsApp, Facebook, Instagram,
+  TikTok, YouTube, Snapchat, LinkedIn, X, Telegram, site web), un numéro ou
+  un nom d'utilisateur, ou l'adresse de la page. Sur la page vendeur, sous Contacter : les pastilles
   aux couleurs des marques, qui ouvrent l'application du réseau.
 
 Pour les prendre : l'encadré du haut, les six commandes. Trois nouvelles

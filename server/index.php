@@ -5810,13 +5810,17 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
 //  doit être une adresse http(s) plausible, et c'est lui que la modération
 //  regarde : chaque enregistrement passe au journal (pro_reseaux).
 //
-//  WhatsApp n'y est pas, à dessein : le numéro du vendeur ne sort jamais du
-//  serveur (décision du 28/08), et un lien wa.me est un numéro.
+//  WHATSAPP, EN PREMIER — décision du Patron du 05/09/2026, après la réserve
+//  qui lui a été faite. Le numéro personnel du vendeur ne sort toujours pas
+//  du serveur (décision du 28/08) : ici, c'est le professionnel qui CHOISIT
+//  de publier son WhatsApp Business, et c'est le canal par lequel on vend à
+//  Abidjan. Un numéro tapé devient un lien wa.me au format international.
 // =============================================================================
 
 /** Les réseaux acceptés : leurs domaines, et la base qui complète un nom d'utilisateur. */
 function reseaux_definitions(): array {
   return [
+    'whatsapp'  => ['nom' => 'WhatsApp',  'domaines' => ['wa.me', 'whatsapp.com'],           'base' => 'https://wa.me/'],
     'facebook'  => ['nom' => 'Facebook',  'domaines' => ['facebook.com', 'fb.com', 'fb.me'], 'base' => 'https://www.facebook.com/'],
     'instagram' => ['nom' => 'Instagram', 'domaines' => ['instagram.com'],                   'base' => 'https://www.instagram.com/'],
     'tiktok'    => ['nom' => 'TikTok',    'domaines' => ['tiktok.com'],                      'base' => 'https://www.tiktok.com/@'],
@@ -5839,6 +5843,9 @@ function reseau_normaliser(string $cle, string $valeur): ?string {
   if (!isset($defs[$cle])) return null;
   $v = trim($valeur);
   if ($v === '') return '';
+  // Un numéro WhatsApp se tape avec des espaces (« 07 00 00 00 01 ») : on
+  // les retire AVANT le contrôle qui, pour tous les autres, refuse l'espace.
+  if ($cle === 'whatsapp') $v = preg_replace('/\s+/u', '', $v);
   if (mb_strlen($v) > 200 || preg_match('/[\s<>"\'\\\\]/u', $v)) return null;
   $d = $defs[$cle];
 
@@ -5851,13 +5858,33 @@ function reseau_normaliser(string $cle, string $valeur): ?string {
     return 'https://' . $hote . (isset($p['port']) ? ':' . $p['port'] : '') . ($p['path'] ?? '') . (isset($p['query']) ? '?' . $p['query'] : '');
   }
 
+  // WhatsApp : un NUMÉRO (« 07 00 00 00 01 », « +225 07… »), ou un lien
+  // wa.me / api.whatsapp.com (le numéro en est extrait), ou un lien de
+  // canal / groupe sur whatsapp.com, gardé tel quel.
+  if ($cle === 'whatsapp') {
+    $numero = null;
+    if (preg_match('~(?:^|/)wa\.me/\+?([0-9][0-9 .-]{6,20})~i', $v, $m)) $numero = $m[1];
+    elseif (preg_match('~whatsapp\.com/send/?\?(?:.*&)?phone=\+?([0-9]{7,15})~i', $v, $m)) $numero = $m[1];
+    elseif (!preg_match('~^(https?://|www\.|chat\.|[a-z0-9.-]+\.[a-z]{2,}/)~i', $v)) $numero = $v;
+    if ($numero !== null) {
+      $chiffres = preg_replace('/\D/', '', $numero);
+      if (str_starts_with($chiffres, '00')) $chiffres = substr($chiffres, 2);
+      // Un numéro ivoirien à dix chiffres (07, 05, 01…) : on pose l'indicatif
+      // DEVANT le 0 — depuis 2021, le 0 fait partie du numéro (+225 07…).
+      if (strlen($chiffres) === 10 && $chiffres[0] === '0') $chiffres = '225' . $chiffres;
+      if (strlen($chiffres) < 8 || strlen($chiffres) > 15) return null;
+      return 'https://wa.me/' . $chiffres;
+    }
+    // Sinon : une adresse complète, vérifiée comme les autres réseaux.
+  }
+
   // Une adresse complète : le domaine doit être celui du réseau.
   if (preg_match('~^(https?://|www\.)~i', $v) || preg_match('~^[a-z0-9.-]+\.[a-z]{2,}/~i', $v)) {
     if (!preg_match('~^https?://~i', $v)) $v = 'https://' . $v;
     $p = parse_url($v);
     if (!$p || empty($p['host']) || !empty($p['user'])) return null;
     $hote = strtolower($p['host']);
-    $racine = preg_replace('/^(www|m|mobile|web|vm|vt|business|fr)\./', '', $hote);
+    $racine = preg_replace('/^(www|m|mobile|web|vm|vt|business|fr|chat|api)\./', '', $hote);
     $ok = false;
     foreach ($d['domaines'] as $dom) {
       if ($racine === $dom || str_ends_with($racine, '.' . $dom)) { $ok = true; break; }
@@ -9573,7 +9600,9 @@ try {
         $nom = reseaux_definitions()[$faute]['nom'];
         jout(['error' => $faute === 'site'
                 ? 'L’adresse du site n’est pas valide : elle doit ressembler à https://www.exemple.ci'
-                : 'Le lien ' . $nom . ' n’est pas valide : collez l’adresse de votre page ' . $nom . ', ou votre nom d’utilisateur (ex. : @maboutique).',
+                : ($faute === 'whatsapp'
+                  ? 'Le WhatsApp n’est pas valide : tapez le numéro (ex. : 07 00 00 00 01), ou collez un lien wa.me.'
+                  : 'Le lien ' . $nom . ' n’est pas valide : collez l’adresse de votre page ' . $nom . ', ou votre nom d’utilisateur (ex. : @maboutique).'),
               'reseau' => $faute], 422);
       }
       $sets[] = 'pro_reseaux = ?';

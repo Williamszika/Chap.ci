@@ -4,11 +4,13 @@
  * Les neuf réseaux que le serveur accepte (`reseaux_definitions()` dans
  * server/index.php — même liste, même ordre), avec ce qu'il faut pour les
  * dessiner : la couleur de la marque, l'encre qui se lit dessus, et l'exemple
- * du champ de saisie. WhatsApp n'y est pas, à dessein : le numéro du vendeur
- * ne sort jamais du serveur, et un lien wa.me est un numéro.
+ * du champ de saisie. WhatsApp en premier, décision du Patron du 05/09/2026 :
+ * c'est le canal par lequel on vend à Abidjan, et c'est le professionnel qui
+ * choisit de publier son WhatsApp Business (le numéro personnel d'un vendeur
+ * ordinaire, lui, ne sort toujours pas du serveur).
  */
 export type ReseauId =
-  | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat'
+  | 'whatsapp' | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'snapchat'
   | 'linkedin' | 'x' | 'telegram' | 'site'
 
 export interface DefReseau {
@@ -22,6 +24,7 @@ export interface DefReseau {
 }
 
 export const RESEAUX: DefReseau[] = [
+  { id: 'whatsapp',  nom: 'WhatsApp',  fond: '#25D366', encre: '#FFFFFF', placeholder: '07 00 00 00 01 ou wa.me/…' },
   { id: 'facebook',  nom: 'Facebook',  fond: '#1877F2', encre: '#FFFFFF', placeholder: '@maboutique ou facebook.com/maboutique' },
   { id: 'instagram', nom: 'Instagram', fond: 'linear-gradient(45deg, #F58529 0%, #DD2A7B 55%, #8134AF 100%)', encre: '#FFFFFF', placeholder: '@maboutique' },
   { id: 'tiktok',    nom: 'TikTok',    fond: '#111111', encre: '#FFFFFF', placeholder: '@maboutique' },

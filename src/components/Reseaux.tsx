@@ -26,6 +26,14 @@ export function IconeReseau({ id, size = 16, className }: { id: ReseauId; size?:
     case 'linkedin': return <Linkedin {...p} />
     case 'telegram': return <Send {...p} />
     case 'site': return <Globe {...p} />
+    case 'whatsapp':
+      // La bulle au trait, le combiné plein — reconnaissable sur le vert.
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden>
+          <path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3z" {...TRAIT} />
+          <path d="M9.2 7.6c.2-.3.6-.3.9-.1l1.1 1.6c.2.3.1.6-.1.8l-.7.7c.6 1.2 1.6 2.2 2.8 2.8l.7-.7c.2-.2.5-.3.8-.1l1.6 1.1c.3.2.3.6.1.9l-.6.9c-.3.4-.8.6-1.3.5-3-.6-5.6-3.2-6.2-6.2-.1-.5.1-1 .5-1.3z" fill="currentColor" stroke="none" />
+        </svg>
+      )
     case 'tiktok':
       // La note de musique, au trait de lucide : reconnaissable dans une
       // pastille noire qui dit « TikTok ».

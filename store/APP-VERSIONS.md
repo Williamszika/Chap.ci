@@ -228,7 +228,9 @@ l'autorisation micro iOS (`NSMicrophoneUsageDescription`, posée par
 `tool/preparer_plateformes.dart`). Test `video_test.dart` : sept contrôles.
 
 Le 05/09, à la demande du Patron : **les réseaux sociaux du professionnel**.
-Un compte pro approuvé renseigne Facebook, Instagram, TikTok, YouTube,
+Un compte pro approuvé renseigne WhatsApp (ajouté sur sa décision, après la
+réserve sur le numéro : un numéro tapé devient un lien wa.me), Facebook,
+Instagram, TikTok, YouTube,
 Snapchat, LinkedIn, X, Telegram et son site (console pro → tuile 🔗 Réseaux
 sociaux, `lib/screens/reseaux_screen.dart`) ; la page vendeur les montre en
 pastilles aux couleurs des marques sous « Contacter », et en clair dans
@@ -236,9 +238,8 @@ pastilles aux couleurs des marques sous « Contacter », et en clair dans
 trait par l'application (`lib/data/reseaux.dart`, les mêmes tracés que le
 site) — aucune police d'icônes de plus. Le serveur n'accepte, pour chaque
 réseau, qu'une adresse sur son propre domaine ou un nom d'utilisateur qu'il
-complète (`POST /pro/fiche {reseaux}`) ; WhatsApp n'y est pas, le numéro ne
-sort jamais. Test `reseaux_test.dart` : sept contrôles, dont les neuf icônes
-peintes en PNG et comptées pixel par pixel.
+complète (`POST /pro/fiche {reseaux}`). Test `reseaux_test.dart` : sept
+contrôles, dont les dix icônes peintes en PNG et comptées pixel par pixel.
 
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est

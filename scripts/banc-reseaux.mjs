@@ -118,10 +118,30 @@ dire(r.code === 422 && r.corps?.reseau === 'instagram', 'une adresse fautive blo
 pub = await reseauxPublics(awa.id)
 dire(pub && Object.keys(pub).length === 2 && pub.facebook === 'https://m.facebook.com/maisonkoffi?ref=x', 'rien n’a bougé après les refus', JSON.stringify(pub))
 
-console.log('\n── Les inconnus et le vide ' + '─'.repeat(45))
-r = await fiche(awa, { reseaux: { whatsapp: '0700000001', facebook: '@maisonkoffi', autre: 'https://x.com/y' } })
+console.log('\n── WhatsApp (ajouté à la demande du Patron, 05/09) ' + '─'.repeat(22))
+for (const [saisie, attenduWa] of [
+  ['07 00 00 00 01', 'https://wa.me/2250700000001'],
+  ['+225 07 00 00 00 01', 'https://wa.me/2250700000001'],
+  ['00225 0700000001', 'https://wa.me/2250700000001'],
+  ['wa.me/2250700000001', 'https://wa.me/2250700000001'],
+  ['https://api.whatsapp.com/send?phone=2250700000001&text=Bonjour', 'https://wa.me/2250700000001'],
+  ['https://chat.whatsapp.com/ABCdef123', 'https://chat.whatsapp.com/ABCdef123'],
+]) {
+  r = await fiche(awa, { reseaux: { whatsapp: saisie } })
+  dire(r.code === 200 && r.corps?.reseaux?.whatsapp === attenduWa, `« ${saisie} » → ${attenduWa}`, `HTTP ${r.code} ${r.corps?.reseaux?.whatsapp ?? r.corps?.error}`)
+}
+for (const mauvais of ['12 34', 'abc', 'https://instagram.com/pas-whatsapp']) {
+  r = await fiche(awa, { reseaux: { whatsapp: mauvais } })
+  dire(r.code === 422 && r.corps?.reseau === 'whatsapp', `« ${mauvais} » : 422`, `HTTP ${r.code}`)
+}
+r = await fiche(awa, { reseaux: { site: 'maisonkoffi.ci', facebook: '@maisonkoffi', whatsapp: '07 00 00 00 01' } })
 pub = await reseauxPublics(awa.id)
-dire(r.code === 200 && pub && Object.keys(pub).join(',') === 'facebook', 'WhatsApp et un réseau inconnu sont ignorés, jamais publiés', JSON.stringify(pub))
+dire(pub && Object.keys(pub).join(',') === 'whatsapp,facebook,site', 'WhatsApp sort en premier sur la page, quel que soit l’ordre envoyé', JSON.stringify(Object.keys(pub ?? {})))
+
+console.log('\n── Les inconnus et le vide ' + '─'.repeat(45))
+r = await fiche(awa, { reseaux: { viber: '0700000001', facebook: '@maisonkoffi', autre: 'https://x.com/y' } })
+pub = await reseauxPublics(awa.id)
+dire(r.code === 200 && pub && Object.keys(pub).join(',') === 'facebook', 'un réseau inconnu (Viber) est ignoré, jamais publié', JSON.stringify(pub))
 r = await fiche(awa, { reseaux: {} })
 pub = await reseauxPublics(awa.id)
 dire(r.code === 200 && pub && Object.keys(pub).length === 0, 'un objet vide efface tout — et la page rend un objet vide, pas une liste', JSON.stringify(pub))

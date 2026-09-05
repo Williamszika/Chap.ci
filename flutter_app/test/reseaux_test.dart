@@ -133,7 +133,7 @@ void main() {
   });
 
   group('Les icônes', () {
-    test('les neuf se dessinent — chaque cellule du PNG porte de l’encre', () async {
+    test('les dix se dessinent — chaque cellule du PNG porte de l’encre', () async {
       const cellule = 96.0;
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
@@ -154,15 +154,7 @@ void main() {
         // Le même dessin que le widget, à 40 px.
         const k = 40 / 24;
         canvas.scale(k, k);
-        final peinture = Paint()
-          ..color = r.encre
-          ..style = r.id == 'snapchat' ? PaintingStyle.fill : PaintingStyle.stroke
-          ..strokeWidth = r.id == 'x' ? 2.4 : 2
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round;
-        for (final d in tracesDe(r.id)) {
-          canvas.drawPath(cheminSvg(d), peinture);
-        }
+        peindreIcone(canvas, r.id, r.encre);
         canvas.restore();
       }
       final image = await recorder.endRecording().toImage((cellule * reseaux.length).toInt(), cellule.toInt());
