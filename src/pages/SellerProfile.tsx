@@ -9,6 +9,7 @@ import {
   delaiPhrase,
 } from '../components/Vitrine'
 import { mediaUrl } from '../lib/native'
+import { PillesReseaux, ListeReseaux } from '../components/Reseaux'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -159,6 +160,11 @@ export function SellerProfile() {
               {following ? <><Check size={18} /> Suivi</> : <><Plus size={18} /> Suivre</>}
             </button>
           </div>
+
+          {/* Les réseaux sociaux de l'enseigne (05/09/2026) : là où elle poste
+              déjà, en boutons aux couleurs des marques. Rien si elle n'en a
+              renseigné aucun. */}
+          <PillesReseaux reseaux={pro.reseaux} nom={displayName} />
         </>
       ) : (
         <SimpleEnTete
@@ -257,7 +263,11 @@ export function SellerProfile() {
         // ⑤ À propos : la description de l'ENTREPRISE, et le registre vérifié.
         <div className="space-y-3 px-4 py-4">
           {pro ? (
-            <AProposVitrine pro={pro} bio={profile?.bio} lieu={location} reponse={reponse} />
+            <>
+              <AProposVitrine pro={pro} bio={profile?.bio} lieu={location} reponse={reponse} />
+              {/* L'adresse en clair : l'acheteur voit où il va avant d'y aller. */}
+              <ListeReseaux reseaux={pro.reseaux} />
+            </>
           ) : (
             <div className="card p-4">
               <h2 className="mb-2 font-display text-base font-bold text-ink">À propos</h2>

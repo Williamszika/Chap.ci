@@ -35,6 +35,10 @@ class ProfilPublic {
   /// Date d'approbation du dossier, en millisecondes.
   final int? proDepuis;
 
+  /// Les réseaux sociaux et le site (05/09/2026) : {facebook: url, …},
+  /// adresses déjà vérifiées par le serveur. Vide si aucun n'est renseigné.
+  final Map<String, String> proReseaux;
+
   const ProfilPublic({
     required this.id,
     required this.nom,
@@ -51,6 +55,7 @@ class ProfilPublic {
     this.proRegistreVerifie = false,
     this.proVentes = 0,
     this.proDepuis,
+    this.proReseaux = const {},
   });
 
   /// Vrai quand le compte a une vitrine à montrer.
@@ -85,7 +90,18 @@ class ProfilPublic {
         proDepuis: (j['pro'] is Map && j['pro']['depuis'] is num)
             ? (j['pro']['depuis'] as num).toInt()
             : null,
+        proReseaux: lireReseaux((j['pro'] is Map) ? j['pro']['reseaux'] : null),
       );
+
+  /// {facebook: url, …} depuis le JSON : seules les adresses https comptent.
+  static Map<String, String> lireReseaux(dynamic brut) {
+    if (brut is! Map) return const {};
+    return {
+      for (final e in brut.entries)
+        if (e.value is String && (e.value as String).startsWith('https://'))
+          e.key.toString(): e.value as String,
+    };
+  }
 }
 
 /// Un jour d'ouverture de la boutique.

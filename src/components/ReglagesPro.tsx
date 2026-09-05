@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Camera, Check, ChevronRight, Clock, Crosshair, KeyRound, Loader2, Lock, LogOut,
-  MapPin, Monitor, ShieldCheck, Smartphone,
+  MapPin, Monitor, Share2, ShieldCheck, Smartphone,
 } from 'lucide-react'
+import { ChampsReseaux } from './Reseaux'
+import type { ReseauId } from '../data/reseaux'
 import { useAuth } from '../store/AuthContext'
 import { useGeo } from '../store/GeoContext'
 import { useToast } from '../store/ToastContext'
@@ -127,6 +129,7 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
   pro: {
     nom: string; type: string; secteur: string; numero?: string; tel?: string
     description?: string; horaires?: Horaire[] | null
+    reseaux?: Record<string, string> | null
   }
   /** « Abidjan · Abobo » — rappel de ce qui est enregistré, sans le modifier ici. */
   lieu?: string
@@ -145,6 +148,10 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
   const [tel, setTel] = useState(pro.tel ?? '')
   const [description, setDescription] = useState(pro.description ?? '')
   const [horaires, setHoraires] = useState<Horaire[]>(pro.horaires?.length === 7 ? pro.horaires : HORAIRES_DEFAUT)
+  // Les réseaux sociaux : ce qui est enregistré, puis ce que la personne tape.
+  // Le serveur renvoie les adresses normalisées à l'enregistrement, et on les
+  // repose dans les champs — « @maboutique » devient « facebook.com/maboutique ».
+  const [reseaux, setReseaux] = useState<Record<string, string>>(() => ({ ...(pro.reseaux ?? {}) }))
   const [enCours, setEnCours] = useState(false)
   const [image, setImage] = useState<'banniere' | 'logo' | null>(null)
   const fichier = useRef<HTMLInputElement>(null)
@@ -169,7 +176,8 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
   const enregistrer = async () => {
     setEnCours(true)
     try {
-      await phpProFiche({ tel, description, horaires })
+      const r = await phpProFiche({ tel, description, horaires, reseaux })
+      if (r.reseaux) setReseaux({ ...r.reseaux })
       onEnregistre()
       toast.success('Votre fiche est à jour.')
     } catch (e) { toast.error((e as Error).message) }
@@ -303,6 +311,24 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* RÉSEAUX SOCIAUX (05/09/2026) — cliquables sur la page vendeur.
+          Chaque réseau n'accepte que sa propre adresse (ou un nom
+          d'utilisateur) : la page porte « Registre vérifié », un lien qui y
+          figure emprunte cette caution. Le site web, libre, est journalisé. */}
+      <div className="rounded-2xl border border-accent-ocre/30 bg-cream-100 p-3.5">
+        <p className="flex items-center gap-1.5 font-display text-[13.5px] font-extrabold text-ink">
+          <Share2 size={15} className="text-primary-600" /> Vos réseaux sociaux
+        </p>
+        <p className="mt-0.5 text-[12px] leading-relaxed text-gray-600">
+          Cliquables sur votre page vendeur, aux couleurs de chaque réseau. Collez l’adresse de
+          votre page, ou votre nom d’utilisateur (ex. : @maboutique). Tout est facultatif.
+        </p>
+        <div className="mt-2.5">
+          <ChampsReseaux valeurs={reseaux}
+            onChange={(id: ReseauId, v: string) => setReseaux((p) => ({ ...p, [id]: v }))} />
         </div>
       </div>
 

@@ -2125,6 +2125,10 @@ function migrate(PDO $pdo): void {
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_horaires $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Les réseaux sociaux du professionnel (05/09/2026) : un objet JSON
+  // {facebook: url, instagram: url, …}, adresses déjà normalisées.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_reseaux $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // Marqueurs des rappels du professionnel. Sans eux, « message sans réponse »
   // repartirait chaque nuit sur la même conversation : au troisième matin, la
   // personne coupe toutes les notifications, y compris celles qui servent.
@@ -5791,6 +5795,111 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
 }
 
 // =============================================================================
+//  LES RÉSEAUX SOCIAUX DU PROFESSIONNEL (05/09/2026)
+//
+//  Un compte pro approuvé renseigne ses pages — Facebook, Instagram, TikTok,
+//  YouTube, Snapchat, LinkedIn, X, Telegram — et son site ; la page vendeur
+//  les montre en boutons cliquables. C'est ce qu'une enseigne d'Abidjan met
+//  sur sa carte de visite : on la retrouve là où elle poste déjà.
+//
+//  CE QUI EST VÉRIFIÉ, ET POURQUOI. La page vendeur d'un professionnel porte
+//  « Registre vérifié par l'équipe Chap.ci » : un lien qui y figure emprunte
+//  cette caution. Chaque réseau n'accepte donc qu'une adresse SUR SON PROPRE
+//  DOMAINE (un « Facebook » qui pointe ailleurs est refusé), ou un simple nom
+//  d'utilisateur qu'on complète nous-mêmes. Seul le site web est libre — il
+//  doit être une adresse http(s) plausible, et c'est lui que la modération
+//  regarde : chaque enregistrement passe au journal (pro_reseaux).
+//
+//  WhatsApp n'y est pas, à dessein : le numéro du vendeur ne sort jamais du
+//  serveur (décision du 28/08), et un lien wa.me est un numéro.
+// =============================================================================
+
+/** Les réseaux acceptés : leurs domaines, et la base qui complète un nom d'utilisateur. */
+function reseaux_definitions(): array {
+  return [
+    'facebook'  => ['nom' => 'Facebook',  'domaines' => ['facebook.com', 'fb.com', 'fb.me'], 'base' => 'https://www.facebook.com/'],
+    'instagram' => ['nom' => 'Instagram', 'domaines' => ['instagram.com'],                   'base' => 'https://www.instagram.com/'],
+    'tiktok'    => ['nom' => 'TikTok',    'domaines' => ['tiktok.com'],                      'base' => 'https://www.tiktok.com/@'],
+    'youtube'   => ['nom' => 'YouTube',   'domaines' => ['youtube.com', 'youtu.be'],         'base' => 'https://www.youtube.com/@'],
+    'snapchat'  => ['nom' => 'Snapchat',  'domaines' => ['snapchat.com'],                    'base' => 'https://www.snapchat.com/add/'],
+    'linkedin'  => ['nom' => 'LinkedIn',  'domaines' => ['linkedin.com'],                    'base' => 'https://www.linkedin.com/in/'],
+    'x'         => ['nom' => 'X',         'domaines' => ['x.com', 'twitter.com'],            'base' => 'https://x.com/'],
+    'telegram'  => ['nom' => 'Telegram',  'domaines' => ['t.me', 'telegram.me'],             'base' => 'https://t.me/'],
+    'site'      => ['nom' => 'Site web',  'domaines' => [],                                  'base' => ''],
+  ];
+}
+
+/**
+ * Une valeur saisie → l'adresse à enregistrer. '' = rien (le champ se vide),
+ * null = refusée. Accepte l'adresse complète de la page, ou le nom
+ * d'utilisateur (« @maboutique », « maboutique »).
+ */
+function reseau_normaliser(string $cle, string $valeur): ?string {
+  $defs = reseaux_definitions();
+  if (!isset($defs[$cle])) return null;
+  $v = trim($valeur);
+  if ($v === '') return '';
+  if (mb_strlen($v) > 200 || preg_match('/[\s<>"\'\\\\]/u', $v)) return null;
+  $d = $defs[$cle];
+
+  if ($cle === 'site') {
+    if (!preg_match('~^https?://~i', $v)) $v = 'https://' . $v;
+    $p = parse_url($v);
+    if (!$p || empty($p['host']) || !empty($p['user']) || !empty($p['pass'])) return null;
+    $hote = strtolower($p['host']);
+    if (!preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $hote)) return null; // un point au moins, rien d'exotique
+    return 'https://' . $hote . (isset($p['port']) ? ':' . $p['port'] : '') . ($p['path'] ?? '') . (isset($p['query']) ? '?' . $p['query'] : '');
+  }
+
+  // Une adresse complète : le domaine doit être celui du réseau.
+  if (preg_match('~^(https?://|www\.)~i', $v) || preg_match('~^[a-z0-9.-]+\.[a-z]{2,}/~i', $v)) {
+    if (!preg_match('~^https?://~i', $v)) $v = 'https://' . $v;
+    $p = parse_url($v);
+    if (!$p || empty($p['host']) || !empty($p['user'])) return null;
+    $hote = strtolower($p['host']);
+    $racine = preg_replace('/^(www|m|mobile|web|vm|vt|business|fr)\./', '', $hote);
+    $ok = false;
+    foreach ($d['domaines'] as $dom) {
+      if ($racine === $dom || str_ends_with($racine, '.' . $dom)) { $ok = true; break; }
+    }
+    if (!$ok) return null;
+    $chemin = $p['path'] ?? '';
+    if (trim($chemin, '/') === '') return null; // « facebook.com » tout seul n'est pas une page
+    return 'https://' . $hote . $chemin . (isset($p['query']) ? '?' . $p['query'] : '');
+  }
+
+  // Un nom d'utilisateur.
+  $nom = ltrim($v, '@');
+  if (!preg_match('/^[A-Za-z0-9._-]{1,60}$/', $nom)) return null;
+  return $d['base'] . $nom;
+}
+
+/** L'objet reçu → [adresses propres, ou null si une est refusée ; la clé refusée]. */
+function reseaux_normaliser($entree): array {
+  if (!is_array($entree)) return [[], null];
+  $propre = [];
+  foreach (reseaux_definitions() as $cle => $d) {
+    if (!array_key_exists($cle, $entree)) continue;
+    $url = reseau_normaliser($cle, (string) $entree[$cle]);
+    if ($url === null) return [null, $cle];
+    if ($url !== '') $propre[$cle] = $url;
+  }
+  return [$propre, null];
+}
+
+/** Ce qui est en base → l'objet public, épuré (clés connues, adresses https). */
+function reseaux_lire($json): array {
+  $d = is_string($json) && $json !== '' ? json_decode($json, true) : null;
+  if (!is_array($d)) return [];
+  $out = [];
+  foreach (reseaux_definitions() as $cle => $def) {
+    $v = $d[$cle] ?? null;
+    if (is_string($v) && str_starts_with($v, 'https://')) $out[$cle] = $v;
+  }
+  return $out;
+}
+
+// =============================================================================
 //  LA VIDÉO DE QUINZE SECONDES PAR ANNONCE (chantier 6 du 04/09/2026)
 //
 //  C'est ainsi qu'on vend sur WhatsApp à Abidjan : une courte vidéo de l'objet
@@ -9172,7 +9281,7 @@ try {
     try {
       $pq = $pdo->prepare('SELECT pro_status, pro_nom, pro_type, pro_secteur,
                                   pro_banniere, pro_logo, pro_numero, pro_decide_at,
-                                  pro_description, pro_horaires FROM users WHERE id = ?');
+                                  pro_description, pro_horaires, pro_reseaux FROM users WHERE id = ?');
       $pq->execute([$seg[1]]);
       $pr = $pq->fetch();
       if ($pr && (string) ($pr['pro_status'] ?? '') === 'approuve') {
@@ -9205,7 +9314,10 @@ try {
                 // ne pas le publier.
                 'registreVerifie' => trim((string) ($pr['pro_numero'] ?? '')) !== '',
                 'ventes' => $ventes,
-                'depuis' => iso_to_ms($pr['pro_decide_at'] ?? null)];
+                'depuis' => iso_to_ms($pr['pro_decide_at'] ?? null),
+                // Les réseaux sociaux (05/09/2026) : {facebook: url, …}, un
+                // objet même vide — `[]` serait une liste pour l'application.
+                'reseaux' => (object) reseaux_lire($pr['pro_reseaux'] ?? null)];
       }
     } catch (Throwable $e) { /* base pas migrée : pas de fiche pro */ }
     jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
@@ -9421,11 +9533,21 @@ try {
     // qui a le droit « utilisateurs » (route admin/pro/fiche), qui journalise
     // l'avant → après et prévient l'intéressé. Le corps de la requête peut les
     // porter, on ne les lit pas.
-    $tel  = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
-    $desc = trim(mb_substr((string) ($b['description'] ?? ''), 0, 300));
+    // CHAQUE CHAMP NE CHANGE QUE S'IL EST ENVOYÉ. Jusqu'au 05/09/2026, la
+    // route écrivait le téléphone et la description quoi qu'il arrive : un
+    // client qui n'enverrait que ses réseaux sociaux (l'application) aurait
+    // effacé les deux autres sans le savoir. Le site, lui, envoie tout.
+    $sets = []; $vals = [];
+    if (array_key_exists('tel', $b)) {
+      $sets[] = 'pro_tel = ?';
+      $vals[] = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+    }
+    if (array_key_exists('description', $b)) {
+      $sets[] = 'pro_description = ?';
+      $vals[] = trim(mb_substr((string) ($b['description'] ?? ''), 0, 300));
+    }
     // Les horaires : sept jours, chacun ouvert ou fermé avec deux heures.
     // Stockés en JSON — un tableau de sept, jamais autre chose.
-    $horaires = null;
     if (array_key_exists('horaires', $b)) {
       $h = $b['horaires'];
       if (is_array($h)) {
@@ -9438,15 +9560,33 @@ try {
             'a'  => mb_substr((string) ($j['a'] ?? ''), 0, 5),
           ];
         }
-        $horaires = count($propre) === 7 ? json_encode($propre, JSON_UNESCAPED_UNICODE) : null;
+        if (count($propre) === 7) { $sets[] = 'pro_horaires = ?'; $vals[] = json_encode($propre, JSON_UNESCAPED_UNICODE); }
       }
     }
-    $sql = 'UPDATE users SET pro_tel = ?, pro_description = ?';
-    $vals = [$tel, $desc];
-    if ($horaires !== null) { $sql .= ', pro_horaires = ?'; $vals[] = $horaires; }
-    $sql .= ' WHERE id = ?'; $vals[] = $u['id'];
-    $pdo->prepare($sql)->execute($vals);
-    jout(['ok' => true]);
+    // Les réseaux sociaux (05/09/2026) : l'objet envoyé REMPLACE l'ensemble —
+    // le site et l'application envoient toujours les neuf champs. Une adresse
+    // refusée bloque tout l'enregistrement, en nommant le réseau fautif.
+    $reseaux = null;
+    if (array_key_exists('reseaux', $b)) {
+      [$reseaux, $faute] = reseaux_normaliser($b['reseaux']);
+      if ($faute !== null) {
+        $nom = reseaux_definitions()[$faute]['nom'];
+        jout(['error' => $faute === 'site'
+                ? 'L’adresse du site n’est pas valide : elle doit ressembler à https://www.exemple.ci'
+                : 'Le lien ' . $nom . ' n’est pas valide : collez l’adresse de votre page ' . $nom . ', ou votre nom d’utilisateur (ex. : @maboutique).',
+              'reseau' => $faute], 422);
+      }
+      $sets[] = 'pro_reseaux = ?';
+      $vals[] = $reseaux ? json_encode($reseaux, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
+      // Au journal : un lien sur une page « registre vérifié » emprunte la
+      // caution de l'équipe. Le site web, libre, est celui qu'on regarde.
+      log_security_event($pdo, 'pro_reseaux', $u['email'] ?? null,
+        implode(',', array_keys($reseaux)) . (isset($reseaux['site']) ? ' · site=' . (string) parse_url($reseaux['site'], PHP_URL_HOST) : ''));
+    }
+    if (!$sets) jerr('Rien à enregistrer.');
+    $vals[] = $u['id'];
+    $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($vals);
+    jout(['ok' => true] + ($reseaux !== null ? ['reseaux' => (object) $reseaux] : []));
   }
 
   // LE CHEMIN DE L'ACHETEUR — vues → favoris → contacts → ventes, plus les
@@ -9625,7 +9765,7 @@ try {
 
     $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at,
                                 pro_numero, pro_tel, pro_banniere, pro_logo,
-                                pro_description, pro_horaires,
+                                pro_description, pro_horaires, pro_reseaux,
                                 pro_auto_reply, pro_auto_reply_on
                          FROM users WHERE id = ?');
     $st->execute([$uid]);
@@ -9926,6 +10066,8 @@ try {
         'description' => (string) ($r['pro_description'] ?? ''),
         'horaires' => ($r['pro_horaires'] ?? '') !== ''
           ? (json_decode((string) $r['pro_horaires'], true) ?: null) : null,
+        // Les réseaux sociaux, tels qu'enregistrés (adresses normalisées).
+        'reseaux' => (object) reseaux_lire($r['pro_reseaux'] ?? null),
         // La réponse automatique, pour que la tuile du tableau de bord dise
         // d'un coup d'œil si elle est active — et laquelle part.
         'reponseAuto' => !empty($r['pro_auto_reply_on'])

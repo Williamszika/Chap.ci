@@ -16,7 +16,9 @@ import '../screens/modifier_profil_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/publier_screen.dart';
 import '../screens/reponses_screen.dart';
+import '../screens/reseaux_screen.dart';
 import '../screens/securite_2fa_screen.dart';
+import '../api/profil.dart' show ProfilPublic;
 
 /// Le tableau de bord de l'ESPACE PROFESSIONNEL, façon CRM — le panneau d'un
 /// compte approuvé : badge 💼, nom commercial, période 7/30 jours, chiffres
@@ -479,6 +481,15 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
               _tuile('⚡', ChapColors.cream100, tr(context, 'pro.tuile.reponses'),
                   tr(context, 'pro.tuile.reponsesSous'),
                   onTap: () => _ouvrir(const ReponsesScreen(pro: true))),
+              // Les réseaux sociaux (05/09/2026) : cliquables sur la page
+              // vendeur, aux couleurs des marques.
+              _tuile('🔗', const Color(0xFFE8EEFB), tr(context, 'pro.tuile.reseaux'),
+                  _reseauxDuTableau(pro).isEmpty
+                      ? tr(context, 'pro.tuile.reseauxSous')
+                      : _tr('pro.tuile.reseauxN',
+                          {'n': '${_reseauxDuTableau(pro).length}'}),
+                  onTap: () =>
+                      _ouvrir(ReseauxScreen(initiaux: _reseauxDuTableau(pro)))),
             ],
           ),
 
@@ -568,6 +579,10 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
   }
 
   // ---- petites pièces -----------------------------------------------------
+
+  /// {facebook: url, …} tels que `pro/tableau` les rend.
+  static Map<String, String> _reseauxDuTableau(Map pro) =>
+      ProfilPublic.lireReseaux(pro['reseaux']);
 
   static int _n(Map kpi, String cle) =>
       ((kpi[cle] as Map?)?['n'] as num?)?.toInt() ?? 0;

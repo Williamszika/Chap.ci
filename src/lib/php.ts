@@ -823,9 +823,15 @@ export interface Horaire { ouvert: boolean; de: string; a: string }
  * renommer toute seule.
  */
 export async function phpProFiche(d: {
-  tel: string; description: string; horaires?: Horaire[]
-}): Promise<void> {
-  await req('/pro/fiche', { method: 'POST', body: d })
+  tel?: string; description?: string; horaires?: Horaire[]
+  /**
+   * Les réseaux sociaux (05/09/2026) : {facebook: '@maboutique', site: 'maboutique.ci', …}.
+   * L'objet envoyé REMPLACE l'ensemble ; le serveur renvoie les adresses
+   * normalisées, ou 422 en nommant le réseau refusé (`reseau`).
+   */
+  reseaux?: Record<string, string>
+}): Promise<{ ok: boolean; reseaux?: Record<string, string> }> {
+  return req('/pro/fiche', { method: 'POST', body: d })
 }
 
 /**

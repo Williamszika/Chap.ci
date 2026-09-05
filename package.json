@@ -26,6 +26,7 @@
     "banc:favoris": "node scripts/banc-favoris.mjs",
     "banc:controle": "node scripts/banc-controle.mjs",
     "banc:video": "node scripts/banc-video.mjs",
+    "banc:reseaux": "node scripts/banc-reseaux.mjs",
     "synonymes": "node scripts/synonymes.mjs",
     "prebuild": "node scripts/synonymes.mjs",
     "banc:deviner": "node scripts/banc-deviner.mjs"

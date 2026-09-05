@@ -38,6 +38,8 @@ export interface Tableau {
     banniere?: string; logo?: string
     /** Ce que fait l'entreprise, et ses sept jours d'ouverture. */
     description?: string; horaires?: Horaire[] | null
+    /** Les réseaux sociaux et le site, adresses normalisées (05/09/2026). */
+    reseaux?: Record<string, string> | null
     /** La réponse automatique : active ou non, sa phrase, et le nombre de
      *  phrases toutes prêtes — de quoi renseigner la tuile sans second appel. */
     reponseAuto?: boolean; reponseAutoTexte?: string; reponsesPretes?: number

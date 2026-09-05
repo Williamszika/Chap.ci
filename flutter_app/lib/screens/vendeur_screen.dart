@@ -7,6 +7,7 @@ import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/listing_card.dart';
+import '../widgets/reseaux_pro.dart';
 import '../widgets/vitrine_pro.dart';
 import 'conversation_screen.dart';
 import 'listing_detail_screen.dart';
@@ -270,6 +271,12 @@ class _VendeurScreenState extends State<VendeurScreen> {
               ),
               const SizedBox(height: 14),
               _boutons(),
+              // Les réseaux sociaux de l'enseigne (05/09/2026) : là où elle
+              // poste déjà, en pastilles aux couleurs des marques.
+              if (p.proReseaux.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                PillesReseaux(reseaux: p.proReseaux, nom: p.proNom ?? p.nom),
+              ],
               const SizedBox(height: 12),
               _onglets(_annonces?.length ?? 0, nbAvis),
             ],
@@ -556,6 +563,11 @@ class _VendeurScreenState extends State<VendeurScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AProposVitrine(profil: p, commune: _commune),
+                // L'adresse en clair : l'acheteur voit où il va avant d'y aller.
+                if (p.proReseaux.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ListeReseaux(reseaux: p.proReseaux),
+                ],
                 if (horaires != null && horaires.length == 7) ...[
                   const SizedBox(height: 12),
                   CarteHoraires(horaires: horaires),

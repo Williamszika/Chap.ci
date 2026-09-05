@@ -30,6 +30,12 @@ export interface PublicProfile {
     ventes?: number
     /** Date d'approbation du dossier, en millisecondes. */
     depuis?: number | null
+    /**
+     * Les réseaux sociaux et le site (05/09/2026) : {facebook: url, …},
+     * adresses déjà vérifiées et normalisées par le serveur. Objet vide si
+     * le professionnel n'en a renseigné aucun.
+     */
+    reseaux?: Record<string, string> | null
   } | null
 }
 
