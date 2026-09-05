@@ -117,6 +117,16 @@ Sur ce projet, les boucles qui marchent :
 Onze heures ont été perdues le 3 août 2026 à deviner — l'endroit, les droits, le nom, la
 taille, le quota — avant de construire ce signal. La leçon a un coût connu.
 
+**Le serveur a un anti-robot qui se déclenche sur nos propres rondes.** LiteSpeed sert
+une page « Bot Verification » (`/.lsrecap/`) à la place de TOUTE réponse dynamique dès
+qu'un même endroit enchaîne une quinzaine de requêtes en trente secondes ; les visiteurs
+peuvent alors voir des 403, ou une erreur 520 de Cloudflare. Vu le 5 septembre 2026 :
+le Crieur le matin (403 intermittents), puis quinze sondes de vérification le soir
+(page anti-robot sur `/api/health`, 520 chez le Patron). Ça se relâche tout seul après
+une minute de silence. Règle : **cinq requêtes au plus d'affilée, trois secondes entre
+deux, et jamais de boucle de « re-essais » rapprochés** — un bureau qui mesure le site
+ne doit pas le faire tomber.
+
 Les fichiers de diagnostic déposés sur le serveur se retirent **dès la panne réglée**.
 Ils sont listés au Patron nommément.
 
