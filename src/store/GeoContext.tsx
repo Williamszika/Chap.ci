@@ -33,12 +33,8 @@ interface GeoState {
   position: Coords | null
   place: Place | null
   status: Status
-  /** L'utilisateur a-t-il déjà répondu à la demande d'ouverture ? */
-  decided: boolean
   /** Autoriser le GPS (déclenche la permission). Repli IP si refusé. */
   allowGps: () => Promise<void>
-  /** Continuer sans GPS : géolocalisation par IP (sans permission). */
-  denyGps: () => Promise<void>
   /** Alias pour compatibilité (bouton « Près de moi »). */
   requestLocation: () => Promise<void>
   clear: () => void
@@ -58,7 +54,6 @@ function load<T>(key: string, fallback: T): T {
 export function GeoProvider({ children }: { children: ReactNode }) {
   const [position, setPosition] = useState<Coords | null>(() => load<Coords | null>(LS_POS, null))
   const [place, setPlace] = useState<Place | null>(() => load<Place | null>(LS_PLACE, null))
-  const [decided, setDecided] = useState<boolean>(() => load<boolean>(LS_DECIDED, false))
   const [status, setStatus] = useState<Status>(position ? 'granted' : 'idle')
 
   useEffect(() => {
@@ -67,9 +62,6 @@ export function GeoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (place) localStorage.setItem(LS_PLACE, JSON.stringify(place))
   }, [place])
-  useEffect(() => {
-    localStorage.setItem(LS_DECIDED, JSON.stringify(decided))
-  }, [decided])
 
   const resolvePlace = useCallback(
     async (
@@ -111,14 +103,11 @@ export function GeoProvider({ children }: { children: ReactNode }) {
     }
   }, [resolvePlace])
 
-  // Le choix ferme le pop-up TOUT DE SUITE ; la position se résout en arrière-plan.
-  const denyGps = useCallback(async () => {
-    setDecided(true)
-    await captureIp()
-  }, [captureIp])
-
+  // Plus de pop-up à l'ouverture (06/09/2026) : la position se demande là où
+  // elle sert — la puce de lieu, « Près de moi », le formulaire de publication.
+  // Rien n'est cherché, ni par GPS ni par adresse IP, tant qu'on ne l'a pas
+  // demandé : une première visite ne coûte aucune requête à un tiers.
   const allowGps = useCallback(async () => {
-    setDecided(true)
     setStatus('loading')
     try {
       const fix = await getBestPosition()
@@ -132,16 +121,15 @@ export function GeoProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(() => {
     setPosition(null)
     setPlace(null)
-    setDecided(false)
     setStatus('idle')
     localStorage.removeItem(LS_POS)
     localStorage.removeItem(LS_PLACE)
-    localStorage.removeItem(LS_DECIDED)
+    localStorage.removeItem(LS_DECIDED) // la clé de l'ancien pop-up, nettoyée au passage
   }, [])
 
   return (
     <GeoContext.Provider
-      value={{ position, place, status, decided, allowGps, denyGps, requestLocation: allowGps, clear }}
+      value={{ position, place, status, allowGps, requestLocation: allowGps, clear }}
     >
       {children}
     </GeoContext.Provider>

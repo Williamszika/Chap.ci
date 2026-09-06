@@ -26,8 +26,10 @@ export function CookieConsent() {
   useEffect(() => {
     if (isNative) return
     // On laisse la page s'afficher d'abord — le bandeau n'est pas la première
-    // chose qu'on veut mettre devant un nouveau visiteur.
-    const t = setTimeout(() => setVisible(!consentDecided()), 900)
+    // chose qu'on veut mettre devant un nouveau visiteur. Trois secondes : sur
+    // une 3G, à 900 ms la page n'était pas encore là, et le bandeau arrivait
+    // en plein chargement, par-dessus une photo qui n'avait pas fini.
+    const t = setTimeout(() => setVisible(!consentDecided()), 3000)
     return () => clearTimeout(t)
   }, [])
 
@@ -41,7 +43,8 @@ export function CookieConsent() {
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-[60] animate-fadeup px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3"
+      // z-50 : SOUS les feuilles et les fenêtres du site (z-60), jamais par-dessus.
+      className="fixed inset-x-0 bottom-0 z-50 animate-fadeup px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3"
       role="dialog"
       aria-label="Consentement aux cookies"
     >

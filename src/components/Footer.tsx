@@ -110,10 +110,11 @@ export function Footer() {
           {FOOTER_COLS.map((c) => (
             <div key={c.title}>
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-white/50">{c.title}</p>
-              <ul className="space-y-2">
+              <ul className="space-y-0">
                 {c.links.map((l, i) => (
                   <li key={c.title + i}>
-                    <Link to={l.to} state={l.state} className="text-white/70 transition hover:text-primary-400">
+                    {/* 44 px de haut : une ligne de 17 px se rate du pouce (banc du front, 06/09/2026). */}
+                    <Link to={l.to} state={l.state} className="inline-flex min-h-11 items-center text-white/70 transition hover:text-primary-400">
                       {l.label}
                     </Link>
                   </li>

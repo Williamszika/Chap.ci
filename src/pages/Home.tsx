@@ -333,7 +333,7 @@ export function Home() {
           <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">Catégories</h2>
           <button
             onClick={() => navigate(`/explorer?${buildParams()}`)}
-            className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
+            className="-mr-2 inline-flex min-h-11 items-center gap-0.5 rounded-lg px-2 text-sm font-semibold text-primary-600 transition active:scale-95"
           >
             Tout voir <ChevronRight size={15} />
           </button>
@@ -368,7 +368,7 @@ export function Home() {
               <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">📍 Près de vous</h2>
               <button
                 onClick={() => navigate(`/explorer?${buildParams({ tri: 'distance' })}`)}
-                className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
+                className="-mr-2 inline-flex min-h-11 items-center gap-0.5 rounded-lg px-2 text-sm font-semibold text-primary-600 transition active:scale-95"
               >
                 Voir plus <ChevronRight size={15} />
               </button>
@@ -434,7 +434,7 @@ export function Home() {
             </h2>
             <button
               onClick={() => navigate(`/explorer?${buildParams({ promo: '1' })}`)}
-              className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
+              className="-mr-2 inline-flex min-h-11 items-center gap-0.5 rounded-lg px-2 text-sm font-semibold text-primary-600 transition active:scale-95"
             >
               Voir tout <ChevronRight size={15} />
             </button>
@@ -471,7 +471,7 @@ export function Home() {
           <h2 className="font-display text-[17px] font-extrabold tracking-tight text-gray-900">Annonces récentes</h2>
           <button
             onClick={() => navigate(`/explorer?${buildParams({ tri: 'recent' })}`)}
-            className="-mr-2 inline-flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary-600 transition active:scale-95"
+            className="-mr-2 inline-flex min-h-11 items-center gap-0.5 rounded-lg px-2 text-sm font-semibold text-primary-600 transition active:scale-95"
           >
             Voir plus <ChevronRight size={15} />
           </button>

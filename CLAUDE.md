@@ -28,8 +28,14 @@ npm run build      # tsc -b && vite build  ->  dist/
 npm run lint       # tsc -b --noEmit
 npm run banc       # banc de test des 101 schémas de sous-catégories
 npm run banc:push  # notifications push : vecteur RFC 8291 + contrat serveur ↔ service worker
+npm run banc:front # le site sur un téléphone 3G simulé : poids, décalages (CLS), erreurs, cibles tactiles
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
+
+`banc:front` demande Chromium (`CHROMIUM_PATH=/opt/pw-browsers/chromium`) et
+`playwright-core` (`npm i --no-save playwright-core`). Il ne touche pas la production :
+il rejoue le site construit sur un serveur PHP local, comme `banc:affiche`. Avant
+toute promesse sur « la vitesse » ou « les bugs », c'est lui qu'on lance.
 
 `npm run build` et `php8.5 -l` passent avant tout commit qui touche leur périmètre.
 

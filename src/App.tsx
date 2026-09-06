@@ -5,7 +5,6 @@ import { BottomNav } from './components/BottomNav'
 import { SigneDefs } from './components/Logo'
 import { TopNav } from './components/TopNav'
 import { Footer } from './components/Footer'
-import { LocationGate } from './components/LocationGate'
 import { NewsletterPrompt } from './components/NewsletterPrompt'
 import { FestiveOverlay } from './components/FestiveOverlay'
 import { CookieConsent } from './components/CookieConsent'
@@ -120,7 +119,12 @@ export default function App() {
       <SwipeTabs />
       <TopNav />
       <div className="relative mx-auto flex min-h-screen max-w-app flex-col overflow-x-clip bg-cream-200 md:max-w-[1280px] md:bg-transparent md:px-6 md:shadow-none">
-        <main className="flex-1 pb-20 md:pb-10 md:pt-4">
+        {/* `min-h-[100svh]` sur le contenu lui-même : tant qu'une page charge,
+            le pied de page se tenait dans le premier écran, puis descendait de
+            deux mille pixels quand le contenu arrivait — un décalage de 0,5 à
+            0,65 mesuré sur Vendeur, Aide, Mon compte, Messages (06/09/2026).
+            Le pied de page part maintenant sous le pli, et y reste. */}
+        <main className="flex-1 min-h-[100svh] pb-20 md:pb-10 md:pt-4">
           <Suspense fallback={<div className="py-20 text-center text-gray-400">Chargement…</div>}>
           <Routes>
           <Route path="/" element={<Home />} />
@@ -173,7 +177,11 @@ export default function App() {
       </div>
       <BottomNav />
       <NativeShell />
-      <LocationGate />
+      {/* Plus de rideau « Activer votre position » à l'arrivée (06/09/2026).
+          Il recouvrait la première page de chaque visiteur — y compris une
+          fiche ouverte depuis WhatsApp, où la bannière cookies venait par-dessus.
+          La position se demande là où elle sert : la puce de lieu de l'accueil,
+          « Près de moi » dans Explorer, le formulaire de publication. */}
       <NewsletterPrompt />
       {/* Consentement cookies : gouverne les pixels tiers (Meta/TikTok/Google). */}
       <CookieConsent />

@@ -85,7 +85,32 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Les lectures EN VOL, par adresse. Mesuré au banc du front le 06/09/2026 :
+ * ouvrir « Mon compte » lançait dix-sept appels, dont `admin/check`, `orders`
+ * et `conversations` DEUX fois chacun, et « Messages » demandait trois fois
+ * les conversations — plusieurs composants ont besoin de la même chose au
+ * même instant (la cloche, la barre du bas, la page). Tant qu'une lecture
+ * n'a pas répondu, la même adresse rend la même promesse.
+ */
+const enVol = new Map<string, Promise<unknown>>()
+
 async function req<T>(
+  path: string,
+  opts: { method?: string; body?: unknown } = {},
+): Promise<T> {
+  const lecture = !opts.method || opts.method === 'GET'
+  if (lecture) {
+    const deja = enVol.get(path)
+    if (deja) return deja as Promise<T>
+    const p = reqBrut<T>(path, opts).finally(() => enVol.delete(path))
+    enVol.set(path, p)
+    return p
+  }
+  return reqBrut<T>(path, opts)
+}
+
+async function reqBrut<T>(
   path: string,
   opts: { method?: string; body?: unknown } = {},
 ): Promise<T> {

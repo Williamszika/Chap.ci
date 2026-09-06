@@ -136,6 +136,19 @@
       }
     </script>
     <style>
+      /* Le texte pour les robots (dans #root, ci-dessous) est HORS de la mise
+         en page : absolu, invisible, sans hauteur. Il était en flux : quand la
+         police arrivait, il se reflouait sous l'écran de démarrage, et Chrome
+         comptait ce mouvement comme un décalage de mise en page (CLS 0,25 sur
+         chaque page, mesuré le 06/09/2026) — un critère de classement Google,
+         pour un texte qu'aucun visiteur ne voit. Les robots, eux, lisent le
+         HTML tel quel : rien ne change pour eux. */
+      #root > main {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        visibility: hidden;
+      }
       /* Écran de démarrage de la marque, affiché avant le chargement de l'app. */
       #app-splash {
         position: fixed;

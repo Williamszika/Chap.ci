@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { mediaUrl } from '../lib/native'
+import { mediaUrl, thumbUrl } from '../lib/native'
 import { rendreAffiche, partagerAffiche, surIphone } from '../lib/affiche'
 import { PrixMarcheAcheteur } from '../components/PrixMarche'
 import { OffreSheet } from '../components/Offre'
@@ -75,7 +75,7 @@ import { TraduireAnnonce, type Traduction } from '../components/TraduireAnnonce'
 export function ListingDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getListing, isFavorite, toggleFavorite, listings } = useApp()
+  const { getListing, isFavorite, toggleFavorite, listings, loading: annoncesEnChargement } = useApp()
   const { user } = useAuth()
   const toast = useToast()
   const { position } = useGeo()
@@ -202,6 +202,34 @@ export function ListingDetail() {
    */
   const attributs = listing?.attributes ?? {}
   const sousForm = useFormSous(listing?.categoryId ?? '', listing?.subcategory ?? '', attributs)
+
+  // LE SQUELETTE, le temps que la liste arrive. Un lien d'annonce ouvert à
+  // froid (WhatsApp, Google) affichait « Annonce introuvable 🤔 » pendant une
+  // à deux secondes, puis la fiche — le message était vrai à cet instant, et
+  // faux une seconde plus tard. On dessine la place de la photo et du texte,
+  // aux mêmes dimensions : rien ne saute quand la fiche remplace le squelette.
+  if (!listing && annoncesEnChargement) {
+    return (
+      <div className="min-h-screen bg-cream-200 pb-28 md:bg-transparent" aria-busy="true" aria-label="Chargement de l’annonce">
+        <div className="md:grid md:grid-cols-2 md:gap-8 md:pt-2">
+          <div>
+            <div className="aspect-square animate-pulse bg-cream-100 md:aspect-[4/3] md:rounded-3xl" />
+            {/* La rangée des miniatures (64 px + 12 de marge) : sans elle, la
+                fiche réelle arrivait 76 px plus bas que le squelette. */}
+            <div className="mt-3 flex gap-2 px-4 md:px-0">
+              {[0, 1, 2].map((i) => <div key={i} className="h-16 w-16 animate-pulse rounded-2xl bg-cream-100" />)}
+            </div>
+          </div>
+          <div className="space-y-3 px-4 pt-4 md:px-0 md:pt-0">
+            <div className="h-8 w-40 animate-pulse rounded-lg bg-cream-100" />
+            <div className="h-6 w-3/4 animate-pulse rounded-lg bg-cream-100" />
+            <div className="h-4 w-1/2 animate-pulse rounded-lg bg-cream-100" />
+            <div className="mt-6 h-24 animate-pulse rounded-2xl bg-cream-100" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!listing) {
     return (
@@ -529,6 +557,14 @@ export function ListingDetail() {
                   src={mediaUrl(src)}
                   alt={`${listing.title} — photo ${i + 1}`}
                   onClick={() => setViewer(i)}
+                  // La première photo est LE plus grand élément de la page :
+                  // elle passe devant tout le reste. Les suivantes sont hors
+                  // écran dans le défilement, elles attendent qu'on y glisse —
+                  // trois photos de 45 Ko partaient en même temps et se
+                  // partageaient la 3G (LCP 3,6 s, mesuré le 06/09/2026).
+                  fetchPriority={i === 0 ? 'high' : undefined}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
                   className="h-full w-full shrink-0 cursor-zoom-in snap-center object-cover"
                 />
               ))}
@@ -540,7 +576,7 @@ export function ListingDetail() {
             {!listing.sold && (
               <button
                 onClick={() => setViewer(imgIndex)}
-                className="absolute bottom-3 right-3 z-20 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-2 text-[12px] font-semibold text-white backdrop-blur transition active:scale-95"
+                className="absolute bottom-3 right-3 z-20 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-black/55 px-3.5 py-2 text-[12px] font-semibold text-white backdrop-blur transition active:scale-95"
               >
                 <Maximize2 size={14} /> Voir en grand
               </button>
@@ -628,7 +664,9 @@ export function ListingDetail() {
                   }`}
                   aria-label={`Voir la photo ${i + 1}`}
                 >
-                  <img src={mediaUrl(src)} alt="" className="h-full w-full object-cover" />
+                  {/* La vignette de 64 px prend la petite image du serveur
+                      (`_min`, ~15 Ko), pas la photo entière. */}
+                  <img src={mediaUrl(thumbUrl(src))} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
@@ -1233,7 +1271,7 @@ function ReportButton({ listingId }: { listingId: string }) {
     return (
       <button
         onClick={() => (user ? setOpen(true) : navigate('/connexion'))}
-        className="mt-4 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-500 md:hover:text-red-500"
+        className="mt-2 flex min-h-11 w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-500 md:hover:text-red-500"
       >
         <Flag size={13} /> Signaler cette annonce
       </button>

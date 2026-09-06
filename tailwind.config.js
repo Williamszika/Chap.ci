@@ -105,10 +105,13 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['"Inter Variable"', 'Inter', 'system-ui', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
+        // Les « Fallback » sont la police système aux mesures de la nôtre
+        // (src/polices.css) : le texte ne bouge pas quand la vraie arrive.
+        sans: ['"Inter Variable"', 'Inter', '"Inter Fallback"', 'system-ui', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
         display: [
           '"Plus Jakarta Sans Variable"',
           '"Plus Jakarta Sans"',
+          '"Plus Jakarta Sans Fallback"',
           'system-ui',
           'sans-serif',
         ],

@@ -140,7 +140,27 @@ export default defineConfig({
         // nôtre par-dessus, sans qu'il ait à connaître Workbox ni l'inverse.
         // Le fichier est dans `public/` : il arrive tel quel à la racine de dist.
         importScripts: ['push-sw.js'],
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // LA COQUILLE SEULEMENT. Le précache prenait tout le site — 108
+        // fichiers, 790 Ko sur le réseau, téléchargés en arrière-plan par
+        // CHAQUE nouveau visiteur après sa première page (mesuré le 06/09/2026),
+        // dont les cent formulaires de sous-catégories et les pages qu'il
+        // n'ouvrira peut-être jamais. Sur un forfait d'Abidjan, c'est le prix
+        // d'une visite entière, pour un « hors-ligne » que personne n'a demandé.
+        // Ne partent d'avance que l'entrée, ses styles, les polices et les
+        // icônes ; le reste se met en cache À L'USAGE (runtimeCaching), et
+        // reste servi hors-ligne une fois vu.
+        // Les icônes d'installation (icons/*.png, 73 Ko) ne sont PAS
+        // précachées : le téléphone ne les demande qu'au moment d'installer
+        // l'application sur l'écran d'accueil, et les trouve alors en ligne.
+        globPatterns: ['index.html', 'manifest.webmanifest', 'favicon.svg',
+          'assets/index-*.{js,css}', 'assets/helpers-*.js', 'assets/*.woff2'],
+        runtimeCaching: [{
+          // Les fichiers portent leur empreinte dans leur nom : un contenu
+          // donné ne change jamais d'adresse, le cache peut le garder d'abord.
+          urlPattern: /\/assets\/.+\.(?:js|css|woff2)$/,
+          handler: 'CacheFirst',
+          options: { cacheName: 'chapci-assets', expiration: { maxEntries: 160, maxAgeSeconds: 30 * 86400 } },
+        }],
         // Inutile de précharger les alphabets non-latins (cyrillique, grec,
         // vietnamien) : l'app est en français. Économise ~75 Ko de données.
         // On EXCLUT aussi les bundles IA de détourage (onnxruntime, ~800 Ko) :

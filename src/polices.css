@@ -19,7 +19,35 @@
    `font-display: swap` : le texte s'affiche IMMÉDIATEMENT dans la police
    système, puis bascule quand la nôtre arrive. Jamais de page blanche en
    attendant une police — ce qui compte quand le réseau tousse.
+
+   LES REPLIS AUX MÊMES MESURES (06/09/2026). La bascule a un prix : quand
+   Inter arrive, chaque ligne change de largeur et de hauteur, et toute la
+   page se décale d'un cran — mesuré au banc du front : un décalage de mise
+   en page (CLS) de 0,25 sur CHAQUE page, à 1,5 s, alors que Google en veut
+   moins de 0,10 pour bien classer. Les deux familles « Fallback » ci-dessous
+   sont la police système (Roboto sur Android, Helvetica sur iPhone, Arial
+   ailleurs) REDIMENSIONNÉE aux mesures de la nôtre — largeur moyenne,
+   ascendante, descendante, mesurées dans Chromium sur une phrase de vendeur.
+   Le texte s'affiche dans le repli, la nôtre arrive, rien ne bouge.
    ========================================================================== */
+
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Roboto'), local('Helvetica Neue'), local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 106.5%;
+  ascent-override: 97%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans Fallback';
+  src: local('Roboto'), local('Helvetica Neue'), local('Arial'), local('Liberation Sans'), local('Helvetica');
+  size-adjust: 102.4%;
+  ascent-override: 104%;
+  descent-override: 22%;
+  line-gap-override: 0%;
+}
 
 @font-face {
   font-family: 'Inter Variable';

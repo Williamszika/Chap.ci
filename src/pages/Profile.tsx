@@ -1093,7 +1093,10 @@ function VerificationCard({ onVerified }: { onVerified: () => Promise<void> }) {
     } finally { setBusy(false) }
   }
 
-  if (!status) return null
+  // Le temps que le statut arrive, la carte tient sa place : rendue vide, elle
+  // arrivait après coup et poussait « Mon activité » et tout le menu d'un
+  // cran (décalage de 0,19 mesuré au banc du front le 06/09/2026).
+  if (!status) return <div className="mt-4 h-[200px] animate-pulse rounded-2xl bg-cream-100" aria-hidden />
 
   // ── Administrateur : badge bleu, rien à faire ni à attendre. ──────────────
   if (status.badge === 'admin') {
