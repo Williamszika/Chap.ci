@@ -82,13 +82,13 @@ void main() {
   });
 
   group('La fiche', () {
-    testWidgets('montre la pastille « Vidéo · 15 s » quand l’annonce en a une',
+    testWidgets('montre la pastille « Vidéo » quand l’annonce en a une',
         (tester) async {
       await tester.pumpWidget(enFrancais(ListingDetailScreen(
           annonce: annonce(video: '/uploads/videos/v.mp4'), apercu: true)));
       await tester.pump();
       expect(find.byKey(const ValueKey('pastille-video')), findsOneWidget);
-      expect(find.text('Vidéo · 15 s'), findsOneWidget);
+      expect(find.text('Vidéo'), findsOneWidget);
     });
 
     testWidgets('ne montre rien sans vidéo', (tester) async {
@@ -96,7 +96,7 @@ void main() {
           enFrancais(ListingDetailScreen(annonce: annonce(), apercu: true)));
       await tester.pump();
       expect(find.byKey(const ValueKey('pastille-video')), findsNothing);
-      expect(find.text('Vidéo · 15 s'), findsNothing);
+      expect(find.text('Vidéo'), findsNothing);
     });
   });
 
@@ -109,7 +109,7 @@ void main() {
       await tester.pumpWidget(enFrancais(const PublierScreen()));
       await tester.pump();
       // Le titre porte « (facultatif) » dans le même texte riche.
-      expect(find.textContaining('Une vidéo de quinze secondes  (facultatif)'), findsOneWidget);
+      expect(find.textContaining('Une vidéo d’une minute au plus  (facultatif)'), findsOneWidget);
       expect(find.byKey(const ValueKey('video-ajouter')), findsOneWidget);
       expect(find.text('Ajouter une vidéo'), findsOneWidget);
       expect(find.byKey(const ValueKey('video-etat')), findsNothing);

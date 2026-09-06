@@ -147,5 +147,5 @@ dire(r.code === 200 && fichiers().length === 0, 'supprimer l’annonce emporte s
 
 console.log()
 if (rouges) { console.log(`❌ ${rouges} contrôle(s) rouge(s).`); process.exit(1) }
-console.log('✅ La vidéo de quinze secondes tient.')
+console.log('✅ La vidéo d’une minute tient.')
 process.exit(0)

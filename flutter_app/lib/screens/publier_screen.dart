@@ -153,7 +153,11 @@ class _PublierScreenState extends State<PublierScreen> {
   String? _videoExistante; // en modification : l'adresse déjà en ligne
   bool _videoRetiree = false;
   bool _videoEnvoi = false;
-  static const int _videoMaxMo = 15; // le plafond du serveur (video_max_mo)
+  // Le plafond du serveur (video_max_mo) et la durée : une minute au plus
+  // (quinze secondes au départ ; une minute depuis le 06/09 sur décision du
+  // Patron). Une minute de téléphone fait 20 à 40 Mo en 720p, 60 en 1080p.
+  static const int _videoMaxMo = 60;
+  static const int _videoMaxSecondes = 60;
 
   /// Le formulaire détaillé de la sous-catégorie choisie, ou `null` s'il n'est
   /// pas encore porté (le formulaire de base suffit alors).
@@ -438,8 +442,8 @@ class _PublierScreenState extends State<PublierScreen> {
     }
   }
 
-  /// Choisir ou filmer la vidéo. L'appareil photo s'arrête tout seul à quinze
-  /// secondes ; une vidéo de la galerie, elle, peut durer trois minutes — on
+  /// Choisir ou filmer la vidéo. L'appareil photo s'arrête tout seul à une
+  /// minute ; une vidéo de la galerie, elle, peut durer trois minutes — on
   /// lit sa durée avant d'accepter, comme le site.
   Future<void> _choisirVideo() async {
     final source = await showModalBottomSheet<imgpick.ImageSource>(
@@ -472,7 +476,8 @@ class _PublierScreenState extends State<PublierScreen> {
     final imgpick.XFile? x;
     try {
       x = await imgpick.ImagePicker().pickVideo(
-          source: source, maxDuration: const Duration(seconds: 15));
+          source: source,
+          maxDuration: const Duration(seconds: _videoMaxSecondes));
     } catch (_) {
       return;
     }
@@ -495,7 +500,7 @@ class _PublierScreenState extends State<PublierScreen> {
       _dialogue(tr(context, 'pub.video'), tr(context, 'pub.videoIllisible'));
       return;
     }
-    if (duree.inSeconds > 16) {
+    if (duree.inSeconds > _videoMaxSecondes + 1) {
       _dialogue(
           tr(context, 'pub.video'),
           tr(context, 'pub.videoTropLongue')

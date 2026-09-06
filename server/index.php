@@ -75,12 +75,14 @@ $config += [
   // voir store/LIENS-UNIVERSELS.md.
   'apple_team_id'        => (string) (getenv('CHAPCI_APPLE_TEAM_ID') ?: ''),
   'android_sha256'       => (string) (getenv('CHAPCI_ANDROID_SHA256') ?: ''),
-  // LA VIDÉO DE QUINZE SECONDES (chantier 6 du 04/09/2026). Le poids maximal
-  // d'une vidéo, en mégaoctets. Quinze secondes de téléphone en 720p font
-  // 8 à 12 Mo ; au-delà, c'est une vidéo qui n'a pas été coupée. Le plafond
-  // RÉEL est le plus petit de cette valeur et de ce que PHP accepte
-  // (upload_max_filesize, post_max_size) — /health le dit dans `videoMaxMo`.
-  'video_max_mo'         => (int) (getenv('CHAPCI_VIDEO_MAX_MO') ?: 15),
+  // LA VIDÉO D'UNE MINUTE (chantier 6 du 04/09/2026 ; quinze secondes
+  // d'abord, une minute depuis le 06/09 sur décision du Patron). Le poids
+  // maximal d'une vidéo, en mégaoctets. Une minute de téléphone fait 20 à
+  // 40 Mo en 720p, jusqu'à 60 en 1080p ; au-delà, c'est une vidéo qui n'a
+  // pas été coupée. Le plafond RÉEL est le plus petit de cette valeur et de
+  // ce que PHP accepte (upload_max_filesize, post_max_size) — /health le dit
+  // dans `videoMaxMo`.
+  'video_max_mo'         => (int) (getenv('CHAPCI_VIDEO_MAX_MO') ?: 60),
   // SEUILS D'AFFICHAGE DES CHIFFRES PUBLICS.
   //
   // Un compteur n'attire que s'il impressionne. « Déjà 3 Ivoiriens sur Chap.ci »
@@ -5930,8 +5932,10 @@ function reseaux_lire($json): array {
 //  LA VIDÉO DE QUINZE SECONDES PAR ANNONCE (chantier 6 du 04/09/2026)
 //
 //  C'est ainsi qu'on vend sur WhatsApp à Abidjan : une courte vidéo de l'objet
-//  qui tourne, qui s'allume, qui roule. Une par annonce, quinze secondes,
-//  après les photos — jamais à leur place (trois photos restent exigées).
+//  qui tourne, qui s'allume, qui roule. Une par annonce, une minute au plus
+//  (quinze secondes au départ ; une minute depuis le 06/09 sur décision du
+//  Patron), après les photos — jamais à leur place (trois photos restent
+//  exigées).
 //
 //  Le fichier arrive en multipart (champ `video`), pas en data-URI comme les
 //  photos : dix mégaoctets en base64 dans un JSON, c'est treize mégaoctets à
@@ -5940,9 +5944,9 @@ function reseaux_lire($json): array {
 //  et rangé dans uploads/videos/ — sous le .htaccess d'uploads/ qui interdit
 //  déjà toute exécution. Le serveur ne transcode pas : pas de ffmpeg sur
 //  l'hébergement mutualisé, et un téléphone produit déjà du H.264 lisible
-//  partout. Les quinze secondes se coupent DANS le client (l'enregistreur du
-//  téléphone s'arrête à 15 s ; le site lit la durée avant d'envoyer) — le
-//  serveur, lui, tient le poids, et c'est le poids qui coûte.
+//  partout. La durée se coupe DANS le client (l'enregistreur du téléphone
+//  s'arrête à 60 s ; le site lit la durée avant d'envoyer) — le serveur, lui,
+//  tient le poids, et c'est le poids qui coûte.
 // =============================================================================
 
 /** « 20M », « 512K », « 2G » → octets. 0 si vide ou illimité. */
@@ -5960,7 +5964,7 @@ function ini_octets(string $v): int {
 
 /** Le plafond RÉEL d'une vidéo : le réglage, borné par ce que PHP accepte. */
 function video_limite_octets(array $config): int {
-  $limite = max(1, (int) ($config['video_max_mo'] ?? 15)) * 1024 * 1024;
+  $limite = max(1, (int) ($config['video_max_mo'] ?? 60)) * 1024 * 1024;
   foreach (['upload_max_filesize', 'post_max_size'] as $cle) {
     $ini = ini_octets((string) ini_get($cle));
     if ($ini > 0 && $ini < $limite) $limite = $ini;
@@ -7820,13 +7824,13 @@ try {
       $annonce = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
       $postMax = ini_octets((string) ini_get('post_max_size'));
       if ($annonce > 0 && $postMax > 0 && $annonce > $postMax) {
-        jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à quinze secondes.', 413);
+        jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à une minute au plus.', 413);
       }
       jerr('Aucune vidéo reçue (champ « video » attendu).');
     }
     $erreur = (int) ($f['error'] ?? UPLOAD_ERR_NO_FILE);
     if ($erreur === UPLOAD_ERR_INI_SIZE || $erreur === UPLOAD_ERR_FORM_SIZE) {
-      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à quinze secondes.', 413);
+      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à une minute au plus.', 413);
     }
     if ($erreur !== UPLOAD_ERR_OK || empty($f['tmp_name']) || !is_uploaded_file((string) $f['tmp_name'])) {
       jerr('La vidéo n’est pas arrivée entière. Réessayez.');
@@ -7834,7 +7838,7 @@ try {
     $taille = (int) ($f['size'] ?? 0);
     if ($taille <= 0) jerr('La vidéo est vide.');
     if ($taille > $limite) {
-      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à quinze secondes.', 413);
+      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à une minute au plus.', 413);
     }
     // Le type RÉEL, lu dans les premiers octets — jamais le nom du fichier ni
     // ce que le client annonce. Un .mp4 qui est un script ne passe pas.

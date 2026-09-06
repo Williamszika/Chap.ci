@@ -692,7 +692,7 @@ export function ListingDetail() {
                 />
               </div>
               <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-500">
-                <Video size={12} /> La vidéo du vendeur — quinze secondes, l’objet tel qu’il est.
+                <Video size={12} /> La vidéo du vendeur — l’objet tel qu’il est.
               </p>
             </div>
           )}

@@ -433,9 +433,12 @@ export async function phpUpdateListing(id: string, input: NewListingInput): Prom
 // Elle part en multipart, APRÈS que l'annonce existe : dix mégaoctets en
 // base64 dans le JSON de publication, c'est treize mégaoctets à tenir deux
 // fois en mémoire, et un envoi qui échoue emporterait l'annonce avec lui.
-// Le plafond du serveur est de 15 Mo (réglage `video_max_mo`, borné par ce
+// Le plafond du serveur est de 60 Mo (réglage `video_max_mo`, borné par ce
 // que PHP accepte) ; le même nombre est ici pour le dire AVANT l'envoi.
-export const VIDEO_MAX_MO = 15
+// Une minute au plus (quinze secondes au départ ; une minute depuis le
+// 06/09/2026 sur décision du Patron).
+export const VIDEO_MAX_MO = 60
+export const VIDEO_MAX_SECONDES = 60
 export async function phpTeleverserVideo(id: string, fichier: File): Promise<string> {
   const fd = new FormData()
   fd.append('video', fichier, fichier.name || 'video.mp4')

@@ -216,11 +216,12 @@ dans `config.php` ; sans elle, rien ne change.
 
 Chantier 6 : **la vidéo de quinze secondes par annonce** — « c'est ainsi
 qu'on vend sur WhatsApp à Abidjan ». En publiant, sous les photos, la tuile
-« Ajouter une vidéo » : filmer (l'appareil s'arrête tout seul à 15 s) ou
-choisir dans la galerie (la durée est lue avant d'accepter ; plus de 16 s ou
-plus de 15 Mo, refus expliqué). Elle part APRÈS l'annonce, en multipart
+« Ajouter une vidéo » : filmer (l'appareil s'arrête tout seul) ou choisir
+dans la galerie (la durée est lue avant d'accepter ; au-delà de la durée ou
+du poids, refus expliqué). Quinze secondes et 15 Mo au départ ; **une minute
+et 60 Mo depuis le 06/09**, sur décision du Patron. Elle part APRÈS l'annonce, en multipart
 (`ApiClient.televerser`, `POST /listings/{id}/video`) ; un échec d'envoi laisse
-l'annonce en ligne et le dit. Sur la fiche, une pastille « ▶ Vidéo · 15 s »
+l'annonce en ligne et le dit. Sur la fiche, une pastille « ▶ Vidéo »
 sur les photos ouvre le lecteur plein écran (`lib/screens/video_screen.dart`,
 paquet `video_player`) — rien ne se télécharge avant l'appui. En modification :
 « Remplacer » / « Retirer ». Deux plugins natifs de plus : `video_player` et

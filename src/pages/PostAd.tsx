@@ -521,10 +521,11 @@ export function PostAd() {
     })
   }
 
-  /* La vidéo se vérifie ICI, avant tout envoi : le poids (quinze secondes en
-   * 720p font moins de 15 Mo) et la durée. Le serveur, lui, ne connaît que le
-   * poids — il ne décode pas. Une vidéo de deux minutes qui pèserait moins de
-   * 15 Mo passerait donc chez lui ; c'est le navigateur qui la refuse. */
+  /* La vidéo se vérifie ICI, avant tout envoi : le poids (une minute en 720p
+   * fait 20 à 40 Mo) et la durée (une minute au plus). Le serveur, lui, ne
+   * connaît que le poids — il ne décode pas. Une vidéo de trois minutes qui
+   * pèserait moins de 60 Mo passerait donc chez lui ; c'est le navigateur qui
+   * la refuse. */
   async function onVideo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     e.target.value = ''
@@ -532,13 +533,13 @@ export function PostAd() {
     setVideoErreur('')
     const mo = f.size / 1024 / 1024
     if (mo > php.VIDEO_MAX_MO) {
-      setVideoErreur(`Vidéo trop lourde (${mo.toFixed(0)} Mo, ${php.VIDEO_MAX_MO} Mo au maximum). Quinze secondes en 720p suffisent : coupez-la dans Photos, puis réessayez.`)
+      setVideoErreur(`Vidéo trop lourde (${mo.toFixed(0)} Mo, ${php.VIDEO_MAX_MO} Mo au maximum). Une minute en 720p suffit : coupez-la dans Photos, puis réessayez.`)
       return
     }
     const d = await dureeVideo(f)
     if (d < 0) { setVideoErreur('Ce fichier n’est pas une vidéo lisible. Un MP4 ou un MOV pris avec votre téléphone convient.'); return }
-    if (d > 16) {
-      setVideoErreur(`Votre vidéo dure ${Math.round(d)} s : coupez-la à quinze secondes (Photos → Modifier), puis réessayez. Quinze secondes, c’est ce que l’acheteur regarde jusqu’au bout.`)
+    if (d > php.VIDEO_MAX_SECONDES + 1) {
+      setVideoErreur(`Votre vidéo dure ${Math.round(d)} s : coupez-la à une minute au plus (Photos → Modifier), puis réessayez. Une minute, c’est ce que l’acheteur regarde jusqu’au bout.`)
       return
     }
     if (videoApercu) URL.revokeObjectURL(videoApercu)
@@ -1231,7 +1232,7 @@ export function PostAd() {
         {isPhp && (
           <div className="mb-5">
             <p className="mb-2 text-sm font-semibold text-gray-800">
-              Une vidéo de quinze secondes <span className="font-normal text-gray-500">(facultatif)</span>
+              Une vidéo d’une minute au plus <span className="font-normal text-gray-500">(facultatif)</span>
             </p>
             {video && videoApercu ? (
               <div className="overflow-hidden rounded-2xl border border-line bg-black">
@@ -1266,7 +1267,7 @@ export function PostAd() {
                 <span className="text-sm">
                   <b className="font-semibold text-gray-800">Ajouter une vidéo</b>
                   <span className="block text-xs text-gray-500">
-                    {videoRetiree ? 'La vidéo en ligne sera retirée à l’enregistrement.' : 'Quinze secondes, l’objet qui tourne ou qui s’allume — comme sur WhatsApp.'}
+                    {videoRetiree ? 'La vidéo en ligne sera retirée à l’enregistrement.' : 'Jusqu’à une minute : l’objet qui tourne, qui s’allume, qui roule — comme sur WhatsApp.'}
                   </span>
                 </span>
               </button>
