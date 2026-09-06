@@ -14,6 +14,7 @@ import '../screens/favoris_screen.dart';
 import '../screens/messages_screen.dart';
 import '../screens/modifier_profil_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/offres_pro_screen.dart';
 import '../screens/publier_screen.dart';
 import '../screens/reponses_screen.dart';
 import '../screens/reseaux_screen.dart';
@@ -490,6 +491,21 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                           {'n': '${_reseauxDuTableau(pro).length}'}),
                   onTap: () =>
                       _ouvrir(ReseauxScreen(initiaux: _reseauxDuTableau(pro)))),
+              // Les offres d'emploi (06/09/2026) : une entreprise, une ONG, un
+              // centre de formation recrute depuis sa page ; ses abonnés sont
+              // prévenus. La tuile dit combien de postes sont ouverts et
+              // combien de personnes ont répondu.
+              _tuile('💼', const Color(0xFFE8EEFB), tr(context, 'pro.tuile.emplois'),
+                  ((pro['offres'] as num?)?.toInt() ?? 0) > 0
+                      ? _tr('pro.tuile.emploisN', {
+                          'n': '${pro['offres']}',
+                          'c': '${(pro['candidatures'] as num?)?.toInt() ?? 0}',
+                        })
+                      : tr(context, 'pro.tuile.emploisSous'),
+                  compteur: ((pro['candidatures'] as num?)?.toInt() ?? 0) > 0
+                      ? '${pro['candidatures']}'
+                      : null,
+                  onTap: () => _ouvrir(const OffresProScreen())),
             ],
           ),
 
@@ -939,6 +955,10 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                     ? '${tr(context, 'pro.fiche.badgeActif')} · ${dureeTr(context, depuis)}'
                     : tr(context, 'pro.fiche.badgeActif'),
                 couleur: ChapColors.greenDark),
+            // Les abonnés (06/09/2026) : combien de personnes suivent la structure.
+            champ(tr(context, 'pro.fiche.abonnes'),
+                _tr('pro.fiche.abonnesN',
+                    {'n': '${(pro['abonnes'] as num?)?.toInt() ?? 0}'})),
             champ(tr(context, 'pro.fiche.page'),
                 tr(context, 'pro.fiche.voirPage'),
                 couleur: ChapColors.ocreDark),

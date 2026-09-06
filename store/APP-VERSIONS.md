@@ -242,6 +242,27 @@ réseau, qu'une adresse sur son propre domaine ou un nom d'utilisateur qu'il
 complète (`POST /pro/fiche {reseaux}`). Test `reseaux_test.dart` : sept
 contrôles, dont les dix icônes peintes en PNG et comptées pixel par pixel.
 
+Le 06/09, à la demande du Patron : **les abonnés et les offres d'emploi des
+structures**. « Suivre » sur la page d'une entreprise, d'une ONG, d'un centre
+de formation — tout compte pro approuvé — parle enfin au serveur
+(`POST`/`DELETE /suivre/{id}`) et dit « Suivi · 12 » avec le compte des
+abonnés ; il n'apparaît plus chez un particulier, où il ne faisait rien. Les
+abonnés reçoivent « Nouveauté chez … » à chaque annonce et « Offre d'emploi :
+… » à chaque poste publié (interrupteur « Structures que je suis » dans
+Paramètres → Notifications ; un lien `#/emploi/{id}` ouvre l'écran natif).
+La page vendeur gagne l'onglet « Emplois · n » ; chaque offre a son écran
+(`lib/screens/offre_screen.dart`) : qui recrute, le poste, contrat · lieu ·
+salaire, et comment postuler — le lien de la structure (Google Forms,
+WhatsApp, son site), le formulaire qu'elle a dessiné (six types de réponse),
+ou les deux ; l'auteur y lit ses candidatures, e-mail et téléphone cliquables.
+Console pro → tuile 💼 Offres d'emploi (`lib/screens/offres_pro_screen.dart`) :
+publier, modifier, fermer, rouvrir, supprimer, et le constructeur de
+formulaire — douze questions au plus, obligatoire ou non, options d'un choix
+une par ligne, ordre au doigt. Modèles dans `lib/api/offres.dart`
+(`OffreEmploi`, distinct de l'`Offre` de négociation). Test
+`abonnes_test.dart` : quinze contrôles, `flutter analyze` toujours à zéro
+erreur, et les douze rouges anciens sont les mêmes qu'avant.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

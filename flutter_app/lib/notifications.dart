@@ -41,6 +41,11 @@ class NotifItem {
         .firstMatch(lien);
     return m?.group(1);
   }
+
+  /// L'identifiant d'offre d'emploi (« #/emploi/<id> », 06/09/2026) — une
+  /// structure que je suis a publié un poste, ou quelqu'un a répondu au mien.
+  String? get offreId =>
+      RegExp(r'emploi/([A-Za-z0-9_-]+)').firstMatch(lien)?.group(1);
 }
 
 /// La cloche de notifications — l'équivalent mobile de celle du site.

@@ -43,6 +43,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
   bool _notifMessage = true;
   bool _notifFavori = true;
   bool _notifFavoriSuivi = true; // mes favoris : baisse de prix, fin d'annonce
+  bool _notifAbonnement = true; // les structures que je suis publient
   bool _notifEmail = true;
   bool _notifPretes = false;
   bool _notifEnvoi = false;
@@ -82,6 +83,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
           _notifMessage = d['message'] != false;
           _notifFavori = d['favorite'] != false;
           _notifFavoriSuivi = d['favori_suivi'] != false;
+          _notifAbonnement = d['abonnement'] != false;
           _notifEmail = d['email'] != false;
           _notifPretes = true;
         });
@@ -106,6 +108,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
         'message': _notifMessage,
         'favorite': _notifFavori,
         'favori_suivi': _notifFavoriSuivi,
+        'abonnement': _notifAbonnement,
         'email': _notifEmail,
       });
     } on ApiException catch (e) {
@@ -484,6 +487,17 @@ class _ParametresScreenState extends State<ParametresScreen> {
         valeur: _notifFavoriSuivi,
         onChange: (v) => _majNotifs(
             () => _notifFavoriSuivi = v, () => _notifFavoriSuivi = !v),
+      ),
+      // Les structures que je suis (06/09/2026) : une annonce, une offre
+      // d'emploi — c'est pour ça qu'on les suit.
+      _interrupteur(
+        icone: Icons.storefront_outlined,
+        fond: const Color(0xFFE4F5EC),
+        teinte: const Color(0xFF1E7A4A),
+        titre: tr(context, 'notif.abonnement'),
+        valeur: _notifAbonnement,
+        onChange: (v) => _majNotifs(
+            () => _notifAbonnement = v, () => _notifAbonnement = !v),
       ),
       _interrupteur(
         icone: Icons.mark_email_read_outlined,

@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../api/messaging.dart';
 import '../api/models.dart';
+import '../api/offres.dart';
 import '../api/profil.dart';
 import '../i18n/formats_i18n.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../widgets/carte_offre.dart';
 import '../widgets/listing_card.dart';
 import '../widgets/reseaux_pro.dart';
 import '../widgets/vitrine_pro.dart';
 import 'conversation_screen.dart';
 import 'listing_detail_screen.dart';
+import 'offre_screen.dart';
 
 /// La page publique d'un vendeur, comme sur le site : avatar, nom, commune,
 /// « Nouveau vendeur » s'il n'a pas d'avis, ses compteurs (annonces · note ·
@@ -30,6 +33,7 @@ class VendeurScreen extends StatefulWidget {
   final ProfilPublic? apercuProfil;
   final List<Avis>? apercuAvis;
   final List<Listing>? apercuAnnonces;
+  final List<OffreEmploi>? apercuOffres;
 
   const VendeurScreen({
     super.key,
@@ -40,6 +44,7 @@ class VendeurScreen extends StatefulWidget {
     this.apercuProfil,
     this.apercuAvis,
     this.apercuAnnonces,
+    this.apercuOffres,
   });
 
   @override
@@ -54,8 +59,15 @@ class _VendeurScreenState extends State<VendeurScreen> {
   List<Avis>? _avis;
   List<Listing>? _annonces; // null tant que ça charge
   bool _erreur = false;
+
+  /// Suivre (06/09/2026) : l'état vient du serveur, le compte des abonnés aussi.
   bool _suivi = false;
-  String _onglet = 'annonces'; // annonces | avis | apropos
+  int _abonnes = 0;
+  bool _suivreEnCours = false;
+
+  /// Les offres d'emploi de la structure — chargées à l'ouverture de l'onglet.
+  List<OffreEmploi>? _offres;
+  String _onglet = 'annonces'; // annonces | emplois | avis | apropos
 
   @override
   void initState() {
@@ -64,6 +76,9 @@ class _VendeurScreenState extends State<VendeurScreen> {
       _profil = widget.apercuProfil;
       _avis = widget.apercuAvis ?? const [];
       _annonces = widget.apercuAnnonces ?? const [];
+      _offres = widget.apercuOffres;
+      _suivi = widget.apercuProfil?.abonne ?? false;
+      _abonnes = widget.apercuProfil?.proAbonnes ?? 0;
     } else {
       _charger();
     }
@@ -94,7 +109,20 @@ class _VendeurScreenState extends State<VendeurScreen> {
       _annonces = annonces;
       _delaiReponse = delai;
       _erreur = erreur;
+      _suivi = profil?.abonne ?? false;
+      _abonnes = profil?.proAbonnes ?? 0;
+      _offres = null; // relues à l'ouverture de l'onglet
     });
+    if (_onglet == 'emplois') _chargerOffres();
+  }
+
+  Future<void> _chargerOffres() async {
+    try {
+      final o = await OffresApi.deStructure(widget.sellerId);
+      if (mounted) setState(() => _offres = o);
+    } catch (_) {
+      if (mounted) setState(() => _offres = const []);
+    }
   }
 
   String get _nom => _profil?.nom ?? widget.sellerName;
@@ -350,23 +378,32 @@ class _VendeurScreenState extends State<VendeurScreen> {
   }
 
   Widget _boutons() {
+    final contacter = Expanded(
+      child: ElevatedButton.icon(
+        onPressed: _contacter,
+        icon: const Icon(Icons.chat_bubble_outline, size: 18),
+        label: Text(tr(context, 'action.contacter')),
+      ),
+    );
+    // « Suivre » est réservé aux structures vérifiées (06/09/2026) : un
+    // particulier qui vend son frigo ne se suit pas. Le bouton qu'il y avait
+    // ici ne faisait rien ; il ne ment plus.
+    if (!(_profil?.estPro ?? false)) return Row(children: [contacter]);
+    final texte = _suivi ? tr(context, 'vend.suivi') : tr(context, 'vend.suivre');
     return Row(
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: _contacter,
-            icon: const Icon(Icons.chat_bubble_outline, size: 18),
-            label: Text(tr(context, 'action.contacter')),
-          ),
-        ),
+        contacter,
         const SizedBox(width: 10),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: _suivre,
+            key: const ValueKey('vend-suivre'),
+            onPressed: _suivreEnCours ? null : _suivre,
             icon: Icon(_suivi ? Icons.check : Icons.add,
                 size: 18,
                 color: _suivi ? ChapColors.greenDark : ChapColors.gray700),
-            label: Text(_suivi ? tr(context, 'vend.suivi') : tr(context, 'vend.suivre'),
+            label: Text(_abonnes > 0 ? '$texte · $_abonnes' : texte,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     color: _suivi ? ChapColors.greenDark : ChapColors.gray700)),
             style: OutlinedButton.styleFrom(
@@ -386,7 +423,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
         child: ChoiceChip(
           label: Text(texte),
           selected: actif,
-          onSelected: (_) => setState(() => _onglet = cle),
+          onSelected: (_) => _choisirOnglet(cle),
           showCheckmark: false,
           labelStyle: TextStyle(
               fontSize: 12.5,
@@ -401,16 +438,29 @@ class _VendeurScreenState extends State<VendeurScreen> {
       );
     }
 
+    // L'espace emploi d'une structure (06/09/2026) : l'onglet n'apparaît que
+    // si elle a des postes ouverts — un « Emplois · 0 » n'apprend rien.
+    final nbOffres = _profil?.proOffres ?? 0;
     return Align(
       alignment: Alignment.centerLeft,
-      child: Row(
-        children: [
-          chip('annonces', '${tr(context, 'vend.annonces')} · $annonces'),
-          chip('avis', '${tr(context, 'vend.avis')} · $avis'),
-          chip('apropos', 'À propos'),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            chip('annonces', '${tr(context, 'vend.annonces')} · $annonces'),
+            if ((_profil?.estPro ?? false) && nbOffres > 0)
+              chip('emplois', '${tr(context, 'vend.emplois')} · $nbOffres'),
+            chip('avis', '${tr(context, 'vend.avis')} · $avis'),
+            chip('apropos', 'À propos'),
+          ],
+        ),
       ),
     );
+  }
+
+  void _choisirOnglet(String cle) {
+    setState(() => _onglet = cle);
+    if (cle == 'emplois' && _offres == null && !widget.apercu) _chargerOffres();
   }
 
   List<Widget> _corps() {
@@ -425,6 +475,8 @@ class _VendeurScreenState extends State<VendeurScreen> {
       ];
     }
     switch (_onglet) {
+      case 'emplois':
+        return _corpsEmplois();
       case 'avis':
         return _corpsAvis();
       case 'apropos':
@@ -432,6 +484,52 @@ class _VendeurScreenState extends State<VendeurScreen> {
       default:
         return _corpsAnnonces();
     }
+  }
+
+  /// Les postes ouverts chez la structure ; chaque carte ouvre l'offre.
+  List<Widget> _corpsEmplois() {
+    final o = _offres;
+    if (o == null) {
+      return const [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator(color: ChapColors.orange)),
+          ),
+        ),
+      ];
+    }
+    if (o.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: _message(Icons.work_outline, tr(context, 'vend.aucunPoste'),
+              tr(context, 'vend.aucunPosteDetail')),
+        ),
+      ];
+    }
+    final intro = tr(context, 'vend.emploisIntro').replaceAll('{nom}', _nom);
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, i) => i == 0
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(intro,
+                        style: const TextStyle(
+                            fontSize: 13, height: 1.45, color: ChapColors.gray600)),
+                  )
+                : CarteOffre(
+                    offre: o[i - 1],
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => OffreScreen(offreId: o[i - 1].id))),
+                  ),
+            childCount: o.length + 1,
+          ),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _corpsAnnonces() {
@@ -649,14 +747,36 @@ class _VendeurScreenState extends State<VendeurScreen> {
     }
   }
 
-  void _suivre() {
-    // Comme sur le site : le suivi est purement local pour l'instant (pas de
-    // route serveur). On confirme d'un mot, sans rien promettre de plus.
-    setState(() => _suivi = !_suivi);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(_suivi
-            ? '${tr(context, 'vend.vousSuivez')} $_nom.'
-            : '${tr(context, 'vend.plusSuivre')} $_nom.')));
+  /// Suivre une structure : on est prévenu de ses annonces et de ses offres
+  /// d'emploi. Le bouton a longtemps changé de couleur sans rien faire ; il
+  /// parle maintenant au serveur, et le compte des abonnés en revient.
+  Future<void> _suivre() async {
+    if (!ApiClient.instance.connecte) {
+      _info(tr(context, 'vend.suivreConnexion'));
+      return;
+    }
+    if (widget.apercu) {
+      setState(() => _suivi = !_suivi);
+      return;
+    }
+    setState(() => _suivreEnCours = true);
+    try {
+      final r = _suivi
+          ? await ProfilApi.nePlusSuivre(widget.sellerId)
+          : await ProfilApi.suivre(widget.sellerId);
+      if (!mounted) return;
+      setState(() {
+        _suivi = r.abonne;
+        _abonnes = r.abonnes;
+      });
+      _info(r.abonne
+          ? '${tr(context, 'vend.vousSuivez')} $_nom. ${tr(context, 'vend.suivrePrevenu')}'
+          : '${tr(context, 'vend.plusSuivre')} $_nom.');
+    } on ApiException catch (e) {
+      if (mounted) _info(e.message);
+    } finally {
+      if (mounted) setState(() => _suivreEnCours = false);
+    }
   }
 
   void _info(String message) {

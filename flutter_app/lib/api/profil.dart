@@ -39,6 +39,12 @@ class ProfilPublic {
   /// adresses déjà vérifiées par le serveur. Vide si aucun n'est renseigné.
   final Map<String, String> proReseaux;
 
+  /// Les abonnés (06/09/2026) : combien suivent cette structure, combien
+  /// d'offres d'emploi elle a d'ouvertes, et si MOI je la suis.
+  final int proAbonnes;
+  final int proOffres;
+  final bool abonne;
+
   const ProfilPublic({
     required this.id,
     required this.nom,
@@ -56,6 +62,9 @@ class ProfilPublic {
     this.proVentes = 0,
     this.proDepuis,
     this.proReseaux = const {},
+    this.proAbonnes = 0,
+    this.proOffres = 0,
+    this.abonne = false,
   });
 
   /// Vrai quand le compte a une vitrine à montrer.
@@ -91,6 +100,13 @@ class ProfilPublic {
             ? (j['pro']['depuis'] as num).toInt()
             : null,
         proReseaux: lireReseaux((j['pro'] is Map) ? j['pro']['reseaux'] : null),
+        proAbonnes: (j['pro'] is Map && j['pro']['abonnes'] is num)
+            ? (j['pro']['abonnes'] as num).toInt()
+            : 0,
+        proOffres: (j['pro'] is Map && j['pro']['offres'] is num)
+            ? (j['pro']['offres'] as num).toInt()
+            : 0,
+        abonne: j['abonne'] == true,
       );
 
   /// {facebook: url, …} depuis le JSON : seules les adresses https comptent.
@@ -177,4 +193,17 @@ class ProfilApi {
     if (d is! List) return const [];
     return d.whereType<Map<String, dynamic>>().map(Avis.fromJson).toList();
   }
+
+  /// Suivre une structure (06/09/2026) : on est prévenu de ses annonces et de
+  /// ses offres d'emploi. Renvoie l'état et le nombre d'abonnés.
+  static Future<({bool abonne, int abonnes})> suivre(String proId) async =>
+      _etatSuivi(await ApiClient.instance.post('/suivre/$proId', {}));
+
+  static Future<({bool abonne, int abonnes})> nePlusSuivre(String proId) async =>
+      _etatSuivi(await ApiClient.instance.delete('/suivre/$proId'));
+
+  static ({bool abonne, int abonnes}) _etatSuivi(dynamic d) => (
+        abonne: d is Map && d['abonne'] == true,
+        abonnes: (d is Map && d['abonnes'] is num) ? (d['abonnes'] as num).toInt() : 0,
+      );
 }
