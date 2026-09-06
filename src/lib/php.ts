@@ -498,6 +498,92 @@ export async function phpRemoveFavorite(id: string): Promise<void> {
   try { await req(`/favorites/${id}`, { method: 'DELETE' }) } catch { /* silencieux */ }
 }
 
+// ---- Abonnés et offres d'emploi des structures (06/09/2026) ------------------
+//
+// Une entreprise, une ONG, un centre de formation — tout compte professionnel
+// APPROUVÉ — peut être suivi, et publie des offres d'emploi sur sa page. Les
+// abonnés sont prévenus (type « abonnement ») à chaque annonce et à chaque
+// offre ; la structure reçoit chaque candidature (type « candidature »).
+
+/** Suivre une structure. Renvoie l'état et le nombre d'abonnés. */
+export async function phpSuivre(proId: string): Promise<{ abonne: boolean; abonnes: number }> {
+  return req(`/suivre/${encodeURIComponent(proId)}`, { method: 'POST', body: {} })
+}
+export async function phpNePlusSuivre(proId: string): Promise<{ abonne: boolean; abonnes: number }> {
+  return req(`/suivre/${encodeURIComponent(proId)}`, { method: 'DELETE' })
+}
+export interface Suivi { id: string; nom: string; type: string | null; logo: string | null; depuis: number }
+/** Les structures que je suis. */
+export async function phpSuivis(): Promise<Suivi[]> {
+  try { return await req<Suivi[]>('/suivis') } catch { return [] }
+}
+
+/** Les six types de question qu'un formulaire de candidature peut porter. */
+export type TypeChamp = 'texte' | 'long' | 'email' | 'tel' | 'choix' | 'ouinon'
+export interface ChampFormulaire {
+  id: string; label: string; type: TypeChamp; requis: boolean
+  /** Pour un « choix » : au moins deux options. */
+  options?: string[]
+}
+export interface Offre {
+  id: string; userId: string
+  /** L'enseigne, son logo, son type (commerce, association…). */
+  entreprise: string; logo: string | null; typeStructure: string | null
+  titre: string; description: string
+  contrat: string | null; lieu: string | null; salaire: string | null
+  /** Le formulaire EXTERNE (Google Forms, WhatsApp, leur site), s'il y en a un. */
+  lien: string | null
+  /** Le formulaire MAISON, vide si l'offre se postule par son lien. */
+  formulaire: ChampFormulaire[]
+  statut: 'ouverte' | 'fermee'
+  /** Le nombre de candidatures — pour l'auteur seulement, null pour les autres. */
+  candidatures: number | null
+  createdAt: number; expiresAt: number | null
+  /** Pour un visiteur connecté : a-t-il déjà postulé ? */
+  dejaCandidate?: boolean
+  /** À la publication : combien d'abonnés ont été prévenus. */
+  abonnesPrevenus?: number
+}
+export interface OffreEntree {
+  titre: string; description: string
+  contrat?: string; lieu?: string; salaire?: string
+  lien?: string
+  formulaire?: Array<Omit<ChampFormulaire, 'id'> & { id?: string }>
+  statut?: 'ouverte' | 'fermee'
+}
+export interface Candidature {
+  id: string; nom: string; email: string; tel: string | null
+  reponses: Record<string, string>; createdAt: number
+}
+/** Les offres ouvertes d'une structure — ou de tout le site sans `userId`. */
+export async function phpOffres(userId?: string): Promise<Offre[]> {
+  return req<Offre[]>(`/offres${userId ? `?user_id=${encodeURIComponent(userId)}` : ''}`)
+}
+/** Mes offres, ouvertes ou fermées, avec le nombre de candidatures. */
+export async function phpMesOffres(): Promise<Offre[]> {
+  return req<Offre[]>('/offres/mine')
+}
+export async function phpOffre(id: string): Promise<Offre> {
+  return req<Offre>(`/offres/${encodeURIComponent(id)}`)
+}
+export async function phpCreerOffre(d: OffreEntree): Promise<Offre> {
+  return req<Offre>('/offres', { method: 'POST', body: d as unknown as Record<string, unknown> })
+}
+export async function phpModifierOffre(id: string, d: Partial<OffreEntree>): Promise<Offre> {
+  return req<Offre>(`/offres/${encodeURIComponent(id)}`, { method: 'PUT', body: d as unknown as Record<string, unknown> })
+}
+export async function phpSupprimerOffre(id: string): Promise<void> {
+  await req(`/offres/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+/** Postuler : les réponses, question par question (`id` → réponse). */
+export async function phpCandidater(id: string, d: { nom?: string; tel?: string; reponses: Record<string, string> }): Promise<{ ok: boolean; id: string }> {
+  return req(`/offres/${encodeURIComponent(id)}/candidater`, { method: 'POST', body: d })
+}
+/** Les candidatures reçues — l'auteur de l'offre seulement. */
+export async function phpCandidatures(id: string): Promise<{ formulaire: ChampFormulaire[]; candidatures: Candidature[] }> {
+  return req(`/offres/${encodeURIComponent(id)}/candidatures`)
+}
+
 // ---- Notifications ----------------------------------------------------------
 export interface PhpNotification {
   id: string; type: string; title: string; body: string; link: string; read: boolean; createdAt: number
@@ -522,6 +608,10 @@ export interface NotifPrefs {
   email: boolean
   /** Mes favoris : baisse de prix, fin d'annonce dans une semaine (04/09/2026). Absent = permis. */
   favori_suivi?: boolean
+  /** Les structures que je suis : une annonce ou une offre d'emploi publiée (06/09/2026). Absent = permis. */
+  abonnement?: boolean
+  /** Pour une structure : une candidature reçue sur une de ses offres. Absent = permis. */
+  candidature?: boolean
 }
 export async function phpNotifPrefs(): Promise<NotifPrefs> {
   try { return await req<NotifPrefs>('/notifications/prefs') }

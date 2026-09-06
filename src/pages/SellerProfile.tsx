@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check, Timer } from 'lucide-react'
+import { ArrowLeft, MapPin, Package, Store, MessageSquare, Plus, Check, Timer, Briefcase } from 'lucide-react'
 import { categories } from '../data/categories'
 import {
   EnTeteVitrine, ChiffresVitrine, PastilleOuverture, CarteHoraires, AProposVitrine,
@@ -10,6 +10,8 @@ import {
 } from '../components/Vitrine'
 import { mediaUrl } from '../lib/native'
 import { PillesReseaux, ListeReseaux } from '../components/Reseaux'
+import { CarteOffre } from '../components/Offres'
+import { phpSuivre, phpNePlusSuivre, phpOffres, type Offre } from '../lib/php'
 import { VerifiedBadge } from '../components/VerifiedBadge'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
@@ -32,9 +34,13 @@ export function SellerProfile() {
   const toast = useToast()
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
-  const [tab, setTab] = useState<'annonces' | 'avis' | 'apropos'>('annonces')
+  const [tab, setTab] = useState<'annonces' | 'emplois' | 'avis' | 'apropos'>('annonces')
   const [loading, setLoading] = useState(true)
+  // Suivre (06/09/2026) : l'état vient du serveur, le compte des abonnés aussi.
   const [following, setFollowing] = useState(false)
+  const [abonnes, setAbonnes] = useState(0)
+  const [suivreEnCours, setSuivreEnCours] = useState(false)
+  const [offres, setOffres] = useState<Offre[] | null>(null)
   const [busy, setBusy] = useState(false)
 
   const sellerListings = listings.filter((l) => l.sellerId === id)
@@ -52,12 +58,23 @@ export function SellerProfile() {
         if (!active) return
         setProfile(p)
         setReviews(r)
+        setFollowing(!!p?.abonne)
+        setAbonnes(p?.pro?.abonnes ?? 0)
       })
       .finally(() => active && setLoading(false))
     return () => {
       active = false
     }
-  }, [id])
+    // `user?.id` : « suis-je abonné ? » dépend de qui regarde.
+  }, [id, user?.id])
+
+  // Les offres d'emploi de la structure : chargées à l'ouverture de l'onglet.
+  useEffect(() => {
+    if (tab !== 'emplois' || !id || offres) return
+    let vivant = true
+    phpOffres(id).then((o) => { if (vivant) setOffres(o) }).catch(() => { if (vivant) setOffres([]) })
+    return () => { vivant = false }
+  }, [tab, id, offres])
 
   // Temps de réponse habituel — le même chiffre que sur la fiche annonce, ici
   // juste au-dessus du bouton « Contacter », là où la question se pose.
@@ -91,14 +108,28 @@ export function SellerProfile() {
     }
   }
 
-  function toggleFollow() {
+  // Suivre une structure : on est prévenu de ses annonces et de ses offres
+  // d'emploi. Le bouton a longtemps changé de couleur sans rien faire ; il
+  // parle maintenant au serveur, et le compte des abonnés en revient.
+  async function toggleFollow() {
     if (!user) {
       navigate('/connexion')
       return
     }
-    const next = !following
-    setFollowing(next)
-    toast.success(next ? `Vous suivez ${displayName}.` : `Vous ne suivez plus ${displayName}.`)
+    if (!id || suivreEnCours) return
+    setSuivreEnCours(true)
+    try {
+      const r = following ? await phpNePlusSuivre(id) : await phpSuivre(id)
+      setFollowing(r.abonne)
+      setAbonnes(r.abonnes)
+      toast.success(r.abonne
+        ? `Vous suivez ${displayName} : vous serez prévenu de ses annonces et de ses offres d’emploi.`
+        : `Vous ne suivez plus ${displayName}.`)
+    } catch (e) {
+      toast.error((e as Error).message || 'Impossible pour le moment.')
+    } finally {
+      setSuivreEnCours(false)
+    }
   }
 
   // ─── LA VITRINE (planches validées le 28/08) ─────────────────────────────
@@ -155,9 +186,10 @@ export function SellerProfile() {
               className="txt-legible inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60">
               <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
             </button>
-            <button onClick={toggleFollow} aria-pressed={following}
+            <button onClick={toggleFollow} aria-pressed={following} disabled={suivreEnCours}
               className={`btn-outline flex-1 ${following ? 'border-ivoire-green text-ivoire-green' : ''}`}>
               {following ? <><Check size={18} /> Suivi</> : <><Plus size={18} /> Suivre</>}
+              {abonnes > 0 && <span className="tnum text-xs opacity-70">· {abonnes}</span>}
             </button>
           </div>
 
@@ -171,8 +203,7 @@ export function SellerProfile() {
           nom={displayName} avatar={profile?.avatarUrl} badge={profile?.badge}
           lieu={location} annonces={sellerListings.length} note={avg} avis={count}
           reponse={reponse} nouveau={count === 0} retour={fleche}
-          busy={busy} following={following}
-          onContacter={contactSeller} onSuivre={toggleFollow} />
+          busy={busy} onContacter={contactSeller} />
       )}
 
       {/* Onglets */}
@@ -181,6 +212,14 @@ export function SellerProfile() {
           className={`chip ${tab === 'annonces' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}>
           Annonces · {sellerListings.length}
         </button>
+        {/* L'espace emploi d'une structure (06/09/2026) : l'onglet n'apparaît
+            que si elle a des postes ouverts — un « Emplois · 0 » n'apprend rien. */}
+        {pro && (pro.offres ?? 0) > 0 && (
+          <button onClick={() => setTab('emplois')}
+            className={`chip ${tab === 'emplois' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}>
+            Emplois · {pro.offres}
+          </button>
+        )}
         <button onClick={() => setTab('avis')}
           className={`chip ${tab === 'avis' ? 'border-primary-500 bg-primary-500 text-white' : ''}`}>
           Avis · {count}
@@ -223,6 +262,22 @@ export function SellerProfile() {
             )}
           </div>
         )
+      ) : tab === 'emplois' ? (
+        <div className="space-y-3 px-4 py-4">
+          <p className="text-sm leading-relaxed text-gray-600">
+            Les postes ouverts chez {displayName}. Ouvrez une offre pour postuler — par leur formulaire, ou en quelques questions.
+          </p>
+          {offres === null ? (
+            <p className="py-8 text-center text-sm text-gray-500">Chargement…</p>
+          ) : offres.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-400">
+              <Briefcase size={36} />
+              <p className="text-sm text-gray-500">Aucun poste ouvert pour le moment.</p>
+            </div>
+          ) : (
+            offres.map((o) => <CarteOffre key={o.id} offre={o} onOpen={() => navigate(`/emploi/${o.id}`)} />)
+          )}
+        </div>
       ) : tab === 'avis' ? (
         reviews.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center text-gray-400">
@@ -293,15 +348,17 @@ export function SellerProfile() {
 /**
  * L'en-tête d'un vendeur ORDINAIRE — inchangé, et c'est voulu : la vitrine est
  * ce que le professionnel a mérité en faisant vérifier son dossier. Un
- * particulier qui vend son frigo n'a ni logo, ni horaires, ni registre.
+ * particulier qui vend son frigo n'a ni logo, ni horaires, ni registre — et ne
+ * se suit pas : « Suivre » est réservé aux structures vérifiées (06/09/2026).
+ * Le bouton qu'il y avait ici ne faisait rien ; il ne ment plus.
  */
 function SimpleEnTete({ nom, avatar, badge, lieu, annonces, note, avis, reponse, nouveau,
-                        retour, busy, following, onContacter, onSuivre }: {
+                        retour, busy, onContacter }: {
   nom: string; avatar?: string; badge?: 'admin' | 'anciennete' | ''
   lieu: string | null; annonces: number; note: number; avis: number
   reponse: number | null; nouveau: boolean; retour: React.ReactNode
-  busy: boolean; following: boolean
-  onContacter: () => void; onSuivre: () => void
+  busy: boolean
+  onContacter: () => void
 }) {
   return (
     <header className="safe-top relative overflow-hidden bg-gradient-to-b from-primary-100 via-cream-100 to-[#FFF6EA] px-4 pb-7 pt-3">
@@ -345,10 +402,6 @@ function SimpleEnTete({ nom, avatar, badge, lieu, annonces, note, avis, reponse,
           <button onClick={onContacter} disabled={busy}
             className="txt-legible inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-ivoire-green px-5 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(0,158,96,0.5)] transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60">
             <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
-          </button>
-          <button onClick={onSuivre} aria-pressed={following}
-            className={`btn-outline flex-1 ${following ? 'border-ivoire-green text-ivoire-green' : ''}`}>
-            {following ? <><Check size={18} /> Suivi</> : <><Plus size={18} /> Suivre</>}
           </button>
         </div>
       </div>

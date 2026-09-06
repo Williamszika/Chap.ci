@@ -36,7 +36,13 @@ export interface PublicProfile {
      * le professionnel n'en a renseigné aucun.
      */
     reseaux?: Record<string, string> | null
+    /** Combien de personnes suivent cette structure (06/09/2026). */
+    abonnes?: number
+    /** Combien d'offres d'emploi sont ouvertes sur sa page. */
+    offres?: number
   } | null
+  /** Le visiteur connecté suit-il ce compte ? Faux sans compte. */
+  abonne?: boolean
 }
 
 export async function fetchProfile(id: string): Promise<PublicProfile | null> {

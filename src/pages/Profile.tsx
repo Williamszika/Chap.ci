@@ -44,6 +44,7 @@ import { MesCommandes } from '../components/MesCommandes'
 import { DEPUIS_COMPTE } from '../components/RetourCompte'
 import { StatsPro } from '../components/StatsPro'
 import { ReponsesAuto } from '../components/ReponsesAuto'
+import { OffresPro } from '../components/OffresPro'
 import {
   FicheProEdit, ProfilPhoto, ReglagesNotifs, SecuriteCompte, AdressePosition,
   DialogueDeconnexion,
@@ -77,6 +78,8 @@ import type { Listing, Order, Review } from '../types'
 type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'pubs' | 'params'
   // Les écrans de la console professionnelle (planches validées le 27/08).
   | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses'
+  // Les offres d'emploi de la structure (06/09/2026).
+  | 'emplois'
 
 /** Le titre de chaque écran du compte — un seul endroit où le lire. */
 const TITRES: Partial<Record<Tab, string>> = {
@@ -86,6 +89,7 @@ const TITRES: Partial<Record<Tab, string>> = {
   pubs: 'Mes publicités',
   stats: 'Statistiques de vente',
   reponses: 'Réponses automatiques',
+  emplois: 'Offres d’emploi',
   fiche: 'Ma fiche professionnelle',
   profil: 'Profil & photo',
   notifs: 'Notifications',
@@ -607,6 +611,12 @@ export function Profile() {
           <ReponsesAuto pro={proApprouve} onChange={() => rechargerPro()} />
         )}
 
+        {/* OFFRES D'EMPLOI (06/09/2026) — la structure publie ses postes,
+            dessine son formulaire ou donne son lien, lit ses candidatures. */}
+        {tab === 'emplois' && user && (
+          <OffresPro pro={proApprouve} onChange={() => rechargerPro()} />
+        )}
+
         {/* MA FICHE PROFESSIONNELLE (planche 3) */}
         {tab === 'fiche' && user && (
           proTableau ? (
@@ -785,7 +795,10 @@ function NotificationSettings() {
   useEffect(() => { if (etat === 'actif') rafraichirAppareils() }, [etat])
 
   function toggle(key: keyof NotifPrefs) {
-    const next = { ...prefs, [key]: !prefs[key] }
+    // « Absent » vaut « permis » : le prochain état est donc l'inverse de
+    // « pas explicitement coupé » — sans quoi une case jamais réglée ne
+    // pourrait pas se couper (`!undefined` vaut vrai).
+    const next = { ...prefs, [key]: prefs[key] === false }
     setPrefs(next)
     phpSaveNotifPrefs(next).catch(() => {})
   }
@@ -938,6 +951,7 @@ function NotificationSettings() {
         <ToggleRow label="Messages" desc="Quand vous recevez un nouveau message" on={prefs.message} onToggle={() => toggle('message')} disabled={!loaded} />
         <ToggleRow label="Favoris" desc="Quand une personne ajoute votre annonce à ses favoris" on={prefs.favorite} onToggle={() => toggle('favorite')} disabled={!loaded} />
         <ToggleRow label="Mes favoris" desc="Quand le prix d’un favori baisse, ou qu’il se termine dans une semaine" on={prefs.favori_suivi !== false} onToggle={() => toggle('favori_suivi')} disabled={!loaded} />
+        <ToggleRow label="Structures que je suis" desc="Quand une entreprise ou une ONG que vous suivez publie une annonce ou une offre d’emploi" on={prefs.abonnement !== false} onToggle={() => toggle('abonnement')} disabled={!loaded} />
         <ToggleRow label="E-mail de secours" desc="Un e-mail seulement si vous n’êtes ni sur le site, ni joignable sur un appareil" on={prefs.email} onToggle={() => toggle('email')} disabled={!loaded} />
       </div>
     </section>

@@ -10495,6 +10495,11 @@ try {
           && trim((string) ($r['pro_auto_reply'] ?? '')) !== '',
         'reponseAutoTexte' => trim((string) ($r['pro_auto_reply'] ?? '')),
         'reponsesPretes' => $compteur('SELECT COUNT(*) FROM quick_replies WHERE user_id = ?', [$uid]),
+        // Les abonnés et les offres d'emploi (06/09/2026) : de quoi remplir
+        // la tuile « Offres d'emploi » et le champ « Abonnés » sans second appel.
+        'abonnes' => abonnes_compter($pdo, $uid),
+        'offres' => $compteur("SELECT COUNT(*) FROM offres WHERE user_id = ? AND statut = 'ouverte' AND (expires_at IS NULL OR expires_at > ?)", [$uid, now_iso()]),
+        'candidatures' => $compteur('SELECT COALESCE(SUM(candidatures), 0) FROM offres WHERE user_id = ?', [$uid]),
       ],
       'compte' => [
         'nom' => (string) ($profil['full_name'] ?? ''),

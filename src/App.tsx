@@ -67,6 +67,7 @@ const Contact = L('Contact', () => import('./pages/Contact'))
 const Messages = L('Messages', () => import('./pages/Messages'))
 const Conversation = L('Conversation', () => import('./pages/Conversation'))
 const SellerProfile = L('SellerProfile', () => import('./pages/SellerProfile'))
+const Emploi = L('Emploi', () => import('./pages/Emploi'))
 const About = L('About', () => import('./pages/About'))
 const Faq = L('Faq', () => import('./pages/Faq'))
 const EspacePro = L('EspacePro', () => import('./pages/EspacePro'))
@@ -163,6 +164,7 @@ export default function App() {
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:id" element={<Conversation />} />
           <Route path="/vendeur/:id" element={<SellerProfile />} />
+          <Route path="/emploi/:id" element={<Emploi />} />
           <Route path="/notifications" element={<Notifications />} />
           {/* La messagerie de l'équipe. Un seul écran pour les trois usages :
               un membre écrit à l'équipe, l'équipe répond, les modérateurs se

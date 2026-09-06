@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Heart, MessageSquare, Trash2, Check, Star, Handshake, Sparkles } from 'lucide-react'
+import { Bell, Heart, MessageSquare, Trash2, Check, Star, Handshake, Sparkles, Store, Briefcase } from 'lucide-react'
 import {
   phpNotifications,
   phpNotifMarkRead,
@@ -34,6 +34,11 @@ function iconFor(type: string) {
   // confond avec le reste et se lit comme du bruit.
   if (t.includes('nouveaute'))
     return <Sparkles size={18} className="text-primary-600" />
+  // Une structure que je suis a publié ; quelqu'un a répondu à mon offre.
+  if (t.includes('abonnement'))
+    return <Store size={18} className="text-ivoire-green" />
+  if (t.includes('candidature'))
+    return <Briefcase size={18} className="text-primary-600" />
   return <Bell size={18} className="text-accent-gold" />
 }
 

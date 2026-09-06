@@ -43,6 +43,8 @@ export interface Tableau {
     /** La réponse automatique : active ou non, sa phrase, et le nombre de
      *  phrases toutes prêtes — de quoi renseigner la tuile sans second appel. */
     reponseAuto?: boolean; reponseAutoTexte?: string; reponsesPretes?: number
+    /** Les abonnés, les offres d'emploi ouvertes et les candidatures reçues (06/09/2026). */
+    abonnes?: number; offres?: number; candidatures?: number
   }
   /** Tout le compte, pour les tuiles et la fiche d'entreprise de la page Compte. */
   compte?: {
@@ -268,7 +270,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
   dansCompte?: boolean
   /** Ouvre un onglet interne de la page Compte (annonces, achats, ventes, pubs, params). */
   onOnglet?: (onglet: 'annonces' | 'achats' | 'ventes' | 'pubs' | 'params'
-    | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses') => void
+    | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses' | 'emplois') => void
   onDeconnexion?: () => void
   /**
    * Regarder la console d'UN AUTRE professionnel, en lecture seule. Réservé
@@ -659,6 +661,18 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
                 ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-primary-500 px-1.5 text-[11px] font-extrabold text-white">{c.pubsActives}</span>
                 : undefined}
               onClick={() => onOnglet?.('pubs')} />
+            {/* Les offres d'emploi (06/09/2026) : une entreprise, une ONG, un
+                centre de formation recrute depuis sa page ; ses abonnés sont
+                prévenus à chaque publication. La tuile dit combien de postes
+                sont ouverts et combien de personnes ont répondu. */}
+            <Tuile inerte={lecture} emoji="💼" fond="#E8EEFB" titre="Offres d’emploi"
+              sous={(t.pro.offres ?? 0) > 0
+                ? `${t.pro.offres} poste${(t.pro.offres ?? 0) > 1 ? 's' : ''} ouvert${(t.pro.offres ?? 0) > 1 ? 's' : ''} · ${t.pro.candidatures ?? 0} candidature${(t.pro.candidatures ?? 0) > 1 ? 's' : ''}`
+                : 'Publiez un poste : vos abonnés sont prévenus'}
+              badge={(t.pro.candidatures ?? 0) > 0
+                ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-primary-500 px-1.5 text-[11px] font-extrabold text-white">{t.pro.candidatures}</span>
+                : undefined}
+              onClick={() => onOnglet?.('emplois')} />
           </div>
 
           <p className="mt-2 px-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">
@@ -687,6 +701,8 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
               <Champ etiquette="Commune" valeur={c.commune || 'non renseignée'} />
               <Champ etiquette="Badge PRO" ton="vert"
                 valeur={t.pro.depuis ? `✓ Actif depuis ${dateCourte(t.pro.depuis)}` : '✓ Actif'} />
+              <Champ etiquette="Abonnés"
+                valeur={`${t.pro.abonnes ?? 0} personne${(t.pro.abonnes ?? 0) > 1 ? 's' : ''} vous sui${(t.pro.abonnes ?? 0) > 1 ? 'vent' : 't'}`} />
               <Champ etiquette="Page publique" ton="orange"
                 valeur={(userId ?? user?.id) ? (lecture ? 'Voir sa page vendeur →' : 'Voir ma page vendeur →') : '—'}
                 lien={(userId ?? user?.id) ? `/vendeur/${userId ?? user?.id}` : undefined} />

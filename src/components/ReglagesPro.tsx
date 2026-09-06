@@ -454,12 +454,15 @@ const CASES_COMPTE: [string, string, string][] = [
   // qu'on ne peut pas éteindre finit par faire éteindre TOUTES les
   // notifications — on perdrait les messages d'acheteurs avec.
   ['nouveaute', 'Nouveautés du site', 'Quand Chap.ci sait faire quelque chose de plus'],
+  // Les structures que l'on suit (06/09/2026) : une annonce, une offre d'emploi.
+  ['abonnement', 'Structures que je suis', 'Une entreprise ou une ONG que vous suivez publie'],
   ['email', 'Recevoir aussi par e-mail', 'Quand vous n’êtes ni sur le site ni joignable sur le téléphone'],
 ]
 const CASES_PRO: [string, string, string][] = [
   ['sans_reponse', 'Message sans réponse', 'Au bout de 24 h — protège votre taux de réponse'],
   ['essouffle', 'Annonce qui s’essouffle', 'Plus de vues depuis 10 jours'],
   ['bilan', 'Bilan de la semaine', 'Chaque lundi matin, vos chiffres'],
+  ['candidature', 'Nouvelle candidature', 'Quelqu’un répond à une de vos offres d’emploi'],
 ]
 
 /**
