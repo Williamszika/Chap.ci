@@ -695,12 +695,13 @@ function moderate_text(string $text): array {
  * json_encode rend `false`, et la notification part vide — sans la moindre
  * erreur nulle part.
  */
-function notify(PDO $pdo, string $userId, string $type, string $title, string $body, string $link = ''): void {
-  if ($userId === '') return;
+/** Renvoie vrai si la notification a été ÉCRITE — faux si ce type est coupé, ou en cas d'échec. */
+function notify(PDO $pdo, string $userId, string $type, string $title, string $body, string $link = ''): bool {
+  if ($userId === '') return false;
   try {
     $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$userId]);
     $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
-    if (isset($prefs[$type]) && !$prefs[$type]) return; // ce type est désactivé par l'utilisateur
+    if (isset($prefs[$type]) && !$prefs[$type]) return false; // ce type est désactivé par l'utilisateur
     $id = uuid();
     $title = mb_substr($title, 0, 120); $body = mb_substr($body, 0, 240); $link = mb_substr($link, 0, 200);
     $pdo->prepare('INSERT INTO notifications (id,user_id,type,title,body,link,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)')
@@ -714,7 +715,7 @@ function notify(PDO $pdo, string $userId, string $type, string $title, string $b
     // Notifications pour qui veut le contraire.
     if (!isset($prefs['calme']) || $prefs['calme']) {
       $h = (int) gmdate('G');
-      if ($h >= 22 || $h < 6) return;
+      if ($h >= 22 || $h < 6) return true;
     }
     // Pas de réglage « push » ici : le vrai interrupteur est l'abonnement du
     // navigateur lui-même. Refuser l'autorisation, ou l'éteindre depuis le
@@ -723,7 +724,8 @@ function notify(PDO $pdo, string $userId, string $type, string $title, string $b
     $GLOBALS['CHAPCI_PUSH'][] = [
       'id' => $id, 'user' => $userId, 'type' => $type, 'title' => $title, 'body' => $body, 'link' => $link,
     ];
-  } catch (Throwable $e) { /* une notification ne doit jamais casser l'action */ }
+    return true;
+  } catch (Throwable $e) { return false; /* une notification ne doit jamais casser l'action */ }
 }
 function b64url(string $s): string { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
 function b64url_dec(string $s): string { return base64_decode(strtr($s, '-_', '+/')); }
@@ -1978,6 +1980,27 @@ function migrate(PDO $pdo): void {
     // Favoris (côté serveur) : permet de notifier le vendeur.
     "CREATE TABLE IF NOT EXISTS favorites (
       user_id $id, listing_id $id, created_at $ts, PRIMARY KEY (user_id, listing_id)
+    )$eng",
+    // LES ABONNÉS D'UN COMPTE PROFESSIONNEL (06/09/2026). « Suivre » n'était
+    // qu'un bouton local, sans serveur : personne ne suivait personne. Un
+    // abonné reçoit une notification à chaque publication du compte suivi —
+    // annonce ou offre d'emploi — et le compte voit son nombre d'abonnés.
+    "CREATE TABLE IF NOT EXISTS follows (
+      user_id $id, pro_id $id, created_at $ts, PRIMARY KEY (user_id, pro_id)
+    )$eng",
+    // LES OFFRES D'EMPLOI d'une entreprise, d'une ONG, d'une structure
+    // (06/09/2026). Le formulaire de candidature est le leur : soit un lien
+    // (Google Forms, WhatsApp…), soit des champs qu'ils dessinent ici,
+    // enregistrés en JSON dans `formulaire`. Les réponses vont dans
+    // `candidatures`, réponses en JSON, une par personne et par offre.
+    "CREATE TABLE IF NOT EXISTS offres (
+      id $id PRIMARY KEY, user_id $id, titre $txt, description $txt, contrat $txt, lieu $txt,
+      salaire $txt, lien $txt, formulaire $txt, statut $txt, candidatures $intT,
+      created_at $ts, updated_at $ts, expires_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS candidatures (
+      id $id PRIMARY KEY, offre_id $id, user_id $id, nom $txt, email $txt, tel $txt,
+      reponses $txt, created_at $ts
     )$eng",
     // Notifications in-app (favoris, messages, modération…).
     "CREATE TABLE IF NOT EXISTS notifications (
@@ -5797,6 +5820,142 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
 }
 
 // =============================================================================
+//  LES ABONNÉS ET LES OFFRES D'EMPLOI DU COMPTE PROFESSIONNEL (06/09/2026)
+//
+//  Demande du Patron : « que les entreprises, les ONG et autres structures
+//  puissent être suivies, que leur page ait un espace pour les offres
+//  d'emploi, avec lien de formulaire ou un formulaire qu'ils créent
+//  eux-mêmes, et que les abonnés reçoivent une notification quand ils
+//  publient ». Trois pièces, ici : les abonnés (`follows`), les offres et
+//  leur formulaire (`offres`), les réponses (`candidatures`).
+//
+//  Qui peut être suivi, qui peut publier une offre : un compte professionnel
+//  APPROUVÉ, quel que soit son type — commerce, prestataire, centre de
+//  formation, employeur, association. C'est le dossier vérifié par l'équipe
+//  qui donne ces droits, comme il donne la vitrine.
+// =============================================================================
+
+/** Le compte est-il un professionnel approuvé ? */
+function pro_approuve(PDO $pdo, string $uid): bool {
+  try {
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?'); $st->execute([$uid]);
+    return (string) ($st->fetchColumn() ?: '') === 'approuve';
+  } catch (Throwable $e) { return false; }
+}
+
+/** Le nom sous lequel on connaît le compte : l'enseigne, sinon le nom du profil. */
+function nom_public(PDO $pdo, string $uid): string {
+  try {
+    $st = $pdo->prepare('SELECT pro_nom, pro_status FROM users WHERE id = ?'); $st->execute([$uid]);
+    $u = $st->fetch() ?: [];
+    if ((string) ($u['pro_status'] ?? '') === 'approuve' && trim((string) ($u['pro_nom'] ?? '')) !== '') return trim((string) $u['pro_nom']);
+    $p = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $p->execute([$uid]);
+    return trim((string) ($p->fetchColumn() ?: '')) ?: 'Un vendeur';
+  } catch (Throwable $e) { return 'Un vendeur'; }
+}
+
+/** Combien de personnes suivent ce compte. */
+function abonnes_compter(PDO $pdo, string $proId): int {
+  try { $st = $pdo->prepare('SELECT COUNT(*) FROM follows WHERE pro_id = ?'); $st->execute([$proId]); return (int) $st->fetchColumn(); }
+  catch (Throwable $e) { return 0; }
+}
+
+/**
+ * Prévient les abonnés d'un compte : cloche, push, e-mail de secours — par
+ * `notify()`, type `abonnement`, que chacun peut couper dans ses réglages.
+ * Cinq cents abonnés par publication au plus : au-delà, on ne bloque pas la
+ * publication d'un vendeur pour envoyer des notifications.
+ */
+function abonnes_prevenir(PDO $pdo, string $proId, string $titre, string $corps, string $lien): int {
+  $n = 0;
+  try {
+    $st = $pdo->prepare('SELECT user_id FROM follows WHERE pro_id = ? ORDER BY created_at DESC LIMIT 500');
+    $st->execute([$proId]);
+    foreach ($st->fetchAll() as $r) {
+      // On ne compte que ceux qui l'ont reçue : celui qui a coupé ce type
+      // dans ses réglages n'est pas « prévenu ».
+      if (notify($pdo, (string) $r['user_id'], 'abonnement', $titre, $corps, $lien)) $n++;
+    }
+  } catch (Throwable $e) { /* prévenir ne doit jamais empêcher de publier */ }
+  return $n;
+}
+
+/** Les types de champs qu'un formulaire de candidature peut porter. */
+const OFFRE_CHAMPS_TYPES = ['texte', 'long', 'email', 'tel', 'choix', 'ouinon'];
+
+/** Le formulaire par défaut, quand la structure n'en dessine pas et ne donne pas de lien. */
+function offre_formulaire_defaut(): array {
+  return [
+    ['id' => 'nom', 'label' => 'Votre nom complet', 'type' => 'texte', 'requis' => true],
+    ['id' => 'tel', 'label' => 'Votre numéro de téléphone', 'type' => 'tel', 'requis' => true],
+    ['id' => 'message', 'label' => 'Présentez-vous en quelques lignes', 'type' => 'long', 'requis' => true],
+  ];
+}
+
+/**
+ * Le formulaire envoyé → propre, ou null s'il est mal formé. Douze champs au
+ * plus, un libellé de 80 caractères, un type connu, douze options de 40
+ * caractères pour un choix. L'identifiant est gardé s'il est sage, sinon
+ * numéroté : c'est lui qui relie une réponse à sa question.
+ */
+function offre_formulaire_normaliser($brut): ?array {
+  if ($brut === null || $brut === '') return [];
+  if (!is_array($brut)) return null;
+  $propre = [];
+  foreach (array_slice(array_values($brut), 0, 12) as $i => $c) {
+    if (!is_array($c)) return null;
+    $label = trim(mb_substr((string) ($c['label'] ?? ''), 0, 80));
+    $type = (string) ($c['type'] ?? 'texte');
+    if ($label === '' || !in_array($type, OFFRE_CHAMPS_TYPES, true)) return null;
+    $id = (string) ($c['id'] ?? '');
+    if (!preg_match('/^[a-z0-9_-]{1,20}$/', $id)) $id = 'q' . ($i + 1);
+    $champ = ['id' => $id, 'label' => $label, 'type' => $type, 'requis' => !empty($c['requis'])];
+    if ($type === 'choix') {
+      $options = [];
+      foreach (array_slice((array) ($c['options'] ?? []), 0, 12) as $o) {
+        $o = trim(mb_substr((string) $o, 0, 40));
+        if ($o !== '') $options[] = $o;
+      }
+      if (count($options) < 2) return null;
+      $champ['options'] = $options;
+    }
+    $propre[] = $champ;
+  }
+  // Deux questions ne peuvent pas porter le même identifiant.
+  $ids = array_column($propre, 'id');
+  if (count($ids) !== count(array_unique($ids))) return null;
+  return $propre;
+}
+
+/** Une ligne `offres` → le JSON du client. `$proprietaire` ajoute ce qui n'est qu'à lui. */
+function offre_out(PDO $pdo, array $r, bool $proprietaire = false): array {
+  static $noms = [];
+  $uid = (string) $r['user_id'];
+  if (!isset($noms[$uid])) {
+    $noms[$uid] = ['nom' => nom_public($pdo, $uid), 'logo' => null, 'type' => null];
+    try {
+      $st = $pdo->prepare('SELECT pro_logo, pro_type FROM users WHERE id = ?'); $st->execute([$uid]);
+      $u = $st->fetch() ?: [];
+      $noms[$uid]['logo'] = ($u['pro_logo'] ?? '') !== '' ? (string) $u['pro_logo'] : null;
+      $noms[$uid]['type'] = ($u['pro_type'] ?? '') !== '' ? (string) $u['pro_type'] : null;
+    } catch (Throwable $e) { /* base pas migrée */ }
+  }
+  $formulaire = json_decode((string) ($r['formulaire'] ?? ''), true);
+  return [
+    'id' => $r['id'], 'userId' => $uid,
+    'entreprise' => $noms[$uid]['nom'], 'logo' => $noms[$uid]['logo'], 'typeStructure' => $noms[$uid]['type'],
+    'titre' => $r['titre'], 'description' => $r['description'],
+    'contrat' => $r['contrat'] ?: null, 'lieu' => $r['lieu'] ?: null, 'salaire' => $r['salaire'] ?: null,
+    'lien' => $r['lien'] ?: null,
+    'formulaire' => is_array($formulaire) ? $formulaire : [],
+    'statut' => $r['statut'] ?: 'ouverte',
+    'candidatures' => $proprietaire ? (int) ($r['candidatures'] ?? 0) : null,
+    'createdAt' => iso_to_ms($r['created_at']),
+    'expiresAt' => $r['expires_at'] ? iso_to_ms($r['expires_at']) : null,
+  ];
+}
+
+// =============================================================================
 //  LES RÉSEAUX SOCIAUX DU PROFESSIONNEL (05/09/2026)
 //
 //  Un compte pro approuvé renseigne ses pages — Facebook, Instagram, TikTok,
@@ -6670,9 +6829,12 @@ try {
               'quick_replies' => 'user_id',
               // Sans cette ligne, le téléphone d'un compte supprimé continuerait
               // de recevoir les notifications du compte qui reprendrait son id.
-              'push_subs' => 'user_id'] as $tbl => $col) {
+              'push_subs' => 'user_id',
+              // Ses abonnements, ses abonnés, ses offres et ses candidatures.
+              'follows' => 'user_id', 'offres' => 'user_id', 'candidatures' => 'user_id'] as $tbl => $col) {
       try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
     }
+    try { $pdo->prepare('DELETE FROM follows WHERE pro_id = ?')->execute([$id]); } catch (Throwable $e) {}
     videos_supprimer_annonces($pdo, $config, 'user_id = ?', [$id]); // les vidéos, avant les lignes
     $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
     $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
@@ -7085,6 +7247,12 @@ try {
     notify($pdo, $u['id'], 'listing', 'Annonce publiée ✅',
       'Votre annonce « ' . mb_substr(trim($b['title']), 0, 60) . ' » est maintenant en ligne.',
       '#/annonce/' . $id);
+    // Les abonnés d'un compte professionnel l'apprennent (06/09/2026).
+    if (pro_approuve($pdo, (string) $u['id'])) {
+      abonnes_prevenir($pdo, (string) $u['id'], 'Nouveauté chez ' . nom_public($pdo, (string) $u['id']),
+        mb_substr(trim($b['title']), 0, 80) . ((int) ($b['price'] ?? 0) > 0 ? ' — ' . number_format((int) $b['price'], 0, ',', ' ') . ' FCFA' : ''),
+        '#/annonce/' . $id);
+    }
     // Indexation instantanée : on signale la nouvelle annonce à tout le net (IndexNow).
     chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $id]);
     $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro,
@@ -9348,13 +9516,233 @@ try {
                 'depuis' => iso_to_ms($pr['pro_decide_at'] ?? null),
                 // Les réseaux sociaux (05/09/2026) : {facebook: url, …}, un
                 // objet même vide — `[]` serait une liste pour l'application.
-                'reseaux' => (object) reseaux_lire($pr['pro_reseaux'] ?? null)];
+                'reseaux' => (object) reseaux_lire($pr['pro_reseaux'] ?? null),
+                // Les abonnés (06/09/2026) : combien suivent ce compte, et
+                // combien d'offres d'emploi sont ouvertes.
+                'abonnes' => abonnes_compter($pdo, (string) $p['id']),
+                'offres' => (function () use ($pdo, $p) {
+                  try {
+                    $q = $pdo->prepare("SELECT COUNT(*) FROM offres WHERE user_id = ? AND statut = 'ouverte' AND (expires_at IS NULL OR expires_at > ?)");
+                    $q->execute([$p['id'], now_iso()]);
+                    return (int) $q->fetchColumn();
+                  } catch (Throwable $e) { return 0; }
+                })()];
       }
     } catch (Throwable $e) { /* base pas migrée : pas de fiche pro */ }
+    // Le visiteur suit-il ce compte ? Seulement s'il est connecté.
+    $abonne = false;
+    try {
+      $moi = current_user($pdo, $secret);
+      if ($moi) {
+        $f = $pdo->prepare('SELECT 1 FROM follows WHERE user_id = ? AND pro_id = ?'); $f->execute([$moi['id'], $p['id']]);
+        $abonne = (bool) $f->fetch();
+      }
+    } catch (Throwable $e) { /* pas connecté, ou base pas migrée */ }
     jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
           'avatarUrl' => $p['avatar_url'] ?: null,
           'badge' => $badge, 'verified' => $badge !== '',
-          'pro' => $pro]);
+          'pro' => $pro, 'abonne' => $abonne]);
+  }
+
+  // ---------- LES ABONNÉS (06/09/2026) ----------
+  // Suivre un compte professionnel approuvé : on reçoit ses publications.
+  if (count($seg) === 2 && $seg[0] === 'suivre' && in_array($method, ['POST', 'DELETE', 'GET'], true)) {
+    $proId = $seg[1];
+    if ($method === 'GET') {
+      $abonne = false;
+      $moi = current_user($pdo, $secret);
+      if ($moi) {
+        $f = $pdo->prepare('SELECT 1 FROM follows WHERE user_id = ? AND pro_id = ?'); $f->execute([$moi['id'], $proId]);
+        $abonne = (bool) $f->fetch();
+      }
+      jout(['abonne' => $abonne, 'abonnes' => abonnes_compter($pdo, $proId)]);
+    }
+    $u = require_user($pdo, $secret);
+    if ($method === 'POST') {
+      if ((string) $u['id'] === $proId) jerr('On ne se suit pas soi-même.');
+      if (!pro_approuve($pdo, $proId)) jerr('Seul un compte professionnel approuvé peut être suivi.', 403);
+      // Cinquante abonnements par heure : personne n'en fait autant à la main.
+      rate_limit($pdo, 'suivre', $u['email'] ?? null, 50, 3600);
+      log_security_event($pdo, 'suivre', $u['email'] ?? null, $proId);
+      $f = $pdo->prepare('SELECT 1 FROM follows WHERE user_id = ? AND pro_id = ?'); $f->execute([$u['id'], $proId]);
+      if (!$f->fetch()) {
+        $pdo->prepare('INSERT INTO follows (user_id, pro_id, created_at) VALUES (?,?,?)')->execute([$u['id'], $proId, now_iso()]);
+      }
+      jout(['ok' => true, 'abonne' => true, 'abonnes' => abonnes_compter($pdo, $proId)]);
+    }
+    $pdo->prepare('DELETE FROM follows WHERE user_id = ? AND pro_id = ?')->execute([$u['id'], $proId]);
+    jout(['ok' => true, 'abonne' => false, 'abonnes' => abonnes_compter($pdo, $proId)]);
+  }
+  // Les comptes que je suis.
+  if ($path === 'suivis' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT f.pro_id, f.created_at, u.pro_nom, u.pro_type, u.pro_logo FROM follows f
+      LEFT JOIN users u ON u.id = f.pro_id WHERE f.user_id = ? ORDER BY f.created_at DESC LIMIT 200');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => ['id' => $r['pro_id'], 'nom' => $r['pro_nom'] ?: nom_public($pdo, (string) $r['pro_id']),
+      'type' => $r['pro_type'] ?: null, 'logo' => $r['pro_logo'] ?: null, 'depuis' => iso_to_ms($r['created_at'])], $st->fetchAll()));
+  }
+
+  // ---------- LES OFFRES D'EMPLOI (06/09/2026) ----------
+  // Les offres ouvertes d'une structure (page vendeur), ou toutes les offres
+  // ouvertes du site (?user_id absent) — les plus récentes d'abord.
+  if ($path === 'offres' && $method === 'GET') {
+    $cible = trim((string) ($_GET['user_id'] ?? ''));
+    $sql = "SELECT * FROM offres WHERE statut = 'ouverte' AND (expires_at IS NULL OR expires_at > ?)";
+    $params = [now_iso()];
+    if ($cible !== '') { $sql .= ' AND user_id = ?'; $params[] = $cible; }
+    $sql .= ' ORDER BY created_at DESC LIMIT 100';
+    $st = $pdo->prepare($sql); $st->execute($params);
+    jout(array_map(fn($r) => offre_out($pdo, $r), $st->fetchAll()));
+  }
+  // Mes offres, ouvertes ou fermées, avec le nombre de candidatures.
+  if ($path === 'offres/mine' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE user_id = ? ORDER BY created_at DESC LIMIT 100'); $st->execute([$u['id']]);
+    jout(array_map(fn($r) => offre_out($pdo, $r, true), $st->fetchAll()));
+  }
+  if ($path === 'offres' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!pro_approuve($pdo, (string) $u['id'])) jerr('Les offres d’emploi sont réservées aux comptes professionnels approuvés (entreprises, ONG, structures).', 403);
+    rate_limit($pdo, 'offre_create', $u['email'] ?? null, 20, 3600);
+    $titre = trim(mb_substr((string) ($b['titre'] ?? ''), 0, 120));
+    $description = trim(mb_substr((string) ($b['description'] ?? ''), 0, 4000));
+    if (mb_strlen($titre) < 4) jerr('Donnez un titre à l’offre (ex. : « Vendeuse en boutique, Cocody »).');
+    if (mb_strlen($description) < 20) jerr('Décrivez le poste en quelques lignes : les missions, le profil attendu, comment postuler.');
+    // Le Gardien lit les offres comme les annonces : une offre d'emploi est
+    // le terrain de jeu préféré des arnaques « payez pour être recruté ».
+    $mod = moderate_text($titre . ' ' . $description);
+    if (!$mod['ok']) {
+      log_security_event($pdo, 'offre_bloquee', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $mod['reasons'])));
+      jout(['error' => 'Cette offre n’a pas pu être publiée : elle enfreint nos règles.', 'moderation' => true, 'reasons' => $mod['reasons']], 422);
+    }
+    $lien = trim(mb_substr((string) ($b['lien'] ?? ''), 0, 300));
+    if ($lien !== '' && !preg_match('~^https://[a-z0-9.-]+\.[a-z]{2,}(/|$)~i', $lien)) jerr('Le lien du formulaire doit commencer par https:// (Google Forms, WhatsApp, votre site).');
+    $formulaire = offre_formulaire_normaliser($b['formulaire'] ?? null);
+    if ($formulaire === null) jerr('Le formulaire n’est pas valide : chaque question a un libellé, un type connu, et un choix a au moins deux options.');
+    // Ni lien ni formulaire : trois questions de base, pour que l'on puisse
+    // toujours postuler.
+    if ($lien === '' && !$formulaire) $formulaire = offre_formulaire_defaut();
+    $id = uuid();
+    $pdo->prepare('INSERT INTO offres (id,user_id,titre,description,contrat,lieu,salaire,lien,formulaire,statut,candidatures,created_at,updated_at,expires_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,0,?,?,?)')->execute([
+        $id, $u['id'], $titre, $description,
+        trim(mb_substr((string) ($b['contrat'] ?? ''), 0, 40)) ?: null,
+        trim(mb_substr((string) ($b['lieu'] ?? ''), 0, 80)) ?: null,
+        trim(mb_substr((string) ($b['salaire'] ?? ''), 0, 80)) ?: null,
+        $lien ?: null, json_encode($formulaire, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'ouverte', now_iso(), now_iso(), gmdate('Y-m-d\TH:i:s\Z', time() + 60 * 86400)]);
+    log_security_event($pdo, 'offre_publiee', $u['email'] ?? null, $id);
+    // Les abonnés l'apprennent — c'est pour ça qu'ils suivent.
+    $prevenus = abonnes_prevenir($pdo, (string) $u['id'], 'Offre d’emploi : ' . nom_public($pdo, (string) $u['id']),
+      mb_substr($titre, 0, 100) . (trim((string) ($b['lieu'] ?? '')) !== '' ? ' — ' . trim(mb_substr((string) $b['lieu'], 0, 40)) : ''),
+      '#/emploi/' . $id);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$id]);
+    jout(offre_out($pdo, $st->fetch(), true) + ['abonnesPrevenus' => $prevenus]);
+  }
+  if (count($seg) === 2 && $seg[0] === 'offres' && $seg[1] !== 'mine' && $method === 'GET') {
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    $moi = current_user($pdo, $secret);
+    $proprietaire = $moi && (string) $moi['id'] === (string) $r['user_id'];
+    if (!$proprietaire && ($r['statut'] !== 'ouverte' || ($r['expires_at'] && $r['expires_at'] <= now_iso()))) jerr('Cette offre est fermée.', 410);
+    $out = offre_out($pdo, $r, $proprietaire);
+    if ($moi && !$proprietaire) {
+      $c = $pdo->prepare('SELECT 1 FROM candidatures WHERE offre_id = ? AND user_id = ?'); $c->execute([$r['id'], $moi['id']]);
+      $out['dejaCandidate'] = (bool) $c->fetch();
+    }
+    jout($out);
+  }
+  if (count($seg) === 2 && $seg[0] === 'offres' && in_array($method, ['PUT', 'DELETE'], true)) {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    if ((string) $r['user_id'] !== (string) $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    if ($method === 'DELETE') {
+      $pdo->prepare('DELETE FROM candidatures WHERE offre_id = ?')->execute([$seg[1]]);
+      $pdo->prepare('DELETE FROM offres WHERE id = ?')->execute([$seg[1]]);
+      if ((string) $r['user_id'] !== (string) $u['id']) log_security_event($pdo, 'admin_offre_deleted', $u['email'] ?? null, $seg[1]);
+      jout(['ok' => true]);
+    }
+    $b = body();
+    $sets = []; $vals = [];
+    if (array_key_exists('titre', $b)) { $t = trim(mb_substr((string) $b['titre'], 0, 120)); if (mb_strlen($t) < 4) jerr('Le titre est trop court.'); $sets[] = 'titre = ?'; $vals[] = $t; }
+    if (array_key_exists('description', $b)) { $d = trim(mb_substr((string) $b['description'], 0, 4000)); if (mb_strlen($d) < 20) jerr('La description est trop courte.'); $sets[] = 'description = ?'; $vals[] = $d; }
+    if ($sets) {
+      $mod = moderate_text(($b['titre'] ?? $r['titre']) . ' ' . ($b['description'] ?? $r['description']));
+      if (!$mod['ok']) jout(['error' => 'Cette offre enfreint nos règles.', 'moderation' => true, 'reasons' => $mod['reasons']], 422);
+    }
+    foreach (['contrat' => 40, 'lieu' => 80, 'salaire' => 80] as $champ => $max) {
+      if (array_key_exists($champ, $b)) { $sets[] = "$champ = ?"; $vals[] = trim(mb_substr((string) $b[$champ], 0, $max)) ?: null; }
+    }
+    if (array_key_exists('lien', $b)) {
+      $lien = trim(mb_substr((string) $b['lien'], 0, 300));
+      if ($lien !== '' && !preg_match('~^https://[a-z0-9.-]+\.[a-z]{2,}(/|$)~i', $lien)) jerr('Le lien du formulaire doit commencer par https://');
+      $sets[] = 'lien = ?'; $vals[] = $lien ?: null;
+    }
+    if (array_key_exists('formulaire', $b)) {
+      $f = offre_formulaire_normaliser($b['formulaire']);
+      if ($f === null) jerr('Le formulaire n’est pas valide.');
+      $sets[] = 'formulaire = ?'; $vals[] = json_encode($f, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    if (array_key_exists('statut', $b)) { $sets[] = 'statut = ?'; $vals[] = ($b['statut'] === 'fermee') ? 'fermee' : 'ouverte'; }
+    if (!$sets) jerr('Rien à enregistrer.');
+    $sets[] = 'updated_at = ?'; $vals[] = now_iso(); $vals[] = $seg[1];
+    $pdo->prepare('UPDATE offres SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($vals);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    jout(offre_out($pdo, $st->fetch(), true));
+  }
+  // Postuler : un compte connecté, une adresse confirmée, une fois par offre.
+  if (count($seg) === 3 && $seg[0] === 'offres' && $seg[2] === 'candidater' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!email_verifie($pdo, (string) $u['id'])) {
+      jout(['error' => 'Confirmez votre adresse e-mail avant de postuler : nous vous envoyons un code.', 'emailUnverified' => true], 403);
+    }
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    if ((string) $r['user_id'] === (string) $u['id']) jerr('C’est votre propre offre.');
+    if ($r['statut'] !== 'ouverte' || ($r['expires_at'] && $r['expires_at'] <= now_iso())) jerr('Cette offre est fermée.', 410);
+    $formulaire = json_decode((string) $r['formulaire'], true);
+    if (!is_array($formulaire) || !$formulaire) jerr('Cette offre se postule par son lien, pas ici.');
+    rate_limit($pdo, 'candidature', $u['email'] ?? null, 30, 3600);
+    $c = $pdo->prepare('SELECT 1 FROM candidatures WHERE offre_id = ? AND user_id = ?'); $c->execute([$r['id'], $u['id']]);
+    if ($c->fetch()) jerr('Vous avez déjà postulé à cette offre.', 409);
+    // Chaque question obligatoire a sa réponse ; un choix est parmi les options.
+    $reponses = is_array($b['reponses'] ?? null) ? $b['reponses'] : [];
+    $propres = [];
+    foreach ($formulaire as $champ) {
+      $v = $reponses[$champ['id']] ?? '';
+      $v = is_bool($v) ? ($v ? 'oui' : 'non') : trim(mb_substr((string) $v, 0, $champ['type'] === 'long' ? 3000 : 200));
+      if ($champ['requis'] && $v === '') jerr('Répondez à « ' . $champ['label'] . ' ».', 422);
+      if ($champ['type'] === 'choix' && $v !== '' && !in_array($v, $champ['options'] ?? [], true)) jerr('« ' . $champ['label'] . ' » : choisissez une des réponses proposées.', 422);
+      if ($champ['type'] === 'email' && $v !== '' && !filter_var($v, FILTER_VALIDATE_EMAIL)) jerr('« ' . $champ['label'] . ' » : l’adresse e-mail n’est pas valide.', 422);
+      $propres[$champ['id']] = $v;
+    }
+    $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80)) ?: nom_public($pdo, (string) $u['id']);
+    $id = uuid();
+    $pdo->prepare('INSERT INTO candidatures (id,offre_id,user_id,nom,email,tel,reponses,created_at) VALUES (?,?,?,?,?,?,?,?)')
+      ->execute([$id, $r['id'], $u['id'], $nom, (string) ($u['email'] ?? ''), trim(mb_substr((string) ($b['tel'] ?? ''), 0, 20)) ?: null,
+        json_encode($propres, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), now_iso()]);
+    $pdo->prepare('UPDATE offres SET candidatures = candidatures + 1 WHERE id = ?')->execute([$r['id']]);
+    log_security_event($pdo, 'candidature', $u['email'] ?? null, $r['id']);
+    notify($pdo, (string) $r['user_id'], 'candidature', 'Nouvelle candidature 📩',
+      $nom . ' a postulé à « ' . mb_substr((string) $r['titre'], 0, 60) . ' ».', '#/emploi/' . $r['id']);
+    jout(['ok' => true, 'id' => $id]);
+  }
+  // Les candidatures reçues sur une offre — son auteur seulement.
+  if (count($seg) === 3 && $seg[0] === 'offres' && $seg[2] === 'candidatures' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id, formulaire FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    if ((string) $r['user_id'] !== (string) $u['id']) jerr('Non autorisé.', 403);
+    $c = $pdo->prepare('SELECT * FROM candidatures WHERE offre_id = ? ORDER BY created_at DESC LIMIT 500'); $c->execute([$seg[1]]);
+    jout(['formulaire' => json_decode((string) $r['formulaire'], true) ?: [],
+          'candidatures' => array_map(fn($x) => ['id' => $x['id'], 'nom' => $x['nom'], 'email' => $x['email'], 'tel' => $x['tel'],
+            'reponses' => json_decode((string) $x['reponses'], true) ?: (object) [], 'createdAt' => iso_to_ms($x['created_at'])], $c->fetchAll())]);
   }
 
   // ---------- COMPTES PROFESSIONNELS (« devenir Pro ») ----------
@@ -11685,9 +12073,11 @@ try {
       // Nettoyage RGPD complet (idem suppression par l'utilisateur).
       foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
                 'saved_searches' => 'user_id', 'user_interests' => 'user_id',
-                'quick_replies' => 'user_id', 'push_subs' => 'user_id'] as $tbl => $col) {
+                'quick_replies' => 'user_id', 'push_subs' => 'user_id',
+                'follows' => 'user_id', 'offres' => 'user_id', 'candidatures' => 'user_id'] as $tbl => $col) {
         try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
       }
+      try { $pdo->prepare('DELETE FROM follows WHERE pro_id = ?')->execute([$id]); } catch (Throwable $e) {}
       videos_supprimer_annonces($pdo, $config, 'user_id = ?', [$id]); // les vidéos, avant les lignes
       $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
       $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
