@@ -701,8 +701,10 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
               <Champ etiquette="Commune" valeur={c.commune || 'non renseignée'} />
               <Champ etiquette="Badge PRO" ton="vert"
                 valeur={t.pro.depuis ? `✓ Actif depuis ${dateCourte(t.pro.depuis)}` : '✓ Actif'} />
+              {/* Court : la colonne fait la moitié d'un téléphone, « 2 personnes
+                  vous suivent » s'y coupait au milieu. */}
               <Champ etiquette="Abonnés"
-                valeur={`${t.pro.abonnes ?? 0} personne${(t.pro.abonnes ?? 0) > 1 ? 's' : ''} vous sui${(t.pro.abonnes ?? 0) > 1 ? 'vent' : 't'}`} />
+                valeur={`${t.pro.abonnes ?? 0} personne${(t.pro.abonnes ?? 0) > 1 ? 's' : ''}`} />
               <Champ etiquette="Page publique" ton="orange"
                 valeur={(userId ?? user?.id) ? (lecture ? 'Voir sa page vendeur →' : 'Voir ma page vendeur →') : '—'}
                 lien={(userId ?? user?.id) ? `/vendeur/${userId ?? user?.id}` : undefined} />

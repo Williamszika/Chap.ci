@@ -114,7 +114,9 @@ export function Emploi() {
               </div>
             )}
             <p className="mt-3 flex flex-wrap items-center gap-1 text-xs text-gray-500">
-              <Clock size={12} /> Publiée {timeAgo(offre.createdAt)}
+              {/* « Publiée à l’instant », pas « Publiée À l’instant » : timeAgo
+                  commence sa phrase, ici elle est au milieu de la nôtre. */}
+              <Clock size={12} /> Publiée {timeAgo(offre.createdAt).replace(/^À/, 'à')}
               {offre.expiresAt != null && !fermee && <> · jusqu’au {dateOffre(offre.expiresAt)}</>}
             </p>
             {fermee && (
