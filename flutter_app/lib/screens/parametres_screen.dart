@@ -57,6 +57,9 @@ class _ParametresScreenState extends State<ParametresScreen> {
   bool _notifEmail = true;
   bool _notifPretes = false;
   bool _notifEnvoi = false;
+  /// Les réglages n'ont pas pu être lus : ceux affichés sont les valeurs par
+  /// défaut, pas forcément les vôtres. On l'écrit sous les interrupteurs.
+  bool _notifHorsLigne = false;
 
   @override
   void initState() {
@@ -104,11 +107,20 @@ class _ParametresScreenState extends State<ParametresScreen> {
           _notifStock = d['stock'] != false;
           _notifEmail = d['email'] != false;
           _notifPretes = true;
+          _notifHorsLigne = false; // lus pour de bon : la mention disparaît
         });
       }
     } catch (_) {
-      // Hors ligne : on montre les interrupteurs avec les valeurs par défaut.
-      if (mounted) setState(() => _notifPretes = true);
+      // Hors ligne : on montre les interrupteurs avec les valeurs par défaut —
+      // et ON LE DIT. Sans cette mention, la personne lisait des réglages qui
+      // n'étaient pas les siens sans que rien ne le signale (relevé par
+      // 🤝 Le Concierge le 07/09/2026).
+      if (mounted) {
+        setState(() {
+          _notifPretes = true;
+          _notifHorsLigne = true;
+        });
+      }
     }
   }
 
@@ -392,6 +404,23 @@ class _ParametresScreenState extends State<ParametresScreen> {
 
                     _label(tr(context, 'section.notifications')),
                     _groupeNotifs(),
+                    if (_notifHorsLigne)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.cloud_off_outlined,
+                                size: 14, color: ChapColors.gray500),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(tr(context, 'notif.horsLigne'),
+                                  style: const TextStyle(
+                                      fontSize: 12, color: ChapColors.gray600)),
+                            ),
+                          ],
+                        ),
+                      ),
                     // Les rappels du professionnel : seulement pour un compte
                     // Pro approuvé — un particulier n'a ni bilan ni candidatures.
                     if (_notifPretes && _proStatut == 'approuve') ...[

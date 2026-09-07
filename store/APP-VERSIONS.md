@@ -151,7 +151,7 @@ le 26/08, le jour même du seuil).
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `4b7a22c` — le code ET la montée de version, dans le même commit. |
+| **Commit** | `012759d` — **le HEAD réel au 07/09/2026**, pas celui de la montée de version. `4b7a22c` n'a porté que `1.25.0+26` dans `pubspec.yaml` ; **vingt commits `flutter_app/` sont venus après lui** (vidéo d'une minute, affiche WhatsApp, « Faire une offre », annonce écrite depuis la photo, recherche ivoirienne, offres d'emploi, comptes hors CI, stock des comptes Pro, liens de notification), tous racontés dans le corps de cette fiche. Le champ a été rectifié le 07/09/2026 sur signalement du bureau Livraison — il indiquait encore `4b7a22c`, et un Monteur qui l'aurait cru aurait construit une application vieille de seize commits. `pubspec.yaml` reste à `1.25.0+26` : la valeur est bonne, jamais construite ni téléversée, **on n'y touche pas**. |
 | Date du build | **NON CONSTRUITE** — le code est prêt dans le dépôt, l'AAB n'existe pas encore. |
 | Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
 | minSdk 22 · targetSdk **36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33`. |

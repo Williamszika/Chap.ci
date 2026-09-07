@@ -700,13 +700,20 @@ class _PublierScreenState extends State<PublierScreen> {
       Navigator.of(context).pop(true); // le shell affiche la confirmation
     } on ApiException catch (e) {
       // Couvre : e-mail non confirmé, modération, moins de 3 photos retenues…
-      if (mounted) _dialogue(tr(context, 'pub.publication'), e.message);
+      // et la coupure réseau. « Compris » seul laissait la personne devant un
+      // formulaire rempli sans lui dire quoi faire (relevé par 🤝 Le Concierge
+      // le 07/09/2026) : on lui rend le geste, comme l'accueil et l'explorer.
+      if (mounted) {
+        _dialogue(tr(context, 'pub.publication'), e.message, reessayer: _publier);
+      }
     } finally {
       if (mounted) setState(() => _envoi = false);
     }
   }
 
-  void _dialogue(String titre, String message) {
+  /// Un dialogue d'erreur. Avec [reessayer], il offre le geste au lieu d'une
+  /// impasse : « Réessayer » referme et relance l'action.
+  void _dialogue(String titre, String message, {Future<void> Function()? reessayer}) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -717,6 +724,13 @@ class _PublierScreenState extends State<PublierScreen> {
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(tr(context, 'action.compris'))),
+          if (reessayer != null)
+            FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  reessayer();
+                },
+                child: Text(tr(context, 'action.reessayer'))),
         ],
       ),
     );

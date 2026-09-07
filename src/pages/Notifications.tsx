@@ -175,16 +175,20 @@ export function Notifications() {
           <p className="min-w-0 flex-1 text-[13px] leading-snug text-gray-700">
             Être prévenu <b>même quand Chap.ci est fermé</b> : un message, une vente, un stock qui baisse.
           </p>
+          {/* Deux cibles côte à côte, sur un trottoir, au pouce : chacune fait
+              ses 44 px sur les DEUX axes — sinon « Ne plus proposer » se prend
+              à la place d'« Activer ». Le ✕ de l'en-tête, plus haut dans ce
+              même fichier, est déjà en h-11 w-11 (relevé par 🎨 L'Atelier). */}
           <button
             onClick={activerPousse}
             disabled={pousseOccupe}
-            className="shrink-0 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-bold text-white active:scale-95 disabled:opacity-60"
+            className="min-h-[44px] shrink-0 rounded-lg bg-primary-500 px-3.5 py-3 text-xs font-bold text-white active:scale-95 disabled:opacity-60"
           >
             {pousseOccupe ? '…' : 'Activer'}
           </button>
           <button
             onClick={() => { setPousseEcarte(true); try { localStorage.setItem('chapci_push_ecarte', '1') } catch { /* mode privé */ } }}
-            className="shrink-0 rounded p-1 text-gray-500 active:text-gray-700"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-gray-500 active:text-gray-700"
             aria-label="Ne plus proposer"
           >
             ✕
@@ -226,7 +230,7 @@ export function Notifications() {
       {!user ? (
         <Empty text="Connectez-vous pour voir vos notifications." />
       ) : loading ? (
-        <p className="px-4 py-12 text-center text-sm text-gray-400">Chargement…</p>
+        <p className="px-4 py-12 text-center text-sm text-gray-500">Chargement…</p>
       ) : loadError ? (
         <div className="grid place-items-center gap-3 px-4 py-16 text-center text-gray-500">
           <Bell size={40} className="text-gray-300" />

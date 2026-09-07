@@ -164,20 +164,22 @@ function Ligne({ l, occupe, onEcrire }: { l: LigneStock; occupe: boolean; onEcri
             {l.price > 0 ? formatFCFA(l.price) : 'Gratuit'}
             {l.stockEtat === 'rupture' && <span className="ml-2 font-bold text-red-600">Rupture de stock</span>}
             {l.stockEtat === 'bas' && <span className="ml-2 font-bold text-ivoire-orange">Sous le minimum</span>}
-            {l.hidden && <span className="ml-2 text-gray-400">· masquée</span>}
+            {l.hidden && <span className="ml-2 text-gray-500">· masquée</span>}
           </p>
         </div>
         {/* − quantité + : le geste du comptoir. */}
         <div className="flex shrink-0 items-center gap-1">
+          {/* 44 px sur les deux axes : c'est « le geste du comptoir », un pouce
+              qui tape vite en plein marché (relevé par 🎨 L'Atelier). */}
           <button aria-label="Retirer un" onClick={() => onEcrire({ stock: Math.max(0, stock - 1) })} disabled={occupe || stock <= 0}
-            className="grid h-9 w-9 place-items-center rounded-full border border-line2 bg-white text-gray-700 transition active:scale-95 disabled:opacity-40">
+            className="grid h-11 w-11 place-items-center rounded-full border border-line2 bg-white text-gray-700 transition active:scale-95 disabled:opacity-40">
             <Minus size={16} />
           </button>
           <span className={`tnum w-10 text-center font-display text-lg font-extrabold ${teinte}`}>
             {occupe ? <Loader2 size={16} className="mx-auto animate-spin" /> : formatPrice(stock)}
           </span>
           <button aria-label="Ajouter un" onClick={() => onEcrire({ stock: stock + 1 })} disabled={occupe}
-            className="grid h-9 w-9 place-items-center rounded-full border border-line2 bg-white text-gray-700 transition active:scale-95 disabled:opacity-40">
+            className="grid h-11 w-11 place-items-center rounded-full border border-line2 bg-white text-gray-700 transition active:scale-95 disabled:opacity-40">
             <Plus size={16} />
           </button>
         </div>
@@ -192,7 +194,7 @@ function Ligne({ l, occupe, onEcrire }: { l: LigneStock; occupe: boolean; onEcri
             className="tnum w-16 rounded-lg border border-line2 bg-white px-2 py-1 text-center text-sm text-ink outline-none focus:border-primary-500"
           />
         </label>
-        <button onClick={() => onEcrire({ stock: null })} disabled={occupe} className="text-gray-400 underline-offset-2 hover:underline">
+        <button onClick={() => onEcrire({ stock: null })} disabled={occupe} className="min-h-[44px] text-gray-500 underline-offset-2 hover:underline">
           Ne plus suivre
         </button>
       </div>

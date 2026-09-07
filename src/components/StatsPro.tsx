@@ -147,7 +147,7 @@ export function StatsPro() {
                     {formatPrice(n)}
                   </span>
                 </span>
-                <span className="tnum w-9 shrink-0 text-right text-[10.5px] text-gray-400">
+                <span className="tnum w-9 shrink-0 text-right text-[10.5px] text-gray-500">
                   {passage === null ? '' : `${passage} %`}
                 </span>
               </div>

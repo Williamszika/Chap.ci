@@ -113,8 +113,11 @@ const sections: Section[] = [
         q: 'Comment protéger mon compte ?',
         a: (
           <>
-            Activez la <b>double authentification (2FA)</b> depuis <b>Compte → Paramètres</b>, et ne partagez
-            jamais votre mot de passe. Chap.ci ne vous demandera jamais votre mot de passe par message.
+            Activez la <b>double authentification (2FA)</b> : un code supplémentaire, généré par une
+            application sur votre téléphone, vous sera demandé en plus de votre mot de passe à chaque
+            connexion. Votre compte reste protégé même si quelqu’un devine votre mot de passe. Ça se
+            règle dans <b>Compte → Paramètres → Sécurité</b>. Et ne partagez jamais votre mot de passe :
+            Chap.ci ne vous le demandera jamais par message.
           </>
         ),
       },

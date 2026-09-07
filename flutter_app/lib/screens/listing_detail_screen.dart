@@ -693,7 +693,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
           style: OutlinedButton.styleFrom(
             foregroundColor: ChapColors.marqueSombre,
             side: const BorderSide(color: ChapColors.marque),
-            minimumSize: const Size(0, 44),
+            // 48 dp, comme le bouton voisin de ce même fichier : c'est le
+            // seuil Material, et la fiche d'annonce est l'écran le plus vu.
+            minimumSize: const Size(0, 48),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14)),

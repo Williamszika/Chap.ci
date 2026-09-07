@@ -34,6 +34,28 @@ function seo_pdo(array $cfg): ?PDO {
 }
 
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+/**
+ * LE PRIX RÉELLEMENT AFFICHÉ — promotion comprise, EXPIRATION COMPRISE.
+ *
+ * Trouvé par 📣 Le Crieur le 07/09/2026 : ce fichier lisait partout
+ * `promo_price ?: price` sans jamais regarder `promo_until`. L'annonce « Un Lit
+ * capitonné » annonçait donc 585 000 FCFA à Google et à WhatsApp quinze jours
+ * après la fin de sa promotion, quand le site montrait bien 650 000 FCFA à un
+ * visiteur. Un prix faux sur un partage, c'est l'acheteur qui arrive avec un
+ * chiffre en tête et repart fâché — et un rich result que Google peut refuser.
+ *
+ * Même garde que `listing_prix_effectif()` dans api/index.php, et que
+ * `src/lib/promo.ts` sur le site : une promotion SANS date de fin reste active,
+ * une promotion datée ne vaut que jusqu'à sa date. Les dates sont des chaînes
+ * ISO en UTC (« 2026-09-07T10:00:00Z ») : la comparaison de texte suffit.
+ */
+function seo_prix(array $l): int {
+  $promo = (int) ($l['promo_price'] ?? 0);
+  $fin   = (string) ($l['promo_until'] ?? '');
+  if ($promo > 0 && ($fin === '' || $fin > gmdate('Y-m-d\TH:i:s\Z'))) return $promo;
+  return (int) ($l['price'] ?? 0);
+}
 function abs_img(string $img, string $site, string $upub): string {
   if ($img === '') return '';
   if (strncmp($img, 'http', 4) === 0) return $img;
@@ -153,7 +175,7 @@ if (preg_match('#/annonce/([A-Za-z0-9-]+)#', $uri, $m) && $pdo) {
   if ($l) {
     $imgs = $l['images'] ? (json_decode($l['images'], true) ?: []) : [];
     $img  = abs_img((string) ($imgs[0] ?? ''), $site, $upub);
-    $price = number_format((int) ($l['promo_price'] ?: $l['price']), 0, ',', ' ');
+    $price = number_format(seo_prix($l), 0, ',', ' ');
     $loc = $l['commune'] ?: ($l['city_id'] ?: '');
     $title = $l['title'] . ' — ' . $price . ' FCFA' . ($loc ? ' · ' . $loc : '') . ' | Chap.ci';
     $descRaw = trim((string) ($l['description'] ?? ''));
@@ -251,7 +273,7 @@ function render_page(string $title, string $desc, string $img, string $canon, st
       'category' => (string) ($l['category_id'] ?? ''),
       'offers' => [
         '@type' => 'Offer',
-        'price' => (int) ($l['promo_price'] ?: $l['price']),
+        'price' => seo_prix($l),
         'priceCurrency' => 'XOF', // franc CFA (FCFA)
         'availability' => empty($l['sold']) ? 'https://schema.org/InStock' : 'https://schema.org/SoldOutOfStock',
         'url' => $canon,
@@ -406,7 +428,9 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
   $items = [];
   if ($pdo) {
     try {
-      $st = $pdo->prepare('SELECT id,title,price,promo_price,images,commune FROM listings
+      // `promo_until` EST INDISPENSABLE : sans elle, seo_prix() ne peut pas
+      // savoir qu'une promotion est finie et la carte afficherait un prix faux.
+      $st = $pdo->prepare('SELECT id,title,price,promo_price,promo_until,images,commune FROM listings
         WHERE category_id = ? AND (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)
         ORDER BY created_at DESC LIMIT 12');
       $st->execute([$catSlug]);
@@ -483,7 +507,7 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
       $img  = abs_img((string) ($imgs[0] ?? ''), $site, $upub);
       // Un prix à zéro s'écrit « Gratuit », jamais « 0 FCFA » : c'est ce que
       // l'application affiche déjà, et c'est la seule forme juste dans « À donner ».
-      $montant = (int) ($it['promo_price'] ?: $it['price']);
+      $montant = seo_prix($it);
       $pr   = $montant === 0 ? 'Gratuit' : number_format($montant, 0, ',', ' ') . ' FCFA';
       $url  = $site . '/annonce/' . $it['id'];
       echo "<a class=\"card\" href=\"" . h($url) . "\">"

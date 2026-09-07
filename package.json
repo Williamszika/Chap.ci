@@ -31,6 +31,7 @@
     "banc:pays": "node scripts/banc-pays.mjs",
     "banc:coherence": "node scripts/banc-coherence.mjs",
     "banc:stock": "node scripts/banc-stock.mjs",
+    "banc:seo": "node scripts/banc-seo.mjs",
     "banc:front": "node scripts/banc-front.mjs",
     "synonymes": "node scripts/synonymes.mjs",
     "prebuild": "node scripts/synonymes.mjs",
