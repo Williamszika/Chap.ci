@@ -131,12 +131,12 @@ export function Login() {
       <div className="w-full max-w-sm rounded-[22px] border border-line bg-white p-6 shadow-[0_12px_34px_-10px_rgba(120,70,10,0.28),0_6px_14px_-8px_rgba(120,70,10,0.20)] md:max-w-[420px] md:p-7">
         <button
           onClick={() => navigate('/')}
-          className="mb-3 -ml-1 inline-flex items-center gap-1 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
+          className="-ml-1 mb-1 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
         >
           <ArrowLeft size={16} /> Accueil
         </button>
         <div className="mb-5 flex flex-col items-center text-center">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2" aria-label="Accueil Chap.ci">
+          <button onClick={() => navigate('/')} className="inline-flex min-h-11 items-center gap-2" aria-label="Accueil Chap.ci">
             <Mark size={30} />
             <Wordmark className="text-lg text-ink" />
           </button>
@@ -219,7 +219,9 @@ export function Login() {
                   <button
                     type="button"
                     onClick={() => navigate('/mot-de-passe-oublie')}
-                    className="text-sm font-semibold text-primary-600"
+                    /* 20 px de haut pour la seule issue de secours de quelqu'un
+                       qui ne peut plus entrer : 44 px (🎨 L'Atelier, 07/09/2026). */
+                    className="inline-flex min-h-11 items-center text-sm font-semibold text-primary-600"
                   >
                     Mot de passe oublié ?
                   </button>
@@ -262,7 +264,10 @@ export function Login() {
 
             <p className="mt-5 text-center text-sm text-gray-500">
               Pas encore de compte ?{' '}
-              <button onClick={() => navigate('/inscription', { state: { from } })} className="font-semibold text-primary-600">
+              <button
+                onClick={() => navigate('/inscription', { state: { from } })}
+                className="inline-flex min-h-11 items-center font-semibold text-primary-600"
+              >
                 Créer un compte
               </button>
             </p>

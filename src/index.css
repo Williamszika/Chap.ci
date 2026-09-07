@@ -115,8 +115,16 @@ select:focus-visible,
 
 @layer components {
   /* Puce de filtre par état (« En ligne · 14 ») — Mes annonces, Commandes. */
+  /* Pastille de filtre (« Tout · 12 », « Électronique · 4 », « 🇫🇷 Français »).
+   *
+   * 44 px DE HAUT, et c'est le minimum, pas un confort. Elles faisaient 30 px :
+   * le banc du front en a compté cinq sur la vitrine d'un vendeur et six sur la
+   * page d'aide, toutes ratables du pouce (🎨 L'Atelier, 07/09/2026). Un filtre
+   * qu'on rate, c'est un acheteur qui repart en croyant que la boutique n'a que
+   * ça. La hauteur vient de `min-h-11` et non du `py-*` : le texte reste petit,
+   * seule la zone tapable grandit. */
   .chip-etat {
-    @apply shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12px] font-bold transition active:scale-[0.97];
+    @apply inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-[12px] font-bold transition active:scale-[0.97];
   }
   /* Pastille de tendance du tableau de bord professionnel (« ▲ 18 % »). */
   .chip-delta {

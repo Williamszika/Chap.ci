@@ -2128,6 +2128,13 @@ function migrate(PDO $pdo): void {
   // (« /uploads/videos/… »), une seule par annonce, NULL sans vidéo.
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN video $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // LE POIDS DE LA VIDÉO, en octets (07/09/2026). Relevé UNE FOIS à l'envoi :
+  // le mesurer à chaque lecture ferait un `filesize()` par annonce sur un fil
+  // de cinq cents. ⚡ Le Mécanicien, ce jour : une vidéo au plafond fait 60 Mo,
+  // soit 60 à 120 FCFA de forfait — 6 à 12 % d'un passe de 1 Go. L'acheteur
+  // doit voir ce qu'il va payer AVANT d'appuyer.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN video_octets $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   // LE STOCK DES COMPTES PROFESSIONNELS (07/09/2026). `stock` NULL = l'annonce
   // ne suit pas de stock (un particulier, ou un pro qui ne l'a pas demandé) ;
   // `stock_min` le seuil d'alerte (5 par défaut, le chiffre du Patron) ;
@@ -5980,6 +5987,71 @@ function stock_rendre(PDO $pdo, string $orderId): int {
   } catch (Throwable $e) { return 0; }
 }
 
+/**
+ * Les commandes d'un compte, dans un rôle donné ('buyer' ou 'seller').
+ *
+ * ⚡ Le Mécanicien, 07/09/2026 : l'écran « Mon compte » demandait cette liste
+ * DEUX FOIS à l'ouverture — une fois pour les achats, une fois pour les ventes.
+ * Et chaque commande coûtait à elle seule deux requêtes de base : ses articles,
+ * puis le nom de l'autre personne. Cinquante commandes faisaient donc cent une
+ * requêtes SQL, deux fois. On lit désormais les articles et les noms EN UNE
+ * FOIS chacun, et la route sait répondre aux deux rôles d'un seul aller-retour
+ * (`role=deux`).
+ */
+function orders_lister(PDO $pdo, string $uid, string $role): array {
+  $col = $role === 'seller' ? 'seller_id' : 'buyer_id';
+  $st = $pdo->prepare("SELECT * FROM orders WHERE $col = ? ORDER BY created_at DESC");
+  $st->execute([$uid]);
+  $orders = $st->fetchAll();
+  if (!$orders) return [];
+
+  // Les identifiants dont on aura besoin : les commandes, et les autres personnes.
+  $ids = array_map(fn($o) => (string) $o['id'], $orders);
+  $autres = [];
+  foreach ($orders as $o) {
+    $autres[(string) ($role === 'seller' ? $o['buyer_id'] : $o['seller_id'])] = true;
+  }
+  $autres = array_keys($autres);
+
+  // Tous les articles d'un coup, rangés par commande.
+  $parCommande = [];
+  $trous = implode(',', array_fill(0, count($ids), '?'));
+  $its = $pdo->prepare("SELECT * FROM order_items WHERE order_id IN ($trous)");
+  $its->execute($ids);
+  foreach ($its->fetchAll() as $i) {
+    $parCommande[(string) $i['order_id']][] = [
+      'listingId' => $i['listing_id'], 'title' => $i['title'], 'price' => (int) $i['price'],
+      'image' => $i['image'] ?: null,
+    ];
+  }
+
+  // Tous les noms d'un coup.
+  $noms = [];
+  if ($autres) {
+    $trous = implode(',', array_fill(0, count($autres), '?'));
+    $pn = $pdo->prepare("SELECT id, full_name FROM profiles WHERE id IN ($trous)");
+    $pn->execute($autres);
+    foreach ($pn->fetchAll() as $p) $noms[(string) $p['id']] = (string) ($p['full_name'] ?? '');
+  }
+
+  $out = [];
+  foreach ($orders as $o) {
+    $autre = (string) ($role === 'seller' ? $o['buyer_id'] : $o['seller_id']);
+    $out[] = [
+      'id' => $o['id'], 'buyerId' => $o['buyer_id'], 'sellerId' => $o['seller_id'],
+      'conversationId' => $o['conversation_id'], 'status' => $o['status'] ?: 'en_cours',
+      'createdAt' => iso_to_ms($o['created_at']),
+      'items' => $parCommande[(string) $o['id']] ?? [],
+      // Commandes conclues avant l'ajout de la colonne : on retombe sur la
+      // date de demande plutôt que d'afficher un vide.
+      'finalizedAt' => ($o['status'] ?? '') === 'finalise'
+        ? iso_to_ms($o['finalized_at'] ?: $o['created_at']) : null,
+      'otherName' => ($noms[$autre] ?? '') !== '' ? $noms[$autre] : 'Utilisateur',
+    ];
+  }
+  return $out;
+}
+
 /** Le compte est-il un professionnel approuvé ? */
 function pro_approuve(PDO $pdo, string $uid): bool {
   try {
@@ -6354,6 +6426,11 @@ function listing_out(array $r, bool $withPhone = false): array {
     // La vidéo de quinze secondes : son adresse publique, ou null. `?? null`
     // pour une base pas encore migrée (la colonne arrive au premier appel).
     'video' => (isset($r['video']) && (string) $r['video'] !== '') ? (string) $r['video'] : null,
+    // Le poids de la vidéo, en octets — pour l'annoncer avant de la lancer.
+    // Null sur une vidéo envoyée avant le 07/09/2026 : l'écran n'affiche
+    // alors rien plutôt qu'un chiffre inventé.
+    'videoOctets' => (isset($r['video_octets']) && $r['video_octets'] !== null)
+      ? (int) $r['video_octets'] : null,
     // Le stock d'un professionnel (07/09/2026) : NULL quand l'annonce n'en
     // suit pas. L'état dit ce que l'écran doit montrer — « Plus que 3 »,
     // « Rupture de stock » — sans refaire le calcul à trois endroits.
@@ -8215,7 +8292,9 @@ try {
     // L'ancienne vidéo ne sert plus à personne : on la retire tout de suite,
     // sinon chaque remplacement laisserait dix mégaoctets orphelins.
     video_supprimer($config, (string) ($row['video'] ?? ''));
-    $pdo->prepare('UPDATE listings SET video = ? WHERE id = ?')->execute([$url, $seg[1]]);
+    // Le poids part avec l'adresse : c'est lui qui s'affichera sur le bouton.
+    $pdo->prepare('UPDATE listings SET video = ?, video_octets = ? WHERE id = ?')
+        ->execute([$url, $taille, $seg[1]]);
     jout(['ok' => true, 'video' => $url, 'octets' => $taille]);
   }
 
@@ -8228,7 +8307,7 @@ try {
     if (!$row) jerr('Annonce introuvable.', 404);
     if ($row['user_id'] !== $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
     video_supprimer($config, (string) ($row['video'] ?? ''));
-    $pdo->prepare('UPDATE listings SET video = NULL WHERE id = ?')->execute([$seg[1]]);
+    $pdo->prepare('UPDATE listings SET video = NULL, video_octets = NULL WHERE id = ?')->execute([$seg[1]]);
     if ($row['user_id'] !== $u['id']) log_security_event($pdo, 'admin_video_deleted', $u['email'] ?? null, $seg[1]);
     jout(['ok' => true]);
   }
@@ -9387,31 +9466,17 @@ try {
 
   if ($path === 'orders' && $method === 'GET') {
     $u = require_user($pdo, $secret);
-    $role = ($_GET['role'] ?? 'buyer') === 'seller' ? 'seller' : 'buyer';
-    $col = $role === 'buyer' ? 'buyer_id' : 'seller_id';
-    $st = $pdo->prepare("SELECT * FROM orders WHERE $col = ? ORDER BY created_at DESC");
-    $st->execute([$u['id']]); $orders = $st->fetchAll();
-    $out = [];
-    foreach ($orders as $o) {
-      $its = $pdo->prepare('SELECT * FROM order_items WHERE order_id = ?'); $its->execute([$o['id']]);
-      $items = array_map(fn($i) => [
-        'listingId' => $i['listing_id'], 'title' => $i['title'], 'price' => (int) $i['price'],
-        'image' => $i['image'] ?: null,
-      ], $its->fetchAll());
-      $otherId = $role === 'buyer' ? $o['seller_id'] : $o['buyer_id'];
-      $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$otherId]);
-      $out[] = [
-        'id' => $o['id'], 'buyerId' => $o['buyer_id'], 'sellerId' => $o['seller_id'],
-        'conversationId' => $o['conversation_id'], 'status' => $o['status'] ?: 'en_cours',
-        'createdAt' => iso_to_ms($o['created_at']), 'items' => $items,
-        // Commandes conclues avant l'ajout de la colonne : on retombe sur la
-        // date de demande plutôt que d'afficher un vide.
-        'finalizedAt' => ($o['status'] ?? '') === 'finalise'
-          ? iso_to_ms($o['finalized_at'] ?: $o['created_at']) : null,
-        'otherName' => ($pn->fetch()['full_name'] ?? null) ?: 'Utilisateur',
-      ];
+    $demande = (string) ($_GET['role'] ?? 'buyer');
+    // `role=deux` (07/09/2026) : les achats ET les ventes en UN aller-retour.
+    // Les anciens `role=buyer` / `role=seller` répondent comme avant — une
+    // application déjà installée continue de fonctionner.
+    if ($demande === 'deux') {
+      jout([
+        'achats' => orders_lister($pdo, $u['id'], 'buyer'),
+        'ventes' => orders_lister($pdo, $u['id'], 'seller'),
+      ]);
     }
-    jout($out);
+    jout(orders_lister($pdo, $u['id'], $demande === 'seller' ? 'seller' : 'buyer'));
   }
 
   if (count($seg) === 2 && $seg[0] === 'orders' && $method === 'PATCH') {

@@ -239,14 +239,29 @@ for (const p of PAGES) {
     // Les cibles tactiles sous 44 px de HAUT (un lien large mais bas se rate
     // autant qu'un petit bouton) — hors les liens dans une phrase, que le
     // pouce ne vise pas isolément.
+    // UNE CASE À COCHER SE TOUCHE PAR SON LIBELLÉ. Un `<input type="checkbox">`
+    // fait toujours 16 ou 20 px : c'est le navigateur qui le dessine, on n'y
+    // peut rien. Mais s'il est DANS un `<label>`, c'est tout le libellé qui est
+    // tapable — et c'est cette boîte-là qu'il faut mesurer. Le banc criait
+    // sinon au loup sur trois cases parfaitement atteignables, à chaque
+    // passage, pour toujours : une alerte qui ne peut pas s'éteindre finit par
+    // ne plus être lue (07/09/2026).
+    const boite = (el) => {
+      if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio')) {
+        const lab = el.closest('label')
+          || (el.id ? document.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null)
+        if (lab) return lab.getBoundingClientRect()
+      }
+      return el.getBoundingClientRect()
+    }
     const petites = [...document.querySelectorAll('a[href], button, [role="button"], input, select, textarea')].filter((el) => {
-      const r = el.getBoundingClientRect(); const st = getComputedStyle(el)
+      const r = boite(el); const st = getComputedStyle(el)
       if (!(r.width > 0 && r.height > 0) || st.visibility === 'hidden') return false
       if (st.display === 'inline' && el.parentElement && (el.parentElement.textContent || '').trim().length > (el.textContent || '').trim().length + 12) return false
       return r.height < 44 || r.width < 44
     })
     const cibles = petites.length
-    const ciblesListe = petites.slice(0, 10).map((el) => { const r = el.getBoundingClientRect(); return `${el.tagName.toLowerCase()} ${Math.round(r.width)}×${Math.round(r.height)} « ${(el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 28)} »` })
+    const ciblesListe = petites.slice(0, 10).map((el) => { const r = boite(el); return `${el.tagName.toLowerCase()} ${Math.round(r.width)}×${Math.round(r.height)} « ${(el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 28)} »` })
     const sansNom = [...document.querySelectorAll('button, a[href]')].filter((el) => {
       const r = el.getBoundingClientRect(); if (r.width === 0) return false
       const nom = (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim()

@@ -393,7 +393,8 @@ export function Faq() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t ? t.recherche : 'Rechercher une question…'}
-            className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-gray-400"
+            /* 44 px de zone tapable, la boîte garde sa taille : voir Home.tsx. */
+            className="-my-3 min-h-11 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-gray-400"
           />
         </div>
 

@@ -76,7 +76,10 @@ export function PillesReseaux({ reseaux, nom }: { reseaux?: Reseaux | null; nom:
             rel="noopener noreferrer nofollow"
             title={lisible(url)}
             style={{ background: d.fond, color: d.encre }}
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full pl-3 pr-4 text-[12.5px] font-extrabold shadow-[0_5px_14px_-7px_rgba(0,0,0,0.55)] transition hover:brightness-110 active:scale-95"
+            /* 44 px de haut, pas 40 : ces pastilles sortent du site vers le
+               compte du vendeur, et une main qui rate le bouton croit que le
+               vendeur n'a pas de WhatsApp (🎨 L'Atelier, 07/09/2026). */
+            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full pl-3 pr-4 text-[12.5px] font-extrabold shadow-[0_5px_14px_-7px_rgba(0,0,0,0.55)] transition hover:brightness-110 active:scale-95"
           >
             <IconeReseau id={d.id} size={16} /> {d.nom}
           </a>

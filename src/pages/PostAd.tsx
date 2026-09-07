@@ -1012,7 +1012,7 @@ export function PostAd() {
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Retour"
-          className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
+          className="mb-1 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-gray-500 transition hover:text-primary-600"
         >
           <ArrowLeft size={18} /> Retour
         </button>
@@ -1545,7 +1545,11 @@ export function PostAd() {
             prix={priceNum}
             sauf={editId ?? undefined}
           />
-          <label className="mt-2.5 flex items-center gap-2 text-sm text-gray-700">
+          {/* Le libellé EST la cible — mais il ne faisait qu'une ligne, soit
+              20 px. Les autres cases de cette page vivent dans un cadre en
+              `py-3` et dépassent déjà 44 px ; celle-ci était nue
+              (🎨 L'Atelier, 07/09/2026). */}
+          <label className="mt-2.5 flex min-h-11 items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
               checked={negotiable}
@@ -1699,7 +1703,7 @@ export function PostAd() {
             type="button"
             onClick={detect}
             disabled={locating}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition active:scale-[0.99] disabled:opacity-60"
+            className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition active:scale-[0.99] disabled:opacity-60"
           >
             <LocateFixed size={16} />
             {locating ? 'Localisation…' : loc.regionId ? 'Actualiser ma position (GPS)' : 'Activer ma position (GPS)'}
@@ -1708,7 +1712,10 @@ export function PostAd() {
             <button
               type="button"
               onClick={() => setLocOpen(true)}
-              className="mt-2 w-full text-center text-xs text-gray-500 underline"
+              /* C'est le recours quand le GPS a raté, et il ne faisait que
+                 16 px de haut : la personne dont la position ne se trouve pas
+                 devait viser une ligne de texte (🎨 L'Atelier, 07/09/2026). */
+              className="mt-2 flex min-h-11 w-full items-center justify-center text-center text-xs text-gray-500 underline"
             >
               La détection a échoué ? Choisir manuellement
             </button>

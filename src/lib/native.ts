@@ -6,10 +6,23 @@
 //  « /imgly/ » ne pointent donc PAS vers chap.ci. On force alors le domaine de
 //  production. Sur le web, on garde les URLs relatives (même origine).
 // =============================================================================
-import { Capacitor } from '@capacitor/core'
-
-/** true dans l'app native empaquetée, false sur le site web. */
-export const isNative = Capacitor.isNativePlatform()
+/**
+ * true dans l'app native empaquetée, false sur le site web.
+ *
+ * ⚠️ TOUJOURS FAUX DEPUIS LE 07/09/2026, ET C'EST DÉFINITIF. Cette valeur
+ * venait de `Capacitor.isNativePlatform()`. L'application est passée à Flutter
+ * à la v1.20 : plus rien n'empaquette ce site dans une coque Capacitor, et
+ * `isNativePlatform()` ne pouvait donc plus rendre vrai. Mais l'import restait,
+ * et avec lui **3,57 Ko compressés dans le paquet d'entrée** — chargés par
+ * chaque visiteur, à chaque première visite, pour une branche morte
+ * (⚡ Le Mécanicien, 07/09/2026).
+ *
+ * La constante GARDE SON NOM : ses vingt-cinq lectures continuent de
+ * fonctionner, le compilateur élimine simplement les branches devenues
+ * inatteignables. Le jour où une coque Capacitor reviendrait, il suffirait de
+ * remettre l'import ici — un seul endroit.
+ */
+export const isNative = false
 
 /** Domaine de production (utilisé uniquement par l'app native). */
 export const SITE_ORIGIN = 'https://chap.ci'

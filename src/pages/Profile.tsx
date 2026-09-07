@@ -61,7 +61,7 @@ import { useLocalStorage } from '../lib/useLocalStorage'
 import { priceLabel, formatFCFA, timeAgo } from '../lib/format'
 import { locationLabel } from '../data/locations'
 import { categories } from '../data/categories'
-import { fetchOrders } from '../lib/orders'
+import { fetchOrdersDeux } from '../lib/orders'
 import { fetchReviewsForSeller, averageRating } from '../lib/reviews'
 import { updateMyProfile, fetchProfile } from '../lib/profiles'
 import { fetchMyListings, fetchSavedSearches, deleteSavedSearch, savedSearchesEnabled, fetchSellerAnalytics, type SavedSearch, type SellerAnalytics } from '../lib/api'
@@ -213,21 +213,26 @@ export function Profile() {
   const catBarColors = ['bg-action-500', 'bg-ivoire-green', 'bg-accent-gold', 'bg-accent-sky']
 
   // Recharge les deux listes de commandes après une action (finaliser, annuler).
+  //
+  // ⚡ Le Mécanicien, 07/09/2026 : c'était DEUX appels à `/api/orders` — un
+  // pour les achats, un pour les ventes — à l'ouverture du compte comme après
+  // chaque action. Le serveur sait désormais répondre aux deux d'un coup
+  // (`role=deux`) : un aller-retour de moins sur une 3G qui les compte.
   const reloadOrders = useRef(async () => {})
   reloadOrders.current = async () => {
     if (!user) return
-    const [a, v] = await Promise.all([
-      fetchOrders(user.id, 'buyer').catch(() => purchases),
-      fetchOrders(user.id, 'seller').catch(() => sales),
-    ])
-    setPurchases(a); setSales(v)
+    try {
+      const { achats, ventes } = await fetchOrdersDeux()
+      setPurchases(achats); setSales(ventes)
+    } catch { /* on garde les listes affichées */ }
   }
 
   useEffect(() => {
     if (!user) return
     let active = true
-    fetchOrders(user.id, 'buyer').then((o) => active && setPurchases(o)).catch(() => {})
-    fetchOrders(user.id, 'seller').then((o) => active && setSales(o)).catch(() => {})
+    fetchOrdersDeux()
+      .then(({ achats, ventes }) => { if (active) { setPurchases(achats); setSales(ventes) } })
+      .catch(() => {})
     fetchReviewsForSeller(user.id).then((r) => active && setMyReviews(r)).catch(() => {})
     fetchProfile(user.id).then((p) => active && setAvatarUrl(p?.avatarUrl ?? '')).catch(() => {})
     return () => {
@@ -277,7 +282,8 @@ export function Profile() {
                 {user.email}{seller.phone ? ` · ${seller.phone}` : ''}
               </p>
             </div>
-            <button onClick={() => setTab('params')} className="btn-outline shrink-0 px-4 py-2 text-sm">
+            {/* `min-h-11` : le `py-2` ramenait ce bouton à 38 px (🎨 L'Atelier, 07/09/2026). */}
+            <button onClick={() => setTab('params')} className="btn-outline min-h-11 shrink-0 px-4 py-2 text-sm">
               <Pencil size={15} /> Modifier
             </button>
           </div>

@@ -214,7 +214,8 @@ export function Browse() {
               value={qInput}
               onChange={(e) => setQInput(e.target.value)}
               placeholder="Rechercher…"
-              className="w-full bg-transparent text-[15px] outline-none placeholder:text-gray-500"
+              /* 44 px de zone tapable, la barre garde sa taille : voir Home.tsx. */
+              className="-my-2 min-h-11 w-full bg-transparent text-[15px] outline-none placeholder:text-gray-500"
             />
             {qInput && (
               <button

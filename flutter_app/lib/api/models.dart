@@ -61,6 +61,11 @@ class Listing {
   /// (voir `ApiClient.televerser`), jamais dans le JSON de l'annonce.
   final String? video;
 
+  /// Le poids de la vidéo, en octets, relevé par le serveur à l'envoi
+  /// (07/09/2026). Null sur une vidéo plus ancienne : on n'annonce alors rien
+  /// plutôt qu'un chiffre inventé.
+  final int? videoOctets;
+
   /// Le stock d'un professionnel (07/09/2026) : la quantité restante, ou null
   /// quand l'annonce n'en suit pas ; le seuil d'alerte (5 par défaut) ; l'état
   /// tel que le serveur le calcule — 'aucun', 'ok', 'bas', 'rupture'.
@@ -99,6 +104,7 @@ class Listing {
     this.views = 0,
     this.attributes = const {},
     this.video,
+    this.videoOctets,
     this.stock,
     this.stockMin = 5,
     this.stockEtat = 'aucun',
@@ -180,6 +186,8 @@ class Listing {
       video: (j['video'] is String && (j['video'] as String).isNotEmpty)
           ? j['video'] as String
           : null,
+      videoOctets:
+          (j['videoOctets'] is num) ? (j['videoOctets'] as num).toInt() : null,
       stock: (j['stock'] is num) ? (j['stock'] as num).toInt() : null,
       stockMin: (j['stockMin'] is num) ? (j['stockMin'] as num).toInt() : 5,
       stockEtat: (j['stockEtat'] ?? 'aucun').toString(),

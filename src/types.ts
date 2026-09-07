@@ -82,6 +82,13 @@ export interface Listing {
    * APRÈS la publication en multipart — jamais dans ce JSON.
    */
   video?: string | null
+  /**
+   * Le poids de la vidéo, en octets, relevé par le serveur à l'envoi
+   * (07/09/2026). ⚡ Le Mécanicien : une vidéo au plafond fait 60 Mo, soit 60
+   * à 120 FCFA de forfait. L'acheteur doit le voir avant d'appuyer. Null sur
+   * une vidéo plus ancienne — on n'affiche alors rien.
+   */
+  videoOctets?: number | null
   /** Combien ont écrit au sujet de cette annonce (rendu par `listings/mine`). */
   contacts?: number
   /**

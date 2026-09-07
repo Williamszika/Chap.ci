@@ -182,7 +182,9 @@ export function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/messages" className="relative rounded-full bg-white/35 p-2" aria-label="Messages">
+            {/* 36 px avec `p-2` — la pastille reste ronde et de la même taille,
+                seule la zone tapable passe à 44 px (🎨 L'Atelier, 07/09/2026). */}
+            <Link to="/messages" className="relative grid h-11 w-11 place-items-center rounded-full bg-white/35" aria-label="Messages">
               <MessageSquare size={20} />
               {unreadCount > 0 && (
                 <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-2 ring-action-400">
@@ -252,7 +254,13 @@ export function Home() {
               onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
               placeholder="Rechercher une voiture, un téléphone…"
               aria-label="Rechercher"
-              className="w-full bg-transparent text-[16px] text-gray-800 outline-none placeholder:text-gray-500 md:text-lg"
+              /* `min-h-11 -my-2.5` : le CHAMP lui-même ne faisait que 24 px de
+                 haut — c'est la boîte blanche autour qui en faisait 44, et
+                 toucher la boîte n'ouvre pas le clavier. La marge négative
+                 annule le `py-2.5` du parent : la zone tapable passe à 44 px
+                 sans que la barre grandisse d'un pixel. Même procédé que la
+                 loupe juste au-dessus (🎨 L'Atelier, 07/09/2026). */
+              className="-my-2.5 min-h-11 w-full bg-transparent text-[16px] text-gray-800 outline-none placeholder:text-gray-500 md:-my-3 md:text-lg"
             />
             {q && (
               <button type="button" onClick={() => setQ('')} aria-label="Effacer" className="grid h-11 w-11 shrink-0 place-items-center text-gray-500">

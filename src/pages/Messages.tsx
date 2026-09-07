@@ -213,7 +213,9 @@ export function ConversationList({ activeId }: { activeId?: string }) {
             <p className="max-w-xs text-sm text-gray-500">
               Ouvrez une annonce et appuyez sur « Contacter le vendeur » pour démarrer une discussion.
             </p>
-            <Link to="/explorer" className="btn-outline mt-2 py-2">
+            {/* Sans le `py-2` qui écrasait le bouton à 42 px : `btn-outline`
+                fait 48 px tout seul (🎨 L'Atelier, 07/09/2026). */}
+            <Link to="/explorer" className="btn-outline mt-2">
               Explorer les annonces
             </Link>
           </div>

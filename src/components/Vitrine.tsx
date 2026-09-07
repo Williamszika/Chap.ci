@@ -383,12 +383,16 @@ export function FiltresBoutique({ q, onQ, puce, onPuce, puces }: {
 }) {
   return (
     <div className="space-y-2.5 px-4">
-      <span className="flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2.5">
+      {/* La bordure arrondie n'est qu'un décor : c'est le CHAMP qu'on touche,
+          et il ne faisait que 20 px de haut (🎨 L'Atelier, 07/09/2026). La
+          hauteur passe donc sur le champ lui-même — le contour garde la même
+          allure, la zone tapable en gagne le double. */}
+      <span className="flex items-center gap-2 rounded-full border border-line bg-white px-4">
         <Search size={15} className="shrink-0 text-gray-400" />
         <input value={q} onChange={(e) => onQ(e.target.value)}
           aria-label="Chercher dans cette boutique"
           placeholder="Chercher dans cette boutique…"
-          className="w-full bg-transparent text-[13.5px] outline-none placeholder:text-gray-400" />
+          className="min-h-11 w-full bg-transparent text-[13.5px] outline-none placeholder:text-gray-400" />
         {/* La marge négative agrandit la zone tapable à 44×44 sans déplacer le
             ✕ ni élargir le champ : le croisillon fait 14 px, un pouce en
             marchant le ratait. Le commentaire est AU-DESSUS du `&&` : à

@@ -802,6 +802,17 @@ export async function phpCreateOrder(
 export async function phpFetchOrders(role: 'buyer' | 'seller'): Promise<Order[]> {
   return req<Order[]>(`/orders?role=${role}`)
 }
+/**
+ * Les achats ET les ventes en UN seul aller-retour (`role=deux`).
+ *
+ * ⚡ Le Mécanicien, 07/09/2026 : l'écran « Mon compte » demandait deux fois la
+ * même route à l'ouverture. Sur une 3G d'Abidjan, un aller-retour de moins,
+ * c'est une demi-seconde de moins avant que la page ne soit utilisable.
+ */
+export async function phpFetchOrdersDeux(): Promise<{ achats: Order[]; ventes: Order[] }> {
+  const d = await req<{ achats?: Order[]; ventes?: Order[] }>('/orders?role=deux')
+  return { achats: d.achats ?? [], ventes: d.ventes ?? [] }
+}
 export async function phpUpdateOrderStatus(orderId: string, status: string): Promise<void> {
   await req(`/orders/${orderId}`, { method: 'PATCH', body: { status } })
 }

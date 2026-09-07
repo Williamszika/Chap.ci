@@ -16,6 +16,14 @@ export async function fetchOrders(_userId: string, role: 'buyer' | 'seller'): Pr
   return php.phpFetchOrders(role)
 }
 
+/**
+ * Les DEUX listes d'un coup — pour l'écran « Mon compte », qui a besoin des
+ * achats et des ventes dès son ouverture (⚡ Le Mécanicien, 07/09/2026).
+ */
+export async function fetchOrdersDeux(): Promise<{ achats: Order[]; ventes: Order[] }> {
+  return php.phpFetchOrdersDeux()
+}
+
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
   return php.phpUpdateOrderStatus(orderId, status)
 }

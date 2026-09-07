@@ -19,6 +19,7 @@ import 'package:image/image.dart' as img;
 import 'package:chapci/api/models.dart';
 import 'package:chapci/screens/listing_detail_screen.dart';
 import 'package:chapci/screens/publier_screen.dart';
+import 'package:chapci/screens/video_screen.dart';
 
 Widget enFrancais(Widget home) => MaterialApp(
       locale: const Locale('fr'),
@@ -145,6 +146,44 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byKey(const ValueKey('video-ajouter')), findsOneWidget);
       expect(find.byKey(const ValueKey('video-etat')), findsNothing);
+    });
+  });
+
+  group('Le poids annoncé avant de lancer', () {
+    // ⚡ Le Mécanicien, 07/09/2026 : une vidéo au plafond fait 60 Mo, soit 60 à
+    // 120 FCFA de forfait. On l'écrit sous le bouton de lecture — mais on
+    // n'écrit RIEN quand le serveur ne l'a pas dit, plutôt qu'un chiffre faux.
+    test('arrondit au-dessus de dix mégaoctets, garde une décimale en dessous', () {
+      expect(poidsLisible(18 * 1024 * 1024), '18 Mo');
+      expect(poidsLisible(60 * 1024 * 1024), '60 Mo');
+      expect(poidsLisible(1400 * 1024), '1,4 Mo');
+      // La virgule française, pas le point.
+      expect(poidsLisible(1400 * 1024)!.contains('.'), isFalse);
+    });
+
+    test('sans chiffre du serveur, on n’en invente pas', () {
+      expect(poidsLisible(null), isNull);
+      expect(poidsLisible(0), isNull);
+      expect(poidsLisible(-1), isNull);
+    });
+
+    test('le modèle lit videoOctets, et le laisse null quand il manque', () {
+      Listing depuis(Map<String, dynamic> extra) => Listing.fromJson({
+            'id': 'a1', 'title': 'x', 'description': '', 'price': 1,
+            'categoryId': 'maison', 'condition': 'occasion', 'images': const [],
+            'sellerName': 'Awa', 'createdAt': 1, ...extra,
+          });
+      expect(depuis({'videoOctets': 18874368}).videoOctets, 18874368);
+      expect(depuis(<String, dynamic>{}).videoOctets, isNull);
+      expect(depuis({'videoOctets': null}).videoOctets, isNull);
+    });
+
+    test('la boucle ne s’arme que sur les vidéos courtes', () {
+      // Le seuil est ce qui empêche une minute de vidéo de se retélécharger
+      // parce que personne n'a fermé l'écran.
+      expect(VideoScreen.dureeBoucleMax, const Duration(seconds: 20));
+      expect(const Duration(seconds: 12) <= VideoScreen.dureeBoucleMax, isTrue);
+      expect(const Duration(seconds: 60) <= VideoScreen.dureeBoucleMax, isFalse);
     });
   });
 }

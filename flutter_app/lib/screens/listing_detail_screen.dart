@@ -297,8 +297,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   key: const ValueKey('pastille-video'),
                   borderRadius: BorderRadius.circular(999),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) =>
-                          VideoScreen(url: a.videoUrl!, titre: a.title))),
+                      builder: (_) => VideoScreen(
+                          url: a.videoUrl!,
+                          titre: a.title,
+                          octets: a.videoOctets))),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
                     child: Row(

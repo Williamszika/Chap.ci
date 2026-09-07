@@ -257,7 +257,7 @@ export function PromoBanner() {
               </Link>
               <Link
                 to="/publier"
-                className="text-[15px] font-semibold text-white/75 underline-offset-2 hover:underline"
+                className="inline-flex min-h-11 items-center text-[15px] font-semibold text-white/75 underline-offset-2 hover:underline"
               >
                 Publier une annonce (gratuit)
               </Link>

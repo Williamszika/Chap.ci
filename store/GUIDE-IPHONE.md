@@ -117,6 +117,12 @@ du haut les prennent toutes en une fois.
   à chaque ouverture, avant de montrer quoi que ce soit. « Utiliser mon mot de
   passe » reste toujours proposé, pour le jour où le capteur ne répond pas.
   Aucun mot de passe n'est enregistré sur le téléphone.
+- **La vidéo d'une annonce ne se lance plus toute seule**, et son poids est
+  écrit sous le bouton : « 42 s · 18 Mo ». Elle démarrait à l'ouverture de
+  l'écran et tournait en boucle — c'était sans conséquence quand une vidéo
+  faisait quinze secondes, mais elles peuvent en faire soixante depuis le
+  6 septembre, soit jusqu'à 60 Mo de forfait dépensés sans qu'on l'ait
+  demandé. On appuie maintenant pour lancer, en sachant ce que ça coûte.
 
 **Une bibliothèque s'ajoute cette fois : `local_auth`** (l'empreinte et Face
 ID). `flutter pub get` la prend, et CocoaPods l'installe tout seul pendant

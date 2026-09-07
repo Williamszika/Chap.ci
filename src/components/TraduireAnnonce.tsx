@@ -96,7 +96,7 @@ export function TraduireAnnonce({ listingId, titre, description, traduction, onT
       {!ouvert ? (
         <button onClick={() => (derniere ? traduire(derniere) : setOuvert(true))}
           disabled={occupe !== null}
-          className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-[12.5px] font-bold text-gray-700 transition hover:bg-cream-100 disabled:opacity-60">
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-[12.5px] font-bold text-gray-700 transition hover:bg-cream-100 disabled:opacity-60">
           {occupe ? <Loader2 size={14} className="animate-spin" /> : <Languages size={14} className="text-primary-600" />}
           {derniere
             ? `Traduire en ${LANGUES.find((l) => l.id === derniere)?.label}`

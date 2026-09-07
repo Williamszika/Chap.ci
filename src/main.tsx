@@ -39,8 +39,21 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Active les pixels marketing (no-op en dev / app native).
-initMarketing()
+// Les pixels marketing — APRÈS le premier rendu, jamais pendant.
+//
+// ⚡ Le Mécanicien, 07/09/2026 : fbevents (108 Ko) + gtag (170 Ko) font
+// ~280 Ko, soit PLUS LOURD QUE TOUT LE JS DU SITE. Lancés dans le chemin
+// critique, ils doublaient le poids de la première visite d'un visiteur ayant
+// accepté les cookies — pour du code qui n'est pas le nôtre, sur une 3G qu'on
+// lui fait payer. Une conversion se compte aussi bien deux secondes plus tard.
+//
+// `requestIdleCallback` attend que le navigateur n'ait plus rien d'utile à
+// faire ; Safari ne le connaît pas, d'où le repli sur un délai court.
+const auRepos = (window as unknown as {
+  requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void
+}).requestIdleCallback
+if (auRepos) auRepos(() => initMarketing(), { timeout: 4000 })
+else window.setTimeout(initMarketing, 2000)
 
 /**
  * Retire l'écran de démarrage dès que la page est prête.

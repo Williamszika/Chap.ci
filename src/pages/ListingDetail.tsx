@@ -353,7 +353,10 @@ export function ListingDetail() {
   // d'Ariane en petit texte gris est increvable à la souris et intouchable au
   // pouce, et c'est au pouce que ce site se lit.
   const filAriane =
-    'inline-flex min-h-[32px] items-center rounded-full bg-primary-50 px-2.5 text-xs font-semibold text-primary-700 transition active:scale-[0.97]'
+    // 32 px ne suffisaient pas : le banc du front les comptait encore parmi
+    // les cibles ratables. 44 px, comme partout ailleurs (🎨 L'Atelier,
+    // 07/09/2026) — la pastille se voyait déjà, elle se touche maintenant.
+    'inline-flex min-h-11 items-center rounded-full bg-primary-50 px-2.5 text-xs font-semibold text-primary-700 transition active:scale-[0.97]'
 
   /* Le bouton « Contacter le vendeur » — EN ORANGE depuis le 30/08.
    *
@@ -704,6 +707,19 @@ export function ListingDetail() {
               </div>
               <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-500">
                 <Video size={12} /> La vidéo du vendeur — l’objet tel qu’il est.
+                {/* Ce que la lecture va coûter, dit avant l'appui : sur un
+                    forfait de 1 Go, 60 Mo font 6 % du mois (⚡ Le Mécanicien,
+                    07/09/2026). Rien si le serveur ne l'a pas relevé — une
+                    vidéo d'avant cette date — plutôt qu'un chiffre inventé. */}
+                {!!listing.videoOctets && (
+                  <span className="text-gray-500">
+                    {/* La virgule décimale, comme partout ailleurs en français
+                        — et comme l'application (`poidsLisible`). */}
+                    · {listing.videoOctets >= 10 * 1024 * 1024
+                      ? `${Math.round(listing.videoOctets / 1024 / 1024)} Mo`
+                      : `${(listing.videoOctets / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`} de données
+                  </span>
+                )}
               </p>
             </div>
           )}

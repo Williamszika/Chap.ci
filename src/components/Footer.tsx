@@ -64,7 +64,7 @@ export function Footer() {
       <footer className="mt-8 bg-ink text-sm text-white/70">
         {bandeau}
         <div className="mx-auto max-w-[1280px] px-5 pb-24 pt-10">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="inline-flex min-h-11 items-center gap-2">
             <Mark size={30} />
             <Wordmark className="text-lg text-white" />
           </Link>
@@ -98,7 +98,11 @@ export function Footer() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr]">
           {/* Marque */}
           <div className="lg:pr-8">
-            <Link to="/" className="flex items-center gap-2">
+            {/* `inline-flex` et non `flex` : en bloc, ce lien s'étalait sur
+                toute la colonne — 350 px de large pour 30 px de haut. Une
+                cible large et basse se rate par le haut ou par le bas ; le
+                pouce, lui, tombe sur 44 px (🎨 L'Atelier, 07/09/2026). */}
+            <Link to="/" className="inline-flex min-h-11 items-center gap-2">
               <Mark size={30} />
               <Wordmark className="text-lg text-white" />
             </Link>
@@ -113,8 +117,12 @@ export function Footer() {
               <ul className="space-y-0">
                 {c.links.map((l, i) => (
                   <li key={c.title + i}>
-                    {/* 44 px de haut : une ligne de 17 px se rate du pouce (banc du front, 06/09/2026). */}
-                    <Link to={l.to} state={l.state} className="inline-flex min-h-11 items-center text-white/70 transition hover:text-primary-400">
+                    {/* 44 px de haut : une ligne de 17 px se rate du pouce (banc du front, 06/09/2026).
+                        Et 44 px de LARGE : « CGU » ne fait que 31 px de texte, donc une
+                        cible plus étroite qu'un pouce (🎨 L'Atelier, 07/09/2026). La
+                        largeur minimale s'ajoute à droite du mot — l'alignement de la
+                        colonne ne bouge pas. */}
+                    <Link to={l.to} state={l.state} className="inline-flex min-h-11 min-w-11 items-center text-white/70 transition hover:text-primary-400">
                       {l.label}
                     </Link>
                   </li>
