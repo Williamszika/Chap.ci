@@ -46,6 +46,29 @@ class NotifItem {
   /// structure que je suis a publié un poste, ou quelqu'un a répondu au mien.
   String? get offreId =>
       RegExp(r'emploi/([A-Za-z0-9_-]+)').firstMatch(lien)?.group(1);
+
+  // CHAQUE NOTIFICATION MÈNE À CE DONT ELLE PARLE (07/09/2026, le Patron).
+  // Le serveur écrit des liens du site ; l'application les lit pour ouvrir
+  // l'écran natif correspondant. Un lien inconnu n'ouvre rien de faux.
+
+  /// « #/messages/<id> » : un message, un acheteur qui attend une réponse.
+  String? get conversationId =>
+      RegExp(r'messages/([A-Za-z0-9_-]+)').firstMatch(lien)?.group(1);
+
+  /// « #/modifier/<id> » : l'annonce est à corriger (retirée, qui s'essouffle).
+  bool get versModification => lien.contains('/modifier/');
+
+  /// « #/vendeur/<id> » : un avis reçu — la page publique du compte.
+  String? get vendeurId =>
+      RegExp(r'vendeur/([A-Za-z0-9_-]+)').firstMatch(lien)?.group(1);
+
+  /// « #/compte?onglet=x » : l'écran du compte dont on parle — stock, achats,
+  /// ventes, annonces, stats, fiche… Null si le lien ne le dit pas.
+  String? get ongletCompte =>
+      RegExp(r'compte\?onglet=([a-z]+)').firstMatch(lien)?.group(1);
+
+  /// « #/assistance… » : le fil avec l'équipe Chap.ci.
+  bool get versAssistance => lien.contains('/assistance');
 }
 
 /// La cloche de notifications — l'équivalent mobile de celle du site.

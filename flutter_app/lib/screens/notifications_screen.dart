@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
+import '../api/messaging.dart';
 import '../api/models.dart';
+import '../api/profil.dart';
 import '../i18n/formats_i18n.dart';
+import '../navigation.dart';
 import '../notifications.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 import 'admin/demandes_pro_screen.dart';
+import 'conversation_screen.dart';
 import 'devenir_pro_screen.dart';
 import 'listing_detail_screen.dart';
 import 'offre_screen.dart';
+import 'offres_pro_screen.dart';
+import 'parametres_screen.dart';
+import 'publier_screen.dart';
 import 'stock_pro_screen.dart';
+import 'vendeur_screen.dart';
 
 /// La cloche — la liste des notifications du compte (nouveau message, annonce
 /// mise en favori par quelqu'un, rappel…). Ouvrir l'écran les marque comme
@@ -101,6 +109,83 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (n.type == 'stock') {
       Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const StockProScreen()));
+      return;
+    }
+    // CHAQUE NOTIFICATION MÈNE À CE DONT ELLE PARLE (07/09/2026, le Patron).
+    // Une conversation : un message reçu, un acheteur qui attend une réponse,
+    // une offre de prix.
+    final convId = n.conversationId;
+    if (convId != null) {
+      try {
+        final c = (await Conversation.mes()).firstWhere((x) => x.id == convId);
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ConversationScreen(
+                conversationId: c.id,
+                titre: c.listingTitle ?? c.otherName ?? tr(context, 'nav.messages'))));
+      } catch (_) {
+        // Conversation introuvable (supprimée ?) : la liste des messages.
+        if (!mounted) return;
+        Navigator.of(context).popUntil((r) => r.isFirst);
+        demanderOngletRacine(2);
+      }
+      return;
+    }
+    // L'assistance (le fil avec l'équipe) n'a pas d'écran natif : l'onglet
+    // Compte, où « Contacter l'équipe » est à un appui.
+    if (n.versAssistance) {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      demanderOngletRacine(3);
+      return;
+    }
+    // « Modifier » : une annonce retirée ou qui s'essouffle s'ouvre dans le
+    // formulaire, pour la corriger — pas sur sa fiche.
+    if (n.versModification && n.annonceId != null) {
+      try {
+        final a = await Listing.parId(n.annonceId!);
+        if (!mounted) return;
+        Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => PublierScreen(annonce: a)));
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(tr(context, 'notif.plusDispo'))));
+        }
+      }
+      return;
+    }
+    // Un avis reçu : la page publique du compte, où les avis se lisent.
+    final vendeurId = n.vendeurId;
+    if (vendeurId != null) {
+      try {
+        final p = await ProfilApi.profil(vendeurId);
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => VendeurScreen(
+                sellerId: vendeurId,
+                sellerName: p?.nom ?? '',
+                sellerVerified: p?.verified ?? false)));
+      } catch (_) {/* la page ne s'ouvre pas : rien de faux n'est montré */}
+      return;
+    }
+    // L'écran du compte dont on parle : le stock, les offres, les réglages
+    // ont leur écran natif ; le reste (achats, ventes, annonces, statistiques,
+    // fiche) vit dans l'onglet Compte.
+    if (n.ongletCompte != null || n.lien.contains('/compte')) {
+      switch (n.ongletCompte) {
+        case 'stock':
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const StockProScreen()));
+        case 'emplois':
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const OffresProScreen()));
+        case 'notifs':
+          Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ParametresScreen()));
+        default:
+          Navigator.of(context).popUntil((r) => r.isFirst);
+          demanderOngletRacine(3);
+      }
       return;
     }
     // Une offre d'emploi (06/09/2026) : une structure que je suis a publié un

@@ -132,6 +132,17 @@ export function Profile() {
     const t = (location.state as { tab?: Tab } | null)?.tab
     if (t) setTab(t)
   }, [location.state])
+  // LIEN PROFOND `#/compte?onglet=…` (07/09/2026) : une notification mène à
+  // l'écran dont elle parle — « Stock bas » ouvre le stock, « Commande
+  // finalisée » les achats ou les ventes, « Bilan de la semaine » les
+  // statistiques — au lieu de déposer la personne sur l'accueil du compte.
+  // HashRouter : le paramètre voyage dans le hash, comme sur `#/admin`.
+  useEffect(() => {
+    const o = new URLSearchParams(location.search).get('onglet')
+    if (!o) return
+    const connus: Tab[] = ['accueil', 'achats', 'ventes', 'annonces', 'pubs', 'params', 'stats', 'fiche', 'profil', 'notifs', 'securite', 'adresse', 'reponses', 'emplois', 'stock']
+    if ((connus as string[]).includes(o)) setTab(o as Tab)
+  }, [location.search])
 
   // La fiche professionnelle, pour les écrans de la console. `versionPro`
   // s'incrémente après chaque enregistrement : la console et la fiche relisent

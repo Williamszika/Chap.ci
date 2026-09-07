@@ -9446,9 +9446,11 @@ try {
         $ti->execute([$seg[1]]);
         $titre = (string) ($ti->fetch()['title'] ?? '');
       } catch (Throwable $e) { /* le titre est un confort */ }
+      // Le lien mène à la commande dont on parle : l'acheteur dans ses achats,
+      // le vendeur dans ses ventes — pas sur l'accueil du compte (07/09/2026).
       notify($pdo, $autre, 'vente', 'Commande finalisée 🤝',
              ($titre !== '' ? '« ' . $titre . ' » : ' : '') . 'la commande est marquée finalisée. '
-             . 'Vous pouvez maintenant laisser un avis.', '#/compte');
+             . 'Vous pouvez maintenant laisser un avis.', $vendeur ? '#/compte?onglet=achats' : '#/compte?onglet=ventes');
     }
     jout(['ok' => true, 'finalizedAt' => $fin ? iso_to_ms($fin) : null]);
   }
@@ -12116,7 +12118,7 @@ try {
       try {
         notify($pdo, $userId, 'pro_decision', 'Votre fiche professionnelle a été modifiée',
                'L’équipe Chap.ci a mis à jour votre dossier. Vérifiez-la dans Compte → Modifier ma fiche.',
-               '#/compte');
+               '#/compte?onglet=fiche');
       } catch (Throwable $e) { /* la modification est enregistrée quoi qu'il arrive */ }
       jout(['ok' => true, 'change' => count($change)]);
     }
@@ -12469,7 +12471,7 @@ try {
       if ($row && !empty($row['user_id'])) {
         notify($pdo, (string) $row['user_id'], 'listing', 'Annonce retirée',
           '« ' . mb_substr(trim((string) $row['title']), 0, 60) . ' » a été retirée de Chap.ci'
-          . ($motif !== '' ? ' : ' . $motif : '.'), '#/compte');
+          . ($motif !== '' ? ' : ' . $motif : '.'), '#/compte?onglet=annonces');
       }
       log_security_event($pdo, 'admin_listing_deleted', $u['email'] ?? null,
         $seg[2] . ($motif !== '' ? ' · ' . $motif : ''));
@@ -12537,7 +12539,7 @@ try {
             $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$rep['listing_id']]);
             if (!empty($l['user_id'])) {
               notify($pdo, (string) $l['user_id'], 'listing', 'Annonce retirée',
-                '« ' . $titre . ' » a été retirée de Chap.ci : ' . $motif, '#/compte');
+                '« ' . $titre . ' » a été retirée de Chap.ci : ' . $motif, '#/compte?onglet=annonces');
             }
           } else {
             $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')
@@ -14899,7 +14901,7 @@ try {
                  $vues . ' vue' . ($vues > 1 ? 's' : '') . ', ' . $contacts . ' contact'
                  . ($contacts > 1 ? 's' : '') . ', ' . $ventes . ' vente' . ($ventes > 1 ? 's' : '')
                  . '. Le détail est dans Statistiques de vente.',
-                 '#/compte');
+                 '#/compte?onglet=stats');
           $fait['bilan']++;
         }
       } catch (Throwable $e) { /* idem */ }

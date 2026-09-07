@@ -8,6 +8,7 @@ import 'favoris.dart';
 import 'i18n/langues.dart';
 import 'i18n/textes.dart';
 import 'liens_entrants.dart';
+import 'navigation.dart';
 import 'notifications.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
@@ -133,11 +134,22 @@ class _AccueilShellState extends State<AccueilShell> with WidgetsBindingObserver
     // qu'un lien https://chap.ci/annonce/… demande — celui qui a lancé
     // l'application comme ceux qui arriveront pendant qu'elle tourne.
     LiensEntrants.instance.demarrer(navigateurCle);
+    // Une notification qui mène à un onglet (« ouvre mon compte », « ouvre
+    // mes messages ») le demande ici (07/09/2026).
+    ongletRacineDemande.addListener(_ongletDemande);
+  }
+
+  void _ongletDemande() {
+    final i = ongletRacineDemande.value;
+    if (i == null) return;
+    ongletRacineDemande.value = null;
+    _aller(i);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ongletRacineDemande.removeListener(_ongletDemande);
     LiensEntrants.instance.arreter();
     _pages.dispose();
     super.dispose();

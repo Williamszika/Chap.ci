@@ -227,6 +227,19 @@ signalement si les produits sont sous le minimum, 5 ».
   devient plus « vendue » à la première vente.
 - `textes.dart` : 28 clés de plus, six langues ; `test/stock_test.dart`.
 
+**Ajouté le 07/09/2026, plus tard — chaque notification mène à ce dont elle
+parle.** Le Patron : « lorsqu'on clique dessus, cela dirige sur ce dont on
+parle ». Jusque-là, l'app n'ouvrait que les annonces, les offres et les
+décisions Pro ; un message, un avis, une annonce retirée ou un bilan ne
+menaient nulle part. Désormais (`lib/notifications.dart`,
+`notifications_screen.dart`, `lib/navigation.dart`) : un message ouvre la
+conversation, « Modifier » ouvre le formulaire de l'annonce, un avis la page
+publique, « Stock bas » l'écran du stock, une candidature l'offre, et les
+autres écrans du compte (achats, ventes, statistiques, fiche) l'onglet
+Compte. `test/notif_liens_test.dart` (6). Le push natif (téléphone réveillé
+quand l'app est fermée) attend toujours le projet Firebase du Patron — voir
+le README, « Notifications push natives (FCM) ».
+
 Puis, le soir du 04/09 (chantier 2 des six demandés, « l'application à
 égalité avec le site ») : **modifier son annonce** depuis Mon compte
 (formulaire prérempli, photos en ligne conservées, `PUT /listings/{id}`), et

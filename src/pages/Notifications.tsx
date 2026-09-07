@@ -11,6 +11,7 @@ import { isPhp } from '../lib/backend'
 import { useAuth } from '../store/AuthContext'
 import { timeAgo } from '../lib/format'
 import { RetourCompte } from '../components/RetourCompte'
+import { etatPush, activerPush, type EtatPush } from '../lib/push'
 
 // Icône colorée selon le type de notification (glyphe posé sur une tuile blanche).
 function iconFor(type: string) {
@@ -53,6 +54,27 @@ export function Notifications() {
   const [loadError, setLoadError] = useState(false) // P15 : panne ≠ liste vide
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // ACTIVER LES NOTIFICATIONS (07/09/2026, le Patron) : la page où l'on vient
+  // lire ses nouvelles est le bon endroit pour proposer de les recevoir même
+  // quand Chap.ci est fermé. Une ligne, qui disparaît une fois accepté ou
+  // écarté — l'écart est le même que celui de la cloche, on ne redemande pas.
+  const [etatPousse, setEtatPousse] = useState<EtatPush | null>(null)
+  const [pousseOccupe, setPousseOccupe] = useState(false)
+  const [pousseEcarte, setPousseEcarte] = useState(() => {
+    try { return localStorage.getItem('chapci_push_ecarte') === '1' } catch { return false }
+  })
+  useEffect(() => {
+    if (!isPhp || !user || pousseEcarte) return
+    let alive = true
+    etatPush().then((e) => { if (alive) setEtatPousse(e) }).catch(() => {})
+    return () => { alive = false }
+  }, [user, pousseEcarte])
+  async function activerPousse() {
+    setPousseOccupe(true)
+    try { setEtatPousse(await activerPush()) }
+    catch { setEtatPousse('indisponible') }
+    finally { setPousseOccupe(false) }
+  }
 
   // P15 : on distingue une vraie absence de notifications d'une panne réseau,
   // et on propose de réessayer plutôt que d'afficher « Aucune notification ».
@@ -146,6 +168,34 @@ export function Notifications() {
         )}
         </div>
       </div>
+
+      {user && etatPousse === 'inactif' && !pousseEcarte && (
+        <div className="flex items-center gap-3 border-b border-primary-100 bg-primary-50/70 px-4 py-3 md:px-6">
+          <Bell size={18} className="shrink-0 text-primary-600" />
+          <p className="min-w-0 flex-1 text-[13px] leading-snug text-gray-700">
+            Être prévenu <b>même quand Chap.ci est fermé</b> : un message, une vente, un stock qui baisse.
+          </p>
+          <button
+            onClick={activerPousse}
+            disabled={pousseOccupe}
+            className="shrink-0 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-bold text-white active:scale-95 disabled:opacity-60"
+          >
+            {pousseOccupe ? '…' : 'Activer'}
+          </button>
+          <button
+            onClick={() => { setPousseEcarte(true); try { localStorage.setItem('chapci_push_ecarte', '1') } catch { /* mode privé */ } }}
+            className="shrink-0 rounded p-1 text-gray-500 active:text-gray-700"
+            aria-label="Ne plus proposer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {user && etatPousse === 'actif' && (
+        <p className="border-b border-line bg-white px-4 py-2 text-[12px] text-ivoire-green-dark md:px-6">
+          ✓ Notifications activées sur cet appareil — vous êtes prévenu même quand Chap.ci est fermé.
+        </p>
+      )}
 
       {/* Barre de sélection (mode suppression) */}
       {items.length > 0 && selectMode && (
