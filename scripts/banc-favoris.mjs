@@ -128,6 +128,22 @@ dire(r.corps?.nettoyage?.favoris_prevenus_expiration === 0 && (await suivis(koff
 r = await appel('/cron/cleanup', { entetes: { 'X-Cron-Key': 'mauvaise' } })
 dire(r.code === 403, 'sans la clé, le cron refuse', `HTTP ${r.code}`)
 
+// ── La clé qui traîne un saut de ligne ───────────────────────────────────────
+// ⚡ Le Mécanicien a relevé le 07/09/2026 une clé de 65 caractères là où la
+// vraie en fait 64 : un fichier de tâches cPanel finit par un retour à la
+// ligne, et la sauvegarde de la nuit s'arrêtait là — en silence, parce qu'un
+// cron qui reçoit 403 ne prévient personne. Le serveur enlève désormais les
+// blancs AUTOUR de la clé reçue.
+//
+// ⚠️ Les trois cas ensemble, et pas seulement le premier : si le nettoyage
+// allait trop loin, le troisième passerait au vert et trahirait le trou.
+r = await appel(`/cron/cleanup?key=${encodeURIComponent(CLE_CRON + '\n')}`)
+dire(r.code === 200, 'la même clé suivie d’un saut de ligne passe', `HTTP ${r.code}`)
+r = await appel(`/cron/cleanup?key=${encodeURIComponent('  ' + CLE_CRON + ' ')}`)
+dire(r.code === 200, 'entourée d’espaces aussi', `HTTP ${r.code}`)
+r = await appel(`/cron/cleanup?key=${encodeURIComponent(CLE_CRON.slice(0, -1) + 'X')}`)
+dire(r.code === 403, 'mais un seul caractère faux au milieu refuse toujours', `HTTP ${r.code}`)
+
 console.log()
 if (rouges) { console.log(`❌ ${rouges} contrôle(s) rouge(s).`); process.exit(1) }
 console.log('✅ Les favoris préviennent — et se taisent quand il faut.')

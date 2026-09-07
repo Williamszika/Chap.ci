@@ -13933,6 +13933,23 @@ try {
     $cronOu = $cronKey !== '' ? 'entete' : '';
     if ($cronKey === '') { $cronKey = (string) ($_GET['key'] ?? ''); if ($cronKey !== '') $cronOu = 'url'; }
     if ($cronKey === '' && $method === 'POST') { $cronKey = (string) (body()['key'] ?? ''); if ($cronKey !== '') $cronOu = 'corps'; }
+
+    // UNE CLÉ DE 65 CARACTÈRES QUAND LA VRAIE EN FAIT 64, C'EST UN SAUT DE
+    // LIGNE. ⚡ Le Mécanicien en a relevé une le 07/09/2026 dans le journal
+    // d'audit. Un fichier de tâches cPanel se termine par un retour à la
+    // ligne, une valeur recopiée dans un champ garde l'espace qui la suivait :
+    // la clé est bonne, la comparaison échoue, et la sauvegarde de la nuit ne
+    // se fait pas — sans un mot, parce qu'un cron qui reçoit 403 ne prévient
+    // personne.
+    //
+    // On enlève donc les blancs AUTOUR, et rien d'autre. Une clé valide ne
+    // contient que `[A-Za-z0-9._~-]` (chapci_hardened_secret) : aucun blanc à
+    // l'intérieur, donc ce nettoyage ne peut pas rendre valide une clé qui ne
+    // l'était pas. La longueur brute reste écrite au journal en cas d'échec,
+    // pour que la vraie cause se voie.
+    $cronKeyBrute = strlen($cronKey);
+    $cronKey = trim($cronKey);
+
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey)) {
       // POURQUOI l'échec, et pas seulement sur quelle route.
       //
@@ -13975,9 +13992,14 @@ try {
       $ipApp = (string) ($_SERVER['SERVER_ADDR'] ?? '');
       $ipCli = client_ip();
       $local = $ipCli === '127.0.0.1' || $ipCli === '::1' || ($ipApp !== '' && $ipCli === $ipApp);
+      // La longueur BRUTE, avant nettoyage : c'est elle qui trahit le saut de
+      // ligne. « 64 car. » alors que la clé en fait 64 dit tout autre chose
+      // que « 65 car. » — et sans elle, la trace effacerait la cause qu'on
+      // vient d'apprendre à réparer.
       $motif = $cronKey === ''
         ? 'sans-cle'
         : 'cle-differente(' . $cronOu . ',' . strlen($cronKey) . ' car.'
+          . ($cronKeyBrute !== strlen($cronKey) ? ',brute ' . $cronKeyBrute : '')
           . (strlen($cronKey) < 24 ? ',jamais-valide' : '') . ')';
       log_security_event($pdo, 'cron_fail', null, $path . ' · ' . $motif . ($local ? ' · local' : ''));
       jerr('Clé invalide.', 403);
@@ -14808,7 +14830,9 @@ try {
   // Corps JSON : { key, subject, html, pdf_base64, filename, to? }
   if ($path === 'cron/report-email' && $method === 'POST') {
     $b = body();
-    $key = ($cronKey ?? '') !== '' ? $cronKey : (string) ($b['key'] ?? ($_GET['key'] ?? ''));
+    // `trim` ici aussi : cette route-ci lit la clé dans le corps JSON, où un
+    // retour à la ligne se glisse tout aussi bien (voir le portail cron/*).
+    $key = ($cronKey ?? '') !== '' ? $cronKey : trim((string) ($b['key'] ?? ($_GET['key'] ?? '')));
     if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $key)) jerr('Clé invalide.', 403);
     // Destinataires par défaut = le PROPRIÉTAIRE ET contact@chap.ci (les deux).
     $admins = security_notify_recipients($config);
