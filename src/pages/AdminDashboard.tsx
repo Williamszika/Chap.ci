@@ -1974,6 +1974,9 @@ const PRO_TYPES: Record<string, string> = {
   emploi: '🏢 Employeur / Recruteur', voyage: '✈️ Agence de voyage',
   agro: '🌾 Producteur / Agro-élevage', sante: '💊 Santé & Bien-être',
   association: '❤️ Association / ONG',
+  restauration: '🍽️ Restaurant / Alimentation', hebergement: '🏨 Hôtel / Hébergement',
+  animalerie: '🐾 Animalerie / Vétérinaire', finance: '🏦 Banque, microfinance & assurance',
+  media: '📣 Média & communication',
 }
 
 function ProTab() {

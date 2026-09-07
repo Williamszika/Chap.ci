@@ -33,6 +33,11 @@ class _DemandesProScreenState extends State<DemandesProScreen> {
     'agro': '🌾 Producteur / Agro-élevage',
     'sante': '💊 Santé & Bien-être',
     'association': '❤️ Association / ONG',
+    'restauration': '🍽️ Restaurant / Alimentation',
+    'hebergement': '🏨 Hôtel / Hébergement',
+    'animalerie': '🐾 Animalerie / Vétérinaire',
+    'finance': '🏦 Banque, microfinance & assurance',
+    'media': '📣 Média & communication',
   };
 
   @override

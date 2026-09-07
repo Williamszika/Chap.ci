@@ -635,6 +635,12 @@ const Map<String, Map<String, String>> _t = {
   'pro.type.agro': {'fr': "Producteur / Agro-élevage", 'en': "Producer / Farming & livestock", 'es': "Productor / Agroganadería", 'pt': "Produtor / Agropecuária", 'ar': "منتج / زراعة وتربية", 'zh': "生产者/农牧业"},
   'pro.type.sante': {'fr': "Santé & Bien-être", 'en': "Health & Wellness", 'es': "Salud y Bienestar", 'pt': "Saúde e Bem-estar", 'ar': "صحة وعافية", 'zh': "健康养生"},
   'pro.type.association': {'fr': "Association / ONG", 'en': "Charity / NGO", 'es': "Asociación / ONG", 'pt': "Associação / ONG", 'ar': "جمعية / منظمة", 'zh': "协会/公益组织"},
+  // Cinq types de plus (07/09/2026)
+  'pro.type.restauration': {'fr': "Restaurant / Alimentation", 'en': "Restaurant / Food", 'es': "Restaurante / Alimentación", 'pt': "Restaurante / Alimentação", 'ar': "مطعم / أغذية", 'zh': "餐饮/食品"},
+  'pro.type.hebergement': {'fr': "Hôtel / Hébergement", 'en': "Hotel / Accommodation", 'es': "Hotel / Alojamiento", 'pt': "Hotel / Alojamento", 'ar': "فندق / إقامة", 'zh': "酒店/住宿"},
+  'pro.type.animalerie': {'fr': "Animalerie / Vétérinaire", 'en': "Pet shop / Veterinary", 'es': "Tienda de animales / Veterinario", 'pt': "Loja de animais / Veterinário", 'ar': "متجر حيوانات / بيطري", 'zh': "宠物店/兽医"},
+  'pro.type.finance': {'fr': "Banque, microfinance & assurance", 'en': "Bank, microfinance & insurance", 'es': "Banca, microfinanzas y seguros", 'pt': "Banco, microfinanças e seguros", 'ar': "بنك، تمويل أصغر وتأمين", 'zh': "银行、小额信贷与保险"},
+  'pro.type.media': {'fr': "Média & communication", 'en': "Media & communication", 'es': "Medios y comunicación", 'pt': "Média e comunicação", 'ar': "إعلام واتصال", 'zh': "媒体与传播"},
   'pro.nomOrg': {'fr': "Nom de l’organisation", 'en': "Organisation name", 'es': "Nombre de la organización", 'pt': "Nome da organização", 'ar': "اسم المنظمة", 'zh': "组织名称"},
   'pro.nomOrgHint': {'fr': "Ex : Kouassi Électro", 'en': "E.g.: Kouassi Électro", 'es': "Ej.: Kouassi Électro", 'pt': "Ex.: Kouassi Électro", 'ar': "مثال: Kouassi Électro", 'zh': "例：Kouassi Électro"},
   'pro.numero.rccm': {'fr': "Numéro RCCM", 'en': "RCCM number (business registry)", 'es': "Número RCCM (registro mercantil)", 'pt': "Número RCCM (registo comercial)", 'ar': "رقم السجل التجاري RCCM", 'zh': "RCCM 工商注册号"},

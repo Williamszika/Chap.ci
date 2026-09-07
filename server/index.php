@@ -5835,6 +5835,15 @@ function save_data_uri(array $config, string $dataUri, bool $watermark = false):
 //  qui donne ces droits, comme il donne la vitrine.
 // =============================================================================
 
+/**
+ * Les types d'organisation d'un compte professionnel — les mêmes identifiants
+ * que `src/data/secteursPro.ts` et `devenir_pro_screen.dart`. Une seule liste
+ * pour les deux routes qui la vérifient (la demande, la correction par l'admin).
+ */
+const PRO_TYPES = ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
+                   'formation', 'emploi', 'voyage', 'agro', 'sante', 'association',
+                   'restauration', 'hebergement', 'animalerie', 'finance', 'media'];
+
 /** Le compte est-il un professionnel approuvé ? */
 function pro_approuve(PDO $pdo, string $uid): bool {
   try {
@@ -9761,10 +9770,11 @@ try {
       jerr('Confirmez d’abord votre adresse e-mail (onglet Compte).');
     }
     $type = (string) ($b['type'] ?? '');
-    // Dix types, calqués sur les 16 catégories du site (« commerce » reste
+    // Quinze types, calqués sur les 16 catégories du site (« commerce » reste
     // accepté : c'était le nom du type boutique dans la première version).
-    if (!in_array($type, ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
-                          'formation', 'emploi', 'voyage', 'agro', 'sante', 'association'], true)) {
+    // Les cinq derniers datent du 07/09/2026 : restaurant, hôtel, animalerie,
+    // banque, média n'avaient aucune case.
+    if (!in_array($type, PRO_TYPES, true)) {
       jerr('Type d’organisation inconnu.');
     }
     $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
@@ -11795,8 +11805,7 @@ try {
       $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
       if (mb_strlen($nom) < 2) jerr('Le nom commercial est obligatoire.');
       $type = (string) ($b['type'] ?? '');
-      if (!in_array($type, ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
-                            'formation', 'emploi', 'voyage', 'agro', 'sante', 'association'], true)) {
+      if (!in_array($type, PRO_TYPES, true)) {
         jerr('Type d’organisation inconnu.');
       }
       $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 60));

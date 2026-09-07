@@ -263,6 +263,15 @@ une par ligne, ordre au doigt. Modèles dans `lib/api/offres.dart`
 `abonnes_test.dart` : quinze contrôles, `flutter analyze` toujours à zéro
 erreur, et les douze rouges anciens sont les mêmes qu'avant.
 
+Le 07/09, « Ajoute tout » : **quinze types d'organisation** au lieu de dix
+dans « Devenir professionnel ». Cinq nouveaux — 🍽️ Restaurant / Alimentation,
+🏨 Hôtel / Hébergement, 🐾 Animalerie / Vétérinaire, 🏦 Banque, microfinance &
+assurance, 📣 Média & communication — avec leurs secteurs, et six secteurs de
+plus dans les types existants (Coiffure & Esthétique ; Auto-école, Université
+& grande école, Crèche & maternelle ; Pharmacie, Clinique & cabinet médical).
+Mêmes identifiants sur le site, dans l'application et au serveur
+(`PRO_TYPES`) ; les secteurs nouveaux sont traduits dans les six langues.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

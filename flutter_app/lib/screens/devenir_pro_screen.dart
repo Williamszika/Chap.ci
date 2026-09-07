@@ -35,17 +35,22 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
   bool _envoi = false;
   String? _erreur;
 
-  /// Les dix types d'organisation, calqués sur les 16 catégories du site.
-  /// Chaque type porte ses catégories : elles font le sous-titre de la carte
-  /// (traduites) et pré-remplissent le secteur principal.
+  /// Les quinze types d'organisation, calqués sur les 16 catégories du site
+  /// (les cinq derniers depuis le 07/09/2026 : un restaurant, un hôtel, une
+  /// animalerie, une banque, une agence de communication n'avaient aucune
+  /// case). Chaque type porte ses catégories : elles font le sous-titre de la
+  /// carte (traduites) et pré-remplissent le secteur principal.
   static const _types = [
     'boutique', 'vehicules', 'immobilier', 'services', 'formation',
     'emploi', 'voyage', 'agro', 'sante', 'association',
+    'restauration', 'hebergement', 'animalerie', 'finance', 'media',
   ];
   static const _emojis = {
     'boutique': '🏪', 'vehicules': '🚗', 'immobilier': '🏠',
     'services': '🛠️', 'formation': '🎓', 'emploi': '🏢',
     'voyage': '✈️', 'agro': '🌾', 'sante': '💊', 'association': '❤️',
+    'restauration': '🍽️', 'hebergement': '🏨', 'animalerie': '🐾',
+    'finance': '🏦', 'media': '📣',
   };
   /// Les secteurs proposés PAR TYPE — chaque métier voit les siens, jamais la
   /// liste générique des 16 catégories. Les valeurs sont les noms français
@@ -68,10 +73,12 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
     'services': [
       'BTP & Rénovation', 'Événementiel', 'Transport & Déménagement',
       'Informatique & Digital', 'Couture & Artisanat', 'Réparation & Dépannage',
+      'Coiffure & Esthétique',
     ],
     'formation': [
       'École privée', 'Soutien scolaire', 'Formation professionnelle',
       'Langues', 'Cours & Formation', 'Informatique & Digital',
+      'Auto-école', 'Université & grande école', 'Crèche & maternelle',
     ],
     'emploi': [
       'Entreprise qui recrute', 'Cabinet de recrutement', 'Intérim & placement',
@@ -89,10 +96,32 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
     'sante': [
       'Compléments & Tisanes', 'Soins & Hygiène', 'Matériel médical de confort',
       'Optique & Audition', 'Bien-être & Massage', 'Nutrition sportive',
+      'Pharmacie', 'Clinique & cabinet médical',
     ],
     'association': [
       'Aide sociale & dons', 'Éducation', 'Santé communautaire',
       'Environnement', 'Religieux & communautaire',
+    ],
+    'restauration': [
+      'Restaurant', 'Maquis & bar', 'Traiteur & événements',
+      'Boulangerie & pâtisserie', 'Fast-food & livraison',
+      'Épicerie & supermarché', 'Boissons & glaces',
+    ],
+    'hebergement': [
+      'Hôtel', 'Résidence meublée', 'Auberge & maison d’hôtes',
+      'Location de vacances', 'Salle & espace événementiel',
+    ],
+    'animalerie': [
+      'Animalerie', 'Clinique vétérinaire', 'Élevage & vente d’animaux',
+      'Toilettage & pension', 'Alimentation animale',
+    ],
+    'finance': [
+      'Banque', 'Microfinance', 'Assurance', 'Mobile Money & transfert',
+      'Prêt & crédit',
+    ],
+    'media': [
+      'Agence de communication', 'Presse & médias',
+      'Imprimerie & signalétique', 'Photo & vidéo', 'Marketing digital & influence',
     ],
   };
 
@@ -107,6 +136,11 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
     'agro': ['alimentation', 'animaux'],
     'sante': ['sante'],
     'association': ['a-donner'],
+    'restauration': ['alimentation'],
+    'hebergement': ['immobilier', 'voyage'],
+    'animalerie': ['animaux'],
+    'finance': ['services'],
+    'media': ['services'],
   };
 
   @override
@@ -162,6 +196,8 @@ class _DevenirProScreenState extends State<DevenirProScreen> {
       case 'formation':
       case 'voyage':
       case 'sante':
+      case 'hebergement':
+      case 'finance':
         return tr(context, 'pro.numero.agrement');
       default:
         return tr(context, 'pro.numero.rccm');

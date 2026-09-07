@@ -39,13 +39,15 @@ export const TYPES_PRO: TypePro[] = [
     id: 'services', emoji: '🛠️', label: 'Artisan / Prestataire de services',
     numero: 'Numéro RCCM',
     secteurs: ['BTP & Rénovation', 'Événementiel', 'Transport & Déménagement',
-      'Informatique & Digital', 'Couture & Artisanat', 'Réparation & Dépannage'],
+      'Informatique & Digital', 'Couture & Artisanat', 'Réparation & Dépannage',
+      'Coiffure & Esthétique'],
   },
   {
     id: 'formation', emoji: '🎓', label: 'École / Centre de formation',
     numero: 'Numéro d’agrément',
     secteurs: ['École privée', 'Soutien scolaire', 'Formation professionnelle',
-      'Langues', 'Cours & Formation', 'Informatique & Digital'],
+      'Langues', 'Cours & Formation', 'Informatique & Digital',
+      'Auto-école', 'Université & grande école', 'Crèche & maternelle'],
   },
   {
     id: 'emploi', emoji: '🏢', label: 'Employeur / Recruteur',
@@ -71,13 +73,48 @@ export const TYPES_PRO: TypePro[] = [
     numero: 'Numéro d’agrément',
     secteurs: ['Compléments & Tisanes', 'Soins & Hygiène',
       'Matériel médical de confort', 'Optique & Audition',
-      'Bien-être & Massage', 'Nutrition sportive'],
+      'Bien-être & Massage', 'Nutrition sportive',
+      'Pharmacie', 'Clinique & cabinet médical'],
   },
   {
     id: 'association', emoji: '❤️', label: 'Association / ONG',
     numero: 'Numéro de récépissé',
     secteurs: ['Aide sociale & dons', 'Éducation', 'Santé communautaire',
       'Environnement', 'Religieux & communautaire'],
+  },
+  // Cinq types de plus le 07/09/2026, sur décision du Patron (« Ajoute
+  // tout ») : un restaurant, un hôtel, une animalerie, une banque, une agence
+  // de communication n'avaient aucune case où se ranger.
+  {
+    id: 'restauration', emoji: '🍽️', label: 'Restaurant / Alimentation',
+    numero: 'Numéro RCCM',
+    secteurs: ['Restaurant', 'Maquis & bar', 'Traiteur & événements',
+      'Boulangerie & pâtisserie', 'Fast-food & livraison',
+      'Épicerie & supermarché', 'Boissons & glaces'],
+  },
+  {
+    id: 'hebergement', emoji: '🏨', label: 'Hôtel / Hébergement',
+    numero: 'Numéro d’agrément',
+    secteurs: ['Hôtel', 'Résidence meublée', 'Auberge & maison d’hôtes',
+      'Location de vacances', 'Salle & espace événementiel'],
+  },
+  {
+    id: 'animalerie', emoji: '🐾', label: 'Animalerie / Vétérinaire',
+    numero: 'Numéro RCCM',
+    secteurs: ['Animalerie', 'Clinique vétérinaire', 'Élevage & vente d’animaux',
+      'Toilettage & pension', 'Alimentation animale'],
+  },
+  {
+    id: 'finance', emoji: '🏦', label: 'Banque, microfinance & assurance',
+    numero: 'Numéro d’agrément',
+    secteurs: ['Banque', 'Microfinance', 'Assurance', 'Mobile Money & transfert',
+      'Prêt & crédit'],
+  },
+  {
+    id: 'media', emoji: '📣', label: 'Média & communication',
+    numero: 'Numéro RCCM',
+    secteurs: ['Agence de communication', 'Presse & médias',
+      'Imprimerie & signalétique', 'Photo & vidéo', 'Marketing digital & influence'],
   },
 ]
 

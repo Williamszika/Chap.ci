@@ -158,7 +158,7 @@ export function GuidePro() {
         {/* ── QUI PEUT DEMANDER ─────────────────────────────────────────────── */}
         <h2 className="mt-7 font-display text-lg font-extrabold text-ink">Qui peut le demander</h2>
         <p className="mt-1.5 text-[13px] leading-relaxed text-gray-600">
-          Dix types d’organisation, et il n’y a pas de taille minimum&nbsp;: un artisan seul est
+          Quinze types d’organisation, et il n’y a pas de taille minimum&nbsp;: un artisan seul est
           aussi légitime qu’une agence.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
