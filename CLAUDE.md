@@ -128,10 +128,12 @@ une page « Bot Verification » (`/.lsrecap/`) à la place de TOUTE réponse dyn
 qu'un même endroit enchaîne une quinzaine de requêtes en trente secondes ; les visiteurs
 peuvent alors voir des 403, ou une erreur 520 de Cloudflare. Vu le 5 septembre 2026 :
 le Crieur le matin (403 intermittents), puis quinze sondes de vérification le soir
-(page anti-robot sur `/api/health`, 520 chez le Patron). Ça se relâche tout seul après
-une minute de silence. Règle : **cinq requêtes au plus d'affilée, trois secondes entre
-deux, et jamais de boucle de « re-essais » rapprochés** — un bureau qui mesure le site
-ne doit pas le faire tomber.
+(page anti-robot sur `/api/health`, 520 chez le Patron). Ça se relâche tout seul, mais
+pas en une minute : le 7 septembre 2026, deux sondes à une minute et demie d'écart ont
+encore reçu la page, la troisième est passée après **cinq minutes** de silence. Règle :
+**cinq requêtes au plus d'affilée, trois secondes entre deux, et jamais de boucle de
+« re-essais » rapprochés** ; après un refus, cinq minutes sans rien envoyer, puis une
+seule requête — un bureau qui mesure le site ne doit pas le faire tomber.
 
 Les fichiers de diagnostic déposés sur le serveur se retirent **dès la panne réglée**.
 Ils sont listés au Patron nommément.
