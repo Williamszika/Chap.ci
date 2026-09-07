@@ -240,6 +240,33 @@ Compte. `test/notif_liens_test.dart` (6). Le push natif (téléphone réveillé
 quand l'app est fermée) attend toujours le projet Firebase du Patron — voir
 le README, « Notifications push natives (FCM) ».
 
+**Ajouté le 07/09/2026, en soirée — deux demandes du Patron.**
+
+- **« Soutenir Chap.ci » entre la première et la deuxième ligne d'annonces**
+  (`lib/widgets/banniere_don.dart`, `lib/screens/don_screen.dart`,
+  `lib/data/dons.dart`). Le Patron : « Soutenir Chap.ci n'est pas dans l'app.
+  À mettre entre la première ligne d'annonce et la deuxième. » La grille de
+  l'accueil est coupée après la première ligne — dont le nombre de cartes se
+  calcule avec la même formule que la grille, pour que « la première ligne »
+  veuille dire la même chose du téléphone à la tablette. L'écran de don est le
+  port fidèle de `/don` : montant, opérateur, numéro à copier, bouton qui ouvre
+  le menu de l'opérateur. **Les numéros sont comparés à ceux du site par
+  `npm run banc:coherence`** (cinq vérifications de plus) : un chiffre qui
+  diverge enverrait un don chez quelqu'un d'autre, sans que personne ne le voie.
+  `test/dons_test.dart` (8).
+- **Empreinte digitale et Face ID** (`lib/api/biometrie.dart`,
+  `lib/screens/verrou_screen.dart`, paquet `local_auth`). Réglage dans
+  Paramètres → Sécurité, éteint par défaut, qui **demande le doigt au moment
+  où on l'allume** — un réglage qu'on active sans l'essayer enferme dehors le
+  lendemain. Le jeton de session vivant déjà sur le téléphone, la biométrie en
+  garde l'usage : **aucun mot de passe n'est stocké**. « Utiliser mon mot de
+  passe » reste la porte de secours. L'autorisation iOS
+  `NSFaceIDUsageDescription` est posée par `preparer_plateformes.dart`.
+- Textes dans les six langues (`textes.dart` : 31 clés de plus).
+- Tests : **248 passent**, 12 échouent — les mêmes douze qu'avant ce travail
+  (2FA, écran pub, notifications, suppression de compte, vendeur), aucun des
+  fichiers neufs.
+
 Puis, le soir du 04/09 (chantier 2 des six demandés, « l'application à
 égalité avec le site ») : **modifier son annonce** depuis Mon compte
 (formulaire prérempli, photos en ligne conservées, `PUT /listings/{id}`), et

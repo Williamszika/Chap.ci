@@ -61,6 +61,8 @@ const F = {
   paysTs: lire('src/data/pays.ts'),
   reglagesTsx: lire('src/components/ReglagesPro.tsx'),
   offresTsx: lire('src/components/Offres.tsx'),
+  donationTs: lire('src/data/donation.ts'),
+  donsDart: lire('flutter_app/lib/data/dons.dart'),
   adminTsx: lire('src/pages/AdminDashboard.tsx'),
   categoriesDart: lire('flutter_app/lib/data/categories.dart'),
   registreDart: lire('flutter_app/lib/data/formulaires/registre.dart'),
@@ -203,7 +205,25 @@ const champsServeur = tous(F.php.match(/const OFFRE_CHAMPS_TYPES = \[([^\]]+)\]/
 dire(contratsSite.length === 8 && memes(contratsSite, contratsApp), 'huit types de contrat, les mêmes, dans le même ordre', dirDiff(contratsSite, contratsApp))
 dire(champsSite.length === 6 && memes(champsSite, champsApp) && memes(champsSite, champsServeur), 'six types de question, identiques sur le site, l’application et le serveur', [dirDiff(champsSite, champsApp), dirDiff(champsSite, champsServeur)].filter(Boolean).join(' ; '))
 
-// ─── 7. Les permissions des modérateurs ───────────────────────────────────────
+// ─── 7. Les dons : DES NUMÉROS QUI REÇOIVENT DE L'ARGENT ──────────────────────
+titre('Les dons (Mobile Money)')
+const opsSite = tous(bloc(F.donationTs, 'export const donationOperators: DonationOperator[] = [', /\n\]/),
+  /id: '([a-z]+)',\s*\n\s*name: '([^']+)',[\s\S]*?number: '([^']+)',\s*\n\s*accountName: '([^']+)',/g)
+  .map((m) => ({ id: m[1], nom: m[2], numero: m[3], compte: m[4] }))
+const opsApp = tous(F.donsDart, /id: '([a-z]+)',\s*\n\s*nom: '([^']+)',[\s\S]*?numero: '([^']+)',\s*\n\s*nomCompte: '([^']+)',/g)
+  .map((m) => ({ id: m[1], nom: m[2], numero: m[3], compte: m[4] }))
+const montantsSite = tous(F.donationTs.match(/export const suggestedAmounts = \[([^\]]+)\]/)?.[1] ?? '', /(\d+)/g).map((m) => m[1])
+const montantsApp = tous(F.donsDart.match(/const List<int> montantsDon = \[([^\]]+)\]/)?.[1] ?? '', /(\d+)/g).map((m) => m[1])
+dire(opsSite.length >= 1 && memes(opsSite.map((o) => o.id), opsApp.map((o) => o.id)), `${opsSite.length} opérateurs, mêmes identifiants et même ordre dans l’application`, dirDiff(opsSite.map((o) => o.id), opsApp.map((o) => o.id)))
+// LE point : un chiffre qui diverge, et un don part chez quelqu'un d'autre —
+// sans que personne ne s'en aperçoive, Chap.ci n'étant jamais dans le circuit.
+const numerosFaux = opsSite.filter((o) => opsApp.find((x) => x.id === o.id)?.numero !== o.numero)
+dire(numerosFaux.length === 0, 'CHAQUE NUMÉRO qui reçoit les dons est identique au caractère près', numerosFaux.map((o) => `${o.id} : site « ${o.numero} » vs app « ${opsApp.find((x) => x.id === o.id)?.numero} »`).join(' ; '))
+dire(opsSite.every((o) => opsApp.find((x) => x.id === o.id)?.nom === o.nom && opsApp.find((x) => x.id === o.id)?.compte === o.compte), 'mêmes noms d’opérateur et mêmes noms de compte', opsSite.filter((o) => opsApp.find((x) => x.id === o.id)?.nom !== o.nom).map((o) => o.id).join(', '))
+dire(montantsSite.length === 5 && memes(montantsSite, montantsApp), 'les cinq montants proposés, dans le même ordre', dirDiff(montantsSite, montantsApp))
+dire(/montantDonDefaut = 2500/.test(F.donsDart) && /useState<number \| null>\(2500\)/.test(lire('src/pages/Donate.tsx')), 'le même montant est sélectionné à l’ouverture des deux côtés (2 500 FCFA)')
+
+// ─── 8. Les permissions des modérateurs ───────────────────────────────────────
 titre('Les permissions des modérateurs')
 const permServeur = tous(F.php.match(/function admin_grantable_features\(\): array \{\s*return \[([^\]]+)\]/)?.[1] ?? '', /'([a-z]+)'/g).map((m) => m[1])
 const permLabels = tous(bloc(F.php, 'function admin_feature_labels(): array {', /\n\s*\];/), /'([a-z]+)' => '/g).map((m) => m[1])

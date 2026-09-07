@@ -174,13 +174,22 @@ void _configurerIos() {
   if (!plist.contains('NSPhotoLibraryUsageDescription')) {
     plist = plist.replaceFirst(
         '</dict>\n</plist>', '$_permsIos</dict>\n</plist>');
-  } else if (!plist.contains('NSMicrophoneUsageDescription')) {
-    // Un dossier ios/ préparé AVANT la vidéo de quinze secondes (04/09/2026)
-    // a déjà les autres clés : on n'ajoute que celle du micro.
-    plist = plist.replaceFirst('</dict>\n</plist>',
-        '\t<key>NSMicrophoneUsageDescription</key>\n'
-        '\t<string>Pour filmer votre annonce avec le son.</string>\n'
-        '</dict>\n</plist>');
+  } else {
+    // Un dossier ios/ préparé AVANT une nouveauté a déjà les autres clés : on
+    // n'ajoute que celles qui manquent, une par une. (Le micro est arrivé le
+    // 04/09/2026 avec la vidéo, Face ID le 07/09 avec le déverrouillage.)
+    if (!plist.contains('NSMicrophoneUsageDescription')) {
+      plist = plist.replaceFirst('</dict>\n</plist>',
+          '\t<key>NSMicrophoneUsageDescription</key>\n'
+          '\t<string>Pour filmer votre annonce avec le son.</string>\n'
+          '</dict>\n</plist>');
+    }
+    if (!plist.contains('NSFaceIDUsageDescription')) {
+      plist = plist.replaceFirst('</dict>\n</plist>',
+          '\t<key>NSFaceIDUsageDescription</key>\n'
+          '\t<string>Pour déverrouiller Chap.ci avec votre visage.</string>\n'
+          '</dict>\n</plist>');
+    }
   }
   // Connexion Google : le schéma d'URL (client ID iOS inversé) et le GIDClientID
   // doivent être dans l'Info.plist, sinon la redirection Google échoue sur iOS.
@@ -333,7 +342,12 @@ const _permsIos =
     '\t<key>NSMicrophoneUsageDescription</key>\n'
     '\t<string>Pour filmer votre annonce avec le son.</string>\n'
     '\t<key>NSLocationWhenInUseUsageDescription</key>\n'
-    '\t<string>Pour placer votre annonce à l’endroit exact.</string>\n';
+    '\t<string>Pour placer votre annonce à l’endroit exact.</string>\n'
+    // Face ID (07/09/2026). SANS CETTE CLÉ, iOS ferme l'application au moment
+    // exact où elle demande le visage — pas d'erreur, pas de message : elle
+    // disparaît. C'est la même mécanique que le micro le 04/09.
+    '\t<key>NSFaceIDUsageDescription</key>\n'
+    '\t<string>Pour déverrouiller Chap.ci avec votre visage.</string>\n';
 
 // Connexion Google sur iOS. Le schéma d'URL est le client ID iOS « inversé »
 // (com.googleusercontent.apps.<id>), tel que l'exige google_sign_in.

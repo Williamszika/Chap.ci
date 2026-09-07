@@ -4,6 +4,7 @@ import '../api/pub.dart';
 import '../ecran_demarrage.dart' show SigneChap;
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../widgets/banniere_don.dart';
 import '../widgets/cloche_notifs.dart';
 import '../widgets/ecran_pub.dart';
 import '../widgets/listing_card.dart';
@@ -248,42 +249,63 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ];
     }
-    // La grille + le pied de liste.
+    // La grille, coupée après la PREMIÈRE LIGNE pour y glisser « Soutenir
+    // Chap.ci » (07/09/2026, le Patron : « à mettre entre la première ligne
+    // d'annonce et la deuxième »). Le site a la même bannière au même endroit.
+    final parLigne = _colonnes(context);
+    final premiere = _annonces.length <= parLigne ? _annonces.length : parLigne;
     return [
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 220,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.66,
-          ),
-          delegate: SliverChildBuilderDelegate(
-            (context, i) {
-              // Précharge la page suivante dès qu'on CONSTRUIT une carte proche
-              // de la fin de la liste. Plus fiable que le calcul de position sur
-              // une grille paresseuse (dont l'étendue n'est qu'estimée) : ici le
-              // déclenchement suit exactement ce que Flutter est en train de
-              // bâtir. `_chargerPlus` se garde contre les appels en double.
-              if (i >= _annonces.length - 8) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _chargerPlus();
-                });
-              }
-              return ListingCard(
-                annonce: _annonces[i],
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) =>
-                        ListingDetailScreen(annonce: _annonces[i]))),
-              );
-            },
-            childCount: _annonces.length,
-          ),
-        ),
-      ),
+      _grille(debut: 0, fin: premiere),
+      const SliverToBoxAdapter(child: BanniereDon()),
+      if (premiere < _annonces.length) _grille(debut: premiere, fin: _annonces.length),
       SliverToBoxAdapter(child: _pied()),
     ];
+  }
+
+  /// Combien de cartes tiennent sur une ligne — la même formule que
+  /// `SliverGridDelegateWithMaxCrossAxisExtent` applique, pour que « la
+  /// première ligne » veuille dire la même chose ici et à l'écran, du
+  /// téléphone à la tablette.
+  int _colonnes(BuildContext context) {
+    final largeur = MediaQuery.of(context).size.width - 24; // le SliverPadding
+    return (largeur / (220 + 12)).ceil().clamp(1, 8);
+  }
+
+  /// Une tranche de la grille, de [debut] inclus à [fin] exclu.
+  Widget _grille({required int debut, required int fin}) {
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(12, debut == 0 ? 4 : 0, 12, 4),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 220,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.66,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, i) {
+            final index = debut + i;
+            // Précharge la page suivante dès qu'on CONSTRUIT une carte proche
+            // de la fin de la liste. Plus fiable que le calcul de position sur
+            // une grille paresseuse (dont l'étendue n'est qu'estimée) : ici le
+            // déclenchement suit exactement ce que Flutter est en train de
+            // bâtir. `_chargerPlus` se garde contre les appels en double.
+            if (index >= _annonces.length - 8) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _chargerPlus();
+              });
+            }
+            return ListingCard(
+              annonce: _annonces[index],
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) =>
+                      ListingDetailScreen(annonce: _annonces[index]))),
+            );
+          },
+          childCount: fin - debut,
+        ),
+      ),
+    );
   }
 
   /// Pied de la liste : indicateur pendant qu'on charge la suite, bouton

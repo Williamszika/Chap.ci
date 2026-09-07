@@ -107,7 +107,25 @@ du haut les prennent toutes en une fois.
   professionnel. Hors ligne, l'écran dit maintenant que les valeurs affichées
   sont celles par défaut, et une publication qui échoue propose « Réessayer ».
 
-Rien de nouveau à faire dans Xcode : aucune bibliothèque ne s'ajoute.
+- **Soutenir Chap.ci.** La bannière verte de l'accueil du site arrive dans
+  l'application, **entre la première et la deuxième ligne d'annonces**. Elle
+  ouvre un écran de don : le montant, l'opérateur (Orange Money ou Wave), le
+  numéro à créditer avec un bouton « Copier », et le bouton qui ouvre
+  directement le menu de l'opérateur. Chap.ci n'encaisse rien — l'écran le dit.
+- **Empreinte digitale et Face ID.** Paramètres → Sécurité → « Empreinte ou
+  Face ID ». Une fois allumé, l'application demande votre doigt ou votre visage
+  à chaque ouverture, avant de montrer quoi que ce soit. « Utiliser mon mot de
+  passe » reste toujours proposé, pour le jour où le capteur ne répond pas.
+  Aucun mot de passe n'est enregistré sur le téléphone.
+
+**Une bibliothèque s'ajoute cette fois : `local_auth`** (l'empreinte et Face
+ID). `flutter pub get` la prend, et CocoaPods l'installe tout seul pendant
+`flutter run` — vous n'avez rien à faire dans Xcode. L'autorisation Face ID
+(`NSFaceIDUsageDescription`) est posée automatiquement par
+`dart run tool/preparer_plateformes.dart`, la sixième des six commandes.
+Sans elle, iOS fermerait l'application au moment exact où elle demande le
+visage, sans un mot — c'est ce qui serait arrivé au micro le 4 septembre si la
+clé n'avait pas été ajoutée en même temps.
 
 ---
 

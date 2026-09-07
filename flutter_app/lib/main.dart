@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'api/api_client.dart';
+import 'api/biometrie.dart';
 import 'api/push_natif.dart';
 import 'ecran_demarrage.dart';
 import 'favoris.dart';
@@ -16,6 +17,7 @@ import 'screens/browse_screen.dart';
 import 'screens/messages_screen.dart';
 import 'screens/account_screen.dart';
 import 'screens/publier_screen.dart';
+import 'screens/verrou_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -99,15 +101,36 @@ class _Lancement extends StatefulWidget {
 class _LancementState extends State<_Lancement> {
   bool _fini = false;
 
+  /// Le verrou par empreinte / Face ID (07/09/2026). `null` tant qu'on ne sait
+  /// pas encore : on ne montre le compte qu'une fois la réponse connue, sinon
+  /// l'accueil apparaîtrait une fraction de seconde avant de se cacher.
+  bool? _verrouille;
+
+  @override
+  void initState() {
+    super.initState();
+    Biometrie.instance
+        .verrouAttendu()
+        .then((v) => mounted ? setState(() => _verrouille = v) : null)
+        .catchError((_) => mounted ? setState(() => _verrouille = false) : null);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final pret = _fini && _verrouille != null;
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 240),
-      child: _fini
-          ? const AccueilShell()
-          : EcranDemarrage(auTerme: () {
+      child: !pret
+          ? EcranDemarrage(auTerme: () {
               if (mounted) setState(() => _fini = true);
-            }),
+            })
+          : _verrouille == true
+              ? VerrouScreen(
+                  onOuvert: () {
+                    if (mounted) setState(() => _verrouille = false);
+                  },
+                )
+              : const AccueilShell(),
     );
   }
 }

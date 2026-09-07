@@ -3,6 +3,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../api/admin.dart';
 import '../api/api_client.dart';
+import '../api/biometrie.dart';
 import '../i18n/langues.dart';
 import '../i18n/textes.dart';
 import '../liens_site.dart';
@@ -36,6 +37,9 @@ class _ParametresScreenState extends State<ParametresScreen> {
   bool _emailVerifie = false;
   String _proStatut = ''; // '', en_attente, approuve, refuse
   bool _2faActive = false;
+  // Le déverrouillage par empreinte / Face ID (07/09/2026).
+  bool _bioDispo = false;
+  bool _bioActive = false;
   bool _estAdmin = false;
   bool _chargement = true;
 
@@ -79,6 +83,8 @@ class _ParametresScreenState extends State<ParametresScreen> {
     } catch (_) {/* on affiche quand même le reste */}
     // 2FA.
     _2faActive = await ApiClient.instance.statut2FA();
+    _bioDispo = await Biometrie.instance.disponible();
+    _bioActive = await Biometrie.instance.active();
     // Admin (l'entrée « Tableau de bord » n'apparaît que pour eux).
     try {
       final acces = await AdminApi.verifier();
@@ -400,6 +406,20 @@ class _ParametresScreenState extends State<ParametresScreen> {
                         sousCouleur: _2faActive ? ChapColors.greenDark : null,
                         onTap: () => _ouvrir(const Securite2faScreen()),
                       ),
+                      // Empreinte digitale / Face ID (07/09/2026). La ligne
+                      // n'apparaît que si le téléphone sait le faire ET qu'une
+                      // empreinte y est enregistrée : proposer un réglage qui
+                      // ne peut pas marcher est pire que ne rien proposer.
+                      if (_bioDispo)
+                        _interrupteur(
+                          icone: Icons.fingerprint,
+                          fond: const Color(0xFFDFF2E8),
+                          teinte: ChapColors.greenDark,
+                          titre: tr(context, 'bio.titre'),
+                          sous: tr(context, 'bio.sous'),
+                          valeur: _bioActive,
+                          onChange: _basculerBio,
+                        ),
                     ]),
 
                     _label(tr(context, 'section.notifications')),
@@ -604,6 +624,26 @@ class _ParametresScreenState extends State<ParametresScreen> {
             _majNotifs(() => _notifEmail = v, () => _notifEmail = !v),
       ),
     ]);
+  }
+
+  /// Allumer ou éteindre le déverrouillage par empreinte / Face ID.
+  ///
+  /// Pour ALLUMER, on demande le doigt tout de suite : c'est la seule preuve
+  /// que ça marchera à la prochaine ouverture. Un réglage qu'on allume sans
+  /// l'essayer, et l'on se retrouve enfermé dehors le lendemain.
+  Future<void> _basculerBio(bool v) async {
+    if (v) {
+      final ok = await Biometrie.instance.demander(tr(context, 'bio.motifActiver'));
+      if (!ok) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(tr(context, 'bio.echec'))));
+        }
+        return;
+      }
+    }
+    await Biometrie.instance.definirActive(v);
+    if (mounted) setState(() => _bioActive = v);
   }
 
   /// Les rappels du professionnel — la moitié utile : « message sans réponse
