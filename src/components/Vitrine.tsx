@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Clock, Search, Timer } from 'lucide-react'
 import { mediaUrl } from '../lib/native'
-import { labelTypePro } from '../data/secteursPro'
+import { labelTypePro, motsPro } from '../data/secteursPro'
 import { formatFCFA, formatPrice } from '../lib/format'
 import type { PublicProfile } from '../lib/profiles'
 
@@ -153,6 +153,9 @@ export function EnTeteVitrine({ pro, nom, lieu, badge, retour }: {
   const depuis = pro.depuis ? new Date(pro.depuis).toLocaleDateString('fr-FR', {
     month: 'long', year: 'numeric',
   }) : null
+  // Les mots suivent le type : une association n'est pas « professionnelle
+  // depuis », elle est « association depuis » (07/09/2026).
+  const mots = motsPro(pro.type)
   return (
     <header className="relative">
       <div className="relative h-28 w-full overflow-hidden md:h-40">
@@ -168,7 +171,7 @@ export function EnTeteVitrine({ pro, nom, lieu, badge, retour }: {
             aussi la place qu'elle occupe dans le tableau de bord — le
             professionnel retrouve sa boutique. */}
         <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-white backdrop-blur-sm">
-          ✓ Professionnel
+          ✓ {mots.badge}
         </span>
       </div>
 
@@ -195,7 +198,7 @@ export function EnTeteVitrine({ pro, nom, lieu, badge, retour }: {
           <p className="mt-0.5 text-[12px] text-gray-500">
             {lieu ? <>📍 {lieu}</> : null}
             {lieu && depuis ? ' · ' : ''}
-            {depuis ? <>Professionnel depuis {depuis}</> : null}
+            {depuis ? <>{mots.depuis} {depuis}</> : null}
           </p>
         )}
       </div>
@@ -256,13 +259,16 @@ function anciennete(depuis: number): string {
  * message. Il était déjà calculé, déjà affiché — mais perdu en petit sous les
  * boutons, là où personne ne le lisait.
  */
-export function ChiffresVitrine({ reponse, note, avis, ventes, depuis }: {
+export function ChiffresVitrine({ reponse, note, avis, ventes, depuis, type }: {
   reponse: number | null
   note: number
   avis: number
   ventes: number
   depuis?: number | null
+  /** Le type de structure : « dons remis » chez une association, « ventes conclues » ailleurs. */
+  type?: string | null
 }) {
+  const mots = motsPro(type)
   return (
     <div className="grid grid-cols-4 gap-2 px-4">
       <Chiffre fort={reponse != null}
@@ -271,8 +277,8 @@ export function ChiffresVitrine({ reponse, note, avis, ventes, depuis }: {
       <Chiffre valeur={avis > 0 ? `★ ${note.toFixed(1)}` : '—'}
         libelle={avis > 0 ? `${avis} avis` : 'aucun avis'} />
       <Chiffre valeur={formatPrice(ventes)}
-        libelle={ventes > 1 ? 'ventes conclues' : 'vente conclue'} />
-      <Chiffre valeur={depuis ? anciennete(depuis) : '—'} libelle="professionnel" />
+        libelle={ventes > 1 ? mots.compte[1] : mots.compte[0]} />
+      <Chiffre valeur={depuis ? anciennete(depuis) : '—'} libelle={mots.anciennete} />
     </div>
   )
 }
@@ -432,26 +438,22 @@ export function AProposVitrine({ pro, bio, lieu, reponse }: {
   reponse: number | null
 }) {
   const texte = (pro.description || '').trim() || (bio || '').trim()
+  const mots = motsPro(pro.type)
   return (
     <div className="card p-4">
       <p className="font-display text-[15px] font-extrabold text-ink">{pro.nom || 'À propos'}</p>
       {texte ? (
         <p className="mt-1.5 text-sm leading-relaxed text-gray-700">{texte}</p>
       ) : (
-        <p className="mt-1.5 text-sm text-gray-500">
-          Cette boutique n’a pas encore écrit sa présentation.
-        </p>
+        <p className="mt-1.5 text-sm text-gray-500">{mots.presentationVide}</p>
       )}
 
       {pro.registreVerifie && (
         <div className="mt-3 border-t border-line pt-3">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-ivoire-green/10 px-3 py-1.5 text-[11.5px] font-bold text-ivoire-green-dark">
-            ✓ Registre vérifié par l’équipe Chap.ci
+            ✓ {mots.registre}
           </span>
-          <p className="mt-1.5 text-[11.5px] leading-relaxed text-gray-500">
-            Le numéro officiel de cette entreprise a été contrôlé au registre avant
-            l’approbation du compte.
-          </p>
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-gray-500">{mots.registreNote}</p>
         </div>
       )}
 

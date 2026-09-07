@@ -296,6 +296,7 @@ class _VendeurScreenState extends State<VendeurScreen> {
                 avis: nbAvis,
                 ventes: p.proVentes,
                 depuis: p.proDepuis,
+                type: p.proType,
               ),
               const SizedBox(height: 14),
               _boutons(),

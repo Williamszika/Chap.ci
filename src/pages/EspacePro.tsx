@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { phpProStatut, phpProDemande, phpProTableau, phpProVitrine, type Horaire } from '../lib/php'
-import { TYPES_PRO, labelTypePro } from '../data/secteursPro'
+import { TYPES_PRO, labelTypePro, motsPro } from '../data/secteursPro'
 import { formatFCFA, formatPrice, timeAgo } from '../lib/format'
 import { mediaUrl, thumbUrl } from '../lib/native'
 import { downscaleImage, downscaleListingImage } from '../lib/image'
@@ -300,6 +300,9 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
   const s = t.stats
   const k = t.kpi
   const c = t.compte
+  // Les mots suivent le type de structure (07/09/2026) : une association
+  // gère son association, remet des dons, reçoit des demandes.
+  const mots = motsPro(t.pro.type)
   // La vitrine : on choisit un fichier, on le réduit (la bannière est large,
   // le logo carré), on l'envoie, et le tableau se met à jour sans recharger.
   const choisirImage = (quoi: 'banniere' | 'logo') => {
@@ -458,7 +461,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
               {(userId ?? user?.id) && (
                 <Link to={`/vendeur/${userId ?? user?.id}`}
                   className="flex-1 rounded-xl border-[1.5px] border-white/70 px-4 py-2 text-center text-[13px] font-bold text-white sm:flex-none">
-                  {lecture ? 'Sa page vendeur' : 'Ma page vendeur'}
+                  {lecture ? `Sa ${mots.page}` : `Ma ${mots.page}`}
                 </Link>
               )}
             </div>
@@ -469,7 +472,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
         )}
         {!lecture && (t.pro.banniere || t.pro.logo) && (
           <p className="mt-2 text-[11px] text-white/60">
-            Votre bannière et votre logo apparaissent aussi sur votre page vendeur.
+            Votre bannière et votre logo apparaissent aussi sur votre {mots.page}.
             {t.pro.banniere && <> <button onClick={() => retirerImage('banniere')} className="underline">Retirer la bannière</button></>}
             {t.pro.logo && <> · <button onClick={() => retirerImage('logo')} className="underline">Retirer le logo</button></>}
           </p>
@@ -496,7 +499,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
               ? <span className="chip-delta bg-cream-100 text-primary-700">Répond vite</span>
               : <span className="chip-delta bg-cream-100 text-gray-500">À améliorer</span>} />
         <Kpi icone={<Handshake size={17} />} valeur={k.ventes.n}
-          libelle="Ventes conclues" delta={<Delta n={k.ventes.n} prev={k.ventes.prev} absolu />} />
+          libelle={mots.kpi} delta={<Delta n={k.ventes.n} prev={k.ventes.prev} absolu />} />
         <Kpi icone={<Package size={17} />} valeur={s.annoncesActives}
           libelle="Annonces en ligne"
           delta={<span className="chip-delta bg-cream-100 text-gray-500">{s.annoncesTotal} au total</span>} />
@@ -616,14 +619,14 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
       {dansCompte && c && (
         <>
           <p className="mt-2 px-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">
-            Gérer ma boutique
+            {mots.gerer}
           </p>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Tuile inerte={lecture} emoji="📦" fond="#FFF3E4" titre="Mes annonces"
               sous={[
                 `${s.annoncesActives} en ligne`,
                 c.annoncesMasquees > 0 ? `${c.annoncesMasquees} masquée${c.annoncesMasquees > 1 ? 's' : ''}` : '',
-                `${c.annoncesVendues} vendue${c.annoncesVendues > 1 ? 's' : ''}`,
+                `${c.annoncesVendues} ${c.annoncesVendues > 1 ? mots.ecoulee[1] : mots.ecoulee[0]}`,
               ].filter(Boolean).join(' · ')}
               onClick={() => onOnglet?.('annonces')} />
             <Tuile inerte={lecture} emoji="💬" fond="#EDEFF2" titre="Messages"
@@ -644,13 +647,13 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
                 ? <span className="grid h-5 place-items-center rounded-full bg-emerald-50 px-2 text-[10.5px] font-extrabold text-emerald-700">ON</span>
                 : undefined}
               onClick={() => onOnglet?.('reponses')} />
-            <Tuile inerte={lecture} emoji="🛍️" fond="#FFF6E0" titre="Mes commandes"
+            <Tuile inerte={lecture} emoji="🛍️" fond="#FFF6E0" titre={mots.commandes}
               sous={`${c.commandesEnCours} en cours · ${c.commandesFinalisees} finalisée${c.commandesFinalisees > 1 ? 's' : ''}`}
               onClick={() => onOnglet?.('achats')} />
             <Tuile inerte={lecture} emoji="❤️" fond="#FBEAE7" titre="Mes favoris"
               sous={`${c.favorisEnregistres} annonce${c.favorisEnregistres > 1 ? 's' : ''} surveillée${c.favorisEnregistres > 1 ? 's' : ''}`}
               onClick={() => navigate('/favoris', DEPUIS_COMPTE)} />
-            <Tuile inerte={lecture} emoji="📊" fond="#E4F5EC" titre="Statistiques de vente"
+            <Tuile inerte={lecture} emoji="📊" fond="#E4F5EC" titre={mots.stats}
               sous="Le chemin de l’acheteur, vos heures, vos communes"
               onClick={() => onOnglet?.('stats')} />
             <Tuile inerte={lecture} emoji="📣" fond="#FFF3E4" titre="Mes publicités"
@@ -681,8 +684,8 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
           <div className="rounded-2xl border border-line bg-white p-4 shadow-card md:p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
-                <p className="font-display text-[15px] font-extrabold text-ink">Fiche professionnelle</p>
-                <p className="mt-0.5 text-xs text-gray-500">Ce que les acheteurs voient sur votre page vendeur</p>
+                <p className="font-display text-[15px] font-extrabold text-ink">{mots.fiche}</p>
+                <p className="mt-0.5 text-xs text-gray-500">{mots.ficheSous}</p>
               </div>
               {!lecture && (
                 <button onClick={() => onOnglet?.('fiche')}
@@ -706,7 +709,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
               <Champ etiquette="Abonnés"
                 valeur={`${t.pro.abonnes ?? 0} personne${(t.pro.abonnes ?? 0) > 1 ? 's' : ''}`} />
               <Champ etiquette="Page publique" ton="orange"
-                valeur={(userId ?? user?.id) ? (lecture ? 'Voir sa page vendeur →' : 'Voir ma page vendeur →') : '—'}
+                valeur={(userId ?? user?.id) ? (lecture ? `Voir sa ${mots.page} →` : `Voir ma ${mots.page} →`) : '—'}
                 lien={(userId ?? user?.id) ? `/vendeur/${userId ?? user?.id}` : undefined} />
             </div>
           </div>

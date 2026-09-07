@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/models.dart';
 import '../api/profil.dart';
+import '../data/mots_pro.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
 
@@ -239,8 +240,9 @@ class EnTeteVitrine extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text('✓ PROFESSIONNEL',
-                          style: TextStyle(
+                      child: Text(
+                          '✓ ${motsBadge(context, profil.proType).toUpperCase()}',
+                          style: const TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
@@ -315,7 +317,7 @@ class EnTeteVitrine extends StatelessWidget {
                 Text(
                   [
                     if (commune != null) '📍 $commune',
-                    if (depuis != null) 'Professionnel depuis $depuis',
+                    if (depuis != null) motsDepuis(context, profil.proType, depuis),
                   ].join(' · '),
                   style: const TextStyle(
                       fontSize: 12, color: ChapColors.gray500),
@@ -433,6 +435,10 @@ class ChiffresVitrine extends StatelessWidget {
   final int avis;
   final int ventes;
   final int? depuis;
+
+  /// Le type de structure : « dons remis » chez une association, « ventes
+  /// conclues » ailleurs (07/09/2026).
+  final String? type;
   const ChiffresVitrine({
     super.key,
     required this.reponseSecondes,
@@ -440,6 +446,7 @@ class ChiffresVitrine extends StatelessWidget {
     required this.avis,
     required this.ventes,
     this.depuis,
+    this.type,
   });
 
   @override
@@ -462,11 +469,11 @@ class ChiffresVitrine extends StatelessWidget {
             const SizedBox(width: 7),
             _Chiffre(
                 valeur: '$ventes',
-                libelle: ventes > 1 ? 'ventes conclues' : 'vente conclue'),
+                libelle: motsCompte(context, type, ventes)),
             const SizedBox(width: 7),
             _Chiffre(
                 valeur: depuis != null ? anciennete(depuis!) : '—',
-                libelle: 'professionnel'),
+                libelle: motsAnciennete(context, type)),
           ],
         ),
       );
@@ -506,7 +513,7 @@ class AProposVitrine extends StatelessWidget {
           Text(
             texte.isNotEmpty
                 ? texte
-                : 'Cette boutique n’a pas encore écrit sa présentation.',
+                : motsPresentationVide(context, profil.proType),
             style: TextStyle(
                 fontSize: 13.5,
                 height: 1.45,
@@ -524,17 +531,16 @@ class AProposVitrine extends StatelessWidget {
                 color: ChapColors.green.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: const Text('✓ Registre vérifié par l’équipe Chap.ci',
-                  style: TextStyle(
+              child: Text(motsRegistre(context, profil.proType),
+                  style: const TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       color: ChapColors.greenDark)),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Le numéro officiel de cette entreprise a été contrôlé au '
-              'registre avant l’approbation du compte.',
-              style: TextStyle(
+            Text(
+              motsRegistreNote(context, profil.proType),
+              style: const TextStyle(
                   fontSize: 11.5, height: 1.4, color: ChapColors.gray500),
             ),
           ],

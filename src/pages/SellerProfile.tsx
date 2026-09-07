@@ -179,7 +179,7 @@ export function SellerProfile() {
 
           {/* ② Les quatre chiffres, choisis pour l'acheteur */}
           <ChiffresVitrine reponse={reponse} note={avg} avis={count}
-            ventes={pro.ventes ?? 0} depuis={pro.depuis} />
+            ventes={pro.ventes ?? 0} depuis={pro.depuis} type={pro.type} />
 
           <div className="flex gap-3 px-4 py-4">
             <button onClick={contactSeller} disabled={busy}

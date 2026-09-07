@@ -272,6 +272,17 @@ plus dans les types existants (Coiffure & Esthétique ; Auto-école, Université
 Mêmes identifiants sur le site, dans l'application et au serveur
 (`PRO_TYPES`) ; les secteurs nouveaux sont traduits dans les six langues.
 
+Puis « adapte les mots par type pour les associations » : la vitrine et la
+console changent de vocabulaire selon le type (`lib/data/mots_pro.dart`,
+jumeau de `motsPro()` sur le site). Une association est « Association
+vérifiée », « Association depuis juin 2026 », remet des « dons » et non des
+« ventes », fait vérifier un « récépissé » ; un métier à agrément (école,
+voyage, santé, hôtel, banque) un « agrément » ; les autres gardent le
+« registre ». Console : « Gérer mon association », « Fiche de l'association »,
+« 3 en ligne · 0 données ». Ces mots de la vitrine, jusque-là en français
+dans le code, passent par `textes.dart` dans les six langues. Test
+`mots_pro_test.dart` : quatre contrôles.
+
 ✅ **CE CODE A ÉTÉ ANALYSÉ ET TESTÉ, le 04/09/2026.** `flutter analyze` sur les
 93 fichiers Dart : **zéro erreur** (la mise en garde `_proNom` de la v1.24 est
 toujours là, inchangée). `test/nouveautes_test.dart` : **onze contrôles verts**,

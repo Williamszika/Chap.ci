@@ -20,6 +20,7 @@ import '../screens/reponses_screen.dart';
 import '../screens/reseaux_screen.dart';
 import '../screens/securite_2fa_screen.dart';
 import '../api/profil.dart' show ProfilPublic;
+import '../data/mots_pro.dart';
 
 /// Le tableau de bord de l'ESPACE PROFESSIONNEL, façon CRM — le panneau d'un
 /// compte approuvé : badge 💼, nom commercial, période 7/30 jours, chiffres
@@ -439,7 +440,7 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
         // plus un tableau suivi d'une liste de réglages : c'est une seule
         // console (demande du Patron, 27/08).
         if (widget.dansCompte) ...[
-          _titreSection(tr(context, 'pro.sec.boutique')),
+          _titreSection(motsSection(context, type)),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -450,10 +451,9 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
             children: [
               _tuile('📦', ChapColors.cream100,
                   tr(context, 'compte.mesAnnonces'),
-                  _tr('pro.tuile.annoncesSous', {
-                    'a': '${stats['annoncesActives'] ?? 0}',
-                    'v': '${compte['annoncesVendues'] ?? 0}',
-                  }),
+                  motsAnnoncesSous(context, type,
+                      (stats['annoncesActives'] as num?)?.toInt() ?? 0,
+                      (compte['annoncesVendues'] as num?)?.toInt() ?? 0),
                   onTap: widget.onVersAnnonces),
               _tuile('💬', const Color(0xFFEDEFF2), tr(context, 'nav.messages'),
                   (aRepondre['n'] as int? ?? 0) > 0
@@ -901,10 +901,10 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(tr(context, 'pro.fiche.titre'),
+                  Text(motsFicheTitre(context, type),
                       style: const TextStyle(
                           fontSize: 13.5, fontWeight: FontWeight.w800)),
-                  Text(tr(context, 'pro.fiche.sous'),
+                  Text(motsFicheSous(context, type),
                       style: const TextStyle(
                           fontSize: 10.5, color: ChapColors.gray600)),
                 ],

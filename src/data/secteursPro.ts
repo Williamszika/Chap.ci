@@ -124,3 +124,73 @@ export function labelTypePro(id: string): string {
   const t = TYPES_PRO.find((x) => x.id === id)
   return t ? `${t.emoji} ${t.label}` : id
 }
+
+/**
+ * Les mots de la vitrine et de la console selon le type de structure
+ * (07/09/2026, le Patron : « adapte les mots par type pour les associations »).
+ * Une association ne conclut pas des ventes, elle remet des dons ; son numéro
+ * n'est pas un RCCM mais un récépissé ; sa page n'est pas une boutique. Les
+ * métiers à agrément (école, agence de voyage, santé, hôtel, banque) ont fait
+ * vérifier un agrément, pas un registre.
+ */
+export interface MotsPro {
+  /** La pastille sur la bannière : « Professionnel », « Association vérifiée ». */
+  badge: string
+  /** « Professionnel depuis juin 2026 » — les mots avant la date. */
+  depuis: string
+  /** Le libellé du quatrième chiffre, l'ancienneté : « professionnel », « vérifiée ». */
+  anciennete: string
+  /** Le troisième chiffre, au singulier puis au pluriel : « vente conclue » / « dons remis ». */
+  compte: [string, string]
+  /** La pastille du registre et la phrase qui l'explique. */
+  registre: string
+  registreNote: string
+  /** Quand la structure n'a pas écrit sa présentation. */
+  presentationVide: string
+  /** La console : le titre de section, la fiche, sa légende, le nom de la page. */
+  gerer: string
+  fiche: string
+  ficheSous: string
+  page: string
+  /** « vendue(s) » / « donnée(s) », sous la tuile Mes annonces. */
+  ecoulee: [string, string]
+  /** « Mes commandes » / « Mes demandes », « Statistiques de vente » / « Statistiques », le KPI. */
+  commandes: string
+  stats: string
+  kpi: string
+}
+
+const TYPES_A_AGREMENT = new Set(['formation', 'voyage', 'sante', 'hebergement', 'finance'])
+const TYPES_BOUTIQUE = new Set(['', 'boutique', 'commerce', 'restauration', 'vehicules'])
+
+export function motsPro(type?: string | null): MotsPro {
+  const t = type || ''
+  if (t === 'association') {
+    return {
+      badge: 'Association vérifiée', depuis: 'Association depuis', anciennete: 'vérifiée',
+      compte: ['don remis', 'dons remis'],
+      registre: 'Récépissé vérifié par l’équipe Chap.ci',
+      registreNote: 'Le récépissé de cette association a été contrôlé avant l’approbation du compte.',
+      presentationVide: 'Cette association n’a pas encore écrit sa présentation.',
+      gerer: 'Gérer mon association', fiche: 'Fiche de l’association',
+      ficheSous: 'Ce que les visiteurs voient sur votre page', page: 'page',
+      ecoulee: ['donnée', 'données'], commandes: 'Mes demandes', stats: 'Statistiques', kpi: 'Dons remis',
+    }
+  }
+  const agrement = TYPES_A_AGREMENT.has(t)
+  const boutique = TYPES_BOUTIQUE.has(t)
+  return {
+    badge: 'Professionnel', depuis: 'Professionnel depuis', anciennete: 'professionnel',
+    compte: ['vente conclue', 'ventes conclues'],
+    registre: agrement ? 'Agrément vérifié par l’équipe Chap.ci' : 'Registre vérifié par l’équipe Chap.ci',
+    registreNote: agrement
+      ? 'Le numéro d’agrément de cette structure a été contrôlé avant l’approbation du compte.'
+      : 'Le numéro officiel de cette entreprise a été contrôlé au registre avant l’approbation du compte.',
+    presentationVide: boutique
+      ? 'Cette boutique n’a pas encore écrit sa présentation.'
+      : 'Cette structure n’a pas encore écrit sa présentation.',
+    gerer: boutique ? 'Gérer ma boutique' : 'Gérer mon activité', fiche: 'Fiche professionnelle',
+    ficheSous: 'Ce que les acheteurs voient sur votre page vendeur', page: 'page vendeur',
+    ecoulee: ['vendue', 'vendues'], commandes: 'Mes commandes', stats: 'Statistiques de vente', kpi: 'Ventes conclues',
+  }
+}
