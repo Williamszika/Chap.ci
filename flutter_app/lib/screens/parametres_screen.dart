@@ -44,6 +44,15 @@ class _ParametresScreenState extends State<ParametresScreen> {
   bool _notifFavori = true;
   bool _notifFavoriSuivi = true; // mes favoris : baisse de prix, fin d'annonce
   bool _notifAbonnement = true; // les structures que je suis publient
+  // Les mêmes interrupteurs que le site (banc de cohérence du 07/09/2026) :
+  // ce que le site laissait couper, l'app le laisse couper aussi.
+  bool _notifVente = true;
+  bool _notifAvis = true;
+  bool _notifNouveaute = true;
+  bool _notifSansReponse = true; // rappels du professionnel
+  bool _notifEssouffle = true;
+  bool _notifBilan = true;
+  bool _notifCandidature = true;
   bool _notifEmail = true;
   bool _notifPretes = false;
   bool _notifEnvoi = false;
@@ -84,6 +93,13 @@ class _ParametresScreenState extends State<ParametresScreen> {
           _notifFavori = d['favorite'] != false;
           _notifFavoriSuivi = d['favori_suivi'] != false;
           _notifAbonnement = d['abonnement'] != false;
+          _notifVente = d['vente'] != false;
+          _notifAvis = d['avis'] != false;
+          _notifNouveaute = d['nouveaute'] != false;
+          _notifSansReponse = d['sans_reponse'] != false;
+          _notifEssouffle = d['essouffle'] != false;
+          _notifBilan = d['bilan'] != false;
+          _notifCandidature = d['candidature'] != false;
           _notifEmail = d['email'] != false;
           _notifPretes = true;
         });
@@ -109,6 +125,13 @@ class _ParametresScreenState extends State<ParametresScreen> {
         'favorite': _notifFavori,
         'favori_suivi': _notifFavoriSuivi,
         'abonnement': _notifAbonnement,
+        'vente': _notifVente,
+        'avis': _notifAvis,
+        'nouveaute': _notifNouveaute,
+        'sans_reponse': _notifSansReponse,
+        'essouffle': _notifEssouffle,
+        'bilan': _notifBilan,
+        'candidature': _notifCandidature,
         'email': _notifEmail,
       });
     } on ApiException catch (e) {
@@ -366,6 +389,12 @@ class _ParametresScreenState extends State<ParametresScreen> {
 
                     _label(tr(context, 'section.notifications')),
                     _groupeNotifs(),
+                    // Les rappels du professionnel : seulement pour un compte
+                    // Pro approuvé — un particulier n'a ni bilan ni candidatures.
+                    if (_notifPretes && _proStatut == 'approuve') ...[
+                      _label(tr(context, 'notif.pro')),
+                      _groupeNotifsPro(),
+                    ],
 
                     _label(tr(context, 'section.preferences')),
                     _groupe([
@@ -500,6 +529,39 @@ class _ParametresScreenState extends State<ParametresScreen> {
             () => _notifAbonnement = v, () => _notifAbonnement = !v),
       ),
       _interrupteur(
+        icone: Icons.handshake_outlined,
+        fond: const Color(0xFFE4F5EC),
+        teinte: const Color(0xFF1E7A4A),
+        titre: tr(context, 'notif.vente'),
+        sous: tr(context, 'notif.vente.sous'),
+        valeur: _notifVente,
+        onChange: (v) =>
+            _majNotifs(() => _notifVente = v, () => _notifVente = !v),
+      ),
+      _interrupteur(
+        icone: Icons.reviews_outlined,
+        fond: const Color(0xFFFFEAD1),
+        teinte: const Color(0xFFB4600C),
+        titre: tr(context, 'notif.avis'),
+        sous: tr(context, 'notif.avis.sous'),
+        valeur: _notifAvis,
+        onChange: (v) =>
+            _majNotifs(() => _notifAvis = v, () => _notifAvis = !v),
+      ),
+      // Coupable comme les autres, et volontairement : une annonce de
+      // nouveauté qu'on ne peut pas éteindre finit par faire éteindre TOUTES
+      // les notifications — on perdrait les messages d'acheteurs avec.
+      _interrupteur(
+        icone: Icons.auto_awesome_outlined,
+        fond: const Color(0xFFE6EEF8),
+        teinte: const Color(0xFF3B5A80),
+        titre: tr(context, 'notif.nouveaute'),
+        sous: tr(context, 'notif.nouveaute.sous'),
+        valeur: _notifNouveaute,
+        onChange: (v) => _majNotifs(
+            () => _notifNouveaute = v, () => _notifNouveaute = !v),
+      ),
+      _interrupteur(
         icone: Icons.mark_email_read_outlined,
         fond: const Color(0xFFE6EEF8),
         teinte: const Color(0xFF3B5A80),
@@ -508,6 +570,54 @@ class _ParametresScreenState extends State<ParametresScreen> {
         valeur: _notifEmail,
         onChange: (v) =>
             _majNotifs(() => _notifEmail = v, () => _notifEmail = !v),
+      ),
+    ]);
+  }
+
+  /// Les rappels du professionnel — la moitié utile : « message sans réponse
+  /// depuis 24 h » sauve une vente, « bilan du lundi » fait revenir. Mêmes
+  /// clés que CASES_PRO sur le site.
+  Widget _groupeNotifsPro() {
+    return _groupe([
+      _interrupteur(
+        icone: Icons.timer_outlined,
+        fond: const Color(0xFFFBEAE7),
+        teinte: const Color(0xFFB42318),
+        titre: tr(context, 'notif.sansReponse'),
+        sous: tr(context, 'notif.sansReponse.sous'),
+        valeur: _notifSansReponse,
+        onChange: (v) => _majNotifs(
+            () => _notifSansReponse = v, () => _notifSansReponse = !v),
+      ),
+      _interrupteur(
+        icone: Icons.trending_down,
+        fond: const Color(0xFFFFEAD1),
+        teinte: const Color(0xFFB4600C),
+        titre: tr(context, 'notif.essouffle'),
+        sous: tr(context, 'notif.essouffle.sous'),
+        valeur: _notifEssouffle,
+        onChange: (v) => _majNotifs(
+            () => _notifEssouffle = v, () => _notifEssouffle = !v),
+      ),
+      _interrupteur(
+        icone: Icons.insights_outlined,
+        fond: const Color(0xFFE6EEF8),
+        teinte: const Color(0xFF3B5A80),
+        titre: tr(context, 'notif.bilan'),
+        sous: tr(context, 'notif.bilan.sous'),
+        valeur: _notifBilan,
+        onChange: (v) =>
+            _majNotifs(() => _notifBilan = v, () => _notifBilan = !v),
+      ),
+      _interrupteur(
+        icone: Icons.work_outline,
+        fond: const Color(0xFFE4F5EC),
+        teinte: const Color(0xFF1E7A4A),
+        titre: tr(context, 'notif.candidature'),
+        sous: tr(context, 'notif.candidature.sous'),
+        valeur: _notifCandidature,
+        onChange: (v) => _majNotifs(
+            () => _notifCandidature = v, () => _notifCandidature = !v),
       ),
     ]);
   }

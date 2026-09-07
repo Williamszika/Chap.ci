@@ -14,6 +14,8 @@
 // =============================================================================
 library;
 
+import 'pays.dart';
+
 /// Une région (ou district autonome traité comme région).
 class Region {
   final String id;
@@ -101,6 +103,10 @@ const List<Region> regions = [
   // — District du Zanzan —
   Region('bounkani', 'Bounkani', 'Zanzan', 'Bouna'),
   Region('gontougo', 'Gontougo', 'Zanzan', 'Bondoukou'),
+
+  // — Hors Côte d'Ivoire (07/09/2026) — la diaspora et les voisins : le pays
+  // se choisit comme une ville, la ville s'écrit en clair (voir pays.dart).
+  Region(regionAutresPays, 'Autres pays', 'Hors Côte d’Ivoire', '—'),
 ];
 
 /// Les 13 communes du District Autonome d'Abidjan.
@@ -120,7 +126,8 @@ const List<String> communesAbidjan = [
   'Yopougon',
 ];
 
-const List<City> cities = [
+/// Les villes de Côte d'Ivoire seules — sans les pays.
+const List<City> villesCi = [
   City('abidjan-ville', 'Abidjan', 'abidjan', communes: communesAbidjan),
   City('yamoussoukro-ville', 'Yamoussoukro', 'yamoussoukro'),
 
@@ -178,6 +185,10 @@ const List<City> cities = [
   City('bondoukou', 'Bondoukou', 'gontougo'),
 ];
 
+/// Toutes les « villes » : celles de Côte d'Ivoire, puis les pays hors CI,
+/// rangés dans la région « Autres pays ».
+final List<City> cities = List.unmodifiable([...villesCi, ...paysCommeVilles()]);
+
 // Helpers --------------------------------------------------------------------
 
 Region? regionById(String? id) {
@@ -199,6 +210,15 @@ List<City> citiesByRegion(String? regionId) =>
 
 /// Un libellé lisible : « Commune, Ville, Région ».
 String locationLabel(String? regionId, String? cityId, [String? commune]) {
+  // Hors Côte d'Ivoire : « Dakar, Sénégal » — la ville en clair, puis le
+  // pays, jamais « Autres pays » en plus.
+  if (estAutresPays(regionId)) {
+    final parts = <String>[
+      if (commune != null && commune.isNotEmpty) commune,
+      if (paysParId(cityId) != null) paysParId(cityId)!.nom,
+    ];
+    return parts.isNotEmpty ? parts.join(', ') : 'Autres pays';
+  }
   final city = cityById(cityId);
   final region = regionById(regionId);
   final parts = <String>[];
@@ -255,9 +275,11 @@ Lieu? resolveLocationByName(List<String?> names) {
       }
     }
   }
-  // 2) Ville connue ?
+  // 2) Ville de Côte d'Ivoire connue ? (Jamais un pays : « Mali » ou « Niger »
+  //    dans une adresse ne doit pas placer quelqu'un hors CI — c'est le code
+  //    du pays qui décide, voir lieuHorsCi dans pays.dart.)
   for (final c in candidats) {
-    for (final v in cities) {
+    for (final v in villesCi) {
       if (_match(_norm(v.name), c)) {
         return Lieu(regionId: v.regionId, cityId: v.id);
       }

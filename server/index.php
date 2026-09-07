@@ -2599,7 +2599,10 @@ function admin_feature_for_path(string $path): string {
   if ($path === 'admin/check' || $path === 'admin/me' || str_starts_with($path, 'admin/unlock')) return '';
   if ($path === 'admin/stats' || $path === 'admin/entonnoir') return 'overview';
   if (str_starts_with($path, 'admin/pro')) return 'users';
-  if ($path === 'admin/visits' || $path === 'admin/response-time' || $path === 'admin/geo') return 'visitors';
+  // « admin/pays » (07/09/2026) : les inscrits hors Côte d'Ivoire. Même
+  // question que la géographie des visiteurs — d'où viennent les gens —,
+  // donc même permission « Visiteurs ».
+  if ($path === 'admin/visits' || $path === 'admin/response-time' || $path === 'admin/geo' || $path === 'admin/pays') return 'visitors';
   if (str_starts_with($path, 'admin/listings')) return 'listings';
   if (str_starts_with($path, 'admin/users')) return 'users';
   if (str_starts_with($path, 'admin/reports')) return 'reports';
@@ -11536,6 +11539,69 @@ try {
         ];
       }
       jout(['semaines' => $semaines, 'genereLe' => now_iso()]);
+    }
+
+    // LES PAYS (07/09/2026). Le Patron veut savoir, hors Côte d'Ivoire, d'où
+    // viennent les inscrits — pays, villes, combien — pour choisir où étendre
+    // le site. Un compte hors CI porte region_id = 'autres-pays', city_id =
+    // 'pays-xx' (code ISO en minuscules) et commune = sa ville en clair ; le
+    // site connaît les noms des pays, le serveur ne rend que les codes.
+    if ($path === 'admin/pays' && $method === 'GET') {
+      $lire = function (string $sql, array $args = []) use ($pdo): array {
+        try { $s = $pdo->prepare($sql); $s->execute($args); return $s->fetchAll(); } catch (Throwable $e) { return []; }
+      };
+      $un = function (string $sql, array $args = []) use ($pdo): int {
+        try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); } catch (Throwable $e) { return 0; }
+      };
+      $il30 = gmdate('Y-m-d\TH:i:s\Z', time() - 30 * 86400);
+      $code = fn($cityId) => strtoupper(substr((string) $cityId, 5)) ?: 'ZZ';
+      $pays = [];
+      foreach ($lire("SELECT city_id, COUNT(*) AS n, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS recents
+                      FROM profiles WHERE region_id = 'autres-pays' GROUP BY city_id", [$il30]) as $r) {
+        $c = $code($r['city_id']);
+        $pays[$c] = ['code' => $c, 'inscrits' => (int) $r['n'], 'recents' => (int) $r['recents'], 'annonces' => 0, 'villes' => []];
+      }
+      foreach ($lire("SELECT city_id, commune, COUNT(*) AS n FROM profiles
+                      WHERE region_id = 'autres-pays' AND commune IS NOT NULL AND commune <> ''
+                      GROUP BY city_id, commune ORDER BY n DESC") as $r) {
+        $c = $code($r['city_id']);
+        if (!isset($pays[$c]) || count($pays[$c]['villes']) >= 30) continue;
+        $pays[$c]['villes'][] = ['ville' => (string) $r['commune'], 'inscrits' => (int) $r['n']];
+      }
+      foreach ($lire("SELECT city_id, COUNT(*) AS n FROM listings WHERE region_id = 'autres-pays' GROUP BY city_id") as $r) {
+        $c = $code($r['city_id']);
+        if (!isset($pays[$c])) $pays[$c] = ['code' => $c, 'inscrits' => 0, 'recents' => 0, 'annonces' => 0, 'villes' => []];
+        $pays[$c]['annonces'] = (int) $r['n'];
+      }
+      usort($pays, fn($a, $b) => ($b['inscrits'] <=> $a['inscrits']) ?: ($b['annonces'] <=> $a['annonces']));
+      // Les inscriptions hors CI, mois par mois, sur douze mois.
+      $premier = strtotime(gmdate('Y-m-01') . ' 00:00:00 UTC');
+      $mois = [];
+      for ($i = 11; $i >= 0; $i--) $mois[gmdate('Y-m', strtotime("-$i months", $premier))] = 0;
+      foreach ($lire("SELECT SUBSTR(created_at, 1, 7) AS m, COUNT(*) AS n FROM profiles
+                      WHERE region_id = 'autres-pays' AND created_at >= ? GROUP BY m",
+                     [gmdate('Y-m-d\TH:i:s\Z', strtotime('-11 months', $premier))]) as $r) {
+        if (isset($mois[$r['m']])) $mois[$r['m']] = (int) $r['n'];
+      }
+      // D'où viennent les VISITEURS des trente derniers jours, hors CI — c'est
+      // l'adresse IP qui le dit, avant même qu'ils ne s'inscrivent.
+      $visites = [];
+      foreach ($lire("SELECT country, COUNT(DISTINCT visitor_id) AS n FROM visits
+                      WHERE created_at >= ? AND country IS NOT NULL AND country <> '' AND country <> 'CI'
+                      GROUP BY country ORDER BY n DESC LIMIT 20", [$il30]) as $r) {
+        $visites[] = ['code' => strtoupper((string) $r['country']), 'visiteurs' => (int) $r['n']];
+      }
+      jout([
+        'total'         => $un('SELECT COUNT(*) FROM profiles'),
+        'horsCi'        => $un("SELECT COUNT(*) FROM profiles WHERE region_id = 'autres-pays'"),
+        'horsCiRecents' => $un("SELECT COUNT(*) FROM profiles WHERE region_id = 'autres-pays' AND created_at >= ?", [$il30]),
+        'sansLieu'      => $un("SELECT COUNT(*) FROM profiles WHERE region_id IS NULL OR region_id = ''"),
+        'pays'          => array_values($pays),
+        'mois'          => array_map(fn($m, $n) => ['mois' => $m, 'inscrits' => $n], array_keys($mois), array_values($mois)),
+        'visites'       => $visites,
+        'visiteursCi'   => $un("SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ? AND country = 'CI'", [$il30]),
+        'genereLe'      => now_iso(),
+      ]);
     }
 
     if ($path === 'admin/stats' && $method === 'GET') {

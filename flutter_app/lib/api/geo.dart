@@ -49,8 +49,16 @@ class GeoAddress {
   final String? city;
   final String? suburb;
   final String? region;
-  const GeoAddress({this.address, this.city, this.suburb, this.region});
+
+  /// Le pays, en code ISO à deux lettres majuscules (« CI », « SN »…) — c'est
+  /// lui qui dit si l'on est hors Côte d'Ivoire (07/09/2026).
+  final String? countryCode;
+  const GeoAddress(
+      {this.address, this.city, this.suburb, this.region, this.countryCode});
 }
+
+String? _codePays(Object? v) =>
+    v is String && v.trim().isNotEmpty ? v.trim().toUpperCase() : null;
 
 /// Levée quand la permission de localisation est refusée : le message est
 /// déjà en français, prêt à montrer.
@@ -169,6 +177,7 @@ Future<GeoAddress?> _reverseBigDataCloud(double lat, double lng) async {
     city: city,
     suburb: suburb,
     region: principal,
+    countryCode: _codePays(data['countryCode']),
   );
 }
 
@@ -191,5 +200,6 @@ Future<GeoAddress?> _reverseNominatim(double lat, double lng) async {
     city: first(['city', 'town', 'village', 'municipality']),
     suburb: first(['suburb', 'neighbourhood', 'quarter', 'city_district']),
     region: first(['state', 'region']),
+    countryCode: _codePays(a['country_code']),
   );
 }

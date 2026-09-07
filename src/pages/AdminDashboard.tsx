@@ -45,6 +45,7 @@ import {
   AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
 } from '../lib/ads'
 import { ComptabiliteTab } from '../components/ComptabiliteTab'
+import { PaysTab } from '../components/PaysAdmin'
 import { TableauPro } from './EspacePro'
 import { AnimatedAdText } from '../components/AnimatedAdText'
 import { AdImageFill } from '../components/AdImageFill'
@@ -52,7 +53,7 @@ import { AdTextControls } from '../components/AdTextControls'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown, Film, VideoOff } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'pro' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'visitors' | 'backup' | 'automation'
+type Tab = 'overview' | 'listings' | 'users' | 'pro' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'visitors' | 'pays' | 'backup' | 'automation'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -153,7 +154,9 @@ export function AdminDashboard() {
           </button>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['listings','Annonces'],['users','Utilisateurs'],['pro','Demandes Pro'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['comptabilite','Comptabilité'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'comptabilite' ? role.owner : id === 'pro' ? canSee('users') : canSee(id))).map(([id,label]) => (
+          {/* « Pays » (07/09/2026) vit sous la permission « Visiteurs » : même
+              question — d'où viennent les gens —, même modérateur. */}
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['pays','Pays'],['listings','Annonces'],['users','Utilisateurs'],['pro','Demandes Pro'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['comptabilite','Comptabilité'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'comptabilite' ? role.owner : id === 'pro' ? canSee('users') : id === 'pays' ? canSee('visitors') : canSee(id))).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -191,6 +194,7 @@ export function AdminDashboard() {
           <Overview stats={stats} onGo={setTab} canSee={canSee} owner={role.owner} email={user?.email ?? ''} />
         )}
         {tab === 'visitors' && <VisitorsTab />}
+        {tab === 'pays' && <PaysTab />}
         {tab === 'listings' && <ListingsTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'pro' && <ProTab />}
@@ -356,7 +360,7 @@ function AdminUnlockGate({ owner, onUnlocked }: { owner: boolean; onUnlocked: ()
 // Libellés FR des permissions (note de bienvenue du modérateur).
 const PERM_LABELS: Record<string, string> = {
   visitors: 'Visiteurs', listings: 'Annonces', users: 'Utilisateurs', reports: 'Signalements',
-  contact: 'Messages de contact', orders: 'Commandes', conversations: 'Conversations',
+  contact: 'Messages de contact', ads: 'Publicités', orders: 'Commandes', conversations: 'Conversations',
   reviews: 'Avis', newsletter: 'Abonnés', campaigns: 'Campagnes',
 }
 

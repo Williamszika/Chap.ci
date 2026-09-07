@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Mail, Lock, User, Loader2, Eye, EyeOff, RefreshCw, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { Mail, Lock, User, Loader2, Eye, EyeOff, RefreshCw, ShieldCheck, ArrowLeft, MapPin } from 'lucide-react'
+import { LocationSheet } from '../components/LocationSheet'
+import { locationLabel } from '../data/locations'
+import type { LocationFilter } from '../types'
 import { useAuth } from '../store/AuthContext'
 import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { FacebookSignInButton } from '../components/FacebookSignInButton'
@@ -28,9 +31,13 @@ export function Register() {
   const cfg = usePublicConfig()
   const googleEnabled = !isNative && !!cfg?.googleClientId
   const facebookEnabled = !isNative && !!cfg?.facebookAppId
-  // La localisation est déjà captée à l'ouverture du site (GeoContext) : on
-  // l'enregistre silencieusement dans le profil, sans alourdir le formulaire.
+  // La localisation captée par le site (GeoContext) préremplit le lieu ; la
+  // personne peut le corriger — et, depuis le 07/09/2026, dire qu'elle est à
+  // Dakar, Paris ou Montréal : « Autres pays », le pays, puis sa ville.
   const { place } = useGeo()
+  const [lieu, setLieu] = useState<LocationFilter>(() => place?.regionId
+    ? { regionId: place.regionId, cityId: place.cityId, commune: place.commune } : {})
+  const [lieuOuvert, setLieuOuvert] = useState(false)
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -61,16 +68,19 @@ export function Register() {
   function profileFields(): ProfileFields {
     const name = fullName.trim()
     const [first, ...rest] = name.split(/\s+/)
+    // Le lieu choisi à la main prime sur celui deviné par l'adresse IP.
+    const choisi = !!lieu.regionId
+    const memeLieu = choisi && lieu.regionId === place?.regionId && lieu.cityId === place?.cityId
     return {
       first_name: first || name,
       last_name: rest.join(' '),
       full_name: name,
-      region_id: place?.regionId,
-      city_id: place?.cityId,
-      commune: place?.commune,
-      address: place?.address || undefined,
-      lat: place?.lat ?? null,
-      lng: place?.lng ?? null,
+      region_id: choisi ? lieu.regionId : place?.regionId,
+      city_id: choisi ? lieu.cityId : place?.cityId,
+      commune: choisi ? lieu.commune : place?.commune,
+      address: (!choisi || memeLieu) ? place?.address || undefined : undefined,
+      lat: (!choisi || memeLieu) ? place?.lat ?? null : null,
+      lng: (!choisi || memeLieu) ? place?.lng ?? null : null,
     }
   }
 
@@ -186,6 +196,23 @@ export function Register() {
               <input id="reg-name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Aya Koffi" className="input pl-10" autoComplete="name" />
             </div>
           </div>
+
+          {/* Où êtes-vous ? En Côte d'Ivoire, ou ailleurs (07/09/2026). */}
+          <div>
+            <span className="mb-1.5 block text-sm font-semibold text-gray-700">Où êtes-vous ?</span>
+            <button type="button" onClick={() => setLieuOuvert(true)}
+              className="input flex items-center gap-2 text-left">
+              <MapPin size={18} className="shrink-0 text-primary-500" />
+              <span className={`min-w-0 flex-1 truncate ${lieu.regionId ? 'text-ink' : 'text-gray-400'}`}>
+                {lieu.regionId ? locationLabel(lieu.regionId, lieu.cityId, lieu.commune) : 'Votre ville, en Côte d’Ivoire ou ailleurs'}
+              </span>
+              <span className="shrink-0 text-xs font-semibold text-primary-600">{lieu.regionId ? 'Modifier' : 'Choisir'}</span>
+            </button>
+            <p className="mt-1 pl-1 text-[11.5px] text-gray-500">
+              Hors Côte d’Ivoire ? Choisissez « Autres pays », puis votre pays et votre ville.
+            </p>
+          </div>
+          <LocationSheet open={lieuOuvert} onClose={() => setLieuOuvert(false)} value={lieu} onApply={setLieu} />
 
           <div>
             <label htmlFor="reg-email" className="mb-1.5 block text-sm font-semibold text-gray-700">Adresse email</label>

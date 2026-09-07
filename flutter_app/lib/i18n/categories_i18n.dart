@@ -44,6 +44,12 @@ const Map<String, Map<String, String>> _sous = {
   'Pièces & Accessoires': {'en': 'Parts & Accessories', 'es': 'Piezas y accesorios', 'pt': 'Peças e acessórios', 'ar': 'قطع غيار وإكسسوارات', 'zh': '零件与配件'},
   'Bateaux': {'en': 'Boats', 'es': 'Barcos', 'pt': 'Barcos', 'ar': 'قوارب', 'zh': '船舶'},
   'Location': {'en': 'Rentals', 'es': 'Alquiler', 'pt': 'Aluguer', 'ar': 'تأجير', 'zh': '租赁'},
+  // Immobilier (« Location » ci-dessus sert aux deux)
+  'Vente': {'en': 'For sale', 'es': 'Venta', 'pt': 'Venda', 'ar': 'بيع', 'zh': '出售'},
+  'Terrains': {'en': 'Land', 'es': 'Terrenos', 'pt': 'Terrenos', 'ar': 'أراضٍ', 'zh': '土地'},
+  'Bureaux & Commerces': {'en': 'Offices & Shops', 'es': 'Oficinas y locales', 'pt': 'Escritórios e lojas', 'ar': 'مكاتب ومحلات', 'zh': '办公与商铺'},
+  'Colocation': {'en': 'Flatshare', 'es': 'Piso compartido', 'pt': 'Partilha de casa', 'ar': 'سكن مشترك', 'zh': '合租'},
+  'Location vacances': {'en': 'Holiday rentals', 'es': 'Alquiler vacacional', 'pt': 'Aluguer de férias', 'ar': 'تأجير للعطلات', 'zh': '度假租赁'},
   // Mode & Beauté
   'Vêtements Femme': {'en': "Women's clothing", 'es': 'Ropa de mujer', 'pt': 'Roupa de senhora', 'ar': 'ملابس نسائية', 'zh': '女装'},
   'Vêtements Homme': {'en': "Men's clothing", 'es': 'Ropa de hombre', 'pt': 'Roupa de homem', 'ar': 'ملابس رجالية', 'zh': '男装'},

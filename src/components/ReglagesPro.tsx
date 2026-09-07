@@ -13,7 +13,8 @@ import { fetchMyProfile, updateMyProfile } from '../lib/profiles'
 import { fetchVerifyStatus, type VerifyStatus } from '../lib/verify'
 import { downscaleImage, downscaleListingImage } from '../lib/image'
 import { mediaUrl } from '../lib/native'
-import { regions, cities, citiesByRegion, communesAbidjan, locationLabel } from '../data/locations'
+import { regions, cities, villesCi, citiesByRegion, communesAbidjan, locationLabel } from '../data/locations'
+import { estAutresPays } from '../data/pays'
 import { TYPES_PRO, labelTypePro } from '../data/secteursPro'
 import {
   phpProFiche, phpProVitrine, phpReglagesNotifs, phpEnregistrerReglagesNotifs,
@@ -448,6 +449,9 @@ export function ProfilPhoto({ nomEnseigne, onChange }: { nomEnseigne?: string; o
 const CASES_COMPTE: [string, string, string][] = [
   ['message', 'Nouveau message', 'Un acheteur vous écrit'],
   ['favorite', 'Nouveau favori', 'Une annonce est enregistrée'],
+  // Mes favoris (04/09/2026) : le prix baisse, ou l'annonce se termine. L'app
+  // avait l'interrupteur, le site non — trouvé par le banc de cohérence le 07/09.
+  ['favori_suivi', 'Mes favoris', 'Un favori baisse de prix ou se termine bientôt'],
   ['vente', 'Vente conclue', 'Une commande est finalisée'],
   ['avis', 'Nouvel avis', 'Un acheteur vous note'],
   // Coupable comme les autres, et volontairement. Une annonce de nouveauté
@@ -682,10 +686,13 @@ export function AdressePosition({ onChange }: { onChange?: () => void }) {
   // TOUTES les villes de Côte d'Ivoire : la liste n'est bornée par la région
   // que si l'on en a choisi une. Un vendeur de Korhogo doit se trouver sans
   // savoir dans quel district administratif tombe sa ville.
+  // Sans région choisie, les villes de Côte d'Ivoire seulement : les pays
+  // (« Autres pays », 07/09/2026) n'arrivent qu'en choisissant cette région.
   const villes = useMemo(
-    () => (regionId ? citiesByRegion(regionId) : cities),
+    () => (regionId ? citiesByRegion(regionId) : villesCi),
     [regionId],
   )
+  const horsCi = estAutresPays(regionId)
   const villeChoisie = useMemo(() => cities.find((v) => v.id === cityId), [cityId])
   // Les communes n'existent que pour les villes qui en ont — Abidjan, et les
   // grandes villes que `locations.ts` détaille.
@@ -788,7 +795,7 @@ export function AdressePosition({ onChange }: { onChange?: () => void }) {
             {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </Champ>
-        <Champ etiquette="Ville">
+        <Champ etiquette={horsCi ? 'Pays' : 'Ville'}>
           <select value={cityId}
             onChange={(e) => {
               const v = e.target.value
@@ -804,10 +811,18 @@ export function AdressePosition({ onChange }: { onChange?: () => void }) {
         </Champ>
       </div>
 
+      {/* Hors Côte d'Ivoire, la ville s'écrit : il n'y a pas de liste pour le monde. */}
+      {horsCi && (
+        <Champ etiquette="Ville">
+          <input value={commune} onChange={(e) => setCommune(e.target.value)} maxLength={60}
+            placeholder="Ex : Dakar" className={`${SAISIE} font-semibold`} autoComplete="address-level2" />
+        </Champ>
+      )}
+
       {/* La commune n'apparaît que pour les villes qui en ont — Abidjan et les
           grandes villes. Elle reste visible si le compte en porte déjà une :
           sinon on ne verrait nulle part ce qui est enregistré. */}
-      {(communes.length > 0 || commune !== '') && (
+      {!horsCi && (communes.length > 0 || commune !== '') && (
         <Champ etiquette="Commune">
           <select value={commune} onChange={(e) => setCommune(e.target.value)} className={`${SAISIE} font-semibold`}>
             <option value="">— à choisir —</option>

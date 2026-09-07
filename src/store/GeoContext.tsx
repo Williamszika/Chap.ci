@@ -9,6 +9,7 @@ import {
 import type { Coords } from '../data/coords'
 import { getBestPosition, ipGeolocate, reverseGeocode } from '../lib/geo'
 import { resolveLocationByName } from '../data/locations'
+import { lieuHorsCi } from '../data/pays'
 
 const LS_POS = 'chapci.geo.v1'
 const LS_PLACE = 'chapci.place.v1'
@@ -71,13 +72,17 @@ export function GeoProvider({ children }: { children: ReactNode }) {
       accuracy?: number,
       ipCity?: string,
       ipRegion?: string,
+      ipCountry?: string,
     ) => {
       setPosition({ lat, lng })
       const geo = await reverseGeocode(lat, lng)
       const cityName = geo?.city || ipCity
       const suburb = geo?.suburb
       const regionName = geo?.region || ipRegion
-      const resolved = resolveLocationByName(suburb, cityName, regionName) ?? {}
+      // Hors Côte d'Ivoire (07/09/2026) : le pays et la ville, dans la
+      // région « Autres pays » — sinon la personne à Dakar restait sans lieu.
+      const resolved = lieuHorsCi(geo?.countryCode || ipCountry, cityName)
+        ?? resolveLocationByName(suburb, cityName, regionName) ?? {}
       setPlace({
         regionId: resolved.regionId,
         cityId: resolved.cityId,
@@ -96,7 +101,7 @@ export function GeoProvider({ children }: { children: ReactNode }) {
     setStatus('loading')
     const ip = await ipGeolocate()
     if (ip && ip.lat != null && ip.lng != null) {
-      await resolvePlace(ip.lat, ip.lng, 'ip', undefined, ip.city, ip.region)
+      await resolvePlace(ip.lat, ip.lng, 'ip', undefined, ip.city, ip.region, ip.country)
       setStatus('granted')
     } else {
       setStatus('unavailable')

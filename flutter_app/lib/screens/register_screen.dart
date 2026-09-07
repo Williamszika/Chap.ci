@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../api/api_client.dart';
+import '../data/locations.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../widgets/selecteur_lieu.dart';
 import '../widgets/social_buttons.dart';
 
 /// Inscription — créer un compte Chap.ci.
@@ -9,6 +11,12 @@ import '../widgets/social_buttons.dart';
 /// Le serveur exige : e-mail valide, mot de passe ≥ 8 caractères, et le
 /// CONSENTEMENT explicite (loi ivoirienne). La case n'est jamais pré-cochée :
 /// un consentement doit être un vrai geste.
+///
+/// « Où êtes-vous ? » (07/09/2026) : la ville, en Côte d'Ivoire ou ailleurs —
+/// un compte à Dakar ou à Paris se range sous « Autres pays », et le tableau
+/// de bord du Patron sait d'où viennent les inscrits. Facultatif : ne jamais
+/// bloquer une inscription pour ça. Le lieu s'écrit APRÈS la création du
+/// compte, par PUT /profile, et un échec là ne défait pas l'inscription.
 ///
 /// À la réussite, on est connecté et on revient en arrière (l'écran Compte
 /// affiche alors l'état connecté).
@@ -26,6 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _enCours = false;
   bool _voirMdp = false;
   bool _consent = false;
+  Lieu _lieu = const Lieu();
   String? _erreur;
 
   @override
@@ -50,6 +59,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await ApiClient.instance
           .sInscrire(_email.text, _motDePasse.text, _nom.text);
+      if (_lieu.regionId != null) {
+        try {
+          await ApiClient.instance.put('/profile', {
+            'region_id': _lieu.regionId,
+            'city_id': _lieu.cityId ?? '',
+            'commune': _lieu.commune,
+          });
+        } catch (_) {
+          // Le compte existe : le lieu se reprendra dans « Modifier mon profil ».
+        }
+      }
       if (mounted) {
         // Compte créé + connecté : on revient, l'écran Compte se met à jour.
         Navigator.of(context).pop(true);
@@ -106,6 +126,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) =>
                     (v == null || !v.contains('@')) ? 'E-mail invalide' : null,
               ),
+              const SizedBox(height: 14),
+              Padding(
+                padding: const EdgeInsets.only(left: 2, bottom: 6),
+                child: Text(tr(context, 'insc.ou'),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: ChapColors.gray700)),
+              ),
+              LigneLieu(
+                  lieu: _lieu, onChange: (l) => setState(() => _lieu = l)),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _motDePasse,

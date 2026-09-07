@@ -29,6 +29,8 @@ export interface GeoAddress {
   city?: string
   suburb?: string
   region?: string
+  /** Le pays, en code ISO à deux lettres (« CI », « SN »…) — pour savoir si l'on est ailleurs. */
+  countryCode?: string
 }
 
 async function fetchJson(url: string, timeoutMs = 7000): Promise<any | null> {
@@ -125,6 +127,7 @@ async function reverseGeocodeBigDataCloud(lat: number, lng: number): Promise<Geo
     city,
     suburb,
     region: data.principalSubdivision || undefined,
+    countryCode: typeof data.countryCode === 'string' ? data.countryCode.toUpperCase() : undefined,
   }
 }
 
@@ -138,6 +141,7 @@ async function reverseGeocodeNominatim(lat: number, lng: number): Promise<GeoAdd
     city: a.city || a.town || a.village || a.municipality,
     suburb: a.suburb || a.neighbourhood || a.quarter || a.city_district,
     region: a.state || a.region,
+    countryCode: typeof a.country_code === 'string' ? a.country_code.toUpperCase() : undefined,
   }
 }
 

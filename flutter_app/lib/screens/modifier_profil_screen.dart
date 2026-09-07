@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart' as imgpick;
 import '../api/api_client.dart';
 import '../api/models.dart';
+import '../data/locations.dart';
 import '../i18n/textes.dart';
 import '../theme.dart';
+import '../widgets/selecteur_lieu.dart';
 
-/// Modifier son profil — nom, bio et photo.
+/// Modifier son profil — nom, téléphone, lieu, bio et photo.
 ///
-/// Pré-rempli depuis `GET /profile/{id}` ; enregistré via `PUT /profile`. La
-/// photo n'est envoyée (en data-URI, comme les annonces) que si on en choisit
-/// une nouvelle — sinon on ne touche pas à l'existante.
+/// Pré-rempli depuis `GET /profile/{id}` (la fiche publique) et `GET /profile`
+/// (la mienne, avec le lieu) ; enregistré via `PUT /profile`. La photo n'est
+/// envoyée (en data-URI, comme les annonces) que si on en choisit une
+/// nouvelle — sinon on ne touche pas à l'existante. Le lieu (07/09/2026) :
+/// « Où êtes-vous ? », en Côte d'Ivoire ou dans un autre pays.
 class ModifierProfilScreen extends StatefulWidget {
   const ModifierProfilScreen({super.key});
   @override
@@ -27,6 +31,8 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
   bool _envoi = false;
   String? _avatarUrl; // photo actuelle (URL serveur)
   ({List<int> bytes, String mime})? _nouvellePhoto; // photo choisie, non encore envoyée
+  Lieu _lieu = const Lieu();
+  bool _lieuTouche = false; // n'écrire le lieu que si la personne l'a changé
   String? _erreur;
 
   @override
@@ -58,6 +64,16 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
           final n = (p['fullName'] as String?)?.trim();
           if (_nom.text.isEmpty && n != null && n != 'Vendeur') _nom.text = n;
         }
+      }
+      // Le lieu n'est pas sur la fiche publique : il se lit sur la mienne.
+      final mien = await ApiClient.instance.get('/profile');
+      if (mien is Map) {
+        String? nonVide(Object? v) =>
+            v is String && v.trim().isNotEmpty ? v.trim() : null;
+        _lieu = Lieu(
+            regionId: nonVide(mien['regionId']),
+            cityId: nonVide(mien['cityId']),
+            commune: nonVide(mien['commune']));
       }
     } catch (_) {/* on édite quand même */}
     if (mounted) setState(() => _chargement = false);
@@ -103,6 +119,11 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
       if (ph != null) {
         corps['avatar_url'] =
             'data:${ph.mime};base64,${base64Encode(ph.bytes)}';
+      }
+      if (_lieuTouche && _lieu.regionId != null) {
+        corps['region_id'] = _lieu.regionId;
+        corps['city_id'] = _lieu.cityId ?? '';
+        corps['commune'] = _lieu.commune;
       }
       await ApiClient.instance.put('/profile', corps);
       if (mounted) Navigator.of(context).pop(true);
@@ -174,6 +195,21 @@ class _ModifierProfilScreenState extends State<ModifierProfilScreen> {
                     prefixIcon: const Icon(Icons.phone_outlined),
                   ),
                 ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.only(left: 2, bottom: 6),
+                  child: Text(tr(context, 'insc.ou'),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: ChapColors.gray700)),
+                ),
+                LigneLieu(
+                    lieu: _lieu,
+                    onChange: (l) => setState(() {
+                          _lieu = l;
+                          _lieuTouche = true;
+                        })),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _bio,

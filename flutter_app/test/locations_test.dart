@@ -47,6 +47,11 @@ void main() {
             reason: 'ville ${c.name} → région ${c.regionId} inconnue');
       }
     });
+
+    test('les identifiants de villes et de régions sont uniques', () {
+      expect(cities.map((c) => c.id).toSet().length, cities.length);
+      expect(regions.map((r) => r.id).toSet().length, regions.length);
+    });
   });
 
   group('resolveLocationByName (GPS → lieu connu)', () {

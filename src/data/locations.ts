@@ -1,4 +1,5 @@
 import type { Region, City, LocationFilter } from '../types'
+import { REGION_AUTRES_PAYS, paysCommeVilles, paysParId } from './pays'
 
 /**
  * Découpage administratif de la Côte d'Ivoire.
@@ -71,6 +72,10 @@ export const regions: Region[] = [
   // — District du Zanzan —
   { id: 'bounkani', name: 'Bounkani', district: 'Zanzan', chefLieu: 'Bouna' },
   { id: 'gontougo', name: 'Gontougo', district: 'Zanzan', chefLieu: 'Bondoukou' },
+
+  // — Hors Côte d'Ivoire (07/09/2026) — la diaspora et les voisins : le pays
+  // se choisit comme une ville, la ville s'écrit en clair (voir pays.ts).
+  { id: REGION_AUTRES_PAYS, name: 'Autres pays', district: 'Hors Côte d’Ivoire', chefLieu: '—' },
 ]
 
 /** Les 13 communes du District Autonome d'Abidjan */
@@ -146,7 +151,13 @@ export const cities: City[] = [
 
   { id: 'bouna', name: 'Bouna', regionId: 'bounkani' },
   { id: 'bondoukou', name: 'Bondoukou', regionId: 'gontougo' },
+
+  // Les pays hors Côte d'Ivoire, « villes » de la région « Autres pays ».
+  ...paysCommeVilles(),
 ]
+
+/** Les villes de Côte d'Ivoire seules — sans les pays. */
+export const villesCi = cities.filter((c) => c.regionId !== REGION_AUTRES_PAYS)
 
 // Helpers ------------------------------------------------------------------
 
@@ -156,6 +167,13 @@ export const citiesByRegion = (regionId?: string) =>
   cities.filter((c) => c.regionId === regionId)
 
 export function locationLabel(regionId?: string, cityId?: string, commune?: string): string {
+  // Hors Côte d'Ivoire : « Dakar, Sénégal » — la ville en clair, puis le pays,
+  // jamais « Autres pays » en plus.
+  if (regionId === REGION_AUTRES_PAYS) {
+    const nomPays = paysParId(cityId)?.nom
+    const parts = [commune, nomPays].filter(Boolean) as string[]
+    return parts.length ? parts.join(', ') : 'Autres pays'
+  }
   const city = cityById(cityId)
   const region = regionById(regionId)
   const parts: string[] = []
@@ -196,9 +214,11 @@ export function resolveLocationByName(...names: (string | undefined)[]): Locatio
     const com = communesAbidjan.find((x) => match(norm(x), c))
     if (com) return { regionId: 'abidjan', cityId: 'abidjan-ville', commune: com }
   }
-  // 2) Ville connue ?
+  // 2) Ville de Côte d'Ivoire connue ? (Jamais un pays : « Mali » ou « Niger »
+  //    dans une adresse ne doit pas placer quelqu'un hors CI — c'est le code
+  //    du pays qui décide, voir lieuHorsCi dans pays.ts.)
   for (const c of candidates) {
-    const city = cities.find((x) => match(norm(x.name), c))
+    const city = villesCi.find((x) => match(norm(x.name), c))
     if (city) return { regionId: city.regionId, cityId: city.id }
   }
   return null

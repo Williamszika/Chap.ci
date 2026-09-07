@@ -1063,6 +1063,10 @@ export async function phpFavorisDetail(): Promise<FavoriDetail[]> {
 export async function phpAdminStats<T>(): Promise<T> {
   return req<T>('/admin/stats')
 }
+/** Les inscrits hors Côte d'Ivoire, par pays et par ville (07/09/2026). */
+export async function phpAdminPays<T>(): Promise<T> {
+  return req<T>('/admin/pays')
+}
 
 /**
  * L'entonnoir hebdomadaire du tableau de bord (04/09/2026) : huit semaines,

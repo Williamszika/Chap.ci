@@ -189,6 +189,26 @@ titre long passe en trois lignes, et l'application **reçoit les liens**
 pour ouvrir la fiche quand un contact appuie sur ce lien — actif seulement le
 jour où les déclarations de `store/LIENS-UNIVERSELS.md` sont en place.
 
+**Ajouté le 07/09/2026, avant le build — les comptes hors Côte d'Ivoire et
+ce que l'audit de cohérence a trouvé.**
+
+- **« Où êtes-vous ? »** à l'inscription et dans « Modifier mon profil » :
+  la ville, en Côte d'Ivoire ou ailleurs. La région **« Autres pays »**
+  (`lib/data/pays.dart`, 117 pays, mêmes codes que le site) mène au choix du
+  pays puis de la ville écrite en clair — « Dakar, Sénégal ». Le GPS de
+  « Publier » reconnaît lui aussi un pays étranger (code pays du géocodage) au
+  lieu de chercher une ville ivoirienne au hasard. Le lieu s'enregistre APRÈS la
+  création du compte et n'empêche jamais de s'inscrire.
+- **Réglages → Notifications** : les mêmes interrupteurs que le site — vente
+  conclue, nouvel avis, nouveautés du site, et, pour un professionnel approuvé,
+  les quatre rappels (message sans réponse, annonce qui s'essouffle, bilan du
+  lundi, nouvelle candidature). L'app en avait cinq, le site onze : trouvé par
+  `npm run banc:coherence`.
+- **Immobilier** a enfin ses six sous-catégories dans l'app (Location, Vente,
+  Terrains, Bureaux & Commerces, Colocation, Location vacances) — elles
+  manquaient depuis le portage, on publiait un logement sans sous-catégorie.
+- Textes dans les six langues (`textes.dart` : 29 clés de plus).
+
 Puis, le soir du 04/09 (chantier 2 des six demandés, « l'application à
 égalité avec le site ») : **modifier son annonce** depuis Mon compte
 (formulaire prérempli, photos en ligne conservées, `PUT /listings/{id}`), et

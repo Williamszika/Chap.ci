@@ -167,6 +167,23 @@ export async function fetchAdminStats(): Promise<AdminStats> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminStats<AdminStats>()
 }
+
+/** Le tableau de bord « Pays » : les inscrits hors Côte d'Ivoire (07/09/2026). */
+export interface AdminPays {
+  total: number
+  horsCi: number
+  horsCiRecents: number
+  sansLieu: number
+  pays: { code: string; inscrits: number; recents: number; annonces: number; villes: { ville: string; inscrits: number }[] }[]
+  mois: { mois: string; inscrits: number }[]
+  visites: { code: string; visiteurs: number }[]
+  visiteursCi: number
+  genereLe: string
+}
+export async function fetchAdminPays(): Promise<AdminPays> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminPays<AdminPays>()
+}
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminUsers<AdminUser[]>()

@@ -34,6 +34,14 @@ import 'donner.dart';
 
 /// Les sous-catégories par identifiant de catégorie, dans l'ordre d'affichage.
 const Map<String, List<String>> nomsSous = {
+  // L'immobilier manquait ici (trouvé par `npm run banc:coherence` le
+  // 07/09/2026) : depuis l'app, on publiait un logement sans sous-catégorie,
+  // et Explorer ne proposait pas « Location » / « Vente ». Mêmes noms que
+  // src/data/categories.ts.
+  'immobilier': [
+    'Location', 'Vente', 'Terrains', 'Bureaux & Commerces', 'Colocation',
+    'Location vacances'
+  ],
   'vehicules': [
     'Voitures', 'Motos & Scooters', 'Camions & Utilitaires', 'Engins & Agricoles',
     'Pièces & Accessoires', 'Bateaux', 'Location'
