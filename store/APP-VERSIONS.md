@@ -151,7 +151,7 @@ le 26/08, le jour même du seuil).
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `25405d9` — **le dernier commit qui touche `flutter_app/` au 07/09/2026** (ce que le Monteur doit construire ; un commit plus récent qui ne touche que `store/` ou le site ne change rien à l'AAB), pas celui de la montée de version. `4b7a22c` n'a porté que `1.25.0+26` dans `pubspec.yaml` ; **vingt commits `flutter_app/` sont venus après lui** (vidéo d'une minute, affiche WhatsApp, « Faire une offre », annonce écrite depuis la photo, recherche ivoirienne, offres d'emploi, comptes hors CI, stock des comptes Pro, liens de notification), tous racontés dans le corps de cette fiche. Le champ a été rectifié le 07/09/2026 sur signalement du bureau Livraison — il indiquait encore `4b7a22c`, et un Monteur qui l'aurait cru aurait construit une application vieille de seize commits. `pubspec.yaml` reste à `1.25.0+26` : la valeur est bonne, jamais construite ni téléversée, **on n'y touche pas**. |
+| **Commit** | `19bbd6e` — **le dernier commit qui touche `flutter_app/` au 07/09/2026** (ce que le Monteur doit construire ; un commit plus récent qui ne touche que `store/` ou le site ne change rien à l'AAB), pas celui de la montée de version. `4b7a22c` n'a porté que `1.25.0+26` dans `pubspec.yaml` ; **vingt et un commits `flutter_app/` sont venus après lui** (vidéo d'une minute, affiche WhatsApp, « Faire une offre », annonce écrite depuis la photo, recherche ivoirienne, offres d'emploi, comptes hors CI, stock des comptes Pro, liens de notification, don et biométrie, vidéo qui ne se lance plus seule), tous racontés dans le corps de cette fiche. Le champ a été rectifié le 07/09/2026 sur signalement du bureau Livraison — il indiquait encore `4b7a22c`, et un Monteur qui l'aurait cru aurait construit une application vieille de seize commits. `pubspec.yaml` reste à `1.25.0+26` : la valeur est bonne, jamais construite ni téléversée, **on n'y touche pas**. |
 | Date du build | **NON CONSTRUITE** — le code est prêt dans le dépôt, l'AAB n'existe pas encore. |
 | Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
 | minSdk 22 · targetSdk **36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33`. |
@@ -263,9 +263,26 @@ le README, « Notifications push natives (FCM) ».
   passe » reste la porte de secours. L'autorisation iOS
   `NSFaceIDUsageDescription` est posée par `preparer_plateformes.dart`.
 - Textes dans les six langues (`textes.dart` : 31 clés de plus).
-- Tests : **248 passent**, 12 échouent — les mêmes douze qu'avant ce travail
-  (2FA, écran pub, notifications, suppression de compte, vendeur), aucun des
-  fichiers neufs.
+- Tests : **260 passent**, 12 échouent — les mêmes douze qu'avant tout ce
+  travail (2FA, écran pub, notifications, suppression de compte, vendeur),
+  aucun des fichiers neufs. `flutter analyze` : 1 avertissement, celui d'avant
+  (`_proNom` inutilisé).
+
+**Ajouté le 07/09/2026, tard — la vidéo ne se lance plus toute seule, et son
+poids est écrit avant qu'on appuie.** Signalé par ⚡ Le Mécanicien lors de sa
+ronde : la vidéo d'une annonce démarrait à l'ouverture de l'écran et tournait
+en boucle. Le raisonnement tenait quand une vidéo était plafonnée à quinze
+secondes ; **le plafond est passé à soixante secondes le 06/09, et personne
+n'est revenu dessus**. Une vidéo au plafond fait jusqu'à 60 Mo, soit 60 à
+120 FCFA de forfait — dépensés sans qu'on ait rien demandé, et redépensés à
+chaque tour de boucle.
+
+- `lib/screens/video_screen.dart` : plus de lecture automatique ; la boucle ne
+  s'arme que sous **vingt secondes**, où elle rend encore service.
+- Sous le bouton de lecture, une pastille dit la durée **et le poids** :
+  « 42 s · 18 Mo ». Le serveur relève ce poids à l'envoi (colonne
+  `video_octets`, champ `videoOctets`) ; sur une vidéo plus ancienne il n'y a
+  pas de chiffre, et on n'en invente pas. Le site montre la même mention.
 
 Puis, le soir du 04/09 (chantier 2 des six demandés, « l'application à
 égalité avec le site ») : **modifier son annonce** depuis Mon compte
