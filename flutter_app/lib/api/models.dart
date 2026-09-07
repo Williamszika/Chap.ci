@@ -61,6 +61,13 @@ class Listing {
   /// (voir `ApiClient.televerser`), jamais dans le JSON de l'annonce.
   final String? video;
 
+  /// Le stock d'un professionnel (07/09/2026) : la quantité restante, ou null
+  /// quand l'annonce n'en suit pas ; le seuil d'alerte (5 par défaut) ; l'état
+  /// tel que le serveur le calcule — 'aucun', 'ok', 'bas', 'rupture'.
+  final int? stock;
+  final int stockMin;
+  final String stockEtat;
+
   const Listing({
     required this.id,
     required this.title,
@@ -92,7 +99,16 @@ class Listing {
     this.views = 0,
     this.attributes = const {},
     this.video,
+    this.stock,
+    this.stockMin = 5,
+    this.stockEtat = 'aucun',
   });
+
+  /// En rupture de stock : l'annonce reste visible, mais ne se commande plus.
+  bool get enRupture => stockEtat == 'rupture';
+
+  /// Sous le minimum : « Plus que 3 ».
+  bool get stockBas => stockEtat == 'bas';
 
   /// L'adresse lisible de la vidéo (absolue), ou null.
   String? get videoUrl {
@@ -164,6 +180,9 @@ class Listing {
       video: (j['video'] is String && (j['video'] as String).isNotEmpty)
           ? j['video'] as String
           : null,
+      stock: (j['stock'] is num) ? (j['stock'] as num).toInt() : null,
+      stockMin: (j['stockMin'] is num) ? (j['stockMin'] as num).toInt() : 5,
+      stockEtat: (j['stockEtat'] ?? 'aucun').toString(),
     );
   }
 

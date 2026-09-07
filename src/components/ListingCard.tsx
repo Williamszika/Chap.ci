@@ -101,11 +101,25 @@ export function ListingCard({ listing, rang = 99, dansBoutique = false }: {
               À la une
             </span>
           )}
+          {/* Le stock d'une boutique (07/09/2026) : « Plus que 3 » pousse à
+              se décider ; à zéro, le voile « Rupture » dit tout. */}
+          {listing.stockEtat === 'bas' && !listing.sold && (
+            <span className="rounded-full bg-ivoire-orange px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+              Plus que {listing.stock}
+            </span>
+          )}
         </div>
         {listing.sold && (
           <div className="absolute inset-0 grid place-items-center bg-black/45">
             <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-gray-800 shadow">
               Vendu
+            </span>
+          </div>
+        )}
+        {!listing.sold && listing.stockEtat === 'rupture' && (
+          <div className="absolute inset-0 grid place-items-center bg-black/45">
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-gray-800 shadow">
+              Rupture de stock
             </span>
           </div>
         )}

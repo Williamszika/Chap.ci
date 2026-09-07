@@ -84,6 +84,15 @@ export interface Listing {
   video?: string | null
   /** Combien ont écrit au sujet de cette annonce (rendu par `listings/mine`). */
   contacts?: number
+  /**
+   * Le stock d'un professionnel (07/09/2026) : la quantité restante, ou null
+   * quand l'annonce n'en suit pas. `stockMin` est le seuil d'alerte (5 par
+   * défaut) ; `stockEtat` ce que l'écran montre : « Plus que 3 » (bas),
+   * « Rupture de stock » (rupture).
+   */
+  stock?: number | null
+  stockMin?: number
+  stockEtat?: 'aucun' | 'ok' | 'bas' | 'rupture'
 }
 
 export interface LocationFilter {

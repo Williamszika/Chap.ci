@@ -8,6 +8,7 @@ import 'admin/demandes_pro_screen.dart';
 import 'devenir_pro_screen.dart';
 import 'listing_detail_screen.dart';
 import 'offre_screen.dart';
+import 'stock_pro_screen.dart';
 
 /// La cloche — la liste des notifications du compte (nouveau message, annonce
 /// mise en favori par quelqu'un, rappel…). Ouvrir l'écran les marque comme
@@ -94,6 +95,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
       // Un lien que l'application ne sait pas encore ouvrir ne fait rien de
       // faux : le titre et le corps ont déjà tout dit, et le site reste là.
+      return;
+    }
+    // Le stock qui baisse (07/09/2026) : droit sur l'écran du stock.
+    if (n.type == 'stock') {
+      Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const StockProScreen()));
       return;
     }
     // Une offre d'emploi (06/09/2026) : une structure que je suis a publié un

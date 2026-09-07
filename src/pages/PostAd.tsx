@@ -158,6 +158,17 @@ export function PostAd() {
   const devineAttrs = useRef<Record<string, string>>({})
   const [price, setPrice] = useState('')
   const [negotiable, setNegotiable] = useState(false)
+  // Le stock d'une boutique (07/09/2026) : la quantité restante et le seuil
+  // d'alerte, pour un professionnel approuvé seulement. Vide = pas de suivi.
+  const [stock, setStock] = useState('')
+  const [stockMin, setStockMin] = useState('5')
+  const [proApprouve, setProApprouve] = useState(false)
+  useEffect(() => {
+    if (!isPhp || !user) { setProApprouve(false); return }
+    php.phpProStatut<{ status?: string }>()
+      .then((s) => setProApprouve(s.status === 'approuve'))
+      .catch(() => setProApprouve(false))
+  }, [user])
   const [promoOn, setPromoOn] = useState(false)
   const [promoPct, setPromoPct] = useState('')
   const [promoDays, setPromoDays] = useState('7')
@@ -285,6 +296,8 @@ export function PostAd() {
     setCondition(l.condition === 'neuf' ? 'neuf' : 'occasion')
     setPrice(String(l.price ?? ''))
     setNegotiable(!!l.negotiable)
+    setStock(l.stock == null ? '' : String(l.stock))
+    setStockMin(String(l.stockMin ?? 5))
     setDelivery(!!l.delivery)
     setDescription(l.description === 'Aucune description fournie.' ? '' : (l.description ?? ''))
     setLoc({ regionId: l.regionId, cityId: l.cityId, commune: l.commune ?? undefined })
@@ -866,6 +879,11 @@ export function PostAd() {
       promoPrice: promoPreview ? promoPreview.price : undefined,
       promoUntil: promoPreview ? Date.now() + Number(promoDays) * 86_400_000 : undefined,
       attributes: Object.keys(attrsFinaux).length ? attrsFinaux : undefined,
+      // Le stock ne part que d'un professionnel : sans la clé, le serveur ne
+      // touche pas à ce qu'il a (une annonce modifiée garde son stock).
+      ...(proApprouve && !estDon
+        ? { stock: stock.trim() === '' ? null : Math.max(0, parseInt(stock, 10) || 0), stockMin: Math.max(0, parseInt(stockMin, 10) || 0) }
+        : {}),
     }
 
     setSubmitting(true)
@@ -1537,6 +1555,41 @@ export function PostAd() {
             Prix négociable / à débattre
           </label>
         </Field>
+        )}
+
+        {/* Le stock (07/09/2026) — une boutique approuvée dit combien il lui en
+            reste ; chaque vente conclue en retire une, et elle est prévenue
+            sous le minimum (5 par défaut, le chiffre du Patron). */}
+        {proApprouve && !estDon && (
+          <Field label="Stock (boutique)" htmlFor="pa-stock">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-gray-600">Quantité en stock</span>
+                <input
+                  id="pa-stock"
+                  inputMode="numeric"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value.replace(/\D/g, '').slice(0, 7))}
+                  placeholder="Ex : 12"
+                  className="input tabular-nums"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-gray-600">Alerte en dessous de</span>
+                <input
+                  inputMode="numeric"
+                  value={stockMin}
+                  onChange={(e) => setStockMin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="5"
+                  disabled={stock.trim() === ''}
+                  className="input tabular-nums disabled:opacity-50"
+                />
+              </label>
+            </div>
+            <p className="mt-1.5 text-[12px] text-gray-500">
+              Laissez la quantité vide pour ne pas suivre le stock. Chaque vente conclue retire une unité ; vous êtes prévenu sous le minimum, puis à zéro l’annonce affiche « Rupture de stock ».
+            </p>
+          </Field>
         )}
 
         {/* Promotion (facultatif) — sans objet sur un don. */}

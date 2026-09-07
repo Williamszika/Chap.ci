@@ -45,6 +45,7 @@ import { DEPUIS_COMPTE } from '../components/RetourCompte'
 import { StatsPro } from '../components/StatsPro'
 import { ReponsesAuto } from '../components/ReponsesAuto'
 import { OffresPro } from '../components/OffresPro'
+import { StockPro } from '../components/StockPro'
 import {
   FicheProEdit, ProfilPhoto, ReglagesNotifs, SecuriteCompte, AdressePosition,
   DialogueDeconnexion,
@@ -80,10 +81,13 @@ type Tab = 'accueil' | 'achats' | 'ventes' | 'annonces' | 'pubs' | 'params'
   | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses'
   // Les offres d'emploi de la structure (06/09/2026).
   | 'emplois'
+  // Le stock du professionnel (07/09/2026).
+  | 'stock'
 
 /** Le titre de chaque écran du compte — un seul endroit où le lire. */
 const TITRES: Partial<Record<Tab, string>> = {
   ventes: 'Tableau de bord',
+  stock: 'Stock',
   annonces: 'Mes annonces',
   achats: 'Mes commandes',
   pubs: 'Mes publicités',
@@ -615,6 +619,9 @@ export function Profile() {
             dessine son formulaire ou donne son lien, lit ses candidatures. */}
         {tab === 'emplois' && user && (
           <OffresPro pro={proApprouve} onChange={() => rechargerPro()} />
+        )}
+        {tab === 'stock' && user && (
+          <StockPro pro={proApprouve} onChange={() => rechargerPro()} />
         )}
 
         {/* MA FICHE PROFESSIONNELLE (planche 3) */}

@@ -209,6 +209,24 @@ ce que l'audit de cohérence a trouvé.**
   manquaient depuis le portage, on publiait un logement sans sous-catégorie.
 - Textes dans les six langues (`textes.dart` : 29 clés de plus).
 
+**Ajouté le 07/09/2026, dans la soirée — le stock des comptes Pro.** Le
+Patron : « pour les comptes Pro, il doit y avoir une gérance de stock et un
+signalement si les produits sont sous le minimum, 5 ».
+
+- **Publier** : pour un professionnel approuvé, deux champs « Quantité en
+  stock » et « Alerte en dessous de » (5 par défaut). Vide = pas de suivi.
+- **La fiche** d'une annonce : « Plus que 3 » sous le minimum, « Rupture de
+  stock » à zéro (l'offre de prix disparaît).
+- **La console Pro** : tuile 📦 Stock, rouge dès qu'un produit manque ; écran
+  natif (`lib/screens/stock_pro_screen.dart`) avec « − quantité + », le
+  minimum, « Suivre » / « Ne plus suivre » ; ce qui manque en premier.
+- **Réglages → Notifications** : l'interrupteur « Stock bas » dans les
+  rappels du professionnel ; la notification ouvre l'écran du stock.
+- Chaque vente conclue (commande finalisée, ou « reçu » dans une
+  conversation) retire une unité côté serveur ; l'annonce d'une boutique ne
+  devient plus « vendue » à la première vente.
+- `textes.dart` : 28 clés de plus, six langues ; `test/stock_test.dart`.
+
 Puis, le soir du 04/09 (chantier 2 des six demandés, « l'application à
 égalité avec le site ») : **modifier son annonce** depuis Mon compte
 (formulaire prérempli, photos en ligne conservées, `PUT /listings/{id}`), et

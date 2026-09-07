@@ -2128,6 +2128,20 @@ function migrate(PDO $pdo): void {
   // (« /uploads/videos/… »), une seule par annonce, NULL sans vidéo.
   try { $pdo->exec("ALTER TABLE listings ADD COLUMN video $txt"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // LE STOCK DES COMPTES PROFESSIONNELS (07/09/2026). `stock` NULL = l'annonce
+  // ne suit pas de stock (un particulier, ou un pro qui ne l'a pas demandé) ;
+  // `stock_min` le seuil d'alerte (5 par défaut, le chiffre du Patron) ;
+  // `stock_alerte` ce qui a déjà été signalé (NULL rien, 1 « stock bas »,
+  // 2 « rupture ») pour ne pas sonner à chaque vente sous le seuil.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN stock $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN stock_min $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN stock_alerte $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Une commande ne retire du stock qu'une fois, et le rend si on l'annule.
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN stock_pris $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN listing_id $id"); }
   catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
   try { $pdo->exec("ALTER TABLE orders ADD COLUMN seller_confirmed $intT"); }
@@ -5847,6 +5861,125 @@ const PRO_TYPES = ['boutique', 'commerce', 'vehicules', 'immobilier', 'services'
                    'formation', 'emploi', 'voyage', 'agro', 'sante', 'association',
                    'restauration', 'hebergement', 'animalerie', 'finance', 'media'];
 
+// ── LE STOCK DES COMPTES PROFESSIONNELS (07/09/2026) ─────────────────────────
+// Le Patron : « pour les comptes Pro, il doit y avoir une gérance de stock et
+// un signalement si les produits sont à moins du minimum, 5 ».
+//
+// Une annonce d'un professionnel peut porter une QUANTITÉ EN STOCK et un SEUIL
+// d'alerte. Chaque vente conclue en retire une unité ; passer sous le seuil
+// envoie « Stock bas » au professionnel, arriver à zéro envoie « Rupture de
+// stock » — chacune UNE fois, jusqu'à ce qu'il réapprovisionne au-dessus du
+// seuil. À zéro, l'annonce reste visible avec « Rupture de stock » : la cacher
+// en silence ferait croire au professionnel qu'elle a disparu.
+const STOCK_MIN_DEFAUT = 5;
+
+/** Une quantité envoyée par le client → entier ≥ 0, ou NULL (« je ne suis pas de stock »). */
+function stock_normaliser($v): ?int {
+  if ($v === null || $v === '' || $v === false) return null;
+  if (!is_numeric($v)) return null;
+  return max(0, min(1000000, (int) $v));
+}
+
+/** Le seuil envoyé par le client → entier entre 0 et 100 000, 5 par défaut. */
+function stock_min_normaliser($v): int {
+  if ($v === null || $v === '' || !is_numeric($v)) return STOCK_MIN_DEFAUT;
+  return max(0, min(100000, (int) $v));
+}
+
+/** 'aucun' (pas de suivi), 'ok', 'bas' (≤ seuil), 'rupture' (zéro). */
+function stock_etat(?int $stock, int $min): string {
+  if ($stock === null) return 'aucun';
+  if ($stock <= 0) return 'rupture';
+  return $stock <= $min ? 'bas' : 'ok';
+}
+
+/** L'annonce suit-elle un stock ? */
+function stock_suivi(PDO $pdo, string $listingId): bool {
+  try {
+    $st = $pdo->prepare('SELECT stock FROM listings WHERE id = ?'); $st->execute([$listingId]);
+    $v = $st->fetchColumn();
+    return $v !== false && $v !== null;
+  } catch (Throwable $e) { return false; }
+}
+
+/**
+ * Relit le stock d'une annonce, pose le marqueur d'alerte, et PRÉVIENT le
+ * professionnel si on vient de franchir le seuil ou d'atteindre zéro —
+ * seulement quand `$prevenir` est vrai (une vente) : quand c'est lui qui
+ * écrit la quantité, il la connaît.
+ */
+function stock_marquer(PDO $pdo, string $listingId, bool $prevenir): string {
+  try {
+    $st = $pdo->prepare('SELECT user_id, title, stock, stock_min, stock_alerte FROM listings WHERE id = ?');
+    $st->execute([$listingId]);
+    $l = $st->fetch();
+    if (!$l || $l['stock'] === null) return 'aucun';
+    $stock = (int) $l['stock'];
+    $min = $l['stock_min'] === null ? STOCK_MIN_DEFAUT : (int) $l['stock_min'];
+    $etat = stock_etat($stock, $min);
+    $deja = (int) ($l['stock_alerte'] ?? 0);
+    $niveau = $etat === 'rupture' ? 2 : ($etat === 'bas' ? 1 : 0);
+    if ($niveau !== $deja) {
+      $pdo->prepare('UPDATE listings SET stock_alerte = ? WHERE id = ?')->execute([$niveau ?: null, $listingId]);
+      if ($prevenir && $niveau > $deja && !empty($l['user_id'])) {
+        $titre = mb_substr(trim((string) $l['title']), 0, 60);
+        if ($niveau === 2) {
+          notify($pdo, (string) $l['user_id'], 'stock', 'Rupture de stock 🔴',
+            '« ' . $titre . ' » : il n’en reste plus. Réapprovisionnez, ou retirez l’annonce.',
+            '#/compte?onglet=stock');
+        } else {
+          notify($pdo, (string) $l['user_id'], 'stock', 'Stock bas 🟠',
+            '« ' . $titre . ' » : il n’en reste que ' . $stock . ' (minimum ' . $min . ').',
+            '#/compte?onglet=stock');
+        }
+      }
+    }
+    return $etat;
+  } catch (Throwable $e) { return 'aucun'; }
+}
+
+/**
+ * Une commande CONCLUE retire une unité par article aux annonces qui suivent
+ * un stock — une seule fois par commande (`orders.stock_pris`).
+ */
+function stock_prendre(PDO $pdo, string $orderId): int {
+  try {
+    $o = $pdo->prepare('SELECT stock_pris FROM orders WHERE id = ?'); $o->execute([$orderId]);
+    $r = $o->fetch();
+    if (!$r || !empty($r['stock_pris'])) return 0;
+    $it = $pdo->prepare('SELECT listing_id FROM order_items WHERE order_id = ? AND listing_id IS NOT NULL');
+    $it->execute([$orderId]);
+    $n = 0;
+    foreach ($it->fetchAll(PDO::FETCH_COLUMN) as $lid) {
+      $u = $pdo->prepare('UPDATE listings SET stock = CASE WHEN stock > 0 THEN stock - 1 ELSE 0 END
+                          WHERE id = ? AND stock IS NOT NULL');
+      $u->execute([(string) $lid]);
+      if ($u->rowCount() > 0) { $n++; stock_marquer($pdo, (string) $lid, true); }
+    }
+    $pdo->prepare('UPDATE orders SET stock_pris = 1 WHERE id = ?')->execute([$orderId]);
+    return $n;
+  } catch (Throwable $e) { return 0; }
+}
+
+/** Une commande annulée ou rouverte rend ce qu'elle avait pris. */
+function stock_rendre(PDO $pdo, string $orderId): int {
+  try {
+    $o = $pdo->prepare('SELECT stock_pris FROM orders WHERE id = ?'); $o->execute([$orderId]);
+    $r = $o->fetch();
+    if (!$r || empty($r['stock_pris'])) return 0;
+    $it = $pdo->prepare('SELECT listing_id FROM order_items WHERE order_id = ? AND listing_id IS NOT NULL');
+    $it->execute([$orderId]);
+    $n = 0;
+    foreach ($it->fetchAll(PDO::FETCH_COLUMN) as $lid) {
+      $u = $pdo->prepare('UPDATE listings SET stock = stock + 1 WHERE id = ? AND stock IS NOT NULL');
+      $u->execute([(string) $lid]);
+      if ($u->rowCount() > 0) { $n++; stock_marquer($pdo, (string) $lid, false); }
+    }
+    $pdo->prepare('UPDATE orders SET stock_pris = 0 WHERE id = ?')->execute([$orderId]);
+    return $n;
+  } catch (Throwable $e) { return 0; }
+}
+
 /** Le compte est-il un professionnel approuvé ? */
 function pro_approuve(PDO $pdo, string $uid): bool {
   try {
@@ -6221,6 +6354,13 @@ function listing_out(array $r, bool $withPhone = false): array {
     // La vidéo de quinze secondes : son adresse publique, ou null. `?? null`
     // pour une base pas encore migrée (la colonne arrive au premier appel).
     'video' => (isset($r['video']) && (string) $r['video'] !== '') ? (string) $r['video'] : null,
+    // Le stock d'un professionnel (07/09/2026) : NULL quand l'annonce n'en
+    // suit pas. L'état dit ce que l'écran doit montrer — « Plus que 3 »,
+    // « Rupture de stock » — sans refaire le calcul à trois endroits.
+    'stock' => isset($r['stock']) && $r['stock'] !== null ? (int) $r['stock'] : null,
+    'stockMin' => isset($r['stock_min']) && $r['stock_min'] !== null ? (int) $r['stock_min'] : STOCK_MIN_DEFAUT,
+    'stockEtat' => stock_etat(isset($r['stock']) && $r['stock'] !== null ? (int) $r['stock'] : null,
+                              isset($r['stock_min']) && $r['stock_min'] !== null ? (int) $r['stock_min'] : STOCK_MIN_DEFAUT),
   ];
 }
 
@@ -7240,11 +7380,16 @@ try {
     $signal = $brutes ? photos_signal($pdo, $brutes) : null;
     $photoSignal = photo_signal_texte($signal);
 
+    // Le stock (07/09/2026) : seulement pour un professionnel approuvé — un
+    // particulier vend UN objet, il n'a pas de stock à suivre.
+    $estPro = pro_approuve($pdo, (string) $u['id']);
+    $stock = $estPro ? stock_normaliser($b['stock'] ?? null) : null;
+    $stockMin = $estPro ? stock_min_normaliser($b['stockMin'] ?? null) : STOCK_MIN_DEFAUT;
     $pdo->prepare('INSERT INTO listings
       (id,user_id,title,description,price,negotiable,category_id,subcategory,condition_v,images,
        region_id,city_id,commune,lat,lng,seller_name,seller_phone,delivery,featured,promo_price,promo_until,attributes,created_at,
-       photos_verifiees,photo_signal)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+       photos_verifiees,photo_signal,stock,stock_min)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
       ->execute([
         $id, $u['id'], trim($b['title']), trim($b['description'] ?? ''), (int) ($b['price'] ?? 0),
         !empty($b['negotiable']) ? 1 : 0, $b['categoryId'] ?? '', $b['subcategory'] ?? null,
@@ -7253,8 +7398,9 @@ try {
         isset($b['lat']) ? (float) $b['lat'] : null, isset($b['lng']) ? (float) $b['lng'] : null,
         $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0, 0,
         isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, now_iso(),
-        $photosVerifiees, $photoSignal,
+        $photosVerifiees, $photoSignal, $stock, $stockMin,
       ]);
+    if ($stock !== null) stock_marquer($pdo, $id, false);
     // Notification de statut : l'annonce a passé la modération et est en ligne.
     notify($pdo, $u['id'], 'listing', 'Annonce publiée ✅',
       'Votre annonce « ' . mb_substr(trim($b['title']), 0, 60) . ' » est maintenant en ligne.',
@@ -7313,6 +7459,27 @@ try {
   // Marquer une annonce vendue (ou la remettre en vente) depuis « Mes
   // annonces ». Le vendeur seul décide : une annonce vendue sort des
   // résultats sans être supprimée, et ses statistiques restent.
+  // LE STOCK D'UNE ANNONCE (07/09/2026) — la quantité et le seuil, depuis la
+  // console du professionnel (« + / − » sur chaque produit). Réservé au
+  // propriétaire de l'annonce, professionnel approuvé. `stock: null` cesse
+  // de suivre le stock. Pas de notification ici : c'est lui qui écrit.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'stock' && $method === 'PUT') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT user_id, stock, stock_min FROM listings WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ((string) $row['user_id'] !== (string) $u['id']) jerr('Cette annonce n’est pas la vôtre.', 403);
+    if (!pro_approuve($pdo, (string) $u['id'])) jerr('Le suivi de stock est réservé aux comptes professionnels approuvés.', 403);
+    $stock = array_key_exists('stock', $b) ? stock_normaliser($b['stock'])
+      : ($row['stock'] === null ? null : (int) $row['stock']);
+    $min = array_key_exists('stockMin', $b) ? stock_min_normaliser($b['stockMin'])
+      : ($row['stock_min'] === null ? STOCK_MIN_DEFAUT : (int) $row['stock_min']);
+    $pdo->prepare('UPDATE listings SET stock = ?, stock_min = ? WHERE id = ?')->execute([$stock, $min, $seg[1]]);
+    $etat = stock_marquer($pdo, $seg[1], false);
+    jout(['ok' => true, 'stock' => $stock, 'stockMin' => $min, 'stockEtat' => $etat]);
+  }
+
   if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'vendue' && $method === 'POST') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?');
@@ -7928,6 +8095,13 @@ try {
         isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson,
         ...array_values($majPhotos), $seg[1],
       ]);
+    // Le stock (07/09/2026), seulement si le formulaire l'envoie — une
+    // application d'hier qui ne connaît pas le champ ne doit pas l'effacer.
+    if (array_key_exists('stock', $b) && pro_approuve($pdo, (string) $u['id'])) {
+      $pdo->prepare('UPDATE listings SET stock = ?, stock_min = ? WHERE id = ?')
+          ->execute([stock_normaliser($b['stock']), stock_min_normaliser($b['stockMin'] ?? null), $seg[1]]);
+      stock_marquer($pdo, $seg[1], false);
+    }
     // LES FAVORIS QUI PRÉVIENNENT (chantier 4 du 04/09/2026) : le prix baisse —
     // par le prix lui-même ou par une promotion — et ceux qui ont mis
     // l'annonce en favori l'apprennent. C'est l'acheteur qui revient sans
@@ -9259,6 +9433,9 @@ try {
     $fin = $status === 'finalise' ? ($o['finalized_at'] ?: now_iso()) : null;
     $pdo->prepare('UPDATE orders SET status = ?, finalized_at = ? WHERE id = ?')
         ->execute([$status, $fin, $seg[1]]);
+    // Le stock du professionnel (07/09/2026) : une commande conclue retire une
+    // unité par article, une commande annulée ou rouverte la rend.
+    if ($status === 'finalise') stock_prendre($pdo, $seg[1]); else stock_rendre($pdo, $seg[1]);
     // L'AUTRE partie l'apprend : une vente se conclut à deux, et c'est le
     // moment où l'on peut demander un avis.
     if ($status === 'finalise') {
@@ -9351,21 +9528,30 @@ try {
       $ensureOrder('en_cours');
       jout(['ok' => true, 'status' => 'en_cours']);
     }
+    // Une annonce qui SUIT UN STOCK (professionnel, 07/09/2026) ne devient
+    // pas « vendue » à la première vente : elle perd une unité. Un
+    // particulier, lui, vend un objet — l'annonce est vendue.
+    $suitStock = $listingId ? stock_suivi($pdo, (string) $listingId) : false;
     if ($action === 'received' && $isBuyer) {
       $o = $ensureOrder('finalise');
       $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['finalise', $o['id']]);
       // Achat livré = annonce vendue : on la retire du public.
-      if ($listingId) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ?')->execute([$listingId]);
+      if ($listingId && !$suitStock) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ?')->execute([$listingId]);
+      if ($suitStock) stock_prendre($pdo, (string) $o['id']);
       jout(['ok' => true, 'status' => 'finalise']);
     }
     if ($action === 'sold' && $isSeller) {
-      if ($listingId) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ? AND user_id = ?')->execute([$listingId, $u['id']]);
+      if ($listingId && !$suitStock) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ? AND user_id = ?')->execute([$listingId, $u['id']]);
       $o = $ensureOrder('en_cours');
       $pdo->prepare('UPDATE orders SET seller_confirmed = 1 WHERE id = ?')->execute([$o['id']]);
+      if ($suitStock) stock_prendre($pdo, (string) $o['id']);
       jout(['ok' => true, 'sold' => true]);
     }
     if ($action === 'cancel') {
-      if ($order) $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['annule', $order['id']]);
+      if ($order) {
+        $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['annule', $order['id']]);
+        stock_rendre($pdo, (string) $order['id']);
+      }
       if ($isSeller && $listingId) $pdo->prepare('UPDATE listings SET sold = 0 WHERE id = ? AND user_id = ?')->execute([$listingId, $u['id']]);
       jout(['ok' => true, 'status' => 'annule']);
     }
@@ -10168,6 +10354,36 @@ try {
   // 30 jours) avec tendance vs période précédente, taux de réponse, messages en
   // attente, série des vues, top des annonces et fil d'activité. Chaque bloc est
   // en best-effort : une table manquante donne des zéros, jamais une erreur.
+  // LE STOCK DU PROFESSIONNEL (07/09/2026) — toutes ses annonces, celles qui
+  // manquent en premier : rupture, puis sous le seuil, puis le reste par
+  // quantité croissante, et enfin celles qui ne suivent pas de stock (il peut
+  // l'activer d'un geste). Les compteurs servent au bandeau d'alerte.
+  if ($path === 'pro/stock' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    if (!pro_approuve($pdo, (string) $u['id'])) jerr('Réservé aux comptes professionnels approuvés.', 403);
+    $st = $pdo->prepare('SELECT id, title, price, images, stock, stock_min, sold, hidden, created_at
+                         FROM listings WHERE user_id = ? ORDER BY created_at DESC LIMIT 500');
+    $st->execute([$u['id']]);
+    $out = []; $bas = 0; $rupture = 0; $suivies = 0;
+    foreach ($st->fetchAll() as $l) {
+      $stock = $l['stock'] === null ? null : (int) $l['stock'];
+      $min = $l['stock_min'] === null ? STOCK_MIN_DEFAUT : (int) $l['stock_min'];
+      $etat = stock_etat($stock, $min);
+      if ($stock !== null) $suivies++;
+      if ($etat === 'rupture') { $rupture++; $bas++; } elseif ($etat === 'bas') $bas++;
+      $imgs = $l['images'] ? (json_decode($l['images'], true) ?: []) : [];
+      $out[] = [
+        'id' => $l['id'], 'title' => $l['title'], 'price' => (int) $l['price'],
+        'image' => $imgs[0] ?? null, 'stock' => $stock, 'stockMin' => $min, 'stockEtat' => $etat,
+        'sold' => !empty($l['sold']), 'hidden' => !empty($l['hidden']),
+      ];
+    }
+    $rang = ['rupture' => 0, 'bas' => 1, 'ok' => 2, 'aucun' => 3];
+    usort($out, fn($a, $b) => ($rang[$a['stockEtat']] <=> $rang[$b['stockEtat']])
+      ?: (($a['stock'] ?? PHP_INT_MAX) <=> ($b['stock'] ?? PHP_INT_MAX)));
+    jout(['annonces' => $out, 'suivies' => $suivies, 'bas' => $bas, 'rupture' => $rupture, 'minDefaut' => STOCK_MIN_DEFAUT]);
+  }
+
   if ($path === 'pro/tableau' && $method === 'GET') {
     $u = require_user($pdo, $secret);
     $uid = (string) $u['id'];
@@ -10513,6 +10729,11 @@ try {
         'abonnes' => abonnes_compter($pdo, $uid),
         'offres' => $compteur("SELECT COUNT(*) FROM offres WHERE user_id = ? AND statut = 'ouverte' AND (expires_at IS NULL OR expires_at > ?)", [$uid, now_iso()]),
         'candidatures' => $compteur('SELECT COALESCE(SUM(candidatures), 0) FROM offres WHERE user_id = ?', [$uid]),
+        // Le stock (07/09/2026) : combien de produits sous le seuil, dont
+        // combien à zéro — la tuile « Stock » s'allume dessus.
+        'stockSuivi' => $compteur('SELECT COUNT(*) FROM listings WHERE user_id = ? AND stock IS NOT NULL', [$uid]),
+        'stockBas' => $compteur('SELECT COUNT(*) FROM listings WHERE user_id = ? AND stock IS NOT NULL AND stock <= COALESCE(stock_min, ' . STOCK_MIN_DEFAUT . ')', [$uid]),
+        'stockRupture' => $compteur('SELECT COUNT(*) FROM listings WHERE user_id = ? AND stock IS NOT NULL AND stock <= 0', [$uid]),
       ],
       'compte' => [
         'nom' => (string) ($profil['full_name'] ?? ''),

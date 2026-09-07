@@ -53,6 +53,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
   bool _notifEssouffle = true;
   bool _notifBilan = true;
   bool _notifCandidature = true;
+  bool _notifStock = true; // stock bas, rupture (07/09/2026)
   bool _notifEmail = true;
   bool _notifPretes = false;
   bool _notifEnvoi = false;
@@ -100,6 +101,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
           _notifEssouffle = d['essouffle'] != false;
           _notifBilan = d['bilan'] != false;
           _notifCandidature = d['candidature'] != false;
+          _notifStock = d['stock'] != false;
           _notifEmail = d['email'] != false;
           _notifPretes = true;
         });
@@ -132,6 +134,7 @@ class _ParametresScreenState extends State<ParametresScreen> {
         'essouffle': _notifEssouffle,
         'bilan': _notifBilan,
         'candidature': _notifCandidature,
+        'stock': _notifStock,
         'email': _notifEmail,
       });
     } on ApiException catch (e) {
@@ -618,6 +621,16 @@ class _ParametresScreenState extends State<ParametresScreen> {
         valeur: _notifCandidature,
         onChange: (v) => _majNotifs(
             () => _notifCandidature = v, () => _notifCandidature = !v),
+      ),
+      _interrupteur(
+        icone: Icons.inventory_2_outlined,
+        fond: const Color(0xFFFBEAE7),
+        teinte: const Color(0xFFB42318),
+        titre: tr(context, 'notif.stock'),
+        sous: tr(context, 'notif.stock.sous'),
+        valeur: _notifStock,
+        onChange: (v) =>
+            _majNotifs(() => _notifStock = v, () => _notifStock = !v),
       ),
     ]);
   }

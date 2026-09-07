@@ -45,6 +45,8 @@ export interface Tableau {
     reponseAuto?: boolean; reponseAutoTexte?: string; reponsesPretes?: number
     /** Les abonnés, les offres d'emploi ouvertes et les candidatures reçues (06/09/2026). */
     abonnes?: number; offres?: number; candidatures?: number
+    /** Le stock (07/09/2026) : produits suivis, sous le minimum, à zéro. */
+    stockSuivi?: number; stockBas?: number; stockRupture?: number
   }
   /** Tout le compte, pour les tuiles et la fiche d'entreprise de la page Compte. */
   compte?: {
@@ -270,7 +272,7 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
   dansCompte?: boolean
   /** Ouvre un onglet interne de la page Compte (annonces, achats, ventes, pubs, params). */
   onOnglet?: (onglet: 'annonces' | 'achats' | 'ventes' | 'pubs' | 'params'
-    | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses' | 'emplois') => void
+    | 'stats' | 'fiche' | 'profil' | 'notifs' | 'securite' | 'adresse' | 'reponses' | 'emplois' | 'stock') => void
   onDeconnexion?: () => void
   /**
    * Regarder la console d'UN AUTRE professionnel, en lecture seule. Réservé
@@ -676,6 +678,20 @@ export function TableauPro({ dansCompte = false, onOnglet, onDeconnexion, userId
                 ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-primary-500 px-1.5 text-[11px] font-extrabold text-white">{t.pro.candidatures}</span>
                 : undefined}
               onClick={() => onOnglet?.('emplois')} />
+            {/* Le stock (07/09/2026) : « une gérance de stock et un signalement
+                si les produits sont sous le minimum, 5 ». La tuile passe au
+                rouge dès qu'un produit manque — c'est ce qu'on doit voir en
+                ouvrant la console, avant tout le reste. */}
+            <Tuile inerte={lecture} emoji="📦" fond={(t.pro.stockBas ?? 0) > 0 ? '#FBEAE7' : '#F1F5F9'} titre="Stock"
+              sous={(t.pro.stockSuivi ?? 0) > 0
+                ? (t.pro.stockBas ?? 0) > 0
+                  ? `${t.pro.stockBas} produit${(t.pro.stockBas ?? 0) > 1 ? 's' : ''} sous le minimum${(t.pro.stockRupture ?? 0) > 0 ? ` · ${t.pro.stockRupture} en rupture` : ''}`
+                  : `${t.pro.stockSuivi} produit${(t.pro.stockSuivi ?? 0) > 1 ? 's' : ''} suivi${(t.pro.stockSuivi ?? 0) > 1 ? 's' : ''}, rien ne manque`
+                : 'Quantités par produit, alerte sous le minimum'}
+              badge={(t.pro.stockBas ?? 0) > 0
+                ? <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-extrabold text-white">{t.pro.stockBas}</span>
+                : undefined}
+              onClick={() => onOnglet?.('stock')} />
           </div>
 
           <p className="mt-2 px-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-gray-400">

@@ -31,6 +31,7 @@ npm run banc:push  # notifications push : vecteur RFC 8291 + contrat serveur ↔
 npm run banc:front # le site sur un téléphone 3G simulé : poids, décalages (CLS), erreurs, cibles tactiles
 npm run banc:coherence # site ↔ application ↔ serveur : catégories, types pro, lieux, pays, réglages, permissions
 npm run banc:pays  # comptes hors Côte d'Ivoire et onglet admin « Pays », sur un serveur SQLite local
+npm run banc:stock # le stock des comptes Pro : décrément à la vente, alertes « stock bas » et « rupture »
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
 

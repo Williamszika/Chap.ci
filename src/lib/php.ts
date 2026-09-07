@@ -914,6 +914,30 @@ export async function phpProTableau<T>(periode: 7 | 30 = 7, userId?: string): Pr
   const cible = userId ? `&userId=${encodeURIComponent(userId)}` : ''
   return req<T>(`/pro/tableau?periode=${periode}${cible}`)
 }
+
+/**
+ * Le stock du professionnel (07/09/2026) : ses annonces, celles qui manquent
+ * en premier, et les compteurs du bandeau d'alerte.
+ */
+export interface LigneStock {
+  id: string
+  title: string
+  price: number
+  image: string | null
+  stock: number | null
+  stockMin: number
+  stockEtat: 'aucun' | 'ok' | 'bas' | 'rupture'
+  sold: boolean
+  hidden: boolean
+}
+export interface StockPro { annonces: LigneStock[]; suivies: number; bas: number; rupture: number; minDefaut: number }
+export async function phpProStock(): Promise<StockPro> {
+  return req<StockPro>('/pro/stock')
+}
+/** Écrire la quantité et le seuil d'une annonce ; `stock: null` cesse le suivi. */
+export async function phpStockMaj(listingId: string, body: { stock?: number | null; stockMin?: number }): Promise<{ stock: number | null; stockMin: number; stockEtat: LigneStock['stockEtat'] }> {
+  return req(`/listings/${encodeURIComponent(listingId)}/stock`, { method: 'PUT', body })
+}
 /** Marquer une annonce vendue, ou la remettre en vente. */
 export async function phpSetListingSold(id: string, sold: boolean): Promise<void> {
   await req(`/listings/${id}/vendue`, { method: 'POST', body: { sold } })

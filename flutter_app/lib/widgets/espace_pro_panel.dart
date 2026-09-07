@@ -15,6 +15,7 @@ import '../screens/messages_screen.dart';
 import '../screens/modifier_profil_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/offres_pro_screen.dart';
+import '../screens/stock_pro_screen.dart';
 import '../screens/publier_screen.dart';
 import '../screens/reponses_screen.dart';
 import '../screens/reseaux_screen.dart';
@@ -506,6 +507,24 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                       ? '${pro['candidatures']}'
                       : null,
                   onTap: () => _ouvrir(const OffresProScreen())),
+              // Le stock (07/09/2026) : « une gérance de stock et un
+              // signalement si les produits sont sous le minimum, 5 ». La
+              // tuile rougit dès qu'un produit manque.
+              _tuile(
+                  '📦',
+                  ((pro['stockBas'] as num?)?.toInt() ?? 0) > 0
+                      ? const Color(0xFFFBEAE7)
+                      : const Color(0xFFF1F5F9),
+                  tr(context, 'stock.titre'),
+                  ((pro['stockSuivi'] as num?)?.toInt() ?? 0) > 0
+                      ? ((pro['stockBas'] as num?)?.toInt() ?? 0) > 0
+                          ? _tr('stock.tuileBas', {'n': '${pro['stockBas']}'})
+                          : _tr('stock.tuileOk', {'n': '${pro['stockSuivi']}'})
+                      : tr(context, 'stock.tuileSous'),
+                  compteur: ((pro['stockBas'] as num?)?.toInt() ?? 0) > 0
+                      ? '${pro['stockBas']}'
+                      : null,
+                  onTap: () => _ouvrir(const StockProScreen())),
             ],
           ),
 

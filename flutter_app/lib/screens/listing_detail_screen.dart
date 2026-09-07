@@ -137,7 +137,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     marque: a.attributes['marque']?.toString(),
                     prix: a.prixAffiche,
                   ),
-                if (a.price > 0 && !a.sold) _boutonOffre(a),
+                if (a.price > 0 && !a.sold && !a.enRupture) _boutonOffre(a),
                 const SizedBox(height: 12),
                 _badges(a),
                 const SizedBox(height: 8),
@@ -258,6 +258,28 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.5)),
+              ),
+            ),
+          // Le stock d'une boutique (07/09/2026) : « Plus que 3 » pousse à se
+          // décider ; « Rupture de stock » dit qu'on ne commande plus.
+          if (!a.sold && (a.enRupture || a.stockBas))
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                    color: a.enRupture ? Colors.black87 : ChapColors.orange,
+                    borderRadius: BorderRadius.circular(8)),
+                child: Text(
+                    a.enRupture
+                        ? tr(context, 'stock.rupture')
+                        : tr(context, 'stock.plusQue').replaceAll('{n}', '${a.stock ?? 0}'),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5)),
               ),
             ),
           // LA VIDÉO DE QUINZE SECONDES (chantier 6 du 04/09/2026) : une

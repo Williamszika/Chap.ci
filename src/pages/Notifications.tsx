@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Heart, MessageSquare, Trash2, Check, Star, Handshake, Sparkles, Store, Briefcase } from 'lucide-react'
+import { Bell, Heart, MessageSquare, Trash2, Check, Star, Handshake, Sparkles, Store, Briefcase, PackageOpen } from 'lucide-react'
 import {
   phpNotifications,
   phpNotifMarkRead,
@@ -39,6 +39,9 @@ function iconFor(type: string) {
     return <Store size={18} className="text-ivoire-green" />
   if (t.includes('candidature'))
     return <Briefcase size={18} className="text-primary-600" />
+  // Le stock qui baisse (07/09/2026) : un carton qui se vide.
+  if (t.includes('stock'))
+    return <PackageOpen size={18} className="text-red-600" />
   return <Bell size={18} className="text-accent-gold" />
 }
 

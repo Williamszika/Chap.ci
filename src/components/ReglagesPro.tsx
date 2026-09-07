@@ -467,6 +467,8 @@ const CASES_PRO: [string, string, string][] = [
   ['essouffle', 'Annonce qui s’essouffle', 'Plus de vues depuis 10 jours'],
   ['bilan', 'Bilan de la semaine', 'Chaque lundi matin, vos chiffres'],
   ['candidature', 'Nouvelle candidature', 'Quelqu’un répond à une de vos offres d’emploi'],
+  // Le stock (07/09/2026) : sous le minimum, puis à zéro — une fois chacun.
+  ['stock', 'Stock bas', 'Un produit passe sous son minimum, ou tombe à zéro'],
 ]
 
 /**

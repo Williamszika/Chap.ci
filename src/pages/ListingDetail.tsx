@@ -605,6 +605,17 @@ export function ListingDetail() {
               </div>
             ) : (
               <div className="pointer-events-none absolute left-3 top-16 z-10 flex flex-col items-start gap-1.5 md:top-3">
+                {/* Le stock d'une boutique (07/09/2026). */}
+                {listing.stockEtat === 'rupture' && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-900/85 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow">
+                    Rupture de stock
+                  </span>
+                )}
+                {listing.stockEtat === 'bas' && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-ivoire-orange px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow">
+                    Plus que {listing.stock}
+                  </span>
+                )}
                 {listing.featured && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow">
                     <Star size={12} className="fill-white" /> À la une
@@ -980,14 +991,21 @@ export function ListingDetail() {
                   <button onClick={askQuestion} disabled={busy} className={`${greenBtn} flex-1`}>
                     <MessageSquare size={18} /> {busy ? '…' : 'Contacter'}
                   </button>
-                  {listing.price > 0 && !listing.sold && (
+                  {listing.price > 0 && !listing.sold && listing.stockEtat !== 'rupture' && (
                     <button onClick={() => { if (requireAuth()) setOffreOuverte(true) }} disabled={busy} className="btn-outline flex-1">
                       <Tag size={18} /> Faire une offre
                     </button>
                   )}
-                  <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
-                    <ShoppingBag size={18} /> Acheter
-                  </button>
+                  {/* En rupture, on n'achète pas — on demande quand ça revient. */}
+                  {listing.stockEtat === 'rupture' ? (
+                    <span className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-500">
+                      Rupture de stock
+                    </span>
+                  ) : (
+                    <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
+                      <ShoppingBag size={18} /> Acheter
+                    </button>
+                  )}
                   <button onClick={() => setShareOpen(true)} className="btn-outline shrink-0 px-3" aria-label="Partager">
                     <Share2 size={18} />
                   </button>
@@ -1120,9 +1138,15 @@ export function ListingDetail() {
               <button onClick={askQuestion} disabled={busy} className={`${greenBtn} flex-[1.7]`}>
                 <MessageSquare size={18} /> {busy ? '…' : 'Contacter le vendeur'}
               </button>
-              <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
-                <ShoppingBag size={18} /> Acheter
-              </button>
+              {listing.stockEtat === 'rupture' ? (
+                <span className="flex flex-1 items-center justify-center rounded-xl bg-gray-100 py-3 text-[13px] font-semibold text-gray-500">
+                  Rupture
+                </span>
+              ) : (
+                <button onClick={buyNow} disabled={busy} className="btn-outline flex-1">
+                  <ShoppingBag size={18} /> Acheter
+                </button>
+              )}
             </div>
             {isDemo && (
               <p className="mt-1.5 text-center text-[11px] text-gray-500">

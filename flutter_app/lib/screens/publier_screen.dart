@@ -100,8 +100,23 @@ class _PublierScreenState extends State<PublierScreen> {
       // Jamais de remplissage automatique par-dessus une annonce existante.
       _devineFait = true;
       _videoExistante = a.video;
+      if (a.stock != null) _stock.text = '${a.stock}';
+      _stockMin.text = '${a.stockMin}';
     }
     if (_schema != null) _cleForm = GlobalKey<FormulaireDynamiqueState>();
+    _chargerPro();
+  }
+
+  /// Le champ « Stock » ne se montre qu'à un professionnel approuvé — le
+  /// serveur ignore de toute façon ce qu'un particulier enverrait.
+  Future<void> _chargerPro() async {
+    if (!ApiClient.instance.connecte) return;
+    try {
+      final d = await ApiClient.instance.get('/pro/statut');
+      if (mounted && d is Map && d['status'] == 'approuve') {
+        setState(() => _estPro = true);
+      }
+    } catch (_) {/* pas pro, ou hors ligne : le champ reste caché */}
   }
 
   bool get _modification => widget.annonce != null;
@@ -135,6 +150,12 @@ class _PublierScreenState extends State<PublierScreen> {
   bool _negociable = false;
   bool _livraison = false;
   bool _envoi = false;
+
+  // LE STOCK D'UNE BOUTIQUE (07/09/2026) : la quantité restante et le seuil
+  // d'alerte, pour un professionnel approuvé seulement. Vide = pas de suivi.
+  final _stock = TextEditingController();
+  final _stockMin = TextEditingController(text: '5');
+  bool _estPro = false;
 
   // « CHAP.CI ÉCRIT L'ANNONCE » — une seule fois par annonce, sur la première
   // photo, jamais par-dessus ce que la personne a déjà tapé. `_devineFait`
@@ -171,6 +192,8 @@ class _PublierScreenState extends State<PublierScreen> {
   void dispose() {
     _titre.dispose();
     _prix.dispose();
+    _stock.dispose();
+    _stockMin.dispose();
     _description.dispose();
     _tel.dispose();
     super.dispose();
@@ -617,6 +640,10 @@ class _PublierScreenState extends State<PublierScreen> {
         'description': _description.text.trim(),
         'price': int.tryParse(_prix.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
         'negotiable': _negociable,
+        // Le stock ne part que d'un professionnel : sans la clé, le serveur
+        // garde ce qu'il a (une annonce modifiée conserve son stock).
+        if (_estPro) 'stock': int.tryParse(_stock.text.trim()),
+        if (_estPro) 'stockMin': int.tryParse(_stockMin.text.trim()) ?? 5,
         'categoryId': _categorie,
         'subcategory': _sousCategorie,
         'condition': _condition,
@@ -846,6 +873,49 @@ class _PublierScreenState extends State<PublierScreen> {
               controlAffinity: ListTileControlAffinity.leading,
               title: Text(tr(context, 'pub.prixNegociable')),
             ),
+            // Le stock (07/09/2026) — une boutique approuvée dit combien il lui
+            // en reste ; chaque vente conclue en retire une, et elle est
+            // prévenue sous le minimum (5 par défaut, le chiffre du Patron).
+            if (_estPro) ...[
+              const SizedBox(height: 12),
+              Text(tr(context, 'pub.stock'), style: _labelStyle),
+              const SizedBox(height: 6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _stock,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: tr(context, 'pub.stockQuantite'),
+                        hintText: 'Ex : 12',
+                        prefixIcon: const Icon(Icons.inventory_2_outlined),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _stockMin,
+                      keyboardType: TextInputType.number,
+                      enabled: _stock.text.trim().isNotEmpty,
+                      decoration: InputDecoration(
+                        labelText: tr(context, 'pub.stockMin'),
+                        hintText: '5',
+                        prefixIcon: const Icon(Icons.notifications_active_outlined),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 2),
+                child: Text(tr(context, 'pub.stockAide'),
+                    style: const TextStyle(fontSize: 12, color: ChapColors.gray600)),
+              ),
+            ],
             const SizedBox(height: 12),
             Text(tr(context, 'pub.localisation'), style: _labelStyle),
             const SizedBox(height: 6),
