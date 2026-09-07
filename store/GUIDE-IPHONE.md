@@ -66,6 +66,51 @@ depuis le 6s en est capable.
 
 ---
 
+## Ce que la mise à jour du 7 septembre apporte — v1.25
+
+**Sept nouveautés de plus, arrivées les 6 et 7 septembre.** Elles ne sont dans
+aucun téléphone : l'application n'a pas été construite depuis. Les six commandes
+du haut les prennent toutes en une fois.
+
+- **Suivre une structure, et ses offres d'emploi.** Sur la page d'une
+  entreprise, d'une ONG ou d'un centre de formation : le bouton **Suivre**, et
+  l'onglet **Emplois** quand elle recrute. Chaque poste a sa page ; on postule
+  soit par le lien que la structure donne, soit par le formulaire qu'elle a
+  construit elle-même (questions courtes, longues, choix, oui/non). Les abonnés
+  reçoivent une notification à chaque publication. Côté structure, la console
+  pro a la tuile 💼 **Offres d'emploi** : publier un poste, lire les
+  candidatures reçues.
+- **« Où êtes-vous ? » — les comptes hors Côte d'Ivoire.** À l'inscription et
+  dans Modifier mon profil, un bouton de lieu. Tout en bas de la liste des
+  régions : **Autres pays** → le pays (117, les voisins d'abord, avec une
+  recherche) → la ville écrite à la main. Le compte dit ensuite « Dakar,
+  Sénégal ». Le GPS de « Publier » reconnaît lui aussi un pays étranger au lieu
+  de chercher une ville ivoirienne au hasard.
+- **Le stock des comptes Pro.** En publiant, sous le prix : **Quantité en
+  stock** et **Alerte en dessous de** (5 par défaut). Chaque vente conclue
+  retire une unité toute seule. Sous le minimum, la boutique reçoit « Stock
+  bas » ; à zéro, « Rupture de stock », et l'annonce cesse de se commander.
+  La console pro a la tuile 📦 **Stock**, rouge dès qu'un produit manque, avec
+  « − quantité + » sur chaque produit.
+- **Chaque notification ouvre l'écran dont elle parle.** Un message ouvre la
+  conversation, un avis la page publique, « Modifier » le formulaire de
+  l'annonce, « Stock bas » le stock, une candidature l'offre. Avant, seules les
+  annonces et les offres s'ouvraient ; le reste ne faisait rien.
+- **Les mots suivent le type de structure.** Une association affiche
+  « Association vérifiée », « dons remis » au lieu de « ventes conclues »,
+  « Récépissé vérifié » au lieu de « Registre vérifié ». Une école, une agence
+  de voyage, un hôtel, une banque affichent « Agrément vérifié ».
+- **Quinze types d'organisation** dans « Devenir professionnel » au lieu de
+  dix : restaurant, hôtel, animalerie, banque et média ont enfin leur case.
+- **Six réglages de notification de plus**, ceux que le site avait déjà : vente
+  conclue, nouvel avis, nouveautés du site, et les quatre rappels du
+  professionnel. Hors ligne, l'écran dit maintenant que les valeurs affichées
+  sont celles par défaut, et une publication qui échoue propose « Réessayer ».
+
+Rien de nouveau à faire dans Xcode : aucune bibliothèque ne s'ajoute.
+
+---
+
 ## Ce que la mise à jour du 4 septembre apporte — v1.25
 
 Les quatre nouveautés mises en ligne sur le site le 3 septembre, dans
