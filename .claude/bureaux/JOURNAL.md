@@ -3130,3 +3130,249 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   ajouter à une checklist manuelle.
 
 ---
+
+### 2026-09-07 14:10 — [Livraison] 🔨 Le Monteur
+
+- **⚠️ LE REPÈRE EST À MOITIÉ FAUX, et c'est le premier point.**
+  `flutter_app/pubspec.yaml` porte `version: 1.25.0+26`, ce qui correspond
+  bien à la fiche de tête de `store/APP-VERSIONS.md` (« v1.25 — versionCode
+  26 ») : sur ce point les deux s'accordent. Mais le champ **Commit** de
+  cette fiche, `4b7a22c`, est **périmé**. Il existe (`git cat-file -t` →
+  `commit`) et c'est bien « L'application prend les quatre nouveautés du
+  3 septembre » — sauf que **seize commits `flutter_app/` sont venus
+  après lui**, du 04 au 07/09. Le corps de la fiche les raconte tous
+  (chantiers 2 à 6, réseaux sociaux, abonnés et offres d'emploi, quinze
+  types de structure, mots par type) ; **c'est le pointeur, pas le récit,
+  qui est resté en arrière**. Un bureau qui ne lirait que le champ Commit
+  croirait ces seize commits déjà livrés. Le jour du build, inscrivez le
+  HEAD réel — aujourd'hui `26f1e1c` — et non `4b7a22c`.
+
+- **Version publiée sur chaque boutique, et depuis combien de temps**
+  (d'après le journal, **non confirmé par le Patron** — seul lui entre
+  dans les consoles ; merci de relire la ligne de chaque release) :
+  - **Google Play** : la **v1.20 (code 21)** reste la seule confirmée
+    « disponible pour les testeurs » — verdict reçu le 24/08, donc **il y
+    a 14 jours**. La **v1.21 (code 22)** a été envoyée à l'examen le
+    26/08, **il y a 12 jours**, et son verdict est toujours **NON
+    VÉRIFIÉ** : c'est la ligne la plus utile à relire cette semaine. La
+    **v1.22 (code 23)** a été construite le 27/08 mais jamais téléversée
+    (essai local sur le téléphone du Patron). Les **v1.23, v1.24 et
+    v1.25 n'ont jamais été construites**.
+  - **Le compteur des 14 jours** : « 12 testeurs, 3 jours sans
+    interruption » au relevé du 30/08 → échéance calculée **autour du
+    10/09**, c'est-à-dire **dans trois jours**. À regarder de près : le
+    bouton « Demander à publier en production » devrait s'allumer.
+  - **App Store** : **aucune version, et rien n'a bougé**. Le tableau
+    « État des deux boutiques » dit encore « Mac + Xcode — non
+    disponible » ; `APP-VERSIONS.md` signale lui-même que cette ligne est
+    périmée (le Patron a construit les v1.20 et v1.22 sur son Mac les 26
+    et 27/08). **Ce qui bloque n'est donc pas la machine, mais le compte
+    Apple Developer (99 $/an), qui n'est pas ouvert.**
+
+- **Ce que les utilisateurs de l'application NE VOIENT PAS ENCORE.** C'est
+  la liste qui dit le coût de l'attente, et elle est devenue longue :
+  **quatre versions d'écart** (v1.22 → v1.25) et **seize commits
+  `flutter_app/` depuis le pointeur de la fiche**. Par blocs :
+  - **La marque verte** — icône, écran de démarrage animé (la couronne de
+    feuillage), en-tête — et la **vitrine du professionnel côté acheteur**
+    (v1.22/v1.23, jamais livrées).
+  - **Le mot de passe oublié** (v1.24) : dans l'application installée, le
+    bouton affiche toujours « écrivez-nous à contact@chap.ci ».
+  - **L'affiche pour le statut WhatsApp**, **« Ça vaut combien ? »**,
+    **Faire une offre** (accepter / refuser / contre-proposer), et
+    **l'annonce écrite depuis la photo** (`4b7a22c`, 03/09).
+  - **Modifier son annonce** depuis Mon compte, et **les réponses** —
+    automatique et toutes prêtes (`bdcf8c4`).
+  - **La recherche qui comprend** : synonymes ivoiriens, débuts de mots,
+    fautes de frappe (`9e1bfa1`).
+  - **Les favoris qui préviennent** quand le prix baisse ou l'annonce
+    expire (`f0ee9a9`).
+  - **Le contrôle des photos par le serveur** — l'application n'avait
+    **aucun filtre anti-nudité** (`3132af6`).
+  - **La vidéo par annonce**, portée à **une minute et 60 Mo** le 06/09
+    (`7caf99f`, `5e5897d`).
+  - **Les réseaux sociaux du professionnel**, WhatsApp en tête
+    (`78f2c2b`, `db40f2c`).
+  - **Suivre une structure et recevoir ses offres d'emploi** : onglet
+    « Emplois », écran d'offre, console pro, constructeur de formulaire
+    (`6d9beba`).
+  - **Quinze types d'organisation** au lieu de dix, et **les mots de la
+    vitrine adaptés au type** — une association remet des dons, pas des
+    ventes (`1d0a363`, `26f1e1c`).
+
+- **Décalage serveur ↔ app — deux, tous deux mineurs** :
+  1. `GET /admin/entonnoir` (`5db1550`, 04/09) : l'entonnoir semaine par
+     semaine existe au serveur et dans `AdminDashboard.tsx`, mais
+     `flutter_app/` ne l'appelle nulle part (0 occurrence). L'écran
+     `screens/admin/tableau_bord_screen.dart` de l'app est donc en retard
+     d'un tableau. C'est de l'administration, pas du public : à faire,
+     sans urgence.
+  2. `988947e` (07/09) a raccourci sur le **site** « {n} personnes vous
+     sui… », qui se coupait sur un téléphone de 390 px. La clé jumelle
+     existe toujours telle quelle dans l'application :
+     `i18n/textes.dart` → `pro.fiche.abonnesN` = « {n} vous suivent ».
+     À vérifier sur un vrai téléphone avant le build.
+
+- **VERDICT : CONSTRUIRE.** Condition **(c)** largement remplie — une
+  douzaine de fonctionnalités visibles accumulées, pas trois. Condition
+  **(b)** également en jeu, et c'est ce qui décide du calendrier : la
+  vidéo apporte une **autorisation micro iOS neuve**
+  (`NSMicrophoneUsageDescription`) et du **contenu vidéo produit par les
+  utilisateurs**, à déclarer dans les deux boutiques ; et le contrôle des
+  photos comble l'absence totale de filtre anti-nudité, que Google Play
+  attend d'une application à contenu utilisateur. La condition **(d)**,
+  elle, n'est **pas** remplie : le dernier build réel date du 27/08
+  (v1.22), soit 11 jours. Le verdict vaut pour les deux boutiques — c'est
+  le même code Flutter.
+  ⚠️ **Une réserve de calendrier, à trancher par le Patron** : le
+  compteur des 14 jours arrive à échéance vers le 10/09. Téléverser sur
+  le canal fermé **ne remet pas ce compteur à zéro** (c'est écrit et
+  vérifié dans `APP-VERSIONS.md`), donc rien n'interdit de construire
+  maintenant ; mais si vous préférez ne toucher à rien avant d'avoir
+  appuyé sur « Demander à publier en production », attendre trois jours
+  ne coûte que trois jours.
+
+- **Numéros de version — rien à changer.** `pubspec.yaml` porte déjà
+  `version: 1.25.0+26`, et cette valeur n'a **jamais été construite ni
+  téléversée** :
+  - **versionName** (avant le `+`) : **1.25.0** — incrément mineur, c'est
+    bien un lot de nouveautés, pas une refonte.
+  - **versionCode** (après le `+`) : **26**. Le dernier code réellement
+    monté dans la console Play est **22** (v1.21) ; 23, 24 et 25 n'ont
+    jamais atteint la console et restent donc libres, mais il n'y a
+    aucune raison de reculer. 26 passe.
+  - Donc : **ne modifiez pas `pubspec.yaml`**, lancez la préparation
+    telle quelle, et mettez `store/APP-VERSIONS.md` à jour **après** le
+    build (champ Commit = `26f1e1c`, date, poids de l'AAB).
+
+- **Notes de version — Google Play (« Nouveautés »), 463 caractères sur
+  500** :
+
+```
+Filmez votre article : une minute de vidéo par annonce.
+Partagez une affiche prête pour votre statut WhatsApp.
+Proposez votre prix, le vendeur accepte, refuse ou contre-propose.
+Une photo suffit : l’annonce s’écrit toute seule, vous relisez.
+Modifiez une annonce déjà en ligne.
+La recherche comprend « télé », « gbaka » et vos fautes de frappe.
+Vos favoris vous préviennent quand le prix baisse.
+Suivez une entreprise, recevez ses annonces et ses offres d’emploi.
+```
+
+- **Notes de version — App Store (« Nouveautés de cette version »)**,
+  à garder sous le coude pour le jour où le compte Apple s'ouvre :
+
+```
+Filmez votre article : une minute de vidéo par annonce, tournée ou
+choisie dans votre galerie.
+Partagez une affiche prête pour votre statut WhatsApp, avec le prix et le
+lien de l’annonce.
+Proposez votre prix depuis la fiche : le vendeur accepte, refuse ou
+contre-propose, sans quitter la conversation.
+Une photo suffit pour publier : le titre, la catégorie et la description
+se remplissent, vous relisez et vous publiez.
+Suivez une entreprise ou une association et recevez ses nouvelles
+annonces et ses offres d’emploi.
+```
+
+- **Captures à refaire — deux écrans, pas cinq.** Comparaison des seize
+  commits aux écrans que montrent les captures de `store/captures/` :
+  - **annonce** (`listing_detail_screen.dart`, +53 lignes) : **PÉRIMÉE** —
+    la pastille « ▶ Vidéo » sur les photos, le bouton « Faire une offre »
+    et « Ça vaut combien ? » sous le prix sont nouveaux.
+  - **vendeur** (`vendeur_screen.dart`, +183 lignes) : **PÉRIMÉE** — les
+    pastilles de réseaux sociaux aux couleurs des marques, l'onglet
+    « Emplois · n », et le vocabulaire par type sur la vitrine.
+  - **accueil**, **aide** : inchangées, ne les refaites pas.
+  - **explorer** : le changement (`browse_screen.dart`) est dans la
+    logique de recherche, pas dans le dessin ; la capture reste valable.
+  - Formats à couvrir côté Play : **téléphone** (obligatoire),
+    **tablette 7 pouces**, **tablette 10 pouces** — les trois jeux
+    existent déjà, seuls `02-annonce` et `04-vendeur` sont à reprendre,
+    soit **six fichiers**. ⚠️ Depuis la v1.20 les captures se prennent
+    **dans l'application qui tourne** (émulateur ou téléphone), plus dans
+    le navigateur : les écrans natifs ne ressemblent plus au site.
+  - Côté App Store : sans objet cette semaine (aucune fiche). Le jour
+    venu, les tailles exigées se lisent **dans App Store Connect le jour
+    du dépôt** — Apple les change ; les ordres de grandeur souvent cités
+    (iPhone ~1290×2796, iPad ~2048×2732) sont **à confirmer**, jamais à
+    recopier de mémoire.
+
+- **Vérifications avant build — ce qui a pu être fait, et ce qui n'a pas
+  pu.** ⚠️ **Flutter n'est pas installé dans cette session**
+  (`flutter: command not found`) : `flutter analyze`, `flutter test` et
+  `dart run tool/preparer_plateformes.dart` **n'ont pas été exécutés**.
+  Je ne les invente pas. Ce qui a été fait à leur place :
+  - `python3 scripts/verif-flutter.py` : **tout vert** — 107 fichiers
+    Dart lus, les 600 clés de traduction utilisées existent et ont leurs
+    6 langues, les 22 couleurs du thème existent, les 33 méthodes du
+    client d'API existent, tous les imports résolvent, accolades,
+    parenthèses et crochets équilibrés sur les 107 fichiers. Ce n'est pas
+    un compilateur, mais ça attrape ce qui casse la fabrication.
+  - **Dernier `flutter analyze` connu** (fiche v1.25, 04/09) : zéro
+    erreur, la mise en garde `_proNom` toujours là. **12 tests anciens
+    rouges** (2FA, suppression de compte, écran pub, vendeur), déjà
+    rouges avant ces commits — ils ne disent rien de la v1.25. Le dossier
+    `test/` compte **31 fichiers**, dont les cinq écrits pour ce lot
+    (`recherche`, `video`, `reseaux`, `abonnes`, `mots_pro`,
+    `publier_modification`).
+  - **Deux dépendances nouvelles depuis `4b7a22c`, toutes deux à couche
+    native** — c'est le point de vigilance du build :
+    `video_player: ^2.14.0` (ExoPlayer côté Android, AVFoundation côté
+    iOS : quelques Mo de plus dans l'AAB) et `app_links: ^7.2.1` (liens
+    entrants). Contrairement à `image` (pur Dart), **elles touchent
+    Gradle et CocoaPods** : si un build doit échouer, c'est là. Le
+    précédent connu est le SDK Facebook natif.
+  - `lib/api/api_client.dart:33` : `baseUrl` =
+    `String.fromEnvironment('API_BASE', defaultValue: 'https://chap.ci/api')`
+    — **la valeur par défaut est bien la bonne**, en https, sur ce
+    domaine. ✅
+  - `tool/preparer_plateformes.dart` : `applicationId = "ci.chap.app"`
+    (ligne 385) et bundle iOS identique → c'est bien une **mise à jour**,
+    pas une application neuve. `minSdk 22`, **`targetSdk 36`** (exigé par
+    Google depuis le 31/08). ✅
+  - Autorisations déclarées : Android `INTERNET`, `CAMERA`,
+    `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, le bloc
+    `<queries>` https d'Android 11+, le schéma `chapci` (connexion
+    Facebook web) et les liens `https://chap.ci/annonce/…` et
+    `/vendeur/…`. iOS : photothèque, caméra, localisation, et
+    **`NSMicrophoneUsageDescription` — la nouveauté de ce lot**, posée
+    pour la vidéo.
+  - ⚠️ **Un point à surveiller au premier tournage** : Android ne déclare
+    **pas** `RECORD_AUDIO`. Ce devrait être correct — `image_picker`
+    délègue à l'appareil photo du système, qui gère le micro lui-même —
+    mais si la première vidéo tournée depuis l'application sort muette ou
+    refuse de démarrer, c'est là qu'il faut regarder en premier.
+
+- **Marche à suivre — ANDROID / GOOGLE PLAY.** Depuis la racine du
+  dépôt, dans le Terminal du Mac :
+
+```
+cd flutter_app
+flutter pub get
+dart run tool/preparer_plateformes.dart
+flutter build appbundle --release
+```
+
+  L'AAB sort dans `build/app/outputs/bundle/release/app-release.aab`.
+  Ne touchez pas à `pubspec.yaml` : `1.25.0+26` est déjà la bonne valeur.
+  La signature de production se lit dans `android/key.properties`, qui ne
+  voyage jamais dans Git. **~50 à 60 Mo, c'est normal** : Flutter embarque
+  son moteur de rendu, et le Play Store redécoupe le bundle par appareil.
+  Puis, dans la Play Console : **Tests fermés → Créer une version →
+  téléverser l'AAB → coller les notes ci-dessus → remplacer les six
+  captures périmées → Envoyer pour examen**, sans oublier la
+  **Vue d'ensemble de la publication → Envoyer les modifications pour
+  examen** (la porte qu'on oublie, celle qui bloquait tout jusqu'au
+  6 août). Déclarez au passage la **vidéo produite par les utilisateurs**
+  dans le questionnaire de contenu.
+
+- **Marche à suivre — iOS / APP STORE : bloqué, et pas par la machine.**
+  Rien ne peut être déposé tant que le **compte Apple Developer (99 $/an)
+  n'est pas ouvert** — le Mac, lui, existe et sert déjà. Pour débloquer :
+  ouvrir le compte, puis un premier dépôt demandera une étape de création
+  de fiche qui n'existera plus ensuite, un **compte de démonstration
+  fonctionnel** (Apple exige de pouvoir se connecter) et des captures
+  iPhone et iPad. En attendant, l'installation sur l'iPhone du Patron
+  reste possible sans compte payant : les six commandes en tête de
+  `store/GUIDE-IPHONE.md`.
