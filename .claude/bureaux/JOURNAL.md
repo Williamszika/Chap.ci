@@ -2989,3 +2989,144 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   d'autre à signaler cette semaine.
 
 ---
+
+### 2026-09-07 05:20 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff complet de la semaine relu (`c1abc28` → `26f1e1c`, 50
+  commits sur 7 jours — dépôt cloné superficiel, `git fetch --unshallow`
+  refait, même mésaventure que le 31/08). Sous-système fouillé (rotation
+  semaine ISO 37 % 6 = 1) : **rendu & upload**. CI et dépendances
+  vérifiées. Déploiement du serveur confirmé par les empreintes ; le site
+  a deux commits d'écart, expliqué plus bas.
+- **Sous-système de la semaine — rendu & upload** :
+  - **`web/seo.php`** — deux nouvelles routes `/.well-known/apple-app-site-
+    association` et `/.well-known/assetlinks.json` (liens universels
+    iOS/Android) : `apple_team_id` et `android_sha256` sont validés par
+    une regex stricte AVANT d'entrer dans le JSON (10 caractères
+    alphanumériques ; empreintes SHA-256 au format `XX:XX:…`), 404 tant
+    qu'ils manquent. Icône versionnée par son propre `md5_file()`, passée
+    par `h()`. Le JSON-LD (correctif du 30/07) garde `JSON_HEX_TAG` aux
+    trois endroits, rien n'a régressé. Aucun défaut trouvé.
+  - **La vidéo de quinze secondes** (`7caf99f`, nouvelles routes `POST` et
+    `DELETE /listings/{id}/video`) : type vérifié par ses PREMIERS OCTETS
+    (`finfo`), jamais par le nom ni le type annoncé ; nom de fichier
+    `date+uuid`, jamais celui envoyé ; rangée dans `uploads/videos/`, qui
+    hérite du `.htaccess` anti-exécution du dossier parent (vérifié :
+    aucun `.htaccess` propre à `videos/`, donc pas de trou) ; propriétaire
+    vérifié sur les deux routes (admin toléré en plus sur `DELETE`) ;
+    vingt/heure ; fichier retiré AVANT la ligne SQL sur toute suppression
+    d'annonce (4 points d'appel vérifiés, y compris suppression de compte
+    et signalement). Aucun défaut trouvé.
+  - **« Chap.ci écrit l'annonce »** et **« Contrôle des photos »**
+    (`3905f31`, `3132af6`, moteur de vision externe) : `require_user` sur
+    les deux, image validée par regex stricte (jpeg/png/webp base64, 2 Mo
+    max), catégorie/sous-catégorie renvoyées par le moteur revérifiées
+    contre le catalogue envoyé par le client avant tout usage — un moteur
+    qui invente ne traverse pas l'écran. Titre/description tronqués côté
+    serveur. Clé jamais dans le dépôt (`getenv`, défaut vide → 503).
+    Aucun défaut trouvé sur le fond.
+  - **Le fabricant de zip** (`541d4c1`, `scripts/faire-zip.mjs`, entré
+    dans le dépôt cette semaine) : copie nommément `dist/`,
+    `server/index.php`, `server/watermark.png`, `web/seo.php` — jamais le
+    dossier `web/` entier, donc le nouveau `web/htaccess-root` (routage
+    `.well-known` + en-têtes CSP) n'entre PAS dans le zip, conforme à la
+    règle du 02/08. Le script relit ensuite le ZIP FINI, entrée par
+    entrée, contre les quatre interdits (`.htaccess`, `config.php`,
+    `uploads/`, `data/`) et DÉTRUIT le zip s'il en trouve un — exactement
+    la boucle rouge/vert que la panne du 02/08 aurait dû avoir dès le
+    départ. Aucun défaut trouvé.
+- **Vérifications transverses (checklist habituelle)** :
+  - SQL : aucune concaténation dans le nouveau code (seules les
+    `ALTER TABLE … $intT/$txt` habituelles, sur des constantes de type,
+    pas des entrées).
+  - Contrôle d'accès sur les routes neuves hors rotation (offres d'emploi,
+    abonnements « suivis ») : propriété vérifiée sur `PUT`/`DELETE
+    /offres/{id}` et `GET /offres/{id}/candidatures` (réservé à l'auteur
+    de l'offre) ; `candidater` exige un e-mail confirmé, une candidature
+    par offre, formulaire revalidé champ par champ. Aucune fuite de
+    candidat vers un tiers.
+  - Admin : `admin_feature_for_path()` reste fail-closed (`'unknown'` →
+    refusé à un modérateur) ; la nouvelle route `admin/entonnoir` est
+    bien mappée (`'overview'`). Aucune route `/admin/*` en dehors du bloc
+    gardé.
+  - Secrets : rien de committé (`git grep` sur secret/password/token/clé
+    ne remonte que du code de gestion de mot de passe légitime).
+  - Flutter : `api_client.dart` reste sur `https://chap.ci/api`. Nouveau
+    fichier `liens_entrants.dart` (liens universels, lecture des adresses
+    entrantes) : hôte vérifié (`chap.ci`/`www.chap.ci` exactement),
+    identifiant validé par `^[A-Za-z0-9-]{4,64}$`, type limité à
+    `annonce`/`vendeur` — un lien qui ne correspond à rien n'ouvre rien.
+    Les liens externes (offre d'emploi, réseaux sociaux du pro) s'ouvrent
+    par `url_launcher` en `LaunchMode.externalApplication`, jamais dans
+    un navigateur intégré avec pont JS. `pubspec.yaml` : trois
+    dépendances neuves (`image` — pur Dart, `app_links`, `video_player`,
+    plugin officiel Flutter) — rien qui capte des données ni n'embarque
+    une couche native inhabituelle.
+  - CI (`security-scan.yml`) : déclenchement inchangé, conforme.
+  - `npm audit --omit=dev --audit-level=high` : les deux mêmes
+    vulnérabilités **modérées** react-router que le 31/08 (sous le seuil,
+    la seconde ne s'applique pas à ce SPA sans rendu serveur).
+  - `php -l server/index.php web/seo.php` : aucune erreur (PHP 8.4, comme
+    la semaine dernière — `php8.5` toujours absent de cet environnement).
+- **Déploiement** : `/api/health` renvoie `empreinte` = `4b93b40e0f62` et
+  `empreinteSeo` = `d22a669a65dc`, identiques à `md5sum server/index.php`
+  et `web/seo.php` sur `HEAD` (`26f1e1c`) — le serveur exécute exactement
+  le code d'aujourd'hui, vidéo et moteur de vision compris.
+  `empreinteSite` (`aa153d6faa68`) ne correspond PAS à un `npm run build`
+  de `HEAD`, mais correspond exactement (vérifié en reconstruisant à ce
+  commit) à `1d0a363`, déployé à `04:15:13Z` : les deux commits suivants
+  (`1267d44` — ne touche que `CLAUDE.md` — et `26f1e1c` — vocabulaire de
+  la vitrine, front uniquement) sont simplement postérieurs au dernier
+  zip et n'ont encore rien de sécurité dedans. Pas un correctif en
+  attente : un décalage normal de cadence.
+- **Problèmes ouverts** :
+  - **Moyenne, défaut de robustesse (non testé en conditions réelles —
+    aucune requête répétée envoyée à la production, pour ne pas
+    déclencher l'anti-robot)** : `server/index.php:7412` et `:7489`,
+    routes `photos/controle` et `annonce/deviner`. `rate_limit()` compte
+    les évènements déjà ÉCRITS dans `security_events` ; l'écriture
+    (`log_security_event`) a lieu APRÈS la lecture du compteur mais AVANT
+    l'appel externe de 60 s (`:7441`, `:7545`, `http_fetch(...,
+    ['timeout' => 60, ...])`). Un même compte authentifié (email non
+    confirmé requis — `require_user` suffit, pas `email_verifie`) qui
+    envoie ses requêtes EN PARALLÈLE plutôt qu'en série peut donc faire
+    lire le même compteur (encore à zéro) par plusieurs requêtes avant
+    qu'aucune n'ait écrit sa ligne : le quota de 40/jour freine la suite,
+    pas la première rafale. Chaque requête tient un travailleur PHP-FPM
+    jusqu'à 60 s (mutualisé cPanel, nombre de travailleurs limité). Scénario
+    concret : un compte crée un lot de ~40 requêtes parallèles vers
+    `photos/controle` (huit photos par appel autorisées) au moment où le
+    moteur de vision est configuré (`vision_cle` non vide) — le serveur
+    tient 40 travailleurs occupés jusqu'à une minute chacun. Ce n'est PAS
+    une brèche (pas de fuite de données, pas de contournement d'accès) et
+    ça reste borné à un compte + une clé de moteur active ; c'est un
+    risque de lenteur ponctuelle pour les autres visiteurs si l'hébergement
+    a peu de travailleurs disponibles. Non vérifié si `vision_cle` est
+    seulement configurée en production — si elle ne l'est pas, ces deux
+    routes répondent 503 immédiatement et le risque est nul aujourd'hui.
+  - Aucune faille exploitable trouvée cette semaine.
+- **Propositions au Patron** :
+  - `server/index.php:7412` et `:7489` — **Avant** : `rate_limit()` compte
+    puis retourne, la ligne du journal n'étant écrite qu'ensuite.
+    **Après** : ajouter un verrou léger par utilisateur (ex. une valeur
+    APCu ou une ligne « en cours » avec contrainte d'unicité, posée avant
+    l'appel externe et retirée après) qui refuse une deuxième requête
+    `deviner`/`controle_photos` du même compte tant que la première n'est
+    pas terminée — une personne ne prend pas deux photos à la fois de
+    toute façon. Risque du correctif : nul si la clé/le verrou est purgé
+    même en cas d'erreur (bloc `finally`-like avec `try/finally` PHP).
+    Comment vérifier : lancer cinq requêtes `POST /photos/controle`
+    strictement simultanées depuis un même compte de test (faux moteur
+    local du banc `banc:controle`, pas la production) et constater
+    qu'une seule passe, les autres recevant 429 immédiatement.
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à signaler
+  cette semaine (pas de nouvel indicateur à surveiller). **Dev/Atelier** —
+  la proposition ci-dessus (verrou de concurrence sur `deviner`/
+  `controle_photos`) est un chantier de fond, pas un correctif de sécurité
+  urgent : à caser quand ça arrange, pas en urgence. **Monteur** — rien à
+  inclure spécifiquement pour la sécurité ce lot-ci ; notez au passage que
+  `scripts/faire-zip.mjs` (entré dans le dépôt le 31/08) fait maintenant
+  tout le travail de contrôle du zip lui-même, donc rien de nouveau à
+  ajouter à une checklist manuelle.
+
+---
