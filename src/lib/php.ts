@@ -369,6 +369,17 @@ export async function phpSignOut(): Promise<void> {
 }
 
 // ---- Annonces ---------------------------------------------------------------
+/**
+ * UNE PAGE du catalogue (`/listings?limit=&offset=`).
+ *
+ * Le serveur borne `limit` à 100. Sans ces paramètres, il renvoie **jusqu'à
+ * 500 annonces d'un coup, et pas une de plus** : c'est ce que le site
+ * demandait, et c'était un plafond dur — la 501ᵉ annonce n'aurait jamais
+ * existé pour lui, sans le moindre message (08/09/2026).
+ */
+export async function phpFetchListingsPage(offset: number, limit: number): Promise<Listing[]> {
+  return req<Listing[]>(`/listings?limit=${limit}&offset=${offset}`)
+}
 export async function phpFetchListings(): Promise<Listing[]> {
   return req<Listing[]>('/listings')
 }

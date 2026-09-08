@@ -1001,26 +1001,208 @@ function push_envoyer(array $config, PDO $pdo, array $abo, string $charge): int 
   return $code;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  LE PUSH NATIF (Firebase Cloud Messaging) — réveiller un téléphone fermé.
+//
+//  POURQUOI CE CHANTIER. Le Web Push ci-dessus ne touche QUE les navigateurs :
+//  il faut un onglet ouvert ou une PWA installée. L'application Flutter, elle,
+//  est fermée la plupart du temps — et c'est exactement l'instant où un vendeur
+//  doit apprendre qu'on lui écrit. Sans FCM, l'acheteur écrit, personne ne
+//  répond, il va voir ailleurs. C'est la première fuite de la place de marché,
+//  et elle n'apparaît dans aucune mesure de vitesse.
+//
+//  LE SECRET EST UNE DONNÉE, JAMAIS DU CODE. La clé du compte de service
+//  Google se dépose en JSON dans `api/data/fcm.json` (0600, dossier 0700 refusé
+//  au web), comme `smtp.json` et `push.json`. Rien n'est généré, rien n'est
+//  écrit dans le dossier servi par le serveur.
+//
+//  TANT QUE CE FICHIER N'EXISTE PAS, TOUT CECI EST INERTE : `fcm_config()`
+//  rend null, l'envoi ne part pas, et le Web Push comme le repli par e-mail
+//  continuent exactement comme avant. Aucune régression possible.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * La clé du compte de service, ou null si le Patron ne l'a pas encore déposée.
+ *
+ * Le fichier est celui que la console Firebase fait télécharger :
+ * Paramètres du projet → Comptes de service → « Générer une nouvelle clé
+ * privée ». On n'en lit que trois champs.
+ */
+function fcm_config(array $config): ?array {
+  static $cache = null;
+  if ($cache !== null) return $cache ?: null;
+
+  $fichier = chapci_secret_dir($config) . '/fcm.json';
+  if (!is_file($fichier)) { $cache = false; return null; }
+  $d = json_decode((string) @file_get_contents($fichier), true);
+  if (!is_array($d) || empty($d['project_id']) || empty($d['client_email']) || empty($d['private_key'])) {
+    error_log('[chapci] fcm · fcm.json présent mais incomplet (project_id, client_email, private_key)');
+    $cache = false; return null;
+  }
+  $cache = [
+    'projet' => (string) $d['project_id'],
+    'email'  => (string) $d['client_email'],
+    'clef'   => (string) $d['private_key'],
+  ];
+  return $cache;
+}
+
+/**
+ * Le jeton d'accès Google, obtenu contre un JWT signé avec la clé du compte de
+ * service (OAuth2 « JWT bearer »). Gardé en mémoire le temps de la requête PHP.
+ *
+ * Google le donne pour une heure ; on le redemande à chaque processus plutôt
+ * que de le stocker — une requête de plus par notification, contre un secret
+ * de moins écrit sur le disque.
+ */
+function fcm_jeton(array $config): ?string {
+  static $cache = null;
+  if ($cache !== null) return $cache ?: null;
+  $c = fcm_config($config);
+  if (!$c) { $cache = false; return null; }
+
+  $maintenant = time();
+  $entete = b64url((string) json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+  $corps  = b64url((string) json_encode([
+    'iss'   => $c['email'],
+    'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+    'aud'   => 'https://oauth2.googleapis.com/token',
+    'iat'   => $maintenant,
+    'exp'   => $maintenant + 3600,
+  ]));
+
+  $signature = '';
+  try {
+    $clef = openssl_pkey_get_private($c['clef']);
+    if (!$clef || !openssl_sign("$entete.$corps", $signature, $clef, OPENSSL_ALGO_SHA256)) {
+      throw new RuntimeException('signature RS256 impossible');
+    }
+  } catch (Throwable $e) {
+    error_log('[chapci] fcm · signature : ' . $e->getMessage());
+    $cache = false; return null;
+  }
+
+  $r = http_fetch('https://oauth2.googleapis.com/token', [
+    'method'  => 'POST',
+    'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+    'body'    => http_build_query([
+      'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      'assertion'  => "$entete.$corps." . b64url($signature),
+    ]),
+  ]);
+  $d = json_decode((string) ($r['body'] ?? ''), true);
+  if ((int) $r['status'] !== 200 || empty($d['access_token'])) {
+    // Le corps de la réponse d'erreur de Google ne contient jamais notre clé,
+    // seulement un code (« invalid_grant » quand l'horloge dérive, par ex.).
+    error_log('[chapci] fcm · jeton refusé (' . (int) $r['status'] . ') : '
+      . substr((string) ($d['error'] ?? '?'), 0, 60));
+    $cache = false; return null;
+  }
+  $cache = (string) $d['access_token'];
+  return $cache;
+}
+
+/**
+ * Envoie UNE notification à UN appareil. Rend le code HTTP de Google.
+ *
+ * La charge est la même que celle du Web Push (titre, corps, url) : les deux
+ * chemins doivent dire la même chose, sinon la même notification n'ouvre pas le
+ * même écran selon qu'elle arrive par le navigateur ou par l'application.
+ */
+function fcm_envoyer(array $config, PDO $pdo, array $appareil, array $charge): int {
+  $c = fcm_config($config);
+  $jeton = fcm_jeton($config);
+  if (!$c || !$jeton) return 0;
+
+  $url = (string) ($charge['url'] ?? '');
+  $message = [
+    'message' => [
+      'token' => (string) $appareil['token'],
+      'notification' => [
+        'title' => (string) ($charge['title'] ?? 'Chap.ci'),
+        'body'  => (string) ($charge['body'] ?? ''),
+      ],
+      // `data` porte le lien : c'est lui que l'application lit pour ouvrir
+      // l'écran dont la notification parle (chantier du 07/09/2026).
+      'data' => ['url' => $url],
+      'android' => [
+        'priority' => 'high',
+        'notification' => ['channel_id' => 'chapci', 'sound' => 'default'],
+      ],
+      'apns' => [
+        'headers' => ['apns-priority' => '10'],
+        'payload' => ['aps' => ['sound' => 'default']],
+      ],
+    ],
+  ];
+
+  $r = http_fetch("https://fcm.googleapis.com/v1/projects/{$c['projet']}/messages:send", [
+    'method'  => 'POST',
+    'headers' => ['Authorization: Bearer ' . $jeton, 'Content-Type: application/json'],
+    'body'    => (string) json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+  ]);
+  $code = (int) $r['status'];
+
+  try {
+    // 404 / 403 : le jeton ne vaut plus rien (application désinstallée, jeton
+    // remplacé). On l'efface tout de suite — sinon la table se remplit de
+    // fantômes et chaque notification paie leur silence, exactement comme pour
+    // le Web Push.
+    if ($code === 404 || $code === 403) {
+      $pdo->prepare('DELETE FROM push_natifs WHERE id = ?')->execute([$appareil['id']]);
+    } elseif ($code >= 200 && $code < 300) {
+      $pdo->prepare('UPDATE push_natifs SET last_ok_at = ?, fails = 0 WHERE id = ?')
+          ->execute([now_iso(), $appareil['id']]);
+    } else {
+      $pdo->prepare('UPDATE push_natifs SET fails = fails + 1 WHERE id = ?')->execute([$appareil['id']]);
+      $pdo->prepare('DELETE FROM push_natifs WHERE id = ? AND fails >= 10')->execute([$appareil['id']]);
+    }
+  } catch (Throwable $e) { /* le suivi ne doit jamais empêcher l'envoi suivant */ }
+  return $code;
+}
+
 /**
  * Pousse vers TOUS les appareils d'une personne. Rend le nombre d'envois reçus.
  *
  * Zéro veut dire quelque chose de précis : personne n'a été touché sur cet
  * appareil-là. C'est ce zéro qui déclenche le repli par e-mail.
+ *
+ * DEUX CHEMINS, UN SEUL COMPTE (08/09/2026) : les navigateurs abonnés
+ * (`push_subs`) ET les téléphones qui ont l'application (`push_natifs`). Il
+ * fallait les additionner ici et nulle part ailleurs — un vendeur qui a
+ * l'application mais pas de navigateur abonné recevait sinon un e-mail de
+ * repli alors que son téléphone venait de sonner.
  */
 function push_utilisateur(array $config, PDO $pdo, string $userId, array $charge): int {
-  if ($userId === '' || !push_cles($config)) return 0;
-  try {
-    $st = $pdo->prepare('SELECT * FROM push_subs WHERE user_id = ? LIMIT 20');
-    $st->execute([$userId]);
-    $abos = $st->fetchAll();
-  } catch (Throwable $e) { return 0; }
-  if (!$abos) return 0;
+  if ($userId === '') return 0;
   $json = (string) json_encode($charge, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
   $ok = 0;
-  foreach ($abos as $a) {
-    $c = push_envoyer($config, $pdo, $a, $json);
-    if ($c >= 200 && $c < 300) $ok++;
+
+  // 1. Les navigateurs (Web Push).
+  if (push_cles($config)) {
+    try {
+      $st = $pdo->prepare('SELECT * FROM push_subs WHERE user_id = ? LIMIT 20');
+      $st->execute([$userId]);
+      foreach ($st->fetchAll() as $a) {
+        $c = push_envoyer($config, $pdo, $a, $json);
+        if ($c >= 200 && $c < 300) $ok++;
+      }
+    } catch (Throwable $e) { /* un chemin qui tombe ne doit pas emporter l'autre */ }
   }
+
+  // 2. Les téléphones qui ont l'application (FCM). Inerte tant que le Patron
+  //    n'a pas déposé `api/data/fcm.json`.
+  if (fcm_config($config)) {
+    try {
+      $st = $pdo->prepare('SELECT * FROM push_natifs WHERE user_id = ? LIMIT 20');
+      $st->execute([$userId]);
+      foreach ($st->fetchAll() as $a) {
+        $c = fcm_envoyer($config, $pdo, $a, $charge);
+        if ($c >= 200 && $c < 300) $ok++;
+      }
+    } catch (Throwable $e) { /* idem */ }
+  }
+
   return $ok;
 }
 
@@ -2067,6 +2249,21 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, user_id $id, endpoint VARCHAR(500), p256dh $txt, auth_secret $txt,
       agent $txt, created_at $ts, last_ok_at $ts, fails $intT
     )$eng",
+    // LES APPAREILS DE L'APPLICATION (Firebase Cloud Messaging), 08/09/2026.
+    //
+    // `push_subs` ne couvre QUE les navigateurs : le Web Push a besoin d'un
+    // onglet ou d'une PWA installée. L'application Flutter, elle, est fermée
+    // la plupart du temps — c'est justement là qu'un vendeur doit apprendre
+    // qu'on lui écrit. Sans cette table, l'acheteur écrit, personne ne répond,
+    // et il va voir ailleurs.
+    //
+    // Le jeton FCM est la clé : il identifie l'installation, pas la personne.
+    // Il change (réinstallation, restauration), d'où `UPDATE ... WHERE token`
+    // à l'enregistrement plutôt qu'un doublon de plus à chaque ouverture.
+    "CREATE TABLE IF NOT EXISTS push_natifs (
+      id $id PRIMARY KEY, user_id $id, token VARCHAR(500), platform VARCHAR(16),
+      label $txt, created_at $ts, last_ok_at $ts, fails $intT
+    )$eng",
     // L'HEURE des vues, en plus du jour. « 1 146 vues cette semaine » ne dit
     // pas quand publier ; « c'est à 20 h qu'on vous regarde » le dit. On ne
     // note QUE l'heure et le compte — jamais qui a regardé.
@@ -2089,6 +2286,15 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("CREATE UNIQUE INDEX idx_push_endpoint ON push_subs (endpoint)"); }
   catch (Throwable $e) { /* index déjà présent : on ignore */ }
   try { $pdo->exec("CREATE INDEX idx_push_user ON push_subs (user_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+
+  // Même raisonnement pour les appareils de l'application : un jeton FCM
+  // n'appartient qu'à une installation. S'il réapparaît sous un autre compte
+  // (téléphone prêté, compte changé), c'est le dernier qui gagne — et l'unicité
+  // en base garantit que l'ancien propriétaire cesse d'être notifié.
+  try { $pdo->exec("CREATE UNIQUE INDEX idx_natif_token ON push_natifs (token)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+  try { $pdo->exec("CREATE INDEX idx_natif_user ON push_natifs (user_id)"); }
   catch (Throwable $e) { /* index déjà présent : on ignore */ }
 
   // Colonnes ajoutées après coup : on les crée sur les bases déjà existantes.
@@ -9358,6 +9564,51 @@ try {
     if ($endpoint !== '') $pdo->prepare('DELETE FROM push_subs WHERE user_id = ? AND endpoint = ?')->execute([$u['id'], $endpoint]);
     elseif ($id !== '')   $pdo->prepare('DELETE FROM push_subs WHERE user_id = ? AND id = ?')->execute([$u['id'], $id]);
     else jerr('Aucun appareil indiqué.');
+    jout(['ok' => true]);
+  }
+
+  /**
+   * L'APPLICATION ENREGISTRE SON APPAREIL (08/09/2026).
+   *
+   * `PushNatif.enregistrer()` appelait ces deux routes DEPUIS LE 04/09 —
+   * elles n'existaient pas. Le client encaissait le 404 en silence (le `catch`
+   * de `push_natif.dart`), et personne ne pouvait s'en apercevoir : la
+   * fonction est justement écrite pour ne jamais gêner l'application. Un
+   * appel muet dans le vide pendant quatre jours.
+   *
+   * Le jeton identifie l'INSTALLATION, pas la personne : si le même téléphone
+   * change de compte, la ligne suit le nouveau. D'où l'écriture en deux temps
+   * plutôt qu'un INSERT qui buterait sur l'index unique.
+   */
+  if ($path === 'push/native' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $token = trim((string) ($b['token'] ?? ''));
+    if ($token === '' || strlen($token) > 500) jerr('Jeton absent ou trop long.');
+    $plateforme = in_array(($b['platform'] ?? ''), ['android', 'ios'], true)
+      ? (string) $b['platform'] : 'android';
+    $repere = mb_substr(trim((string) ($b['label'] ?? '')), 0, 80);
+
+    $maj = $pdo->prepare('UPDATE push_natifs SET user_id = ?, platform = ?, label = ?, fails = 0 WHERE token = ?');
+    $maj->execute([$u['id'], $plateforme, $repere, $token]);
+    if ($maj->rowCount() === 0) {
+      try {
+        $pdo->prepare('INSERT INTO push_natifs (id, user_id, token, platform, label, created_at, fails)
+                       VALUES (?,?,?,?,?,?,0)')
+            ->execute([uuid(), $u['id'], $token, $plateforme, $repere, now_iso()]);
+      } catch (Throwable $e) {
+        // Course entre deux ouvertures de l'application : l'index unique a
+        // tranché, la ligne existe. Ce n'est pas une erreur pour l'appelant.
+      }
+    }
+    jout(['ok' => true, 'actif' => fcm_config($config) !== null]);
+  }
+
+  /** L'application retire son appareil : déconnexion, ou notifications refusées. */
+  if ($path === 'push/native/remove' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $token = trim((string) ($b['token'] ?? ''));
+    if ($token === '') jerr('Aucun appareil indiqué.');
+    $pdo->prepare('DELETE FROM push_natifs WHERE user_id = ? AND token = ?')->execute([$u['id'], $token]);
     jout(['ok' => true]);
   }
 

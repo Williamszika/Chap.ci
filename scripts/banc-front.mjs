@@ -212,7 +212,38 @@ for (const p of PAGES) {
   await cdp.send('Network.enable'); await cdp.send('Network.emulateNetworkConditions', RESEAU); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
   const erreurs = [], echecs = [], liste = []
   let requetes = 0, octets = 0
-  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') erreurs.push(`${m.type()} : ${m.text().slice(0, 160)}`) })
+
+  // ── LES BRUITS DU BANC LUI-MÊME, ET EUX SEULS (08/09/2026) ────────────────
+  //
+  // La colonne « err. » affichait 1 sur CHAQUE page, et 3 sur Connexion. Aucun
+  // n'était un défaut du site :
+  //
+  //   · « Service Worker registration blocked » — le banc sert le site en HTTP
+  //     sur 127.0.0.1, et Chromium refuse d'y enregistrer un service worker.
+  //     En production, en HTTPS, il s'enregistre sans un mot.
+  //   · Google Sign-In injoignable — le banc n'a pas de réseau vers Google, et
+  //     c'est voulu : aucun banc ne doit appeler l'extérieur.
+  //
+  // Un compteur qui ne peut JAMAIS afficher zéro finit par ne plus être lu :
+  // on cesse de distinguer « une erreur de plus » de « le bruit habituel ».
+  // C'est exactement ce qui est arrivé — le chiffre est resté à 1 des jours
+  // durant sans que personne aille voir ce qu'il disait.
+  //
+  // On les écarte donc À LA SOURCE, chacun décrit par ce qu'il est. Toute
+  // erreur qui ne figure pas dans cette liste compte, et fait rougir le banc.
+  const BRUITS_DU_BANC = [
+    /Service Worker registration blocked/i,
+    /Failed to load resource: net::ERR_FAILED/i,   // le réseau coupé vers Google
+    /Google Sign-In indisponible/i,
+    /accounts\.google\.com|gstatic\.com/i,
+  ]
+  const bruitDuBanc = (t) => BRUITS_DU_BANC.some((m) => m.test(t))
+
+  page.on('console', (m) => {
+    if (m.type() !== 'error' && m.type() !== 'warning') return
+    const t = `${m.type()} : ${m.text().slice(0, 160)}`
+    if (!bruitDuBanc(t)) erreurs.push(t)
+  })
   page.on('pageerror', (e) => erreurs.push(`exception : ${String(e.message ?? e).slice(0, 160)}`))
   page.on('requestfailed', (r) => { if (r.url().startsWith(SITE)) echecs.push(`${r.method()} ${r.url().replace(SITE, '')} · ${r.failure()?.errorText}`) })
   page.on('response', async (r) => {
@@ -234,7 +265,16 @@ for (const p of PAGES) {
   const mesures = await page.evaluate(() => {
     const dpr = window.devicePixelRatio || 1
     const imgs = [...document.images]
-    const surdim = imgs.filter((i) => i.naturalWidth > 0 && i.clientWidth > 0 && i.naturalWidth > i.clientWidth * dpr * 1.6).length
+    // LES IMAGES TROP GROSSES POUR LEUR CASE — et LESQUELLES (08/09/2026).
+    // Le compte seul (« 3/9 ») disait qu'il y avait un problème sans dire où
+    // le chercher : il a fallu relire toute la page à la main. On note donc
+    // aussi le format réel, la case, et de quoi reconnaître l'élément.
+    const tropGrosses = imgs.filter((i) => i.naturalWidth > 0 && i.clientWidth > 0 && i.naturalWidth > i.clientWidth * dpr * 1.6)
+    const surdim = tropGrosses.length
+    const surdimListe = tropGrosses.slice(0, 6).map((i) => {
+      const nom = (i.currentSrc || i.src || '').split('/').pop()?.slice(-28) ?? '?'
+      return `${i.naturalWidth}px dans ${Math.round(i.clientWidth)}px « ${(i.alt || nom).slice(0, 24)} »`
+    })
     const sansAlt = imgs.filter((i) => !i.hasAttribute('alt')).length
     // Les cibles tactiles sous 44 px de HAUT (un lien large mais bas se rate
     // autant qu'un petit bouton) — hors les liens dans une phrase, que le
@@ -267,7 +307,7 @@ for (const p of PAGES) {
       const nom = (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim()
       return !nom && !el.querySelector('img[alt]:not([alt=""])') && !el.querySelector('[aria-label]')
     }).length
-    return { ...window.__m, images: imgs.length, surdim, sansAlt, cibles, ciblesListe, sansNom, texte: document.body.innerText.length }
+    return { ...window.__m, images: imgs.length, surdim, surdimListe, sansAlt, cibles, ciblesListe, sansNom, texte: document.body.innerText.length }
   })
   try { await page.screenshot({ path: join(D, 'captures', p.nom.replace(/[^a-z]+/gi, '-').toLowerCase() + '.png') }) } catch { /* tant pis */ }
   resultats.push({ ...p, requetes, octets, tDom, tLoad, tCalme, ...mesures, erreurs, echecs, tiers: [...tiers], liste })
@@ -286,7 +326,9 @@ for (const r of resultats) {
 console.log()
 for (const r of resultats) {
   console.log(`  ── ${r.nom} ──`)
-  for (const e of [...new Set(r.erreurs)].filter((e) => !/Service Worker registration blocked/.test(e))) console.log(`     ⚠️  ${e}`)
+  // Plus de filtre ici : le tri se fait à la source (voir BRUITS_DU_BANC).
+  // Une erreur qui arrive jusqu'ici est une VRAIE erreur, et elle se lit.
+  for (const e of [...new Set(r.erreurs)]) console.log(`     ⚠️  ${e}`)
   for (const e of [...new Set(r.echecs)]) console.log(`     ❌ ${e}`)
   if (r.tiers.length) console.log(`     🌐 scripts tiers appelés : ${r.tiers.join(', ')}`)
   if (r.sansAlt) console.log(`     ♿ ${r.sansAlt} image(s) sans attribut alt`)
@@ -294,6 +336,7 @@ for (const r of resultats) {
   if (r.lcpElement) console.log(`     🖼  LCP : ${r.lcpElement}`)
   for (const d of r.decalages ?? []) console.log(`     ↕  décalage ${d.v} à ${d.t} ms : ${d.qui.join(' ; ')}`)
   if (r.ciblesListe?.length) console.log(`     👆 cibles < 44 px : ${r.ciblesListe.join(' · ')}`)
+  if (r.surdimListe?.length) console.log(`     🖼️  images plus grosses que leur case : ${r.surdimListe.join(' · ')}`)
   // Les six requêtes les plus lourdes, et celles qui partent plusieurs fois.
   const lourdes = [...r.liste].sort((a, b) => b.taille - a.taille).slice(0, 6)
   for (const q of lourdes) console.log(`     ⬇  ${ko(q.taille).padStart(7)}  ${q.url.split('?')[0].slice(0, 70)}`)

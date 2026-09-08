@@ -10,6 +10,11 @@ export async function fetchListings(): Promise<Listing[]> {
   return php.phpFetchListings()
 }
 
+/** Une page du catalogue — voir `AppContext.refresh`. */
+export async function fetchListingsPage(offset: number, limit: number): Promise<Listing[]> {
+  return php.phpFetchListingsPage(offset, limit)
+}
+
 /** Crée une annonce partagée et renvoie l'annonce créée. */
 export async function createListing(
   // `NewListingInput` et non `Omit<Listing, …>` : l'entrée porte en plus la

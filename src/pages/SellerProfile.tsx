@@ -257,7 +257,14 @@ export function SellerProfile() {
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-3 lg:grid-cols-4">
-                {annoncesVues.map((l) => <ListingCard key={l.id} listing={l} dansBoutique />)}
+                {/* `rang` : sans lui, ListingCard retombe sur sa valeur par
+                    défaut (99) et met TOUTES les photos en différé, y compris
+                    celle qui fait le plus grand élément peint. Mesuré au banc
+                    du front le 08/09/2026 : la boutique d'un vendeur affichait
+                    sa première photo à 3,3 s, une seconde après l'accueil, pour
+                    cette seule raison. C'est la grille de la vitrine — le
+                    premier écran s'y remplit comme sur Explorer. */}
+                {annoncesVues.map((l, i) => <ListingCard key={l.id} listing={l} rang={i} dansBoutique />)}
               </div>
             )}
           </div>

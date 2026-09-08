@@ -745,7 +745,13 @@ export function ListingDetail() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-wrap items-baseline gap-2">
+            // `min-h` : ce bloc passait de 24 à 38 px de haut pendant le
+            // chargement et poussait tout ce qui suit — titre, description,
+            // « Contacter le vendeur » — à l'instant précis où le doigt
+            // s'approche (CLS 0,035, banc du front du 08/09/2026). Une hauteur
+            // plancher égale à celle du prix rendu : le bloc occupe sa place
+            // avant même de savoir quoi écrire.
+            <div className="flex min-h-[38px] flex-wrap items-baseline gap-2">
               <span className="tnum font-display text-3xl font-black text-primary-700">
                 {listing.price === 0 ? 'Gratuit' : formatFCFA(listing.price)}
               </span>
@@ -1123,8 +1129,16 @@ export function ListingDetail() {
           <div className="mb-2 flex items-center gap-2.5 border-b border-line pb-2">
             {listing.images?.[0] && (
               <img
-                src={mediaUrl(listing.images[0])}
+                // `thumbUrl` : cette pastille fait 36 px et chargeait la photo
+                // ENTIÈRE (~233 Ko décodés en mémoire). Le fichier venait du
+                // cache — le carrousel l'a déjà — mais le navigateur en gardait
+                // un second bitmap pleine taille pour une case de 36 px. Sur un
+                // téléphone d'entrée de gamme, c'est de la mémoire prise à
+                // l'affichage (08/09/2026).
+                src={mediaUrl(thumbUrl(listing.images[0]))}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="h-9 w-9 shrink-0 rounded-lg border border-line object-cover"
               />
             )}

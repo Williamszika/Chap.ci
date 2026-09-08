@@ -11,7 +11,7 @@ import {
 import type { Listing } from '../types'
 import { isPhp } from '../lib/backend'
 import { recordInterest } from '../lib/interests'
-import { fetchListings, createListing, deleteListingRemote, updateListingRemote } from '../lib/api'
+import { fetchListingsPage, createListing, deleteListingRemote, updateListingRemote } from '../lib/api'
 import { phpGetFavorites, phpAddFavorite, phpRemoveFavorite } from '../lib/php'
 import { useAuth } from './AuthContext'
 
@@ -105,9 +105,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return 'local'
     }
     try {
-      const data = await fetchListings()
-      setRemoteListings(data)
+      // ── LE CATALOGUE ARRIVE PAR PAGES (08/09/2026) ────────────────────────
+      //
+      // Il arrivait EN UN SEUL BLOC, et ce bloc était plafonné à 500 annonces
+      // côté serveur. Deux conséquences, toutes deux invisibles jusqu'ici :
+      //
+      //   1. La 501ᵉ annonce n'existait pas pour le site. Jamais. Sans le
+      //      moindre message — ni pour le visiteur, ni pour le vendeur dont
+      //      l'annonce ne s'affichait nulle part. Ce n'était pas une
+      //      hypothèse : c'est écrit dans la route, `$limit = 500`.
+      //   2. Chaque visiteur payait le catalogue ENTIER avant de voir la
+      //      première carte — sur un forfait d'Abidjan, et sur une page où il
+      //      ne regardera que six annonces.
+      //
+      // La PREMIÈRE page suffit à peindre l'accueil : on la rend tout de
+      // suite. Les suivantes se glissent derrière, l'une après l'autre, sans
+      // que personne attende. La recherche du site continue de filtrer en
+      // mémoire — elle tolère les fautes, comprend le Nouchi et trie par
+      // distance, toutes choses qu'un SQL ne sait pas faire — et se complète à
+      // mesure que les pages entrent.
+      const PAGE = 100          // la borne dure du serveur
+      const PLAFOND = 5000      // au-delà, il faudra une vraie recherche serveur
+      const premiere = await fetchListingsPage(0, PAGE)
+      setRemoteListings(premiere)
       setMode('remote'); modeRef.current = 'remote'
+
+      if (premiere.length === PAGE) {
+        // En arrière-plan : on ne bloque NI le rendu, NI le retour de refresh().
+        void (async () => {
+          const vues = new Set(premiere.map((l) => l.id))
+          let offset = PAGE
+          try {
+            for (;;) {
+              const page = await fetchListingsPage(offset, PAGE)
+              if (page.length === 0) break
+              // Une annonce publiée pendant qu'on pagine décale les suivantes
+              // et peut en renvoyer une deux fois. On dédoublonne plutôt que
+              // de laisser la même carte apparaître à deux endroits.
+              const neuves = page.filter((l) => !vues.has(l.id))
+              for (const l of neuves) vues.add(l.id)
+              if (neuves.length) setRemoteListings((avant) => [...avant, ...neuves])
+              offset += PAGE
+              if (page.length < PAGE || offset >= PLAFOND) break
+            }
+          } catch {
+            // Réseau coupé en cours de pagination : on garde ce qui est arrivé.
+            // Mieux vaut un catalogue partiel qu'une page vide.
+          }
+        })()
+      }
       return 'remote'
     } catch (e) {
       // Serveur injoignable : on bascule en mode local (annonces de l'appareil).
