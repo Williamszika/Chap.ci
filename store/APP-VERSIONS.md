@@ -151,12 +151,12 @@ le 26/08, le jour même du seuil).
 
 | Champ | Valeur |
 |---|---|
-| **Commit** | `19bbd6e` — **le dernier commit qui touche `flutter_app/` au 07/09/2026** (ce que le Monteur doit construire ; un commit plus récent qui ne touche que `store/` ou le site ne change rien à l'AAB), pas celui de la montée de version. `4b7a22c` n'a porté que `1.25.0+26` dans `pubspec.yaml` ; **vingt et un commits `flutter_app/` sont venus après lui** (vidéo d'une minute, affiche WhatsApp, « Faire une offre », annonce écrite depuis la photo, recherche ivoirienne, offres d'emploi, comptes hors CI, stock des comptes Pro, liens de notification, don et biométrie, vidéo qui ne se lance plus seule), tous racontés dans le corps de cette fiche. Le champ a été rectifié le 07/09/2026 sur signalement du bureau Livraison — il indiquait encore `4b7a22c`, et un Monteur qui l'aurait cru aurait construit une application vieille de seize commits. `pubspec.yaml` reste à `1.25.0+26` : la valeur est bonne, jamais construite ni téléversée, **on n'y touche pas**. |
+| **Commit** | `7b931b4` — **le dernier commit qui touche `flutter_app/` au 08/09/2026** (ce que le Monteur doit construire ; un commit plus récent qui ne touche que `store/` ou le site ne change rien à l'AAB), pas celui de la montée de version. **Rectifié une seconde fois le 08/09/2026** : le champ portait `19bbd6e`, arrêté au 07/09 au soir ; le chantier Firebase du 08 (`5accb8d`, l'application demande son jeton à FCM ; `7b931b4`, `.metadata` cesse d'être suivi) est venu après. Un Monteur qui aurait construit `19bbd6e` aurait livré une application **sans les notifications** — et sans rien pour le lui dire, puisque l'absence de Firebase est silencieuse par construction. Avant ces deux-là : `4b7a22c` n'a porté que `1.25.0+26` dans `pubspec.yaml` ; **vingt et un commits `flutter_app/` sont venus après lui** (vidéo d'une minute, affiche WhatsApp, « Faire une offre », annonce écrite depuis la photo, recherche ivoirienne, offres d'emploi, comptes hors CI, stock des comptes Pro, liens de notification, don et biométrie, vidéo qui ne se lance plus seule), tous racontés dans le corps de cette fiche. Première rectification le 07/09/2026, sur signalement du bureau Livraison. `4b7a22c` n'a porté que `1.25.0+26` dans `pubspec.yaml` ; **vingt et un commits `flutter_app/` sont venus après lui** (vidéo d'une minute, affiche WhatsApp, « Faire une offre », annonce écrite depuis la photo, recherche ivoirienne, offres d'emploi, comptes hors CI, stock des comptes Pro, liens de notification, don et biométrie, vidéo qui ne se lance plus seule), tous racontés dans le corps de cette fiche. Le champ a été rectifié le 07/09/2026 sur signalement du bureau Livraison — il indiquait encore `4b7a22c`, et un Monteur qui l'aurait cru aurait construit une application vieille de seize commits. `pubspec.yaml` reste à `1.25.0+26` : la valeur est bonne, jamais construite ni téléversée, **on n'y touche pas**. |
 | Date du build | **NON CONSTRUITE** — le code est prêt dans le dépôt, l'AAB n'existe pas encore. |
 | Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
-| minSdk 22 · targetSdk **36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33`. |
-| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. La marche à suivre Android est **`store/BUILD-v1.25.md`**, écrite le 08/09/2026 pour CE build : le code 26, le commit `19bbd6e`, les trente-sept chantiers depuis la v1.20, et la voie rapide pour voir l'application sur son propre téléphone sans passer par le magasin. Ne suivez plus `BUILD-v1.24.md` : sa version n'a jamais été construite et elle annonce le code 25. |
-| État iPhone | le Patron installe l'app sur son iPhone depuis Xcode : les six commandes en tête de **`store/GUIDE-IPHONE.md`**. |
+| minSdk **23** · targetSdk **36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33`. **Le plancher est monté de 22 (Android 5.1) à 23 (Android 6.0) le 08/09/2026** : `firebase_core` 4.14.0 le pose lui-même dans `android/local-config.gradle`, ce n'est pas un choix qu'on peut contourner en gardant Firebase. À vérifier en Play Console → Statistiques → répartition par version d'Android **avant** de construire ; si Android 5.x pèse encore, il faut rendre Firebase optionnel (une demi-journée) plutôt que de perdre ces appareils. |
+| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. La marche à suivre Android est **`store/BUILD-v1.25.md`**, écrite le 08/09/2026 pour CE build : le code 26, le commit `7b931b4`, les trente-sept chantiers depuis la v1.20, l'encadré Firebase (le `google-services.json` à poser dans `flutter_app/tool/secrets/` avant de construire, sans quoi l'application se construit très bien et ne reçoit **aucune** notification, en silence), et la voie rapide pour voir l'application sur son propre téléphone sans passer par le magasin. Ne suivez plus `BUILD-v1.24.md` : sa version n'a jamais été construite et elle annonce le code 25. |
+| État iPhone | **installée sur l'iPhone du Patron le 08/09/2026** par la voie rapide (`flutter run --release`, build Xcode en 42 s) — Firebase compilé dedans. ⚠️ **Les notifications natives n'y marchent pas encore** et ne peuvent pas : le projet Firebase n'a qu'une application **Android** (`ci.chap.app`). iOS demande en plus une application iOS déclarée dans Firebase (`GoogleService-Info.plist`), un compte Apple Developer payant, et une clé APNs déposée dans Firebase. `Firebase.initializeApp()` lève donc sur iPhone, le `catch` de `push_natif.dart` l'absorbe, et l'application tourne exactement comme avant : cloche in-app et Web Push du navigateur. Les six commandes restent en tête de **`store/GUIDE-IPHONE.md`**. |
 
 **Ce qu'elle apporte : les quatre nouveautés du 3 septembre, celles du site,
 dans l'application.** La v1.24 (mot de passe oublié) n'ayant jamais été
@@ -391,10 +391,41 @@ de compte, écran pub, vendeur. Ils ont été relancés sur l'arbre D'AVANT ce
 commit : mêmes rouges. Ils sont à reprendre un jour, mais ils ne disent rien
 de la v1.25.
 
-⚠️ **Toujours pas prouvé : la fabrication de l'APK/AAB.** Même cause qu'en v1.24
-(Maven Central répond 429 depuis cet environnement). La bibliothèque `image`
-ajoutée est pure Dart — aucun plugin natif, donc rien de neuf pour Gradle ni
-CocoaPods ; mais c'est une déduction, pas une preuve.
+**Ajouté le 08/09/2026 — les notifications qui réveillent le téléphone (Firebase).**
+Le vrai push natif, celui qui fait sonner un téléphone dont l'application est
+fermée. Il manquait la moitié serveur ET la moitié Firebase.
+
+- **La panne muette d'abord.** Depuis le 04/09, `lib/api/push_natif.dart`
+  appelait `POST /push/native` — **une route qui n'existait pas**. Le `catch`
+  silencieux (voulu : une notification ratée ne doit pas gêner l'application)
+  avalait le 404. Quatre jours d'appels dans le vide, sans un signe nulle part.
+  La leçon est écrite en tête du fichier : *un silence commode se paie*.
+- **Côté serveur** : table `push_natifs`, routes `POST /push/native` et
+  `/push/native/remove`, et l'envoi FCM HTTP v1 (compte de service → JWT RS256 →
+  jeton OAuth2 → `messages:send`). `push_utilisateur()` additionne désormais les
+  deux canaux, Web Push **et** FCM. Un jeton refusé (404/403) est effacé de la
+  base ; dix échecs de suite l'effacent aussi.
+- **Côté application** : `firebase_core` 4.14.0 et `firebase_messaging` 16.6.0.
+  `push_natif.dart` demande l'autorisation, récupère le jeton, écoute son
+  renouvellement, et ouvre l'écran dont la notification parle — la **même**
+  adresse `data.url` que le Web Push, exprès.
+- **Ce qui l'allume, les trois pièces** : `api/data/fcm.json` sur le serveur ;
+  `flutter_app/tool/secrets/google-services.json` sur le Mac du Patron ; une
+  application reconstruite après les deux. S'il en manque une, Firebase refuse de
+  démarrer, on l'écrit en console de débogage, et l'application tourne comme
+  avant. **Rien ne casse, et c'est justement le danger** — d'où le témoin.
+- **Le témoin** : `https://chap.ci/api/health` porte une ligne `fcm`, vraie
+  seulement si le fichier est là, lisible et complet. Elle ne révèle ni le nom du
+  projet, ni l'adresse du compte de service, ni la clé ; `npm run banc:push-natif`
+  vérifie explicitement qu'aucun morceau du secret n'y apparaît, et prouve le
+  témoin dans ses **deux** états.
+- **Le plancher Android monte à 23** (voir le tableau en tête de section).
+
+⚠️ **L'AAB Android n'est toujours pas prouvé depuis cet environnement** (Maven
+Central répond 429). En revanche, **le build iOS l'est** : le Patron a construit
+et installé la v1.25 sur son iPhone le 08/09/2026 par `flutter run --release`
+(Xcode, 42 s), Firebase compilé dedans. C'est la première preuve de build de
+cette version — côté Gradle, la déduction reste une déduction.
 
 ---
 

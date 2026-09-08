@@ -8,8 +8,8 @@ dont la version n'a jamais été construite.
 | Ce qu'on fabrique | `build/app/outputs/bundle/release/app-release.aab` |
 | versionCode · versionName | **26** · **1.25.0** (déjà figés dans `flutter_app/pubspec.yaml` — **n'y touchez pas**) |
 | Identifiant | `ci.chap.app` — **mise à jour** de l'app existante, pas une nouvelle app |
-| minSdk · targetSdk | 22 (Android 5.1) · **36** (Android 16) |
-| Commit à construire | **`19bbd6e`** — le dernier qui touche `flutter_app/` |
+| minSdk · targetSdk | **23 (Android 6.0)** · **36** (Android 16) — était 22, voir l'encadré ci-dessous |
+| Commit à construire | **`7b931b4`** — le dernier qui touche `flutter_app/` |
 | Ce que les testeurs ont aujourd'hui | **v1.20, code 21** — construite le 15/08/2026 |
 | Écart | **37 commits** de l'application depuis cette date |
 
@@ -47,8 +47,61 @@ Depuis la v1.20 qu'ils ont sur leur téléphone, **tout ce qui a été écrit en
   jamais construite — elle est incluse ici).
 - **Le nouveau logo partout**, les six langues, les écrans de tablette.
 
+- **Les notifications qui réveillent le téléphone** — la nouveauté du 8 septembre,
+  et la seule qui demande quelque chose de vous avant le build (lisez l'encadré
+  juste en dessous).
+
 État du code au 8 septembre : **260 tests passent**, 12 échouent (les mêmes douze
 qu'avant tout ce travail) ; `flutter analyze` ne signale que l'avertissement connu.
+
+---
+
+## ⚠️ Deux choses nouvelles depuis le 8 septembre — à lire avant de construire
+
+### 1. Le fichier Firebase doit être sur ce Mac
+
+Sans lui, l'application se construit très bien et s'installe très bien — mais elle
+ne recevra **aucune** notification quand elle est fermée. Rien ne le dira : ni une
+erreur, ni un avertissement. C'est exactement le genre de silence qui coûte des
+jours.
+
+Le fichier s'appelle `google-services.json`, vous l'avez téléchargé de la console
+Firebase le 8 septembre. Il doit être **ici** :
+
+```
+~/chapci-app/flutter_app/tool/secrets/google-services.json
+```
+
+Vérifiez-le d'une commande, depuis `~/chapci-app/flutter_app` :
+
+```bash
+ls -l tool/secrets/google-services.json
+```
+
+Un fichier d'environ 650 octets doit s'afficher. « No such file or directory »
+veut dire qu'il n'y est pas : reprenez-le dans vos téléchargements et déplacez-le.
+
+À l'étape 2, `dart run tool/preparer_plateformes.dart` écrira alors :
+
+```
+   ✓ google-services.json posé dans android/app/ (ci.chap.app)
+   ✓ plugin Google déclaré (com.google.gms.google-services 4.5.0)
+```
+
+Si vous ne voyez **pas** ces deux lignes, arrêtez-vous là et dites-le-moi.
+
+### 2. Android 6.0 minimum, au lieu de 5.1
+
+La bibliothèque Firebase refuse Android 5.1. Le plancher de l'application monte
+donc de **22 (Android 5.1)** à **23 (Android 6.0)**. Android 6.0 est sorti en 2015.
+
+**Avant de construire, regardez qui vous perdez.** Play Console → **Statistiques**
+→ choisissez la répartition par **version d'Android**. Si la part d'Android 5.x est
+à zéro, ou proche, il n'y a rien à décider. Si elle est notable, dites-le-moi : on
+peut rendre Firebase optionnel et garder 5.1, mais c'est une demi-journée de plus.
+
+Ces appareils ne sont pas « cassés » : ils gardent la version qu'ils ont déjà, et
+le site `chap.ci` continue de marcher chez eux comme avant.
 
 ---
 
@@ -107,7 +160,7 @@ Vérifiez que vous avez bien le bon code :
 git log --oneline -1 -- flutter_app/
 ```
 
-La réponse doit commencer par **`19bbd6e`**. Si ce n'est pas le cas, le `git pull`
+La réponse doit commencer par **`7b931b4`**. Si ce n'est pas le cas, le `git pull`
 n'a pas abouti — refaites-le avant de continuer.
 
 ### 2. Préparer
@@ -121,8 +174,10 @@ dart run tool/preparer_plateformes.dart
 La seconde commande fabrique `android/` et `ios/`, régénère les icônes et
 l'écran de démarrage. Elle finit par un récapitulatif ; c'est normal.
 
-> **Une bibliothèque nouvelle cette fois : `local_auth`** (l'empreinte et Face ID).
-> `flutter pub get` la prend toute seule. Vous n'avez rien à faire de plus.
+> **Trois bibliothèques nouvelles cette fois** : `local_auth` (l'empreinte et
+> Face ID), `firebase_core` et `firebase_messaging` (les notifications qui
+> réveillent le téléphone). `flutter pub get` les prend toutes seules. Vous n'avez
+> rien à faire de plus — sauf avoir posé `google-services.json`, voir plus haut.
 
 ### 3. Poser votre signature (une seule fois par copie du projet)
 
@@ -254,7 +309,7 @@ une heure à proposer une nouvelle version de test.
 
 - Mettez à jour `store/APP-VERSIONS.md` : date, poids de l'AAB, état Play.
   **C'est le seul endroit où les numéros de version font foi.** Le commit y est
-  déjà (`19bbd6e`).
+  déjà (`7b931b4`).
 - **Vos 12 testeurs, 14 jours consécutifs.** Déposer une nouvelle version **ne
   remet pas le compteur à zéro** ; seul un testeur qui se désinscrit ou désinstalle
   le fait. La demande de passage en production est visée pour le **10/09** : ne
