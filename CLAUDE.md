@@ -34,8 +34,14 @@ npm run banc:pays  # comptes hors Côte d'Ivoire et onglet admin « Pays », sur
 npm run banc:stock # le stock des comptes Pro : décrément à la vente, alertes « stock bas » et « rupture »
 npm run banc:catalogue # le plafond des 500 annonces : 520 en base, l'ancien appel en perd 20
 npm run banc:push-natif # le téléphone que l'application enregistre (FCM) — inerte sans api/data/fcm.json
+npm run banc:vignettes # la vignette de grille : 360 px à l'envoi, les anciennes refaites par le cron
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
+
+`BANC_FRONT_ECRAN=bureau npm run banc:front` rejoue les neuf pages sur un écran
+d'ordinateur (1440 px). Le 08/09/2026, ce passage-là a trouvé huit cibles tactiles
+sous 44 px sur chaque page — toutes dans la barre du haut, qui n'existe QUE sur
+grand écran : personne ne l'avait jamais mesurée.
 
 `banc:front` demande Chromium (`CHROMIUM_PATH=/opt/pw-browsers/chromium`) et
 `playwright-core` (`npm i --no-save playwright-core`). Il ne touche pas la production :

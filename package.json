@@ -34,6 +34,7 @@
     "banc:seo": "node scripts/banc-seo.mjs",
     "banc:push-natif": "node scripts/banc-push-natif.mjs",
     "banc:catalogue": "node scripts/banc-catalogue.mjs",
+    "banc:vignettes": "node scripts/banc-vignettes.mjs",
     "banc:front": "node scripts/banc-front.mjs",
     "synonymes": "node scripts/synonymes.mjs",
     "prebuild": "node scripts/synonymes.mjs",

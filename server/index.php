@@ -5933,7 +5933,32 @@ function thumb_path(string $file): string {
  *  (`<base>_min.jpg`, JPEG q72) : la carte de grille et le défilement infini la
  *  servent au lieu de la photo pleine (≈ 233 Ko → ≈ 25 Ko, −90 % de data), la
  *  fiche détail gardant l'originale. Best-effort : ne bloque jamais l'upload. */
-function make_thumb(string $file, string $ext, int $maxW = 480, int $quality = 72): void {
+/**
+ * LA LARGEUR DE LA VIGNETTE DE GRILLE — 360 px depuis le 08/09/2026.
+ *
+ * Elle valait 480. Le banc du front, rejoué pour la première fois sur un écran
+ * d'ordinateur, a compté DOUZE vignettes sur douze plus grandes que leur case,
+ * sur Explorer comme sur une vitrine : 480 px servis dans 205 à 294. Sur
+ * téléphone l'écart passait inaperçu — la densité double le seuil — mais il
+ * était là aussi : une carte de 180 px sur un écran double densité n'a jamais
+ * eu besoin que de 360.
+ *
+ * 360 est le chiffre qui sert les deux : exactement ce qu'il faut au téléphone
+ * d'Abidjan (180 × 2), et large pour un ordinateur (230 × 1). Une tablette à
+ * double densité y perd un cheveu de finesse — c'est le seul cas, et le moins
+ * fréquent ici.
+ *
+ * Ce qu'on économise : environ 44 % des pixels, donc à peu près 6 Ko par
+ * vignette. Une page qui en montre douze en garde ~70 Ko, sur un forfait que
+ * le visiteur paie.
+ *
+ * ⚠️ Les vignettes DÉJÀ écrites gardent leurs 480 px : `backfill_thumbs` les
+ * régénère au fil des passages du cron `cleanup` (voir plus bas). Rien ne
+ * casse entre-temps — une image un peu large s'affiche parfaitement.
+ */
+const VIGNETTE_LARGEUR = 360;
+
+function make_thumb(string $file, string $ext, int $maxW = VIGNETTE_LARGEUR, int $quality = 72): void {
   if (!function_exists('imagecreatetruecolor')) return;
   $src = null;
   if ($ext === 'jpg') $src = @imagecreatefromjpeg($file);
@@ -5976,8 +6001,21 @@ function backfill_thumbs(PDO $pdo, array $config, int $max = 300): int {
       if ($ext === 'jpeg') $ext = 'jpg';
       if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true)) continue;
       $file = $dir . '/' . $name;
-      if (!is_file($file) || is_file(thumb_path($file))) continue; // absente ou déjà faite
-      try { make_thumb($file, $ext); if (is_file(thumb_path($file))) $faites++; }
+      if (!is_file($file)) continue;
+
+      // Deux cas à traiter, et un seul à ignorer :
+      //   · la vignette MANQUE (photo d'avant `make_thumb`) ;
+      //   · la vignette existe mais fait plus de 360 px de large — elle date
+      //     d'avant le 08/09/2026, où la largeur est passée de 480 à 360. On
+      //     la refait une fois, puis on n'y revient plus.
+      // `getimagesize` sur un fichier local : quelques microsecondes, et c'est
+      // ce qui évite de rejouer indéfiniment le rattrapage sur tout le dossier.
+      $vignette = thumb_path($file);
+      if (is_file($vignette)) {
+        $t = @getimagesize($vignette);
+        if (!$t || (int) $t[0] <= VIGNETTE_LARGEUR) continue; // déjà à la bonne taille
+      }
+      try { make_thumb($file, $ext); if (is_file($vignette)) $faites++; }
       catch (Throwable $e) { /* best-effort */ }
     }
   }

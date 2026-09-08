@@ -126,7 +126,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // mesure que les pages entrent.
       const PAGE = 100          // la borne dure du serveur
       const PLAFOND = 5000      // au-delà, il faudra une vraie recherche serveur
-      const premiere = await fetchListingsPage(0, PAGE)
+
+      // La demande partie AVANT React (voir index.html, en bas). On la
+      // consomme une seule fois : un rechargement volontaire doit repartir
+      // vers le serveur, pas resservir la réponse du démarrage.
+      const avance = (window as unknown as { __chapciAnnonces?: Promise<Listing[] | null> | null }).__chapciAnnonces
+      if (avance) (window as unknown as { __chapciAnnonces?: unknown }).__chapciAnnonces = null
+      const premiere = (avance ? await avance : null) ?? await fetchListingsPage(0, PAGE)
       setRemoteListings(premiere)
       setMode('remote'); modeRef.current = 'remote'
 
