@@ -18,7 +18,7 @@
 //  MAIS le téléphone qui change de main suit son nouveau propriétaire.
 // =============================================================================
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -154,6 +154,53 @@ dire(r.code === 200 && typeof r.corps?.cle === 'string' && r.corps.cle.length > 
 
 r = await appel('/push/devices', { jeton: awa.jeton })
 dire(r.code === 200, 'la liste des navigateurs abonnés répond toujours', `HTTP ${r.code}`)
+
+// ── Le témoin que le Patron peut lire lui-même ──────────────────────────────
+console.log('\n── /api/health dit si la clé Firebase est lue ──────────────────────────')
+
+r = await appel('/health')
+dire(r.code === 200 && r.corps?.fcm === false,
+  'sans la clé, le témoin dit franchement « non »', `fcm : ${JSON.stringify(r.corps?.fcm)}`)
+
+// ⚠️ ET IL DOIT POUVOIR DIRE « OUI ». Un témoin bloqué sur false ne vaudrait
+// rien — c'est exactement le défaut qu'on vient de corriger sur le compteur
+// d'erreurs du banc du front. On démarre donc un SECOND serveur, dans un
+// dossier où une vraie clé (une paire RSA fabriquée ici, sans valeur ailleurs)
+// est déposée, et on vérifie qu'il bascule.
+//
+// Le dossier des secrets n'est pas réglable : `chapci_secret_dir` le déduit du
+// chemin de la base. La clé va donc À CÔTÉ de la seconde base.
+const D2 = join(D, 'avec-cle')
+mkdirSync(D2, { recursive: true })
+execFileSync('php', ['-r', `
+  $k = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+  openssl_pkey_export($k, $pem);
+  file_put_contents($argv[1], json_encode([
+    'type' => 'service_account',
+    'project_id' => 'chap-ci-banc',
+    'client_email' => 'banc@chap-ci-banc.iam.gserviceaccount.com',
+    'private_key' => $pem,
+  ], JSON_PRETTY_PRINT));`, '--', join(D2, 'fcm.json')])
+dire(existsSync(join(D2, 'fcm.json')), 'une clé d’essai est déposée à côté de la base', 'fcm.json fabriqué')
+
+const PORT2 = PORT + 1
+const serveur2 = spawn('php', ['-S', `127.0.0.1:${PORT2}`, 'index.php'], {
+  cwd: join(racine, 'server'), stdio: 'ignore', detached: true,
+  env: { ...process.env, CHAPCI_DB_DRIVER: 'sqlite', CHAPCI_SQLITE: join(D2, 'banc.sqlite'),
+         CHAPCI_UPLOADS_DIR: join(D, 'uploads') },
+})
+serveur2.unref()
+process.on('exit', () => { try { process.kill(-serveur2.pid) } catch { /* parti */ } })
+let sante = null
+for (let i = 0; i < 40; i++) {
+  try { const x = await fetch(`http://127.0.0.1:${PORT2}/health`); if (x.ok) { sante = await x.json(); break } }
+  catch { /* pas encore */ }
+  await new Promise((r) => setTimeout(r, 250))
+}
+dire(sante?.fcm === true, 'avec la clé, le témoin passe à « oui »', `fcm : ${JSON.stringify(sante?.fcm)}`)
+dire(!JSON.stringify(sante).includes('chap-ci-banc') && !JSON.stringify(sante).includes('PRIVATE KEY'),
+  'et il n’expose RIEN du secret — ni le projet, ni la clé', 'page publique')
+try { process.kill(-serveur2.pid) } catch { /* déjà parti */ }
 
 console.log()
 if (rouges) { console.log(`❌ ${rouges} contrôle(s) rouge(s).`); process.exit(1) }

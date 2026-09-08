@@ -15465,7 +15465,23 @@ try {
           // que PHP accepte). Si c'est moins que 15, l'hébergement plafonne :
           // cPanel → Sélectionner une version PHP → Options →
           // upload_max_filesize et post_max_size.
-          'videoMaxMo' => (int) floor(video_limite_octets($config) / 1024 / 1024)]);
+          'videoMaxMo' => (int) floor(video_limite_octets($config) / 1024 / 1024),
+          // LA CLÉ FIREBASE EST-ELLE LUE ? (08/09/2026)
+          //
+          // Le Patron dépose `api/data/fcm.json` lui-même, à la main, dans
+          // cPanel. Sans ce témoin, il n'avait AUCUN moyen de savoir si son
+          // geste avait porté : le serveur se taisait, et l'erreur la plus
+          // probable — mauvais dossier, fichier tronqué à l'envoi, mauvais
+          // fichier téléchargé depuis la console — ne se serait vue qu'au
+          // build de l'application, des jours plus tard, sans rien pour la
+          // relier à sa cause.
+          //
+          // `true` dit trois choses, et rien de plus : le fichier est là, il
+          // est lisible par PHP, et il porte bien les trois champs attendus
+          // (projet, compte de service, clé privée). AUCUN MORCEAU DU SECRET
+          // N'EST EXPOSÉ — ni le projet, ni l'adresse du compte, ni bien sûr
+          // la clé : cette page est publique.
+          'fcm' => fcm_config($config) !== null]);
   }
 
   jerr('Route inconnue: ' . $path, 404);
