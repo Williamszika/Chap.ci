@@ -16,3 +16,12 @@ build/
 *.iml
 .idea/
 pubspec.lock
+
+# LE FICHIER FIREBASE DU PATRON — jamais dans le dépôt.
+#
+# `tool/secrets/google-services.json` relie l'application au projet Firebase.
+# Google documente sa clé d'API comme non secrète (elle se lit dans l'APK que
+# tout le monde télécharge), mais ce dépôt est public et la règle ne se
+# discute pas : aucun secret n'y entre. Le fichier vit sur le Mac du Patron ;
+# `preparer_plateformes.dart` le recopie dans android/app/ à chaque build.
+/tool/secrets/

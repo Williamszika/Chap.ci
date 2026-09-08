@@ -9,7 +9,7 @@
 //   • identifiant `ci.chap.app` — le MÊME que l'app actuelle sur les stores, pour
 //     que ce soit une MISE À JOUR et non une nouvelle app (applicationId Android
 //     ET bundle identifier iOS) ;
-//   • Android : minSdk 22, targetSdk 36 ; iOS : nom + permissions ;
+//   • Android : minSdk 23, targetSdk 36 ; iOS : nom + permissions ;
 //   • le nom affiché « Chap.ci » et les autorisations réellement utilisées
 //     (Internet, appareil photo, position) sur les deux plateformes ;
 //   • l'icône de lancement, générée depuis le logo (`assets/icon/`) ;
@@ -60,8 +60,16 @@ void main() {
 // ───────────────────────────── Android ──────────────────────────────────────
 
 void _configurerAndroid() {
-  _etape('Android : build.gradle.kts (ci.chap.app, minSdk 22, targetSdk 36)…');
-  File('android/app/build.gradle.kts').writeAsStringSync(_buildGradleKts);
+  // D'ABORD le fichier Firebase : c'est lui qui décide si on branche le plugin
+  // Google dans Gradle. Le déclarer sans le fichier fait ÉCHOUER le build avec
+  // « File google-services.json is missing » — on ne l'ajoute donc que s'il est
+  // réellement là.
+  final avecFirebase = _copierGoogleServices();
+
+  _etape('Android : build.gradle.kts (ci.chap.app, minSdk 23, targetSdk 36)…');
+  File('android/app/build.gradle.kts')
+      .writeAsStringSync(_buildGradleKts(avecFirebase));
+  _declarerPluginGoogle(avecFirebase);
 
   _etape('Android : MainActivity dans le paquet ci.chap.app…');
   // On repart d'un dossier kotlin/ VIDE : selon l'org que « flutter create »
@@ -118,6 +126,129 @@ void _configurerAndroid() {
   }
 
   manifestFichier.writeAsStringSync(manifest);
+}
+
+/// Pose `google-services.json` — le fichier qui relie l'application au projet
+/// Firebase, et sans lequel aucune notification n'arrive.
+///
+/// ⚠️ CE FICHIER N'EST PAS DANS LE DÉPÔT, ET C'EST VOULU.
+///
+/// Il porte une clé d'API Firebase. Google la documente comme non secrète (elle
+/// se lit de toute façon dans l'APK que tout le monde télécharge), mais le
+/// dépôt de Chap.ci est public et la règle de la maison ne se discute pas :
+/// aucun secret n'y entre. Le fichier vit donc sur la machine du Patron, dans
+/// `tool/secrets/`, que `.gitignore` écarte.
+///
+/// Il ne peut pas non plus rester dans `android/app/` : ce dossier est effacé
+/// et régénéré à chaque passage de cet outil. D'où la copie, ici, à chaque
+/// fois.
+///
+/// **S'il manque, on ne s'arrête pas.** L'application se construit et tourne
+/// exactement comme avant, sans notification native — c'est ce qu'a fait
+/// `PushNatif.disponible = false` pendant des semaines. On le DIT, en revanche,
+/// et clairement : une application construite sans ce fichier ne sonnera
+/// jamais, et il ne faut pas passer trois jours à chercher pourquoi.
+bool _copierGoogleServices() {
+  _etape('Android : google-services.json (notifications Firebase)…');
+  final source = File('tool/secrets/google-services.json');
+  final cible = File('android/app/google-services.json');
+
+  if (!source.existsSync()) {
+    stdout.writeln(
+      '   ⚠️  ABSENT — tool/secrets/google-services.json n’est pas là.\n'
+      '       L’application se construira normalement, MAIS AUCUN TÉLÉPHONE NE\n'
+      '       SONNERA quand elle est fermée. Pour l’activer : téléchargez le\n'
+      '       fichier depuis console.firebase.google.com (Paramètres du projet\n'
+      '       → Vos applications → ci.chap.app → google-services.json) et\n'
+      '       déposez-le dans flutter_app/tool/secrets/.',
+    );
+    // Et on efface la copie d'un passage précédent. `flutter create` ne la
+    // connaît pas et ne l'emporte donc pas : sans ce nettoyage, un
+    // google-services.json orphelin resterait dans android/app/ après le
+    // retrait du fichier source — de quoi croire Firebase actif alors que le
+    // plugin Gradle vient d'être retiré. Un état qui ment est pire qu'un
+    // état absent.
+    if (cible.existsSync()) {
+      cible.deleteSync();
+      stdout.writeln('   ✓ ancienne copie effacée de android/app/');
+    }
+    return false;
+  }
+
+  // Un garde-fou qui a sa raison d'être : la console Firebase fait télécharger
+  // DEUX fichiers .json au cours de la configuration — celui-ci, et la clé du
+  // compte de service. Les confondre mettrait un vrai secret dans l'APK de tout
+  // le monde. On refuse plutôt que de copier à l'aveugle.
+  final contenu = source.readAsStringSync();
+  if (contenu.contains('"private_key"') || contenu.contains('BEGIN PRIVATE KEY')) {
+    stderr.writeln(
+      '\n❌ ARRÊT : tool/secrets/google-services.json contient une CLÉ PRIVÉE.\n'
+      '   Ce n’est pas le bon fichier — c’est la clé du compte de service, celle\n'
+      '   qui vit sur le SERVEUR (api/data/fcm.json) et ne doit jamais entrer\n'
+      '   dans une application. Reprenez le fichier depuis Paramètres du projet\n'
+      '   → Vos applications, PAS depuis l’onglet Comptes de service.\n',
+    );
+    exit(1);
+  }
+  if (!contenu.contains('ci.chap.app')) {
+    stderr.writeln(
+      '\n❌ ARRÊT : ce google-services.json ne mentionne pas « ci.chap.app ».\n'
+      '   Il vient d’un autre projet ou d’une autre application. Les\n'
+      '   notifications iraient à une adresse qui n’est pas la vôtre.\n',
+    );
+    exit(1);
+  }
+
+  cible.writeAsStringSync(contenu);
+  stdout.writeln('   ✓ posé dans android/app/ (ci.chap.app)');
+  return true;
+}
+
+/// Déclare le plugin Gradle de Google dans `android/settings.gradle.kts`.
+///
+/// C'est lui qui lit `google-services.json` au moment de la compilation et en
+/// fait des valeurs que Firebase retrouve à l'exécution. Sans cette ligne, le
+/// fichier serait copié pour rien.
+///
+/// `flutter create` écrit ce `settings.gradle.kts` : on le retouche plutôt que
+/// de le remplacer, pour ne pas figer une version de Flutter dans notre outil.
+void _declarerPluginGoogle(bool avecFirebase) {
+  final f = File('android/settings.gradle.kts');
+  if (!f.existsSync()) return;
+  var t = f.readAsStringSync();
+  // 4.5.0 : la version que la console Firebase affiche elle-même en septembre
+  // 2026. La 4.4.x visait le plugin Android Gradle 8 ; « flutter create »
+  // installe aujourd'hui le 9.1, et un plugin trop ancien s'y refuse.
+  const ligne = '    id("com.google.gms.google-services") version "4.5.0" apply false';
+  final deja = t.contains('com.google.gms.google-services');
+
+  if (!avecFirebase) {
+    // Pas de fichier Firebase : on RETIRE la ligne si un passage précédent
+    // l'avait posée. Sinon Gradle réclamerait un fichier absent et le build
+    // échouerait — exactement la panne qu'on cherche à éviter.
+    if (deja) {
+      t = t.split('\n').where((l) => !l.contains('com.google.gms.google-services')).join('\n');
+      f.writeAsStringSync(t);
+      _etape('Android : plugin Google retiré (pas de google-services.json)…');
+    }
+    return;
+  }
+  if (deja) return;
+
+  // On s'accroche au plugin Android, qui est toujours déclaré là.
+  final ancre = RegExp(r'(\n\s*id\("com\.android\.application"\)[^\n]*)');
+  final m = ancre.firstMatch(t);
+  if (m == null) {
+    stderr.writeln(
+      '\n⚠️  settings.gradle.kts a changé de forme : le plugin Google n’a pas pu\n'
+      '   être déclaré automatiquement. Ajoutez à la main, dans son bloc\n'
+      '   plugins { … } :\n$ligne\n',
+    );
+    return;
+  }
+  t = t.replaceFirst(m.group(1)!, '${m.group(1)}\n$ligne');
+  f.writeAsStringSync(t);
+  _etape('Android : plugin Google déclaré (settings.gradle.kts)…');
 }
 
 // ─────────────────────────────── iOS ────────────────────────────────────────
@@ -256,7 +387,7 @@ String _liensIos(String pb) {
 
 void _rappels() {
   final aKey = File('android/key.properties').existsSync();
-  stdout.writeln('\n✅ android/ et ios/ prêts (ci.chap.app, minSdk 22, targetSdk 36).');
+  stdout.writeln('\n✅ android/ et ios/ prêts (ci.chap.app, minSdk 23, targetSdk 36).');
 
   stdout.writeln('\nANDROID → l’AAB à déposer sur le Play Store :');
   if (!aKey) {
@@ -364,13 +495,23 @@ const _googleIos =
     '\t\t</dict>\n'
     '\t</array>\n';
 
-const _buildGradleKts = '''
+/// Le `build.gradle.kts` du module application.
+///
+/// `avecFirebase` décide d'UNE ligne : `id("com.google.gms.google-services")`.
+/// Déclarer ce plugin sans le fichier `google-services.json` fait échouer le
+/// build — d'où le paramètre plutôt qu'une constante.
+String _buildGradleKts(bool avecFirebase) => '''
 import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    // Le plugin Flutter s'applique après les plugins Android et Kotlin.
+${avecFirebase ? '''    // Lit google-services.json et en fait les valeurs que Firebase retrouve
+    // à l'exécution. Déclaré SEULEMENT quand le fichier est là (voir
+    // _copierGoogleServices) : sinon Gradle s'arrête sur « File
+    // google-services.json is missing ».
+    id("com.google.gms.google-services")
+''' : ''}    // Le plugin Flutter s'applique après les plugins Android et Kotlin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -397,7 +538,18 @@ android {
     defaultConfig {
         // MÊME identifiant que l'app Play Store actuelle : c'est une MISE À JOUR.
         applicationId = "ci.chap.app"
-        minSdk = 22
+        // ANDROID 6.0 MINIMUM DEPUIS LE 08/09/2026 (c'était 5.1).
+        //
+        // Ce n'est pas un choix de confort : `firebase_core` refuse de se
+        // compiler en dessous (son `android/local-config.gradle` fixe
+        // `minSdk=23`). Sans lui, aucun téléphone ne sonne quand l'application
+        // est fermée — la première fuite de la place de marché.
+        //
+        // Ce que ça coûte : les téléphones restés sous Android 5.1, sorti en
+        // mars 2015, ne recevront plus les mises à jour. Ils gardent la version
+        // installée, qui continue de fonctionner. Le Patron a validé cet
+        // arbitrage après avoir vu le chiffre réel de sa Play Console.
+        minSdk = 23
         // targetSdk 36 (Android 16) : OBLIGATOIRE pour tout dépôt à partir du
         // 31/08/2026 — Google refuse targetSdk 35 après le 30/08. compileSdk
         // vient de Flutter (36 depuis Flutter récent) et doit rester ≥ targetSdk.
