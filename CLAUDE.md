@@ -32,6 +32,8 @@ npm run banc:front # le site sur un téléphone 3G simulé : poids, décalages (
 npm run banc:coherence # site ↔ application ↔ serveur : catégories, types pro, lieux, pays, réglages, permissions
 npm run banc:pays  # comptes hors Côte d'Ivoire et onglet admin « Pays », sur un serveur SQLite local
 npm run banc:stock # le stock des comptes Pro : décrément à la vente, alertes « stock bas » et « rupture »
+npm run banc:catalogue # le plafond des 500 annonces : 520 en base, l'ancien appel en perd 20
+npm run banc:push-natif # le téléphone que l'application enregistre (FCM) — inerte sans api/data/fcm.json
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
 
