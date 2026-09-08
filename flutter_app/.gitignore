@@ -25,3 +25,12 @@ pubspec.lock
 # discute pas : aucun secret n'y entre. Le fichier vit sur le Mac du Patron ;
 # `preparer_plateformes.dart` le recopie dans android/app/ à chaque build.
 /tool/secrets/
+
+# `.metadata` — RÉGÉNÉRÉ, donc jamais suivi.
+#
+# `preparer_plateformes.dart` lance `flutter create` à chaque passage, et
+# `flutter create` réécrit ce fichier. Suivi par Git, il se retrouvait modifié
+# après chaque build : le `git pull` suivant s'arrêtait sur « Vos modifications
+# locales seraient écrasées » — et le Patron se retrouvait bloqué, avec du code
+# qu'il croyait avoir récupéré. Vu le 08/09/2026, en plein chantier Firebase.
+/.metadata
