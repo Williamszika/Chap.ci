@@ -1,5 +1,15 @@
 # v1.24 — versionCode 25 · construire et téléverser
 
+> ⛔ **FICHE PÉRIMÉE — NE PAS SUIVRE. La v1.24 n'a jamais été construite.**
+> Le code du dépôt est passé à la **v1.25, code 26**. Suivre cette fiche-ci
+> ferait fabriquer un AAB portant un numéro inférieur à celui qui est figé dans
+> `pubspec.yaml`, et vous priverait de tout ce qui a été écrit depuis.
+>
+> **La fiche à jour est `store/BUILD-v1.25.md`.**
+>
+> Celle-ci est gardée pour son historique : les deux erreurs de build déjà
+> rencontrées, et la mise en garde sur la dernière porte de la Play Console.
+
 Fiche de livraison, à suivre **au Terminal**. Elle remplace `CONSTRUIRE-L-APP.txt`.
 
 | | |

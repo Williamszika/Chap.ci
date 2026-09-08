@@ -155,7 +155,7 @@ le 26/08, le jour même du seuil).
 | Date du build | **NON CONSTRUITE** — le code est prêt dans le dépôt, l'AAB n'existe pas encore. |
 | Poids de l'AAB | sans objet tant qu'elle n'est pas construite. |
 | minSdk 22 · targetSdk **36** | signature `CN=Chap.ci` — SHA-1 `0E:C0:…:FE:33`. |
-| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. La marche à suivre Android reste celle de **`store/BUILD-v1.24.md`** (mêmes commandes, seul le numéro change). |
+| État Play | **NON VÉRIFIÉ** — non construite, donc non téléversée. La marche à suivre Android est **`store/BUILD-v1.25.md`**, écrite le 08/09/2026 pour CE build : le code 26, le commit `19bbd6e`, les trente-sept chantiers depuis la v1.20, et la voie rapide pour voir l'application sur son propre téléphone sans passer par le magasin. Ne suivez plus `BUILD-v1.24.md` : sa version n'a jamais été construite et elle annonce le code 25. |
 | État iPhone | le Patron installe l'app sur son iPhone depuis Xcode : les six commandes en tête de **`store/GUIDE-IPHONE.md`**. |
 
 **Ce qu'elle apporte : les quatre nouveautés du 3 septembre, celles du site,
