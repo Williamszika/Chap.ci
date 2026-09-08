@@ -52,7 +52,7 @@ export function TopNav() {
   return (
     <header className="sticky top-0 z-40 hidden border-b border-line bg-cream-200/85 backdrop-blur-md md:block">
       <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-3 lg:gap-5 lg:px-6">
-        <Link to="/" className="flex shrink-0 items-center gap-2" aria-label="Accueil Chap.ci">
+        <Link to="/" className="flex min-h-11 shrink-0 items-center gap-2" aria-label="Accueil Chap.ci">
           <Logo size={30} />
         </Link>
 
@@ -61,7 +61,12 @@ export function TopNav() {
             <Link
               key={it.label}
               to={it.to}
-              className={`whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-semibold transition lg:px-3 ${
+              /* `min-h-11` : ces liens faisaient 36 px de haut. Sur une souris
+                 c'est confortable, mais cette barre s'affiche AUSSI sur
+                 tablette — et beaucoup d'ordinateurs sont tactiles. Le banc du
+                 front en format ordinateur les a comptés le 08/09/2026 : six
+                 cibles sous 44 px sur chaque page, toutes dans cette barre. */
+              className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-semibold transition lg:px-3 ${
                 it.active ? 'bg-primary-50 text-primary-700' : 'text-gray-600 md:hover:bg-cream-100'
               }`}
             >
@@ -89,7 +94,11 @@ export function TopNav() {
             onChange={(e) => setQInput(e.target.value)}
             placeholder="Rechercher un produit, une marque…"
             aria-label="Rechercher"
-            className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-500"
+            /* 44 px de zone tapable sans que la barre grandisse : la marge
+               négative annule le `py-2` du parent. Même procédé que sur
+               l'accueil et Explorer — c'est le CHAMP qu'on touche, pas la
+               boîte blanche autour. */
+            className="-my-2 min-h-11 w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-500"
           />
         </form>
 
@@ -117,11 +126,11 @@ export function TopNav() {
           <div className="flex shrink-0 items-center gap-2">
             <Link
               to="/connexion"
-              className="whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold text-gray-700 transition md:hover:bg-cream-100"
+              className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold text-gray-700 transition md:hover:bg-cream-100"
             >
               Connexion
             </Link>
-            <Link to="/inscription" className="btn-primary whitespace-nowrap px-4 py-2 text-sm">
+            <Link to="/inscription" className="btn-primary min-h-11 whitespace-nowrap px-4 py-2 text-sm">
               S’inscrire
             </Link>
           </div>
@@ -176,7 +185,7 @@ function AccountMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 rounded-full border py-1.5 pl-1.5 pr-1.5 text-sm font-semibold transition lg:pr-3 ${
+        className={`flex min-h-11 items-center gap-1.5 rounded-full border py-1.5 pl-1.5 pr-1.5 text-sm font-semibold transition lg:pr-3 ${
           open ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-line2 text-gray-700 md:hover:bg-cream-100'
         }`}
       >

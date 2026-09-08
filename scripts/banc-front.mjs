@@ -36,7 +36,8 @@ try { ({ chromium } = await import(join(racine, 'node_modules/playwright-core/in
 catch { console.error('❌ playwright-core manque : npm i --no-save playwright-core'); process.exit(1) }
 if (!existsSync(join(racine, 'dist/index.html'))) { console.error('❌ dist/ manque : npm run build d’abord'); process.exit(1) }
 
-const D = process.env.BANC_FRONT_DIR || join(tmpdir(), 'chapci-banc-front')
+const ECRAN = (process.env.BANC_FRONT_ECRAN || 'telephone').toLowerCase()
+const D = process.env.BANC_FRONT_DIR || join(tmpdir(), 'chapci-banc-front' + (ECRAN === 'bureau' ? '-bureau' : ''))
 rmSync(D, { recursive: true, force: true })
 mkdirSync(join(D, 'uploads'), { recursive: true }); mkdirSync(join(D, 'captures'), { recursive: true })
 const DB = join(D, 'banc.sqlite')
@@ -178,7 +179,14 @@ const PAGES = [
 const resultats = []
 for (const p of PAGES) {
   const ctx = await navigateur.newContext({
-    viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: UA, locale: 'fr-FR',
+    // L'ÉCRAN. Par défaut un téléphone d'Abidjan (390 px) — c'est là que le
+    // site se joue. `BANC_FRONT_ECRAN=bureau` rejoue tout sur un ordinateur
+    // (1440 px) : le Patron demande à voir les deux, et une mise en page peut
+    // être irréprochable sur l'un et cassée sur l'autre (08/09/2026).
+    ...(ECRAN === 'bureau'
+      ? { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false }
+      : { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: UA }),
+    locale: 'fr-FR',
     serviceWorkers: 'block', // un visiteur froid : chaque page est une première visite
   })
   await ctx.addInitScript(() => {
@@ -316,7 +324,7 @@ for (const p of PAGES) {
 await navigateur.close()
 
 // ── Le tableau ───────────────────────────────────────────────────────────────
-console.log('\n  Téléphone d’entrée de gamme, 3G rapide (1,6 Mbit/s, 150 ms), processeur ×4 plus lent, visite à froid :\n')
+console.log(`\n  ${ECRAN === 'bureau' ? 'Ordinateur 1440 px' : 'Téléphone d’entrée de gamme'}, 3G rapide (1,6 Mbit/s, 150 ms), processeur ×4 plus lent, visite à froid :\n`)
 const col = (s, n) => String(s).padEnd(n)
 console.log('  ' + col('page', 22) + col('req.', 6) + col('réseau', 9) + col('DOM', 8) + col('chargée', 9) + col('calme', 8) + col('LCP', 8) + col('CLS', 7) + col('err.', 6) + col('échecs', 8) + col('img>case', 9) + col('<44px', 7) + 'tiers')
 for (const r of resultats) {
