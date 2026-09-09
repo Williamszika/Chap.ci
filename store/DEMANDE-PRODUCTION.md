@@ -114,8 +114,74 @@ Prenez-les ici plutôt que de les chercher.
 
 ---
 
-## À compléter
+## ✅ DEMANDE ENVOYÉE — 10/09/2026 à 01 h 04
 
-Cette fiche s'arrête ici tant que je n'ai pas les questions du formulaire. Dès
-que vous me les envoyez, la section suivante sera écrite : **une réponse par
-question**, avec en clair ce qui vient de vous et ce qui vient du dépôt.
+Le Patron a rempli et envoyé le formulaire dans la nuit, sans passer par l'étape
+de relecture prévue plus haut. C'est fait, et on ne revient pas dessus.
+
+La Play Console affiche :
+
+> **Nous avons reçu votre demande d'accès en production.** Votre formulaire de
+> demande est en cours d'examen. Nous enverrons un e-mail au titulaire du compte
+> pour le tenir informé. Cela prend généralement sept jours ou moins, mais ce
+> délai peut parfois être plus long.
+
+Réponse attendue vers le **17/09/2026**, sans garantie.
+
+---
+
+## Pendant l'examen — les quatre règles
+
+### 1. NE PERDEZ AUCUN TESTEUR. C'est la seule qui peut tout casser.
+
+Les quatorze jours d'affilée ne sont pas un trophée définitif : ils décrivent un
+état, et cet état continue d'exister pendant l'examen. Un testeur qui désinstalle
+ou se désinscrit maintenant peut le défaire.
+
+**Ne retirez personne de la liste. Ne demandez à personne de désinstaller.** Si
+quelqu'un part quand même, dites-le-moi le jour même.
+
+### 2. Surveillez la boîte mail du titulaire du compte — et les indésirables
+
+C'est le seul canal par lequel Google répond. Les messages de la Play Console
+tombent régulièrement dans les indésirables. Regardez-y au moins une fois.
+
+### 3. N'envoyez pas de seconde demande
+
+Une seule est en cours. En redéposer une par impatience ne l'accélère pas.
+
+### 4. La v1.25 continue, mais sur le canal de test — jamais en production
+
+Construire l'AAB et le déposer chez vos 12 testeurs pendant l'examen est normal :
+un test fermé vivant est plutôt bon signe. Deux précautions quand même :
+
+- **Faites-le réveillé**, pas à une heure du matin. Un mauvais dépôt pendant
+  l'examen est le pire moment pour en faire un.
+- **Le canal de test fermé, pas la production** — de toute façon la production
+  vous est encore fermée, mais l'habitude se prend maintenant.
+
+---
+
+## ⚠️ À écrire pendant que c'est frais : ce que vous avez répondu
+
+**Aujourd'hui vous vous en souvenez. Dans sept jours, non.**
+
+Si la demande est refusée, l'e-mail de Google dira *pourquoi* — et pour corriger,
+il faudra savoir *ce qui a été écrit*. Sans ça, on repart de zéro à l'aveugle sur
+une démarche qui a coûté quatorze jours.
+
+Recopiez ci-dessous, de mémoire, question par question, aussi fidèlement que
+possible. Pas besoin d'être joli : il faut être exact.
+
+```
+Question 1 :
+Ma réponse :
+
+Question 2 :
+Ma réponse :
+
+Question 3 :
+Ma réponse :
+```
+
+*(Envoyez-les-moi, je les mets en forme ici.)*
