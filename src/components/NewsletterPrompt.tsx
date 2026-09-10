@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { Mail, X, Check, Loader2 } from 'lucide-react'
 import { useAuth } from '../store/AuthContext'
 import { isSubscribed, subscribeNewsletter } from '../lib/newsletter'
+import { consentDecided, onConsentChange } from '../lib/consent'
 
 const SEEN_KEY = 'chapci.nlPrompt.v1'
 // Pages où aucune pop-up ne doit s'ouvrir :
@@ -35,9 +36,36 @@ export function NewsletterPrompt() {
   const cardRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
 
+  // ── LE BANDEAU COOKIES PASSE AVANT. TOUJOURS. (10/09/2026) ────────────────
+  //
+  // Le 10/09, le Patron a envoyé une capture de son propre site : cette pop-up
+  // ET le bandeau de consentement ouverts EN MÊME TEMPS, l'un sur l'autre.
+  //
+  // Deux minuteries qui ne se connaissaient pas : 2 500 ms ici, 3 000 ms dans
+  // `CookieConsent`. Quatre dixièmes de seconde d'écart. Chacune était pourtant
+  // soignée et longuement commentée — c'est la signature de ce défaut-là : deux
+  // décisions locales justes, et aucune décision globale.
+  //
+  // Le dégât n'était pas seulement laid. Le voile `bg-black/40` de cette
+  // fenêtre (z-70) recouvrait le bandeau (z-50) : « Accepter » et « Refuser »
+  // ne recevaient PLUS UN SEUL CLIC — le banc l'a prouvé, bouton par bouton.
+  // **Un consentement qu'on ne peut pas donner n'est pas un consentement**, et
+  // c'est la loi ivoirienne sur les données comme les règles des magasins
+  // d'applications qui le demandent.
+  //
+  // La règle est donc simple et se lit d'une ligne : cette pop-up ne s'arme pas
+  // tant que la personne n'a pas répondu sur les cookies. Si elle ne répond
+  // jamais, la newsletter ne s'ouvre jamais — et c'est très bien ainsi.
+  const [consentOk, setConsentOk] = useState(() => consentDecided())
+  useEffect(() => {
+    if (consentOk) return
+    return onConsentChange(() => setConsentOk(true))
+  }, [consentOk])
+
   useEffect(() => {
     if (!user?.email) return
     if (localStorage.getItem(SEEN_KEY)) return
+    if (!consentOk) return
     // Ne pas s'ouvrir (ni s'armer) sur une page d'action : on attendra que
     // l'utilisateur quitte /publier ou /modifier.
     if (suppressed) { setOpen(false); return }
@@ -49,7 +77,7 @@ export function NewsletterPrompt() {
       timer = setTimeout(() => setOpen(true), 2500)
     })
     return () => { alive = false; if (timer) clearTimeout(timer) }
-  }, [user, suppressed])
+  }, [user, suppressed, consentOk])
 
   const dismiss = () => {
     localStorage.setItem(SEEN_KEY, '1')

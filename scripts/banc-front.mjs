@@ -175,6 +175,24 @@ const PAGES = [
   { nom: 'Publier (connecté)', url: '/#/publier', jeton: koffi.jeton },
   { nom: 'Mon compte (connecté)', url: '/#/compte', jeton: koffi.jeton },
   { nom: 'Messages (connecté)', url: '/#/messages', jeton: koffi.jeton },
+  // ── L'ARRIVÉE D'UN CONNECTÉ NON ABONNÉ (10/09/2026) ────────────────────────
+  //
+  // Le 10/09, le Patron envoie une capture de chap.ci avec DEUX fenêtres
+  // empilées : la pop-up newsletter et le bandeau cookies. Le banc, lui, était
+  // vert — et pour DEUX raisons distinctes, qu'il a fallu séparer :
+  //
+  //   1. Il mesurait TROP TÔT. Les deux minuteries partent à l'hydratation
+  //      (≈ 1,8 s) et tirent à 2,5 s et 3,0 s ; le banc lisait la page entre
+  //      3,2 et 4,5 s après le `goto`, soit juste avant. D'où `attente`.
+  //   2. Son compte de test est ABONNÉ D'OFFICE : `Register.tsx` appelle
+  //      `subscribeNewsletter()` à l'inscription. La pop-up ne s'arme donc
+  //      jamais pour lui — alors qu'elle s'arme pour tout compte créé par
+  //      Google, par Facebook, ou avant que cette ligne n'existe. C'est le cas
+  //      du Patron. D'où `pasAbonne`, qui répond « non » à /newsletter/status.
+  //
+  // Un banc qui ne peut voir que l'état de son propre compte de test ne teste
+  // pas le site : il teste son compte de test.
+  { nom: 'Accueil (non abonné)', url: '/', jeton: koffi.jeton, pasAbonne: true, attente: 4000 },
 ]
 const resultats = []
 for (const p of PAGES) {
@@ -215,6 +233,14 @@ for (const p of PAGES) {
   if (p.jeton) await ctx.addInitScript((j) => { localStorage.setItem('chapci.php.token', j) }, p.jeton)
   const tiers = new Set()
   await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => { tiers.add(new URL(route.request().url()).host); route.abort() })
+  // Le compte de test est abonné d'office (voir PAGES). Pour rejouer l'arrivée
+  // d'un connecté NON abonné — le cas du Patron — on répond « non » à cette
+  // seule route. On ne touche pas au site : on met le navigateur dans l'état
+  // où il se trouve vraiment chez la majorité des comptes.
+  if (p.pasAbonne) {
+    await ctx.route(/\/api\/newsletter\/status/, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ subscribed: false, abonne: false }) }))
+  }
   const page = await ctx.newPage()
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Network.enable'); await cdp.send('Network.emulateNetworkConditions', RESEAU); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
@@ -269,7 +295,10 @@ for (const p of PAGES) {
   try { await page.goto(SITE + p.url, { waitUntil: 'load', timeout: 120000 }); tLoad = Date.now() - t0 } catch (e) { erreurs.push(`chargement : ${String(e.message).slice(0, 100)}`) }
   try { await page.waitForLoadState('networkidle', { timeout: 30000 }) } catch { /* jamais calme */ }
   const tCalme = Date.now() - t0
-  await page.waitForTimeout(500)
+  // 500 ms par défaut. `attente` prolonge pour les pages où l'on veut voir ce
+  // qui arrive APRÈS le calme réseau — les fenêtres à minuterie, invisibles à
+  // une lecture trop précoce (10/09/2026).
+  await page.waitForTimeout(p.attente ?? 500)
   const mesures = await page.evaluate(() => {
     const dpr = window.devicePixelRatio || 1
     const imgs = [...document.images]
@@ -315,7 +344,63 @@ for (const p of PAGES) {
       const nom = (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim()
       return !nom && !el.querySelector('img[alt]:not([alt=""])') && !el.querySelector('[aria-label]')
     }).length
-    return { ...window.__m, images: imgs.length, surdim, surdimListe, sansAlt, cibles, ciblesListe, sansNom, texte: document.body.innerText.length }
+    // ── DEUX FENÊTRES EN MÊME TEMPS, ET CELLE DU DESSOUS QU'ON NE PEUT PLUS
+    //    TOUCHER (10/09/2026) ────────────────────────────────────────────────
+    //
+    // Le Patron a envoyé une capture de chap.ci avec DEUX fenêtres empilées :
+    // la pop-up newsletter (2,5 s) et le bandeau cookies (3,0 s). Quatre
+    // dixièmes de seconde d'écart, deux minuteries qui ne se connaissent pas.
+    // Chacune était pourtant soignée et commentée — c'est le propre de ce
+    // défaut-là : deux décisions locales justes, aucune décision globale.
+    //
+    // Le banc traversait cette page depuis des semaines sans rien dire, parce
+    // que RIEN NE REGARDAIT LES CALQUES. Il comptait les erreurs, les images,
+    // les cibles tactiles — pas ce qui se met devant l'utilisateur.
+    //
+    // Deux mesures, et la seconde est la vraie :
+    //   couches  = combien de `[role="dialog"]` visibles à la fois. Plus d'un
+    //              est déjà une faute d'accueil.
+    //   bloques  = les boutons D'UNE fenêtre qu'un AUTRE calque recouvre. Là,
+    //              ce n'est plus de l'inconfort : le doigt n'atteint jamais le
+    //              bouton. Un consentement qu'on ne peut pas donner n'est pas
+    //              un consentement.
+    const dialogues = [...document.querySelectorAll('[role="dialog"]')].filter((d) => {
+      const r = d.getBoundingClientRect(); const st = getComputedStyle(d)
+      return r.width > 0 && r.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'
+    })
+    const couches = dialogues.length
+    const couchesListe = dialogues.map((d) => (
+      d.getAttribute('aria-label') || d.querySelector('h1,h2,h3,p')?.textContent || d.tagName
+    ).trim().replace(/\s+/g, ' ').slice(0, 40))
+    const bloques = []
+    for (const d of dialogues) {
+      for (const b of d.querySelectorAll('button, a[href], input, select')) {
+        // UN LIEN EN LIGNE QUI PASSE À LA LIGNE A UN CADRE MENSONGER. Son
+        // `getBoundingClientRect()` englobe les deux lignes, et son centre
+        // tombe entre les deux — sur le paragraphe, pas sur le lien. Le
+        // contrôle criait ainsi au loup sur « En savoir plus », parfaitement
+        // touchable. On teste donc CHAQUE morceau de ligne (`getClientRects`),
+        // et on ne déclare recouvert que ce qui l'est PARTOUT. Une alerte qui
+        // ne peut pas s'éteindre finit par ne plus être lue — ce banc en porte
+        // déjà deux cicatrices (07 et 08/09/2026), on n'en ajoute pas une.
+        const morceaux = [...b.getClientRects()].filter((r) => r.width >= 4 && r.height >= 4)
+        if (!morceaux.length) continue
+        let dessus = null
+        const couvertPartout = morceaux.every((r) => {
+          const x = r.left + r.width / 2, y = r.top + r.height / 2
+          if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return true // hors écran : pas un recouvrement
+          const el = document.elementFromPoint(x, y)
+          if (!el || b.contains(el) || b === el) return false
+          dessus = el
+          return true
+        })
+        if (!couvertPartout || !dessus) continue
+        const nom = (b.getAttribute('aria-label') || b.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 22)
+        const par = `${dessus.tagName.toLowerCase()}${String(dessus.className || '').split(' ').filter(Boolean)[0] ? '.' + String(dessus.className).split(' ')[0] : ''}`
+        bloques.push(`« ${nom} » recouvert par ${par}`)
+      }
+    }
+    return { ...window.__m, images: imgs.length, surdim, surdimListe, sansAlt, cibles, ciblesListe, sansNom, couches, couchesListe, bloques, texte: document.body.innerText.length }
   })
   try { await page.screenshot({ path: join(D, 'captures', p.nom.replace(/[^a-z]+/gi, '-').toLowerCase() + '.png') }) } catch { /* tant pis */ }
   resultats.push({ ...p, requetes, octets, tDom, tLoad, tCalme, ...mesures, erreurs, echecs, tiers: [...tiers], liste })
@@ -326,10 +411,11 @@ await navigateur.close()
 // ── Le tableau ───────────────────────────────────────────────────────────────
 console.log(`\n  ${ECRAN === 'bureau' ? 'Ordinateur 1440 px' : 'Téléphone d’entrée de gamme'}, 3G rapide (1,6 Mbit/s, 150 ms), processeur ×4 plus lent, visite à froid :\n`)
 const col = (s, n) => String(s).padEnd(n)
-console.log('  ' + col('page', 22) + col('req.', 6) + col('réseau', 9) + col('DOM', 8) + col('chargée', 9) + col('calme', 8) + col('LCP', 8) + col('CLS', 7) + col('err.', 6) + col('échecs', 8) + col('img>case', 9) + col('<44px', 7) + 'tiers')
+console.log('  ' + col('page', 22) + col('req.', 6) + col('réseau', 9) + col('DOM', 8) + col('chargée', 9) + col('calme', 8) + col('LCP', 8) + col('CLS', 7) + col('err.', 6) + col('échecs', 8) + col('img>case', 9) + col('<44px', 7) + col('calques', 9) + 'tiers')
 for (const r of resultats) {
   console.log('  ' + col(r.nom, 22) + col(r.requetes, 6) + col(ko(r.octets), 9) + col(`${(r.tDom / 1000).toFixed(1)} s`, 8) + col(`${(r.tLoad / 1000).toFixed(1)} s`, 9)
-    + col(`${(r.tCalme / 1000).toFixed(1)} s`, 8) + col(`${(r.lcp / 1000).toFixed(1)} s`, 8) + col(r.cls.toFixed(3), 7) + col(r.erreurs.length, 6) + col(r.echecs.length, 8) + col(`${r.surdim}/${r.images}`, 9) + col(r.cibles, 7) + r.tiers.length)
+    + col(`${(r.tCalme / 1000).toFixed(1)} s`, 8) + col(`${(r.lcp / 1000).toFixed(1)} s`, 8) + col(r.cls.toFixed(3), 7) + col(r.erreurs.length, 6) + col(r.echecs.length, 8) + col(`${r.surdim}/${r.images}`, 9) + col(r.cibles, 7)
+    + col(r.couches > 1 ? `${r.couches} ⚠️` : r.couches, 9) + r.tiers.length)
 }
 console.log()
 for (const r of resultats) {
@@ -345,6 +431,8 @@ for (const r of resultats) {
   for (const d of r.decalages ?? []) console.log(`     ↕  décalage ${d.v} à ${d.t} ms : ${d.qui.join(' ; ')}`)
   if (r.ciblesListe?.length) console.log(`     👆 cibles < 44 px : ${r.ciblesListe.join(' · ')}`)
   if (r.surdimListe?.length) console.log(`     🖼️  images plus grosses que leur case : ${r.surdimListe.join(' · ')}`)
+  if (r.couches > 1) console.log(`     🪟 ${r.couches} fenêtres EN MÊME TEMPS : ${r.couchesListe.join(' + ')}`)
+  for (const b of [...new Set(r.bloques ?? [])]) console.log(`     🚫 injoignable au doigt : ${b}`)
   // Les six requêtes les plus lourdes, et celles qui partent plusieurs fois.
   const lourdes = [...r.liste].sort((a, b) => b.taille - a.taille).slice(0, 6)
   for (const q of lourdes) console.log(`     ⬇  ${ko(q.taille).padStart(7)}  ${q.url.split('?')[0].slice(0, 70)}`)
@@ -364,6 +452,17 @@ dire(exceptions.length === 0, 'aucune exception JavaScript sur les neuf pages', 
 dire(echecsNotres.length === 0, 'aucune requête vers notre serveur en échec', echecsNotres.slice(0, 3).join(' | '))
 // 120 : la page de connexion, volontairement sobre, fait 184 caractères.
 dire(resultats.every((r) => r.texte > 120), 'chaque page a rendu du contenu (pas d’écran blanc)', resultats.filter((r) => r.texte <= 120).map((r) => `${r.nom} : ${r.texte}`).join(', '))
+// UNE SEULE FENÊTRE À LA FOIS (10/09/2026). Deux calques empilés à l'arrivée,
+// c'est déjà un mauvais accueil ; mais le rouge se joue sur le suivant.
+const empilees = resultats.filter((r) => r.couches > 1)
+dire(empilees.length === 0, 'jamais deux fenêtres ouvertes en même temps',
+  empilees.map((r) => `${r.nom} : ${r.couchesListe.join(' + ')}`).join(' | '))
+// UN BOUTON QU'ON NE PEUT PAS TOUCHER N'EXISTE PAS. C'est le contrôle qui
+// compte : le bandeau cookies était recouvert par la pop-up newsletter, et
+// « Accepter » / « Refuser » ne recevaient plus un seul clic.
+const injoignables = resultats.flatMap((r) => (r.bloques ?? []).map((b) => `${r.nom} : ${b}`))
+dire(injoignables.length === 0, 'aucun bouton de fenêtre recouvert par un autre calque',
+  injoignables.slice(0, 4).join(' | '))
 if (rouges) { console.log(`\n❌ ${rouges} contrôle(s) rouge(s).`); process.exit(1) }
 console.log('\n✅ Le front tient ; les chiffres ci-dessus disent ce qui pèse.')
 process.exit(0)

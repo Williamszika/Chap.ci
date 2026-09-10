@@ -43,8 +43,29 @@ export function CookieConsent() {
 
   return (
     <div
-      // z-50 : SOUS les feuilles et les fenêtres du site (z-60), jamais par-dessus.
-      className="fixed inset-x-0 bottom-0 z-50 animate-fadeup px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3"
+      // ── z-[75] : AU-DESSUS DE CE QUI S'OUVRE TOUT SEUL (10/09/2026) ────────
+      //
+      // Ce bandeau portait `z-50`, avec le commentaire « SOUS les feuilles et
+      // les fenêtres du site (z-60), jamais par-dessus ». La prémisse était
+      // fausse : la pop-up newsletter est à z-70, et son voile plein écran
+      // recouvrait le bandeau. « Accepter » et « Refuser » ne recevaient plus
+      // un seul clic — un consentement qu'on ne peut pas donner n'en est pas un.
+      //
+      // L'ordre des calques du site, à respecter :
+      //     z-40/50  la navigation, les feuilles, les menus
+      //     z-[60]   les panneaux du site
+      //     z-[70]   les fenêtres qui s'ouvrent SEULES (newsletter, admin)
+      //  →  z-[75]   CE BANDEAU : il passe devant tout ce qui s'ouvre seul
+      //     z-[80]   les messages fugaces (ils ne prennent pas le clic)
+      //     z-[90]   la photo en plein écran, ouverte par un geste explicite —
+      //              la seule chose qui a le droit de masquer ce bandeau, le
+      //              temps qu'on regarde une photo, et il revient en la fermant.
+      //
+      // La vraie garantie n'est pas ce nombre : c'est que la newsletter ne
+      // s'arme plus tant que ce bandeau attend une réponse (`NewsletterPrompt`).
+      // Ceci en est la seconde ceinture, pour la prochaine fenêtre qu'on
+      // ajoutera sans y penser.
+      className="fixed inset-x-0 bottom-0 z-[75] animate-fadeup px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3"
       role="dialog"
       aria-label="Consentement aux cookies"
     >
