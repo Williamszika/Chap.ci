@@ -5157,3 +5157,63 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   ça veut dire.
 
 - **Deux rondes, zéro problème ouvert.** À noter, parce que ça n'arrive pas souvent.
+
+### 2026-09-10 09:00 — [Direction] Le Secrétariat — `fcm: true`. La clé Firebase est lue.
+- **Le relevé, une seule requête après cinq minutes de silence :**
+  ```
+  empreinte e5fd19520b7c · empreinteSite 3ed73ea9f046 · empreinteSeo 9536aeb35d70
+  fichiersInattendus 0 · videoMaxMo 60 · fcm true · php 8.5.10
+  déposé 2026-09-10T07:20:18Z
+  ```
+  Les trois empreintes correspondent au dépôt. **Le zip n° 21 est extrait**, et le
+  chantier ouvert le 08/09 est clos côté serveur.
+- **Ce que `fcm: true` prouve, et rien de plus** : `api/data/fcm.json` est là, PHP
+  le lit, et il porte les trois champs attendus. Le Patron l'avait déposé à la main
+  le 08/09 ; pendant deux jours, personne — lui compris — n'avait aucun moyen de
+  savoir si le geste avait porté. C'est exactement la panne muette que le témoin
+  a été écrit pour rendre visible, et il a servi dès sa première mise en ligne.
+- **`fichiersInattendus: 0`** : le `04playconsoleaccesproduction.md`, déposé par
+  erreur dans `api/` à 09:35, a bien été retiré.
+
+- **CE QUI A COÛTÉ TROIS HEURES, ET CE QUE ÇA APPREND.** Dix-sept lignes de
+  différence entre la production et le dépôt. Trois heures pour les y mettre — et
+  pas une minute perdue sur le code.
+
+  **Le Mac du Patron était plein.** 116 Mo libres sur 228 Go. Chaque outil a
+  annoncé la panne dans SA langue, et aucun n'a dit « disque plein » assez fort :
+  Chrome disait « Ein Problem ist aufgetreten », git parlait de
+  `.git/FETCH_HEAD`, `cp` échouait sans bruit. J'ai cherché du côté du poids du
+  zip et l'ai ramené de 11 Mo à 2,9 — sans effet, forcément.
+
+  **La preuve était pourtant dans la première capture** : un fichier de 22 Mo
+  téléchargé la veille sans une plainte, trois lignes sous le zip en échec. Une
+  mesure qui contredisait mon hypothèse, sous mes yeux, et je ne l'ai pas lue.
+  C'est la faute la plus coûteuse de la journée, et elle n'a rien de technique.
+
+  Gisements réels, mesurés : corbeille jamais vidée **11 Go**, `iOS DeviceSupport`
+  **16 Go**. Vingt-sept gigaoctets en deux gestes sans risque. `~/Library` pèse
+  encore 73 Go non expliqués — à ouvrir un autre jour.
+
+  Consigné en vérification n° 0 de `store/BUILD-v1.25.md` : 20 Go libres avant de
+  construire. Un `flutter build appbundle` sur disque plein échoue au milieu, avec
+  un message Gradle qui ne parle jamais d'espace.
+
+- **ET J'AI FAIT TOMBER LE SITE EN LE MESURANT.** L'option `--leger` de
+  `faire-zip.mjs`, écrite ce matin, vérifiait la présence des gros fichiers par un
+  GET : elle a téléchargé 30 Mo depuis la production pour lire deux nombres.
+  Résultat, la page « 403 Forbidden » de LiteSpeed sur `/api/health` — donc
+  potentiellement chez des visiteurs. L'outil de livraison avait fait tomber le
+  site qu'il livre, alors que son propre commentaire, deux lignes plus haut,
+  disait de ne pas le faire. Corrigé en `-I` (les en-têtes seuls, 30 Mo de moins),
+  et sans repli sur un GET : mieux vaut un zip lourd qu'un site en 403.
+
+  Effet de bord plus vicieux : ce 403-là est identique, aux 1 242 octets près, à
+  celui qu'on obtient sur un fichier réellement interdit. Il a servi pendant
+  quelques minutes à conclure des choses fausses sur un fichier étranger trouvé
+  dans `api/`. **Un bruit qu'on provoque soi-même a l'air d'une mesure** — c'est
+  le pire des bruits, et la règle des cinq minutes est ce qui l'éteint : la
+  requête ci-dessus, la première après le silence, est passée du premier coup.
+
+- **Restent, dans l'ordre** : l'examen Google (réponse vers le 17/09, ne perdre
+  aucun testeur d'ici là), le build de l'AAB v1.25 — la seule chose qui manque
+  encore pour qu'un téléphone sonne — et le ménage des 73 Go.
