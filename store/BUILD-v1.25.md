@@ -105,6 +105,46 @@ le site `chap.ci` continue de marcher chez eux comme avant.
 
 ---
 
+## ⛔ Vérification n° 0 : la place sur le disque
+
+**Comptez 20 Go libres.** En dessous de 10, n'essayez même pas.
+
+Le 10/09/2026, le Mac du Patron est tombé à **116 Mo libres sur 228 Go**. Ce
+n'est pas une anecdote : ça a bloqué le `git pull`, le `cp`, le téléchargement
+du zip dans Chrome — et il a fallu une heure pour comprendre, parce que chaque
+outil annonçait sa panne à SA manière (« Ein Problem ist aufgetreten » côté
+Chrome, `.git/FETCH_HEAD` côté git) et aucun ne disait « disque plein » assez
+fort.
+
+Un `flutter build appbundle` sur un disque plein échoue au milieu de la
+compilation, avec un message Gradle obscur qui ne parle jamais d'espace. On
+cherche alors le bug là où il n'est pas.
+
+```bash
+df -h /System/Volumes/Data
+```
+
+Colonne **Avail**. Si c'est bon, passez à la suite.
+
+### Si c'est trop juste — les quatre gisements, du plus sûr au moins sûr
+
+| Commande | Ce que ça rend | Risque |
+|---|---|---|
+| Finder → Corbeille → **Vider la corbeille** | *(11 Go le 10/09)* | aucun — c'est déjà supprimé |
+| `rm -rf "$HOME/Library/Developer/Xcode/iOS DeviceSupport"` | *(16 Go le 10/09)* | aucun — refait quand vous rebranchez l'iPhone |
+| `rm -rf ~/Library/Developer/Xcode/DerivedData` | *(2 Go)* | aucun — cache Xcode, refait au build |
+| `rm -rf ~/chapci-app/flutter_app/build` | *(1,5 Go)* | aucun — refait au build |
+
+Les quatre sont des **caches**. Rien de ce que vous avez écrit n'y est.
+
+Ensuite seulement, et si ça ne suffit pas, on regarde `~/.gradle` (4 Go, se
+retélécharge tout seul mais c'est long) et vos propres dossiers.
+
+⚠️ **Copiez-collez ces lignes, ne les retapez pas.** Une faute de frappe dans un
+`rm -rf` efface autre chose.
+
+---
+
 ## Avant de taper quoi que ce soit : deux vérifications
 
 **1. Le code 26 est-il libre ?**
