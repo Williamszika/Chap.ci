@@ -224,7 +224,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
         children: [
           SlidableAction(
             onPressed: (_) => _epingler(c),
-            backgroundColor: ChapColors.orange,
+            // Épingler est une ACTION, et c'est la seule colorée de cette
+            // liste — les deux autres (archiver, bloquer) sont grises. Elle
+            // portait `ChapColors.orange`, qui rend du vert : la couleur de
+            // la marque servait à distinguer une action des actions neutres,
+            // ce qui n'est pas son rôle.
+            backgroundColor: ChapColors.action,
             foregroundColor: Colors.white,
             icon: c.pinned ? Icons.push_pin_outlined : Icons.push_pin,
             label: c.pinned ? tr(context, 'msg.desepingler') : tr(context, 'msg.epingler'),

@@ -147,9 +147,9 @@ export function Favorites() {
                           <span className="whitespace-nowrap">→ {formatFCFA(f.prix)}</span>
                         </p>
                       ) : f.vendue ? (
-                        <p className="truncate text-[11.5px] text-gray-400">Vendue — à retirer ?</p>
+                        <p className="truncate text-[11.5px] text-gray-500">Vendue — à retirer ?</p>
                       ) : f.retiree ? (
-                        <p className="truncate text-[11.5px] text-gray-400">Retirée par le vendeur</p>
+                        <p className="truncate text-[11.5px] text-gray-500">Retirée par le vendeur</p>
                       ) : (
                         <p className="truncate text-[11.5px] text-gray-500">
                           {formatFCFA(f.prix)}{f.commune ? ` · ${f.commune}` : ''}

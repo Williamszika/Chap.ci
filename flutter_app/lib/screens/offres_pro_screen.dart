@@ -146,9 +146,6 @@ class _OffresProScreenState extends State<OffresProScreen> {
                       onPressed: () => _editer(null),
                       icon: const Icon(Icons.add, size: 18),
                       label: Text(tr(context, 'offres.publier')),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: ChapColors.orange,
-                          foregroundColor: Colors.white),
                     ),
                   ),
                 ],
@@ -571,8 +568,6 @@ class _OffreFormScreenState extends State<OffreFormScreen> {
                   : Icon(modification ? Icons.check : Icons.send, size: 18),
               label: Text(tr(context,
                   modification ? 'action.enregistrer' : 'offres.f.publier')),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: ChapColors.orange, foregroundColor: Colors.white),
             ),
           ),
           if (!modification) ...[

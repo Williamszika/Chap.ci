@@ -109,9 +109,6 @@ class _ReseauxScreenState extends State<ReseauxScreen> {
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.check),
               label: Text(tr(context, 'action.enregistrer')),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: ChapColors.orange,
-                  foregroundColor: Colors.white),
             ),
           ),
         ],

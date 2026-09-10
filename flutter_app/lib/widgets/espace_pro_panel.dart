@@ -371,15 +371,19 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                       height: 1.4),
                 ),
                 const SizedBox(height: 10),
+                // 48, pas 40. Le thème garantit `minimumSize: Size.fromHeight(48)`
+                // pour TOUS les boutons pleins — mais une contrainte de parent
+                // l'écrase en silence, et celle-ci ramenait « Répondre » à
+                // 40 px, sous les 44 px de la règle tactile. Une garantie posée
+                // dans le thème ne protège pas de ce qui la contraint par
+                // au-dessus (trouvé le 10/09/2026, en corrigeant la couleur du
+                // même bouton).
                 SizedBox(
-                  height: 40,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                             builder: (_) => const MessagesScreen())),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: ChapColors.orange,
-                        foregroundColor: Colors.white),
                     child: Text(tr(context, 'pro.tab.repondre'),
                         style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 12.5)),
@@ -598,9 +602,6 @@ class _EspaceProPanelState extends State<EspaceProPanel> {
                   builder: (_) => const PublierScreen())),
               icon: const Icon(Icons.add),
               label: Text(tr(context, 'pro.tab.publier')),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: ChapColors.orange,
-                  foregroundColor: Colors.white),
             ),
           ),
         ],

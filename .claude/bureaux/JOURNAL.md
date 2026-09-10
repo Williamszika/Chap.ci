@@ -5217,3 +5217,76 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
 - **Restent, dans l'ordre** : l'examen Google (réponse vers le 17/09, ne perdre
   aucun testeur d'ici là), le build de l'AAB v1.25 — la seule chose qui manque
   encore pour qu'un téléphone sonne — et le ménage des 73 Go.
+
+### 2026-09-10 13:20 — [Confiance & Sécurité] 🛡️ Le Gardien — seconde ronde
+- **Tout vert, rien à remonter.** Santé : accueil/sitemap 200, `/api/health` OK,
+  PHP 8.5.10, `fichiersInattendus: 0`, les trois empreintes cohérentes avec le
+  dépôt (déjà confirmé par le Secrétariat à 09:00).
+- **Sécurité 24 h** : `failRatio`, `suspiciousIps`, `rateLimited`,
+  `adminUnlockFail`, `mfaFail`, `adminsTampered` — tout à zéro. Les `cron_fail 4`
+  / `mtoken_fail 4` sont inchangés depuis 05:50 : sa propre signature de test.
+- **CSP** : une violation `media-src: data` (12:42), sans origine identifiable
+  dans le code. Surveillée, pas d'action.
+- **TLS** : `crt.sh` toujours injoignable — troisième tour. Il garde la dernière
+  valeur fiable (17/08, échéance 2026-10-12) **sans en inventer une nouvelle**.
+  C'est la bonne conduite ; mais trois tours à l'aveugle sur une échéance qui
+  tombe le 12/10, ça commence à compter. À rouvrir avant fin septembre.
+- **Modération** : file vide, digest posé sans e-mail. Aucune notification —
+  conformément à la règle du silence quand tout va bien.
+
+### 2026-09-10 13:40 — [Design & Typographie] 🎨 L'Atelier — ronde, et ses limites
+- **L'Atelier a déclaré sa limite d'entrée** : pas d'accès au site en ligne, audit
+  sur le code source seul, jamais en écran. C'est ce qui rend son rapport
+  utilisable — on sait exactement ce qu'il n'a pas pu voir.
+- **Les cinq propositions site : toutes vérifiées, toutes appliquées.** Contrastes
+  recalculés plutôt que crus : `gray-400` sur blanc donne **2,54:1** (l'AA exige
+  4,5), `gray-500` donne **4,83:1**. Le chiffre annoncé pour le séparateur « ou »
+  était en revanche inexact — « ≈ 2,1:1 sur fond crème » alors que la carte est en
+  `bg-white` : c'est 2,54:1 comme les autres. La conclusion ne change pas.
+- **Un défaut de plus que ce qu'il signalait** : `Favorites.tsx:152` (« Retirée par
+  le vendeur ») portait le même `gray-400`, et la branche juste en dessous était
+  déjà en `gray-500`. Corrigé aussi.
+- **`.btn-primary` / `.btn-outline`** : constat exact — 14 fichiers protègent leurs
+  `hover:` derrière `md:`, et `index.css` en avait exactement deux qui ne l'étaient
+  pas. Les deux classes de bouton les plus utilisées du site.
+
+- **LA TROUVAILLE FLUTTER — ET ELLE ÉTAIT PLUS GRANDE QUE SIGNALÉE.**
+  `ChapColors.orange` vaut `#009E60`, c'est-à-dire du VERT, depuis le 30/08.
+  L'Atelier a compté 7 boutons d'action qui l'utilisent encore. **Il y en avait
+  dix** : `admin/moderateurs_screen.dart:122` et les deux d'`espace_pro_panel.dart`
+  lui ont échappé.
+  Deux ne sont pas des actions et **restent verts** : le badge de filtre de
+  `browse_screen.dart:339` est un indicateur, pas une action — on ne repeint pas
+  ça sans décision du Patron.
+
+  **Et la correction n'est pas celle qu'il proposait.** Il suggérait de remplacer
+  `ChapColors.orange` par `ChapColors.action`. Or **six des huit boutons ne
+  faisaient que redire ce que le thème disait déjà** (`backgroundColor` +
+  `foregroundColor`, rien d'autre) : le bon geste est de **supprimer la
+  surcharge**, pas d'y corriger une constante. La duplication ÉTAIT le bug — une
+  copie qui a cessé de suivre l'original. Les deux autres (un bouton flottant, une
+  action de glissement) ne sont couverts par aucun thème : ceux-là passent
+  explicitement à `ChapColors.action`.
+
+  **`filledButtonTheme` manquait** : constat exact et important. `FilledButton` et
+  `ElevatedButton` sont deux widgets pour le même rôle, et seul le second était
+  peint. Miroir ajouté.
+
+- **CE QUE L'ATELIER A LOUÉ DANS LE MÊME RAPPORT, ET QUI NE TENAIT PAS.** Il écrit
+  que `minimumSize: Size(48,48)` garantit la cible tactile « par construction, pas
+  au cas par cas », et qu'« une régression future y est structurellement bloquée ».
+  En corrigeant la couleur du bouton « Répondre » d'`espace_pro_panel.dart`, on
+  trouve un `SizedBox(height: 40)` autour de lui : **une contrainte de parent
+  écrase la garantie du thème, en silence**, et ramène le bouton sous les 44 px.
+  Passé à 48.
+  La leçon n'est pas contre l'Atelier — c'est la bonne architecture. Mais **une
+  garantie posée dans un thème ne protège pas de ce qui la contraint par
+  au-dessus**, et un audit qui lit le thème sans lire les parents ne peut pas le
+  voir. C'est exactement ce que sa limite déclarée annonçait.
+
+- **Contrôles** : `tsc -b --noEmit` propre, `npm run build` propre,
+  `npm run banc:front` vert sur les dix pages. Côté app : `flutter analyze` 35
+  issues et le seul avertissement connu (`_proNom`), `flutter test` **260 passent,
+  12 échouent** — la ligne de base exacte, aucune régression.
+- **Reste ouvert** : la quarantaine de `text-gray-400` non encore triés, et le
+  badge de filtre laissé vert en attente d'un avis du Patron.

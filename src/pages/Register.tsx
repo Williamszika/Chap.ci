@@ -182,7 +182,7 @@ export function Register() {
                 <FacebookSignInButton onToken={handleFacebookSignup} label="S’inscrire avec Facebook" />
               )}
             </div>
-            <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
+            <div className="my-4 flex items-center gap-3 text-xs text-gray-500">
               <span className="h-px flex-1 bg-line" /> ou <span className="h-px flex-1 bg-line" />
             </div>
           </>
@@ -199,11 +199,11 @@ export function Register() {
 
           {/* Où êtes-vous ? En Côte d'Ivoire, ou ailleurs (07/09/2026). */}
           <div>
-            <span className="mb-1.5 block text-sm font-semibold text-gray-700">Où êtes-vous ?</span>
+            <span className="mb-1.5 block text-sm font-semibold text-gray-700">Où êtes-vous ?</span>
             <button type="button" onClick={() => setLieuOuvert(true)}
               className="input flex items-center gap-2 text-left">
               <MapPin size={18} className="shrink-0 text-primary-500" />
-              <span className={`min-w-0 flex-1 truncate ${lieu.regionId ? 'text-ink' : 'text-gray-400'}`}>
+              <span className={`min-w-0 flex-1 truncate ${lieu.regionId ? 'text-ink' : 'text-gray-500'}`}>
                 {lieu.regionId ? locationLabel(lieu.regionId, lieu.cityId, lieu.commune) : 'Votre ville, en Côte d’Ivoire ou ailleurs'}
               </span>
               <span className="shrink-0 text-xs font-semibold text-primary-600">{lieu.regionId ? 'Modifier' : 'Choisir'}</span>

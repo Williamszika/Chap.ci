@@ -124,9 +124,9 @@ class _VideoScreenState extends State<VideoScreen> {
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.white70)),
                     const SizedBox(height: 16),
+                    // Pas de `style` : `filledButtonTheme` peint l'orange
+                    // d'action. Il portait `ChapColors.orange`, qui vaut vert.
                     FilledButton(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: ChapColors.orange),
                       onPressed: _charger,
                       child: Text(tr(context, 'action.reessayer')),
                     ),

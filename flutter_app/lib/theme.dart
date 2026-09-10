@@ -112,6 +112,30 @@ ThemeData chapTheme() {
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
       ),
     ),
+    // ── LE MÊME RÉGLAGE POUR LES `FilledButton` (10/09/2026) ────────────────
+    //
+    // `elevatedButtonTheme` ne peint QUE les `ElevatedButton`. Un
+    // `FilledButton` — l'autre widget Material pour « bouton plein », choisi
+    // au hasard du clavier — retombait sur `colorScheme.primary`, c'est-à-dire
+    // le VERT de la marque. Deux widgets pour le même rôle, deux couleurs.
+    //
+    // Vu par 🎨 L'Atelier : le « Réessayer » de l'écran vidéo écrivait
+    // `backgroundColor: ChapColors.orange` — le nom disait orange, le rendu
+    // était vert (la constante vaut #009E60 depuis le 30/08), et le thème ne
+    // pouvait pas le rattraper puisqu'il ne connaissait pas ce widget-là.
+    //
+    // Miroir exact de `elevatedButtonTheme` ci-dessus : une seule vérité pour
+    // les deux widgets, et un `FilledButton` neuf est orange sans qu'on ait à
+    // y penser.
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: ChapColors.action,
+        foregroundColor: Colors.white,
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+      ),
+    ),
     // Les IconButton (retour, favori, options…) doivent eux aussi offrir une
     // cible d'au moins 48 px : Material 3 les réduit sinon sous le pouce.
     iconButtonTheme: IconButtonThemeData(

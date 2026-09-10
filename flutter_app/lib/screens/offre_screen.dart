@@ -399,9 +399,6 @@ class _OffreScreenState extends State<OffreScreen> {
                             strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.work_outline, size: 18),
                 label: Text(tr(context, 'emploi.envoyer')),
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: ChapColors.orange,
-                    foregroundColor: Colors.white),
               ),
             ),
             const SizedBox(height: 8),

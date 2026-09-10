@@ -119,7 +119,10 @@ class _ModerateursScreenState extends State<ModerateursScreen> {
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _ouvrirEditeur(),
-              backgroundColor: ChapColors.orange,
+              // `action`, pas `orange` : la constante au nom trompeur vaut
+              // #009E60 (vert) depuis le 30/08. Un bouton flottant est une
+              // action, donc orange.
+              backgroundColor: ChapColors.action,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.person_add_alt_1),
               label: const Text('Ajouter'),

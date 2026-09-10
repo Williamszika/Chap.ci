@@ -181,7 +181,7 @@ export function Login() {
                   )}
                 </div>
 
-                <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
+                <div className="my-4 flex items-center gap-3 text-xs text-gray-500">
                   <span className="h-px flex-1 bg-line" /> ou <span className="h-px flex-1 bg-line" />
                 </div>
               </>

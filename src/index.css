@@ -141,13 +141,13 @@ select:focus-visible,
      pas. #C25A00 atteint 4,6:1, #9A4100 monte à 6,7:1. Le 500 reste l'orange
      du drapeau, pour les aplats et les icônes qui ne portent pas de texte. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-action-600 to-action-700 px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(154,65,0,0.5)] transition active:scale-[0.98] hover:brightness-[1.08] disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-action-600 to-action-700 px-4 py-3 font-display font-bold text-white shadow-[0_6px_16px_-6px_rgba(154,65,0,0.5)] transition active:scale-[0.98] md:hover:brightness-[1.08] disabled:opacity-50;
     /* Lisibilité plein soleil : léger relief sur le texte blanc (comme .txt-legible). */
     text-shadow: 0 1px 2px rgba(80, 30, 0, 0.4);
   }
   /* Bouton secondaire — bordure « sable » chaude (artifact --line2). */
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line2 bg-white px-4 py-3 font-display font-bold text-ink transition active:scale-[0.98] hover:bg-cream-100;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line2 bg-white px-4 py-3 font-display font-bold text-ink transition active:scale-[0.98] md:hover:bg-cream-100;
   }
   .input {
     /* 16px sur téléphone : en dessous, iOS Safari zoome automatiquement sur le
