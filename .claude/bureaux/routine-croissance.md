@@ -80,12 +80,28 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
 ÉTAT CONNU DU PROJET (surveille, ne re-découvre pas) :
 - Site chap.ci (React + HashRouter) ; rendu serveur crawlable via web/seo.php.
 - Sitemap : accueil + fiches annonces + les pages « /vendre/{catégorie}/{commune} ».
-  NE FIGE PAS SON NOMBRE ICI. Ce prompt a longtemps porté « 349 URLs, 15
-  catégories » ; les catégories ont été fusionnées à 13 le 01/08 et le sitemap
-  est descendu à 307 — un bureau qui compare au chiffre écrit ici conclurait à
-  une disparition de pages. Compte-le à chaque ronde :
-    curl -sS 'https://chap.ci/sitemap.xml' | grep -c '<loc>'
-  et rapporte la variation avec son explication (catégorie ajoutée ou fusionnée,
+
+  ⛔ AUCUN NOMBRE D'URLS NI DE CATÉGORIES N'EST ÉCRIT DANS CE PROMPT, ET C'EST
+     VOULU. Si vous en lisez un ci-dessous, c'est un CONTRE-EXEMPLE daté — la
+     preuve de ce qui arrive quand on fige un chiffre — jamais une référence à
+     laquelle comparer. ⛔
+
+  L'histoire : ce prompt a longtemps porté « 349 URLs, 15 catégories ». Les
+  catégories ont été fusionnées à 13 le 01/08, le sitemap est descendu à 307, et
+  un bureau qui comparait au chiffre écrit ici concluait à une disparition de
+  pages. Le 09/09, le Crieur a de nouveau pris ces chiffres pour le référentiel
+  du bureau et a demandé qu'on les mette à jour « 15 → 16 » : c'est exactement le
+  geste qui recrée la panne. On ne les met pas à jour, on ne les remplace pas —
+  ils ne servent à rien d'autre qu'à raconter ça.
+
+  Le sitemap est le référentiel. Prenez-le UNE fois par ronde, gardez-le, et
+  tirez-en tout ce dont vous avez besoin — le compte ET la liste des catégories :
+
+    curl -sS 'https://chap.ci/sitemap.xml' > /tmp/sitemap.xml
+    grep -c '<loc>' /tmp/sitemap.xml                              # le nombre d'URLs
+    grep -o '/vendre/[^/]*/' /tmp/sitemap.xml | sort -u           # les catégories vivantes
+
+  Rapportez la variation avec son explication (catégorie ajoutée ou fusionnée,
   annonce publiée ou vendue). Bingerville est incluse dans les communes.
 - Fiches /annonce/{uuid} : JSON-LD Product/Offer (XOF), canonical, index,follow,
   og:image absolue — VÉRIFIÉ EN PRODUCTION, fonctionnel. Ne pas re-signaler.
@@ -164,8 +180,19 @@ MÉTHODE DE TEST (obligatoire — évite les fausses alertes) :
        curl -sS -A 'Googlebot' 'https://chap.ci/annonce/<uuid_reel>'
      Attendu : HTTP 200 · JSON-LD Product/Offer (priceCurrency XOF) · canonical
      · meta robots index,follow · og:image en URL absolue.
-   - Page vendeur : curl -sS 'https://chap.ci/vendre/telephones/cocody'
-   - Sitemap : curl -sS -o /dev/null -w '%{http_code}' 'https://chap.ci/sitemap.xml'
+   - Page vendeur : NE TAPE AUCUNE ADRESSE À LA MAIN. Tire-la du sitemap que tu
+     as déjà pris plus haut — une adresse écrite ici devient fausse le jour où
+     une catégorie est renommée, et le bureau signale alors un 404 qui n'existe
+     pas.
+       url=$(grep -o 'https://chap.ci/vendre/[^<]*' /tmp/sitemap.xml | head -1)
+       curl -sS -o /dev/null -w "$url -> %{http_code}\n" "$url"
+     Le 09/09/2026, le Crieur a signalé un 404 sur
+     `https://chap.ci/vendre/telephones/cocody` — une adresse que CE PROMPT lui
+     donnait, et dont la catégorie n'existe pas (elle s'appelle `electronique`).
+     Il a eu le bon réflexe : reproduire, puis vérifier dans le sitemap avant de
+     conclure. Il ne devrait pas avoir eu à le faire.
+   - Sitemap : déjà pris plus haut (`/tmp/sitemap.xml`) — ne le redemande pas.
+     Vérifie simplement qu'il n'est pas vide : `grep -c '<loc>' /tmp/sitemap.xml`
    - robots.txt : curl -sS 'https://chap.ci/robots.txt' (doit pointer le sitemap)
    - Pages privées (/compte, /admin, /messages) : elles NE SONT PAS indexables,
      et c'est acquis par construction — HashRouter met les vraies adresses

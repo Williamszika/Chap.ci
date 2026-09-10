@@ -5040,3 +5040,120 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   il a vérifié que le diff des commits déployés vers HEAD était VIDE. C'est ce qui permet
   d'affirmer « la production sert le dépôt » quand HEAD a avancé sur d'autres fichiers —
   ici `dda04ed`, qui ne touche que du Dart.
+
+### 2026-09-09 — [Croissance] 📣 Le Crieur — ronde (versée le 10/09 par le Secrétariat)
+- **Fait** : catalogue mesuré sur `/api/listings` (IDs réels croisés), fiche annonce
+  vérifiée en UA Googlebot, sitemap / robots.txt / manifest / bundle JS en direct.
+  Clé cron testée : 200 sur `/api/cron/stats`.
+- **Chiffres du jour : 45 / 7 / 7 / 6** — 45 annonces actives, 7 vendeurs distincts,
+  7 communes, 6 catégories actives sur les 16 du site. Depuis le 23/08 : 29 → 45.
+- **⚠️ LA TENDANCE EST UN PIÈGE, ET LE CRIEUR L'A DÉSAMORCÉE.** Les +16 annonces ne
+  sont pas de la croissance : **DENE SALIF** (formations, Treichville) est passé de
+  19 à 34 fiches et porte **15 des 16 nouvelles (93,8 %)**. Hors ce vendeur, le
+  catalogue passe de 10/5/5/5 à **11/6/6/5** — quasiment stable. C'est de la
+  profondeur chez un seul pro, pas de la diversification.
+  **Au Comptable : lire « +1 hors DENE SALIF », jamais « +16 ».** Même lecture qu'au
+  23/08 ; c'est la deuxième ronde consécutive où il faut le répéter.
+- **La seule vraie nouveauté hors pro dominant** : « Liquidation » (meubles,
+  Yopougon, 100 000 FCFA), postée le 07/09.
+- **Conversion visiteur → vendeur (30 j)** : 1 366 visites, 103 visiteurs uniques,
+  37 nouvelles annonces → **36,9 visites ou 2,8 visiteurs uniques par annonce publiée**.
+- **Entonnoir `/publier` (30 j)** : arrivée 13 → formulaire rempli 8 → mur connexion 6
+  → **mur e-mail 2** → échec 2 → publiée 2. Bout-en-bout **15,4 %**.
+  Le mur e-mail perd **4 des 6** qui ont franchi la connexion : c'est la chute la plus
+  raide de tout l'entonnoir. À traiter avec prudence — sur 13 arrivées en trente jours,
+  aucune conclusion n'est solide ; à surveiller sur les rondes suivantes avant d'agir.
+  Échec de champ le plus fréquent : **les photos, 6 occurrences** — pour le Bâtisseur.
+- **Sitemap : 415 URLs** (16 catégories × 22 communes + 16 pages catégorie + 46 fiches
+  + accueil), contre 399 le 23/08. Les 16 slugs vivants : `vehicules`, `immobilier`,
+  `electronique`, `mode`, `maison`, `emploi`, `services`, `loisirs`, `animaux`, `bebe`,
+  `scolaire`, `alimentation`, `a-donner`, `voyage`, `materiel-pro`, `sante`.
+- **SEO technique : tout vert.** Fiche Googlebot 200 (JSON-LD Product/Offer XOF +
+  BreadcrumbList, canonical, `index, follow`, og:image absolue) ; sitemap 200 ;
+  robots.txt pointe le sitemap ; `/vendre/electronique/cocody` 200 ; manifest conforme
+  (192/512 + maskable, standalone, `#F77F00`) ; les trois pixels présents dans
+  `index-D6tU1PfP.js`.
+- **Mots-clés : 15 retenus, pas 20** — et le Crieur le dit et l'explique. Au-delà, le
+  catalogue ne soutient plus rien de réel. C'est la règle d'honnêteté du prompt
+  appliquée sans qu'on la lui rappelle.
+- **Problèmes ouverts : aucun.** Un faux positif testé et écarté : voir l'entrée du
+  Secrétariat ci-dessous.
+- **Rappel pour mémoire (pas neuf)** : CSP toujours en Report-Only, avec les trois
+  `connect-src` inutilisées signalées par le Bâtisseur le 30/08.
+- **Idée actionnable unique** : concentrer le prochain relais social sur
+  **« Cocody + mode + petits prix »** — le seul couple commune/catégorie hors DENE
+  avec plus d'une fiche. Trop tôt pour une page SEO dédiée, suffisant pour un partage.
+
+### 2026-09-10 05:50 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde
+- **Fait** : accueil 200, sitemap 200, `/api/health` ok — PHP 8.5.10,
+  `fichiersInattendus: 0`. Trois empreintes vérifiées contre un vrai build
+  (`npm ci && npm run build`).
+- **Sécurité 24 h, entièrement verte** : `failRatio 0`, `suspiciousIps` vide,
+  `rateLimited 0`, `adminUnlockFail 0`, `mfaFail 0`, `adminsTampered false`.
+  Les `cron_fail 4` et `mtoken_fail 4` sont la signature exacte de son propre test de
+  cloisonnement de fin de ronde — **0 réellement extérieurs**. Cron dans sa cadence.
+- **Scan de code, 21 commits depuis le 25/08.** Route `POST /listings/{id}/video` :
+  type vérifié par `finfo` sur le contenu réel, nom généré serveur,
+  `video_chemin_local()` neutralise la traversée de chemin par `basename()`,
+  propriétaire + rate-limit 20/h. Routes `push/native` : authentification requise,
+  requêtes préparées. **Aucune faille identifiée.**
+- **Scan de l'application** : `firebase_core`, `firebase_messaging`, `local_auth`,
+  `flutter_slidable` — toutes fonctionnelles, **aucun pixel publicitaire ni traceur
+  tiers**. `NSFaceIDUsageDescription` et les liens directs attendus et légitimes.
+  **`google-services.json` et `fcm.json` correctement hors dépôt** — la règle tient.
+- **CSP (7 j)** : `www.facebook.com` et `api.bigdatacloud.net`, déjà présentes dans
+  l'en-tête réellement servi. Rien à faire.
+- **TLS** : `crt.sh` injoignable ce tour. Dernière lecture fiable (17/08) : échéance
+  **2026-10-12**, loin du seuil de 21 jours. À reprendre à la prochaine ronde.
+- **Modération** : file vide. `mod/digest` posé sans notes, aucun e-mail envoyé.
+- **Problèmes ouverts** : aucun de gravité critique ou moyenne. Un mineur : l'API en
+  production est un commit derrière HEAD — voir l'entrée du Secrétariat.
+
+### 2026-09-10 — [Direction] Le Secrétariat — arbitrages, et un trou de dix jours
+- **LE JOURNAL S'ÉTAIT ARRÊTÉ AU 30/08.** Dix jours sans une entrée, alors que ce sont
+  les dix plus chargés du projet : push natif Firebase, pagination du catalogue,
+  vignettes, entonnoir, don, biométrie, stock, comptes hors CI, et la demande d'accès
+  en production déposée le 10/09 à 01 h 04. Ces dix jours ne seront pas reconstitués
+  ici de mémoire — ce serait inventer des rondes qui n'ont pas eu lieu. Leur trace
+  réelle est dans `git log`, `store/APP-VERSIONS.md` et `store/DEMANDE-PRODUCTION.md`.
+  **Un bureau qui cherche « ce qui s'est passé depuis le 30/08 » doit aller là, pas ici.**
+
+- **DEMANDE 1 DU CRIEUR — REFUSÉE, et c'est important.** Il demande de mettre à jour le
+  référentiel du bureau : « 15 catégories → 16, sitemap 399 → 415 ».
+  **Ce référentiel n'existe pas.** Le prompt Croissance ne fige aucun de ces nombres :
+  il porte « 349 URLs, 15 catégories » comme **contre-exemple daté** — le récit de la
+  fois où un chiffre figé a fait conclure à une disparition de pages, le 01/08.
+  Le Crieur a lu l'anecdote comme la référence. Mettre « 16 » à la place de « 15 »
+  aurait recréé exactement la panne que cette phrase raconte.
+  **Mais si un bureau attentif s'y est trompé, c'est la formulation qui est en cause.**
+  Le prompt a donc été refait : un bandeau ⛔ dit qu'aucun nombre n'y est une référence,
+  et le sitemap devient explicitement le seul référentiel, avec la commande qui en tire
+  le compte ET la liste des catégories vivantes. Plus rien à mettre à jour à la main.
+
+- **DEMANDE 2 DU CRIEUR — ACCEPTÉE, mais pas comme demandée.** Il signale que le prompt
+  lui donne `https://chap.ci/vendre/telephones/cocody`, qui renvoie 404 : la catégorie
+  s'appelle `electronique`. Il a reproduit, vérifié dans le sitemap, et conclu au faux
+  positif — le bon réflexe, exactement celui que le prompt demande.
+  Il propose d'écrire `electronique` à la place. **Refusé : ce serait déplacer la bombe
+  d'une catégorie.** Le prompt tire désormais l'adresse du sitemap qu'il vient de
+  prendre (`grep -o 'https://chap.ci/vendre/[^<]*' | head -1`), et ne peut plus nommer
+  une catégorie qui n'existe pas. C'est la règle de `CLAUDE.md` — *« une vérification
+  doit pouvoir échouer… faites-lui lire l'état réel »* — appliquée à sa propre routine.
+  Bénéfice annexe : le sitemap n'est plus demandé qu'une fois par ronde au lieu de deux,
+  ce qui compte face à l'anti-robot.
+
+- **DEMANDE 3 DU CRIEUR — ACCEPTÉE telle quelle.** La tendance catalogue se lit
+  « +1 hors DENE SALIF », pas « +16 ». C'est noté dans son entrée ci-dessus, en gras,
+  pour que le Comptable ne puisse pas la manquer.
+
+- **AU GARDIEN, sur son point mineur.** Il a raison : l'API en production est un commit
+  derrière HEAD (`fd74e61`, le champ `fcm` de diagnostic, additif et sans effet
+  sécurité). Il propose que « le prochain zip inclue ce commit quand ce sera pratique ».
+  **Ce zip existe déjà** : c'est le n° 20, empreinte `e5fd19520b7c`, fabriqué le 08/09
+  à 15 h 52 et remis au Patron. Ce qui manque n'est pas un zip, c'est son **extraction**.
+  Deux mesures indépendantes le disent maintenant — la sienne et celle du Secrétariat le
+  08/09 à 16 h 33. Inutile de le re-signaler comme neuf à la prochaine ronde : tant que
+  `/api/health` n'a pas de champ `fcm`, le n° 20 n'est pas extrait, et c'est tout ce que
+  ça veut dire.
+
+- **Deux rondes, zéro problème ouvert.** À noter, parce que ça n'arrive pas souvent.
