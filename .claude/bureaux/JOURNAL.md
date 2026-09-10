@@ -5290,3 +5290,70 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
   12 échouent** — la ligne de base exacte, aucune régression.
 - **Reste ouvert** : la quarantaine de `text-gray-400` non encore triés, et le
   badge de filtre laissé vert en attente d'un avis du Patron.
+
+### 2026-09-10 20:47 — [Confiance & Sécurité] 🛡️ Le Gardien — troisième ronde
+- **Santé et sécurité : vertes.** `failRatio 0`, `suspiciousIps` vide,
+  `rateLimited 0`, `adminUnlockFail 0`, `mfaFail 0`, `adminsTampered false`.
+  Empreintes cohérentes avec `0a8440f` au moment de la ronde. File de modération
+  vide, digest posé sans e-mail, rien à purger.
+- **⚠️ Le relevé a été pris à 20:47, le zip n° 23 a été extrait à 20:59.**
+  `empreinteSite` est passée de `31be90625acc` à `a503f99fd904` (le bandeau
+  cookies refait, commit `7aa2cac`). Vérifié à 21:02 : les trois empreintes
+  correspondent au dépôt. **Que la prochaine ronde ne signale pas un écart :
+  il n'y en a pas, la ronde précédait simplement le déploiement.**
+
+### 2026-09-10 21:20 — [Direction] Le Secrétariat — les deux « mineurs » du Gardien, instruits
+Le Gardien classe ses deux points « à surveiller ». L'un mérite mieux : les
+traces disent plus que ce qu'il en a tiré.
+
+- **LA CLÉ DE 65 CARACTÈRES N'EST PAS UNE SONDE.** Trace :
+  `cron/stats · cle-differente(entete,65 car.)`.
+  Trois faits, lus dans le code qui écrit ce motif (`server/index.php` ~14290) :
+  1. **65, c'est la longueur APRÈS nettoyage**, et la mention `,brute` est
+     ABSENTE — donc brute = nettoyée. Ce n'est pas un saut de ligne collé à la
+     clé, hypothèse pourtant naturelle et que le correctif du `trim()` avait
+     justement appris à voir. Le fait que la mention `brute` n'apparaisse QUE
+     lorsque les longueurs diffèrent est ce qui permet de trancher : sans ce
+     détail, on aurait conclu au saut de ligne et refermé le dossier.
+  2. **Ce serveur génère des clés de 64 caractères exactement**
+     (`bin2hex(random_bytes(32))`). 65, c'est **un caractère de trop** — un
+     hasard ne tombe pas à 64 ± 1.
+  3. **La clé était dans l'EN-TÊTE** `X-Cron-Key`, un nom qui n'appartient qu'à
+     nous. Un scanner d'Internet ne le connaît pas.
+  Même fenêtre, `mtoken_fail unknown` : un jeton d'AU MOINS 24 caractères,
+  présenté dans `X-Service-Token`, absent de la table `service_tokens`
+  (`missing` = pas de jeton, `unknown` = un jeton plausible mais inconnu).
+  **Deux mécanismes d'authentification différents, deux identifiants
+  plausibles-mais-faux, la même fenêtre, nos propres en-têtes.** L'explication
+  la plus économique n'est pas une attaque : c'est **un outil, une tâche cPanel
+  ou un prompt configuré avec une valeur périmée ou mal recopiée**.
+  ⚠️ **Ce qui reste inconnu, et qu'on n'invente pas** : `config.php` de
+  production n'est pas lisible d'ici. Si le Patron y a posé sa propre clé, elle
+  peut légitimement faire 65 — auquel cas le raisonnement ci-dessus tombe. Le
+  Patron a la réponse en deux minutes, la question lui est posée.
+
+- **LE TLS : L'ANGLE MORT EST RÉPARÉ, ET LA VALEUR PORTÉE ÉTAIT FAUSSE.**
+  `crt.sh` ne « tombe » pas : il répond **404** à la requête de la routine. Le
+  Gardien a signalé « injoignable » quatre rondes d'affilée en gardant la
+  dernière valeur connue sans en inventer — la conduite exacte. Mais le bureau
+  est resté aveugle **un mois** sur la seule échéance qu'il surveille. Une
+  source unique qui casse en silence est un angle mort, pas une panne.
+  Seconde source ajoutée à la routine (**CertSpotter**, vérifiée fonctionnelle),
+  et la règle : deux rondes d'échec de suite = angle mort à signaler comme tel.
+  **Lecture réelle du 10/09** : `not_after` **2026-10-10**, Let's Encrypt
+  (CN=YR2), émis le 12/07. La valeur portée depuis le 17/08 — 2026-10-12 —
+  était fausse de deux jours. Trente jours restants, au-dessus du seuil de 21 :
+  pas d'alerte, mais le **renouvellement automatique est attendu vers le
+  10 septembre**, c'est-à-dire maintenant. Si `not_after` n'a pas avancé fin
+  septembre, le renouvellement est cassé — c'est exactement la panne que cette
+  surveillance existe pour attraper.
+
+- **ET UNE FAUTE DE MA PART, GARDÉE ICI PARCE QU'ELLE EST INSTRUCTIVE.** Pour
+  contourner `crt.sh`, j'ai lancé `openssl s_client` sur chap.ci. Réponse :
+  `issuer = O = Anthropic, CN = Egress Gateway SDS Issuing CA`, `notAfter =
+  Oct 10 2026`. C'est le certificat du PROXY, pas celui du site — et sa date
+  tombait **à un jour** de la vraie. J'ai failli publier une confirmation qui
+  n'en était pas une. La routine du Gardien portait pourtant l'avertissement
+  depuis le début, à la ligne 155 : je ne l'avais pas lue avant de sonder.
+  **Une mesure fausse qui ressemble à la bonne réponse est pire qu'une mesure
+  absente : elle se publie sans qu'on la relise.**

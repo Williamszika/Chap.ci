@@ -160,17 +160,45 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
   certificats, que le proxy n'affecte pas (on n'y inspecte aucune poignée de
   main TLS, on lit un JSON tiers) :
 
+  ⛔ `crt.sh` NE MARCHE PLUS. Il ne « tombe » pas : il répond **404** à cette
+     requête (vérifié le 10/09/2026). Le Gardien l'a signalé « injoignable »
+     quatre rondes de suite en gardant la dernière valeur connue — conduite
+     irréprochable, et pourtant le bureau est resté aveugle un mois sur la seule
+     échéance qu'il surveille. **Une source unique qui casse en silence est un
+     angle mort, pas une panne.** D'où DEUX sources, celle qui marche d'abord :
+
+    # 1. CertSpotter (SSLMate) — vérifié fonctionnel le 10/09/2026
+    curl -sS 'https://api.certspotter.com/v1/issuances?domain=chap.ci&expand=issuer' \
+      | python3 -c "import sys,json;[print(c['not_after'][:10], c['issuer']['friendly_name']) for c in sorted(json.load(sys.stdin), key=lambda c: c['not_after'], reverse=True)[:3]]"
+
+    # 2. crt.sh — répond 404 depuis au moins le 10/09. À ne tenter qu'en second.
     curl -sS 'https://crt.sh/?q=chap.ci&output=json' | python3 -c "import sys,json;[print(c['not_after'][:10], c['issuer_name'][:40]) for c in sorted(json.load(sys.stdin), key=lambda c: c['not_after'], reverse=True)[:3]]"
 
-  Au 17/08/2026 : expiration le 2026-10-12, émetteurs Let's Encrypt et Google
-  Trust Services — c'est Cloudflare qui renouvelle, automatiquement, bien avant
-  l'échéance. Ne signale QUE s'il reste moins de 21 jours, ou si plus aucun
-  certificat récent n'apparaît (là, le renouvellement automatique a cassé).
+  **Lecture du 10/09/2026, par CertSpotter** : `not_after` **2026-10-10**,
+  émetteur **Let's Encrypt** (CN=YR2), noms `chap.ci` et `*.chap.ci`, émis le
+  2026-07-12. La valeur portée jusque-là — 2026-10-12 — était FAUSSE de deux
+  jours : elle datait du 17/08 et personne n'avait pu la rafraîchir depuis.
 
-  Si `crt.sh` ne répond pas (502, délai dépassé — leur service tombe parfois,
-  vérifié les 18/08) : garde la dernière valeur connue, dis dans le rapport que
-  la lecture a échoué, et n'invente AUCUNE lecture. Tant que la dernière valeur
-  connue est loin du seuil de 21 jours, une panne de crt.sh n'est pas une alerte.
+  ⚠️ **CE QUE CETTE DATE IMPLIQUE, ET QU'IL FAUT REGARDER.** Un certificat
+  Let's Encrypt vit 90 jours et se renouvelle automatiquement autour de J-30.
+  Émis le 12/07, expirant le 10/10 : le renouvellement est attendu **vers le
+  10 septembre**, c'est-à-dire maintenant. Si à la fin septembre `not_after`
+  n'a pas avancé, c'est que le renouvellement automatique est cassé — et c'est
+  précisément la panne que cette surveillance existe pour attraper.
+
+  Ne signale QUE s'il reste moins de 21 jours, ou si plus aucun certificat
+  récent n'apparaît.
+
+  Si les DEUX sources échouent : garde la dernière valeur connue, dis dans le
+  rapport que la lecture a échoué, et n'invente AUCUNE lecture. Mais si l'échec
+  se répète **deux rondes de suite**, ce n'est plus une panne passagère —
+  signale-le comme un angle mort à réparer, pas comme un simple contretemps.
+
+  ⛔ ET N'UTILISE PAS `openssl s_client` POUR TRANCHER. Le proxy re-signe : le
+     10/09/2026, la sonde a rendu `issuer = O = Anthropic, CN = Egress Gateway
+     SDS Issuing CA` avec `notAfter = Oct 10 2026` — à un jour près de la vraie
+     échéance. Une mesure fausse qui ressemble à la bonne réponse est pire
+     qu'une mesure absente : elle se publie sans qu'on la relise.
 
 1) JOURNAL — lis .claude/bureaux/JOURNAL.md avant d'agir.
 
