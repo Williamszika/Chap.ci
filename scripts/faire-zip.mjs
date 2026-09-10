@@ -88,14 +88,28 @@ if (LEGER) {
     sondes++
     let enLigne = null
     try {
-      // Pas d'en-tête Range : le pare-feu du serveur répond 403 aux requêtes
-      // partielles, ce qui ferait croire à tort que le fichier manque (vu le
-      // 10/09/2026, et pris pour une panne du site pendant deux minutes).
-      const sortie = execFileSync('curl', ['-sS', '-o', '/dev/null', '-w', '%{http_code} %{size_download}',
-        '--max-time', '180', 'https://chap.ci/' + f.rel], { encoding: 'utf8' })
-      const [code, octets] = sortie.trim().split(/\s+/)
-      if (code === '200') enLigne = Number(octets)
-    } catch { /* réseau : on garde le fichier */ }
+      // ── HEAD, ET SURTOUT PAS GET (corrigé le 10/09/2026, une heure après
+      //    avoir écrit ce fichier) ─────────────────────────────────────────
+      //
+      // La première version faisait un GET avec `-o /dev/null`. Elle obtenait
+      // la bonne réponse — et TÉLÉCHARGEAIT 30 Mo depuis la production pour
+      // lire deux nombres. Trois quarts d'heure plus tard, l'anti-robot de
+      // LiteSpeed servait une page « 403 Forbidden » sur `/api/health`, donc
+      // potentiellement aux visiteurs. L'outil de livraison avait fait tomber
+      // le site qu'il livre — précisément ce que son propre commentaire, deux
+      // lignes plus haut, disait de ne pas faire.
+      //
+      // `-I` demande les seuls en-têtes : `content-length` donne la taille
+      // sans transférer un octet de contenu. Même information, 30 Mo de moins.
+      //
+      // Et si le serveur refuse la requête HEAD, on GARDE le fichier. On ne se
+      // rabat PAS sur un GET : mieux vaut un zip lourd qu'un site en 403.
+      const sortie = execFileSync('curl', ['-sSI', '-w', '\n%{http_code} %{size_download}',
+        '--max-time', '30', 'https://chap.ci/' + f.rel], { encoding: 'utf8' })
+      const code = sortie.trim().split('\n').pop().trim().split(/\s+/)[0]
+      const longueur = sortie.match(/^content-length:\s*(\d+)/im)?.[1]
+      if (code === '200' && longueur) enLigne = Number(longueur)
+    } catch { /* réseau ou refus : on garde le fichier */ }
     if (enLigne === f.taille) {
       unlinkSync(f.abs)
       console.log(`  − ${f.rel} — retiré : déjà en ligne, ${enLigne} octets identiques`)
