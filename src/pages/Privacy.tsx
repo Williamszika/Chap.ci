@@ -3,6 +3,7 @@ import { useTraductionPage } from '../lib/langue'
 import { chargerConfidentialite } from '../i18n/confidentialite'
 import type { TexteLegal } from '../i18n/legal'
 import { ChoixLangue } from '../components/ChoixLangue'
+import { ouvrirReglages } from '../lib/consent'
 
 // Adresse de contact affichée dans la politique — à personnaliser si besoin.
 const CONTACT_EMAIL = 'contact@chap.ci'
@@ -316,12 +317,31 @@ export function Privacy() {
                 <b> Meta</b> et <b>TikTok</b>, qui les traitent selon leurs propres règles de
                 confidentialité. Aucune donnée n’est vendue.
               </p>
+              {/* ── LE BOUTON QUI REND LE REFUS RÉVERSIBLE (10/09/2026) ──────
+                  Ce paragraphe disait, en substance : débrouillez-vous. Bloquez
+                  les cookies dans votre navigateur, allez fouiller les réglages
+                  publicitaires de Google, de Meta et de TikTok. C'était exact et
+                  inutilisable — et un consentement qu'on ne peut pas retirer en
+                  un geste n'est pas un consentement libre.
+                  Le bouton rouvre le panneau du bandeau, quel que soit le choix
+                  déjà fait. Les autres voies restent écrites : elles servent
+                  encore à qui veut couper au-delà de Chap.ci. */}
               <p className="mt-2">
-                <b>Vos choix :</b> vous pouvez refuser ou limiter ces traceurs à tout moment — en
-                bloquant les cookies dans votre navigateur, via les paramètres de publicité de chaque
-                plateforme (Google, Meta, TikTok), ou en activant « Limiter le suivi publicitaire »
-                dans les réglages de votre téléphone. Le refus n’empêche pas d’utiliser Chap.ci. Ces
-                traceurs ne sont pas actifs dans l’application mobile.
+                <b>Vos choix :</b> vous pouvez revenir sur votre décision à tout moment, ici même :
+              </p>
+              <button
+                onClick={ouvrirReglages}
+                className="btn-outline mt-2 w-full py-2.5 text-sm sm:w-auto"
+              >
+                Régler mes choix de cookies
+              </button>
+              <p className="mt-2">
+                Le refus n’empêche pas d’utiliser Chap.ci, et rien ne se charge tant que vous
+                n’avez pas accepté. Au-delà de notre site, vous pouvez aussi bloquer les cookies
+                dans votre navigateur, passer par les paramètres de publicité de chaque plateforme
+                (Google, Meta, TikTok), ou activer « Limiter le suivi publicitaire » dans les
+                réglages de votre téléphone. Ces traceurs ne sont pas actifs dans l’application
+                mobile.
               </p>
             </Section>
 

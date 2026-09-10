@@ -35,6 +35,7 @@ npm run banc:stock # le stock des comptes Pro : décrément à la vente, alertes
 npm run banc:catalogue # le plafond des 500 annonces : 520 en base, l'ancien appel en perd 20
 npm run banc:push-natif # le téléphone que l'application enregistre (FCM) — inerte sans api/data/fcm.json
 npm run banc:vignettes # la vignette de grille : 360 px à l'envoi, les anciennes refaites par le cron
+npm run apercu:cookies # le bandeau cookies en image : barre + panneau, téléphone et ordinateur
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
 

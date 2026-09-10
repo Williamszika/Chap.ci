@@ -50,3 +50,47 @@ export function onConsentChange(cb: (accepted: boolean) => void): () => void {
   window.addEventListener(EVENT, handler)
   return () => window.removeEventListener(EVENT, handler)
 }
+
+// =============================================================================
+//  REVENIR SUR SON CHOIX (10/09/2026)
+//
+//  Un consentement qu'on ne peut pas retirer n'est pas un consentement. Jusqu'à
+//  aujourd'hui, le bandeau ne réapparaissait JAMAIS une fois répondu : quelqu'un
+//  qui avait accepté par réflexe n'avait plus aucun moyen de changer d'avis
+//  depuis le site. La politique de confidentialité lui disait d'aller « bloquer
+//  les cookies dans son navigateur » — c'est-à-dire de se débrouiller.
+//
+//  `ouvrirReglages()` rouvre le panneau depuis n'importe où. Le bouton vit dans
+//  la politique de confidentialité (§ 11), là où la personne va chercher.
+// =============================================================================
+const EVENT_OUVRIR = 'chapci-consent-ouvrir'
+
+/** Rouvre le panneau de réglages des cookies (bouton de la page Confidentialité). */
+export function ouvrirReglages(): void {
+  try { window.dispatchEvent(new CustomEvent(EVENT_OUVRIR)) } catch { /* ignore */ }
+}
+
+/** Le bandeau écoute cette demande. Rend une fonction de désabonnement. */
+export function onOuvrirReglages(cb: () => void): () => void {
+  const handler = () => cb()
+  window.addEventListener(EVENT_OUVRIR, handler)
+  return () => window.removeEventListener(EVENT_OUVRIR, handler)
+}
+
+// =============================================================================
+//  « PLUS TARD » — la croix du bandeau
+//
+//  Fermer sans choisir n'est PAS un accord : aucun pixel ne se charge, et le
+//  bandeau revient à la prochaine visite. Mais il ne doit pas harceler pendant
+//  la visite en cours — d'où `sessionStorage`, qui s'efface à la fermeture de
+//  l'onglet. C'est le seul état volontairement éphémère de ce module.
+// =============================================================================
+const KEY_PLUS_TARD = 'chapci.consent.plusTard'
+
+export function reporter(): void {
+  try { sessionStorage.setItem(KEY_PLUS_TARD, '1') } catch { /* mode privé */ }
+}
+
+export function reporte(): boolean {
+  try { return sessionStorage.getItem(KEY_PLUS_TARD) === '1' } catch { return false }
+}

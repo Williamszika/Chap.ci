@@ -193,7 +193,13 @@ export function Home() {
               )}
             </Link>
             {/* Cloche fonctionnelle : ouvre le menu des notifications (P5). */}
-            <NotificationBell align="right" buttonClass="relative rounded-full bg-white/35 p-2 active:scale-95" />
+            {/* 44 px, pas `p-2` (qui donnait 36×36 — mesuré par `banc:front`
+                le 10/09/2026, sur la page la plus visitée d'un connecté).
+                `NotificationBell` a une taille correcte par défaut ET dans la
+                barre du haut ; c'est CE réglage-ci, propre à l'accueil, qui
+                l'écrasait. Un composant bien dimensionné ne protège pas de la
+                classe qu'on lui passe. */}
+            <NotificationBell align="right" buttonClass="relative grid h-11 w-11 place-items-center rounded-full bg-white/35 active:scale-95" />
           </div>
         </div>
 
