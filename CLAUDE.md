@@ -36,6 +36,7 @@ npm run banc:catalogue # le plafond des 500 annonces : 520 en base, l'ancien app
 npm run banc:push-natif # le téléphone que l'application enregistre (FCM) — inerte sans api/data/fcm.json
 npm run banc:vignettes # la vignette de grille : 360 px à l'envoi, les anciennes refaites par le cron
 npm run apercu:cookies # le bandeau cookies en image : barre + panneau, téléphone et ordinateur
+npm run registre   # REGISTRE-ACTIVITE.md : quand chaque chose a été livrée, lu dans git
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
 
@@ -208,5 +209,36 @@ attente doublée en cas d'échec réseau.
 Message de commit : un titre en français qui dit ce qui change pour l'utilisateur, puis le
 corps qui explique **pourquoi** — le chiffre, la panne ou la plainte qui a déclenché le
 travail. Les messages de ce dépôt se lisent comme un récit ; gardez ce registre.
+
+**Le titre du commit finit dans le registre d'activité**, lu par le Patron, sans le corps
+pour l'expliquer. Un titre qui ne se comprend pas seul ne sera compris nulle part.
+
+---
+
+## Le registre d'activité
+
+`REGISTRE-ACTIVITE.md` dit **quand** chaque chose a été livrée : le jour, l'heure, et le
+titre du commit. Demandé par le Patron le 11/09/2026.
+
+**Il se génère — on ne l'écrit pas à la main** : `npm run registre`. Un registre tenu à la
+main ment au bout d'une semaine (une journée oubliée, une heure arrondie) et devient un
+document qu'on ne peut plus opposer à personne. Les dates des commits, elles, ne se
+réécrivent pas sans laisser de trace.
+
+**Régénérez-le en fin de séance**, et commitez-le avec le reste.
+
+Deux choses à ne pas confondre, écrites dans le fichier lui-même :
+
+- **« Amplitude » n'est pas « temps passé »** — c'est l'écart entre la première et la
+  dernière livraison du jour. Elle ignore les pauses, le travail qui n'a rien produit, et
+  les heures passées à chercher une panne qui n'existait pas. Le registre prouve qu'on a
+  livré à telle heure, rien de plus.
+- **Heures d'Abidjan** (UTC+0), parce que c'est le calendrier du site. L'heure du Patron
+  est calculée à côté par `Intl`, donc elle suit l'heure d'été toute seule.
+
+**La section « Ce que le Patron a fait lui-même » est hors du bloc automatique** et le
+générateur ne la touche jamais : un zip extrait, une clé changée dans cPanel, une
+application construite ne laissent aucune trace dans git. Complétez-la avec ce que vous
+avez vu se produire — jamais avec ce que vous supposez.
 
 **Aucune pull request sans demande explicite du Patron.**

@@ -36,6 +36,7 @@
     "banc:catalogue": "node scripts/banc-catalogue.mjs",
     "banc:vignettes": "node scripts/banc-vignettes.mjs",
     "apercu:cookies": "node scripts/apercu-cookies.mjs",
+    "registre": "node scripts/registre.mjs",
     "banc:front": "node scripts/banc-front.mjs",
     "synonymes": "node scripts/synonymes.mjs",
     "prebuild": "node scripts/synonymes.mjs",
