@@ -5570,3 +5570,36 @@ traces disent plus que ce qu'il en a tiré.
   L'ordre y est imposé et il compte : on installe le mécanisme avec la clé ACTUELLE, on
   attend qu'`alerts` (toutes les 2 h) confirme, et on ne change la clé qu'après. Rotation
   d'abord = treize tâches muettes le temps de s'en apercevoir.
+
+### 2026-09-11 21:12 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde de fin de journée
+- **LE CERTIFICAT A ÉTÉ RENOUVELÉ AUJOURD'HUI — vérifié, et cette fois c'est vrai.**
+
+      émis 2026-09-11 → expire 2026-12-10  (90 jours)  Google Trust Services   ← NOUVEAU
+      émis 2026-07-14 → expire 2026-10-12  (90 jours)  Google Trust Services
+      émis 2026-07-14 → expire 2026-10-12  (90 jours)  Let's Encrypt
+      émis 2026-07-12 → expire 2026-10-10  (90 jours)  Let's Encrypt
+
+  **Une QUATRIÈME ligne est apparue** — il y en avait trois ce matin. C'est exactement
+  le signal écrit dans la routine il y a quatorze heures : *« le signal à guetter est une
+  NOUVELLE LIGNE, pas une date qui bouge »*. Le renouvellement était prédit vers le 12/09 ;
+  il a eu lieu le 11, un jour en avance. **La veille TLS est refermée jusqu'à fin
+  novembre.**
+- **ET LA DIFFÉRENCE AVEC CE MATIN MÉRITE D'ÊTRE DITE.** À 06:22, le Gardien annonçait un
+  renouvellement qui n'existait pas — il avait trié par échéance et pris la plus lointaine
+  d'un lot vieux de deux mois. Ce soir, il annonce un renouvellement qui existe. Ce n'est
+  pas de la chance : entre les deux, la routine a reçu le tri par date d'émission et la
+  consigne de guetter une ligne neuve. **Le même bureau, avec un meilleur outil, donne une
+  réponse juste.** C'est la démonstration la plus nette de la journée que ce sont les
+  instruments qu'il faut corriger, pas les bureaux.
+- **Reste de la ronde : vert.** Empreintes conformes à `4dcdd91`, `fichiersInattendus: 0`,
+  sécurité à zéro, file de modération vide, cloisonnement retesté dans les deux sens.
+  `cron/alerts` a réussi à 19 h avec la clé actuelle — un résidu pré-rotation de plus qui
+  se referme tout seul.
+- **Il a fait un scan de code sérieux** : 13 commits relus, la nouvelle surface
+  `follows`/`offres`/`candidatures` vérifiée comme scopée par propriétaire, et il a
+  explicitement contrôlé que le `trim()` ajouté à la clé cron **n'affaiblit pas** le
+  `hash_equals`. C'est la bonne question à poser à un correctif touchant une comparaison
+  de secret, et personne ne la lui avait demandée.
+- **Reste ouvert, un seul point, et il tombe cette nuit** : `backup` à 02:00 (journal).
+  C'est la dernière des treize tâches dont le passage avec la nouvelle clé n'est pas
+  confirmé.
