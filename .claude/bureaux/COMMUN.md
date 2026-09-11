@@ -77,6 +77,47 @@ La vraie clé reste chez le Patron : les prompts et le dépôt portent `CLE_CRON
 
 ---
 
+## 3 bis. À QUELLE HEURE CHAQUE TÂCHE TOURNE
+
+Relevé sur cPanel → Tâches Cron le **11/09/2026**, treize tâches. Sans cette liste, un
+bureau ne peut dire que « telle tâche n'a pas tourné depuis » — jamais « elle est en
+retard ». Le Gardien a buté exactement là-dessus le 11/09 sur `digest`.
+
+⚠️ **L'HEURE DE cPANEL N'EST PAS L'HEURE DU JOURNAL — IL Y A UNE HEURE D'ÉCART.**
+`backup` est programmé à 3 h dans cPanel et `derniersPassages` l'enregistre à **02:00** ;
+`digest` est programmé à 18 h et s'enregistre à **17:00**. Deux tâches, même écart :
+**cPanel planifie en UTC+1, le journal enregistre en UTC (heure d'Abidjan).** La colonne
+« journal » ci-dessous est celle qu'on compare à `derniersPassages` — c'est la seule qui
+serve à juger si une tâche est passée.
+
+| Tâche | cPanel | journal (UTC) | cadence |
+|---|---|---|---|
+| `backup` | 3 h | **02:00** | tous les jours |
+| `cleanup` | 4 h | 03:00 | tous les jours |
+| `rappels-pro` | 6 h | 05:00 | tous les jours |
+| `stats?days=7` | 7 h | 06:00 | **le lundi seulement** |
+| `report?days=30` | 7 h | 06:00 | **le 1ᵉʳ du mois seulement** |
+| `security?days=1` | 8 h | 07:00 | tous les jours |
+| `seo` | 9 h | 08:00 | tous les jours |
+| `suggestions` | 9 h | 08:00 | **lundi et jeudi seulement** |
+| `review-invites` | 10 h | 09:00 | tous les jours |
+| `ads-expiring` | 11 h | 10:00 | tous les jours |
+| `activation-relance` | 12 h | 11:00 | tous les jours |
+| `digest?type=daily` | 18 h | **17:00** | tous les jours |
+| `alerts` | `*/2` | toutes les 2 h | toutes les 2 heures |
+
+**Trois pièges que cette table désamorce :**
+
+1. **`stats`, `report` et `suggestions` ne tournent PAS tous les jours.** Un `last_ok_at`
+   vieux de six jours sur `stats` est NORMAL un dimanche — c'est une tâche hebdomadaire.
+   Ne la signalez pas en panne.
+2. **`digest` passe à 17:00 (journal).** Une ronde de l'après-midi le trouvera toujours
+   « sans passage depuis hier » : ce n'est pas un retard, c'est que son tour n'est pas
+   venu. C'est l'erreur de lecture du 11/09.
+3. **`report` ne tourne que le 1ᵉʳ du mois.** Vingt-huit jours de silence sont sa cadence.
+
+---
+
 ## 4. Les routes cron qu'un bureau n'appelle pas
 
 Elles écrivent, envoient des e-mails ou déclenchent des sauvegardes. Les appeler depuis

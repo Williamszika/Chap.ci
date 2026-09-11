@@ -5534,3 +5534,39 @@ traces disent plus que ce qu'il en a tiré.
   recommandation sur une mesure neuve vaut mieux qu'un bureau constant.
 - **Il s'arrête à 14 mots-clés au lieu de 20**, et dit pourquoi : le catalogue
   n'a pas grossi, il n'y a pas de quinzième mot-clé honnête à en tirer.
+
+### 2026-09-11 21:00 — [Direction] Le Secrétariat — les horaires des crons, et la fuite par construction
+**AUCUNE VALEUR DE SECRET N'EST ÉCRITE ICI.**
+
+- **LES TREIZE CADENCES SONT ENFIN CONNUES**, relevées sur cPanel et consignées dans
+  `COMMUN.md` § 3 bis. L'angle mort de ce matin est refermé : un bureau peut désormais
+  dire « en retard », et plus seulement « pas vue depuis ».
+- **ET ELLES RÉSOLVENT LE MYSTÈRE `digest` DU GARDIEN.** `digest` passe à **17:00**
+  (journal). Sa ronde était à 15:48 : le tour de `digest` n'était pas venu. Ce n'était
+  ni un retard, ni une clé fautive. Sa prudence — signaler sans trancher — était la
+  bonne conduite, et c'est le dépôt qui ne lui donnait pas de quoi trancher.
+- **⚠️ DÉCOUVERTE QUI VAUT POUR TOUTE LECTURE FUTURE : cPanel planifie une heure en
+  avance sur le journal.** `backup` est programmé à 3 h et s'enregistre à **02:00** ;
+  `digest` à 18 h et s'enregistre à **17:00**. Deux tâches, même écart : cPanel est en
+  UTC+1, le journal en UTC (Abidjan). Comparer une heure cPanel à `derniersPassages`
+  sans ce décalage fait conclure à une tâche manquée qui est passée.
+- **TROIS TÂCHES NE SONT PAS QUOTIDIENNES**, et c'était invisible : `stats` le lundi,
+  `suggestions` le lundi et le jeudi, `report` **le 1ᵉʳ du mois**. Vingt-huit jours de
+  silence sur `report` sont sa cadence, pas une panne. Le prochain bureau qui verra ça
+  aurait ouvert une enquête.
+
+- **LA TROISIÈME EXPOSITION DE SECRET EN DEUX JOURS — ET LA PREMIÈRE QUI SOIT
+  STRUCTURELLE.** Les captures de cPanel → Tâches Cron portent la clé en clair dans
+  **chacune des treize lignes**. Cette clé-là est **vivante** : c'est celle posée cette
+  nuit. Les deux précédentes étaient des maladresses ; celle-ci est une **fuite par
+  construction** — cet écran ne PEUT PAS être montré sans donner la clé, et il faut le
+  regarder à chaque vérification de tâche.
+  S'y ajoute un second défaut, de la même racine : changer la clé demande **quatorze**
+  modifications (config.php + treize commandes). Une seule oubliée arrête une tâche en
+  silence — le scénario exact des douze jours de sauvegardes perdues.
+- **LA PARADE, ÉCRITE DANS `store/CLE-CRON.md`** : la clé vit dans `~/.chapci-cron-key`
+  (hors de `public_html`, en 0600) et les commandes la lisent par `$(cat …)`. L'écran
+  n'affiche plus que le nom du fichier. Une rotation ne touche plus que **deux** endroits.
+  L'ordre y est imposé et il compte : on installe le mécanisme avec la clé ACTUELLE, on
+  attend qu'`alerts` (toutes les 2 h) confirme, et on ne change la clé qu'après. Rotation
+  d'abord = treize tâches muettes le temps de s'en apercevoir.

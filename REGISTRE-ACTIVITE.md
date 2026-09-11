@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Jeudi 27 août 2026 au Vendredi 11 septembre 2026 |
-| Livraisons | 122 |
+| Livraisons | 123 |
 | Jours travaillés | 16 |
-| Dernière mise à jour | Vendredi 11 septembre 2026, 18:39 (Abidjan) |
+| Dernière mise à jour | Vendredi 11 septembre 2026, 18:45 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,13 +42,14 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Vendredi 11 septembre 2026
 
-**5 livraison(s)** · Abidjan 02:59 → 07:04 · chez le Patron 04:59 → 09:04 · amplitude 4 h 05
+**6 livraison(s)** · Abidjan 02:59 → 18:39 · chez le Patron 04:59 → 20:39 · amplitude 15 h 39
 
 - `02:59` · 65 caractères, ce n’était pas une clé de trop : c’était l’autre secret  <sub>`302269f`</sub>
 - `03:13` · Une vraie clé cron dormait dans le journal des bureaux — retirée  <sub>`f1dd8da`</sub>
 - `03:27` · Cinq minutes d’anti-robot est un plancher — vingt-cinq n’ont pas suffi  <sub>`e49e542`</sub>
 - `03:52` · Un registre d’activité qui se génère, parce qu’un registre tenu à la main ment  <sub>`748ff11`</sub>
 - `07:04` · Le certificat n’a pas été renouvelé — deux lectures fausses, en sens inverse  <sub>`0930faa`</sub>
+- `18:39` · Quatre jours sans une annonce nouvelle — et le dépôt ignore l’heure des crons  <sub>`c443699`</sub>
 
 ### Jeudi 10 septembre 2026
 
