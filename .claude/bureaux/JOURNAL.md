@@ -5483,3 +5483,54 @@ traces disent plus que ce qu'il en a tiré.
   `activation-relance` et `digest` avec celle d'Admin → Tâches auto.
   `backup` passe à 02 h 00 — c'est celle qui compte, et la seule dont l'échec
   serait durablement coûteux.
+
+### 2026-09-11 15:48 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde de l'après-midi
+- **Vert partout**, empreintes vérifiées contre un vrai build sur `0930faa`.
+- **LA ROTATION EST CONFIRMÉE À HUIT TÂCHES SUR NEUF.** `seo`, `stats`,
+  `review-invites`, `ads-expiring`, `cleanup`, `activation-relance`, `alerts` et
+  `rappels-pro` ont tous un passage réussi POSTÉRIEUR à la rotation. C'est du
+  vrai travail : il a lu `derniersPassages` tâche par tâche au lieu de conclure
+  d'un coup. Reste `backup`, qui passe à 02 h 00 — cette nuit.
+- **`digest` : 23 h sans passage.** Il le signale honnêtement sans trancher, et
+  il a raison de ne pas trancher : **le dépôt ne sait pas à quelle heure chaque
+  tâche doit tourner.** Les cadences vivent dans cPanel. Aucun bureau ne peut
+  donc dire « cette tâche est en retard » — seulement « elle n'a pas tourné
+  depuis ». C'est un angle mort structurel, pas une négligence ; il est demandé
+  au Patron de nous donner la liste réelle, une fois, pour la consigner.
+- **`cron/security · cle-differente(entete,64 car.)`**, une occurrence.
+  **64 caractères, c'est la longueur d'une clé cron** — donc une ANCIENNE clé,
+  pas un autre secret (hier, les 65 caractères étaient le jeton de modération).
+  Cohérent avec une copie restée quelque part et pas encore mise à jour. Une
+  seule occurrence, aucune IP suspecte : à laisser vivre, et à reprendre si ça
+  se répète.
+- ⚠️ **Une phrase inversée, à ne pas recopier telle quelle** : « expire 12/10
+  (31 jours restants, **sous le seuil de 21** : pas d'alerte) ». 31 est AU-DESSUS
+  de 21 — la conclusion est juste, la formulation dit le contraire. Relue dans
+  six mois, elle ferait croire qu'on a laissé passer un seuil franchi. Les
+  chiffres eux sont exacts : 59 jours depuis l'émission du 14/07, 31 avant
+  l'échéance du 12/10.
+
+### 2026-09-11 08:08 — [Croissance] 📣 Le Crieur — ronde
+- **LE CHIFFRE DU JOUR N'EST PAS LE CATALOGUE, C'EST SON IMMOBILITÉ.**
+  45 annonces / 7 vendeurs / 6 communes / 6 catégories sur 16 — **exactement les
+  mêmes qu'au 09/09**, même vendeur dominant, même dernière publication
+  (« Liquidation », Yopougon, 07/09). **Aucune annonce nouvelle en quatre
+  jours**, avec du trafic continu.
+  Hors DENE SALIF : 11 fiches chez 6 vendeurs, inchangé.
+- **L'entonnoir `/publier` est identique au 09/09**, à l'unité près : 13 → 8 → 6
+  → 2 → 2 → 2. Ce n'est pas une conversion qui se dégrade, c'est un volume qui
+  ne bouge pas. Rien à corriger tant qu'il n'y a rien à mesurer.
+- **Trafic 30 j** : 1 280 visites, 108 visiteurs. 34,6 visites par annonce publiée.
+- **SEO : tout vert, et retesté sur le NOUVEAU bundle** (`index-DeJsCJjb.js`) —
+  il a vu que le site avait été redéployé entre deux rondes et a refait ses
+  contrôles dessus plutôt que de citer les précédents. Sitemap 415 URLs,
+  `lastmod` au 07/09, cohérent avec l'absence de publication.
+- **SON MEILLEUR APPORT, ET IL CHANGE SA PROPRE RECOMMANDATION.** La plus grosse
+  poche de contenu réel n'est ni une commune ni une catégorie grand public :
+  ce sont **34 formations professionnelles à Treichville** (Excel, Sage, gestion
+  de projet), chez un seul vendeur. Ni CoinAfrique ni Jiji ne travaillent cette
+  niche en profondeur. Il propose donc de viser là, et **abandonne explicitement
+  sa proposition « mode / Cocody » du 09/09** — un bureau qui révise sa propre
+  recommandation sur une mesure neuve vaut mieux qu'un bureau constant.
+- **Il s'arrête à 14 mots-clés au lieu de 20**, et dit pourquoi : le catalogue
+  n'a pas grossi, il n'y a pas de quinzième mot-clé honnête à en tirer.
