@@ -3111,7 +3111,7 @@ d'instructions Xcode tant que cette ligne reste ainsi dans
     recopiée (régénération passée, chevrons, caractère parasite) plutôt qu'une clé cPanel
     obsolète — si c'était une clé cPanel régénérée, *toutes* les tâches cPanel échoueraient,
     pas seulement `cron/stats` ; (2) une sonde externe testant spécifiquement cette route.
-    Reproduction : `curl -sS -H 'X-Cron-Key: 1697740b5402f14d40600c30dc53d07c75599cce03393009f1e4eaeba0788a67' 'https://chap.ci/api/cron/security?days=1'` puis lire
+    Reproduction : `curl -sS -H 'X-Cron-Key: CLE_CRON_ICI' 'https://chap.ci/api/cron/security?days=1'` puis lire
     `byDetail.cron_fail`.
   - 2 `mtoken_fail « unknown »` sur les jetons de modération (un jeton présenté mais non
     reconnu par le serveur) — sans IP suspecte ni rate-limit associé. À recouper à la
@@ -5405,3 +5405,31 @@ traces disent plus que ce qu'il en a tiré.
   que j'ai écrite ce matin dans `faire-zip.mjs` — « un outil qui mesure le site
   ne doit pas le faire tomber » — je l'ai enfreinte à la main quelques heures
   plus tard. L'écrire ne suffit pas à la suivre.
+
+### 2026-09-11 04:00 — [Direction] Le Secrétariat — une vraie clé dormait dans ce journal
+- **TROUVÉE PAR UN BALAYAGE DU DÉPÔT, PAS PAR HASARD.** `git grep -E '[0-9a-f]{64}'`
+  sur l'ensemble des fichiers suivis : **une** correspondance, ligne 3114 de ce
+  journal — une clé cron en clair, dans une commande `curl` de reproduction
+  écrite par un bureau lors d'une ronde passée. Remplacée par la marque
+  `CLE_CRON_ICI`, comme partout ailleurs dans le dépôt.
+  Une seconde correspondance, dans un `.jpg` de `marque/3-visuels/` : coïncidence
+  binaire sur une image, sans objet.
+- **CETTE CLÉ-LÀ EST MORTE** — c'est celle qui vient d'être remplacée cette nuit.
+  L'exposition est donc refermée par la rotation, pas seulement par l'effacement.
+  ⚠️ **Mais elle reste dans l'HISTORIQUE git.** On ne réécrit pas l'historique
+  d'un dépôt public pour un secret déjà révoqué : le coût est élevé et le gain
+  nul. Si un jour une clé ENCORE VIVANTE y entrait, la réponse serait l'inverse —
+  on la révoque d'abord, on nettoie ensuite.
+- **CE QUE LE CONTEXTE DE LA LIGNE 3114 APPREND, ET QUI COMPTE PLUS QUE LA CLÉ.**
+  L'entrée qui l'entoure décrit **exactement les symptômes de cette nuit** :
+  des `cron_fail` sur `cron/stats` avec une clé mal recopiée, ET des
+  `mtoken_fail « unknown »`, ensemble. Elle avance même la bonne hypothèse —
+  « une routine de bureau qui appelle `cron/stats` avec une clé mal recopiée
+  plutôt qu'une clé cPanel obsolète ». Le raisonnement était juste et il a été
+  écrit il y a des semaines. **Personne n'a refermé le dossier**, et le même
+  couple de traces a été redécouvert, réanalysé et reclassé « mineur » à chaque
+  ronde depuis. Un journal ne sert que si l'on y cherche avant d'enquêter.
+- **RÈGLE POUR LES BUREAUX, À APPLIQUER SANS EXCEPTION.** Une commande de
+  reproduction se cite **avec la marque**, jamais avec la valeur — `CLE_CRON_ICI`,
+  `JETON_MODERATION_ICI`. Le rapport perd zéro information : le Patron remplace
+  chez lui, et lui seul en a besoin.
