@@ -5357,3 +5357,51 @@ traces disent plus que ce qu'il en a tiré.
   depuis le début, à la ligne 155 : je ne l'avais pas lue avant de sonder.
   **Une mesure fausse qui ressemble à la bonne réponse est pire qu'une mesure
   absente : elle se publie sans qu'on la relise.**
+
+### 2026-09-11 03:20 — [Direction] Le Secrétariat — les deux secrets étaient inversés, et ils sont changés
+**AUCUNE VALEUR N'EST ÉCRITE ICI. Seules des longueurs et des dates.**
+
+- **LE DIAGNOSTIC, ET COMMENT IL S'EST FAIT.** Le Gardien avait classé deux
+  échecs « mineur, à surveiller » : `cron/stats · cle-differente(entete,65 car.)`
+  et `mtoken_fail unknown`, même fenêtre. Trois lectures du code les ont reliés :
+  1. `,brute` ABSENT du motif ⇒ longueur avant et après nettoyage identiques
+     ⇒ ce n'est ni un espace ni un saut de ligne. La fausse piste évidente —
+     celle que le correctif du `trim()` avait justement appris à voir — tombe.
+  2. Ce serveur fabrique **deux** secrets, et ils n'ont pas la même taille :
+     clé cron **64** (`bin2hex(random_bytes(32))`), jeton de modération **65**
+     (`'cmst_' . bin2hex(random_bytes(30))`, le commentaire du code le dit).
+     65 n'est donc pas « un caractère de trop » : c'est **l'autre secret**.
+  3. Les deux voyageaient dans nos propres en-têtes, `X-Cron-Key` et
+     `X-Service-Token`, que rien d'extérieur ne connaît.
+  **Les deux valeurs étaient inversées dans une configuration.** Le jeton envoyé
+  là où va la clé, la clé là où va le jeton. Pas une attaque. Et dans la propre
+  fenêtre de ronde du Gardien : il regardait ses propres traces.
+  Le raccourci de lecture est désormais écrit dans `routine-securite.md`.
+
+- **ROTATION FAITE, PARCE QUE LES DEUX AVAIENT ÉTÉ EXPOSÉS.** Pour trancher la
+  question des longueurs, les deux secrets ont été collés en clair dans une
+  conversation. Ils sont donc morts par définition, et les deux ont été changés
+  dans la foulée : jeton de modération **régénéré le 11/09** (l'ancien révoqué
+  au moment de l'émission du nouveau), clé cron remplacée dans `api/config.php`.
+  **La longueur suffisait à répondre** — c'est ce qu'il fallait demander, et
+  c'est ce que la prochaine question de ce genre demandera.
+
+- **LE FILET A TENU, ET IL A PARLÉ.** La première clé posée a été REFUSÉE pour
+  sa forme (caractères hors `[A-Za-z0-9._~-]` — une clé cron voyage dans une
+  URL, un en-tête et une ligne de commande). Le serveur a gardé l'ancienne, le
+  site n'a pas bronché, et l'onglet **Tâches auto** a affiché un bandeau rouge
+  nommant la cause et la marche à suivre. Sans lui, le Patron aurait recopié une
+  clé refusée dans ses tâches cPanel et les aurait toutes cassées en silence.
+  Deuxième clé, hexadécimale : bandeau disparu, clé acceptée.
+
+- **RESTE À FAIRE, ET C'EST LE VRAI RISQUE** : les tâches cPanel portent encore
+  l'ancienne clé et vont échouer à chaque passage. Une tâche qui échoue ne se
+  plaint pas — douze jours de sauvegardes ont été perdus ainsi. Le contrôle
+  existe déjà : **Tâches auto → `last_ok_at` par tâche**. Toute tâche dont la
+  date ne bouge pas après la rotation n'a pas été mise à jour.
+
+- **ET MOI, DEUXIÈME FOIS DANS LA JOURNÉE :** deux requêtes à trois secondes
+  d'écart sur `/api/health`, et l'anti-robot a resservi sa page 403. La règle
+  que j'ai écrite ce matin dans `faire-zip.mjs` — « un outil qui mesure le site
+  ne doit pas le faire tomber » — je l'ai enfreinte à la main quelques heures
+  plus tard. L'écrire ne suffit pas à la suivre.

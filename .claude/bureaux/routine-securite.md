@@ -391,6 +391,30 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
      CDN, donc elle n'est pas vue comme locale. N'écris JAMAIS « ce n'est pas
      une tâche du Patron » au seul motif que « local » manque.
 
+   · LA LONGUEUR DIT QUEL SECRET A ÉTÉ ENVOYÉ. Ce serveur en fabrique deux, et
+     ils n'ont pas la même taille :
+         clé cron ............ 64 caractères  (`bin2hex(random_bytes(32))`)
+         jeton de modération .. 65 caractères  (`cmst_` + 60, voir le code)
+     Une longueur écrite au journal qui tombe sur l'une de ces deux valeurs
+     n'est donc PAS un hasard, et elle ne se lit pas « clé périmée » par défaut.
+
+     ⚠️ LE CAS VU LE 10/09/2026, À RECONNAÎTRE D'UN COUP D'ŒIL :
+         cron_fail   · cle-differente(entete,65 car.)   ← 65 = le JETON
+         mtoken_fail · unknown                          ← ≥24, inconnu en base
+     dans la MÊME fenêtre. Les deux valeurs étaient **inversées** dans une
+     configuration : le jeton envoyé là où va la clé, la clé là où va le jeton.
+     Deux mécanismes d'authentification, deux identifiants plausibles mais
+     faux, et nos propres en-têtes (`X-Cron-Key`, `X-Service-Token`) — qu'un
+     scanner d'Internet ne connaît pas. **Ce n'est pas une attaque.**
+     Le Gardien avait classé les deux « mineur, à surveiller » sans les relier :
+     ils étaient dans sa propre fenêtre de ronde, et c'était sa propre
+     configuration. Regarde la TIENNE avant de conclure à l'extérieur.
+
+     Rappel de lecture, qui a permis d'écarter la fausse piste évidente : la
+     mention `,brute N` n'apparaît QUE si la longueur avant nettoyage diffère.
+     Son ABSENCE prouve qu'il n'y a ni espace ni saut de ligne collé — donc que
+     ce n'est pas une clé mal recopiée, mais une AUTRE valeur.
+
    POURQUOI CES MARQUES EXISTENT. Le 02/08, six cron_fail portant des clés de
    5, 28 et 30 caractères ont été rapportés comme « signature typique d'une
    tâche cPanel restée sur une ancienne clé ». C'étaient les sondes de
