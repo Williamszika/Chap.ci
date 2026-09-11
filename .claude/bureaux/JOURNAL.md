@@ -5433,3 +5433,53 @@ traces disent plus que ce qu'il en a tiré.
   reproduction se cite **avec la marque**, jamais avec la valeur — `CLE_CRON_ICI`,
   `JETON_MODERATION_ICI`. Le rapport perd zéro information : le Patron remplace
   chez lui, et lui seul en a besoin.
+
+### 2026-09-11 06:22 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde du matin
+- **Vert partout** : accueil 200, `/api/health` 200, PHP 8.5.10,
+  `fichiersInattendus: 0`, trois empreintes identiques au dépôt (`748ff11`).
+  `failRatio 0`, `suspiciousIps` vide, `rateLimited 0`. File de modération vide.
+  Cloisonnement retesté dans les deux sens (403 / 401).
+- **DU BON TRAVAIL SUR LA ROTATION.** Il a lu `derniersPassages` au lieu de
+  supposer : `alerts` et `rappels-pro` ont tourné avec succès à 05:00, **après**
+  la rotation — donc ces deux tâches cPanel portent la bonne clé. Les autres
+  n'ont pas encore eu leur tour. C'est exactement la lecture qu'il fallait, et
+  elle transforme « on verra bien » en une liste de sept tâches à confirmer.
+- **Il explique aussi ses `cron_fail`** sans en faire un incident : un
+  `cron/alerts` avec l'ancienne clé (résolu par le passage réussi de 05:00), son
+  propre test de cloisonnement, et un `mtoken_fail revoked` — bruit de
+  transition attendu après la révocation de cette nuit. Rien à re-signaler.
+
+### 2026-09-11 07:00 — [Direction] Le Secrétariat — le certificat n'a PAS été renouvelé
+- **LE GARDIEN A CONCLU L'INVERSE DE CE QUE DIT LA SOURCE, ET MOI AUSSI LA
+  VEILLE.** Il annonce « renouvellement déjà effectué, nouveau certificat
+  `not_after 2026-10-12` ». Vérification faite sur la même source :
+
+      3 certificats connus, du plus récemment émis au plus ancien
+        émis 2026-07-14 → expire 2026-10-12   Google Trust Services
+        émis 2026-07-14 → expire 2026-10-12   Let's Encrypt
+        émis 2026-07-12 → expire 2026-10-10   Let's Encrypt
+
+  **Le « nouveau » certificat date du 14 juillet.** Rien n'a été émis depuis
+  deux mois. Il avait seulement l'échéance la plus lointaine des trois.
+- **LA CAUSE EST UN TRI, ET ELLE NOUS A EUS TOUS LES DEUX, EN SENS INVERSE.**
+  Le Gardien a trié par `not_after` et pris le plus lointain : il a cru voir un
+  renouvellement. Le 10/09, j'avais lu la PREMIÈRE ligne d'une liste non triée
+  et annoncé `2026-10-10` : c'était la plus ancienne des trois, et j'ai déclaré
+  « fausse de deux jours » une valeur qui était juste.
+  **L'échéance réelle est bien le 12 octobre 2026.** Ma correction d'hier était
+  elle-même une erreur ; la routine porte désormais les trois lignes et le tri
+  par DATE D'ÉMISSION, seul capable de répondre à « le renouvellement a-t-il eu
+  lieu ? ».
+- **CE QUE ÇA CHANGE, ET CE N'EST PAS RIEN.** Le renouvellement automatique est
+  attendu vers le **12 septembre** — demain. Il n'a pas eu lieu. Ce n'est pas
+  encore une alerte (31 jours restants, seuil à 21), mais ce n'est surtout pas
+  le « rien à signaler » de ce matin. **Le signal à guetter est une NOUVELLE
+  LIGNE, pas une date qui bouge** : un certificat déjà émis ne change jamais
+  d'échéance. Second critère ajouté à la routine : signaler dès que la dernière
+  émission a plus de **70 jours**, ce qui attrape la panne pendant qu'il est
+  encore temps d'agir.
+- **AU PATRON, aujourd'hui** : comparer dans cPanel → Tâches cron les commandes
+  de `backup`, `seo`, `suggestions`, `review-invites`, `ads-expiring`,
+  `activation-relance` et `digest` avec celle d'Admin → Tâches auto.
+  `backup` passe à 02 h 00 — c'est celle qui compte, et la seule dont l'échec
+  serait durablement coûteux.

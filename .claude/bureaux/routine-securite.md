@@ -169,25 +169,56 @@ LIMITE CONNUE DE TON ENVIRONNEMENT :
 
     # 1. CertSpotter (SSLMate) — vérifié fonctionnel le 10/09/2026
     curl -sS 'https://api.certspotter.com/v1/issuances?domain=chap.ci&expand=issuer' \
-      | python3 -c "import sys,json;[print(c['not_after'][:10], c['issuer']['friendly_name']) for c in sorted(json.load(sys.stdin), key=lambda c: c['not_after'], reverse=True)[:3]]"
+      | python3 -c "
+import sys,json
+d=json.load(sys.stdin); d.sort(key=lambda c: c['not_before'], reverse=True)
+print(f'{len(d)} certificats connus, du plus RÉCEMMENT ÉMIS au plus ancien :')
+for c in d[:4]: print(f\"  émis {c['not_before'][:10]} → expire {c['not_after'][:10]}  {c['issuer']['friendly_name']}\")"
+
+  ⛔ **TRIE PAR DATE D'ÉMISSION (`not_before`), PAS PAR ÉCHÉANCE.** C'est la
+     seule façon de répondre à la question qui compte — « le renouvellement
+     a-t-il eu lieu ? » — et les deux tris donnent des réponses opposées.
+
+     Le 11/09/2026, un tri par échéance a fait conclure au Gardien que « le
+     renouvellement est déjà effectué, nouveau certificat 2026-10-12 ». Trié par
+     émission, le même jeu de données dit l'inverse : **trois certificats en
+     tout, le plus récent émis le 14 juillet.** Rien n'a été émis depuis deux
+     mois. Le « nouveau » certificat du 12/10 datait du 14/07 — il avait
+     simplement l'échéance la plus lointaine des trois.
+
+     Et la veille, j'avais annoncé 2026-10-10 en lisant la PREMIÈRE entrée d'une
+     liste non triée : c'était la plus ancienne des trois. Deux lectures
+     fausses, en sens inverse, sur la même source, deux jours de suite.
+     **Une échéance ne se lit pas d'un coup d'œil sur un tableau de certificats.**
 
     # 2. crt.sh — répond 404 depuis au moins le 10/09. À ne tenter qu'en second.
     curl -sS 'https://crt.sh/?q=chap.ci&output=json' | python3 -c "import sys,json;[print(c['not_after'][:10], c['issuer_name'][:40]) for c in sorted(json.load(sys.stdin), key=lambda c: c['not_after'], reverse=True)[:3]]"
 
-  **Lecture du 10/09/2026, par CertSpotter** : `not_after` **2026-10-10**,
-  émetteur **Let's Encrypt** (CN=YR2), noms `chap.ci` et `*.chap.ci`, émis le
-  2026-07-12. La valeur portée jusque-là — 2026-10-12 — était FAUSSE de deux
-  jours : elle datait du 17/08 et personne n'avait pu la rafraîchir depuis.
+  **ÉTAT RÉEL AU 11/09/2026**, trois certificats connus, tous pour `chap.ci` et
+  `*.chap.ci` :
 
-  ⚠️ **CE QUE CETTE DATE IMPLIQUE, ET QU'IL FAUT REGARDER.** Un certificat
-  Let's Encrypt vit 90 jours et se renouvelle automatiquement autour de J-30.
-  Émis le 12/07, expirant le 10/10 : le renouvellement est attendu **vers le
-  10 septembre**, c'est-à-dire maintenant. Si à la fin septembre `not_after`
-  n'a pas avancé, c'est que le renouvellement automatique est cassé — et c'est
-  précisément la panne que cette surveillance existe pour attraper.
+      émis 2026-07-14 → expire 2026-10-12   Google Trust Services
+      émis 2026-07-14 → expire 2026-10-12   Let's Encrypt
+      émis 2026-07-12 → expire 2026-10-10   Let's Encrypt
 
-  Ne signale QUE s'il reste moins de 21 jours, ou si plus aucun certificat
-  récent n'apparaît.
+  **Échéance réelle : le 12 octobre 2026. Dernière émission : le 14 juillet.**
+
+  ⚠️ **LE RENOUVELLEMENT N'A PAS EU LIEU, ET IL EST DÛ.** Un certificat
+  Let's Encrypt vit 90 jours et se renouvelle automatiquement autour de J-30 —
+  soit **vers le 12 septembre**, c'est-à-dire dans les jours qui viennent.
+  Tant qu'aucune ligne n'apparaît avec une date d'émission de septembre, le
+  renouvellement **n'est pas fait**. Ce n'est pas encore une alerte (31 jours
+  restants, seuil à 21), mais ce n'est surtout PAS un « rien à signaler ».
+
+  **Le signal à guetter est une NOUVELLE LIGNE, pas une date qui bouge.** Un
+  certificat déjà émis ne change jamais d'échéance ; le renouvellement se voit
+  à l'apparition d'une entrée dont `not_before` est récent. Si le 25 septembre
+  la plus récente date encore de juillet, l'automatisme est cassé : il faut le
+  dire au Patron, et regarder du côté de cPanel → AutoSSL et de Cloudflare.
+
+  Signale s'il reste moins de 21 jours, **ou si la dernière émission a plus de
+  70 jours** — ce second critère attrape la panne avant l'échéance, quand il
+  est encore temps.
 
   Si les DEUX sources échouent : garde la dernière valeur connue, dis dans le
   rapport que la lecture a échoué, et n'invente AUCUNE lecture. Mais si l'échec
