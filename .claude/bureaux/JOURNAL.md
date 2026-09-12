@@ -5893,3 +5893,30 @@ traces disent plus que ce qu'il en a tiré.
   `flutter_web_auth_2` appliquent encore le Kotlin Gradle Plugin, que les *futures*
   versions de Flutter refuseront. Rien à faire maintenant ; à reregarder à la
   prochaine montée de Flutter. Noté dans `APP-VERSIONS.md` pour ne pas le redécouvrir.
+
+### 2026-09-12 15:20 — [Livraison] Le Secrétariat — trois consignes reprises, parce qu'un non-développeur ne les lit pas comme moi
+- **LE KEYSTORE EST RETROUVÉ** : `mdfind -name .jks` a rendu **un seul** fichier, un
+  nom que personne n'avait écrit nulle part et que nos fiches supposaient différent.
+- **IL A COLLÉ LE CHEMIN SEUL DANS LE TERMINAL, DEUX FOIS** → `zsh: permission denied`.
+  **Rien de cassé** : le shell a tenté d'*exécuter* le keystore, ce qu'un fichier de
+  clés ne sait pas faire, et a refusé. Mais j'avais écrit « sélectionnez-le à la souris
+  et copiez-le », ce qui, pour quelqu'un devant un Terminal, veut dire « collez-le
+  dans le Terminal ». **La consigne était ambiguë, pas le geste maladroit.** La fiche
+  dit maintenant, avant le geste, que ce chemin sert à être *écrit dans un fichier*,
+  jamais à être lancé — et que le refus qui suit est inoffensif.
+- **UN RISQUE ÉVITÉ AVANT QU'IL NE COÛTE UN BUILD : L'ALIAS.** Le fichier s'appelle
+  `…-upload.jks`. Nos fiches supposent `keyAlias=chapci` depuis la v1.18, sans que
+  personne ne l'ait jamais vérifié. Un keystore fabriqué pour le Play Store porte
+  souvent `upload`. Étape **3a bis** ajoutée : `keytool -list -keystore …` liste les
+  alias, en demandant le mot de passe **sans l'afficher ni l'inscrire dans
+  l'historique**. Trois minutes de build économisées si l'alias diffère.
+- **LE CHEMIN S'ÉCRIT DÉSORMAIS PAR UNE COMMANDE, PAS À LA MAIN** (`sed` sur la seule
+  ligne `storeFile`). Une faute de frappe dans un chemin ne se voit pas à l'œil ; une
+  commande ne se trompe pas de caractère. TextEdit ne sert plus qu'aux deux mots de
+  passe — les seules valeurs qui ne doivent passer ni par le Terminal ni par moi.
+- **ET LA VÉRIFICATION FINALE COMPTE AU LIEU DE LIRE** :
+  `grep -c VOTRE_MOT_DE_PASSE android/key.properties` doit rendre **0**. Elle prouve
+  que les deux mots de passe ont été remplacés **et enregistrés**, sans en montrer un
+  seul caractère. **Sa sortie est un chiffre : le Patron peut me l'envoyer sans
+  risque.** C'est la forme que devrait prendre toute vérification portant sur un
+  secret — prouver sans révéler, comme le témoin `fcm` de `/api/health`.

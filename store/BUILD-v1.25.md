@@ -280,15 +280,35 @@ l'écran de démarrage. Elle finit par un récapitulatif ; c'est normal.
 mdfind -name .jks
 ```
 
-Une ou plusieurs lignes s'affichent, par exemple
-`/Users/biabrahamzika/chapci.jks`. **C'est ce chemin qu'il vous faut** —
-sélectionnez-le à la souris et copiez-le (Cmd+C).
+Une ou plusieurs lignes s'affichent, par exemple `/Users/patron/chapci-upload.jks`.
+*(Les deux lignes `[UserQueryParser] Loading keywords…` sont du bavardage de macOS,
+sans rapport.)*
+
+> ⚠️ **NE COLLEZ PAS CE CHEMIN SEUL DANS LE TERMINAL.** Le 12/09/2026, le chemin a
+> été collé puis validé par Entrée : le shell a répondu `zsh: permission denied`.
+> **Rien n'a été cassé** — le Terminal a simplement essayé d'*exécuter* le fichier,
+> ce qu'un keystore ne sait pas faire, et a refusé. Mais ça n'avance à rien.
+> Le chemin sert à être **écrit dans `key.properties`**, pas à être lancé.
 
 Si rien ne sort, essayez :
 
 ```bash
 ls -l ~/*.jks ~/Documents/*.jks ~/Desktop/*.jks 2>/dev/null
 ```
+
+**3a bis. Quel est l'alias de la clé dans ce keystore ?**
+
+La fiche suppose `chapci`, mais un keystore fabriqué pour le Play Store porte
+souvent `upload`. Un alias faux coûte un build entier pour le découvrir :
+
+```bash
+keytool -list -keystore LE_CHEMIN_TROUVÉ
+```
+
+Le mot de passe du keystore vous est demandé — **tapez-le, il ne s'affiche pas et
+n'entre pas dans l'historique du Terminal**. La sortie liste les alias, un par
+ligne, sous la forme `nom_de_l_alias, date, PrivateKeyEntry`. C'est ce `nom_de_l_alias`
+qui va dans `keyAlias=`.
 
 **3b. Créez le fichier, UNE SEULE FOIS :**
 
@@ -302,28 +322,56 @@ open -e android/key.properties
 > prévenir. Le 12/09/2026, ces deux lignes ont été collées deux fois de suite et
 > le build a échoué trois minutes plus tard sur le chemin d'exemple.
 
-**3c. TextEdit s'ouvre.** Remplacez les trois valeurs en majuscules — `keyAlias`
-est déjà bon :
+**3c. Le chemin, écrit par une commande plutôt qu'à la main.** Remplacez
+`LE_CHEMIN_TROUVÉ` par celui de l'étape 3a, et exécutez :
 
-```
-keyAlias=chapci
-keyPassword=le mot de passe de la clé
-storeFile=collez ici le chemin trouvé en 3a
-storePassword=le mot de passe du keystore
+```bash
+sed -i '' 's|^storeFile=.*|storeFile=LE_CHEMIN_TROUVÉ|' android/key.properties
 ```
 
-**Enregistrez avec Cmd+S**, puis fermez la fenêtre. Un fichier ouvert mais non
-enregistré donne exactement la même panne qu'un fichier jamais rempli.
-
-**3d. Vérifiez — et cette vérification-là lit le disque, pas vos intentions :**
+Une faute de frappe dans un chemin ne se voit pas à l'œil ; une commande, elle, ne
+se trompe pas de caractère. Vérifiez tout de suite que le chemin mène à un vrai
+fichier :
 
 ```bash
 ls -l "$(grep '^storeFile=' android/key.properties | cut -d= -f2-)"
 ```
 
-- **Votre fichier `.jks` s'affiche avec sa taille** → c'est bon, passez à l'étape 4.
-- **`No such file or directory`** → le chemin est faux, ou l'enregistrement n'a pas
-  eu lieu. Reprenez en 3a.
+Votre `.jks` doit s'afficher avec sa taille. `No such file or directory` = chemin
+faux, reprenez en 3a.
+
+**3d. Les deux mots de passe, dans TextEdit :**
+
+```bash
+open -e android/key.properties
+```
+
+Remplacez **uniquement** les deux valeurs en majuscules, et l'alias si l'étape
+3a bis en a révélé un autre :
+
+```
+keyAlias=chapci                       ← ou celui trouvé en 3a bis
+keyPassword=VOTRE_MOT_DE_PASSE_DE_CLE         ← à remplacer
+storeFile=…                                    ← déjà écrit en 3c, n'y touchez pas
+storePassword=VOTRE_MOT_DE_PASSE_KEYSTORE      ← à remplacer
+```
+
+**Enregistrez avec Cmd+S**, puis fermez la fenêtre. Un fichier ouvert mais non
+enregistré donne exactement la même panne qu'un fichier jamais rempli.
+
+**3e. La vérification finale — elle compte, elle ne lit pas :**
+
+```bash
+grep -c VOTRE_MOT_DE_PASSE android/key.properties
+```
+
+- **`0`** → les deux mots de passe ont bien été remplacés **et enregistrés**.
+  Passez à l'étape 4.
+- **`1` ou `2`** → il en reste ; TextEdit n'a pas enregistré, ou une ligne a été
+  oubliée. Reprenez en 3d.
+
+> Cette commande **compte** les mots restants du modèle : elle ne montre jamais vos
+> mots de passe. Sa sortie est un chiffre, et un chiffre s'envoie sans risque.
 
 > Cette commande n'affiche **que le chemin du keystore**. Ni son mot de passe, ni
 > celui de la clé n'apparaissent : vous pouvez me montrer sa sortie sans rien
