@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Jeudi 27 août 2026 au Samedi 12 septembre 2026 |
-| Livraisons | 136 |
+| Livraisons | 137 |
 | Jours travaillés | 17 |
-| Dernière mise à jour | Samedi 12 septembre 2026, 15:29 (Abidjan) |
+| Dernière mise à jour | Samedi 12 septembre 2026, 15:34 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,7 +42,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 12 septembre 2026
 
-**11 livraison(s)** · Abidjan 04:02 → 15:25 · chez le Patron 06:02 → 17:25 · amplitude 11 h 23
+**12 livraison(s)** · Abidjan 04:02 → 15:29 · chez le Patron 06:02 → 17:29 · amplitude 11 h 27
 
 - `04:02` · La clé cron cesse de s’afficher treize fois sur notre propre écran d’admin  <sub>`80f6fa7`</sub>
 - `13:23` · Un correctif commité n’est pas un correctif livré — le Gardien nous l’a rappelé  <sub>`979b2b0`</sub>
@@ -55,6 +55,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `15:19` · Le code Android de la v1.25 compile — l’échec ne tient qu’au fichier de signature  <sub>`d0c2228`</sub>
 - `15:23` · Le chemin du keystore s’écrit par une commande, et les mots de passe se comptent  <sub>`9954fdd`</sub>
 - `15:25` · `keytool` n’existe pas sur un Mac, et cette vérification-là se saute  <sub>`6ad1806`</sub>
+- `15:29` · « No such file or directory » : le fichier était là, le Terminal regardait ailleurs  <sub>`36e05e4`</sub>
 
 ### Vendredi 11 septembre 2026
 

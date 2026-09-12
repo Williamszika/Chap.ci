@@ -493,6 +493,7 @@ Deux erreurs fréquentes qui ne viennent pas du code :
 | `Received status code 429 … Too Many Requests` | Maven Central refuse temporairement. **Relancez la même commande** ; Gradle garde ce qu'il a déjà téléchargé. |
 | `Keystore file '/chemin/absolu/vers/chapci.jks' not found` | **Ce chemin-là est le modèle, pas le vôtre** : `android/key.properties` n'a pas été rempli, ou l'a été puis écrasé par un second `cp`. Reprenez l'étape 3. |
 | `Keystore file '…' not found` (un autre chemin) | Le chemin dans `storeFile` est faux. `mdfind -name .jks` donne le vrai. |
+| `Failed to read key … : keystore password was incorrect` | Le build a tout compilé et **bute sur la signature**. Voir l'encadré ci-dessous : ce message ne dit PAS lequel des deux mots de passe est en cause. |
 | `WARNING: … apply Kotlin Gradle Plugin (KGP)` | **Un avertissement, pas une erreur.** Il annonce une exigence des *futures* versions de Flutter, pour `firebase_core` et `flutter_web_auth_2`. Le build d'aujourd'hui n'en souffre pas ; ce sera aux auteurs de ces bibliothèques de suivre. |
 | `Quellwert 8 ist veraltet` / `source value 8 is obsolete` | Avertissement de compilation Java, sans effet. |
 
@@ -501,6 +502,43 @@ Deux erreurs fréquentes qui ne viennent pas du code :
 > s'affiche, **tout le code a compilé** — Kotlin, Java, Dart, Firebase compris — et
 > il ne reste que l'empaquetage et la signature. Une erreur après cette ligne ne
 > vient jamais du code de l'application.
+
+### 🔑 « keystore password was incorrect » — lequel des deux ?
+
+Vu le 12/09/2026. Le message est trompeur : il parle du mot de passe **du keystore**,
+mais le fichier en contient **deux**, et Java les confond dans ce texte. Ne changez
+rien au hasard — **isolez d'abord**.
+
+**Le test qui tranche** — il ne demande QUE le mot de passe du keystore :
+
+```bash
+/Applications/Android\ Studio.app/Contents/jbr/Contents/Home/bin/keytool -list -keystore LE_CHEMIN_DU_JKS
+```
+
+Tapez le mot de passe du keystore quand il le demande. Il **ne s'affiche pas** et
+**n'entre pas dans l'historique du Terminal** — c'est la façon sûre de l'essayer.
+
+| Ce que vous voyez | Ce que ça dit |
+|---|---|
+| Une liste avec `… , date, PrivateKeyEntry` | ✅ Le mot de passe du **keystore** est bon. C'est donc `keyPassword` qui est faux — **et le premier mot de chaque ligne est le vrai alias**, à comparer avec votre `keyAlias`. |
+| `keystore password was incorrect` | C'est `storePassword` qui est faux dans `key.properties`. |
+
+**Les deux pièges qui ne se voient pas à l'œil**, dans un fichier `.properties` :
+
+```bash
+grep -cE '^(keyPassword|storePassword)=.*[ 	]$' android/key.properties
+grep -cE '^(keyPassword|storePassword)=.*\\' android/key.properties
+```
+
+Les deux doivent rendre **0**.
+
+- **Une espace en fin de ligne fait partie du mot de passe** — invisible dans
+  TextEdit, fatale pour Java.
+- **La barre oblique inversée `\` est un caractère d'échappement** : un mot de passe
+  contenant `\` est lu amputé. S'il en contient un, il faut le **doubler** (`\\`).
+
+Ces deux commandes **comptent** : elles ne montrent aucun mot de passe, et leur
+sortie — un chiffre — peut m'être envoyée sans risque.
 
 ---
 

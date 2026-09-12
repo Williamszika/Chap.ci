@@ -5966,3 +5966,29 @@ traces disent plus que ce qu'il en a tiré.
   Une consigne donnée au Patron doit être vraie dans une fenêtre neuve, sur une
   machine qui n'est pas la mienne, après une nuit de sommeil. Les blocs de commandes
   de cette fiche portent désormais leur `cd`.
+
+### 2026-09-12 16:30 — [Livraison] Le Secrétariat — « keystore password was incorrect » ne dit pas lequel des deux
+- **LE BUILD EST ALLÉ PLUS LOIN QUE JAMAIS** : `:app:signReleaseBundle`, c'est-à-dire
+  **la dernière tâche**. Tout est compilé et empaqueté ; il ne manque que la signature.
+  7 secondes de Gradle au lieu de 2 min 56 — le cache fait son travail.
+- **LE MESSAGE EST TROMPEUR, ET C'EST LE CŒUR DU SUJET** :
+  `Failed to read key chapci from store "…": keystore password was incorrect`.
+  Le fichier contient **deux** mots de passe — `storePassword` (le coffre) et
+  `keyPassword` (la clé dedans) — et ce texte de Java les confond. **Changer au hasard
+  celui qu'on croit fautif, c'est jouer à pile ou face sur un cycle de build.**
+- **BOUCLE ROUGE/VERT CONSTRUITE PLUTÔT QU'HYPOTHÈSE ÉMISE**, comme l'exige
+  `CLAUDE.md`. `keytool -list` ne demande QUE le mot de passe du **keystore** : s'il
+  liste les entrées, le coffre est bon et le fautif est `keyPassword` ; s'il refuse,
+  c'est `storePassword`. Un seul essai, pas de build, et le mot de passe tapé à
+  l'invite **ne s'affiche pas et n'entre pas dans l'historique**. Le chemin complet du
+  JDK d'Android Studio est écrit dans la fiche — `keytool` n'est pas dans le PATH.
+  **Bénéfice second** : la même sortie donne le **vrai alias**, la question laissée
+  ouverte tout à l'heure.
+- **DEUX PIÈGES INVISIBLES DOCUMENTÉS, PROPRES AU FORMAT `.properties`** :
+  1. **une espace en fin de ligne fait partie du mot de passe** — invisible dans
+     TextEdit, fatale pour Java ;
+  2. **`\` est un caractère d'échappement** : un mot de passe qui en contient un est lu
+     amputé, et il faut le doubler.
+  Deux `grep -c` les détectent. **Ils comptent, ils ne lisent pas** : leur sortie est
+  un chiffre, que le Patron peut m'envoyer sans rien exposer. C'est la troisième
+  vérification de la journée bâtie sur ce principe — prouver sans révéler.
