@@ -189,8 +189,8 @@ Le dossier de la demande, son refus et ce qui reste inconnu :
 | Champ | Valeur |
 |---|---|
 | **Commit** | le dernier qui touche `flutter_app/` — à lire par `git log --oneline -1 -- flutter_app/`, **jamais à recopier depuis cette fiche** (trois rectifications du même champ en cinq jours, 07, 08 et 12/09). |
-| Date du build | **NON CONSTRUITE.** |
-| Poids de l'AAB | sans objet. |
+| Date du build | **NON CONSTRUITE** — marche à suivre : **`store/BUILD-v1.26.md`**, volontairement courte (elle ne dit que ce qui change ; le détail reste dans `BUILD-v1.25.md`, corrigée six fois le 12/09). |
+| Poids de l'AAB | sans objet. À comparer aux **69,3 Mo** de la v1.25 : aucun greffon natif n'a été ajouté, l'écart devrait être négligeable. |
 | minSdk **24 en vrai** · targetSdk 36 | mêmes remarques que la v1.25 : le 23 que nous déclarons est écrasé à 24 par une dépendance. |
 | État Play | **NON VÉRIFIÉ** — non construite. ⚠️ **Le code 26 est brûlé** : il a été reçu par Google le 12/09 et déployé sur le canal fermé. C'est bien 27 qu'il faut, et `pubspec.yaml` le porte déjà. |
 

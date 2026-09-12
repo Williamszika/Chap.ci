@@ -6341,3 +6341,22 @@ traces disent plus que ce qu'il en a tiré.
   baissent dans la console avant le 26/09, regarder ça en premier** ; la valeur se
   change en un caractère. **Ma réserve est notée, la décision est la sienne, et
   elle est appliquée en entier — pas à moitié.**
+
+### 2026-09-13 03:00 — [Livraison] Le Secrétariat — fiche de build v1.26, courte par principe
+- **`store/BUILD-v1.26.md` écrite, et elle tient en une page.** Elle ne dit QUE ce
+  qui change ; tout le détail renvoie à `BUILD-v1.25.md`, corrigée six fois hier.
+  **Recopier une fiche de quatre cents lignes pour changer deux chiffres, c'est
+  fabriquer une seconde source de vérité qui divergera** — c'est exactement ce qui
+  s'est passé avec `BUILD-v1.24.md`, restée en place en annonçant le code 25.
+- **CE QU'ELLE PRÉVIENT, ET QUI AURAIT COÛTÉ UN ALLER-RETOUR** : sur iPhone, la
+  carte d'avis **n'affichera pas** le bouton « Noter sur le Play Store » — il n'y a
+  pas de fiche App Store. Le Patron, qui va essayer sur son iPhone, aurait conclu
+  que la fonctionnalité est cassée. C'est écrit avant qu'il regarde.
+- **LA DÉCISION DE TÉLÉVERSER EST POSÉE COMME UNE DÉCISION, PAS COMME UNE ÉTAPE.**
+  Construire ne coûte rien ; déposer, si. Les douze testeurs ont reçu la v1.25 il y
+  a quelques heures, et **le rappel à chaque lancement n'a jamais tourné chez
+  personne** — s'il agace, ce sont eux qu'il agace, et un désabonnement remet les
+  quatorze jours à zéro. Recommandation écrite : construire aujourd'hui, essayer
+  soi-même, déposer dans deux ou trois jours. **Avec la réserve inverse dite dans la
+  même table : l'échéance du 26/09 est réelle.** Le Patron tranche en connaissant
+  les deux côtés, ce qui n'est pas la même chose que de trancher sans les voir.
