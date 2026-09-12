@@ -6284,3 +6284,30 @@ traces disent plus que ce qu'il en a tiré.
   sous le commentaire. Google écrit noir sur blanc que répondre augmente les chances
   d'une demande réussie — et cela lui donnera une vraie réponse à la question 1.3,
   « comment les retours ont-ils été recueillis ». Modèle fourni.
+
+### 2026-09-13 02:00 — [Développement] Le Secrétariat — « Noter sur le Play Store » existait déjà, et il était cassé sur iPhone
+- **LE PATRON JUGE LE CHEMIN DU PLAY STORE PLUS UTILE QUE NOTRE AVIS INTERNE.** Sur
+  le point qui décide du 26/09, **il a raison** : Google ne voit que le sien. Notre
+  avis, lui, ne remonte jamais chez Google — il sert au Patron, et il servira encore
+  quand le test fermé sera fini.
+- **MAIS LE BOUTON EXISTAIT DÉJÀ** : Paramètres → « Noter l'application / Laisser un
+  avis sur le Play Store », écrit il y a des semaines. **Et il n'a produit
+  qu'UN SEUL commentaire en trois semaines.** Le chemin n'était pas absent : il
+  n'était jamais proposé. **Personne n'ouvre les Paramètres pour aller noter une
+  application.** C'est exactement le trou que la carte d'accueil vient combler —
+  elle n'est pas une concurrente du magasin, elle en est l'entrée.
+- **ET CE BOUTON AVAIT UN DÉFAUT QUE PERSONNE N'AVAIT VU.** Il tentait `market://`,
+  puis **se rabattait sur le lien web de Google Play en cas d'échec** — c'est-à-dire,
+  sur un iPhone, **toujours**. Un utilisateur iOS atterrissait dans Safari devant la
+  fiche Play Store d'une application qu'il ne peut pas installer là.
+- **TROISIÈME COPIE ÉVITÉE DE JUSTESSE.** En écrivant l'avis cette nuit, j'ai créé
+  `ouvrirNoteMagasin()` sans savoir que `_noter()` faisait déjà la même chose. Deux
+  implémentations du même geste, dont une fausse sur une plateforme : c'est ainsi
+  qu'on corrige un bug une fois sur deux. `_noter()` délègue désormais, et le
+  contrôle de plateforme profite aux deux appels. **Chercher avant d'écrire aurait
+  coûté trente secondes ; je ne l'ai pas fait.**
+- **LE TEXTE DE REMERCIEMENT DIT MAINTENANT QUOI FAIRE UNE FOIS SUR PLACE** :
+  « Sur la page du Play Store, "Envoyer des commentaires" va droit au développeur —
+  c'est le seul endroit que Google lit. » Envoyer quelqu'un sur une fiche sans lui
+  dire où appuyer, c'est l'y envoyer pour rien : le retour d'Ange Goze est passé par
+  ce chemin-là, et c'est le seul de tout le canal.

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../api/admin.dart';
 import '../api/api_client.dart';
+import '../api/avis_app.dart';
 import '../api/biometrie.dart';
 import '../i18n/langues.dart';
 import '../i18n/textes.dart';
@@ -193,26 +193,27 @@ class _ParametresScreenState extends State<ParametresScreen> {
     } catch (_) {/* l'utilisateur a annulé, ou pas d'appli de partage */}
   }
 
-  /// Ouvrir la fiche Play Store pour noter l'application. On tente d'abord
-  /// l'appli Play Store (`market://`), puis on se rabat sur le lien web.
+  /// Ouvrir la fiche Play Store pour noter l'application.
+  ///
+  /// ⚠️ CETTE MÉTHODE AVAIT SA PROPRE COPIE DU CODE D'OUVERTURE, et elle en avait
+  /// hérité un défaut : elle se rabattait sur le lien **web** de Google Play quand
+  /// `market://` échouait — c'est-à-dire, sur un iPhone, TOUJOURS. Un utilisateur
+  /// iOS se retrouvait dans Safari devant la fiche Play Store d'une application
+  /// qu'il ne peut pas installer là.
+  ///
+  /// Elle délègue désormais à [ouvrirNoteMagasin], qui vérifie d'abord qu'il
+  /// existe un magasin pour cet appareil. Une seule implémentation, un seul
+  /// endroit à corriger — le 13/09/2026, en écrivant l'avis dans l'application,
+  /// on avait failli en écrire une troisième.
   Future<void> _noter() async {
-    final market = Uri.parse('market://details?id=ci.chap.app');
-    final web =
-        Uri.parse('https://play.google.com/store/apps/details?id=ci.chap.app');
-    try {
-      if (await canLaunchUrl(market)) {
-        await launchUrl(market, mode: LaunchMode.externalApplication);
-        return;
-      }
-    } catch (_) {/* on tente le lien web ci-dessous */}
-    try {
-      await launchUrl(web, mode: LaunchMode.externalApplication);
-    } catch (_) {
+    if (!magasinDisponible) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(tr(context, 'param.playErreur'))));
       }
+      return;
     }
+    await ouvrirNoteMagasin();
   }
 
   Future<void> _seDeconnecter() async {
