@@ -518,6 +518,32 @@ rien au hasard — **isolez d'abord**.
 Tapez le mot de passe du keystore quand il le demande. Il **ne s'affiche pas** et
 **n'entre pas dans l'historique du Terminal** — c'est la façon sûre de l'essayer.
 
+> ## ⚠️ RIEN NE S'AFFICHE QUAND VOUS TAPEZ. C'EST NORMAL.
+>
+> `Keystore-Kennwort eingeben:` reste là, immobile. **Pas d'étoiles, pas de points,
+> pas de curseur qui avance.** On croit que le clavier ne répond pas — il répond.
+> **Tapez le mot de passe à l'aveugle, puis Entrée.**
+>
+> ⛔ **Ne le tapez JAMAIS à l'invite `…%` du Terminal.** Là, il devient une commande :
+> le shell répond `command not found: <votre mot de passe>` et **l'inscrit en clair
+> dans l'historique**, où il reste des mois. C'est arrivé le 12/09/2026, et le mot de
+> passe a en plus été recopié dans une conversation.
+>
+> **Si cela vous arrive — la procédure, dans cet ordre :**
+>
+> ```bash
+> unset HISTFILE
+> : > ~/.zsh_history
+> ```
+>
+> Puis **quittez complètement le Terminal** (Cmd+Q) et rouvrez-le. `unset HISTFILE`
+> empêche la fenêtre en cours de réécrire l'historique en se fermant ; sans lui,
+> vider le fichier ne sert à rien.
+>
+> **Et surtout : effacer n'est pas révoquer.** Un mot de passe qui a été affiché doit
+> être changé **partout où il sert**, en commençant par ce qui n'a rien à voir avec ce
+> keystore — la boîte mail, le compte Google qui détient la Play Console.
+
 | Ce que vous voyez | Ce que ça dit |
 |---|---|
 | Une liste avec `… , date, PrivateKeyEntry` | ✅ Le mot de passe du **keystore** est bon. C'est donc `keyPassword` qui est faux — **et le premier mot de chaque ligne est le vrai alias**, à comparer avec votre `keyAlias`. |

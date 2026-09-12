@@ -5992,3 +5992,31 @@ traces disent plus que ce qu'il en a tiré.
   Deux `grep -c` les détectent. **Ils comptent, ils ne lisent pas** : leur sortie est
   un chiffre, que le Patron peut m'envoyer sans rien exposer. C'est la troisième
   vérification de la journée bâtie sur ce principe — prouver sans révéler.
+
+### 2026-09-12 16:50 — [Confiance & Sécurité] Le Secrétariat — CINQUIÈME EXPOSITION DE SECRET, et celle-ci ressemble à un mot de passe personnel
+- **CE QUI S'EST PASSÉ.** `keytool` a affiché `Keystore-Kennwort eingeben:` et a
+  échoué aussitôt — le Patron n'a probablement rien tapé, **parce que rien ne
+  s'affiche à cette invite** : ni étoile, ni point, ni curseur. On croit le clavier
+  mort. Il a alors tapé le mot de passe **à l'invite du shell**, qui a répondu
+  `zsh: command not found: <le mot de passe>` — en clair. Puis il me l'a recopié.
+- **LE MOT DE PASSE N'EST PAS CONSIGNÉ ICI, ET NE LE SERA NULLE PART.** Ce qui compte
+  pour la suite : **il ressemble à un mot de passe personnel réutilisable**, et non à
+  une chaîne fabriquée pour ce keystore. C'est ça le vrai risque, pas le keystore.
+- **CE QUE ÇA MET EN DANGER, DANS L'ORDRE.** Le fichier `.jks` n'a pas bougé de son
+  Mac : sans lui, ce mot de passe ne signe rien. **Le danger est ailleurs — la
+  réutilisation.** S'il sert aussi à la boîte mail ou au compte Google qui détient la
+  Play Console, c'est ce compte-là qu'il faut protéger d'abord. Consigne donnée en
+  conséquence : changer le mot de passe **partout sauf ici** en priorité.
+- **TROIS ENDROITS OÙ IL RESTE APRÈS COUP** : l'historique zsh (`~/.zsh_history`, des
+  mois), le tampon de la fenêtre du Terminal, la conversation. Procédure écrite dans
+  la fiche — `unset HISTFILE` **avant** de vider le fichier, sinon la fenêtre en cours
+  le réécrit en se fermant. Un détail qui fait échouer silencieusement le nettoyage.
+- **LA CAUSE EST UNE INTERFACE, PAS UNE MALADRESSE.** Une invite qui n'accuse
+  réception d'aucune frappe pousse l'utilisateur à chercher un autre endroit où taper.
+  La fiche le dit maintenant **avant** la commande, pas après : *rien ne s'affiche,
+  c'est normal, tapez à l'aveugle*. **C'est la cinquième fuite du projet et la
+  première dont la cause est un silence d'interface** — les quatre précédentes
+  venaient d'écrans qui affichaient trop.
+- **RÈGLE RÉAFFIRMÉE, PARCE QU'ELLE A DÉJÀ ÉTÉ DISCUTÉE LE 11/09** : effacer n'est pas
+  révoquer. Un secret affiché est un secret à changer, et la décision revient au
+  Patron une fois le fait posé clairement.
