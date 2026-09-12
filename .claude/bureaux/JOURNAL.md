@@ -5635,3 +5635,31 @@ traces disent plus que ce qu'il en a tiré.
 - **Reste `store/CLE-CRON.md`**, toujours valable et toujours utile : cPanel, lui, n'a
   pas de masque et n'en aura jamais. Mais l'urgence baisse d'un cran — la source la plus
   consultée des deux ne fuit plus.
+
+### 2026-09-12 05:49 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde du matin
+- **LA MEILLEURE TROUVAILLE DU BUREAU DEPUIS SA CRÉATION, ET ELLE TIENT À UNE
+  COMPARAISON D'EMPREINTES.** Il constate que `empreinteSite` servie
+  (`a503f99fd904`) diffère de celle d'un build réel de HEAD (`ee375bc5a229`), et il
+  en tire la bonne conclusion : **le correctif de sécurité de 04:02 n'est pas
+  déployé.** Le code est propre, la production ne l'est pas — donc l'écran
+  Admin → Tâches auto continue d'afficher la clé cron en clair treize fois.
+  Il ajoute la preuve que c'est bien CE commit : c'est le seul touchant `src/`
+  depuis `deposeSite 2026-09-10T20:59:43Z`.
+- **CE QUE ÇA APPREND SUR NOTRE FAÇON DE TRAVAILLER.** Le Secrétariat a écrit à
+  04:30 « corrigé », et c'était faux du point de vue qui compte — celui du Patron
+  devant son écran. **Un correctif commité n'est pas un correctif livré**, et la
+  distinction avait disparu dans l'enthousiasme d'avoir trouvé la faute. La règle
+  des trois empreintes de `CLAUDE.md` existe exactement pour ça, et c'est un bureau
+  qui l'a appliquée, pas nous.
+  Le journal porte désormais la nuance : une entrée « corrigé » dit *le code* ;
+  seule une empreinte servie dit *la production*.
+- **Zip n° 24 fabriqué et remis** : `empreinteSite ee375bc5a229`, API et seo.php
+  inchangés. La vérification donnée au Patron n'est pas seulement l'empreinte, mais
+  ce qu'il verra à l'œil nu : les treize commandes doivent afficher `762b••••2f7d`.
+- **Reste de la ronde vert** : sécurité à zéro net extérieur, certificat confirmé
+  jusqu'au 10/12, ménage vide, modération vide, cloisonnement retesté.
+  `adminUnlockFail 1` pour `adminUnlockOk 2` — friction normale, sous le seuil.
+- **Son outil de notification est en panne** (`PushNotification` refuse son propre
+  champ `status`). Il l'a signalé, a cessé d'insister, et a fait passer l'essentiel
+  par le canal qui restait. C'est la bonne conduite : un bureau qui ne peut plus
+  alerter doit le DIRE, pas se taire.
