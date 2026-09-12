@@ -227,6 +227,15 @@ réécrivent pas sans laisser de trace.
 
 **Régénérez-le en fin de séance**, et commitez-le avec le reste.
 
+⚠️ **Un clone superficiel le faisait mentir en silence.** Une session lancée sur un
+clone `--depth` ne voit qu'une tranche récente de l'histoire ; `git log` ne s'en plaint
+pas, il s'arrête à la limite. Le 12/09/2026, le registre a été régénéré **huit fois**
+en annonçant « 141 livraisons depuis le 27 août » au lieu de « 856 depuis le
+11 juillet » — six semaines effacées, sans un signe. Trouvé par 🛡️ Le Gardien.
+`npm run registre` **refuse désormais d'écrire** sur un dépôt superficiel et donne la
+commande : `git fetch --unshallow`. Si vous voyez ce refus, c'est qu'il vous a évité
+un faux document, pas qu'il est cassé.
+
 Deux choses à ne pas confondre, écrites dans le fichier lui-même :
 
 - **« Amplitude » n'est pas « temps passé »** — c'est l'écart entre la première et la

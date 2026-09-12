@@ -6105,3 +6105,52 @@ traces disent plus que ce qu'il en a tiré.
 - **À FAIRE AVANT DE TRANCHER** : relever dans Play Console → Statistiques la part
   réelle d'Android 6.0 **et** 7.0 chez les utilisateurs de Chap.ci, et identifier la
   bibliothèque qui impose 24. Sans ces deux chiffres, la décision serait une opinion.
+
+### 2026-09-12 17:50 — [Confiance & Sécurité] 🛡️ Le Gardien — troisième ronde
+- **Journée verte.** Accueil 200, `/api/health` 200, sitemap 200, PHP 8.5.10,
+  `fichiersInattendus 0`. Sécurité 24 h : `suspiciousIps []`, `failRatio 0`,
+  `rateLimited 0`, `mfaFail 0`, `adminsTampered false`. Ménage à zéro, modération
+  vide, digest posé sans e-mail.
+- **LES TROIS EMPREINTES CONSTRUITES, PAS SUPPOSÉES** (`npm ci && npm run build`) :
+  `e5fd19520b7c`, `9536aeb35d70`, `ee375bc5a229` — **les trois égales à HEAD**. Le
+  retard de déploiement qu'il signalait deux fois ce matin **est comblé** : le zip
+  n° 24 est bien en production. Il a suivi sa propre alerte jusqu'à sa disparition.
+- **`cron_fail 4` / `mtoken_fail 4` : il reconnaît ses propres traces, cette fois.**
+  `sans-cle` ×3 + `cle-differente(65 car.)` ×1 — ses tests de cloisonnement de la
+  journée, fenêtre cumulative de 24 h. C'est exactement ce que la rectification du
+  11/09 lui demandait de savoir faire ; il le fait, et le dit.
+- **CSP et TLS vérifiés par `curl -sSI`, pas par mémoire.** `crt.sh` renvoie 502
+  (leur panne) — il garde la dernière valeur connue au lieu d'inventer.
+
+### 2026-09-12 18:20 — [Direction] Le Secrétariat — LE REGISTRE MENTAIT, ET C'EST LE GARDIEN QUI L'A VU
+- **SA TROUVAILLE VISE MON TRAVAIL DE LA JOURNÉE, ET ELLE EST JUSTE.** En régénérant
+  `REGISTRE-ACTIVITE.md`, il a constaté que son clone était **superficiel**
+  (`git rev-parse --is-shallow-repository` → `true`). J'ai vérifié le mien :
+  **superficiel lui aussi, 142 commits, remontant au 27 août.**
+- **J'AI DONC COMMITÉ HUIT REGISTRES FAUX AUJOURD'HUI.** Chacun annonçait « du 27 août
+  au 12 septembre, ~140 livraisons ». Après `git fetch --unshallow` : **856 livraisons,
+  63 jours, du 11 juillet au 12 septembre.** **Six semaines de travail effacées** d'un
+  document dont la raison d'être est qu'on puisse l'opposer à quelqu'un.
+- **CE QUI REND CE DÉFAUT PARTICULIÈREMENT GRAVE** : `git log` ne signale rien sur un
+  dépôt superficiel — il s'arrête à la limite, sans erreur. Le registre produit est
+  bien formé, daté, chiffré. **Il ment avec l'autorité de l'automatique**, ce qui est
+  pire qu'un oubli à la main : personne ne relit un document généré. C'est le défaut
+  que ce script prétend corriger, reproduit à l'intérieur du remède.
+- **CORRIGÉ COMME LE GARDIEN LE PROPOSAIT, ET SUR SA VARIANTE LA PLUS STRICTE.**
+  `scripts/registre.mjs` teste `--is-shallow-repository` en tête et **refuse d'écrire**
+  (code de sortie 1) en donnant la commande à taper. **Pas de `--unshallow`
+  automatique** : compléter 800 commits en silence pendant qu'on croit lancer une
+  commande de trois secondes est une autre façon de surprendre l'utilisateur.
+- **LE GARDE-FOU A ÉTÉ PROUVÉ CAPABLE D'ÉCHOUER**, comme l'exige `COMMUN.md` §5 —
+  et le premier essai ne prouvait rien : `git clone --depth 20` sur un **chemin local**
+  ignore `--depth` et rend un dépôt complet. Refait en `file://` : 20 commits,
+  superficiel, **refus, code 1, aucun fichier écrit**. Une vérification qu'on n'a pas
+  vue passer au rouge n'est pas une vérification.
+- **`CLAUDE.md` porte l'avertissement**, pour que la prochaine session qui voit ce
+  refus sache qu'il l'a protégée au lieu de croire l'outil cassé.
+- **CE QUE JE RETIENS, ET QUI N'EST PAS CONFORTABLE.** J'ai passé la journée à
+  reprocher à mes propres fiches de comparer à ce que j'avais écrit plutôt qu'à
+  l'état réel. **Le registre faisait la même chose**, et je ne l'ai pas vu en huit
+  passages : je lisais « ✅ 141 livraisons » comme une confirmation, alors que c'était
+  un chiffre que je n'avais jamais confronté à rien. **Un bureau en lecture seule l'a
+  vu du premier coup, parce qu'il a mesuré au lieu de lire.**

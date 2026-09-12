@@ -33,6 +33,45 @@ const FUSEAU_PATRON = 'Europe/Berlin'   // là où le Patron travaille aujourd'h
 const DEBUT = '<!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->'
 const FIN   = '<!-- FIN REGISTRE AUTOMATIQUE -->'
 
+// =============================================================================
+//  GARDE-FOU : UN CLONE SUPERFICIEL FAIT MENTIR CE REGISTRE EN SILENCE.
+//
+//  Trouvé par 🛡️ Le Gardien le 12/09/2026, sur sa troisième ronde. Un clone fait
+//  avec `--depth` ne contient qu'une tranche récente de l'histoire. `git log` n'y
+//  voit AUCUNE anomalie : il ne renvoie pas d'erreur, il s'arrête simplement à la
+//  limite du clone. Le registre produit est alors parfaitement bien formé, daté,
+//  chiffré — et faux.
+//
+//  Ce jour-là, la session du Développement tournait sur un clone de 142 commits.
+//  Le registre a été régénéré et commité HUIT FOIS en annonçant « du 27 août au
+//  12 septembre, 141 livraisons ». La vérité : « du 11 juillet au 12 septembre,
+//  856 livraisons ». Six semaines de travail effacées, sans un signe.
+//
+//  C'est exactement le défaut que ce script prétend corriger — un document qui
+//  ment sans qu'on puisse le voir — reproduit à l'intérieur du remède. Et celui-ci
+//  mentait avec l'autorité de l'automatique, ce qui est pire qu'un oubli à la main.
+//
+//  D'où ce refus net. On ne complète pas le dépôt en douce (`--unshallow` sur un
+//  réseau lent, pendant qu'on croit lancer une commande de trois secondes) : on
+//  s'arrête, on dit pourquoi, et on donne la commande à taper.
+// =============================================================================
+if (execFileSync('git', ['rev-parse', '--is-shallow-repository'],
+  { cwd: DEPOT, encoding: 'utf8' }).trim() === 'true') {
+  console.error(`
+  ⛔ REGISTRE NON ÉCRIT — le dépôt est SUPERFICIEL (clone « --depth »).
+
+     Seule une tranche récente de l'histoire est visible ici. Le registre
+     produit aurait l'air juste et serait FAUX : il annoncerait quelques
+     semaines de travail au lieu de toutes.
+
+     Complétez le dépôt, puis relancez :
+
+         git fetch --unshallow
+         npm run registre
+`)
+  process.exit(1)
+}
+
 const SEP = '' // séparateur de champs : ne peut pas apparaître dans un titre
 const brut = execFileSync('git', [
   'log', '--no-merges', `--format=%H${SEP}%aI${SEP}%s`,
