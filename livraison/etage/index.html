@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob: https://accounts.google.com https://www.gstatic.com https://connect.facebook.net https://analytics.tiktok.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: data: https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://www.facebook.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co https://analytics.tiktok.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com; worker-src 'self' blob:; frame-src 'self' https://accounts.google.com https://www.facebook.com https://staticxx.facebook.com; manifest-src 'self'" />
+    <meta name="google-site-verification" content="e2OCOF1GOVSlpr7vDLf6vsYUs206ShvdplWak4ogzrk" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=e63ed5bf" />
+    <link rel="icon" href="/favicon.ico?v=82c040fa" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=567d1183" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- La barre du navigateur prend la couleur du HAUT de la page, et le haut
+         de la page est le bandeau ORANGE depuis le 30/08. Un theme-color vert
+         posait une barre verte au-dessus d'un bandeau orange : une couture. -->
+    <meta name="theme-color" content="#F77F00" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Chap.ci" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="description"
+      content="Chap.ci, le site de petites annonces 100% ivoirien : achetez et vendez chap-chap partout en Côte d'Ivoire — voitures, téléphones, immobilier, mode, alimentation… à Abidjan, Bouaké, Yamoussoukro, San-Pédro et dans toutes les communes."
+    />
+    <meta name="keywords" content="petites annonces Côte d'Ivoire, annonces Abidjan, acheter vendre Côte d'Ivoire, occasion Abidjan, immobilier Abidjan, voiture occasion Côte d'Ivoire, Chap.ci" />
+    <meta name="author" content="Chap.ci" />
+    <link rel="canonical" href="https://chap.ci/" />
+    <!-- Les annonces partent AVANT React — voir public/precharge.js pour le
+         pourquoi et les précautions. `async` : il ne retarde pas le rendu. -->
+    <script src="/precharge.js" async></script>
+    <title>Chap.ci — Petites annonces en Côte d'Ivoire | Acheter & vendre chap-chap</title>
+
+    <!-- Aperçu de partage (WhatsApp, Facebook, X…) + réseaux sociaux -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Chap.ci" />
+    <meta property="og:title" content="Chap.ci — Petites annonces en Côte d'Ivoire" />
+    <meta property="og:description" content="Achetez et vendez chap-chap partout en Côte d'Ivoire : voitures, téléphones, immobilier, mode, alimentation… 100% ivoirien 🇨🇮" />
+    <meta property="og:url" content="https://chap.ci/" />
+    <!-- Bannière 1200×630 (scripts/generate-og.mjs). C'était l'apple-touch-icon
+         jusqu'au 16/08 : 180×180, donc une vignette carrée là où WhatsApp sait
+         afficher une grande image. L'accueil est le lien le plus partagé du
+         site ; les pages de catégorie avaient déjà leur bannière. -->
+    <meta property="og:image" content="https://chap.ci/og/accueil.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Chap.ci — achetez et vendez chap-chap partout en Côte d'Ivoire, gratuit et sans commission." />
+    <meta property="og:locale" content="fr_CI" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Chap.ci — Petites annonces en Côte d'Ivoire" />
+    <meta name="twitter:description" content="Achetez et vendez chap-chap partout en Côte d'Ivoire. 100% ivoirien 🇨🇮" />
+    <meta name="twitter:image" content="https://chap.ci/og/accueil.png" />
+
+    <!-- Données structurées (Google : nom du site + barre de recherche) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Chap.ci",
+        "alternateName": "Chap CI",
+        "url": "https://chap.ci/",
+        "description": "Petites annonces 100% ivoiriennes : achetez et vendez chap-chap partout en Côte d'Ivoire.",
+        "inLanguage": "fr",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://chap.ci/#/explorer?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+    <!--
+      Identité de l'entité « Chap.ci ».
+
+      C'est par ce bloc qu'un moteur — et derrière lui un assistant IA — relie
+      un nom de domaine à une organisation réelle : où elle est, ce qu'elle
+      fait, comment la joindre. Sans lui, « Chap.ci » n'est qu'une chaîne de
+      caractères parmi d'autres.
+
+      « sameAs » y tient la place la plus importante : il déclare les AUTRES
+      adresses où la même entité s'exprime (page Facebook, compte TikTok…).
+      C'est le fil qui permet de recouper une identité au lieu de la deviner.
+      N'y mettre que des comptes RÉELS et actifs : une URL fausse ou morte
+      défait le recoupement au lieu de l'établir. Ces deux-là sont tenus à jour
+      dans src/data/footerLinks.ts (SOCIALS), qui alimente les icônes du site —
+      si l'un change, les deux fichiers changent.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Chap.ci",
+        "alternateName": ["Chap CI", "Chapci"],
+        "url": "https://chap.ci/",
+        "sameAs": [
+          "https://www.facebook.com/profile.php?id=61592274181471",
+          "https://www.tiktok.com/@chap.ci"
+        ],
+        "logo": "https://chap.ci/apple-touch-icon.png",
+        "image": "https://chap.ci/apple-touch-icon.png",
+        "description": "Place de marché de petites annonces 100% ivoirienne. Publier est gratuit ; acheteurs et vendeurs traitent en direct, par Orange Money ou Wave.",
+        "email": "contact@chap.ci",
+        "areaServed": { "@type": "Country", "name": "Côte d'Ivoire" },
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Abidjan",
+          "addressCountry": "CI"
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "contact@chap.ci",
+          "areaServed": "CI",
+          "availableLanguage": ["fr"]
+        },
+        "knowsLanguage": "fr"
+      }
+    </script>
+    <!--
+      Le site EST le service : on le décrit comme tel, avec ce qu'il coûte.
+      « Gratuit » est ici un fait, pas un argument — publier une annonce ne
+      coûte rien et le site ne prend aucune commission. Un assistant qui lit
+      ceci peut répondre juste à « est-ce que Chap.ci est payant ? ».
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "Petites annonces Chap.ci",
+        "serviceType": "Place de marché de petites annonces",
+        "provider": { "@type": "Organization", "name": "Chap.ci", "url": "https://chap.ci/" },
+        "areaServed": { "@type": "Country", "name": "Côte d'Ivoire" },
+        "availableChannel": {
+          "@type": "ServiceChannel",
+          "serviceUrl": "https://chap.ci/",
+          "availableLanguage": "fr"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "XOF",
+          "description": "Publier une annonce est gratuit. Chap.ci ne prélève aucune commission sur les ventes."
+        }
+      }
+    </script>
+    <style>
+      /* Le texte pour les robots (dans #root, ci-dessous) est HORS de la mise
+         en page : absolu, invisible, sans hauteur. Il était en flux : quand la
+         police arrivait, il se reflouait sous l'écran de démarrage, et Chrome
+         comptait ce mouvement comme un décalage de mise en page (CLS 0,25 sur
+         chaque page, mesuré le 06/09/2026) — un critère de classement Google,
+         pour un texte qu'aucun visiteur ne voit. Les robots, eux, lisent le
+         HTML tel quel : rien ne change pour eux. */
+      #root > main {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        visibility: hidden;
+      }
+      /* Écran de démarrage de la marque, affiché avant le chargement de l'app. */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: linear-gradient(180deg, #ffffff, #fff3e4);
+        /* 0,18 s : le temps de ne pas voir une coupure, pas une seconde de plus.
+           Doit rester égal à FONDU_SPLASH dans main.tsx. */
+        transition: opacity 0.18s ease;
+      }
+      #app-splash.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #app-splash svg {
+        width: 92px;
+        height: 92px;
+        filter: drop-shadow(0 14px 26px rgba(0, 115, 74, 0.28));
+        /* La goutte arrive en se posant, puis respire une fois. Deux temps,
+           pas trois : au-delà, une attente qu'on décore devient une attente
+           qu'on subit. */
+        animation: splash-pose 0.62s cubic-bezier(0.22, 1.2, 0.36, 1) both,
+                   splash-souffle 2.4s ease-in-out 0.75s infinite;
+      }
+      #app-splash .wm {
+        animation: splash-monte 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.22s both;
+      }
+      #app-splash .tag {
+        animation: splash-monte 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.34s both;
+      }
+      @keyframes splash-pose {
+        0% { opacity: 0; transform: scale(0.62) translateY(-16px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      @keyframes splash-souffle {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.045); }
+      }
+      @keyframes splash-monte {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      /* Quelqu'un qui a demandé moins d'animations à son téléphone le pense :
+         on affiche tout d'un coup, sans mouvement. */
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash svg,
+        #app-splash .wm,
+        #app-splash .tag {
+          animation: none;
+        }
+      }
+      #app-splash .wm {
+        font-family: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 30px;
+        letter-spacing: -1px;
+        color: #1b1a17;
+      }
+      #app-splash .wm .ci {
+        color: #009e60;
+      }
+      #app-splash .tag {
+        font-family: system-ui, sans-serif;
+        font-size: 12.5px;
+        color: #6b6559;
+        margin-top: -4px;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-5zUT7pXk.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/helpers-D-Es2Tlf.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-DwB6ChPZ.css">
+  <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+  <body>
+    <!--
+      ─────────────────────────────────────────────────────────────────────────
+       CE QUE LIT UN ROBOT — et pourquoi ce texte est ici
+
+       Chap.ci est une application d'une seule page : tout est construit par
+       JavaScript après le chargement. Un navigateur exécute ce JavaScript ;
+       BEAUCOUP DE ROBOTS NON. Mesuré le 28/07/2026, la page d'accueil ne
+       livrait que 114 CARACTÈRES de texte lisible — un titre et une accroche.
+       Une intelligence artificielle à qui l'on demandait « c'est quoi
+       Chap.ci ? » ouvrait cette page et ne trouvait littéralement rien à dire.
+
+       Ce bloc y remédie. Il est placé DANS #root : React le remplace dès qu'il
+       démarre, et l'écran de démarrage (#app-splash) le couvre entre-temps —
+       aucun visiteur ne le voit jamais. Ce n'est pas du camouflage : tout le
+       monde reçoit exactement le même HTML, y compris Google. C'est simplement
+       la seule version de la page qui existe avant que le JavaScript ne tourne.
+
+       RÈGLE : ce texte ne doit énoncer QUE des faits vérifiables. Pas de
+       « milliers d'annonces », pas d'audience inventée. Le catalogue est
+       petit ; la description dit ce que le site EST, pas ce qu'on aimerait
+       qu'il soit. Les liens pointent vers des pages réellement fabriquées par
+       le serveur (seo.php), pas vers des routes à dièse que les robots ne
+       savent pas suivre.
+      ─────────────────────────────────────────────────────────────────────────
+    -->
+    <div id="root">
+      <main>
+        <h1>Chap.ci — petites annonces en Côte d'Ivoire</h1>
+        <p>
+          Chap.ci est une place de marché <strong>100&nbsp;% ivoirienne</strong> pour acheter et
+          vendre <em>chap-chap</em> à Abidjan et partout en Côte d'Ivoire. Publier une annonce est
+          <strong>gratuit</strong> : il suffit de créer un compte, ce qui prend moins d'une minute.
+          Parcourir les annonces ne demande aucun compte.
+        </p>
+        <p>
+          Les acheteurs contactent directement le vendeur et paient par
+          <strong>Orange Money</strong> ou <strong>Wave</strong>, de la main à la main. Chap.ci ne
+          prend aucune commission sur les ventes et ne s'interpose jamais dans le paiement.
+        </p>
+
+        <h2>Ce que l'on trouve sur Chap.ci</h2>
+        <ul>
+          <li><a href="/vendre/telephones">Téléphones et accessoires</a></li>
+          <li><a href="/vendre/vehicules">Véhicules — voitures, motos, pièces</a></li>
+          <li><a href="/vendre/immobilier">Immobilier — location et vente</a></li>
+          <li><a href="/vendre/mode">Mode &amp; beauté — vêtements, chaussures, coiffure</a></li>
+          <li><a href="/vendre/electronique">Électronique et informatique</a></li>
+          <li><a href="/vendre/maison">Maison &amp; meubles</a></li>
+          <li><a href="/vendre/alimentation">Alimentation et produits du terroir</a></li>
+          <li><a href="/vendre/emploi">Emploi et petits boulots</a></li>
+          <li><a href="/vendre/services">Services — artisans, réparation, événementiel</a></li>
+          <li><a href="/vendre/sante">Santé &amp; bien-être</a></li>
+        </ul>
+
+        <h2>Où&nbsp;?</h2>
+        <p>
+          Dans les communes d'Abidjan —
+          <a href="/vendre/telephones/cocody">Cocody</a>,
+          <a href="/vendre/telephones/yopougon">Yopougon</a>,
+          <a href="/vendre/telephones/abobo">Abobo</a>,
+          <a href="/vendre/telephones/marcory">Marcory</a>,
+          <a href="/vendre/telephones/treichville">Treichville</a>,
+          <a href="/vendre/telephones/plateau">Plateau</a>,
+          <a href="/vendre/telephones/adjame">Adjamé</a>,
+          <a href="/vendre/telephones/koumassi">Koumassi</a>,
+          <a href="/vendre/telephones/port-bouet">Port-Bouët</a>,
+          <a href="/vendre/telephones/bingerville">Bingerville</a> —
+          et dans le reste du pays&nbsp;: Bouaké, Yamoussoukro, San-Pédro, Daloa, Korhogo,
+          Grand-Bassam, Man, Gagnoa.
+        </p>
+
+        <h2>Comment ça marche</h2>
+        <ol>
+          <li>Le vendeur publie son annonce avec des photos, un prix en FCFA et sa commune.</li>
+          <li>L'acheteur la trouve par la recherche, la catégorie ou la proximité.</li>
+          <li>Ils discutent dans la messagerie du site, sans échanger de numéro de téléphone.</li>
+          <li>Ils conviennent d'un lieu de remise et paient par Mobile Money.</li>
+        </ol>
+
+        <p>
+          <a href="/sitemap.xml">Plan du site</a> ·
+          <a href="/#/explorer">Voir les annonces</a> ·
+          <a href="/#/publier">Publier une annonce</a> ·
+          <a href="/#/aide">Aide</a> ·
+          <a href="/#/confidentialite">Confidentialité</a> ·
+          <a href="/llms.txt">llms.txt</a>
+        </p>
+        <p>
+          Chap.ci sur
+          <a href="https://www.facebook.com/profile.php?id=61592274181471" rel="me noopener">Facebook</a>
+          et sur
+          <a href="https://www.tiktok.com/@chap.ci" rel="me noopener">TikTok</a>.
+        </p>
+        <p><small>Chap.ci — Abidjan, Côte d'Ivoire 🇨🇮 — contact@chap.ci</small></p>
+      </main>
+    </div>
+    <div id="app-splash" aria-hidden="true">
+      <!-- Le signe Chap.ci, version complète (grand format). Cet écran
+           s'affiche AVANT que React ne démarre : le dessin y est en clair, et
+           doit rester IDENTIQUE à src/components/signeChapci.ts. -->
+      <svg viewBox="0 0 200 200" role="img" aria-label="Chap.ci">
+        <g fill="#F77F00"><path d="M 95 152 Q 102 146 95 134 Q 88 146 95 152 Z" transform="rotate(189 95 152)"/><path d="M 86 155 Q 95 147 86 134 Q 77 147 86 155 Z" transform="rotate(193 86 155)"/><path d="M 80 153 Q 89 146 80 134 Q 72 146 80 153 Z" transform="rotate(209 80 153)"/><path d="M 64 146 Q 75 137 64 118 Q 52 137 64 146 Z" transform="rotate(203 64 146)"/><path d="M 68 145 Q 78 136 68 120 Q 58 136 68 145 Z" transform="rotate(215 68 145)"/><path d="M 50 134 Q 60 125 50 110 Q 41 125 50 134 Z" transform="rotate(224 50 134)"/><path d="M 50 124 Q 58 118 50 106 Q 42 118 50 124 Z" transform="rotate(244 50 124)"/><path d="M 43 117 Q 52 110 43 97 Q 35 110 43 117 Z" transform="rotate(244 43 117)"/><path d="M 41 108 Q 50 100 41 85 Q 32 100 41 108 Z" transform="rotate(247 41 108)"/><path d="M 40 103 Q 49 95 40 80 Q 30 95 40 103 Z" transform="rotate(260 40 103)"/><path d="M 43 100 Q 51 92 43 79 Q 34 92 43 100 Z" transform="rotate(284 43 100)"/><path d="M 42 91 Q 51 83 42 70 Q 33 83 42 91 Z" transform="rotate(293 42 91)"/><path d="M 52 73 Q 59 67 52 56 Q 45 67 52 73 Z" transform="rotate(308 52 73)"/><path d="M 50 71 Q 61 63 50 47 Q 40 63 50 71 Z" transform="rotate(295 50 71)"/><path d="M 54 65 Q 65 56 54 38 Q 43 56 54 65 Z" transform="rotate(319 54 65)"/><path d="M 65 57 Q 77 47 65 28 Q 53 47 65 57 Z" transform="rotate(311 65 57)"/><path d="M 78 53 Q 87 46 78 34 Q 70 46 78 53 Z" transform="rotate(339 78 53)"/><path d="M 78 52 Q 85 46 78 35 Q 70 46 78 52 Z" transform="rotate(346 78 52)"/><path d="M 88 50 Q 95 44 88 32 Q 81 44 88 50 Z" transform="rotate(336 88 50)"/><path d="M 98 163 Q 104 158 98 148 Q 91 158 98 163 Z" transform="rotate(188 98 163)"/><path d="M 81 158 Q 88 152 81 141 Q 73 152 81 158 Z" transform="rotate(203 81 158)"/><path d="M 65 157 Q 72 151 65 140 Q 58 151 65 157 Z" transform="rotate(198 65 157)"/><path d="M 53 152 Q 62 144 53 130 Q 44 144 53 152 Z" transform="rotate(222 53 152)"/><path d="M 49 149 Q 56 143 49 133 Q 42 143 49 149 Z" transform="rotate(216 49 149)"/><path d="M 45 136 Q 54 129 45 115 Q 35 129 45 136 Z" transform="rotate(235 45 136)"/><path d="M 35 117 Q 41 113 35 103 Q 30 113 35 117 Z" transform="rotate(245 35 117)"/><path d="M 31 100 Q 40 93 31 78 Q 21 93 31 100 Z" transform="rotate(279 31 100)"/><path d="M 29 88 Q 34 84 29 75 Q 23 84 29 88 Z" transform="rotate(291 29 88)"/><path d="M 34 72 Q 41 66 34 55 Q 27 66 34 72 Z" transform="rotate(299 34 72)"/><path d="M 43 66 Q 52 59 43 46 Q 35 59 43 66 Z" transform="rotate(318 43 66)"/><path d="M 45 63 Q 54 55 45 42 Q 37 55 45 63 Z" transform="rotate(309 45 63)"/><path d="M 66 46 Q 74 40 66 27 Q 58 40 66 46 Z" transform="rotate(335 66 46)"/><path d="M 64 41 Q 74 32 64 17 Q 54 32 64 41 Z" transform="rotate(344 64 41)"/><path d="M 82 36 Q 89 29 82 18 Q 74 29 82 36 Z" transform="rotate(359 82 36)"/></g><g fill="#009E60"><path d="M 162 100 Q 171 93 162 81 Q 154 93 162 100 Z" transform="rotate(88 162 100)"/><path d="M 159 117 Q 169 109 159 95 Q 150 109 159 117 Z" transform="rotate(106 159 117)"/><path d="M 153 130 Q 162 122 153 107 Q 143 122 153 130 Z" transform="rotate(115 153 130)"/><path d="M 145 137 Q 157 128 145 109 Q 133 128 145 137 Z" transform="rotate(127 145 137)"/><path d="M 142 139 Q 149 133 142 121 Q 134 133 142 139 Z" transform="rotate(130 142 139)"/><path d="M 134 147 Q 142 140 134 127 Q 126 140 134 147 Z" transform="rotate(140 134 147)"/><path d="M 126 145 Q 135 138 126 124 Q 117 138 126 145 Z" transform="rotate(160 126 145)"/><path d="M 114 150 Q 126 139 114 120 Q 101 139 114 150 Z" transform="rotate(163 114 150)"/><path d="M 104 155 Q 113 146 104 131 Q 94 146 104 155 Z" transform="rotate(180 104 155)"/><path d="M 100 44 Q 108 38 100 25 Q 92 38 100 44 Z" transform="rotate(370 100 44)"/><path d="M 110 46 Q 119 38 110 24 Q 101 38 110 46 Z" transform="rotate(370 110 46)"/><path d="M 117 51 Q 126 44 117 31 Q 109 44 117 51 Z" transform="rotate(370 117 51)"/><path d="M 131 56 Q 142 47 131 30 Q 120 47 131 56 Z" transform="rotate(397 131 56)"/><path d="M 136 58 Q 146 50 136 35 Q 126 50 136 58 Z" transform="rotate(394 136 58)"/><path d="M 143 63 Q 154 54 143 37 Q 132 54 143 63 Z" transform="rotate(415 143 63)"/><path d="M 148 69 Q 159 60 148 43 Q 137 60 148 69 Z" transform="rotate(414 148 69)"/><path d="M 159 80 Q 169 71 159 56 Q 149 71 159 80 Z" transform="rotate(434 159 80)"/><path d="M 155 90 Q 163 83 155 70 Q 146 83 155 90 Z" transform="rotate(432 155 90)"/><path d="M 163 102 Q 171 95 163 83 Q 155 95 163 102 Z" transform="rotate(465 163 102)"/><path d="M 170 103 Q 176 98 170 88 Q 163 98 170 103 Z" transform="rotate(103 170 103)"/><path d="M 166 125 Q 176 117 166 102 Q 156 117 166 125 Z" transform="rotate(125 166 125)"/><path d="M 163 133 Q 169 128 163 120 Q 157 128 163 133 Z" transform="rotate(129 163 133)"/><path d="M 149 151 Q 156 145 149 133 Q 141 145 149 151 Z" transform="rotate(130 149 151)"/><path d="M 145 154 Q 151 149 145 139 Q 139 149 145 154 Z" transform="rotate(134 145 154)"/><path d="M 121 162 Q 127 157 121 148 Q 115 157 121 162 Z" transform="rotate(164 121 162)"/><path d="M 118 159 Q 123 155 118 147 Q 113 155 118 159 Z" transform="rotate(161 118 159)"/><path d="M 103 36 Q 108 32 103 24 Q 98 32 103 36 Z" transform="rotate(363 103 36)"/><path d="M 110 37 Q 116 32 110 22 Q 104 32 110 37 Z" transform="rotate(357 110 37)"/><path d="M 122 38 Q 129 33 122 22 Q 115 33 122 38 Z" transform="rotate(382 122 38)"/><path d="M 142 49 Q 152 41 142 25 Q 132 41 142 49 Z" transform="rotate(387 142 49)"/><path d="M 148 55 Q 156 48 148 35 Q 140 48 148 55 Z" transform="rotate(390 148 55)"/><path d="M 160 66 Q 169 59 160 46 Q 152 59 160 66 Z" transform="rotate(406 160 66)"/><path d="M 166 75 Q 174 68 166 56 Q 157 68 166 75 Z" transform="rotate(425 166 75)"/><path d="M 171 95 Q 180 87 171 73 Q 162 87 171 95 Z" transform="rotate(435 171 95)"/></g><polygon points="156,100 156,113 152,125 141,133 131,142 121,150 107,154 93,152 79,151 67,144 59,133 49,125 45,112 43,100 49,88 50,76 58,66 68,57 81,53 94,51 107,50 119,54 132,57 142,66 149,76 153,88" fill="#FFFFFF"/><polygon points="156,100 156,113 152,125 141,133 131,142 121,150 107,154 93,152 79,151 67,144 59,133 49,125 45,112 43,100 49,88 50,76 58,66 68,57 81,53 94,51 107,50 119,54 132,57 142,66 149,76 153,88" fill="none" stroke="#00734A" stroke-width="3"/><path fill="#00734A" transform="translate(57 103)" d="M3 -5Q3 -7 4 -9Q5 -10 6 -12Q7 -13 9 -14Q10 -15 12 -15Q13 -15 14 -14Q15 -13 15 -12Q15 -11 15 -10Q15 -9 14 -9Q14 -8 14 -8Q13 -8 13 -8Q12 -8 12 -8Q12 -8 11 -9Q13 -11 13 -12Q13 -13 13 -13Q12 -13 11 -12Q10 -12 9 -11Q8 -9 7 -8Q7 -6 7 -4Q7 -1 8 -1Q8 -1 9 -1Q10 -1 10 -2Q11 -2 12 -2Q12 -3 13 -3Q13 -3 13 -3Q13 -3 13 -3Q13 -2 12 -1Q12 -1 11 0Q10 0 9 0Q9 1 8 1Q7 1 6 0Q5 0 5 -1Q4 -2 4 -3Q3 -4 3 -5Z M16 0Q16 -2 16 -3Q16 -5 17 -6Q17 -8 18 -10Q18 -12 19 -13Q20 -15 21 -17Q21 -18 22 -20Q23 -22 24 -23Q25 -24 26 -26Q27 -26 28 -26Q28 -25 29 -25Q29 -25 30 -25Q30 -24 30 -24Q28 -22 26 -19Q24 -17 23 -15Q23 -14 22 -13Q22 -12 21 -11Q21 -10 21 -9Q20 -8 20 -6Q26 -14 29 -14Q30 -14 31 -13Q31 -13 32 -12Q31 -11 30 -10Q29 -8 28 -7Q27 -5 27 -4Q26 -2 26 -2Q26 -2 26 -1Q27 -1 27 -1Q27 -1 28 -1Q28 -2 28 -2Q28 -1 28 -1Q28 -1 28 -1Q28 -1 28 -1Q27 0 27 0Q26 0 26 0Q25 0 25 0Q25 0 25 0Q24 -0 24 0Q24 -1 24 -1Q24 -1 24 -2Q24 -2 24 -3Q24 -4 25 -5Q25 -6 26 -8Q26 -9 27 -11Q27 -11 27 -11Q27 -11 26 -11Q26 -10 26 -10Q25 -9 23 -8Q22 -7 21 -5Q20 -4 19 -2Q18 -1 18 1Q18 1 17 1Q17 2 17 2Q17 2 17 1Q17 1 16 1Q16 0 16 0Q16 0 16 0Z M43 -12Q43 -12 44 -12Q44 -12 44 -12Q45 -12 45 -12Q45 -12 45 -11Q44 -10 44 -9Q43 -7 43 -6Q43 -5 42 -4Q42 -3 42 -2Q42 -1 42 -1Q43 0 43 0Q43 0 42 1Q42 1 41 1Q39 1 39 -2Q39 -3 41 -6Q40 -5 39 -4Q38 -3 37 -2Q37 -1 36 -0Q35 1 34 1Q33 1 32 0Q32 -1 32 -3Q32 -5 32 -7Q33 -9 34 -10Q35 -12 37 -13Q38 -14 39 -14Q40 -14 40 -14Q41 -13 41 -13Q41 -13 42 -12Q42 -12 42 -12Q41 -12 39 -10Q38 -9 37 -8Q36 -7 35 -5Q34 -3 34 -2Q34 -1 35 -1Q36 -1 37 -3Q38 -4 40 -7Q40 -7 40 -8Q41 -9 41 -9Q42 -10 42 -11Q42 -12 43 -12Z M44 10Q44 10 44 9Q44 9 44 8Q44 8 44 7Q44 6 44 5Q44 4 45 3Q45 1 45 0Q46 -2 47 -4Q48 -6 48 -7Q49 -9 49 -10Q50 -11 50 -12Q50 -13 50 -13Q50 -14 51 -14Q51 -15 51 -15Q52 -16 52 -16Q52 -17 53 -17Q54 -17 55 -16Q56 -16 56 -16Q55 -15 55 -14Q54 -13 54 -12Q53 -11 53 -10Q52 -9 52 -9Q52 -9 53 -10Q53 -10 54 -11Q56 -13 57 -13Q58 -14 58 -14Q59 -14 60 -13Q61 -13 61 -12Q61 -9 60 -7Q60 -5 58 -3Q58 -2 57 -2Q56 -1 55 -1Q55 0 54 0Q53 0 53 0Q52 0 52 -0Q51 0 51 -1Q52 -1 53 -3Q54 -4 55 -5Q56 -7 57 -9Q58 -11 58 -13Q57 -12 56 -12Q55 -11 54 -10Q53 -8 53 -7Q52 -7 51 -6Q51 -5 51 -5Q50 -4 50 -4Q50 -3 49 -1Q49 1 48 3Q47 5 47 7Q46 9 46 11Q45 11 45 11Q45 11 45 10Q45 10 44 10Z M63 1Q62 1 62 1Q61 0 61 -0Q61 0 61 -1Q61 -2 62 -2Q62 -3 62 -3Q62 -4 62 -4Q63 -4 63 -4Q64 -4 64 -3Q65 -3 65 -3Q66 -2 66 -2Q66 -1 66 -1Q65 0 65 0Q64 1 64 1Q63 1 63 1Z M70 -5Q70 -7 70 -9Q71 -10 72 -12Q74 -13 75 -14Q77 -15 78 -15Q80 -15 81 -14Q82 -13 82 -12Q82 -11 81 -10Q81 -9 81 -9Q81 -8 80 -8Q80 -8 79 -8Q79 -8 79 -8Q78 -8 78 -9Q80 -11 80 -12Q80 -13 79 -13Q79 -13 78 -12Q77 -12 76 -11Q75 -9 74 -8Q73 -6 73 -4Q73 -1 74 -1Q75 -1 75 -1Q76 -1 77 -2Q77 -2 78 -2Q79 -3 80 -3Q80 -3 80 -3Q80 -3 80 -3Q79 -2 79 -1Q78 -1 77 0Q77 0 76 0Q75 1 75 1Q74 1 73 0Q72 0 71 -1Q71 -2 70 -3Q70 -4 70 -5Z M83 -2Q83 -2 83 -3Q83 -3 83 -4Q83 -5 83 -6Q83 -7 84 -8Q84 -8 84 -9Q84 -10 85 -10Q85 -11 85 -12Q86 -13 87 -13Q87 -13 88 -12Q89 -12 90 -11Q89 -10 88 -9Q88 -8 87 -8Q87 -7 87 -6Q86 -5 86 -4Q86 -3 85 -2Q85 -1 85 0Q85 0 85 0Q85 1 85 1Q85 1 84 0Q84 0 84 0Q83 0 83 -1Q83 -1 83 -2ZM89 -15Q89 -16 89 -16Q88 -16 88 -17Q88 -17 88 -17Q88 -17 88 -18Q88 -18 89 -19Q89 -19 89 -20Q89 -21 89 -21Q90 -21 90 -21Q91 -21 91 -20Q92 -20 92 -20Q93 -19 93 -19Q93 -19 92 -18Q92 -17 91 -17Q90 -16 90 -15Q90 -15 89 -15Q89 -15 89 -15Q89 -15 89 -15Z"/><path fill="#00734A" fill-opacity="1" transform="translate(52 122)" d="M0 0 2 -4H2L4 0H3L3 -1H1L1 0ZM1 -1H3L2 -4H2Z M6 0Q6 0 6 0Q5 0 5 -1Q5 -1 5 -1Q5 -2 5 -2Q5 -3 6 -3Q6 -3 6 -3Q7 -3 7 -3Q7 -3 7 -3Q8 -2 8 -2L7 -2Q7 -2 7 -2Q7 -2 6 -2Q6 -2 6 -2Q6 -2 6 -2Q6 -2 6 -1Q6 -1 6 -1Q6 -1 6 -1Q6 0 6 0Q7 0 7 -1Q7 -1 7 -1L8 -1Q8 0 7 0Q7 0 7 -0Q7 0 6 0Z M9 0V-4H10V-2L10 -2Q10 -3 10 -3Q10 -3 11 -3Q11 -3 11 -3Q11 -3 11 -2Q12 -2 12 -2V0H11V-2Q11 -2 11 -2Q11 -2 11 -2Q11 -2 10 -2Q10 -2 10 -2Q10 -2 10 -2Q10 -2 10 -2V0Z M14 0Q14 0 13 -0Q13 0 13 0Q13 0 13 -1Q13 -1 13 -1Q13 -1 13 -1Q14 -2 14 -2L15 -2V-1L14 -1Q14 -1 14 -1Q14 -1 14 -1Q14 -1 14 0Q14 0 14 0Q14 0 15 0Q15 -1 15 -1Q15 -1 15 -1V-2Q15 -2 15 -2Q15 -2 14 -2Q14 -2 14 -2Q14 -2 14 -2L13 -2Q13 -2 13 -3Q14 -3 14 -3Q14 -3 14 -3Q15 -3 15 -3Q15 -3 15 -2Q16 -2 16 -2V0H15V0L15 0Q15 0 15 0Q15 0 14 -0Q14 0 14 0Z M18 0Q18 0 18 0Q17 0 17 -1V-2H17V-3H17Q17 -3 17 -3Q17 -3 17 -3V-4H18V-3H19V-2H18V-1Q18 -1 18 -1Q18 -1 18 -1Q18 0 18 0Q18 0 19 0Q19 0 19 0V0Q19 0 18 0Q18 0 18 0Z M20 1V1Q20 1 21 0Q21 0 21 0H20V-1H21V0Q21 0 21 1Q21 1 20 1Z M26 0 24 -4H25L26 -1H26L27 -4H28L26 0Z M30 0Q30 0 30 0Q29 0 29 -1Q29 -1 29 -1Q29 -2 29 -2Q29 -3 30 -3Q30 -3 30 -3Q31 -3 31 -3Q31 -3 31 -3Q32 -2 32 -2Q32 -2 32 -2Q32 -1 32 -1Q32 -1 32 -1H29V-2H31L31 -2Q31 -2 31 -2Q31 -2 31 -2Q31 -2 30 -2Q30 -2 30 -2Q30 -2 30 -2Q29 -2 29 -1Q29 -1 30 -1Q30 -1 30 -1Q30 0 30 0Q31 0 31 -1Q31 -1 31 -1L32 -1Q32 0 31 0Q31 0 31 -0Q31 0 30 0Z M33 0V-3H34V-2L34 -2Q34 -3 34 -3Q34 -3 35 -3Q35 -3 35 -3Q35 -3 36 -2Q36 -2 36 -2V0H35V-2Q35 -2 35 -2Q35 -2 35 -2Q35 -2 34 -2Q34 -2 34 -2Q34 -2 34 -2Q34 -2 34 -2V0Z M38 0Q38 0 38 0Q37 0 37 -1V-2H37V-3H37Q37 -3 37 -3Q37 -3 37 -3V-4H38V-3H39V-2H38V-1Q38 -1 38 -1Q38 -1 38 -1Q38 0 39 0Q39 0 39 0Q39 0 39 0V0Q39 0 39 0Q38 0 38 0Z M42 0Q41 0 41 0Q40 0 40 -1Q40 -1 40 -1Q40 -2 40 -2Q40 -3 41 -3Q41 -3 41 -3Q42 -3 42 -3Q42 -3 43 -3Q43 -2 43 -2Q43 -2 43 -2Q43 -1 43 -1Q43 -1 43 -1H41V-2H42L42 -2Q42 -2 42 -2Q42 -2 42 -2Q42 -2 41 -2Q41 -2 41 -2Q41 -2 41 -2Q41 -2 41 -1Q41 -1 41 -1Q41 -1 41 -1Q41 0 42 0Q42 0 42 -1Q42 -1 42 -1L43 -1Q43 0 43 0Q42 0 42 -0Q42 0 42 0Z M44 1V1Q45 1 45 0Q45 0 45 0H45V-1H45V0Q45 0 45 1Q45 1 44 1Z M49 0V-4H51V-3H49V-2H51V-2H49V-1H51V0Z M53 0V-3H53V-2L53 -2Q53 -3 54 -3Q54 -3 54 -3Q55 -3 55 -3Q55 -3 55 -2L55 -2Q55 -3 55 -3Q56 -3 56 -3Q56 -3 57 -3Q57 -3 57 -2Q57 -2 57 -2V0H56V-2Q56 -2 56 -2Q56 -2 56 -2Q56 -2 56 -2Q56 -2 56 -2Q55 -2 55 -2Q55 -2 55 -2V0H55V-2Q55 -2 55 -2Q54 -2 54 -2Q54 -2 54 -2Q54 -2 54 -2Q54 -2 53 -2Q53 -2 53 -2V0Z M59 1V-3H59V-2L59 -2Q59 -3 60 -3Q60 -3 60 -3Q61 -3 61 -3Q61 -3 61 -2Q62 -2 62 -1Q62 -1 61 -1Q61 0 61 0Q61 0 60 0Q60 0 60 0Q59 0 59 0L59 -1V1ZM60 0Q60 0 61 -1Q61 -1 61 -1Q61 -1 61 -1Q61 -2 61 -2Q61 -2 61 -2Q60 -2 60 -2Q60 -2 60 -2Q59 -2 59 -2Q59 -2 59 -1Q59 -1 59 -1Q59 -1 60 -1Q60 0 60 0Z M63 0V-4H64V0Z M67 0Q66 0 66 0Q65 0 65 -1Q65 -1 65 -1Q65 -2 65 -2Q65 -3 66 -3Q66 -3 67 -3Q67 -3 67 -3Q68 -3 68 -2Q68 -2 68 -1Q68 -1 68 -1Q68 0 67 0Q67 0 67 0ZM67 0Q67 0 67 -1Q67 -1 67 -1Q67 -1 67 -1Q67 -2 67 -2Q67 -2 67 -2Q67 -2 67 -2Q66 -2 66 -2Q66 -2 66 -2Q66 -2 66 -1Q66 -1 66 -1Q66 -1 66 -1Q66 0 67 0Z M70 0V-3H70V0ZM70 -3V-4H70V-3Z M73 0Q72 0 72 0Q72 0 71 -1L72 -1Q72 -1 72 -1Q73 0 73 0Q73 0 73 0Q73 -1 73 -1Q73 -1 73 -1Q73 -1 73 -1Q73 -1 73 -1L72 -1Q72 -1 72 -2Q72 -2 72 -2Q72 -2 72 -3Q72 -3 72 -3Q72 -3 73 -3Q73 -3 73 -3Q74 -3 74 -2L73 -2Q73 -2 73 -2Q73 -2 73 -2Q72 -2 72 -2Q72 -2 72 -2Q72 -2 72 -2Q72 -2 72 -2Q73 -2 73 -2L73 -2Q73 -2 74 -1Q74 -1 74 -1Q74 -1 74 0Q74 0 73 -0Q73 0 73 0Z M75 1V1Q76 1 76 0Q76 0 76 0H76V-1H76V0Q76 0 76 1Q76 1 75 1Z M82 0Q81 0 81 0Q80 0 80 0Q80 -1 80 -1Q80 -2 80 -2Q80 -2 80 -3Q80 -3 80 -3Q80 -4 81 -4Q81 -4 82 -4Q82 -4 82 -4Q83 -4 83 -4Q83 -3 83 -3L83 -3Q83 -3 82 -3Q82 -3 82 -3Q81 -3 81 -3Q81 -3 80 -3Q80 -2 80 -2Q80 -2 80 -1Q81 -1 81 -1Q81 0 82 0Q82 0 82 -1Q83 -1 83 -1L83 -1Q83 -1 83 0Q83 0 82 0Q82 0 82 0Z M85 0V-4H85V-2L85 -2Q85 -3 86 -3Q86 -3 86 -3Q86 -3 87 -3Q87 -3 87 -2Q87 -2 87 -2V0H87V-2Q87 -2 87 -2Q86 -2 86 -2Q86 -2 86 -2Q86 -2 86 -2Q85 -2 85 -2Q85 -2 85 -2V0Z M90 0Q89 0 89 -0Q89 0 89 0Q89 0 89 -1Q89 -1 89 -1Q89 -1 89 -1Q89 -2 90 -2L91 -2V-1L90 -1Q89 -1 89 -1Q89 -1 89 -1Q89 -1 89 0Q89 0 90 0Q90 0 90 0Q90 -1 90 -1Q90 -1 90 -1V-2Q90 -2 90 -2Q90 -2 90 -2Q90 -2 89 -2Q89 -2 89 -2L89 -2Q89 -2 89 -3Q89 -3 89 -3Q90 -3 90 -3Q90 -3 91 -3Q91 -3 91 -2Q91 -2 91 -2V0H91V0L91 0Q91 0 90 0Q90 0 90 -0Q90 0 90 0Z M93 1V-3H93V-2L93 -2Q93 -3 94 -3Q94 -3 94 -3Q95 -3 95 -3Q95 -3 95 -2Q96 -2 96 -1Q96 -1 95 -1Q95 0 95 0Q95 0 94 0Q94 0 94 0Q93 0 93 0L93 -1V1ZM94 0Q94 0 95 -1Q95 -1 95 -1Q95 -1 95 -1Q95 -2 95 -2Q95 -2 95 -2Q94 -2 94 -2Q94 -2 94 -2Q93 -2 93 -2Q93 -2 93 -1Q93 -1 93 -1Q93 -1 94 -1Q94 0 94 0Z"/>
+      </svg>
+      <div class="wm">Chap<span class="ci">.ci</span></div>
+      <div class="tag">Petites annonces · Côte d'Ivoire</div>
+    </div>
+  </body>
+</html>

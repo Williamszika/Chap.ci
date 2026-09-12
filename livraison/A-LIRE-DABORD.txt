@@ -1,0 +1,89 @@
+CHAP.CI — ZIP DU 13 SEPTEMBRE 2026, n° 25
+===============================================================================
+
+SANS CE ZIP, LA CARTE D'AVIS NE PEUT PAS S'AFFICHER. C'EST LA RÉPONSE À
+« JE NE LA VOIS PAS SUR LA PAGE D'ACCUEIL ».
+
+L'application demande au serveur « cette personne a-t-elle déjà donné son
+avis ? ». Cette question n'existe pas encore en ligne : le serveur répond
+« page inconnue », l'application en conclut « n'insistons pas » et n'affiche
+rien. C'est le comportement voulu — une carte ne doit pas surgir à cause d'une
+panne réseau — mais tant que ce zip n'est pas extrait, RIEN ne s'affichera,
+quelle que soit la version de l'application installée.
+
+
+OÙ EXTRAIRE
+-----------
+cPanel -> Gestionnaire de fichiers -> public_html
+
+Téléversez chapci-logo.zip DANS public_html, puis clic droit dessus ->
+« Extract » -> le chemin proposé doit être /public_html -> Extract Files.
+
+PAS dans api/. Supprimez le zip après extraction.
+
+
+CE QUE CE ZIP CHANGE
+--------------------
+
+1. L'AVIS SUR L'APPLICATION — le serveur sait enfin le recevoir.
+
+   Trois routes nouvelles, et une table :
+
+     GET  /api/avis-app/mien      a-t-il déjà donné son avis ?
+     POST /api/avis-app           la note (1 à 5) et le commentaire
+     POST /api/avis-app/magasin   « je l'ai envoyé sur le Play Store »
+     GET  /api/admin/avis-app     la lecture, pour vous
+
+   UN SEUL AVIS PAR COMPTE, garanti par la base elle-même (un index unique),
+   pas par une vérification qu'on pourrait contourner en appuyant deux fois.
+
+2. ADMINISTRATION -> NOUVEL ONGLET « AVIS APPLI ».
+
+   La note moyenne, la répartition étoile par étoile, le nombre d'avis avec un
+   commentaire, et la liste — avec l'appareil et la version de l'application.
+
+   C'est là que vous lirez ce que vos testeurs pensent. Il sera vide au début :
+   personne n'a encore l'application qui sait envoyer un avis.
+
+
+CE QU'IL NE TOUCHE PAS
+----------------------
+  .htaccess            AUCUN, à aucun niveau
+  api/config.php       identifiants de base, secret de session, votre clé cron
+  uploads/             TOUTES les photos des annonces (et les vidéos)
+  api/data/            vos secrets — push.json ET votre fcm.json
+
+Vérifié sur le zip fini, entrée par entrée : 143 entrées, aucune interdite.
+
+
+APRÈS L'EXTRACTION — LA VÉRIFICATION
+------------------------------------
+Ouvrez :  https://chap.ci/api/health   (UNE fois)
+
+  empreinte      doit devenir          bbbcd782352d   <- l'API, CHANGE
+  empreinteSite  doit devenir          fff630f7ff95   <- le site, CHANGE
+  empreinteSeo   doit rester           9536aeb35d70   <- seo.php, inchangé
+  fichiersInattendus                   0
+  fcm                                  true
+
+Puis, la vérification qui se voit :
+
+  chap.ci -> Administration -> l'onglet « Avis appli » doit exister,
+  entre « Avis » et « Abonnés ». Il affichera « Aucun avis pour l'instant ».
+
+⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
+
+
+⚠️ ET CE QUE CE ZIP NE FAIT PAS
+-------------------------------
+Il prépare le serveur. Il ne met PAS la carte dans l'application de vos
+testeurs : pour cela il faut construire et déposer la v1.26 (code 27) —
+store/BUILD-v1.26.md.
+
+L'ordre est celui-ci, et il n'est pas interchangeable :
+
+  1. ce zip                    (le serveur sait recevoir)
+  2. la v1.26 construite       (l'application sait demander)
+  3. la v1.26 déposée          (vos testeurs l'ont)
+
+Une application déposée avant ce zip ne montrerait la carte à personne.

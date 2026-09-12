@@ -6360,3 +6360,31 @@ traces disent plus que ce qu'il en a tiré.
   soi-même, déposer dans deux ou trois jours. **Avec la réserve inverse dite dans la
   même table : l'échéance du 26/09 est réelle.** Le Patron tranche en connaissant
   les deux côtés, ce qui n'est pas la même chose que de trancher sans les voir.
+
+### 2026-09-13 03:30 — [Livraison] Le Secrétariat — « je ne la vois pas » : le serveur n'était pas déployé
+- **LE PATRON NE VOYAIT RIEN, ET IL AVAIT RAISON DE LE DIRE.** La carte ne pouvait
+  pas s'afficher : `server/index.php` est à **`bbbcd782352d`** dans le dépôt, la
+  production sert encore **`e5fd19520b7c`**. La route `/avis-app/mien` n'existe pas
+  en ligne ; l'application reçoit une erreur, en conclut « n'insistons pas », et
+  n'affiche rien.
+- **CE SILENCE EST VOULU ET IL EST BON — mais il m'a échappé au moment de livrer.**
+  `etat()` répond « a déjà évalué » en cas d'échec, exprès : une carte ne doit pas
+  surgir à cause d'un réseau capricieux. **Conséquence que je n'ai pas dite hier :
+  tant que le serveur n'est pas déployé, la fonctionnalité est invisible à 100 %,
+  sans le moindre message.** J'ai livré l'application et les routes dans le même
+  commit en laissant croire que l'un suffisait.
+- **L'ORDRE EST CONTRAIGNANT, IL EST ÉCRIT DANS LE `A-LIRE-DABORD` :** (1) le zip —
+  le serveur sait recevoir ; (2) la v1.26 construite — l'application sait demander ;
+  (3) la v1.26 déposée — les testeurs l'ont. **Une application déposée avant le zip
+  ne montrerait la carte à personne**, et on chercherait le défaut dans le mauvais
+  logiciel.
+- **ZIP N° 25 FABRIQUÉ** : 143 entrées, aucune interdite. `empreinte bbbcd782352d`,
+  `empreinteSite fff630f7ff95`, `empreinteSeo` inchangé. La vérification donnée au
+  Patron n'est pas seulement l'empreinte : **l'onglet « Avis appli » doit exister**
+  entre « Avis » et « Abonnés », et afficher « Aucun avis pour l'instant ».
+- **DEMANDE DE CONCEPTION DU PATRON, APPLIQUÉE** : la carte d'avis **remplace**
+  « Soutenir Chap.ci » tant que la personne n'a pas répondu ; la bannière de soutien
+  revient **et reste** dès qu'elle a répondu. **C'est le bon arbitrage, et pas
+  seulement une préférence** : deux bandeaux entre la première et la deuxième ligne
+  d'annonces, ce n'est plus une respiration, c'est un mur — et demander de l'argent
+  et un avis dans le même souffle n'obtient ni l'un ni l'autre.

@@ -1,0 +1,15666 @@
+<?php
+// =============================================================================
+//  Chap.ci — API PHP (backend auto-hébergeable sur mutualisé cPanel / TPE Cloud)
+//  Remplace Supabase : comptes, annonces, messagerie, commandes, avis, photos.
+//  Compatible MySQL (production) et SQLite (test local). PHP 8+.
+// =============================================================================
+
+declare(strict_types=1);
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_WARNING);
+
+$config = require __DIR__ . '/config.php';
+// Rendu accessible aux quelques fonctions qui ne reçoivent pas $config en
+// argument (user_public, appelée depuis une dizaine d'endroits) : le passer
+// partout aurait demandé de toucher chaque appelant pour un seul besoin.
+$GLOBALS['chapci_config'] = $config;
+
+// Valeurs par défaut pour les réglages ajoutés au fil des fonctionnalités
+// (crons, emails, réseaux sociaux…). Un `config.php` créé AVANT l'ajout d'une
+// fonctionnalité n'a pas forcément la clé correspondante : sans ce filet, la
+// valeur serait vide (ex. clé cron manquante -> « Clé invalide »). L'opérateur
+// `+` ne complète QUE les clés absentes — vos réglages existants sont préservés.
+$config += [
+  // P1 · Aucun secret « en dur » dans le code public : vide = généré aléatoirement
+  // et persisté hors du code (voir chapci_hardened_secret plus bas).
+  'cron_key'             => getenv('CHAPCI_CRON_KEY')      ?: '',
+  'admin_emails'         => array_filter(array_map('trim',
+    explode(',', getenv('CHAPCI_ADMIN_EMAILS') ?: 'bracknetswilliam@gmail.com'))),
+  // Destinataire des RAPPORTS automatiques (signalements, sauvegardes, alertes du
+  // « Bureau des développeurs »). Distinct des admins (qui gardent l'accès au site).
+  'report_email'         => array_filter(array_map('trim',
+    explode(',', getenv('CHAPCI_REPORT_EMAIL') ?: 'contact@chap.ci'))),
+  'mail_from'            => getenv('CHAPCI_MAIL_FROM')       ?: 'no-reply@chap.ci',
+  'mail_from_name'       => getenv('CHAPCI_MAIL_FROM_NAME')  ?: 'Chap.ci',
+  'mail_reply_to'        => getenv('CHAPCI_MAIL_REPLYTO')    ?: 'contact@chap.ci',
+  'mail_newsletter_from' => getenv('CHAPCI_NEWSLETTER_FROM') ?: 'hello@chap.ci',
+  'site_url'             => getenv('CHAPCI_SITE_URL')        ?: 'https://chap.ci',
+  // Emplacement des photos téléversées : le dossier sur le disque, et le chemin
+  // par lequel le navigateur les demande. Ces deux clés vivaient uniquement dans
+  // config.php — elles manquaient ici, et c'étaient les SEULES dans ce cas. Un
+  // config.php antérieur à leur introduction faisait donc rtrim(null) à chaque
+  // photo enregistrée, et comme ce fichier déclare strict_types=1 (ligne 8),
+  // c'était une TypeError FATALE : « Erreur serveur » à chaque publication, sur
+  // n'importe quel PHP 8. Reproduit puis corrigé le 02/08.
+  //
+  // Sans strict_types ce n'aurait été qu'une obsolescence rendant une adresse
+  // amputée (« /nom.jpg » au lieu de « /uploads/nom.jpg »), donc une photo
+  // introuvable sans le moindre message — le strict_types transforme ici une
+  // panne sournoise en panne franche, et c'est tant mieux.
+  'uploads_dir'          => getenv('CHAPCI_UPLOADS_DIR')  ?: __DIR__ . '/../uploads',
+  'uploads_path'         => getenv('CHAPCI_UPLOADS_PATH') ?: '/uploads',
+  // TRADUCTION DES ANNONCES (titre + description écrits par les vendeurs).
+  //
+  // L'adresse d'un moteur LibreTranslate auto-hébergé (ex. « http://vps:5000 »).
+  // VIDE = pas de moteur : la route /traduire répond 503 et l'application se
+  // replie sur Google Traduction dans le navigateur. Le jour où le VPS existe,
+  // remplir ces deux valeurs dans api/config.php (ou en variables
+  // d'environnement) suffit — rien d'autre à redéployer.
+  'traduction_url'       => getenv('CHAPCI_TRADUCTION_URL') ?: '',
+  'traduction_cle'       => getenv('CHAPCI_TRADUCTION_CLE') ?: '',
+  // « Chap.ci écrit l'annonce » (03/09/2026) : le moteur de vision qui lit une
+  // photo et propose titre, catégorie, sous-catégorie, état et caractéristiques.
+  // Sans clé, la fonction est simplement absente de l'écran — rien ne casse.
+  // La clé se met dans config.php (ou en variable d'environnement), JAMAIS dans
+  // le dépôt. Le modèle et le quota sont des réglages, avec leur valeur par
+  // défaut ici, comme tout réglage (strict_types ferait d'un réglage absent une
+  // erreur fatale).
+  'vision_url'           => getenv('CHAPCI_VISION_URL')    ?: 'https://api.anthropic.com/v1/messages',
+  'vision_cle'           => getenv('CHAPCI_VISION_CLE')    ?: '',
+  'vision_modele'        => getenv('CHAPCI_VISION_MODELE') ?: 'claude-opus-5',
+  // Par personne et par jour : de quoi publier, pas de quoi faire tourner le
+  // moteur pour rien. Un appel coûte quelques centimes.
+  'vision_quota'         => (int) (getenv('CHAPCI_VISION_QUOTA') ?: 40),
+  // Les liens qui ouvrent l'application (lus par web/seo.php, /.well-known/…).
+  // Vides tant que le Patron n'a pas le compte Apple payant ni la clé Play :
+  // voir store/LIENS-UNIVERSELS.md.
+  'apple_team_id'        => (string) (getenv('CHAPCI_APPLE_TEAM_ID') ?: ''),
+  'android_sha256'       => (string) (getenv('CHAPCI_ANDROID_SHA256') ?: ''),
+  // LA VIDÉO D'UNE MINUTE (chantier 6 du 04/09/2026 ; quinze secondes
+  // d'abord, une minute depuis le 06/09 sur décision du Patron). Le poids
+  // maximal d'une vidéo, en mégaoctets. Une minute de téléphone fait 20 à
+  // 40 Mo en 720p, jusqu'à 60 en 1080p ; au-delà, c'est une vidéo qui n'a
+  // pas été coupée. Le plafond RÉEL est le plus petit de cette valeur et de
+  // ce que PHP accepte (upload_max_filesize, post_max_size) — /health le dit
+  // dans `videoMaxMo`.
+  'video_max_mo'         => (int) (getenv('CHAPCI_VIDEO_MAX_MO') ?: 60),
+  // SEUILS D'AFFICHAGE DES CHIFFRES PUBLICS.
+  //
+  // Un compteur n'attire que s'il impressionne. « Déjà 3 Ivoiriens sur Chap.ci »
+  // ne donne envie à personne de s'inscrire : il dit au visiteur qu'il arrive
+  // dans une salle vide, et il le dit sur la page d'accueil. Tant qu'un chiffre
+  // n'a pas franchi son seuil, la diffusion du jour utilise une formulation SANS
+  // chiffre — vraie elle aussi, mais qui ne se retourne pas contre le site.
+  //
+  // Ces seuils se règlent sans redéployer : trois variables d'environnement, ou
+  // le bloc 'seuils' de config.php.
+  'seuil_annonces'       => (int) (getenv('CHAPCI_SEUIL_ANNONCES')  ?: 500),
+  'seuil_vendeurs'       => (int) (getenv('CHAPCI_SEUIL_VENDEURS')  ?: 200),
+  'seuil_visiteurs_jour' => (int) (getenv('CHAPCI_SEUIL_VISITEURS') ?: 200000),
+  // Identifiant de l'application Android. Il ne sert qu'à composer le lien
+  // d'adhésion au test fermé : https://play.google.com/apps/testing/{app_id}.
+  // Il n'est pas secret — il est écrit sur la fiche Play, visible de tous.
+  'app_id'               => getenv('CHAPCI_APP_ID') ?: 'ci.chap.app',
+  // Mode debug (P13) : n'affiche les détails techniques des erreurs QUE si activé
+  // explicitement. En production (défaut), les erreurs restent génériques côté
+  // client et les détails sont journalisés (error_log) côté serveur.
+  'debug'                => (getenv('CHAPCI_DEBUG') ?: '') === '1',
+  // P3 · Cookie de session HttpOnly. « Secure » (HTTPS obligatoire) par défaut ;
+  // seul CHAPCI_COOKIE_SECURE=0 le désactive (test local sur http). NB : on teste
+  // « !== '0' » et non « ?: » car la chaîne '0' est falsy en PHP.
+  'cookie_secure'        => getenv('CHAPCI_COOKIE_SECURE') !== '0',
+  // Sécurité : IP ou préfixes à IGNORER dans les stats « suspectes » (monitoring
+  // interne, Claude/Anthropic, ton IP fixe…). Virgules ; un préfixe finit par un
+  // point (ex. « 160.79. » ignore 160.79.*.*). Surchargeable via env/config.php.
+  'security_ignore_ips'  => getenv('CHAPCI_SECURITY_IGNORE_IPS') ?: '160.79.',
+  'social'               => [],
+  // Connexion Google (Sign-In) : ID client OAuth « Web ». Vide = désactivé.
+  'google_client_id'     => getenv('CHAPCI_GOOGLE_CLIENT_ID') ?: '',
+  // Connexion Facebook : App ID (public) + App Secret (secret). Vide = désactivé.
+  'facebook_app_id'      => getenv('CHAPCI_FACEBOOK_APP_ID')     ?: '',
+  'facebook_app_secret'  => getenv('CHAPCI_FACEBOOK_APP_SECRET') ?: '',
+  // Filigrane « Chap.ci » au centre des photos d'annonce (1 = activé).
+  'watermark'            => (getenv('CHAPCI_WATERMARK') ?: '1') === '1',
+  // Connexion par téléphone (code SMS). provider : 'orange' | 'twilio' | 'http' | '' (off).
+  'sms'                  => [
+    'provider'      => getenv('CHAPCI_SMS_PROVIDER')     ?: '',
+    'debug'         => (getenv('CHAPCI_SMS_DEBUG')       ?: '') === '1',
+    'twilio_sid'    => getenv('CHAPCI_TWILIO_SID')       ?: '',
+    'twilio_token'  => getenv('CHAPCI_TWILIO_TOKEN')     ?: '',
+    'twilio_from'   => getenv('CHAPCI_TWILIO_FROM')      ?: '',
+    // Orange SMS API (Côte d'Ivoire) — recommandé pour la CI.
+    'orange_auth'   => getenv('CHAPCI_ORANGE_AUTH')      ?: '', // en-tête « Basic … » d'Orange Developer
+    'orange_sender' => getenv('CHAPCI_ORANGE_SENDER')    ?: '', // ex. « tel:+2250000 » (fourni par Orange)
+    'orange_name'   => getenv('CHAPCI_ORANGE_NAME')      ?: '', // nom affiché (facultatif, 11 car.)
+    'http_method'   => getenv('CHAPCI_SMS_HTTP_METHOD')  ?: 'GET',
+    'http_url'      => getenv('CHAPCI_SMS_HTTP_URL')     ?: '',
+    'http_auth'     => getenv('CHAPCI_SMS_HTTP_AUTH')    ?: '',
+    'sender'        => getenv('CHAPCI_SMS_SENDER')       ?: 'Chap.ci',
+  ],
+];
+// Un config.php antérieur peut définir 'sms' partiellement : on complète les
+// sous-clés manquantes sans écraser celles déjà renseignées.
+$config['sms'] = ($config['sms'] ?? []) + [
+  'provider' => '', 'debug' => false, 'twilio_sid' => '', 'twilio_token' => '',
+  'twilio_from' => '', 'orange_auth' => '', 'orange_sender' => '', 'orange_name' => '',
+  'http_method' => 'GET', 'http_url' => '', 'http_auth' => '', 'sender' => 'Chap.ci',
+];
+// ID client Google du projet Chap.ci (public, non secret). Utilisé par défaut
+// tant que config.php n'en fournit pas un (permet d'activer la connexion Google
+// sans éditer config.php). Une variable d'env ou un config.php renseigné priment.
+if (empty($config['google_client_id'])) {
+  $config['google_client_id'] = getenv('CHAPCI_GOOGLE_CLIENT_ID')
+    ?: '564942885290-f1v7caemq0838kp6qickrsirk46vk4dl.apps.googleusercontent.com';
+}
+
+// ---- P1 · Secrets forts, uniques par installation (JAMAIS en clair) ----------
+// Le jeton de connexion (JWT) et la clé des tâches automatiques (cron) ne doivent
+// jamais rester sur une valeur « par défaut » présente dans le code public : cela
+// permettrait à quiconque lit le code d'usurper n'importe quel compte ou de
+// déclencher les tâches (export de la base, emails en masse). Si l'opérateur n'a
+// pas défini un secret propre (assez long, non standard), on en génère un
+// aléatoire, rangé HORS du code (dossier data protégé), réutilisé ensuite : le
+// site continue de fonctionner sans intervention et sans secret devinable.
+function chapci_secret_dir(array $config): string {
+  // La vraie clé est $config['db']['sqlite_path'] (et non 'sqlite_path' à la
+  // racine) : sinon le secret n'était jamais rangé à côté de la base.
+  $base = (string) ($config['db']['sqlite_path'] ?? $config['sqlite_path'] ?? '');
+  $dir  = $base !== '' ? dirname($base) : (__DIR__ . '/data');
+  if (!is_dir($dir)) @mkdir($dir, 0700, true);
+  // Interdit l'accès web direct au dossier (secrets + base SQLite éventuelle).
+  $ht = $dir . '/.htaccess';
+  if (!file_exists($ht)) @file_put_contents($ht, "Require all denied\nDeny from all\n");
+  return $dir;
+}
+function chapci_hardened_secret(array $config, string $label, string $configured, bool $urlSafe = false): string {
+  // Valeurs faibles/connues à ne jamais accepter en production.
+  $weak = ['', 'CHANGEZ-MOI-mettez-un-secret-long-et-aleatoire', 'chapci-cron-2026-a7f3e9',
+           'changeme', 'secret', 'chapci', 'password', 'test'];
+  $configured = trim($configured);
+  // Un secret qui VOYAGE (clé cron : URL, en-tête, commande shell) ne doit
+  // contenir que des caractères sans signification particulière. Sinon il est
+  // mutilé en chemin — « $VAR » avalé par le shell, « % » mal décodé, « ? & ; »
+  // qui coupent l'URL — et provoque des 403 « Clé invalide » incompréhensibles.
+  // Une clé configurée hors de cet alphabet est REFUSÉE : on retombe alors sur
+  // le secret aléatoire persistant (hexadécimal, sûr par construction).
+  $shapeOk = !$urlSafe || preg_match('/^[A-Za-z0-9._~-]+$/', $configured) === 1;
+  if ($configured !== '' && strlen($configured) >= 24 && !in_array($configured, $weak, true) && $shapeOk) {
+    return $configured; // l'opérateur gère déjà un vrai secret : on le respecte
+  }
+  // Sinon : charge (ou crée une seule fois) un secret aléatoire persistant.
+  $file = chapci_secret_dir($config) . '/.secret_' . $label;
+  $val  = @is_readable($file) ? trim((string) @file_get_contents($file)) : '';
+  if (strlen($val) < 32) {
+    try { $val = bin2hex(random_bytes(32)); }
+    catch (Throwable $e) { $val = hash('sha256', uniqid((string) mt_rand(), true) . $label . __DIR__); }
+    if (@file_put_contents($file, $val) !== false) @chmod($file, 0600);
+  }
+  // Repli ultime (dossier non inscriptible) : stable par installation, jamais la
+  // valeur publique du code.
+  return $val !== '' ? $val : hash('sha256', __DIR__ . '|' . $label);
+}
+// Code d'accès au TABLEAU DE BORD administrateur (serrure en plus du compte admin).
+// Vit côté serveur uniquement : l'admin principal le récupère par `cat` du fichier
+// api/data/.secret_admincode (Terminal / Gestionnaire de fichiers cPanel) OU en se
+// l'envoyant par email (/admin/unlock/email). Personne ne peut ouvrir le tableau de
+// bord sans ce code — même un compte administrateur compromis. Auto-généré, stable,
+// 8 caractères non ambigus (ni O/0 ni I/1). Surchargeable via CHAPCI_ADMIN_CODE.
+function chapci_admin_code(array $config): string {
+  $configured = strtoupper(trim((string) (getenv('CHAPCI_ADMIN_CODE') ?: ($config['admin_code'] ?? ''))));
+  if ($configured !== '' && strlen($configured) >= 6) return $configured;
+  $file = chapci_secret_dir($config) . '/.secret_admincode';
+  $val = @is_readable($file) ? strtoupper(trim((string) @file_get_contents($file))) : '';
+  if (strlen($val) < 6) {
+    $A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; $val = ''; // 32 caractères non ambigus
+    for ($i = 0; $i < 8; $i++) {
+      try { $r = random_int(0, 31); } catch (Throwable $e) { $r = mt_rand(0, 31); }
+      $val .= $A[$r];
+    }
+    if (@file_put_contents($file, $val) !== false) @chmod($file, 0600);
+  }
+  return $val;
+}
+// Code d'accès du PROPRIÉTAIRE : à USAGE UNIQUE et EXPIRANT (60 s par défaut).
+// Généré à la demande (bouton « Recevoir le code »), envoyé par email. Stocké hors
+// web (dossier data protégé) au format « CODE|EXPIRATION ». Remplace le code fixe :
+// un code volé devient inutile en 1 minute.
+function admin_otp_file(array $config): string { return chapci_secret_dir($config) . '/.admin_otp'; }
+function admin_otp_ttl(array $config): int { return max(30, (int) ($config['admin_otp_ttl'] ?? 60)); }
+function admin_otp_generate(array $config): string {
+  try { $n = random_int(0, 999999); } catch (Throwable $e) { $n = mt_rand(0, 999999); }
+  $code = str_pad((string) $n, 6, '0', STR_PAD_LEFT);
+  $f = admin_otp_file($config);
+  if (@file_put_contents($f, $code . '|' . (time() + admin_otp_ttl($config))) !== false) @chmod($f, 0600);
+  return $code;
+}
+/** Vérifie un code : correct ET non expiré. Consommé (supprimé) si correct (usage unique). */
+function admin_otp_valid(array $config, string $input): bool {
+  $input = preg_replace('/\D/', '', (string) $input) ?? '';
+  $f = admin_otp_file($config);
+  if ($input === '' || !@is_readable($f)) return false;
+  $parts = explode('|', trim((string) @file_get_contents($f)));
+  if (count($parts) !== 2) return false;
+  if (time() > (int) $parts[1]) { @unlink($f); return false; }  // expiré
+  if (!hash_equals((string) $parts[0], $input)) return false;   // mauvais code
+  @unlink($f);                                                  // usage unique
+  return true;
+}
+$config['jwt_secret'] = chapci_hardened_secret($config, 'jwt',
+  (string) (getenv('CHAPCI_JWT_SECRET') ?: ($config['jwt_secret'] ?? '')));
+// urlSafe = true : la clé cron circule en URL / en-tête / commande shell.
+$chapci_cron_key_voulue = (string) (getenv('CHAPCI_CRON_KEY') ?: ($config['cron_key'] ?? ''));
+$config['cron_key'] = chapci_hardened_secret($config, 'cron', $chapci_cron_key_voulue, true);
+// Une clé écrite dans config.php mais REFUSÉE (trop courte, ou contenant des
+// caractères qui ne survivent pas à une URL) est remplacée sans un mot par le
+// secret aléatoire. L'opérateur croit alors avoir posé sa clé, la copie dans ses
+// tâches cPanel, et récolte un « Clé invalide » à chaque passage — sans jamais
+// comprendre pourquoi. On retient le fait ici pour que le tableau de bord le
+// dise. On ne retient JAMAIS la valeur elle-même.
+$GLOBALS['chapci_cron_key_ignoree'] = $chapci_cron_key_voulue !== ''
+  && !hash_equals($config['cron_key'], $chapci_cron_key_voulue);
+$GLOBALS['chapci_cron_key_motif'] = !$GLOBALS['chapci_cron_key_ignoree'] ? ''
+  : (strlen(trim($chapci_cron_key_voulue)) < 24
+      ? 'trop courte (' . strlen(trim($chapci_cron_key_voulue)) . ' caractères, il en faut 24 au minimum)'
+      : (preg_match('/^[A-Za-z0-9._~-]+$/', trim($chapci_cron_key_voulue)) !== 1
+          ? 'caractères interdits (seuls lettres, chiffres, point, tiret, souligné et tilde survivent à une URL)'
+          : 'valeur trop connue pour servir de secret'));
+
+// Réglages SMTP éventuellement définis depuis le tableau de bord (fichier local
+// prioritaire sur config.php). Permet de configurer l'email sans éditer de fichier.
+//
+// CES RÉGLAGES SONT DES DONNÉES, PLUS DU CODE. Jusqu'au 3 août 2026 la route
+// admin/smtp GÉNÉRAIT un fichier api/smtp.local.php — c'est-à-dire qu'une
+// requête web faisait écrire, par PHP, un nouveau fichier PHP exécutable dans
+// le dossier servi par le serveur web. C'est le geste le plus caractéristique
+// d'une porte dérobée, et aucun outil de sécurité ne peut faire la différence
+// entre ce geste-là et celui d'un attaquant : la seule chose qu'il voit, c'est
+// « ce site écrit du code exécutable dans son propre dossier web ».
+//
+// Les réglages vivent désormais dans le dossier data (droits 0700, refusé au
+// web par son propre .htaccess ET par une règle dans api/.htaccess), sous forme
+// de JSON inerte. Rien n'y est exécutable.
+//
+// L'ancien fichier reste LU tant qu'il existe, pour ne rien casser sur une
+// installation déjà configurée — mais il n'est plus jamais écrit, et le premier
+// enregistrement depuis le tableau de bord le supprime.
+$smtpJson = chapci_secret_dir($config) . '/smtp.json';
+if (is_file($smtpJson)) {
+  $smtpOverride = json_decode((string) @file_get_contents($smtpJson), true);
+  if (is_array($smtpOverride)) $config['smtp'] = array_merge($config['smtp'] ?? [], $smtpOverride);
+} elseif (is_file(__DIR__ . '/smtp.local.php')) {
+  $smtpOverride = include __DIR__ . '/smtp.local.php';
+  if (is_array($smtpOverride)) $config['smtp'] = array_merge($config['smtp'] ?? [], $smtpOverride);
+}
+
+// ---- Compatibilité PHP 7.4 (certains hébergeurs démarrent sous PHP 7.4/8.0) --
+if (!function_exists('str_starts_with')) {
+  function str_starts_with(string $h, string $n): bool { return $n === '' || strncmp($h, $n, strlen($n)) === 0; }
+}
+if (!function_exists('str_contains')) {
+  function str_contains(string $h, string $n): bool { return $n === '' || strpos($h, $n) !== false; }
+}
+if (!function_exists('str_ends_with')) {
+  function str_ends_with(string $h, string $n): bool { return $n === '' || substr($h, -strlen($n)) === $n; }
+}
+
+// Toute erreur fatale PHP (souvent : mauvaise version de PHP ou extension
+// manquante) est renvoyée en JSON lisible plutôt qu'en page 500 vide.
+register_shutdown_function(function () {
+  global $config;
+  $e = error_get_last();
+  if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+    if (!headers_sent()) {
+      http_response_code(500);
+      header('Content-Type: application/json; charset=utf-8');
+    }
+    $detail = 'Erreur PHP : ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')';
+    error_log('[chapci] ' . $detail);
+    // P13 : détails techniques réservés au mode debug ; sinon message générique.
+    echo json_encode(['error' => !empty($config['debug']) ? $detail : 'Erreur interne du serveur. Réessayez plus tard.']);
+  }
+});
+
+// ---- CORS + en-têtes de sécurité (P21) --------------------------------------
+// Origine autorisée : celle du site (pas « * »). Un « * » ou une valeur vide
+// (config.php ancien) est ramené à l'adresse du site.
+if (empty($config['cors_origin']) || $config['cors_origin'] === '*') {
+  $config['cors_origin'] = rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/');
+}
+header('Access-Control-Allow-Origin: ' . $config['cors_origin']);
+header('Vary: Origin');
+// P3 · L'origine est fixe (pas « * ») : on peut autoriser l'envoi du cookie de
+// session sur les appels croisés légitimes (ex. future app native).
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Admin-Unlock');
+header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Content-Type: application/json; charset=utf-8');
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') { http_response_code(204); exit; }
+
+// ---- Helpers ----------------------------------------------------------------
+function jout($data, int $code = 200) {
+  http_response_code($code);
+  echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  exit;
+}
+function jerr(string $msg, int $code = 400) { jout(['error' => $msg], $code); }
+function body(): array {
+  $raw = file_get_contents('php://input');
+  $d = json_decode($raw ?: '{}', true);
+  return is_array($d) ? $d : [];
+}
+function uuid(): string {
+  $d = random_bytes(16);
+  $d[6] = chr((ord($d[6]) & 0x0f) | 0x40);
+  $d[8] = chr((ord($d[8]) & 0x3f) | 0x80);
+  return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($d), 4));
+}
+function now_iso(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
+
+// ---- Sécurité : IP client, journal d'audit, limitation de débit ------------
+/** IP réelle du visiteur (tient compte de Cloudflare / proxys). */
+/** Vrai si $ip (IPv4) appartient à une plage Cloudflare (liste publique stable). */
+function ip_in_cloudflare(string $ip): bool {
+  static $ranges = [
+    // IPv4 (https://www.cloudflare.com/ips-v4)
+    '173.245.48.0/20','103.21.244.0/22','103.22.200.0/22','103.31.4.0/22',
+    '141.101.64.0/18','108.162.192.0/18','190.93.240.0/20','188.114.96.0/20','197.234.240.0/22',
+    '198.41.128.0/17','162.158.0.0/15','104.16.0.0/13','104.24.0.0/14','172.64.0.0/13','131.0.72.0/22',
+    // IPv6 (https://www.cloudflare.com/ips-v6) — sinon un visiteur IPv6 derrière
+    // Cloudflare n'était pas reconnu → CF-Connecting-IP ignoré → rate-limiting
+    // regroupé à tort sur quelques IP edge partagées.
+    '2400:cb00::/32','2606:4700::/32','2803:f800::/32','2405:b500::/32',
+    '2405:8100::/32','2a06:98c0::/29','2c0f:f248::/32',
+  ];
+  // Comparaison CIDR binaire générique (IPv4 = 4 octets, IPv6 = 16 octets).
+  $bin = @inet_pton($ip);
+  if ($bin === false) return false;
+  $len = strlen($bin);
+  foreach ($ranges as $r) {
+    [$net, $bits] = explode('/', $r);
+    $netBin = @inet_pton($net);
+    if ($netBin === false || strlen($netBin) !== $len) continue; // familles d'IP différentes
+    $bits  = (int) $bits;
+    $bytes = intdiv($bits, 8);
+    $rem   = $bits % 8;
+    if ($bytes > 0 && substr($bin, 0, $bytes) !== substr($netBin, 0, $bytes)) continue;
+    if ($rem !== 0) {
+      $maskByte = chr((0xFF << (8 - $rem)) & 0xFF);
+      if ((substr($bin, $bytes, 1) & $maskByte) !== (substr($netBin, $bytes, 1) & $maskByte)) continue;
+    }
+    return true;
+  }
+  return false;
+}
+/**
+ * IP réelle du client. P10 : on ne fait confiance à l'en-tête « vraie IP » de
+ * Cloudflare QUE si la connexion vient effectivement d'une IP Cloudflare — sinon
+ * un attaquant falsifierait l'en-tête (ou X-Forwarded-For) pour changer d'IP à
+ * chaque requête et contourner la limitation de débit. En direct, on utilise
+ * REMOTE_ADDR, que le client ne peut pas usurper au niveau TCP.
+ */
+function client_ip(): string {
+  $remote = substr(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), 0, 45);
+  if (!empty($_SERVER['HTTP_CF_CONNECTING_IP']) && $remote !== '' && ip_in_cloudflare($remote)) {
+    return substr(trim((string) $_SERVER['HTTP_CF_CONNECTING_IP']), 0, 45);
+  }
+  return $remote !== '' ? $remote : '0.0.0.0';
+}
+
+/**
+ * Pays et ville du visiteur, lus dans les EN-TÊTES de Cloudflare.
+ *
+ * On ne fait AUCUN appel externe ici : ce serait payer une requête réseau à
+ * chaque page vue, pour une statistique. Cloudflare, qui est déjà devant le
+ * site, connaît la géolocalisation de l'IP et la pose en en-têtes — gratuit et
+ * instantané :
+ *   · `CF-IPCountry` : le code pays (ex. « CI »), TOUJOURS présent derrière
+ *     Cloudflare, rien à activer ;
+ *   · `CF-IPCity` / `CF-Region` : la ville et la région, présentes SEULEMENT si
+ *     le Patron a activé « Add visitor location headers » dans Cloudflare
+ *     (Rules → Settings → Managed Transforms). Un clic, gratuit.
+ *
+ * Sans Cloudflare (site en local, ou headers non activés), on renvoie `null` :
+ * la colonne reste vide, et l'écran d'admin le dit honnêtement (« ville non
+ * disponible ») au lieu d'inventer.
+ */
+function geo_from_request(): array {
+  $h = function (string $nom): string {
+    $k = 'HTTP_' . strtoupper(str_replace('-', '_', $nom));
+    return trim((string) ($_SERVER[$k] ?? ''));
+  };
+  $pays = strtoupper($h('CF-IPCountry'));
+  // Cloudflare renvoie « XX », « T1 » (Tor) ou vide quand il ne sait pas.
+  if (!preg_match('/^[A-Z]{2}$/', $pays) || $pays === 'XX') $pays = '';
+  $ville = mb_substr($h('CF-IPCity'), 0, 80);
+  // Certaines villes reviennent encodées (%20) : on décode proprement.
+  if ($ville !== '' && str_contains($ville, '%')) $ville = rawurldecode($ville);
+  return ['country' => $pays !== '' ? $pays : null, 'city' => $ville !== '' ? $ville : null];
+}
+
+/**
+ * Nom français d'un pays à partir de son code ISO. Couvre l'Afrique de l'Ouest
+ * et les pays d'où viennent réellement les visiteurs d'un site ivoirien (diaspora
+ * en France, Canada, États-Unis…). Un code inconnu est rendu tel quel — mieux
+ * vaut « NG » que rien, et l'admin comprend.
+ */
+function pays_nom(?string $code): string {
+  $code = strtoupper((string) $code);
+  static $noms = [
+    'CI' => 'Côte d’Ivoire', 'FR' => 'France', 'US' => 'États-Unis', 'CA' => 'Canada',
+    'BF' => 'Burkina Faso', 'ML' => 'Mali', 'SN' => 'Sénégal', 'GN' => 'Guinée',
+    'GH' => 'Ghana', 'TG' => 'Togo', 'BJ' => 'Bénin', 'NG' => 'Nigéria', 'NE' => 'Niger',
+    'LR' => 'Liberia', 'SL' => 'Sierra Leone', 'MA' => 'Maroc', 'DZ' => 'Algérie',
+    'TN' => 'Tunisie', 'CM' => 'Cameroun', 'GA' => 'Gabon', 'CG' => 'Congo',
+    'CD' => 'RD Congo', 'BE' => 'Belgique', 'CH' => 'Suisse', 'GB' => 'Royaume-Uni',
+    'DE' => 'Allemagne', 'IT' => 'Italie', 'ES' => 'Espagne', 'PT' => 'Portugal',
+    'NL' => 'Pays-Bas', 'CN' => 'Chine', 'IN' => 'Inde', 'AE' => 'Émirats arabes unis',
+    'TR' => 'Turquie', 'MR' => 'Mauritanie', 'GM' => 'Gambie', 'GW' => 'Guinée-Bissau',
+    'ZA' => 'Afrique du Sud', 'KE' => 'Kenya', 'ET' => 'Éthiopie', 'EG' => 'Égypte',
+  ];
+  return $noms[$code] ?? ($code !== '' ? $code : 'Inconnu');
+}
+
+/**
+ * Un nom d'appareil lisible tiré de la signature du navigateur.
+ * « Mozilla/5.0 (iPhone; CPU iPhone OS 17_5…) » → « iPhone ». On ne cherche
+ * pas la précision : le Patron doit reconnaître SES appareils dans la liste,
+ * et repérer celui qui n'est pas à lui.
+ */
+function nom_appareil(string $ua): string {
+  $ua = trim($ua);
+  if ($ua === '') return 'Appareil inconnu';
+  $paires = [
+    'iPhone' => 'iPhone', 'iPad' => 'iPad', 'Android' => 'Téléphone Android',
+    'Macintosh' => 'Mac', 'Mac OS X' => 'Mac', 'Windows' => 'Ordinateur Windows',
+    'CrOS' => 'Chromebook', 'Linux' => 'Ordinateur Linux',
+  ];
+  foreach ($paires as $motif => $nom) {
+    if (stripos($ua, $motif) !== false) return $nom;
+  }
+  return 'Appareil inconnu';
+}
+
+/**
+ * Une adresse IP tronquée : « 41.207.12.88 » → « 41.207.•.• ». Assez pour
+ * reconnaître « ce n'est pas moi », pas assez pour pister quelqu'un.
+ */
+function masque_ip(string $ip): string {
+  $ip = trim($ip);
+  if ($ip === '') return '';
+  if (strpos($ip, ':') !== false) {            // IPv6
+    $bouts = explode(':', $ip);
+    return implode(':', array_slice($bouts, 0, 2)) . ':•';
+  }
+  $bouts = explode('.', $ip);
+  if (count($bouts) !== 4) return '•';
+  return $bouts[0] . '.' . $bouts[1] . '.•.•';
+}
+
+/**
+ * Contacts reçus et ventes conclues PENDANT la diffusion d'une publicité.
+ * Une coïncidence de dates, pas une attribution : on ne sait pas d'où vient
+ * un acheteur. L'écran doit le dire avec les mêmes mots.
+ */
+function ad_retombees(PDO $pdo, string $userId, array $ad): array {
+  $debut = $ad['starts_at'] ?? null;
+  if (!$debut || !in_array($ad['status'] ?? '', ['active', 'expired', 'merged'], true)) {
+    return ['contacts' => 0, 'ventes' => 0, 'montant' => 0];
+  }
+  $fin = $ad['expires_at'] ?? now_iso();
+  if (strtotime((string) $fin) > time()) $fin = now_iso();
+  $contacts = 0; $ventes = 0; $montant = 0;
+  try {
+    $q = $pdo->prepare('SELECT COUNT(*) FROM conversations
+                        WHERE seller_id = ? AND created_at >= ? AND created_at <= ?');
+    $q->execute([$userId, $debut, $fin]);
+    $contacts = (int) $q->fetchColumn();
+  } catch (Throwable $e) { /* 0 */ }
+  try {
+    $q = $pdo->prepare("SELECT o.id FROM orders o WHERE o.seller_id = ? AND o.status = 'finalise'
+                        AND COALESCE(o.finalized_at, o.created_at) >= ?
+                        AND COALESCE(o.finalized_at, o.created_at) <= ?");
+    $q->execute([$userId, $debut, $fin]);
+    $ids = array_column($q->fetchAll(), 'id');
+    $ventes = count($ids);
+    if ($ids) {
+      $in = implode(',', array_fill(0, count($ids), '?'));
+      $q2 = $pdo->prepare("SELECT COALESCE(SUM(price),0) FROM order_items WHERE order_id IN ($in)");
+      $q2->execute($ids);
+      $montant = (int) $q2->fetchColumn();
+    }
+  } catch (Throwable $e) { /* 0 */ }
+  return ['contacts' => $contacts, 'ventes' => $ventes, 'montant' => $montant];
+}
+
+/** Journalise un événement de sécurité. Ne casse JAMAIS la requête en cas d'erreur. */
+function log_security_event(PDO $pdo, string $kind, ?string $email = null, string $detail = ''): void {
+  try {
+    $pdo->prepare('INSERT INTO security_events (id,kind,email,ip,ua,detail,created_at) VALUES (?,?,?,?,?,?,?)')
+        ->execute([uuid(), $kind, $email ? strtolower($email) : null, client_ip(),
+                   substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200), substr($detail, 0, 200), now_iso()]);
+  } catch (Throwable $e) { /* le journal ne doit jamais bloquer l'utilisateur */ }
+}
+/** Bloque en 429 si trop d'événements d'un type pour cette IP ou cet email dans la fenêtre. */
+function rate_limit(PDO $pdo, string $kind, ?string $email, int $limit, int $windowSec): void {
+  try {
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $windowSec);
+    $sql = 'SELECT COUNT(*) FROM security_events WHERE kind = ? AND created_at >= ? AND (ip = ?'
+         . ($email ? ' OR email = ?' : '') . ')';
+    $params = [$kind, $since, client_ip()];
+    if ($email) $params[] = strtolower($email);
+    $st = $pdo->prepare($sql); $st->execute($params);
+    if ((int) $st->fetchColumn() >= $limit) {
+      log_security_event($pdo, 'rate_limited', $email, $kind);
+      jerr('Trop de tentatives. Pour votre sécurité, réessayez dans quelques minutes.', 429);
+    }
+  } catch (Throwable $e) { /* en cas d'erreur DB, ne pas pénaliser un utilisateur légitime */ }
+}
+/** Une IP correspond-elle à un motif d'exclusion (exact, ou préfixe finissant par '.') ? */
+function ip_ignored(string $ip, $patterns): bool {
+  if (is_string($patterns)) $patterns = array_filter(array_map('trim', explode(',', $patterns)));
+  foreach ((array) $patterns as $p) {
+    $p = (string) $p; if ($p === '') continue;
+    if ($ip === $p) return true;
+    if (substr($p, -1) === '.' && strncmp($ip, $p, strlen($p)) === 0) return true;
+  }
+  return false;
+}
+/** Synthèse sécurité NETTOYÉE (IP de monitoring exclues) sur la fenêtre $since→maintenant. */
+function security_stats(PDO $pdo, array $config, string $since): array {
+  $ignore = $config['security_ignore_ips'] ?? [];
+  $counts = [];
+  $st = $pdo->prepare('SELECT kind, COUNT(*) AS n FROM security_events WHERE created_at >= ? GROUP BY kind');
+  $st->execute([$since]);
+  foreach ($st->fetchAll() as $r) $counts[$r['kind']] = (int) $r['n'];
+  // IP suspectes (login_fail + rate_limited), hors IP ignorées, ≥ 5 événements.
+  $ipsSt = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind IN ('login_fail','rate_limited') AND created_at >= ? GROUP BY ip ORDER BY n DESC");
+  $ipsSt->execute([$since]);
+  $suspicious = [];
+  foreach ($ipsSt->fetchAll() as $r) {
+    if ((int) $r['n'] >= 5 && !ip_ignored((string) $r['ip'], $ignore)) $suspicious[] = ['ip' => $r['ip'], 'n' => (int) $r['n']];
+    if (count($suspicious) >= 10) break;
+  }
+  // login_fail hors IP ignorées → ratio honnête (pas faussé par le monitoring).
+  $fbi = $pdo->prepare("SELECT ip, COUNT(*) AS n FROM security_events WHERE kind = 'login_fail' AND created_at >= ? GROUP BY ip");
+  $fbi->execute([$since]);
+  $loginFail = 0;
+  foreach ($fbi->fetchAll() as $r) if (!ip_ignored((string) $r['ip'], $ignore)) $loginFail += (int) $r['n'];
+  $loginOk = $counts['login_ok'] ?? 0;
+  // Détail par motif, pour les seules catégories de DIAGNOSTIC.
+  //
+  // log_security_event() enregistre déjà la route dans « detail » — cron_fail
+  // stocke par exemple « cron/backup ». Mais rien ne l'exposait : le bureau
+  // Sécurité voyait le compteur monter sans pouvoir dire QUELLE tâche échouait,
+  // et l'a signalé comme « limite connue » trois rondes de suite. C'est ce
+  // trou qui a laissé la sauvegarde quotidienne muette pendant douze jours.
+  //
+  // Volontairement limité à ces trois types : ce sont des motifs techniques
+  // (route, cause). On n'expose PAS le détail de login_fail ou mfa_fail, qui
+  // peut contenir une adresse e-mail — la clé cron n'est pas un accès admin.
+  $byDetail = [];
+  $dSt = $pdo->prepare("SELECT kind, detail, COUNT(*) AS n FROM security_events
+                        WHERE kind IN ('cron_fail','mtoken_fail','rate_limited') AND created_at >= ?
+                        GROUP BY kind, detail ORDER BY n DESC");
+  $dSt->execute([$since]);
+  foreach ($dSt->fetchAll() as $r) {
+    $k = (string) $r['kind'];
+    if (!isset($byDetail[$k])) $byDetail[$k] = [];
+    if (count($byDetail[$k]) >= 10) continue;   // top 10 par type, pas de déluge
+    $d = trim((string) ($r['detail'] ?? ''));
+    $byDetail[$k][] = ['detail' => $d === '' ? '(non renseigné)' : $d, 'n' => (int) $r['n']];
+  }
+  return ['counts' => $counts, 'loginOk' => $loginOk, 'loginFail' => $loginFail,
+          'ratio' => ($loginOk + $loginFail) ? round($loginFail / ($loginOk + $loginFail), 2) : 0,
+          'suspicious' => $suspicious, 'byDetail' => $byDetail];
+}
+function iso_to_ms(?string $iso): int { return $iso ? (int) (strtotime($iso) * 1000) : 0; }
+
+// ---- Modération automatique (Le Gardien de publication) ---------------------
+/** Normalise un texte pour l'analyse : minuscules, sans accents, ponctuation -> espaces. */
+function mod_norm(string $s): string {
+  $s = mb_strtolower($s, 'UTF-8');
+  $s = strtr($s, [
+    'à'=>'a','â'=>'a','ä'=>'a','á'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+    'î'=>'i','ï'=>'i','í'=>'i','ô'=>'o','ö'=>'o','ó'=>'o','ù'=>'u','û'=>'u','ü'=>'u','ç'=>'c','ñ'=>'n',
+  ]);
+  $s = preg_replace('/[^a-z0-9]+/', ' ', $s);         // ponctuation/emoji -> espace
+  return ' ' . trim(preg_replace('/\s+/', ' ', $s)) . ' ';
+}
+/**
+ * Analyse le texte d'une annonce ou d'un message (anti-arnaque + contenu
+ * interdit). 100 % local, sans coût. Renvoie
+ *   ['ok' => bool, 'reasons' => [['code','label','advice'], ...]].
+ * Filtre les cas évidents ; la modération humaine (admin) reste le filet.
+ */
+function moderate_text(string $text): array {
+  $t = mod_norm($text);
+  $groups = [
+    ['code'=>'drogue','label'=>'Produits stupéfiants / drogues',
+     'advice'=>'La vente de drogues est illégale et strictement interdite sur Chap.ci.',
+     'terms'=>[' drogue',' stupefiant',' cannabis',' chanvre indien',' weed ',' marijuana',' ganja',' cocaine',' heroine',' crack ',' ecstasy',' mdma',' amphetamine',' methamphet',' kush ',' hashich',' hashish',' shabu']],
+    ['code'=>'arme','label'=>'Armes et munitions',
+     'advice'=>'La vente d’armes, de munitions ou d’explosifs est interdite.',
+     'terms'=>[' arme a feu',' pistolet',' revolver',' kalachnikov',' ak 47',' fusil d assaut',' munition',' cartouche a balle',' grenade',' explosif']],
+    ['code'=>'medicament','label'=>'Médicaments / produits pharmaceutiques',
+     'advice'=>'La vente de médicaments hors pharmacie agréée est interdite (réglementation AIRP).',
+     'terms'=>[' medicament',' viagra',' cialis',' cytotec',' misoprostol',' tramadol',' pilule abortive',' produit abortif']],
+    ['code'=>'cosmetique','label'=>'Cosmétiques dépigmentants / éclaircissants dangereux',
+     'advice'=>'La vente de produits dépigmentants ou éclaircissants pour la peau (hydroquinone, mercure, corticoïdes…) est interdite et dangereuse pour la santé (contrôles AIRP).',
+     'terms'=>[' hydroquinone',' depigment',' clobetasol',' corticoide',' tchatcho',' blanchiment de la peau',' blanchir la peau',' eclaircir la peau',' creme eclaircissante',' savon eclaircissant',' lait eclaircissant',' gel eclaircissant']],
+    ['code'=>'faux','label'=>'Faux documents / fausse monnaie',
+     'advice'=>'Les faux papiers, faux diplômes ou la fausse monnaie sont illégaux.',
+     'terms'=>[' faux papier',' faux document',' faux diplome',' faux permis',' faux passeport',' vrai faux',' faux billet',' fausse monnaie',' faux argent']],
+    ['code'=>'sexuel_service','label'=>'Services à caractère sexuel',
+     'advice'=>'Les services de plaisir contre argent (escorte, prostitution…) sont interdits et illégaux.',
+     'terms'=>[' escort',' escorte',' prostitu',' plan cul',' coup d un soir',' call girl',' callgirl',' service de plaisir',' services de plaisir',' massage sexuel',' massage sensuel',' sexe contre',' sexe en echange',' gigolo',' sugar daddy',' sugar mummy',' rencontre coquine',' michetonnage']],
+    ['code'=>'contenu_sexuel','label'=>'Contenu sexuel / nudité',
+     'advice'=>'Les contenus pornographiques ou de nudité sont interdits sur Chap.ci.',
+     'terms'=>[' porno',' pornographie',' xxx ',' photo nue',' photos nues',' nudite',' sextape',' film x ',' contenu adulte',' nudes ',' hentai']],
+    ['code'=>'especes','label'=>'Espèces protégées',
+     'advice'=>'Le commerce d’ivoire, d’écailles ou d’espèces protégées est interdit.',
+     'terms'=>[' defense d ivoire',' ivoire d elephant',' ecaille de tortue',' pangolin',' corne de rhinoceros',' peau de leopard',' peau de panthere']],
+    ['code'=>'arnaque_avance','label'=>'Paiement à l’avance (signe d’arnaque)',
+     'advice'=>'Ne demandez jamais de paiement avant livraison. Retirez toute mention d’acompte, de frais d’avance ou de Western Union.',
+     'terms'=>[' payer d avance',' payez d avance',' paiement avant livraison',' paiement a l avance',' acompte avant',' frais de dossier',' frais d avance',' western union',' moneygram',' envoyez l argent',' caution avant',' payer avant de recevoir']],
+    ['code'=>'arnaque_gain','label'=>'Fausse promesse de gain (signe d’arnaque)',
+     'advice'=>'Les offres « argent facile », loteries ou placements garantis sont des arnaques interdites.',
+     'terms'=>[' argent facile',' gagnez de l argent facilement',' vous avez gagne',' loterie',' heritage a reclamer',' doublez votre argent',' placement garanti',' investissement garanti',' rendement garanti']],
+  ];
+  $reasons = [];
+  foreach ($groups as $g) {
+    foreach ($g['terms'] as $term) {
+      if (strpos($t, $term) !== false) {
+        $reasons[] = ['code'=>$g['code'], 'label'=>$g['label'], 'advice'=>$g['advice']];
+        break;
+      }
+    }
+  }
+  return ['ok' => count($reasons) === 0, 'reasons' => $reasons];
+}
+
+// ---- Notifications in-app ----------------------------------------------------
+/**
+ * Crée une notification pour un utilisateur, en respectant ses préférences.
+ *
+ * Elle atterrit dans la cloche du site, et — si la personne a autorisé les
+ * notifications sur un appareil — sur cet appareil même application fermée.
+ * L'envoi réel n'a PAS lieu ici : on empile dans `$GLOBALS['CHAPCI_PUSH']`, et
+ * `push_vider()` s'en occupe une fois la réponse rendue. Un utilisateur qui
+ * envoie un message n'a pas à attendre le serveur de Google pour voir sa page.
+ *
+ * `mb_substr` et non `substr` : « Réfrigérateur » coupé à 120 OCTETS peut se
+ * terminer au milieu d'un « é ». La chaîne devient de l'UTF-8 invalide,
+ * json_encode rend `false`, et la notification part vide — sans la moindre
+ * erreur nulle part.
+ */
+/** Renvoie vrai si la notification a été ÉCRITE — faux si ce type est coupé, ou en cas d'échec. */
+function notify(PDO $pdo, string $userId, string $type, string $title, string $body, string $link = ''): bool {
+  if ($userId === '') return false;
+  try {
+    $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$userId]);
+    $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
+    if (isset($prefs[$type]) && !$prefs[$type]) return false; // ce type est désactivé par l'utilisateur
+    $id = uuid();
+    $title = mb_substr($title, 0, 120); $body = mb_substr($body, 0, 240); $link = mb_substr($link, 0, 200);
+    $pdo->prepare('INSERT INTO notifications (id,user_id,type,title,body,link,read_flag,created_at) VALUES (?,?,?,?,?,?,0,?)')
+        ->execute([$id, $userId, $type, $title, $body, $link, now_iso()]);
+    // HEURES CALMES — rien qui sonne entre 22 h et 6 h. La notification est
+    // quand même ÉCRITE : elle attend dans la cloche, on la lira au réveil.
+    // Seul le push, qui allume l'écran, est retenu. (Abidjan est à UTC+0 :
+    // l'heure du serveur est l'heure du Patron.)
+    // Défaut : ALLUMÉ. Personne n'a demandé à être réveillé à trois heures du
+    // matin, et l'interrupteur est désormais visible dans Compte →
+    // Notifications pour qui veut le contraire.
+    if (!isset($prefs['calme']) || $prefs['calme']) {
+      $h = (int) gmdate('G');
+      if ($h >= 22 || $h < 6) return true;
+    }
+    // Pas de réglage « push » ici : le vrai interrupteur est l'abonnement du
+    // navigateur lui-même. Refuser l'autorisation, ou l'éteindre depuis le
+    // compte, efface la ligne de `push_subs` — il n'y a alors rien à joindre,
+    // et le repli par e-mail prend le relais (réglage « email »).
+    $GLOBALS['CHAPCI_PUSH'][] = [
+      'id' => $id, 'user' => $userId, 'type' => $type, 'title' => $title, 'body' => $body, 'link' => $link,
+    ];
+    return true;
+  } catch (Throwable $e) { return false; /* une notification ne doit jamais casser l'action */ }
+}
+function b64url(string $s): string { return rtrim(strtr(base64_encode($s), '+/', '-_'), '='); }
+function b64url_dec(string $s): string { return base64_decode(strtr($s, '-_', '+/')); }
+
+// ---- Notifications push : le chiffrement et la signature --------------------
+//
+//  Une notification push traverse un serveur qui n'est pas le nôtre : celui de
+//  Google (Chrome), de Mozilla (Firefox) ou d'Apple (Safari). Ce relais
+//  transmet sans jamais pouvoir lire — c'est la RFC 8291 qui l'impose, et c'est
+//  pour cela que le contenu est chiffré ICI, avec une clé que seul le
+//  navigateur du destinataire possède.
+//
+//  Deux mécanismes distincts, souvent confondus :
+//    · VAPID (RFC 8292) — nous IDENTIFIE auprès du relais. Un jeton signé
+//      ES256 avec une paire de clés qui appartient au site, la même pour tous.
+//    · aes128gcm (RFC 8291 + RFC 8188) — CHIFFRE le message pour UN abonnement
+//      précis, avec les deux clés que le navigateur nous a données (`p256dh` et
+//      `auth`) et une paire éphémère régénérée à chaque envoi.
+//
+//  Rien de tout cela ne se vérifie à l'œil : une erreur d'un seul bit donne un
+//  message que le navigateur rejette en silence, et l'on ne saurait jamais
+//  pourquoi. La RFC 8291 §5 publie donc un vecteur d'essai complet — clés, sel,
+//  texte clair, résultat attendu octet pour octet. `php8.5 scripts/push-vecteur.php`
+//  le rejoue contre ce bloc. À relancer après toute retouche ici.
+
+/**
+ * Une clé publique P-256 « brute » (65 octets, commençant par 0x04) → PEM.
+ *
+ * Le navigateur nous donne `p256dh` sous cette forme brute ; OpenSSL ne sait
+ * lire qu'un SubjectPublicKeyInfo. Le préambule ASN.1 est constant pour la
+ * courbe prime256v1 : on le colle devant.
+ */
+function push_pem_publique(string $brute65): string {
+  if (strlen($brute65) !== 65 || $brute65[0] !== "\x04") {
+    throw new RuntimeException('Clé publique P-256 invalide (65 octets non compressés attendus).');
+  }
+  $der = (string) hex2bin('3059301306072a8648ce3d020106082a8648ce3d030107034200') . $brute65;
+  return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END PUBLIC KEY-----\n";
+}
+
+/**
+ * Une clé privée P-256 brute (scalaire de 32 octets) + sa publique → PEM SEC1.
+ *
+ * Sert au banc d'essai — qui doit imposer la clé éphémère de la RFC, sans quoi
+ * le résultat ne serait comparable à rien — et à relire une clé VAPID rangée
+ * sous forme compacte.
+ */
+function push_pem_privee(string $d32, string $pub65): string {
+  if (strlen($d32) !== 32) throw new RuntimeException('Scalaire privé P-256 invalide (32 octets attendus).');
+  $corps = "\x02\x01\x01"                                          // version = 1
+         . "\x04\x20" . $d32                                        // privateKey (OCTET STRING)
+         . (string) hex2bin('a00a06082a8648ce3d030107')             // [0] namedCurve prime256v1
+         . "\xa1\x44\x03\x42\x00" . $pub65;                         // [1] publicKey (BIT STRING)
+  $der = "\x30" . chr(strlen($corps)) . $corps;
+  return "-----BEGIN EC PRIVATE KEY-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END EC PRIVATE KEY-----\n";
+}
+
+/** D'une clé OpenSSL P-256 : sa publique brute (65 octets) et son scalaire. */
+function push_details(OpenSSLAsymmetricKey $cle): array {
+  $d = openssl_pkey_get_details($cle);
+  if (!$d || !isset($d['ec']['x'], $d['ec']['y'])) throw new RuntimeException('Clé EC illisible.');
+  return [
+    'pub' => "\x04" . str_pad($d['ec']['x'], 32, "\x00", STR_PAD_LEFT) . str_pad($d['ec']['y'], 32, "\x00", STR_PAD_LEFT),
+    'd'   => isset($d['ec']['d']) ? str_pad($d['ec']['d'], 32, "\x00", STR_PAD_LEFT) : '',
+  ];
+}
+
+/** Fabrique une paire P-256 neuve. */
+function push_paire(): array {
+  $k = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+  if (!$k) throw new RuntimeException('Impossible de générer une paire P-256 (OpenSSL).');
+  return ['cle' => $k] + push_details($k);
+}
+
+/**
+ * Chiffre `$charge` pour l'abonnement décrit par `$p256dh` et `$auth`.
+ *
+ * Rend le corps binaire complet, à poster tel quel avec l'en-tête
+ * `Content-Encoding: aes128gcm`.
+ *
+ * `$impose` n'existe que pour le banc d'essai : la RFC fournit une clé éphémère
+ * et un sel précis. Chaque envoi réel en tire de nouveaux — c'est le principe.
+ */
+function push_chiffrer(string $p256dh, string $auth, string $charge, ?array $impose = null): string {
+  $uaPub  = b64url_dec($p256dh);
+  $secret = b64url_dec($auth);
+  if (strlen($uaPub) !== 65)  throw new RuntimeException('p256dh invalide.');
+  if (strlen($secret) !== 16) throw new RuntimeException('auth invalide (16 octets attendus).');
+
+  if ($impose) {
+    $asPriv = $impose['priv']; $asPub = $impose['pub']; $sel = $impose['sel'];
+  } else {
+    $p = push_paire();
+    $asPriv = $p['cle']; $asPub = $p['pub']; $sel = random_bytes(16);
+  }
+
+  // 1. Secret partagé ECDH entre notre clé éphémère et celle du navigateur.
+  $partage = openssl_pkey_derive(push_pem_publique($uaPub), $asPriv, 0);
+  if ($partage === false) throw new RuntimeException('ECDH impossible.');
+
+  // 2. La matière première (IKM), liée à CET abonnement par son secret `auth`.
+  $ikm = hash_hkdf('sha256', $partage, 32, "WebPush: info\x00" . $uaPub . $asPub, $secret);
+
+  // 3. Clé et nonce du chiffrement, dérivés du sel (RFC 8188 §2.1 et §2.2).
+  $cek   = hash_hkdf('sha256', $ikm, 16, "Content-Encoding: aes128gcm\x00", $sel);
+  $nonce = hash_hkdf('sha256', $ikm, 12, "Content-Encoding: nonce\x00", $sel);
+
+  // 4. Un seul enregistrement : le texte, puis le délimiteur 0x02 (« dernier »).
+  $tag = '';
+  $chiffre = openssl_encrypt($charge . "\x02", 'aes-128-gcm', $cek, OPENSSL_RAW_DATA, $nonce, $tag);
+  if ($chiffre === false) throw new RuntimeException('Chiffrement AES-128-GCM impossible.');
+
+  // 5. L'en-tête binaire : sel(16) | taille(4) | longueur de l'id(1) | clé(65).
+  return $sel . pack('N', 4096) . chr(65) . $asPub . $chiffre . $tag;
+}
+
+/** Signature ECDSA d'OpenSSL (DER) → les 64 octets bruts R‖S attendus par ES256. */
+function push_sig_brute(string $der): string {
+  if (($der[0] ?? '') !== "\x30") throw new RuntimeException('Signature DER inattendue.');
+  $i = 2; // la séquence P-256 fait toujours moins de 128 octets : longueur courte
+  $lire = function () use ($der, &$i): string {
+    if (($der[$i] ?? '') !== "\x02") throw new RuntimeException('Signature DER inattendue.');
+    $i++;
+    $n = ord($der[$i]); $i++;
+    $v = substr($der, $i, $n); $i += $n;
+    return str_pad(ltrim($v, "\x00"), 32, "\x00", STR_PAD_LEFT);
+  };
+  return $lire() . $lire();
+}
+
+/**
+ * L'en-tête `Authorization` à joindre à l'envoi.
+ *
+ * `$endpoint` ne sert qu'à en extraire l'origine : le jeton vaut pour un relais
+ * (`https://fcm.googleapis.com`), jamais pour un abonné en particulier.
+ */
+function push_entete_vapid(string $endpoint, string $sujet, OpenSSLAsymmetricKey $priv, string $pub65): string {
+  $p = parse_url($endpoint);
+  if (empty($p['scheme']) || empty($p['host'])) throw new RuntimeException('Adresse push invalide.');
+  // L'auditoire est l'ORIGINE du relais — donc avec le port s'il n'est pas
+  // celui par défaut. En production les relais sont tous en 443 et le port
+  // n'apparaît jamais ; c'est justement pour cela qu'il faut l'écrire ici,
+  // sinon rien ne l'aurait jamais signalé.
+  $aud = $p['scheme'] . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+
+  $entete = b64url((string) json_encode(['typ' => 'JWT', 'alg' => 'ES256']));
+  // 12 h : la RFC 8292 plafonne à 24 h, et un jeton court limite le rejeu.
+  $corps  = b64url((string) json_encode(['aud' => $aud, 'exp' => time() + 43200, 'sub' => $sujet]));
+  $der = '';
+  if (!openssl_sign("$entete.$corps", $der, $priv, OPENSSL_ALGO_SHA256)) {
+    throw new RuntimeException('Signature VAPID impossible.');
+  }
+  return 'vapid t=' . "$entete.$corps." . b64url(push_sig_brute($der)) . ', k=' . b64url($pub65);
+}
+// ---- FIN du chiffrement push (repère du banc d'essai) -----------------------
+
+// ---- Notifications push : les clés du site, les abonnés, l'envoi ------------
+
+/**
+ * La paire VAPID du site — créée au premier besoin, puis JAMAIS remplacée.
+ *
+ * Elle identifie Chap.ci auprès de Google, Mozilla et Apple. La changer
+ * invaliderait d'un coup TOUS les abonnements déjà pris : chaque téléphone
+ * devrait réactiver ses notifications à la main, et personne ne le ferait.
+ * Elle vit donc dans `api/data/push.json`, en 0600, dans le dossier refusé au
+ * web — le même endroit que `smtp.json`, et pour la même raison. Ce dossier
+ * n'est jamais dans le zip de déploiement : un déploiement ne peut pas
+ * l'écraser.
+ *
+ * Rend `null` si OpenSSL n'a pas les courbes elliptiques : le site continue de
+ * fonctionner, la cloche aussi, seul le push se tait.
+ */
+function push_cles(array $config): ?array {
+  static $cache = null;
+  if ($cache !== null) return $cache ?: null;
+
+  $fichier = chapci_secret_dir($config) . '/push.json';
+  $d = is_file($fichier) ? json_decode((string) @file_get_contents($fichier), true) : null;
+
+  if (!is_array($d) || empty($d['publique']) || empty($d['privee'])) {
+    try { $p = push_paire(); }
+    catch (Throwable $e) { error_log('[chapci] push · génération VAPID : ' . $e->getMessage()); $cache = false; return null; }
+    $d = ['publique' => b64url($p['pub']), 'privee' => b64url($p['d']), 'cree' => now_iso()];
+    // JSON inerte, jamais du code : voir le commentaire de smtp.json plus haut.
+    @file_put_contents($fichier, (string) json_encode($d, JSON_PRETTY_PRINT), LOCK_EX);
+    @chmod($fichier, 0600);
+  }
+
+  try {
+    $priv = openssl_pkey_get_private(push_pem_privee(b64url_dec($d['privee']), b64url_dec($d['publique'])));
+    if (!$priv) throw new RuntimeException('clé privée VAPID illisible');
+  } catch (Throwable $e) {
+    error_log('[chapci] push · lecture VAPID : ' . $e->getMessage());
+    $cache = false; return null;
+  }
+
+  $contacts = $config['report_email'] ?? [];
+  $sujet = 'mailto:' . (is_array($contacts) ? ($contacts[0] ?? 'contact@chap.ci') : (string) $contacts);
+  $cache = ['priv' => $priv, 'pub' => b64url_dec($d['publique']), 'pubB64' => (string) $d['publique'], 'sujet' => $sujet];
+  return $cache;
+}
+
+/**
+ * Un nom d'appareil lisible, tiré de l'en-tête User-Agent.
+ *
+ * On ne garde PAS l'en-tête brut : c'est une empreinte fine (version exacte du
+ * système, du navigateur, parfois du modèle) qui ne sert à rien ici. « Chrome
+ * sur Android » suffit à ce que quelqu'un reconnaisse son téléphone dans la
+ * liste de ses appareils, et c'est tout ce que la liste doit permettre.
+ */
+function push_appareil(string $ua): string {
+  $sys = 'un appareil';
+  foreach (['Android' => 'Android', 'iPhone' => 'iPhone', 'iPad' => 'iPad',
+            'Windows' => 'Windows', 'Mac OS X' => 'Mac', 'Linux' => 'Linux'] as $motif => $nom) {
+    if (stripos($ua, $motif) !== false) { $sys = $nom; break; }
+  }
+  // L'ordre compte : Chrome et Edge annoncent « Safari » dans leur User-Agent,
+  // et Edge annonce « Chrome ». On teste donc du plus spécifique au plus large.
+  $nav = 'Navigateur';
+  foreach (['Edg' => 'Edge', 'OPR' => 'Opera', 'SamsungBrowser' => 'Samsung Internet',
+            'Firefox' => 'Firefox', 'Chrome' => 'Chrome', 'Safari' => 'Safari'] as $motif => $nom) {
+    if (stripos($ua, $motif) !== false) { $nav = $nom; break; }
+  }
+  return $nav . ' sur ' . $sys;
+}
+
+/**
+ * Pousse une notification vers UN abonnement.
+ *
+ * Rend le code HTTP du relais. 201 = accepté. 404 et 410 veulent dire que
+ * l'abonnement est mort — application désinstallée, navigateur réinitialisé,
+ * autorisation retirée : on l'efface, sinon la table se remplit de fantômes et
+ * chaque notification paie leur silence.
+ */
+function push_envoyer(array $config, PDO $pdo, array $abo, string $charge): int {
+  $cles = push_cles($config);
+  if (!$cles) return 0;
+  try {
+    $corps  = push_chiffrer((string) $abo['p256dh'], (string) $abo['auth_secret'], $charge);
+    $entete = push_entete_vapid((string) $abo['endpoint'], $cles['sujet'], $cles['priv'], $cles['pub']);
+  } catch (Throwable $e) {
+    error_log('[chapci] push · chiffrement : ' . $e->getMessage());
+    return 0;
+  }
+  $r = http_fetch((string) $abo['endpoint'], [
+    'method'  => 'POST',
+    'headers' => [
+      'Authorization: ' . $entete,
+      'Content-Encoding: aes128gcm',
+      'Content-Type: application/octet-stream',
+      // Le relais garde le message 24 h si le téléphone est éteint. Au-delà,
+      // une notification d'hier ne vaut plus la peine d'être montrée.
+      'TTL: 86400',
+      'Urgency: normal',
+    ],
+    'body' => $corps,
+  ]);
+  $code = (int) $r['status'];
+  if ($code === 404 || $code === 410) {
+    $pdo->prepare('DELETE FROM push_subs WHERE id = ?')->execute([$abo['id']]);
+    return $code;
+  }
+  try {
+    if ($code >= 200 && $code < 300) {
+      $pdo->prepare('UPDATE push_subs SET last_ok_at = ?, fails = 0 WHERE id = ?')->execute([now_iso(), $abo['id']]);
+    } else {
+      // Dix échecs d'affilée : le relais ne dit pas « mort », mais il ne délivre
+      // plus. On arrête d'y consacrer une requête réseau à chaque notification.
+      $pdo->prepare('UPDATE push_subs SET fails = fails + 1 WHERE id = ?')->execute([$abo['id']]);
+      $pdo->prepare('DELETE FROM push_subs WHERE id = ? AND fails >= 10')->execute([$abo['id']]);
+    }
+  } catch (Throwable $e) { /* le suivi ne doit jamais empêcher l'envoi suivant */ }
+  return $code;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  LE PUSH NATIF (Firebase Cloud Messaging) — réveiller un téléphone fermé.
+//
+//  POURQUOI CE CHANTIER. Le Web Push ci-dessus ne touche QUE les navigateurs :
+//  il faut un onglet ouvert ou une PWA installée. L'application Flutter, elle,
+//  est fermée la plupart du temps — et c'est exactement l'instant où un vendeur
+//  doit apprendre qu'on lui écrit. Sans FCM, l'acheteur écrit, personne ne
+//  répond, il va voir ailleurs. C'est la première fuite de la place de marché,
+//  et elle n'apparaît dans aucune mesure de vitesse.
+//
+//  LE SECRET EST UNE DONNÉE, JAMAIS DU CODE. La clé du compte de service
+//  Google se dépose en JSON dans `api/data/fcm.json` (0600, dossier 0700 refusé
+//  au web), comme `smtp.json` et `push.json`. Rien n'est généré, rien n'est
+//  écrit dans le dossier servi par le serveur.
+//
+//  TANT QUE CE FICHIER N'EXISTE PAS, TOUT CECI EST INERTE : `fcm_config()`
+//  rend null, l'envoi ne part pas, et le Web Push comme le repli par e-mail
+//  continuent exactement comme avant. Aucune régression possible.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * La clé du compte de service, ou null si le Patron ne l'a pas encore déposée.
+ *
+ * Le fichier est celui que la console Firebase fait télécharger :
+ * Paramètres du projet → Comptes de service → « Générer une nouvelle clé
+ * privée ». On n'en lit que trois champs.
+ */
+function fcm_config(array $config): ?array {
+  static $cache = null;
+  if ($cache !== null) return $cache ?: null;
+
+  $fichier = chapci_secret_dir($config) . '/fcm.json';
+  if (!is_file($fichier)) { $cache = false; return null; }
+  $d = json_decode((string) @file_get_contents($fichier), true);
+  if (!is_array($d) || empty($d['project_id']) || empty($d['client_email']) || empty($d['private_key'])) {
+    error_log('[chapci] fcm · fcm.json présent mais incomplet (project_id, client_email, private_key)');
+    $cache = false; return null;
+  }
+  $cache = [
+    'projet' => (string) $d['project_id'],
+    'email'  => (string) $d['client_email'],
+    'clef'   => (string) $d['private_key'],
+  ];
+  return $cache;
+}
+
+/**
+ * Le jeton d'accès Google, obtenu contre un JWT signé avec la clé du compte de
+ * service (OAuth2 « JWT bearer »). Gardé en mémoire le temps de la requête PHP.
+ *
+ * Google le donne pour une heure ; on le redemande à chaque processus plutôt
+ * que de le stocker — une requête de plus par notification, contre un secret
+ * de moins écrit sur le disque.
+ */
+function fcm_jeton(array $config): ?string {
+  static $cache = null;
+  if ($cache !== null) return $cache ?: null;
+  $c = fcm_config($config);
+  if (!$c) { $cache = false; return null; }
+
+  $maintenant = time();
+  $entete = b64url((string) json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
+  $corps  = b64url((string) json_encode([
+    'iss'   => $c['email'],
+    'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+    'aud'   => 'https://oauth2.googleapis.com/token',
+    'iat'   => $maintenant,
+    'exp'   => $maintenant + 3600,
+  ]));
+
+  $signature = '';
+  try {
+    $clef = openssl_pkey_get_private($c['clef']);
+    if (!$clef || !openssl_sign("$entete.$corps", $signature, $clef, OPENSSL_ALGO_SHA256)) {
+      throw new RuntimeException('signature RS256 impossible');
+    }
+  } catch (Throwable $e) {
+    error_log('[chapci] fcm · signature : ' . $e->getMessage());
+    $cache = false; return null;
+  }
+
+  $r = http_fetch('https://oauth2.googleapis.com/token', [
+    'method'  => 'POST',
+    'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+    'body'    => http_build_query([
+      'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      'assertion'  => "$entete.$corps." . b64url($signature),
+    ]),
+  ]);
+  $d = json_decode((string) ($r['body'] ?? ''), true);
+  if ((int) $r['status'] !== 200 || empty($d['access_token'])) {
+    // Le corps de la réponse d'erreur de Google ne contient jamais notre clé,
+    // seulement un code (« invalid_grant » quand l'horloge dérive, par ex.).
+    error_log('[chapci] fcm · jeton refusé (' . (int) $r['status'] . ') : '
+      . substr((string) ($d['error'] ?? '?'), 0, 60));
+    $cache = false; return null;
+  }
+  $cache = (string) $d['access_token'];
+  return $cache;
+}
+
+/**
+ * Envoie UNE notification à UN appareil. Rend le code HTTP de Google.
+ *
+ * La charge est la même que celle du Web Push (titre, corps, url) : les deux
+ * chemins doivent dire la même chose, sinon la même notification n'ouvre pas le
+ * même écran selon qu'elle arrive par le navigateur ou par l'application.
+ */
+function fcm_envoyer(array $config, PDO $pdo, array $appareil, array $charge): int {
+  $c = fcm_config($config);
+  $jeton = fcm_jeton($config);
+  if (!$c || !$jeton) return 0;
+
+  $url = (string) ($charge['url'] ?? '');
+  $message = [
+    'message' => [
+      'token' => (string) $appareil['token'],
+      'notification' => [
+        'title' => (string) ($charge['title'] ?? 'Chap.ci'),
+        'body'  => (string) ($charge['body'] ?? ''),
+      ],
+      // `data` porte le lien : c'est lui que l'application lit pour ouvrir
+      // l'écran dont la notification parle (chantier du 07/09/2026).
+      'data' => ['url' => $url],
+      'android' => [
+        'priority' => 'high',
+        'notification' => ['channel_id' => 'chapci', 'sound' => 'default'],
+      ],
+      'apns' => [
+        'headers' => ['apns-priority' => '10'],
+        'payload' => ['aps' => ['sound' => 'default']],
+      ],
+    ],
+  ];
+
+  $r = http_fetch("https://fcm.googleapis.com/v1/projects/{$c['projet']}/messages:send", [
+    'method'  => 'POST',
+    'headers' => ['Authorization: Bearer ' . $jeton, 'Content-Type: application/json'],
+    'body'    => (string) json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+  ]);
+  $code = (int) $r['status'];
+
+  try {
+    // 404 / 403 : le jeton ne vaut plus rien (application désinstallée, jeton
+    // remplacé). On l'efface tout de suite — sinon la table se remplit de
+    // fantômes et chaque notification paie leur silence, exactement comme pour
+    // le Web Push.
+    if ($code === 404 || $code === 403) {
+      $pdo->prepare('DELETE FROM push_natifs WHERE id = ?')->execute([$appareil['id']]);
+    } elseif ($code >= 200 && $code < 300) {
+      $pdo->prepare('UPDATE push_natifs SET last_ok_at = ?, fails = 0 WHERE id = ?')
+          ->execute([now_iso(), $appareil['id']]);
+    } else {
+      $pdo->prepare('UPDATE push_natifs SET fails = fails + 1 WHERE id = ?')->execute([$appareil['id']]);
+      $pdo->prepare('DELETE FROM push_natifs WHERE id = ? AND fails >= 10')->execute([$appareil['id']]);
+    }
+  } catch (Throwable $e) { /* le suivi ne doit jamais empêcher l'envoi suivant */ }
+  return $code;
+}
+
+/**
+ * Pousse vers TOUS les appareils d'une personne. Rend le nombre d'envois reçus.
+ *
+ * Zéro veut dire quelque chose de précis : personne n'a été touché sur cet
+ * appareil-là. C'est ce zéro qui déclenche le repli par e-mail.
+ *
+ * DEUX CHEMINS, UN SEUL COMPTE (08/09/2026) : les navigateurs abonnés
+ * (`push_subs`) ET les téléphones qui ont l'application (`push_natifs`). Il
+ * fallait les additionner ici et nulle part ailleurs — un vendeur qui a
+ * l'application mais pas de navigateur abonné recevait sinon un e-mail de
+ * repli alors que son téléphone venait de sonner.
+ */
+function push_utilisateur(array $config, PDO $pdo, string $userId, array $charge): int {
+  if ($userId === '') return 0;
+  $json = (string) json_encode($charge, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+  $ok = 0;
+
+  // 1. Les navigateurs (Web Push).
+  if (push_cles($config)) {
+    try {
+      $st = $pdo->prepare('SELECT * FROM push_subs WHERE user_id = ? LIMIT 20');
+      $st->execute([$userId]);
+      foreach ($st->fetchAll() as $a) {
+        $c = push_envoyer($config, $pdo, $a, $json);
+        if ($c >= 200 && $c < 300) $ok++;
+      }
+    } catch (Throwable $e) { /* un chemin qui tombe ne doit pas emporter l'autre */ }
+  }
+
+  // 2. Les téléphones qui ont l'application (FCM). Inerte tant que le Patron
+  //    n'a pas déposé `api/data/fcm.json`.
+  if (fcm_config($config)) {
+    try {
+      $st = $pdo->prepare('SELECT * FROM push_natifs WHERE user_id = ? LIMIT 20');
+      $st->execute([$userId]);
+      foreach ($st->fetchAll() as $a) {
+        $c = fcm_envoyer($config, $pdo, $a, $charge);
+        if ($c >= 200 && $c < 300) $ok++;
+      }
+    } catch (Throwable $e) { /* idem */ }
+  }
+
+  return $ok;
+}
+
+/**
+ * Le repli : un e-mail à qui n'a pas d'appareil abonné ET n'est pas là.
+ *
+ * Le push ne couvre pas tout le monde — un iPhone qui n'a pas ajouté le site à
+ * son écran d'accueil n'en reçoit pas, un vieil Android non plus, et beaucoup
+ * de gens refusent l'autorisation. Sans ce repli, « prévenir même hors
+ * connexion » ne vaudrait que pour une partie des inscrits.
+ *
+ * Trois garde-fous, parce qu'un e-mail de trop se paie en désabonnement :
+ *   · seuls les messages et les changements d'annonce en méritent un ;
+ *   · rien si la personne a été vue sur le site depuis moins de 15 minutes —
+ *     elle a la cloche sous les yeux ;
+ *   · un seul e-mail par demi-heure et par personne, tous types confondus.
+ */
+function push_repli_email(array $config, PDO $pdo, array $n): void {
+  if (!in_array($n['type'], ['message', 'listing'], true)) return;
+  try {
+    $st = $pdo->prepare(
+      'SELECT u.email, u.status, u.last_seen_at, p.full_name, p.notif_prefs
+         FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?'
+    );
+    $st->execute([$n['user']]);
+    $row = $st->fetch();
+    if (!$row || empty($row['email']) || ($row['status'] ?? '') === 'blocked') return;
+
+    $prefs = json_decode((string) ($row['notif_prefs'] ?? ''), true) ?: [];
+    if (isset($prefs['email']) && !$prefs['email']) return;
+
+    $vu = $row['last_seen_at'] ?? null;
+    if ($vu && (time() - strtotime((string) $vu)) < 900) return; // elle est là
+
+    $st = $pdo->prepare('SELECT MAX(mailed_at) FROM notifications WHERE user_id = ?');
+    $st->execute([$n['user']]);
+    $dernier = (string) ($st->fetchColumn() ?: '');
+    if ($dernier !== '' && (time() - strtotime($dernier)) < 1800) return; // déjà écrit
+
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    $lien = $site . '/' . ltrim((string) $n['link'], '/');
+    $prenom = trim((string) ($row['full_name'] ?? ''));
+    $prenom = $prenom !== '' ? explode(' ', $prenom)[0] : '';
+
+    $inner =
+        '<h2 style="margin:0 0 14px;color:#111827;font-size:21px">' . htmlspecialchars((string) $n['title']) . '</h2>'
+      . '<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#374151">'
+      . ($prenom !== '' ? 'Bonjour ' . htmlspecialchars($prenom) . ',<br><br>' : '')
+      . htmlspecialchars((string) $n['body']) . '</p>'
+      . email_button($lien, 'Voir sur Chap.ci')
+      . '<p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280">'
+      . 'Vous recevez ce message parce que vous n’étiez pas connecté. Pour être prévenu '
+      . 'tout de suite sur votre téléphone, activez les notifications dans '
+      . '<a href="' . htmlspecialchars($site) . '/#/compte" style="color:#00734A">votre compte</a> — '
+      . 'vous pouvez aussi y couper ces e-mails.</p>';
+
+    if (send_mail($config, (string) $row['email'], (string) $n['title'], email_layout($config, $inner, (string) $n['body']))) {
+      $pdo->prepare('UPDATE notifications SET mailed_at = ? WHERE id = ?')->execute([now_iso(), $n['id']]);
+    }
+  } catch (Throwable $e) {
+    error_log('[chapci] push · repli e-mail : ' . $e->getMessage());
+  }
+}
+
+/**
+ * Vide la file accumulée par notify() pendant la requête.
+ *
+ * Pourquoi une file, et pas un envoi immédiat : joindre trois relais différents
+ * prend de une à quatre secondes, et notify() est appelée AU MILIEU d'une action
+ * de l'utilisateur — envoyer un message, publier une annonce. Personne ne doit
+ * attendre le réseau de Google pour voir sa page revenir.
+ *
+ * On envoie donc APRÈS avoir rendu la réponse : `litespeed_finish_request()`
+ * (c'est LiteSpeed qui sert chap.ci) rend la main au navigateur, et le reste se
+ * fait pendant qu'il affiche déjà le résultat.
+ */
+function push_vider(array $config): void {
+  $file = $GLOBALS['CHAPCI_PUSH'] ?? [];
+  $GLOBALS['CHAPCI_PUSH'] = [];
+  if (!$file) return;
+  try {
+    $pdo = db($config);
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    foreach ($file as $n) {
+      $touche = push_utilisateur($config, $pdo, (string) $n['user'], [
+        'titre' => (string) $n['title'],
+        'corps' => (string) $n['body'],
+        // Le service worker ouvre cette adresse au clic. Absolue : dans une
+        // notification, il n'y a pas de « page courante » à laquelle se référer.
+        'lien'  => $site . '/' . ltrim((string) $n['link'], '/'),
+        'type'  => (string) $n['type'],
+        // Deux notifications de même étiquette se remplacent au lieu de
+        // s'empiler : dix messages du même acheteur font une seule ligne.
+        'tag'   => (string) $n['type'],
+      ]);
+      if ($touche === 0) push_repli_email($config, $pdo, $n);
+    }
+  } catch (Throwable $e) {
+    error_log('[chapci] push · envoi différé : ' . $e->getMessage());
+  }
+}
+
+// ---- JWT (HS256) ------------------------------------------------------------
+function jwt_sign(array $payload, string $secret): string {
+  $h = b64url(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+  $p = b64url(json_encode($payload));
+  $sig = b64url(hash_hmac('sha256', "$h.$p", $secret, true));
+  return "$h.$p.$sig";
+}
+function jwt_verify(string $token, string $secret): ?array {
+  $parts = explode('.', $token);
+  if (count($parts) !== 3) return null;
+  [$h, $p, $sig] = $parts;
+  $expected = b64url(hash_hmac('sha256', "$h.$p", $secret, true));
+  if (!hash_equals($expected, $sig)) return null;
+  $payload = json_decode(b64url_dec($p), true);
+  if (!is_array($payload)) return null;
+  if (isset($payload['exp']) && time() > $payload['exp']) return null;
+  return $payload;
+}
+/**
+ * Émet un jeton de session pour un utilisateur, en y incluant sa version de
+ * session courante (P12). Un changement de mot de passe incrémente cette version
+ * → tous les jetons plus anciens deviennent invalides.
+ */
+function mk_token(PDO $pdo, string $userId, string $email, string $secret): string {
+  $sv = 0;
+  try {
+    $st = $pdo->prepare('SELECT session_version FROM users WHERE id = ?');
+    $st->execute([$userId]);
+    $sv = (int) ($st->fetchColumn() ?: 0);
+  } catch (Throwable $e) { /* colonne absente : version 0 */ }
+  return jwt_sign(['sub' => $userId, 'email' => $email, 'sv' => $sv, 'exp' => time() + 60 * 60 * 24 * 30], $secret);
+}
+
+// ---- 2FA / TOTP (RFC 6238 — compatible Google Authenticator / Authy) --------
+// Secret en base32, code à 6 chiffres, pas de 30 s, tolérance ±1 pas (petites
+// dérives d'horloge). Aucune dépendance externe : tout tient dans ce fichier.
+function totp_b32_encode(string $bin): string {
+  $A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; $out = ''; $bits = 0; $val = 0;
+  for ($i = 0, $n = strlen($bin); $i < $n; $i++) {
+    $val = ($val << 8) | ord($bin[$i]); $bits += 8;
+    while ($bits >= 5) { $bits -= 5; $out .= $A[($val >> $bits) & 31]; }
+  }
+  if ($bits > 0) $out .= $A[($val << (5 - $bits)) & 31];
+  return $out;
+}
+function totp_b32_decode(string $b32): string {
+  $A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  $b32 = strtoupper(preg_replace('/[^A-Za-z2-7]/', '', $b32) ?? '');
+  $out = ''; $bits = 0; $val = 0;
+  for ($i = 0, $n = strlen($b32); $i < $n; $i++) {
+    $idx = strpos($A, $b32[$i]); if ($idx === false) continue;
+    $val = ($val << 5) | $idx; $bits += 5;
+    if ($bits >= 8) { $bits -= 8; $out .= chr(($val >> $bits) & 0xFF); }
+  }
+  return $out;
+}
+function totp_secret_new(): string {
+  try { $bin = random_bytes(20); }
+  catch (Throwable $e) { $bin = ''; for ($i = 0; $i < 20; $i++) $bin .= chr(mt_rand(0, 255)); }
+  return totp_b32_encode($bin);
+}
+function totp_at(string $b32, int $counter): string {
+  $key = totp_b32_decode($b32);
+  $bin = pack('N', 0) . pack('N', $counter); // compteur 64 bits big-endian
+  $h = hash_hmac('sha1', $bin, $key, true);
+  $o = ord($h[19]) & 0x0F;
+  $num = ((ord($h[$o]) & 0x7F) << 24) | ((ord($h[$o + 1]) & 0xFF) << 16)
+       | ((ord($h[$o + 2]) & 0xFF) << 8) | (ord($h[$o + 3]) & 0xFF);
+  return str_pad((string) ($num % 1000000), 6, '0', STR_PAD_LEFT);
+}
+function totp_check(string $b32, string $code, int $window = 1): bool {
+  $code = preg_replace('/\D/', '', $code) ?? '';
+  if ($b32 === '' || strlen($code) !== 6) return false;
+  $t = (int) floor(time() / 30);
+  for ($i = -$window; $i <= $window; $i++) {
+    if (hash_equals(totp_at($b32, $t + $i), $code)) return true;
+  }
+  return false;
+}
+function totp_uri(string $b32, string $email): string {
+  $issuer = 'Chap.ci';
+  $label = rawurlencode($issuer) . ':' . rawurlencode($email);
+  $q = http_build_query(['secret' => $b32, 'issuer' => $issuer, 'algorithm' => 'SHA1', 'digits' => 6, 'period' => 30]);
+  return "otpauth://totp/$label?$q";
+}
+// Codes de secours (perte du téléphone) : 8 chiffres, stockés hachés (bcrypt).
+function recovery_codes_new(): array {
+  $codes = [];
+  for ($i = 0; $i < 8; $i++) {
+    try { $n = random_int(0, 99999999); } catch (Throwable $e) { $n = mt_rand(0, 99999999); }
+    $codes[] = str_pad((string) $n, 8, '0', STR_PAD_LEFT);
+  }
+  return $codes;
+}
+// Vérifie un code de secours ; s'il correspond, le retire de la liste (à usage unique).
+function recovery_consume(PDO $pdo, string $userId, string $recoveryJson, string $code): bool {
+  $code = preg_replace('/\D/', '', $code) ?? '';
+  if (strlen($code) !== 8 || $recoveryJson === '') return false;
+  $list = json_decode($recoveryJson, true);
+  if (!is_array($list)) return false;
+  foreach ($list as $i => $hash) {
+    if (is_string($hash) && $hash !== '' && password_verify($code, $hash)) {
+      unset($list[$i]);
+      $pdo->prepare('UPDATE users SET totp_recovery = ? WHERE id = ?')
+          ->execute([json_encode(array_values($list)), $userId]);
+      return true;
+    }
+  }
+  return false;
+}
+
+// ---- Session en cookie HttpOnly (P3) ---------------------------------------
+/** Nom du cookie qui porte le jeton d'authentification. */
+function session_cookie_name(): string { return 'chapci_session'; }
+/**
+ * P3 — Pose le jeton dans un cookie HttpOnly + Secure + SameSite=Lax : il devient
+ * inaccessible au JavaScript, donc involable par une éventuelle injection (XSS).
+ * Le navigateur le renvoie automatiquement sur chaque appel à l'API (même origine).
+ * SameSite=Lax + CORS verrouillé (P21) couvrent le risque CSRF.
+ */
+function set_session_cookie(array $config, string $token): void {
+  setcookie(session_cookie_name(), $token, [
+    'expires'  => time() + 60 * 60 * 24 * 30,
+    'path'     => '/',
+    'secure'   => !empty($config['cookie_secure']),
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  $_COOKIE[session_cookie_name()] = $token; // visible dès la requête courante
+}
+/** Efface le cookie de session (déconnexion). */
+function clear_session_cookie(array $config): void {
+  setcookie(session_cookie_name(), '', [
+    'expires'  => time() - 3600,
+    'path'     => '/',
+    'secure'   => !empty($config['cookie_secure']),
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  unset($_COOKIE[session_cookie_name()]);
+}
+
+// ---- Déverrouillage du tableau de bord admin (2ᵉ serrure : code d'accès) -----
+// Après un déverrouillage réussi, la session porte un jeton « au » (admin unlock)
+// de courte durée (12 h), transmis soit par l'en-tête X-Admin-Unlock (app/web),
+// soit par un cookie HttpOnly. Il est lié à l'utilisateur (sub) : le jeton d'un
+// admin ne déverrouille pas la session d'un autre.
+function admin_unlock_token(): string {
+  $hdr = $_SERVER['HTTP_X_ADMIN_UNLOCK'] ?? '';
+  if (!$hdr && function_exists('apache_request_headers')) {
+    $h = apache_request_headers();
+    $hdr = $h['X-Admin-Unlock'] ?? $h['x-admin-unlock'] ?? '';
+  }
+  if ($hdr) return trim($hdr);
+  return (string) ($_COOKIE['chapci_admin'] ?? '');
+}
+function admin_unlocked(array $config, PDO $pdo, string $secret, array $u): bool {
+  $tok = admin_unlock_token();
+  if ($tok === '') return false;
+  $p = jwt_verify($tok, $secret);
+  if (!$p || empty($p['au']) || (string) ($p['sub'] ?? '') !== (string) ($u['id'] ?? '')) return false;
+  // Un MODÉRATEUR bloqué par l'admin perd l'accès immédiatement, même si son jeton
+  // de déverrouillage est encore valide (accès « permanent jusqu'au blocage »).
+  $email = strtolower((string) ($u['email'] ?? ''));
+  if (!in_array($email, owner_emails($config), true)) {
+    try {
+      $st = $pdo->prepare('SELECT blocked FROM admins WHERE email = ?'); $st->execute([$email]);
+      if ((int) ($st->fetchColumn() ?: 0) === 1) return false;
+    } catch (Throwable $e) { /* colonne absente : pas de blocage */ }
+  }
+  return true;
+}
+function set_admin_unlock_cookie(array $config, string $token, int $maxAge = 43200): void {
+  setcookie('chapci_admin', $token, [
+    'expires'  => time() + $maxAge,
+    'path'     => '/',
+    'secure'   => !empty($config['cookie_secure']),
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  $_COOKIE['chapci_admin'] = $token;
+}
+function clear_admin_unlock_cookie(array $config): void {
+  setcookie('chapci_admin', '', [
+    'expires' => time() - 3600, 'path' => '/',
+    'secure' => !empty($config['cookie_secure']), 'httponly' => true, 'samesite' => 'Lax',
+  ]);
+  unset($_COOKIE['chapci_admin']);
+}
+
+// ---- Requêtes HTTP sortantes (SMS, JWKS Google) -----------------------------
+/** Petit client HTTP (cURL si dispo, sinon flux). Renvoie ['status'=>int,'body'=>string]. */
+function http_fetch(string $url, array $opts = []): array {
+  $method  = strtoupper($opts['method'] ?? 'GET');
+  $headers = $opts['headers'] ?? [];
+  $body    = $opts['body']    ?? null;
+  $userpwd = $opts['userpwd'] ?? null; // "user:pass" pour l'auth Basic
+  if (function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    // 15 s par défaut ; un moteur de vision qui lit une photo en veut jusqu'à 60.
+    curl_setopt($ch, CURLOPT_TIMEOUT, (int) ($opts['timeout'] ?? 15));
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    if ($headers) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    if ($body !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    if ($userpwd) curl_setopt($ch, CURLOPT_USERPWD, $userpwd);
+    $resp = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    // curl_close() est obsolète depuis PHP 8.5 : depuis PHP 8.0 la ressource est
+    // un objet, libéré tout seul quand $ch sort de portée — la fonction ne fait
+    // plus rien. On la retire ; unset() dit la même intention sans obsolescence.
+    unset($ch);
+    return $resp === false ? ['status' => 0, 'body' => ''] : ['status' => $status, 'body' => (string) $resp];
+  }
+  // Repli sans cURL (allow_url_fopen).
+  $hdr = $headers;
+  if ($userpwd) $hdr[] = 'Authorization: Basic ' . base64_encode($userpwd);
+  $ctx = stream_context_create([
+    'http' => ['method' => $method, 'header' => implode("\r\n", $hdr), 'content' => $body, 'timeout' => (int) ($opts['timeout'] ?? 15), 'ignore_errors' => true],
+    'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
+  ]);
+  $resp = @file_get_contents($url, false, $ctx);
+  // PHP 8.5 déprécie la variable magique $http_response_header quand elle est
+  // créée dans une portée locale — c'est exactement le cas ici. Elle disparaîtra
+  // en PHP 9, et ce repli renverrait alors silencieusement un statut 0 : un
+  // appel réussi passerait pour un échec, et un échec pour un succès.
+  //
+  // http_get_last_response_headers() la remplace depuis 8.5. On teste sa
+  // présence plutôt que la version de PHP : le code reste bon sur 8.1 comme
+  // sur 9. Ce chemin ne sert que si cURL manque — rare, mais c'est justement
+  // le genre de branche qu'on ne voit casser que le jour où on en a besoin.
+  // Sur 8.5 le premier terme l'emporte et la variable n'est jamais lue. Elle
+  // reste mentionnée pour PHP < 8.5, où c'est la seule voie d'accès au statut.
+  //
+  // PHP 8.5 émet malgré tout un avis d'obsolescence au PREMIER APPEL de cette
+  // fonction, parce que le compilateur a vu la variable dans le corps — quelle
+  // que soit la branche prise, et le « @ » n'y change rien (vérifié). Les seules
+  // façons de le taire seraient de perdre le statut HTTP sur les vieux PHP, ou
+  // de recourir à une acrobatie que personne ne comprendrait en la relisant.
+  //
+  // On l'assume : c'est un AVIS, la production le filtre déjà (error_reporting
+  // ligne 9), il ne se produit que si l'on sort du site, et en PHP 9 — où la
+  // variable disparaît — c'est le premier terme qui servira. Rien ne casse.
+  $entetes = function_exists('http_get_last_response_headers')
+    ? (http_get_last_response_headers() ?? [])
+    : (isset($http_response_header) ? $http_response_header : []);
+  $status = 0;
+  if (isset($entetes[0]) && preg_match('#\s(\d{3})\s#', (string) $entetes[0], $m)) $status = (int) $m[1];
+  return ['status' => $status, 'body' => $resp === false ? '' : $resp];
+}
+
+// ---- IndexNow : indexation instantanée (Bing, Yandex, Seznam…) --------------
+// Quand une annonce est publiée ou modifiée, on prévient tout de suite les moteurs
+// via IndexNow : l'annonce est indexée en minutes au lieu d'attendre le crawl.
+// (Google ne consomme pas IndexNow mais suit le sitemap + les liens.)
+
+/** Clé IndexNow stable (auto-générée une fois, rangée à côté des autres secrets). */
+function chapci_indexnow_key(array $config): string {
+  $configured = trim((string) (getenv('CHAPCI_INDEXNOW_KEY') ?: ($config['indexnow_key'] ?? '')));
+  if (strlen($configured) >= 8 && ctype_alnum($configured)) return $configured;
+  $file = chapci_secret_dir($config) . '/.indexnow_key';
+  $val  = @is_readable($file) ? trim((string) @file_get_contents($file)) : '';
+  if (strlen($val) < 16 || !ctype_alnum($val)) {
+    try { $val = bin2hex(random_bytes(16)); }
+    catch (Throwable $e) { $val = substr(hash('sha256', uniqid((string) mt_rand(), true) . __DIR__), 0, 32); }
+    if (@file_put_contents($file, $val) !== false) @chmod($file, 0600);
+  }
+  return $val;
+}
+
+/** Signale une ou plusieurs URLs neuves/modifiées à IndexNow. Silencieux, non bloquant. */
+function chapci_indexnow_ping(array $config, array $urls): void {
+  try {
+    $urls = array_values(array_filter(array_unique($urls)));
+    if (!$urls) return;
+    $site = rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/');
+    $host = parse_url($site, PHP_URL_HOST);
+    if (!$host) return;
+    $key = chapci_indexnow_key($config);
+    $payload = json_encode([
+      'host'        => $host,
+      'key'         => $key,
+      'keyLocation' => $site . '/' . $key . '.txt',
+      'urlList'     => $urls,
+    ], JSON_UNESCAPED_SLASHES);
+    // Timeout court : la publication ne doit jamais attendre le moteur.
+    http_fetch('https://api.indexnow.org/indexnow', [
+      'method'  => 'POST',
+      'headers' => ['Content-Type: application/json; charset=utf-8'],
+      'body'    => $payload,
+    ]);
+  } catch (Throwable $e) { /* jamais bloquer la publication d'une annonce */ }
+}
+
+// ---- Téléphone & SMS (connexion par code) -----------------------------------
+/** Normalise un numéro au format international (+225… pour la Côte d'Ivoire). */
+function normalize_phone(string $p): string {
+  $p = preg_replace('/[^0-9+]/', '', $p);
+  if ($p === '') return '';
+  if (strncmp($p, '00', 2) === 0) $p = '+' . substr($p, 2);       // 00225… -> +225…
+  if ($p[0] !== '+') {
+    if (strlen($p) === 10 && $p[0] === '0') $p = '+225' . $p;     // 07XXXXXXXX (10 ch.) -> +225…
+    elseif (strlen($p) === 8) $p = '+225' . $p;                    // ancien format 8 chiffres
+    else $p = '+' . $p;
+  }
+  return substr($p, 0, 20);
+}
+/** Envoie un SMS via le fournisseur configuré. Renvoie true si accepté. */
+function sms_send(array $config, string $to, string $text): bool {
+  $sms = $config['sms'] ?? [];
+  $provider = $sms['provider'] ?? '';
+  if ($provider === 'twilio') {
+    $sid = $sms['twilio_sid'] ?? ''; $token = $sms['twilio_token'] ?? ''; $from = $sms['twilio_from'] ?? '';
+    if ($sid === '' || $token === '' || $from === '') return false;
+    $url = 'https://api.twilio.com/2010-04-01/Accounts/' . rawurlencode($sid) . '/Messages.json';
+    // Un identifiant commençant par « MG » est un Messaging Service Twilio,
+    // sinon c'est un numéro d'expéditeur (ou un Sender ID alphanumérique).
+    $params = strncmp($from, 'MG', 2) === 0
+      ? ['To' => $to, 'MessagingServiceSid' => $from, 'Body' => $text]
+      : ['To' => $to, 'From' => $from, 'Body' => $text];
+    $r = http_fetch($url, [
+      'method' => 'POST', 'body' => http_build_query($params), 'userpwd' => "$sid:$token",
+      'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+    ]);
+    $ok = $r['status'] >= 200 && $r['status'] < 300;
+    // En cas d'échec, on journalise la réponse Twilio (code + message) pour le
+    // débogage côté serveur — jamais renvoyée au client.
+    if (!$ok) error_log('[chapci] Twilio SMS échec (' . ($r['status'] ?? '?') . ') : ' . substr((string) ($r['body'] ?? ''), 0, 300));
+    return $ok;
+  }
+  if ($provider === 'orange') {
+    // API Orange SMS (Afrique / Côte d'Ivoire) : OAuth2 « client_credentials »
+    // (jeton valable ~1 h) puis POST JSON. Idéal pour la CI : livraison locale,
+    // Sender ID déjà approuvé chez Orange, activation en self-service (~10 min).
+    $auth   = $sms['orange_auth']   ?? '';   // en-tête « Basic … » fourni par Orange Developer
+    $sender = $sms['orange_sender'] ?? '';    // adresse expéditeur fournie par Orange, ex. « tel:+2250000 »
+    $name   = $sms['orange_name']   ?? '';    // nom d'expéditeur affiché (facultatif, 11 car. max)
+    if ($auth === '' || $sender === '') return false;
+    // 1) Jeton d'accès — mis en cache pour la durée du process (évite de le
+    //    redemander à chaque SMS).
+    static $otok = null, $oexp = 0;
+    if ($otok === null || time() >= $oexp) {
+      $tr = http_fetch('https://api.orange.com/oauth/v3/token', [
+        'method'  => 'POST',
+        'headers' => ['Authorization: ' . $auth, 'Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'],
+        'body'    => 'grant_type=client_credentials',
+      ]);
+      $j = json_decode((string) ($tr['body'] ?? ''), true);
+      if (empty($j['access_token'])) {
+        error_log('[chapci] Orange OAuth échec (' . ($tr['status'] ?? '?') . ') : ' . substr((string) ($tr['body'] ?? ''), 0, 300));
+        return false;
+      }
+      $otok = (string) $j['access_token'];
+      $oexp = time() + max(60, (int) ($j['expires_in'] ?? 3600) - 60);
+    }
+    // 2) Envoi. La senderAddress doit être identique dans le corps et dans l'URL.
+    $req = [
+      'address'                => 'tel:+' . ltrim($to, '+'),
+      'senderAddress'          => $sender,
+      'outboundSMSTextMessage' => ['message' => $text],
+    ];
+    if ($name !== '') $req['senderName'] = substr($name, 0, 11);
+    $endpoint = 'https://api.orange.com/smsmessaging/v1/outbound/' . rawurlencode($sender) . '/requests';
+    $r = http_fetch($endpoint, [
+      'method'  => 'POST',
+      'headers' => ['Authorization: Bearer ' . $otok, 'Content-Type: application/json'],
+      'body'    => json_encode(['outboundSMSMessageRequest' => $req], JSON_UNESCAPED_UNICODE),
+    ]);
+    $ok = $r['status'] >= 200 && $r['status'] < 300;
+    if (!$ok) error_log('[chapci] Orange SMS échec (' . ($r['status'] ?? '?') . ') : ' . substr((string) ($r['body'] ?? ''), 0, 300));
+    return $ok;
+  }
+  if ($provider === 'http') {
+    $url = $sms['http_url'] ?? '';
+    if ($url === '') return false;
+    $repl = ['{to}' => rawurlencode($to), '{text}' => rawurlencode($text), '{sender}' => rawurlencode($sms['sender'] ?? '')];
+    $url = strtr($url, $repl);
+    $headers = [];
+    if (!empty($sms['http_auth'])) $headers[] = 'Authorization: ' . $sms['http_auth'];
+    $r = http_fetch($url, ['method' => strtoupper($sms['http_method'] ?? 'GET'), 'headers' => $headers]);
+    return $r['status'] >= 200 && $r['status'] < 300;
+  }
+  return false;
+}
+
+// ---- Vérification d'un jeton Google (Sign-In) -------------------------------
+/** Encode une longueur en DER (ASN.1). */
+function der_len(int $len): string {
+  if ($len < 0x80) return chr($len);
+  $b = '';
+  while ($len > 0) { $b = chr($len & 0xff) . $b; $len >>= 8; }
+  return chr(0x80 | strlen($b)) . $b;
+}
+/** Construit une clé publique PEM (SubjectPublicKeyInfo) depuis un JWK RSA (n,e). */
+function jwk_to_pem(string $n_b64, string $e_b64): ?string {
+  $n = b64url_dec($n_b64); $e = b64url_dec($e_b64);
+  if ($n === '' || $e === '') return null;
+  $encInt = function (string $x): string {
+    if ($x === '') $x = "\x00";
+    if (ord($x[0]) & 0x80) $x = "\x00" . $x;   // entier positif
+    return "\x02" . der_len(strlen($x)) . $x;
+  };
+  $seq    = $encInt($n) . $encInt($e);
+  $rsaPub = "\x30" . der_len(strlen($seq)) . $seq;
+  $algId  = "\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01\x05\x00"; // rsaEncryption
+  $bitStr = "\x03" . der_len(strlen($rsaPub) + 1) . "\x00" . $rsaPub;
+  $spki   = "\x30" . der_len(strlen($algId) + strlen($bitStr)) . $algId . $bitStr;
+  return "-----BEGIN PUBLIC KEY-----\r\n" . chunk_split(base64_encode($spki), 64) . "-----END PUBLIC KEY-----\r\n";
+}
+/** Récupère (avec cache 1 h) les clés publiques de Google. */
+function google_jwks(): array {
+  $cache = sys_get_temp_dir() . '/chapci_google_jwks.json';
+  if (is_file($cache) && (time() - filemtime($cache)) < 3600) {
+    $j = json_decode((string) @file_get_contents($cache), true);
+    if (!empty($j['keys'])) return $j['keys'];
+  }
+  $r = http_fetch('https://www.googleapis.com/oauth2/v3/certs');
+  if ($r['status'] === 200) {
+    $j = json_decode($r['body'], true);
+    if (!empty($j['keys'])) { @file_put_contents($cache, $r['body']); return $j['keys']; }
+  }
+  if (is_file($cache)) { $j = json_decode((string) @file_get_contents($cache), true); if (!empty($j['keys'])) return $j['keys']; }
+  return [];
+}
+/**
+ * Vérifie un jeton d'identité Google (credential de Google Identity Services).
+ * 1) vérification locale RS256 via JWKS ; 2) repli sur l'endpoint tokeninfo.
+ * Renvoie les revendications si valide (email, name, picture…), sinon null.
+ */
+function google_verify_id_token(array $config, string $idToken): ?array {
+  $clientId = $config['google_client_id'] ?? '';
+  if ($clientId === '' || $idToken === '') return null;
+  $parts = explode('.', $idToken);
+  if (count($parts) !== 3) return null;
+  $header  = json_decode(b64url_dec($parts[0]), true);
+  $payload = json_decode(b64url_dec($parts[1]), true);
+  if (!is_array($header) || !is_array($payload)) return null;
+
+  $verified = false;
+  if (($header['alg'] ?? '') === 'RS256' && !empty($header['kid']) && function_exists('openssl_verify')) {
+    $pem = null;
+    foreach (google_jwks() as $k) {
+      if (($k['kid'] ?? '') === $header['kid'] && ($k['kty'] ?? '') === 'RSA') { $pem = jwk_to_pem($k['n'] ?? '', $k['e'] ?? ''); break; }
+    }
+    if ($pem) {
+      $ok = openssl_verify($parts[0] . '.' . $parts[1], b64url_dec($parts[2]), $pem, OPENSSL_ALGO_SHA256);
+      $verified = ($ok === 1);
+    }
+  }
+  // Repli : Google valide lui-même la signature via tokeninfo.
+  if (!$verified) {
+    $r = http_fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken));
+    if ($r['status'] === 200) {
+      $ti = json_decode($r['body'], true);
+      if (is_array($ti) && !empty($ti['sub'])) { $payload = $ti; $verified = true; }
+    }
+  }
+  if (!$verified) return null;
+
+  // Contrôle des revendications.
+  $iss = $payload['iss'] ?? '';
+  if ($iss !== 'accounts.google.com' && $iss !== 'https://accounts.google.com') return null;
+  if (($payload['aud'] ?? '') !== $clientId) return null;
+  $exp = (int) ($payload['exp'] ?? 0);
+  if ($exp && time() > $exp + 60) return null;   // 60 s de tolérance d'horloge
+  $ev = $payload['email_verified'] ?? false;
+  if ($ev !== true && $ev !== 'true' && $ev !== 1 && $ev !== '1') return null;
+  if (empty($payload['email'])) return null;
+  return $payload;
+}
+
+/**
+ * Vérifie un jeton d'accès Facebook et renvoie l'identité { id, name, email }.
+ * 1) /debug_token (avec le jeton d'application) : le jeton est-il valide ET émis
+ *    pour NOTRE application ? 2) /me : récupère le profil. null si invalide.
+ */
+function facebook_verify_token(array $config, string $accessToken): ?array {
+  $appId  = $config['facebook_app_id'] ?? '';
+  $secret = $config['facebook_app_secret'] ?? '';
+  if ($appId === '' || $secret === '' || $accessToken === '') return null;
+  $appToken = $appId . '|' . $secret; // app access token
+  $r = http_fetch('https://graph.facebook.com/debug_token?input_token=' . urlencode($accessToken)
+    . '&access_token=' . urlencode($appToken));
+  if (($r['status'] ?? 0) !== 200) return null;
+  $d = json_decode((string) ($r['body'] ?? ''), true);
+  $data = is_array($d) ? ($d['data'] ?? null) : null;
+  if (!is_array($data) || empty($data['is_valid']) || (string) ($data['app_id'] ?? '') !== (string) $appId) return null;
+  $p = http_fetch('https://graph.facebook.com/me?fields=id,name,email&access_token=' . urlencode($accessToken));
+  if (($p['status'] ?? 0) !== 200) return null;
+  $me = json_decode((string) ($p['body'] ?? ''), true);
+  if (!is_array($me) || empty($me['id'])) return null;
+  return $me; // { id, name, email? }
+}
+
+/**
+ * Ouvre (ou crée) la session Chap.ci à partir d'une identité Facebook DÉJÀ
+ * vérifiée { id, name, email? }. Mutualisé entre la route POST (jeton d'un SDK)
+ * et la route GET mobile (flux web : échange d'un code). Renvoie
+ * ['user' => $u, 'token' => $token].
+ */
+function fb_session_from_identity(PDO $pdo, array $config, string $secret, array $fb): array {
+  $fbId  = (string) ($fb['id'] ?? '');
+  $email = strtolower(trim((string) ($fb['email'] ?? '')));
+  $name  = trim((string) ($fb['name'] ?? ''));
+  // Facebook ne partage pas toujours l'email : on se rabat sur une clé stable
+  // dérivée de l'identifiant Facebook, pour retrouver toujours le même compte.
+  $realEmail = filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+  if (!$realEmail) {
+    if ($fbId === '') { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
+    $email = 'fb_' . $fbId . '@facebook.chapci';
+  }
+  $st = $pdo->prepare('SELECT id,email,status,password_hash,auth_provider FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+  if (!$u) {
+    $id = uuid();
+    $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider,email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
+        ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'facebook', now_iso()]);
+    $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
+        ->execute([$id, $name, now_iso()]);
+    log_security_event($pdo, 'signup', $email, 'facebook');
+    if ($realEmail) send_welcome_email($config, $email, $name); // pas d'email vers une adresse fictive
+    $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
+  } else {
+    if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'facebook'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+    // Anti-pré-détournement : invalide un mot de passe local éventuel — sauf si
+    // c'est Facebook qui a ouvert le compte (le mot de passe est alors celui que
+    // son propriétaire vient de choisir pour entrer dans l'app).
+    $creeParFb = ($u['auth_provider'] ?? '') === 'facebook';
+    if (!$creeParFb && ($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
+      $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+          ->execute(['facebook', $u['id']]);
+      log_security_event($pdo, 'oauth_password_reset', $email, 'facebook');
+    }
+    log_security_event($pdo, 'login_ok', $email, 'facebook');
+  }
+  return ['user' => $u, 'token' => mk_token($pdo, $u['id'], $u['email'], $secret)];
+}
+
+// ---- Base de données --------------------------------------------------------
+function db(array $config): PDO {
+  static $pdo = null;
+  if ($pdo) return $pdo;
+  $c = $config['db'];
+  $port = !empty($c['port']) ? ";port={$c['port']}" : '';
+  if ($c['driver'] === 'sqlite') {
+    @mkdir(dirname($c['sqlite_path']), 0775, true);
+    $pdo = new PDO('sqlite:' . $c['sqlite_path']);
+    $pdo->exec('PRAGMA foreign_keys = ON');
+    // Robustesse SQLite (hébergements cPanel sans MySQL) : le mode WAL autorise
+    // des lectures concurrentes pendant une écriture, et busy_timeout fait
+    // patienter une requête au lieu de renvoyer « database is locked » (500)
+    // quand deux visiteurs écrivent en même temps (rate-limit, security_events…).
+    $pdo->exec('PRAGMA journal_mode = WAL');
+    $pdo->exec('PRAGMA busy_timeout = 5000');
+  } elseif ($c['driver'] === 'pgsql') {
+    // PostgreSQL (proposé par certains cPanel, ex. TPE Cloud / paloma.hostns.io)
+    $dsn = "pgsql:host={$c['host']}$port;dbname={$c['name']}";
+    $pdo = new PDO($dsn, $c['user'], $c['pass']);
+    $pdo->exec("SET client_encoding TO 'UTF8'");
+  } else {
+    $dsn = "mysql:host={$c['host']}$port;dbname={$c['name']};charset=utf8mb4";
+    $pdo = new PDO($dsn, $c['user'], $c['pass']);
+  }
+  $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+  $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+  migrate($pdo);
+  return $pdo;
+}
+function migrate(PDO $pdo): void {
+  $drv    = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+  $sqlite = $drv === 'sqlite';
+  $pg     = $drv === 'pgsql';
+  $id   = $sqlite ? 'TEXT' : 'VARCHAR(36)';
+  $txt  = 'TEXT';
+  $intT = 'INTEGER';
+  $real = $sqlite ? 'REAL' : ($pg ? 'DOUBLE PRECISION' : 'DOUBLE');
+  $ts   = $sqlite ? 'TEXT' : 'VARCHAR(32)';
+  // PostgreSQL et SQLite n'ont pas de clause moteur/charset façon MySQL.
+  $eng  = ($sqlite || $pg) ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
+  $stmts = [
+    "CREATE TABLE IF NOT EXISTS users (
+      id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, password_hash $txt, status $txt, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS profiles (
+      id $id PRIMARY KEY, full_name $txt, first_name $txt, last_name $txt, gender $txt,
+      birth_date $txt, phone $txt, bio $txt, avatar_url $txt, region_id $txt, city_id $txt,
+      commune $txt, address $txt, lat $real, lng $real, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS listings (
+      id $id PRIMARY KEY, user_id $id, title $txt, description $txt, price $intT,
+      negotiable $intT, category_id $txt, subcategory $txt, condition_v $txt, images $txt,
+      region_id $txt, city_id $txt, commune $txt, lat $real, lng $real, seller_name $txt,
+      seller_phone $txt, delivery $intT, featured $intT, promo_price $intT, promo_until $ts,
+      attributes $txt, hidden $intT, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS conversations (
+      id $id PRIMARY KEY, listing_id $id, buyer_id $id, seller_id $id, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS messages (
+      id $id PRIMARY KEY, conversation_id $id, sender_id $id, body $txt, created_at $ts
+    )$eng",
+    // Blocages entre membres : `blocker_id` a bloqué `blocked_id`. Tant que la
+    // ligne existe, aucun des deux ne peut écrire à l'autre. Débloquer = la
+    // supprimer.
+    "CREATE TABLE IF NOT EXISTS blocks (
+      id $id PRIMARY KEY, blocker_id $id, blocked_id $id, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS orders (
+      id $id PRIMARY KEY, buyer_id $id, seller_id $id, conversation_id $id, status $txt, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS order_items (
+      id $id PRIMARY KEY, order_id $id, listing_id $id, title $txt, price $intT, image $txt
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS reviews (
+      id $id PRIMARY KEY, listing_id $id, seller_id $id, reviewer_id $id, rating $intT,
+      comment $txt, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS newsletter (
+      id $id PRIMARY KEY, email VARCHAR(190) UNIQUE, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS ads (
+      id $id PRIMARY KEY, user_id $id, title $txt, description $txt, link $txt,
+      images $txt, formule $txt, qty $intT, price $intT, pay_method $txt,
+      pay_number $txt, status $txt, starts_at $ts, expires_at $ts, ip $txt, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS contact_messages (
+      id $id PRIMARY KEY, name $txt, email $txt, subject $txt, message $txt,
+      ip $txt, handled $intT, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS admins (
+      email VARCHAR(190) PRIMARY KEY, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS user_interests (
+      user_id $id, category_id $txt, weight $intT, subcategory $txt, updated_at $ts,
+      PRIMARY KEY (user_id, category_id)
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS reports (
+      id $id PRIMARY KEY, listing_id $id, reporter_id $id, reason $txt, details $txt,
+      status $txt, created_at $ts
+    )$eng",
+    // LES PHOTOS RETIRÉES UNE FOIS, QUI NE DOIVENT PAS REVENIR.
+    //
+    // Jusqu'au 01/09/2026, le seul filtre de photos de Chap.ci tournait dans le
+    // NAVIGATEUR (NSFW.js, src/lib/nsfw.ts). Un filtre côté client est une
+    // courtoisie, pas un contrôle : l'application ne l'exécute pas, et n'importe
+    // quel `curl` passe à côté. Le serveur, lui, n'a jamais rien regardé —
+    // vérifié, il ne fait que constater le TYPE du fichier.
+    //
+    // Cette table est le premier contrôle qui vit du bon côté. On y range
+    // l'empreinte des photos qu'un humain a déjà retirées : la même image ne
+    // peut plus être republiée, ni par le site, ni par l'application, ni par
+    // curl. Sur une place de marché, l'interdit qui revient est massivement le
+    // MÊME fichier reposté — c'est donc là que le gain est réel.
+    "CREATE TABLE IF NOT EXISTS images_bloquees (
+      empreinte $txt PRIMARY KEY, raison $txt, listing_id $id, created_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS visits (
+      id $id PRIMARY KEY, visitor_id $txt, path $txt, referrer $txt, created_at $ts
+    )$eng",
+    // LES MARCHES DE LA PUBLICATION — l'entonnoir qui manquait.
+    //
+    // Le 17/08, on savait que 219 personnes étaient arrivées sur /publier en
+    // trente jours et qu'UNE avait publié. On ignorait laquelle des douze
+    // marches les arrêtait : le mur de connexion, le code e-mail, la troisième
+    // photo, un champ de catégorie ? Toute correction aurait été une hypothèse.
+    //
+    // TABLE À PART, ET C'EST VOULU. Ces événements ne sont PAS des pages vues.
+    // Les écrire dans `visits` gonflerait « Pages vues » — le chiffre qu'on a
+    // précisément assaini les 9 et 10 août en excluant l'équipe et les comptes
+    // connectés. Une mesure qui abîme une autre mesure ne vaut rien.
+    //
+    // `etape` : arrivee · formulaire · mur_connexion · mur_email · echec · publiee
+    // `detail` : pour « echec » seulement, CE QUI a bloqué (photos, titre, prix,
+    //            attr:pointures…). Jamais une valeur saisie par l'utilisateur.
+    //
+    // ⚠️ « mur_connexion » A CHANGÉ DE SENS LE 29/08. Il comptait les visiteurs à
+    // qui l'on refusait le formulaire faute de compte ; il compte désormais ceux
+    // qui, ayant écrit leur annonce, appuient sur « Publier » sans compte. Le
+    // formulaire s'affiche à tout le monde depuis ce jour-là — la marche vient
+    // donc APRÈS « formulaire » et non plus avant. Les lignes antérieures au
+    // 29/08 ne se comparent pas aux suivantes.
+    "CREATE TABLE IF NOT EXISTS publier_etapes (
+      id $id PRIMARY KEY, visitor_id $txt, etape VARCHAR(24), detail VARCHAR(60),
+      authed $intT, created_at $ts
+    )$eng",
+    // Dernier passage RÉUSSI de chaque tâche planifiée. Sans cette trace, une
+    // tâche cron qui échoue est totalement silencieuse : le 26/07, la sauvegarde
+    // quotidienne ne tournait plus depuis douze jours sans que rien ne l'indique.
+    "CREATE TABLE IF NOT EXISTS cron_runs (
+      path VARCHAR(64) PRIMARY KEY, last_ok_at $ts, runs $intT
+    )$eng",
+    // Violations de la politique de sécurité du contenu, AGRÉGÉES.
+    // La CSP tourne en « Report-Only » : elle n'empêche rien, elle raconte. On
+    // ne garde donc pas chaque rapport (un navigateur peut en envoyer des
+    // milliers) mais un compteur par couple directive + origine bloquée. C'est
+    // ce relevé qui permettra de la durcir sur des faits plutôt qu'au jugé.
+    // Audience des publicites, AGREGEE PAR JOUR.
+    // Sans elle, aucun rapport n'est possible : on ne peut pas dire a un
+    // annonceur combien de fois sa banniere a ete vue si personne ne compte.
+    // Une ligne par pub et par jour — pas un evenement par vue : a 2 000
+    // visites par mois, la table reste minuscule et les totaux sont immediats.
+    "CREATE TABLE IF NOT EXISTS ad_stats (
+      ad_id $id, day VARCHAR(10), views $intT, clicks $intT,
+      PRIMARY KEY (ad_id, day)
+    )$eng",
+    // Journal des e-mails envoyes a un annonceur.
+    // Motif : le 28/07, un annonceur a paye et n'a recu aucun e-mail. Impossible
+    // de dire si l'envoi avait echoue ou si le message etait parti dans les
+    // indesirables — send_mail renvoyait un booleen que PERSONNE n'enregistrait.
+    // On garde desormais la trace de chaque tentative, avec son resultat.
+    "CREATE TABLE IF NOT EXISTS ad_mails (
+      id $id PRIMARY KEY, ad_id $id, kind VARCHAR(24), email $txt,
+      ok $intT, created_at $ts
+    )$eng",
+    // Recettes SAISIES A LA MAIN — dons, virements, tout ce que le site ne peut
+    // pas connaitre tout seul.
+    //
+    // Un don ne laisse AUCUNE trace ici : la page /don affiche un numero, le
+    // donateur envoie l'argent depuis son telephone, et l'operation se passe
+    // entierement entre lui et Orange Money. Chap.ci n'est jamais dans la
+    // boucle. La seule facon honnete de les compter est donc de les relever sur
+    // le compte Mobile Money et de les inscrire ici. « confirmed » marque une
+    // ligne effectivement retrouvee sur le releve.
+    "CREATE TABLE IF NOT EXISTS revenues (
+      id $id PRIMARY KEY, kind VARCHAR(16), label $txt, amount $intT,
+      method VARCHAR(16), number $txt, occurred_at $ts, note $txt,
+      confirmed $intT, confirmed_at $ts, created_at $ts, created_by $txt
+    )$eng",
+    // ------------------------------------------------------------------------
+    //  LE GRAND LIVRE — recettes ET dépenses, dans un seul registre.
+    //
+    //  Ce que la loi ivoirienne demande à un entreprenant, mot pour mot : deux
+    //  registres chronologiques, l'un consignant les factures d'achats et de
+    //  dépenses, l'autre consignant SELON L'ORDRE NUMÉRIQUE les factures de
+    //  ventes et de prestations. Conservés trois ans, présentables à toute
+    //  réquisition du service des Impôts. Le résultat de fin d'exercice se
+    //  présente selon le Système Minimal de Trésorerie du SYSCOHADA révisé.
+    //
+    //  D'où cette table, et ses trois choix :
+    //
+    //  1. UNE SEULE TABLE, deux sens. Les deux registres se tirent d'un
+    //     `WHERE sens = …`. Deux tables auraient signifié deux numérotations à
+    //     tenir, deux totaux à réconcilier, et un jour deux vérités.
+    //
+    //  2. UN NUMÉRO PAR EXERCICE ET PAR SENS, attribué à l'écriture et jamais
+    //     recalculé. « L'ordre numérique » exigé par le texte n'a de valeur que
+    //     si le numéro ne bouge plus : un numéro recalculé à l'affichage se
+    //     décale dès qu'on saisit une opération antidatée, et le registre
+    //     imprimé le mois dernier ne correspond plus à celui d'aujourd'hui.
+    //
+    //  3. LA SOURCE EST GARDÉE. Une publicité encaissée entre ici toute seule,
+    //     avec `source = 'ads'` et l'identifiant de la publicité. C'est ce qui
+    //     rend la reprise idempotente — on ne compte jamais deux fois — et ce
+    //     qui permet, devant un contrôleur, de remonter de la ligne du registre
+    //     à l'opération qui l'a produite.
+    //
+    //  `verrouille` marque un exercice clos : plus aucune écriture ne s'y
+    //  ajoute ni ne s'y modifie. Une comptabilité qu'on peut réécrire après
+    //  coup ne vaut rien devant l'administration.
+    // ------------------------------------------------------------------------
+    "CREATE TABLE IF NOT EXISTS compta (
+      id $id PRIMARY KEY, exercice $intT, sens VARCHAR(8), numero $intT,
+      date_op $ts, libelle $txt, montant $intT, categorie VARCHAR(32),
+      mode VARCHAR(16), reference $txt, tiers $txt, piece $txt, note $txt,
+      source VARCHAR(16), source_id $txt, verrouille $intT,
+      pointe $intT, pointe_le $ts,
+      cree_le $ts, cree_par $txt
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS exercices (
+      annee $intT PRIMARY KEY, cloture_le $ts, cloture_par $txt,
+      total_recettes $intT, total_depenses $intT
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS csp_reports (
+      k VARCHAR(190) PRIMARY KEY, directive VARCHAR(64), blocked VARCHAR(190),
+      n $intT, first_at $ts, last_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS saved_searches (
+      id $id PRIMARY KEY, user_id $id, label $txt, params $txt, last_notified_at $ts, created_at $ts
+    )$eng",
+    // LES RÉPONSES TOUTES PRÊTES — les phrases qu'un vendeur retape vingt fois
+    // par jour. « Oui, c'est disponible », « Je livre à Yopougon », « Mon
+    // dernier prix est 70 000 FCFA ». Les garder ici, c'est répondre d'un
+    // appui — et le taux de réponse est le premier chiffre que l'acheteur
+    // regarde avant d'écrire.
+    "CREATE TABLE IF NOT EXISTS quick_replies (
+      id $id PRIMARY KEY, user_id $id, body $txt, created_at $ts
+    )$eng",
+    // ------------------------------------------------------------------------
+    //  LA MESSAGERIE DE L'ÉQUIPE — et pourquoi ce n'est PAS `conversations`.
+    //
+    //  `conversations` porte une relation acheteur → vendeur, adossée à une
+    //  annonce réelle dont le vendeur est propriétaire : la route de création
+    //  le vérifie, et c'est ce qui empêche de fabriquer une fausse relation
+    //  pour spammer. Un utilisateur qui écrit à l'équipe n'a ni annonce, ni
+    //  vendeur en face — il a l'ÉQUIPE, qui est plusieurs personnes. Y faire
+    //  entrer ce cas obligeait à percer ce contrôle, et à inventer un
+    //  « vendeur » qui n'existe pas.
+    //
+    //  Deux natures de fil, un seul mécanisme :
+    //    · kind 'user'  — un membre écrit à l'équipe ; tout l'équipe le lit.
+    //    · kind 'staff' — entre administrateurs et modérateurs. INVISIBLE des
+    //                     utilisateurs, sans exception : c'est là qu'on écrit
+    //                     « ce compte est louche », et cela ne se lit pas.
+    //
+    //  Les deux compteurs de non-lus évitent une requête d'agrégat à chaque
+    //  affichage de badge — un badge se regarde vingt fois par jour.
+    // ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  LES INVITATIONS AU TEST FERMÉ (Play Store).
+    //
+    //  Elle existe pour UNE raison : savoir à qui on a déjà écrit. Un compte
+    //  développeur personnel exige douze testeurs inscrits en continu pendant
+    //  quatorze jours, et le compteur repart de zéro si l'un se désinscrit — on
+    //  relance donc, et on relance encore. Sans trace, on relance aussi ceux qui
+    //  ont déjà accepté, ce qui est le meilleur moyen de les faire partir.
+    //
+    //  ⚠️ LES ADRESSES NE SONT PAS DANS LE DÉPÔT, et ne doivent jamais y entrer :
+    //  ce sont dix-huit personnes réelles. Elles se collent dans l'écran, elles
+    //  vivent ici, et elles partent avec la base si on la purge.
+    // ------------------------------------------------------------------------
+    "CREATE TABLE IF NOT EXISTS invitations (
+      email VARCHAR(190) PRIMARY KEY, envois $intT, dernier_envoi $ts,
+      dernier_statut $txt, cree_le $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS team_threads (
+      id $id PRIMARY KEY, kind $txt, user_id $id, subject $txt, status $txt,
+      created_at $ts, last_at $ts, last_by $txt, unread_user $intT, unread_staff $intT
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS team_messages (
+      id $id PRIMARY KEY, thread_id $id, sender_id $id, sender_role $txt,
+      sender_name $txt, body $txt, created_at $ts
+    )$eng",
+    // Journal d'audit de sécurité : connexions, inscriptions, blocages… (Le Greffier).
+    "CREATE TABLE IF NOT EXISTS security_events (
+      id $id PRIMARY KEY, kind $txt, email $txt, ip $txt, ua $txt, detail $txt, created_at $ts
+    )$eng",
+    // Codes de vérification par SMS (connexion par téléphone). Usage unique, expirent.
+    // Codes de verification envoyes par e-mail (6 chiffres).
+    // Meme forme que otp_codes (telephone) : une table separee plutot qu'une
+    // colonne « type », parce que les deux n'ont ni la meme duree de vie ni les
+    // memes limites, et qu'on veut pouvoir purger l'une sans toucher l'autre.
+    "CREATE TABLE IF NOT EXISTS email_codes (
+      id $id PRIMARY KEY, email $txt, code_hash $txt, attempts $intT, created_at $ts, expires_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS otp_codes (
+      id $id PRIMARY KEY, phone $txt, code_hash $txt, attempts $intT, created_at $ts, expires_at $ts
+    )$eng",
+    // Cache des traductions d'annonces : traduit une fois par le moteur, resservi
+    // à tous les lecteurs suivants. `hash` empreinte le texte source — si le
+    // vendeur modifie son annonce, la vieille traduction ne ressort pas.
+    "CREATE TABLE IF NOT EXISTS traductions (
+      id $id PRIMARY KEY, listing_id $id, langue $txt, hash $txt,
+      titre $txt, description $txt, created_at $ts
+    )$eng",
+    // Favoris (côté serveur) : permet de notifier le vendeur.
+    "CREATE TABLE IF NOT EXISTS favorites (
+      user_id $id, listing_id $id, created_at $ts, PRIMARY KEY (user_id, listing_id)
+    )$eng",
+    // LES ABONNÉS D'UN COMPTE PROFESSIONNEL (06/09/2026). « Suivre » n'était
+    // qu'un bouton local, sans serveur : personne ne suivait personne. Un
+    // abonné reçoit une notification à chaque publication du compte suivi —
+    // annonce ou offre d'emploi — et le compte voit son nombre d'abonnés.
+    "CREATE TABLE IF NOT EXISTS follows (
+      user_id $id, pro_id $id, created_at $ts, PRIMARY KEY (user_id, pro_id)
+    )$eng",
+    // LES OFFRES D'EMPLOI d'une entreprise, d'une ONG, d'une structure
+    // (06/09/2026). Le formulaire de candidature est le leur : soit un lien
+    // (Google Forms, WhatsApp…), soit des champs qu'ils dessinent ici,
+    // enregistrés en JSON dans `formulaire`. Les réponses vont dans
+    // `candidatures`, réponses en JSON, une par personne et par offre.
+    "CREATE TABLE IF NOT EXISTS offres (
+      id $id PRIMARY KEY, user_id $id, titre $txt, description $txt, contrat $txt, lieu $txt,
+      salaire $txt, lien $txt, formulaire $txt, statut $txt, candidatures $intT,
+      created_at $ts, updated_at $ts, expires_at $ts
+    )$eng",
+    "CREATE TABLE IF NOT EXISTS candidatures (
+      id $id PRIMARY KEY, offre_id $id, user_id $id, nom $txt, email $txt, tel $txt,
+      reponses $txt, created_at $ts
+    )$eng",
+    // Notifications in-app (favoris, messages, modération…).
+    "CREATE TABLE IF NOT EXISTS notifications (
+      id $id PRIMARY KEY, user_id $id, type $txt, title $txt, body $txt, link $txt,
+      read_flag $intT, created_at $ts
+    )$eng",
+    /*
+     * LES ANNONCES DE NOUVEAUTÉ — « le site sait faire quelque chose de plus ».
+     *
+     * Une fonctionnalité livrée que personne ne découvre n'existe pas. Trois
+     * livraisons de suite l'ont prouvé sur ce projet : la réponse automatique du
+     * professionnel, le choix de langue et la traduction d'annonce étaient tous
+     * en ligne et invisibles — le Patron lui-même ne les trouvait pas.
+     *
+     * ⚠️ POURQUOI UNE TABLE, ET PAS UNE SIMPLE BOUCLE. Prévenir tout le monde,
+     * c'est une notification et un envoi push PAR PERSONNE, chacun étant une
+     * requête HTTPS vers Google ou Mozilla, en série (voir `push_vider`). Une
+     * seule requête web n'y suffirait pas : elle expirerait au milieu, et
+     * personne ne saurait qui a été prévenu. On envoie donc par LOTS, et
+     * `curseur` retient où l'on en est — côté serveur, jamais côté navigateur.
+     * Deux clics sur « Envoyer » ne peuvent donc pas notifier deux fois les
+     * mêmes personnes.
+     *
+     * `cible` : tous · pros · non_pros. Annoncer le compte professionnel à ceux
+     * qui en ont déjà un serait la meilleure façon de faire désactiver l'alerte.
+     */
+    "CREATE TABLE IF NOT EXISTS annonces_produit (
+      id $id PRIMARY KEY, titre $txt, corps $txt, lien $txt, cible $txt,
+      curseur $txt, envoyes $intT, cree_par $txt, created_at $ts, termine_at $ts
+    )$eng",
+    // Vues quotidiennes par annonce — suivi analytique du tableau de bord vendeur
+    // (série des vues par jour, tendances par période).
+    "CREATE TABLE IF NOT EXISTS listing_view_days (
+      listing_id $id, day VARCHAR(10), n $intT, PRIMARY KEY (listing_id, day)
+    )$eng",
+    // Jetons de service CLOISONNÉS (ex. modération automatique par « Le Gardien »).
+    // N'ouvrent QUE les routes /mod/* de leur périmètre (scope) : jamais de session,
+    // ni de compte, réglage ou sauvegarde. Révocables et rotatifs depuis l'admin.
+    "CREATE TABLE IF NOT EXISTS service_tokens (
+      id $id PRIMARY KEY, label $txt, scope $txt, token_hash $txt, prefix $txt,
+      created_at $ts, last_used_at $ts, uses $intT, revoked_at $ts
+    )$eng",
+    // Journal d'audit des actions de modération automatique (masquer / signaler).
+    "CREATE TABLE IF NOT EXISTS mod_actions (
+      id $id PRIMARY KEY, token_id $id, action $txt, listing_id $id, reason $txt,
+      confidence $txt, meta $txt, created_at $ts
+    )$eng",
+    // Annonces déjà examinées ET jugées OK par la modération auto : évite de les
+    // re-servir dans la file à chaque passage (les actions réelles restent, elles,
+    // dans mod_actions et le journal d'audit).
+    "CREATE TABLE IF NOT EXISTS mod_seen (
+      listing_id $id PRIMARY KEY, created_at $ts
+    )$eng",
+    // Appareils abonnés aux notifications push. UNE ligne par navigateur et par
+    // appareil — le même compte sur un téléphone et un ordinateur en a deux, et
+    // c'est voulu : la notification doit arriver là où la personne se trouve.
+    //
+    // `endpoint` est l'adresse chez le relais (Google, Mozilla, Apple) ; elle
+    // est unique et sert de clé de rapprochement, car le navigateur la
+    // renouvelle parfois sans nous prévenir. `p256dh` et `auth_secret` sont les
+    // deux clés de chiffrement fournies par le navigateur : sans elles, un
+    // message ne peut être ouvert par personne — pas même par le relais.
+    "CREATE TABLE IF NOT EXISTS push_subs (
+      id $id PRIMARY KEY, user_id $id, endpoint VARCHAR(500), p256dh $txt, auth_secret $txt,
+      agent $txt, created_at $ts, last_ok_at $ts, fails $intT
+    )$eng",
+    // LES APPAREILS DE L'APPLICATION (Firebase Cloud Messaging), 08/09/2026.
+    //
+    // `push_subs` ne couvre QUE les navigateurs : le Web Push a besoin d'un
+    // onglet ou d'une PWA installée. L'application Flutter, elle, est fermée
+    // la plupart du temps — c'est justement là qu'un vendeur doit apprendre
+    // qu'on lui écrit. Sans cette table, l'acheteur écrit, personne ne répond,
+    // et il va voir ailleurs.
+    //
+    // Le jeton FCM est la clé : il identifie l'installation, pas la personne.
+    // Il change (réinstallation, restauration), d'où `UPDATE ... WHERE token`
+    // à l'enregistrement plutôt qu'un doublon de plus à chaque ouverture.
+    "CREATE TABLE IF NOT EXISTS push_natifs (
+      id $id PRIMARY KEY, user_id $id, token VARCHAR(500), platform VARCHAR(16),
+      label $txt, created_at $ts, last_ok_at $ts, fails $intT
+    )$eng",
+    // L'HEURE des vues, en plus du jour. « 1 146 vues cette semaine » ne dit
+    // pas quand publier ; « c'est à 20 h qu'on vous regarde » le dit. On ne
+    // note QUE l'heure et le compte — jamais qui a regardé.
+    "CREATE TABLE IF NOT EXISTS listing_view_hours (
+      listing_id $id, day VARCHAR(10), hour $intT, n $intT, PRIMARY KEY (listing_id, day, hour)
+    )$eng",
+    // L'AVIS SUR L'APPLICATION ELLE-MÊME — à ne pas confondre avec `reviews`,
+    // qui porte sur un VENDEUR après une vente confirmée. Ici, l'utilisateur note
+    // Chap.ci : une note de 1 à 5 et, s'il le veut, un commentaire.
+    //
+    // UNE SEULE FOIS PAR COMPTE, et c'est `user_id` UNIQUE qui le garantit — pas
+    // une vérification applicative. Un contrôle en PHP se contourne avec deux
+    // requêtes simultanées ; une contrainte d'unicité, non. C'est aussi ce qui
+    // permet à l'application de poser la question sur un téléphone et de ne plus
+    // jamais la poser sur un autre : la réponse vit sur le serveur, pas dans la
+    // mémoire du téléphone.
+    //
+    // Demandé par le Patron le 13/09/2026, au lendemain du refus de Google —
+    // « engagement insuffisant des testeurs ». Lire ce que les gens pensent de
+    // l'application est précisément ce qui manquait pour répondre au formulaire.
+    "CREATE TABLE IF NOT EXISTS avis_app (
+      id $id PRIMARY KEY, user_id $id, note $intT, commentaire $txt,
+      plateforme $txt, version $txt, created_at $ts
+    )$eng",
+  ];
+  foreach ($stmts as $s) $pdo->exec($s);
+
+  // Index d'exclusion de la file de modération : la file écarte les annonces déjà
+  // traitées via mod_actions.listing_id. Idempotent (try/catch : MySQL ne connaît
+  // pas « CREATE INDEX IF NOT EXISTS »).
+  try { $pdo->exec("CREATE INDEX idx_mod_actions_listing ON mod_actions (listing_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+
+  // Abonnements push : l'adresse chez le relais est la clé de rapprochement, et
+  // deux comptes ne peuvent pas se partager le même appareil sans que l'un
+  // reçoive les notifications de l'autre. L'unicité l'interdit au niveau de la
+  // base — pas seulement dans le code de la route.
+  try { $pdo->exec("CREATE UNIQUE INDEX idx_push_endpoint ON push_subs (endpoint)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+  try { $pdo->exec("CREATE INDEX idx_push_user ON push_subs (user_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+
+  // Même raisonnement pour les appareils de l'application : un jeton FCM
+  // n'appartient qu'à une installation. S'il réapparaît sous un autre compte
+  // (téléphone prêté, compte changé), c'est le dernier qui gagne — et l'unicité
+  // en base garantit que l'ancien propriétaire cesse d'être notifié.
+  try { $pdo->exec("CREATE UNIQUE INDEX idx_natif_token ON push_natifs (token)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+  try { $pdo->exec("CREATE INDEX idx_natif_user ON push_natifs (user_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+
+  // « Cette personne a-t-elle été envoyée sur la fiche du Play Store ? » Date du
+  // passage, ou NULL. ⚠️ CE N'EST PAS « elle a noté » : Google ne le dit JAMAIS,
+  // ni son API ni celle d'Apple. C'est le seul fait que nous puissions constater,
+  // et c'est donc lui qui éteint le rappel.
+  try { $pdo->exec("ALTER TABLE profiles ADD COLUMN avis_magasin_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+
+  // UN SEUL AVIS SUR L'APPLICATION PAR COMPTE — garanti ici, par la base.
+  // Le contrôle applicatif qui précède l'insertion sert à rendre un message
+  // aimable ; c'est CET index qui rend la règle vraie. Deux requêtes parties en
+  // même temps (double appui sur « Envoyer », réseau lent) passeraient toutes
+  // deux le contrôle PHP et n'insèreraient qu'une ligne grâce à lui.
+  try { $pdo->exec("CREATE UNIQUE INDEX idx_avis_app_user ON avis_app (user_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+
+  // Colonnes ajoutées après coup : on les crée sur les bases déjà existantes.
+  // (CREATE TABLE IF NOT EXISTS ne touche pas une table déjà présente.)
+  try { $pdo->exec("ALTER TABLE user_interests ADD COLUMN subcategory $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Préférences de notification, par type. Cette colonne était LUE par notify()
+  // et par /notifications/prefs, mais créée nulle part : la requête levait une
+  // exception, notify() l'avalait (« une notification ne doit jamais casser
+  // l'action ») et AUCUNE notification interne n'arrivait — ni « Annonce
+  // publiée », ni les statuts de publicité. Une panne muette, par construction.
+  try { $pdo->exec("ALTER TABLE profiles ADD COLUMN notif_prefs $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Date d'envoi de l'e-mail de repli. Sert de compteur : une notification déjà
+  // envoyée par e-mail ne l'est pas deux fois, et l'on ne dépasse pas un
+  // message par demi-heure et par personne.
+  try { $pdo->exec("ALTER TABLE notifications ADD COLUMN mailed_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN attributes $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN hidden $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Motif du masquage, montré au vendeur dans « Mes annonces ». Une annonce
+  // masquée sans explication est une annonce abandonnée.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN hidden_reason $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN status $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Suivi de transaction : annonce vendue, confirmation vendeur, relance d'avis.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN sold $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Les favoris qui préviennent (04/09/2026) : l'avertissement « se termine
+  // dans 7 jours » n'est envoyé qu'une fois par annonce.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN expire_prevenu $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // La vidéo de quinze secondes (04/09/2026) : l'adresse publique du fichier
+  // (« /uploads/videos/… »), une seule par annonce, NULL sans vidéo.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN video $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // LE POIDS DE LA VIDÉO, en octets (07/09/2026). Relevé UNE FOIS à l'envoi :
+  // le mesurer à chaque lecture ferait un `filesize()` par annonce sur un fil
+  // de cinq cents. ⚡ Le Mécanicien, ce jour : une vidéo au plafond fait 60 Mo,
+  // soit 60 à 120 FCFA de forfait — 6 à 12 % d'un passe de 1 Go. L'acheteur
+  // doit voir ce qu'il va payer AVANT d'appuyer.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN video_octets $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // LE STOCK DES COMPTES PROFESSIONNELS (07/09/2026). `stock` NULL = l'annonce
+  // ne suit pas de stock (un particulier, ou un pro qui ne l'a pas demandé) ;
+  // `stock_min` le seuil d'alerte (5 par défaut, le chiffre du Patron) ;
+  // `stock_alerte` ce qui a déjà été signalé (NULL rien, 1 « stock bas »,
+  // 2 « rupture ») pour ne pas sonner à chaque vente sous le seuil.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN stock $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN stock_min $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN stock_alerte $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Une commande ne retire du stock qu'une fois, et le rend si on l'annule.
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN stock_pris $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN listing_id $id"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN seller_confirmed $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN review_reminded_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN reminder_count $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // QUAND la vente s'est conclue. Sans cette date, « ce mois-ci » comptait la
+  // date de la DEMANDE : une commande demandée le 29 juillet et payée le
+  // 2 août sortait du mois d'août, et le total du vendeur était faux.
+  try { $pdo->exec("ALTER TABLE orders ADD COLUMN finalized_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Le prix de l'annonce AU MOMENT où on l'a mise en favori. Sans ce repère,
+  // « prix baissé » est indémontrable : on ne connaît que le prix d'aujourd'hui.
+  try { $pdo->exec("ALTER TABLE favorites ADD COLUMN price_at $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // La fiche du professionnel : ce qu'il fait, et quand on peut lui écrire.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_description $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_horaires $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Les réseaux sociaux du professionnel (05/09/2026) : un objet JSON
+  // {facebook: url, instagram: url, …}, adresses déjà normalisées.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_reseaux $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Marqueurs des rappels du professionnel. Sans eux, « message sans réponse »
+  // repartirait chaque nuit sur la même conversation : au troisième matin, la
+  // personne coupe toutes les notifications, y compris celles qui servent.
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_reminded_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Les photos de cette annonce ont-elles traversé un filtre, et ressemblent-
+  // elles à une photo déjà retirée ? Ajoutées le 01/09/2026 — voir la route de
+  // publication pour ce que ces deux colonnes veulent dire, et surtout pour ce
+  // qu'elles NE veulent PAS dire.
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN photos_verifiees $intT"); }
+  catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN photo_signal $txt"); }
+  catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE listings ADD COLUMN essouffle_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // LA RÉPONSE AUTOMATIQUE d'un professionnel. Le drapeau `auto` sur le message
+  // est ce qui empêche le mensonge : une réponse écrite par la machine ne doit
+  // JAMAIS compter comme une réponse du vendeur, ni faire disparaître la
+  // conversation de « sans réponse ». Sinon le taux de réponse affiché serait
+  // celui d'un robot, et l'acheteur le découvrirait en attendant trois jours.
+  try { $pdo->exec("ALTER TABLE messages ADD COLUMN auto $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // « Faire une offre » (03/09/2026) : une offre est un message qui porte, en
+  // plus de son texte, un JSON {montant, statut, par}. Elle vit dans la
+  // conversation parce que « dernier prix ? » s'y disait déjà — et parce que
+  // notifications, non-lus, blocages et suppression y sont déjà réglés.
+  try { $pdo->exec("ALTER TABLE messages ADD COLUMN offre $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_auto_reply $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_auto_reply_on $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Suivi : la vue de page a-t-elle été faite en étant CONNECTÉ (1) ou en simple
+  // visiteur (0) ? Un drapeau, pas un identifiant : on n'écrit jamais QUI a vu la
+  // page, seulement s'il avait un compte ouvert. Aucune donnée personnelle
+  // nouvelle n'est donc collectée. Sans ce drapeau, « 133 vues sur /publier » est
+  // illisible : on ne sait pas si les gens butent sur l'écran d'invitation à créer
+  // un compte, ou sur le formulaire lui-même — deux problèmes opposés.
+  try { $pdo->exec("ALTER TABLE visits ADD COLUMN authed $intT"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // PAYS ET VILLE du visiteur, pour savoir d'où vient le monde. Renseignés par
+  // Cloudflare (voir geo_from_request) — pays toujours, ville seulement si le
+  // Patron a activé « Add visitor location headers » dans Cloudflare. Colonnes
+  // ajoutées après coup : une base antérieure les reçoit ici. Le code lit
+  // toujours avec `?? null`, donc une base non migrée ne casse rien.
+  try { $pdo->exec("ALTER TABLE visits ADD COLUMN country $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE visits ADD COLUMN city $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // PUBLICITÉS : dix colonnes que le code écrit et lit depuis longtemps, mais
+  // qu'aucune migration n'ajoutait — et que le CREATE TABLE ci-dessus ne déclare
+  // pas non plus. Sur chap.ci elles existent (posées à la main quand la
+  // fonctionnalité est née), donc rien n'a jamais échoué et le trou est resté
+  // invisible. Sur une base NEUVE — réinstallation, changement d'hébergeur,
+  // restauration, test local — la publicité mourait entière : la bannière
+  // rotative (SELECT kind, style, anim…), l'achat d'espace (INSERT email,
+  // phone…), la diffusion SEO quotidienne et le rappel d'expiration, tous en
+  // « no such column: kind ».
+  //
+  // Trouvé en montant un banc d'essai PHP 8.5 sur une base de test ancienne :
+  // c'est exactement le cas « installation neuve » que personne ne rejoue.
+  foreach ([
+    "email $txt", "phone $txt",           // contact de l'annonceur (achat sans compte)
+    "kind VARCHAR(16)",                   // 'seo' pour les bandeaux auto, vide sinon
+    "style $txt", "anim $txt",            // apparence et animation choisies
+    "anim_loop $intT", "anims $txt",      // boucle, et liste des animations enchaînées
+    "anim_gap $intT", "text_color $txt",  // pause entre deux animations, couleur du texte
+    "extends_ad_id $id",                  // prolongation d'une publicité existante
+    "pay_confirmed $intT",                // paiement Mobile Money vérifié à la main
+    "pay_confirmed_at $ts",               // et quand
+    "reject_reason $txt",                 // motif du refus, envoyé à l'annonceur
+    "expiry_notified $ts",                // rappel « votre publicité se termine » envoyé
+    "expired_notified $ts",               // avis de fin envoyé
+    "last_report_at $ts",                 // dernier relevé de performances expédié
+  ] as $col) {
+    try { $pdo->exec("ALTER TABLE ads ADD COLUMN $col"); }
+    catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  }
+  // Même oubli sur trois autres tables, trouvé en passant TOUTES les colonnes
+  // écrites par le code au crible de celles réellement déclarées.
+  //
+  //  · admins           : le code lit access_code_hash, blocked et permissions,
+  //                       la table n'en déclarait aucune. Sur une base neuve,
+  //                       ajouter un administrateur ou ouvrir le tableau de bord
+  //                       par code échouait — le système d'accès lui-même.
+  //  · contact_messages : répondre à un message écrivait dans trois colonnes
+  //                       absentes ; la réponse partait, puis l'écriture cassait.
+  //  · listings.views   : chaque consultation d'annonce fait « SET views = ... ».
+  //                       Sans la colonne, ouvrir une annonce renvoyait 500.
+  foreach ([
+    ['admins',           "access_code_hash $txt"],
+    ['admins',           "blocked $intT"],
+    ['admins',           "permissions $txt"],
+    ['contact_messages', "reply_body $txt"],
+    ['contact_messages', "replied_at $ts"],
+    ['contact_messages', "replied_by $txt"],
+    ['listings',         "views $intT"],
+  ] as [$table, $col]) {
+    try { $pdo->exec("ALTER TABLE $table ADD COLUMN $col"); }
+    catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  }
+  // Avis à double sens : qui est noté (target_id) et à quel titre (kind).
+  try { $pdo->exec("ALTER TABLE reviews ADD COLUMN target_id $id"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  try { $pdo->exec("ALTER TABLE reviews ADD COLUMN kind $txt"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+  // Rétro-compat : les avis existants notaient le vendeur.
+  try { $pdo->exec("UPDATE reviews SET target_id = seller_id WHERE target_id IS NULL OR target_id = ''"); } catch (Throwable $e) {}
+  try { $pdo->exec("UPDATE reviews SET kind = 'seller' WHERE kind IS NULL OR kind = ''"); } catch (Throwable $e) {}
+  // Consentement horodaté à l'inscription (Le Gardien du Consentement — loi 2013-450/2013-546).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN consent_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN cgu_version $txt"); } catch (Throwable $e) {}
+  // Connexion par téléphone / Google : numéro et méthode d'inscription du compte.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN auth_provider $txt"); } catch (Throwable $e) {}
+  // P12 · Version de session : incrémentée à chaque changement de mot de passe
+  // pour invalider les anciens jetons (déconnexion des sessions ouvertes).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN session_version $intT DEFAULT 0"); } catch (Throwable $e) {}
+  // Double authentification (2FA / TOTP) : secret actif, secret en cours
+  // d'enrôlement (non confirmé), interrupteur d'activation, codes de secours hachés.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_secret $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_pending $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_enabled $intT DEFAULT 0"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN totp_recovery $txt"); } catch (Throwable $e) {}
+  // Badge de vérification bleu : compte fidèle (≥ 1 an) et actif (vend et/ou paie).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN verified $intT DEFAULT 0"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN verified_at $ts"); } catch (Throwable $e) {}
+  // Comptes professionnels (boutiques) : la fiche du dossier « devenir pro » et
+  // son état. `pro_status` vaut '' (jamais demandé), 'en_attente', 'approuve'
+  // ou 'refuse'. `pro_type` distingue commerce, prestataire de services,
+  // centre de formation, employeur/recruteur, association — même machinerie,
+  // vitrine et justificatif adaptés. `pro_numero` porte le RCCM (commerce),
+  // le récépissé de déclaration (association) ou l'agrément (formation).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_status $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_type $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_nom $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_numero $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_secteur $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_tel $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_demande_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_decide_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_motif $txt"); } catch (Throwable $e) {}
+  // La vitrine d'un professionnel : sa bannière (image large en tête de son
+  // espace et de sa page vendeur) et son logo rond. Deux chemins `/uploads/…`,
+  // jamais des données d'image en base.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_banniere $txt"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_logo $txt"); } catch (Throwable $e) {}
+  // Relance d'activation : date d'envoi de l'e-mail « publiez votre 1ʳᵉ annonce »
+  // (envoyé UNE seule fois par compte — jamais de spam).
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN activation_emailed $ts"); } catch (Throwable $e) {}
+  // Verification de l'adresse e-mail : date de confirmation du code a 6 chiffres.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN email_verified_at $ts"); } catch (Throwable $e) {}
+  // Dernière activité constatée. Écrite au plus une fois par cinq minutes et par
+  // personne (voir touch_last_seen) — jamais à chaque requête. Sert au tableau
+  // de bord à dire qui est en ligne, et nulle part ailleurs.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN last_seen_at $ts"); } catch (Throwable $e) {}
+  // --- Messagerie : suppression, archivage, signalement (20/08) --------------
+  // Une conversation a EXACTEMENT deux personnes (buyer/seller) : on garde donc
+  // l'état « archivée » et « supprimée » de CHAQUE côté en colonnes, plutôt qu'en
+  // table séparée. Supprimer une conversation la cache de MON côté ; l'autre
+  // garde la sienne, et un message plus récent la fait réapparaître.
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN buyer_archived_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_archived_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN buyer_deleted_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_deleted_at $ts"); } catch (Throwable $e) {}
+  // Épinglée en tête de MA liste (indépendant pour chaque côté).
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN buyer_pinned_at $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE conversations ADD COLUMN seller_pinned_at $ts"); } catch (Throwable $e) {}
+  // Un message supprimé « pour tout le monde » : le corps est vidé, la ligne
+  // reste (le fil garde sa cohérence), affichée « message supprimé ».
+  try { $pdo->exec("ALTER TABLE messages ADD COLUMN deleted_at $ts"); } catch (Throwable $e) {}
+  // Signalement : un motif peut viser une annonce (défaut) OU une conversation.
+  try { $pdo->exec("ALTER TABLE reports ADD COLUMN kind VARCHAR(16)"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE reports ADD COLUMN target_id $id"); } catch (Throwable $e) {}
+  // La reprise de l'existant se fait ailleurs (backfill_email_verifie), APRES
+  // migrate() : elle doit s'exécuter UNE SEULE FOIS, et migrate() tourne à
+  // chaque requête. Premier essai le 29/07 : la clause « created_at <=
+  // aujourd'hui » rattrapait les comptes créés le jour même — un compte ouvert
+  // à l'instant ressortait déjà vérifié à la requête suivante, et le code
+  // n'était jamais demandé. Une date ne borne pas ce qu'un marqueur borne.
+
+  try { $pdo->exec("CREATE INDEX idx_users_phone ON users (phone)"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_otp_phone ON otp_codes (phone)"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_traductions ON traductions (listing_id, langue)"); } catch (Throwable $e) {}
+  // Anti-flood du suivi de visites : rend le plafond par visiteur/heure peu coûteux.
+  try { $pdo->exec("CREATE INDEX idx_visits_visitor ON visits (visitor_id, created_at)"); } catch (Throwable $e) {}
+  // Requêtes par plage de dates du tableau de bord vendeur.
+  try { $pdo->exec("CREATE INDEX idx_view_days_day ON listing_view_days (day)"); } catch (Throwable $e) {}
+  // Comptabilité : on lit toujours par exercice et par sens, et on remonte de
+  // la ligne du registre à l'opération d'origine pour ne pas la compter deux fois.
+  try { $pdo->exec("CREATE INDEX idx_compta_ex ON compta (exercice, sens, numero)"); } catch (Throwable $e) {}
+  try { $pdo->exec("CREATE INDEX idx_compta_src ON compta (source, source_id)"); } catch (Throwable $e) {}
+}
+
+// ---- Auth courant -----------------------------------------------------------
+function current_user(PDO $pdo, string $secret): ?array {
+  // P3 · Source principale : le cookie HttpOnly (protégé de l'XSS). Repli sur
+  // l'en-tête Authorization: Bearer pour les clients API, l'app native et les
+  // sessions « héritées » (avant migration vers le cookie).
+  $tok = '';
+  if (!empty($_COOKIE[session_cookie_name()])) {
+    $tok = (string) $_COOKIE[session_cookie_name()];
+  } else {
+    $hdr = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (!$hdr && function_exists('apache_request_headers')) {
+      $h = apache_request_headers();
+      $hdr = $h['Authorization'] ?? $h['authorization'] ?? '';
+    }
+    if (preg_match('/Bearer\s+(.+)/i', $hdr, $m)) $tok = trim($m[1]);
+  }
+  if ($tok === '') return null;
+  $payload = jwt_verify($tok, $secret);
+  if (!$payload || empty($payload['sub'])) return null;
+  // Un « jeton de défi » 2FA (émis entre le mot de passe et le code) ne vaut PAS
+  // une session : il ne sert qu'à /auth/2fa/verify. On le refuse partout ailleurs.
+  if (!empty($payload['mfa'])) return null;
+  $st = $pdo->prepare('SELECT id, email, session_version, last_seen_at FROM users WHERE id = ?');
+  $st->execute([$payload['sub']]);
+  $row = $st->fetch();
+  if (!$row) return null;
+  // P12 : un jeton dont la version de session ne correspond plus (mot de passe
+  // changé depuis) est rejeté → les anciennes sessions sont déconnectées.
+  if ((int) ($payload['sv'] ?? 0) !== (int) ($row['session_version'] ?? 0)) return null;
+  touch_last_seen($pdo, (string) $row['id'], $row['last_seen_at'] ?? null);
+  return ['id' => $row['id'], 'email' => $row['email']];
+}
+
+/**
+ * LA TRACE DE PRÉSENCE — et pourquoi elle n'écrit presque jamais.
+ *
+ * `current_user()` tourne à CHAQUE requête authentifiée : liste d'annonces,
+ * favoris, messages, notifications. Y poser un `UPDATE` sans réfléchir, c'est
+ * une écriture par requête — sur un hébergement mutualisé, c'est le genre de
+ * détail qui met la base à genoux un samedi soir.
+ *
+ * On n'écrit donc que si la dernière trace date de plus de cinq minutes : au
+ * pire une écriture par personne et par tranche de cinq minutes, quoi qu'elle
+ * fasse. C'est aussi la définition retenue pour « en ligne » — quelqu'un vu il
+ * y a moins de cinq minutes est en train d'utiliser le site.
+ *
+ * ⚠️ Cette date n'est servie QU'AUX administrateurs et aux modérateurs ayant la
+ * fonctionnalité « Utilisateurs ». Elle n'apparaît sur aucune page publique :
+ * savoir quand quelqu'un s'est connecté n'a rien à faire sur un profil vendeur.
+ */
+function touch_last_seen(PDO $pdo, string $userId, ?string $dernier): void {
+  if ($dernier !== null && $dernier !== '' && (time() - strtotime($dernier)) < 300) return;
+  try {
+    $pdo->prepare('UPDATE users SET last_seen_at = ? WHERE id = ?')->execute([now_iso(), $userId]);
+  } catch (Throwable $e) { /* colonne absente : la présence n'est pas une fonction vitale */ }
+}
+
+/** Depuis combien de temps ? `null` si jamais vu. */
+function vu_il_y_a(?string $iso): ?int {
+  if ($iso === null || $iso === '') return null;
+  $t = strtotime($iso);
+  return $t ? max(0, time() - $t) : null;
+}
+function require_user(PDO $pdo, string $secret): array {
+  $u = current_user($pdo, $secret);
+  if (!$u) jerr('Non authentifié.', 401);
+  return $u;
+}
+function user_public(PDO $pdo, array $u): array {
+  $st = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
+  $st->execute([$u['id']]);
+  $name = ($st->fetch()['full_name'] ?? null);
+  $status = $u['status'] ?? null;
+  if ($status === null) {
+    $s = $pdo->prepare('SELECT status FROM users WHERE id = ?'); $s->execute([$u['id']]);
+    $status = $s->fetch()['status'] ?? null;
+  }
+  // `phone` est lu dans la MÊME requête que `verified` : c'est le numéro que le
+  // compte a déjà donné (inscription par téléphone, ou saisi plus tard). Il sert
+  // à PRÉ-REMPLIR le champ vendeur de l'écran de publication — le nom l'est déjà
+  // pour cette raison exacte, et le retaper est une friction inutile sur la page
+  // la plus décisive de la conversion visiteur → vendeur.
+  // Repli sur la requête d'origine : la colonne est arrivée par migration, une
+  // base pas encore migrée ferait échouer le SELECT complet.
+  $phone = null;
+  $pro = null; // {status, nom, type} — absent tant que la base n'a pas migré
+  try {
+    $vf = $pdo->prepare('SELECT verified, phone, pro_status, pro_nom, pro_type FROM users WHERE id = ?');
+    $vf->execute([$u['id']]);
+    $row = $vf->fetch() ?: [];
+    $ver = (int) ($row['verified'] ?? 0);
+    $phone = ($row['phone'] ?? '') !== '' ? $row['phone'] : null;
+    if (($row['pro_status'] ?? '') !== '') {
+      $pro = ['status' => $row['pro_status'], 'nom' => $row['pro_nom'] ?: null,
+              'type' => $row['pro_type'] ?: null];
+    }
+  } catch (Throwable $e) {
+    try {
+      $vf = $pdo->prepare('SELECT verified, phone FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+      $row = $vf->fetch() ?: [];
+      $ver = (int) ($row['verified'] ?? 0);
+      $phone = ($row['phone'] ?? '') !== '' ? $row['phone'] : null;
+    } catch (Throwable $e2) {
+      $vf = $pdo->prepare('SELECT verified FROM users WHERE id = ?'); $vf->execute([$u['id']]);
+      $ver = (int) ($vf->fetchColumn() ?: 0);
+    }
+  }
+  return ['id' => $u['id'], 'email' => $u['email'], 'status' => $status ?: 'active',
+          'verified' => $ver === 1,
+          // « emailVerified » commande le droit de publier ; « badge » ne
+          // commande rien, il se contente de dire ce qu'on est.
+          'emailVerified' => email_verifie($pdo, (string) $u['id']),
+          'badge' => badge_of($GLOBALS['chapci_config'] ?? [], $pdo, $u),
+          'phone' => $phone,
+          'pro' => $pro,
+          'user_metadata' => ['full_name' => $name]];
+}
+/**
+ * Le badge d'un compte — CALCULÉ, jamais stocké.
+ *
+ * Trois états, et un seul est un badge « mérité » :
+ *
+ *   'admin'       BLEU  · l'équipe Chap.ci. Il ne se gagne pas, il se constate :
+ *                        c'est la liste des administrateurs qui fait foi. Son
+ *                        rôle est de dire « ce message vient bien du site »,
+ *                        pas de récompenser quelqu'un.
+ *   'anciennete'  VERT  · six mois de présence, adresse e-mail confirmée. Il ne
+ *                        se demande pas : il apparaît le jour dû, tout seul.
+ *   ''            aucun · tout le monde d'autre, y compris un compte dont
+ *                        l'adresse est vérifiée. Vérifier son e-mail est une
+ *                        CONDITION POUR PUBLIER, pas une distinction — donner
+ *                        un badge à chacun reviendrait à n'en donner à personne.
+ *
+ * Pourquoi calculer plutôt que stocker : un badge d'ancienneté rangé dans une
+ * colonne se décale du jour où quelqu'un oublie de faire tourner la mise à jour.
+ * Ici il n'y a rien à faire tourner — la date de création du compte suffit, et
+ * elle ne ment jamais.
+ */
+function badge_of(array $config, PDO $pdo, array $u): string {
+  try {
+    if (is_admin($config, $pdo, $u)) return 'admin';
+  } catch (Throwable $e) { /* la table admins peut manquer : on continue */ }
+  try {
+    $st = $pdo->prepare('SELECT created_at, email_verified_at FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $r = $st->fetch();
+    if (!$r || empty($r['email_verified_at'])) return '';
+    $mois = (time() - (int) strtotime((string) $r['created_at'])) / (30.44 * 86400);
+    return $mois >= 6 ? 'anciennete' : '';
+  } catch (Throwable $e) { return ''; }
+}
+
+/** Le compte a-t-il confirmé son adresse e-mail ? Condition pour publier. */
+function email_verifie(PDO $pdo, string $uid): bool {
+  try {
+    $st = $pdo->prepare('SELECT email_verified_at FROM users WHERE id = ?');
+    $st->execute([$uid]);
+    return !empty($st->fetchColumn());
+  } catch (Throwable $e) { return true; } // colonne absente : on ne bloque personne
+}
+
+/** Éligibilité au badge « vérifié » : ≥ 1 an d'ancienneté ET actif (vend et/ou paie). */
+function verify_eligibility(PDO $pdo, array $u): array {
+  $uid = $u['id'];
+  $st = $pdo->prepare('SELECT created_at FROM users WHERE id = ?'); $st->execute([$uid]);
+  $created = (string) ($st->fetchColumn() ?: now_iso());
+  $ageDays = (time() - (int) strtotime($created)) / 86400;
+  $months  = max(0, (int) floor($ageDays / 30.4));
+  $count = function (string $sql, array $args) use ($pdo): int {
+    try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+    catch (Throwable $e) { return 0; }
+  };
+  $listings = $count('SELECT COUNT(*) FROM listings WHERE user_id = ?', [$uid]);               // vend
+  $sold     = $count('SELECT COUNT(*) FROM orders WHERE seller_id = ?', [$uid]);               // a vendu
+  $paidAds  = $count("SELECT COUNT(*) FROM ads WHERE user_id = ? AND status IN ('active','expired')", [$uid]); // paie
+  $ageOk = $ageDays >= 365;
+  $activityOk = ($listings > 0) || ($sold > 0) || ($paidAds > 0);
+  return [
+    'ageOk' => $ageOk, 'activityOk' => $activityOk, 'eligible' => $ageOk && $activityOk,
+    'memberSince' => $created, 'months' => $months,
+    'listings' => $listings, 'sold' => $sold, 'paidAds' => $paidAds,
+  ];
+}
+/** Emails « propriétaires » (config.php) : admins permanents, non supprimables. */
+function owner_emails(array $config): array {
+  return array_values(array_map('strtolower', $config['admin_emails'] ?? []));
+}
+/** Destinataires des rapports automatiques (repli sur les admins si non défini). */
+function report_recipients(array $config): array {
+  $r = array_filter((array) ($config['report_email'] ?? []));
+  return $r ? array_values($r) : ($config['admin_emails'] ?? []);
+}
+/**
+ * Destinataires des notifications de SÉCURITÉ (code d'accès admin, alertes du
+ * scan) : le PROPRIÉTAIRE (admin_emails) ET l'adresse de rapport (report_email,
+ * ex. contact@chap.ci), dédupliqués. N.B. : cela n'accorde AUCUN droit — c'est
+ * uniquement la liste des adresses qui reçoivent les emails.
+ */
+function security_notify_recipients(array $config): array {
+  $all = array_merge(owner_emails($config), array_filter((array) ($config['report_email'] ?? [])));
+  return array_values(array_unique(array_map('strtolower', array_map('trim', $all))));
+}
+/** L'utilisateur est-il administrateur ? Propriétaire (config) OU modérateur (table admins). */
+function is_admin(array $config, PDO $pdo, array $u): bool {
+  $email = strtolower($u['email'] ?? '');
+  if ($email === '') return false;
+  // Un compte BLOQUÉ ne peut jamais être admin (même s'il est propriétaire config
+  // ou modérateur dans la table `admins`). On vérifie le statut à la source.
+  $ss = $pdo->prepare('SELECT status FROM users WHERE email = ?');
+  $ss->execute([$email]);
+  if ((string) ($ss->fetchColumn() ?: 'active') === 'blocked') return false;
+  if (in_array($email, owner_emails($config), true)) return true;
+  $st = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?');
+  $st->execute([$email]);
+  return (bool) $st->fetch();
+}
+
+// ---- Rôles fins des modérateurs (permissions par fonctionnalité) ------------
+// Le PROPRIÉTAIRE (email de config) a TOUT. Un modérateur n'a que les
+// fonctionnalités que l'admin lui a cochées ; certaines restent réservées au
+// propriétaire (jamais délégables).
+/** Fonctionnalités qu'un modérateur PEUT recevoir (cochables par l'admin). */
+function admin_grantable_features(): array {
+  return ['visitors','listings','users','reports','contact','ads','orders','conversations','reviews','newsletter','campaigns'];
+}
+/** Fonctionnalités RÉSERVÉES au propriétaire (jamais délégables à un modérateur). */
+function admin_owner_only_features(): array {
+  // « invitations » : écrire à des personnes nommées, à leur adresse
+  // personnelle, au nom du site. Ce n'est pas de la modération, et un
+  // modérateur n'a pas non plus à voir la liste.
+  // « annonces » : prévenir TOUT LE MONDE d'une nouveauté — une notification et
+  // un push par personne. Même famille qu'« invitations » : écrire à des gens
+  // au nom du site, sans possibilité de rappeler le message. Ce n'est pas de la
+  // modération, et un modérateur n'a pas à pouvoir faire sonner tous les
+  // téléphones du pays.
+  return ['moderators','emails','backup','automation','invitations','annonces'];
+}
+/** Libellés FR (pour les cases à cocher de l'UI). */
+function admin_feature_labels(): array {
+  return [
+    'visitors' => 'Visiteurs', 'listings' => 'Annonces', 'users' => 'Utilisateurs',
+    'reports' => 'Signalements', 'contact' => 'Messages de contact', 'ads' => 'Publicités', 'orders' => 'Commandes',
+    'conversations' => 'Conversations', 'reviews' => 'Avis', 'newsletter' => 'Abonnés',
+    'campaigns' => 'Campagnes',
+  ];
+}
+/** Fonctionnalité requise par une route /admin/* (« » = pas de restriction fine). */
+function admin_feature_for_path(string $path): string {
+  if ($path === 'admin/check' || $path === 'admin/me' || str_starts_with($path, 'admin/unlock')) return '';
+  if ($path === 'admin/stats' || $path === 'admin/entonnoir') return 'overview';
+  if (str_starts_with($path, 'admin/pro')) return 'users';
+  // « admin/pays » (07/09/2026) : les inscrits hors Côte d'Ivoire. Même
+  // question que la géographie des visiteurs — d'où viennent les gens —,
+  // donc même permission « Visiteurs ».
+  if ($path === 'admin/visits' || $path === 'admin/response-time' || $path === 'admin/geo' || $path === 'admin/pays') return 'visitors';
+  if (str_starts_with($path, 'admin/listings')) return 'listings';
+  if (str_starts_with($path, 'admin/users')) return 'users';
+  if (str_starts_with($path, 'admin/reports')) return 'reports';
+  if (str_starts_with($path, 'admin/contact-messages')) return 'contact';
+  if (str_starts_with($path, 'admin/ads')) return 'ads';
+  if ($path === 'admin/orders') return 'orders';
+  if ($path === 'admin/conversations') return 'conversations';
+  if (str_starts_with($path, 'admin/reviews')) return 'reviews';
+  if (str_starts_with($path, 'admin/campaign')) return 'campaigns';
+  if (str_starts_with($path, 'admin/invitations')) return 'invitations';
+  if (str_starts_with($path, 'admin/annonce')) return 'annonces';
+  if ($path === 'admin/newsletter') return 'newsletter';
+  if (str_starts_with($path, 'admin/moderators')) return 'moderators';
+  if ($path === 'admin/smtp' || $path === 'admin/test-email') return 'emails';
+  if (str_starts_with($path, 'admin/backup') || $path === 'admin/backups' || $path === 'admin/reset') return 'backup';
+  if (str_starts_with($path, 'admin/digest') || $path === 'admin/suggestions-test') return 'automation';
+  if (str_starts_with($path, 'admin/seo')) return 'automation';
+  // Gestion des jetons de service (modération auto) : réservée au propriétaire.
+  if (str_starts_with($path, 'admin/service-tokens') || $path === 'admin/mod-audit') return 'automation';
+  // Fail-closed : une route /admin/* non répertoriée renvoie 'unknown' → refusée
+  // pour un modérateur (seul le propriétaire y accède). Évite un oubli = trou.
+  return 'unknown';
+}
+/** Permissions (tableau) d'un modérateur, depuis la table admins. */
+function admin_permissions_for(PDO $pdo, string $email): array {
+  $st = $pdo->prepare('SELECT permissions FROM admins WHERE email = ?');
+  $st->execute([strtolower($email)]);
+  $p = json_decode((string) ($st->fetchColumn() ?: '[]'), true);
+  return is_array($p) ? array_values(array_filter($p, 'is_string')) : [];
+}
+/** L'utilisateur a-t-il le droit sur cette fonctionnalité ? Propriétaire = tout. */
+function admin_can(array $config, PDO $pdo, array $u, string $feature): bool {
+  $email = strtolower((string) ($u['email'] ?? ''));
+  if (in_array($email, owner_emails($config), true)) return true;      // propriétaire : tout
+  if ($feature === '' || $feature === 'overview') return true;         // aperçu : toujours permis
+  if (in_array($feature, admin_owner_only_features(), true)) return false; // réservé proprio
+  return in_array($feature, admin_permissions_for($pdo, $email), true);
+}
+
+// ---- Intégrité de la table admins (détection d'une ligne « admin » injectée) --
+// Empreinte de l'ensemble des admins (emails triés). L'app enregistre l'empreinte
+// « légitime » dans un fichier protégé à CHAQUE changement passé par le tableau de
+// bord. Le scan sécurité recompare : si la base a été modifiée AUTREMENT que par
+// l'app (injection, accès direct à la base), l'empreinte ne correspond plus → alerte.
+function admins_fingerprint(PDO $pdo): string {
+  try { $rows = $pdo->query('SELECT email FROM admins ORDER BY email')->fetchAll(PDO::FETCH_COLUMN); }
+  catch (Throwable $e) { $rows = []; }
+  return hash('sha256', implode('|', array_map('strtolower', (array) $rows)));
+}
+function admins_fp_file(array $config): string { return chapci_secret_dir($config) . '/.admins_fp'; }
+/** Rebaseline : enregistre l'empreinte courante comme « légitime » (après un
+ *  changement fait via l'app). */
+function admins_fp_save(array $config, PDO $pdo): void {
+  $f = admins_fp_file($config);
+  if (@file_put_contents($f, admins_fingerprint($pdo)) !== false) @chmod($f, 0600);
+}
+
+// ---- Jetons de service cloisonnés (modération automatique « Le Gardien ») ----
+// Un jeton de service n'accorde AUCUNE session utilisateur. Il n'ouvre QUE les
+// routes /mod/* dont le périmètre (scope) correspond : lire la file, masquer,
+// signaler. Il ne peut jamais toucher aux comptes, réglages ni sauvegardes.
+function service_token_hash(string $raw): string { return hash('sha256', $raw); }
+
+/**
+ * Authentifie un jeton de service pour un périmètre (scope) donné, ex. 'moderation'.
+ * Le jeton est lu UNIQUEMENT dans l'en-tête HTTP X-Service-Token — jamais dans
+ * l'URL : un secret en query-string finirait en clair dans les journaux d'accès
+ * du serveur/CDN (CWE-598). Renvoie la ligne du jeton ou coupe (401/403/429).
+ */
+function require_service_token(PDO $pdo, string $scope): array {
+  // Anti-force-brute : borne les échecs par IP (comme le reste du site).
+  rate_limit($pdo, 'mtoken_fail', null, 20, 600);
+  $raw = trim((string) ($_SERVER['HTTP_X_SERVICE_TOKEN'] ?? ''));
+  if ($raw === '' && function_exists('apache_request_headers')) {
+    $h = apache_request_headers();
+    $raw = trim((string) ($h['X-Service-Token'] ?? $h['x-service-token'] ?? ''));
+  }
+  if (strlen($raw) < 24) { log_security_event($pdo, 'mtoken_fail', null, 'missing'); jerr('Jeton de service requis (en-tête X-Service-Token).', 401); }
+  $st = $pdo->prepare('SELECT * FROM service_tokens WHERE token_hash = ? LIMIT 1');
+  $st->execute([service_token_hash($raw)]);
+  $tok = $st->fetch();
+  if (!$tok)                        { log_security_event($pdo, 'mtoken_fail', null, 'unknown'); jerr('Jeton invalide.', 403); }
+  if (!empty($tok['revoked_at']))   { log_security_event($pdo, 'mtoken_fail', null, 'revoked'); jerr('Jeton révoqué.', 403); }
+  if ((string) $tok['scope'] !== $scope) { log_security_event($pdo, 'mtoken_fail', null, 'scope'); jerr('Jeton hors périmètre.', 403); }
+  try { $pdo->prepare('UPDATE service_tokens SET last_used_at = ?, uses = COALESCE(uses,0) + 1 WHERE id = ?')->execute([now_iso(), $tok['id']]); }
+  catch (Throwable $e) { /* traçabilité best-effort */ }
+  return $tok;
+}
+
+/** Écrit une action de modération automatique au journal d'audit (inviolable côté app). */
+function mod_audit(PDO $pdo, string $tokenId, string $action, ?string $listingId, string $reason, string $confidence = '', array $meta = []): void {
+  try {
+    $pdo->prepare('INSERT INTO mod_actions (id,token_id,action,listing_id,reason,confidence,meta,created_at) VALUES (?,?,?,?,?,?,?,?)')
+        ->execute([uuid(), $tokenId, $action, $listingId, mb_substr($reason, 0, 300), mb_substr($confidence, 0, 20), json_encode($meta, JSON_UNESCAPED_UNICODE), now_iso()]);
+  } catch (Throwable $e) { /* audit best-effort */ }
+}
+
+/** Destinataires du digest de modération : propriétaire(s) + modérateurs (table admins). */
+function moderation_notify_recipients(array $config, PDO $pdo): array {
+  $emails = owner_emails($config);
+  try { foreach ($pdo->query('SELECT email FROM admins')->fetchAll(PDO::FETCH_COLUMN) as $e) $emails[] = strtolower(trim((string) $e)); }
+  catch (Throwable $e) { /* table admins vide/absente : on garde les propriétaires */ }
+  return array_values(array_unique(array_filter($emails)));
+}
+
+/**
+ * Analyse de risque déterministe d'une annonce (mots-clés FR / Nouchi). Sert de
+ * PRÉ-TRI : « Le Gardien » garde le dernier mot (il masque via /mod/hide selon SON
+ * jugement). Renvoie { score, level: high|medium|ok, reasons[], categories[] }.
+ * Volontairement conservateur : on évite les collisions (ex. « ivoire » ≠ « Côte
+ * d'Ivoire » → on n'utilise QUE des expressions précises comme « ivoire d'éléphant »).
+ */
+function moderation_risk(array $listing): array {
+  $hay = ' ' . mb_strtolower(trim(((string) ($listing['title'] ?? '')) . ' ' . ((string) ($listing['description'] ?? '')))) . ' ';
+  $reasons = []; $cats = []; $score = 0;
+  $firstHit = function (array $words) use ($hay): ?string {
+    foreach ($words as $w) { if ($w !== '' && mb_strpos($hay, $w) !== false) return $w; }
+    return null;
+  };
+  // [niveau, catégorie, points, expressions] — HIGH = illégal manifeste.
+  $rules = [
+    ['high', 'armes',        60, ['arme à feu', 'kalachnikov', 'ak-47', 'ak47', 'munition', 'grenade', 'explosif', 'lance-roquette', "fusil d'assaut"]],
+    ['high', 'drogues',      60, ['cocaïne', 'cocaine', 'héroïne', 'heroine', 'ecstasy', 'méthamphétamine', 'chanvre indien', 'tramadol', 'tramol']],
+    ['high', 'faune',        55, ["ivoire d'éléphant", "défense d'éléphant", 'corne de rhinocéros', 'corne de rhino', 'écaille de pangolin', 'pangolin', 'peau de léopard', 'perroquet gris du gabon']],
+    ['high', 'faux',         55, ['faux billet', 'faux billets', 'vrai-faux', 'faux passeport', 'faux diplôme', 'faux permis', "fausse carte d'identité"]],
+    ['high', 'humain',       70, ['bébé à vendre', 'vente de bébé', 'rein à vendre', 'organe à vendre']],
+    ['high', 'sexuel',       50, ['service sexuel', 'plan cul', ' nudes ']],
+    ['medium', 'arnaque',    30, ['western union', 'frais de douane', 'frais de transitaire', 'transitaire', 'payer avant livraison', "multiplication d'argent", 'marabout', 'richesse rapide', 'prêt entre particuliers', 'vous avez gagné', 'félicitations vous avez']],
+    ['medium', 'contrefaçon',25, ['réplique', ' replica', 'premium copy', 'copie 1:1', 'contrefaçon', 'première copie']],
+    ['medium', 'paiement',   20, ['code de recharge', 'carte de recharge', 'transcash', 'coupon pcs']],
+  ];
+  foreach ($rules as [$lvl, $cat, $pts, $words]) {
+    $hit = $firstHit($words);
+    if ($hit !== null) { $score += $pts; $reasons[] = ($lvl === 'high' ? '⛔ ' : '⚠️ ') . $cat . ' : « ' . trim($hit) . ' »'; $cats[] = $cat; }
+  }
+  $level = $score >= 55 ? 'high' : ($score >= 20 ? 'medium' : 'ok');
+  return ['score' => $score, 'level' => $level, 'reasons' => $reasons, 'categories' => array_values(array_unique($cats))];
+}
+
+// ---- Emails -----------------------------------------------------------------
+function mime_h(string $s): string { return '=?UTF-8?B?' . base64_encode($s) . '?='; }
+
+/** Envoi authentifié via SMTP (fiable sur mutualisé). Renvoie false en cas d'échec. */
+function smtp_send(array $s, string $from, string $fromName, string $to, string $subject, string $html, string $replyTo): bool {
+  $host   = $s['host'] ?? 'localhost';
+  $port   = (int) ($s['port'] ?? 465);
+  $secure = strtolower($s['secure'] ?? 'ssl');
+  $remote = ($secure === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+  $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]]);
+  $fp = @stream_socket_client($remote, $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $ctx);
+  if (!$fp) return false;
+  stream_set_timeout($fp, 15);
+  $read = function () use ($fp) {
+    $data = '';
+    while (($line = fgets($fp, 515)) !== false) { $data .= $line; if (isset($line[3]) && $line[3] === ' ') break; }
+    return $data;
+  };
+  $cmd = function ($c) use ($fp, $read) { fwrite($fp, $c . "\r\n"); return $read(); };
+  $ok = fn($r, $code) => strncmp(ltrim($r), $code, 3) === 0 || strpos($r, "\n$code") !== false || substr($r, 0, 3) === $code;
+  $read();
+  $cmd('EHLO chap.ci');
+  if ($secure === 'tls') {
+    $cmd('STARTTLS');
+    if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) { fclose($fp); return false; }
+    $cmd('EHLO chap.ci');
+  }
+  $cmd('AUTH LOGIN');
+  $cmd(base64_encode($s['user'] ?? ''));
+  $auth = $cmd(base64_encode($s['pass'] ?? ''));
+  if (substr(ltrim($auth), 0, 3) !== '235') { $cmd('QUIT'); fclose($fp); return false; }
+  $cmd('MAIL FROM:<' . $from . '>');
+  $cmd('RCPT TO:<' . $to . '>');
+  $d = $cmd('DATA');
+  if (substr(ltrim($d), 0, 3) !== '354') { $cmd('QUIT'); fclose($fp); return false; }
+  // En-têtes complets (Date + Message-ID sont EXIGÉS par les serveurs stricts
+  // comme ProtonMail ; sans eux le message est rejeté ou classé en spam).
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
+  $headers = 'Date: ' . date('r') . "\r\n"
+    . 'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . ">\r\n"
+    . 'From: ' . mime_h($fromName) . ' <' . $from . ">\r\n"
+    . 'Reply-To: ' . $replyTo . "\r\n"
+    . 'To: <' . $to . ">\r\n"
+    . 'Subject: ' . mime_h($subject) . "\r\n"
+    . 'MIME-Version: 1.0' . "\r\n"
+    . 'Content-Type: text/html; charset=UTF-8' . "\r\n"
+    . 'Content-Transfer-Encoding: base64' . "\r\n"
+    . 'X-Mailer: Chap.ci' . "\r\n";
+  // Corps en base64 (lignes de 76 car.) : évite l'erreur « message has lines too
+  // long for transport » (limite ~2048 car./ligne des serveurs mail).
+  $body = chunk_split(base64_encode($html));
+  fwrite($fp, $headers . "\r\n" . $body . ".\r\n");
+  $sent = $read();
+  $cmd('QUIT');
+  fclose($fp);
+  return substr(ltrim($sent), 0, 3) === '250';
+}
+
+/**
+ * Envoie un email HTML. Utilise SMTP si un mot de passe SMTP est configuré
+ * (fiable), sinon la fonction mail() de PHP. Best-effort : renvoie false sans
+ * lever d'erreur si l'envoi échoue.
+ */
+function send_mail(array $config, string $to, string $subject, string $html, ?string $from = null, ?string $replyTo = null): bool {
+  $from     = $from ?: ($config['mail_from'] ?? 'no-reply@chap.ci');
+  $fromName = $config['mail_from_name'] ?? 'Chap.ci';
+  $replyTo  = $replyTo ?: ($config['mail_reply_to'] ?? 'contact@chap.ci');
+  $smtp     = $config['smtp'] ?? [];
+  if (!empty($smtp['pass'])) {
+    if (smtp_send($smtp, $from, $fromName, $to, $subject, $html, $replyTo)) return true;
+    // Repli sur mail() si le SMTP échoue.
+  }
+  if (!function_exists('mail')) return false;
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
+  $headers = implode("\r\n", [
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    'Date: ' . date('r'),
+    'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . '>',
+    'From: ' . mime_h($fromName) . ' <' . $from . '>',
+    'Reply-To: ' . $replyTo,
+    'X-Mailer: Chap.ci',
+  ]);
+  // Corps en base64 (lignes de 76 car.) : évite « lines too long for transport ».
+  return @mail($to, mime_h($subject), chunk_split(base64_encode($html)), $headers, '-f' . $from);
+}
+
+/**
+ * IA du site pour Admin → Contact : propose des messages de réponse en toute
+ * AUTONOMIE — aucun service externe, aucune clé API. Le moteur détecte les
+ * intentions du message (mots-clés FR sur sujet + corps, insensible aux
+ * accents, plusieurs intentions possibles), assemble des paragraphes adaptés
+ * et renvoie PLUSIEURS propositions (complète, puis courte) que l'admin peut
+ * modifier avant envoi. La signature est ajoutée automatiquement à l'envoi.
+ */
+function contact_ai_draft(array $config, string $name, string $subject, string $message): array {
+  $prenom = trim($name) !== '' ? ' ' . preg_split('/\s+/u', trim($name))[0] : '';
+  // Normalisation : minuscules + accents retirés → « arnaqué », « Média »… détectés.
+  $norm = strtr(mb_strtolower($subject . ' ' . $message), [
+    'à' => 'a', 'â' => 'a', 'ä' => 'a', 'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+    'î' => 'i', 'ï' => 'i', 'ô' => 'o', 'ö' => 'o', 'ù' => 'u', 'û' => 'u', 'ü' => 'u', 'ç' => 'c',
+  ]);
+  $has = function (string ...$kws) use ($norm): bool {
+    foreach ($kws as $k) { if (str_contains($norm, $k)) return true; }
+    return false;
+  };
+
+  // Intentions détectées (cumulables) → paragraphes de la réponse complète,
+  // et phrase principale de la variante courte (première intention trouvée).
+  $paras = [];
+  $short = null;
+  if ($has('arnaqu', 'escro', 'fraude', 'suspect', 'signal', 'faux profil', 'voleur')) {
+    $paras[] = "Merci d’avoir pris le temps de nous alerter : votre signalement a bien été transmis à notre équipe de modération. Nous vérifions l’annonce et le compte concernés, et nous les masquerons ou bloquerons si nécessaire.";
+    $paras[] = "Petit rappel de prudence : ne payez jamais d’avance une personne que vous ne connaissez pas, privilégiez la remise en main propre dans un lieu public, et gardez vos échanges dans la messagerie Chap.ci.";
+    $short = "Votre signalement est bien transmis à notre équipe de modération : nous vérifions et agirons si nécessaire. Merci de nous aider à garder Chap.ci sûr.";
+  }
+  if ($has('mot de passe', 'connexion', 'connecter', 'mon compte', 'compte bloque', '2fa', 'double authentification', 'inscription', 'supprimer mon compte')) {
+    $paras[] = "Concernant votre compte : pouvez-vous nous préciser l’adresse email utilisée sur Chap.ci et, si possible, une capture d’écran du problème ? Nous vérifierons rapidement de notre côté et reviendrons vers vous avec une solution.";
+    $short = $short ?? "Pour vous aider sur votre compte, indiquez-nous l’adresse email utilisée sur Chap.ci et, si possible, une capture d’écran du problème.";
+  }
+  if ($has('paiement', 'payer', 'mobile money', 'orange money', 'wave', 'mtn', 'moov', 'rembours')) {
+    $paras[] = "Au sujet du paiement : Chap.ci ne gère pas les paiements entre acheteurs et vendeurs — ils se font directement entre vous, en main propre ou par Mobile Money. Vérifiez toujours l’article avant de payer, et ne versez jamais d’acompte à une personne inconnue.";
+    $short = $short ?? "Les paiements se font directement entre acheteur et vendeur (main propre ou Mobile Money) : vérifiez toujours l’article avant de payer.";
+  }
+  if ($has('publier', 'publication', 'mon annonce', 'mes annonces', 'photo', 'modifier', 'masquer', 'vendre')) {
+    $paras[] = "Pour vos annonces : vous pouvez les publier, modifier, masquer ou supprimer depuis Compte → Mes annonces. Si quelque chose bloque, dites-nous à quelle étape et nous regarderons ensemble.";
+    $short = $short ?? "Vos annonces se gèrent depuis Compte → Mes annonces ; dites-nous à quelle étape ça bloque et nous vous aiderons.";
+  }
+  if ($has('livraison', 'livrer', 'colis', 'expedi')) {
+    $paras[] = "Pour la livraison : elle se convient directement avec le vendeur dans la messagerie (lieu, heure, frais éventuels). Nous recommandons la remise en main propre dans un lieu public, avec paiement au moment de la remise.";
+    $short = $short ?? "La livraison se convient directement avec le vendeur via la messagerie ; privilégiez la remise en main propre dans un lieu public.";
+  }
+  if ($has('partenariat', 'presse', 'media', 'publicite', 'sponsor', 'collaborat', 'boutique pro', 'entreprise')) {
+    $paras[] = "Merci de votre intérêt pour Chap.ci ! Votre demande a été transmise à la personne en charge des partenariats, qui reviendra vers vous rapidement. N’hésitez pas à nous en dire plus sur votre structure et ce que vous imaginez ensemble.";
+    $short = $short ?? "Merci pour votre proposition : elle est transmise au responsable des partenariats, qui revient vers vous rapidement.";
+  }
+  if ($has('suggestion', 'suggere', 'idee', 'ameliorer', 'ajouter', 'fonctionnalite')) {
+    $paras[] = "Un grand merci pour votre idée : nous lisons chaque suggestion, et c’est grâce à ces retours que Chap.ci s’améliore. Nous l’avons notée pour une prochaine évolution du site.";
+    $short = $short ?? "Merci pour votre suggestion, elle est bien notée : c’est grâce à ces idées que Chap.ci avance.";
+  }
+  if (!$paras && $has('merci', 'felicitation', 'bravo', 'super site', 'genial')) {
+    $paras[] = "Merci beaucoup pour votre message, il fait très plaisir à toute l’équipe ! C’est pour des utilisateurs comme vous que nous faisons grandir Chap.ci chaque jour.";
+    $short = "Merci beaucoup, votre message fait très plaisir à toute l’équipe !";
+  }
+  if (!$paras) {
+    $paras[] = "Merci pour votre message, nous l’avons bien reçu. Notre équipe l’examine et revient vers vous rapidement avec une réponse précise.";
+    $short = "Merci pour votre message : notre équipe l’examine et revient vers vous rapidement.";
+  }
+  $paras = array_slice($paras, 0, 3); // réponse lisible : 3 paragraphes max
+
+  $bonjour  = "Bonjour{$prenom},";
+  $fin      = "Si besoin, répondez simplement à cet email : nous restons à votre écoute.";
+  $complete = $bonjour . "\n\n" . implode("\n\n", $paras) . "\n\n" . $fin;
+  $courte   = $bonjour . "\n\n" . $short . "\n\n" . $fin;
+  $drafts   = $courte === $complete ? [$complete] : [$complete, $courte];
+  return ['draft' => $drafts[0], 'drafts' => $drafts, 'ai' => true];
+}
+
+// ---- Bureau de Croissance SEO : diffusions quotidiennes automatiques --------
+// Un « employé virtuel » qui publie CHAQUE JOUR une diffusion sur l'écran
+// publicitaire (une annonce mise en avant, une publication éditoriale ou un
+// message d'action), au service des objectifs du site : SEO (mots-clés,
+// communes, catégories), croissance (publier, parrainer) et confiance.
+
+function seo_state_file(array $config): string { return chapci_secret_dir($config) . '/.seo_auto'; }
+/** Le Bureau SEO est-il activé ? Oui par défaut (dès qu'un cron l'appelle). */
+function seo_auto_enabled(array $config): bool {
+  $f = seo_state_file($config);
+  return !is_file($f) || trim((string) @file_get_contents($f)) !== '0';
+}
+function seo_auto_set(array $config, bool $on): void {
+  $f = seo_state_file($config);
+  if (@file_put_contents($f, $on ? '1' : '0') !== false) @chmod($f, 0600);
+}
+
+/** Libellés FR des catégories (pour les diffusions SEO). */
+function seo_category_labels(): array {
+  return [
+    'telephones' => 'téléphones', 'vehicules' => 'voitures', 'immobilier' => 'biens immobiliers',
+    'mode' => 'articles mode & beauté', 'electronique' => 'appareils électroniques',
+    'maison' => 'meubles & articles maison', 'emploi' => 'offres d’emploi', 'services' => 'services',
+    'materiel-pro' => 'matériels pro', 'alimentation' => 'produits alimentaires',
+    'agriculture' => 'produits agricoles', 'animaux' => 'animaux', 'loisirs' => 'articles loisirs & sport',
+    'bebe' => 'articles bébé & enfant', 'sante' => 'produits santé & bien-être',
+    'voyage' => 'offres de voyage', 'a-donner' => 'objets à donner',
+    'scolaire' => 'fournitures scolaires',
+  ];
+}
+
+/**
+ * LES DOUZE MESSAGES DU 7 AOÛT — un nouveau toutes les deux heures.
+ *
+ * La diffusion SEO est normalement écrite UNE FOIS par jour et rangée en base :
+ * le même bandeau tourne pendant vingt-six heures. Le 7 août, ça ne convient
+ * pas — c'est le jour où le site doit parler à ses visiteurs du matin au soir,
+ * et leur dire autre chose à chaque fois qu'ils reviennent.
+ *
+ * D'où ce découpage en douze créneaux de deux heures. Le texte n'est PAS
+ * enregistré : il est calculé au moment où le visiteur demande le bandeau
+ * (voir la route ads/active). Aucune tâche planifiée à ajouter, aucun risque
+ * qu'une diffusion reste figée si le cron saute.
+ *
+ * Les messages suivent la journée : on se réveille, on se met au travail, on
+ * mange, on souffle, on rentre, on veille. Chacun garde un lien vers une action
+ * du site — publier, s'inscrire, explorer — parce qu'un message qui n'appelle
+ * à rien ne sert qu'à décorer.
+ */
+function seo_independence_messages(string $site): array {
+  return [
+    // 0 h - 2 h
+    ['title' => 'Bonne fête, Côte d’Ivoire 🇨🇮',
+     'description' => 'Soixante-six ans d’indépendance. Que cette nuit vous porte de beaux rêves — et de belles idées.',
+     'link' => $site . '/#/'],
+    // 2 h - 4 h
+    ['title' => 'Le pays dort, les projets veillent 🌙',
+     'description' => 'Beaucoup de commerces ivoiriens sont nés une nuit comme celle-ci. Le vôtre attend peut-être son heure.',
+     'link' => $site . '/#/publier'],
+    // 4 h - 6 h
+    ['title' => 'Debout, la Côte d’Ivoire se lève 🌅',
+     'description' => 'Les marchés ouvrent, les taxis démarrent, le pays se met en route. Bonne fête à ceux qui commencent tôt.',
+     'link' => $site . '/#/explorer'],
+    // 6 h - 8 h
+    ['title' => 'Fiers d’être ivoiriens 🧡🤍💚',
+     'description' => 'Le 7 août 1960, la Côte d’Ivoire prenait son destin en main. Prenez le vôtre : ouvrez votre compte, vendez ce que vous avez.',
+     'link' => $site . '/#/inscription'],
+    // 8 h - 10 h
+    ['title' => 'L’indépendance, ça se travaille 💪',
+     'description' => 'Un pays libre, c’est des millions de gens qui gagnent leur vie eux-mêmes. Publier une annonce est gratuit.',
+     'link' => $site . '/#/publier'],
+    // 10 h - 12 h
+    ['title' => 'De Korhogo à San-Pédro, un seul pays 📍',
+     'description' => 'Quatorze districts, trente et une régions, une seule Côte d’Ivoire. Trouvez ce qu’il vous faut, près de chez vous.',
+     'link' => $site . '/#/explorer?tri=distance'],
+    // 12 h - 14 h
+    ['title' => 'Bon appétit, et bonne fête 🍲',
+     'description' => 'Attiéké, garba, kedjenou — aujourd’hui on partage. Chap.ci vous souhaite une belle journée en famille.',
+     'link' => $site . '/#/'],
+    // 14 h - 16 h
+    ['title' => 'Ce que vous n’utilisez plus vaut de l’argent 💰',
+     'description' => 'Un après-midi de fête, c’est le bon moment pour trier. Quelqu’un cherche aujourd’hui ce qui dort chez vous.',
+     'link' => $site . '/#/publier'],
+    // 16 h - 18 h
+    ['title' => 'Le commerce ivoirien, c’est vous 🛒',
+     'description' => 'Chaque vendeur qui se lance rend le pays un peu plus fort. Rejoignez-les — c’est gratuit, et sans commission.',
+     'link' => $site . '/#/inscription'],
+    // 18 h - 20 h
+    ['title' => 'Ce soir, on illumine le ciel ivoirien 🎆',
+     'description' => 'Soixante-six ans de Terre d’Espérance. Bonne fête à tous, où que vous soyez dans le pays.',
+     'link' => $site . '/#/'],
+    // 20 h - 22 h
+    ['title' => 'Un pays d’hospitalité 🤝',
+     'description' => 'On accueille, on échange, on fait confiance. C’est exactement ce qu’on essaie de faire ici, tous les jours.',
+     'link' => $site . '/#/explorer'],
+    // 22 h - 0 h
+    ['title' => 'Merci, Côte d’Ivoire 🧡',
+     'description' => 'La fête se termine, la fierté reste. Demain, on se remet au travail — et Chap.ci sera là.',
+     'link' => $site . '/#/publier'],
+  ];
+}
+
+/** Le message du créneau de deux heures en cours (0 → 11). */
+function seo_independence_now(string $site): array {
+  $m = seo_independence_messages($site);
+  $slot = intdiv((int) gmdate('G'), 2);           // 0 h-2 h -> 0, 2 h-4 h -> 1, …
+  $g = $m[max(0, min(count($m) - 1, $slot))];
+  $g['goal'] = 'message'; $g['style'] = 'ivoire'; $g['anim'] = 'pulse';
+  return $g;
+}
+
+/**
+ * Compose la diffusion SEO du jour à partir de l'état RÉEL du site. Le « but »
+ * tourne d'un jour à l'autre (déterministe via le jour de l'année) pour couvrir
+ * tous les objectifs sans se répéter. Renvoie titre + texte + style + animation.
+ */
+function seo_daily_broadcast(array $config, PDO $pdo): array {
+  $fmt = fn(int $n) => number_format($n, 0, ',', "\u{00A0}"); // « 1 234 »
+  $count = function (string $sql, array $p = []) use ($pdo): int {
+    try { $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn(); }
+    catch (Throwable $e) { return 0; }
+  };
+  $listings = $count("SELECT COUNT(*) FROM listings WHERE hidden IS NULL OR hidden = 0");
+  // VENDEURS, pas inscrits : un compte sans annonce ne prouve rien à un acheteur.
+  $vendeurs = $count("SELECT COUNT(DISTINCT user_id) FROM listings
+    WHERE user_id IS NOT NULL AND user_id <> '' AND (hidden IS NULL OR hidden = 0)");
+  $visiteursJour = $count("SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?",
+    [gmdate('Y-m-d') . 'T00:00:00Z']);
+
+  // LES CHIFFRES NE SORTENT QU'AU-DESSUS DE LEUR SEUIL.
+  // Voir le bloc 'seuil_*' de la configuration : un compteur trop maigre
+  // décourage au lieu d'attirer. En dessous, on garde la même promesse, dite
+  // sans nombre — elle reste vraie, elle ne se retourne pas contre le site.
+  $assezAnnonces  = $listings      >= (int) $config['seuil_annonces'];
+  $assezVendeurs  = $vendeurs      >= (int) $config['seuil_vendeurs'];
+  $assezVisiteurs = $visiteursJour >= (int) $config['seuil_visiteurs_jour'];
+
+  // Catégorie la plus fournie (mise en avant SEO).
+  $topCat = null; $topCatN = 0;
+  try {
+    $r = $pdo->query("SELECT category_id, COUNT(*) AS n FROM listings
+      WHERE (hidden IS NULL OR hidden = 0) AND category_id <> '' GROUP BY category_id ORDER BY n DESC LIMIT 1")->fetch();
+    if ($r) { $topCat = (string) $r['category_id']; $topCatN = (int) $r['n']; }
+  } catch (Throwable $e) { /* base vide */ }
+  $labels = seo_category_labels();
+  $catLabel = $topCat && isset($labels[$topCat]) ? $labels[$topCat] : 'bonnes affaires';
+  // La catégorie ne se chiffre que si le catalogue entier le mérite.
+  $assezCat = $assezAnnonces && $topCatN >= 50;
+
+  $styles = ['ivoire', 'impact', 'neon', 'classique', 'script'];
+  $anims  = ['fondu', 'glissement', 'pulse', 'defilement', 'machine'];
+  $day = (int) gmdate('z');           // jour de l'année (0-365)
+  $style = $styles[$day % count($styles)];
+  $anim  = $anims[($day + 2) % count($anims)];
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+
+  // Événements datés (prioritaires) : fête de l'indépendance ivoirienne (7 août).
+  $md = gmdate('m-d');
+  if ($md === '08-07') return seo_independence_now($site);
+
+  // NEUF BUTS EN ROTATION, RÉPARTIS SUR LES TROIS MARCHES DU PARCOURS.
+  //
+  // Chaque message a UNE cible et UN bouton. Un message qui invite à la fois à
+  // acheter, à vendre et à s'abonner n'obtient rien : le visiteur ne sait pas
+  // ce qu'on attend de lui. La rotation couvre donc, dans l'ordre où l'on perd
+  // les gens :
+  //
+  //   · VISITEUR -> COMPTE      (4 messages) — la marche la plus haute
+  //   · INSCRIT  -> ANNONCE     (3 messages) — huit comptes sur onze n'ont
+  //                                            jamais rien publié
+  //   · COMMERÇANT -> PUBLICITÉ (2 messages) — la seule recette du site
+  $goals = [
+    // 0 · VISITEUR -> COMPTE. Le catalogue comme appât, le compte comme porte.
+    ['goal' => 'publication',
+     'title' => $assezCat ? $fmt($topCatN) . ' ' . $catLabel . ' vous attendent 🔥' : 'Trouvez votre bonheur près de chez vous 🔥',
+     'description' => 'Créez votre compte gratuit pour contacter les vendeurs et sauver vos coups de cœur.',
+     'link' => $site . '/#/inscription'],
+
+    // 1 · INSCRIT -> ANNONCE. Gratuité + effort réel (2 minutes), pas une promesse vague.
+    ['goal' => 'message',
+     'title' => 'Vendez chap-chap — c’est gratuit ! 🧡',
+     'description' => 'Une photo, un prix, deux minutes : votre annonce est en ligne et visible partout en Côte d’Ivoire.',
+     'link' => $site . '/#/publier'],
+
+    // 2 · COMMERÇANT -> PUBLICITÉ. Le prix EN CLAIR : c'est lui qui décide.
+    ['goal' => 'annonce',
+     'title' => 'Votre boutique à l’écran, dès 400 FCFA 📣',
+     'description' => 'Faites voir votre commerce à tous les visiteurs de Chap.ci — 400 F la journée, 2 000 F la semaine.',
+     'link' => $site . '/#/publicite'],
+
+    // 3 · VISITEUR -> COMPTE, angle preuve sociale. Le chiffre ne sort qu'au seuil.
+    ['goal' => 'publication',
+     'title' => $assezVendeurs ? $fmt($vendeurs) . ' vendeurs ivoiriens vous attendent' : 'La marketplace 100 % ivoirienne',
+     'description' => 'Rejoignez-les : compte gratuit, contact direct, aucune commission sur vos ventes.',
+     'link' => $site . '/#/inscription'],
+
+    // 4 · INSCRIT -> ANNONCE, angle local (et bon pour le SEO des communes).
+    ['goal' => 'message',
+     'title' => 'Vendez dans votre commune 📍',
+     'description' => 'De Cocody à Yopougon, de Bouaké à San-Pédro : vos acheteurs sont à côté de vous. Publiez, ils vous trouvent.',
+     'link' => $site . '/#/publier'],
+
+    // 5 · VISITEUR -> COMPTE, angle confiance (Mobile Money + contacts protégés).
+    ['goal' => 'publication',
+     'title' => 'Achetez en confiance, chap-chap 🔒',
+     'description' => 'Orange Money, MTN, Wave, Moov ou en main propre. Votre numéro reste caché tant que vous ne l’avez pas donné — créez votre compte.',
+     'link' => $site . '/#/inscription'],
+
+    // 6 · COMMERÇANT -> PUBLICITÉ, angle remise membre (récompense l'ancienneté).
+    ['goal' => 'annonce',
+     'title' => 'Moitié prix pour les membres actifs 📣',
+     'description' => 'Un compte de plus de 30 jours et une annonce en ligne ? Votre écran publicitaire est à 200 FCFA la journée.',
+     'link' => $site . '/#/publicite'],
+
+    // 7 · INSCRIT -> ANNONCE, angle « ça ne coûte rien d'essayer ».
+    ['goal' => 'message',
+     'title' => 'Ce que vous n’utilisez plus vaut de l’argent 💰',
+     'description' => 'Téléphone, meuble, voiture, vêtement : quelqu’un le cherche aujourd’hui. Publier est gratuit et sans engagement.',
+     'link' => $site . '/#/publier'],
+
+    // 8 · VISITEUR -> COMPTE, angle catalogue global. Chiffres sous double seuil.
+    ['goal' => 'publication',
+     'title' => $assezAnnonces ? $fmt($listings) . ' annonces en ligne aujourd’hui' : 'De nouvelles annonces chaque jour',
+     'description' => $assezVisiteurs
+       ? $fmt($visiteursJour) . ' Ivoiriens sont passés sur Chap.ci aujourd’hui. Créez votre compte pour ne rien manquer.'
+       : 'Voitures, téléphones, immobilier, mode… Créez votre compte pour suivre ce qui vous intéresse.',
+     'link' => $site . '/#/inscription'],
+  ];
+  $g = $goals[$day % count($goals)];
+  $g['style'] = $style;
+  $g['anim']  = $anim;
+  return $g;
+}
+
+/**
+ * Tarifs de l'écran publicitaire (FCFA). Plein tarif : 2 000 F la semaine
+ * (400 F le jour, 6 000 F le mois). MOITIÉ PRIX pour un membre « actif » :
+ * compte créé depuis au moins 30 jours ET au moins une annonce active
+ * (ni masquée, ni vendue). Le prix est TOUJOURS recalculé côté serveur.
+ */
+function ad_tariff(PDO $pdo, ?array $u): array {
+  $member = false;
+  if ($u) {
+    $created = strtotime((string) ($u['created_at'] ?? '')) ?: time();
+    if (time() - $created >= 30 * 86400) {
+      try {
+        $st = $pdo->prepare('SELECT COUNT(*) AS c FROM listings WHERE user_id = ?
+          AND (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)');
+        $st->execute([$u['id']]);
+        $member = ((int) $st->fetchColumn()) > 0;
+      } catch (Throwable $e) { /* prudence : plein tarif */ }
+    }
+  }
+  $prices = $member
+    ? ['day' => 200, 'week' => 1000, 'month' => 3000]
+    : ['day' => 400, 'week' => 2000, 'month' => 6000];
+  return ['member' => $member, 'prices' => $prices];
+}
+
+/**
+ * Construit un corps MIME multipart/mixed : partie HTML + une pièce jointe PDF.
+ * $pdfB64 = contenu du PDF déjà encodé en base64. L'en-tête Content-Type complet
+ * (avec la frontière) est renvoyé via $ctype.
+ */
+function mime_multipart(string $html, string $pdfB64, string $filename, string &$ctype): string {
+  $bnd = 'chapci_' . bin2hex(random_bytes(10));
+  $ctype = 'multipart/mixed; boundary="' . $bnd . '"';
+  $pdfB64 = preg_replace('/\s+/', '', $pdfB64); // base64 propre, on re-scinde ensuite
+  $nl = "\r\n";
+  $b  = '--' . $bnd . $nl;
+  $b .= 'Content-Type: text/html; charset=UTF-8' . $nl;
+  $b .= 'Content-Transfer-Encoding: base64' . $nl . $nl;
+  $b .= chunk_split(base64_encode($html)) . $nl;
+  $b .= '--' . $bnd . $nl;
+  $b .= 'Content-Type: application/pdf; name="' . $filename . '"' . $nl;
+  $b .= 'Content-Transfer-Encoding: base64' . $nl;
+  $b .= 'Content-Disposition: attachment; filename="' . $filename . '"' . $nl . $nl;
+  $b .= chunk_split($pdfB64) . $nl;
+  $b .= '--' . $bnd . '--' . $nl;
+  return $b;
+}
+
+/** Comme smtp_send, mais avec un Content-Type et un corps MIME déjà préparés (pièces jointes). */
+function smtp_send_mime(array $s, string $from, string $fromName, string $to, string $subject, string $replyTo, string $ctype, string $body): bool {
+  $host   = $s['host'] ?? 'localhost';
+  $port   = (int) ($s['port'] ?? 465);
+  $secure = strtolower($s['secure'] ?? 'ssl');
+  $remote = ($secure === 'ssl' ? 'ssl://' : '') . $host . ':' . $port;
+  $ctx = stream_context_create(['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]]);
+  $fp = @stream_socket_client($remote, $errno, $errstr, 20, STREAM_CLIENT_CONNECT, $ctx);
+  if (!$fp) return false;
+  stream_set_timeout($fp, 20);
+  $read = function () use ($fp) {
+    $data = '';
+    while (($line = fgets($fp, 515)) !== false) { $data .= $line; if (isset($line[3]) && $line[3] === ' ') break; }
+    return $data;
+  };
+  $cmd = function ($c) use ($fp, $read) { fwrite($fp, $c . "\r\n"); return $read(); };
+  $read();
+  $cmd('EHLO chap.ci');
+  if ($secure === 'tls') {
+    $cmd('STARTTLS');
+    if (!@stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) { fclose($fp); return false; }
+    $cmd('EHLO chap.ci');
+  }
+  $cmd('AUTH LOGIN');
+  $cmd(base64_encode($s['user'] ?? ''));
+  $auth = $cmd(base64_encode($s['pass'] ?? ''));
+  if (substr(ltrim($auth), 0, 3) !== '235') { $cmd('QUIT'); fclose($fp); return false; }
+  $cmd('MAIL FROM:<' . $from . '>');
+  $cmd('RCPT TO:<' . $to . '>');
+  $d = $cmd('DATA');
+  if (substr(ltrim($d), 0, 3) !== '354') { $cmd('QUIT'); fclose($fp); return false; }
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
+  $headers = 'Date: ' . date('r') . "\r\n"
+    . 'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . ">\r\n"
+    . 'From: ' . mime_h($fromName) . ' <' . $from . ">\r\n"
+    . 'Reply-To: ' . $replyTo . "\r\n"
+    . 'To: <' . $to . ">\r\n"
+    . 'Subject: ' . mime_h($subject) . "\r\n"
+    . 'MIME-Version: 1.0' . "\r\n"
+    . 'Content-Type: ' . $ctype . "\r\n"
+    . 'X-Mailer: Chap.ci' . "\r\n";
+  fwrite($fp, $headers . "\r\n" . $body . ".\r\n");
+  $sent = $read();
+  $cmd('QUIT');
+  fclose($fp);
+  return substr(ltrim($sent), 0, 3) === '250';
+}
+
+/** Envoie un email HTML AVEC une pièce jointe PDF (SMTP, repli sur mail()). */
+function send_report_mail(array $config, string $to, string $subject, string $html, string $pdfB64, string $filename): bool {
+  $from     = $config['mail_from'] ?? 'no-reply@chap.ci';
+  $fromName = $config['mail_from_name'] ?? 'Chap.ci';
+  $replyTo  = $config['mail_reply_to'] ?? 'contact@chap.ci';
+  $ctype = '';
+  $body  = mime_multipart($html, $pdfB64, $filename, $ctype);
+  $smtp  = $config['smtp'] ?? [];
+  if (!empty($smtp['pass'])) {
+    if (smtp_send_mime($smtp, $from, $fromName, $to, $subject, $replyTo, $ctype, $body)) return true;
+  }
+  if (!function_exists('mail')) return false;
+  $dom = substr(strrchr($from, '@'), 1) ?: 'chap.ci';
+  $headers = implode("\r\n", [
+    'MIME-Version: 1.0',
+    'Content-Type: ' . $ctype,
+    'Date: ' . date('r'),
+    'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $dom . '>',
+    'From: ' . mime_h($fromName) . ' <' . $from . '>',
+    'Reply-To: ' . $replyTo,
+    'X-Mailer: Chap.ci',
+  ]);
+  return @mail($to, mime_h($subject), $body, $headers, '-f' . $from);
+}
+/** Bouton d'action réutilisable pour les emails. */
+/**
+ * Le bouton d'un e-mail — en tableau, la seule forme qu'Outlook rende juste.
+ *
+ * ORANGE DE MARQUE, TEXTE ENCRE. Mesuré : l'encre #1B1A17 sur #F77F00 rend
+ * 6,62:1, quand le blanc sur le vert #009E60 d'avant n'en rendait que 3,47.
+ * Le bouton d'un e-mail est souvent la seule chose à faire du message ; il se
+ * lit au soleil, sur un écran lavé par la lumière, ou il ne sert à rien.
+ */
+function email_button(string $href, string $label): string {
+  return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto 4px">'
+    . '<tr><td style="border-radius:10px;background:#F77F00">'
+    . '<a href="' . htmlspecialchars($href) . '" style="display:inline-block;padding:14px 30px;color:#1B1A17;'
+    . 'text-decoration:none;font-weight:bold;font-size:15px;border-radius:10px">' . htmlspecialchars($label) . '</a>'
+    . '</td></tr></table>';
+}
+// =============================================================================
+//  Dossier foncier — la contrepartie serveur de src/data/foncier.ts.
+//
+//  Le formulaire du site vérifie déjà tout cela ; s'arrêter là laisserait la
+//  règle à la merci d'un curl. Ce qui est exigé de l'écran est donc exigé ici.
+//
+//  On ne duplique QUE ce qui sert au contrôle : l'identifiant de chaque
+//  document, et s'il porte un numéro. Les descriptions, les verdicts et les
+//  conseils à l'acheteur restent côté client, où ils sont affichés.
+// =============================================================================
+
+/**
+ * Photos exigées pour publier une annonce.
+ *
+ * Ce nombre est écrit à deux endroits — ici et dans src/pages/PostAd.tsx — et
+ * c'est volontaire : le client doit pouvoir le dire AVANT que le vendeur ne
+ * remplisse vingt champs, le serveur doit le faire respecter APRÈS. Si vous
+ * changez l'un, changez l'autre : sinon le formulaire laisse passer ce que la
+ * route refuse, et le vendeur reçoit un refus qu'il ne comprend pas.
+ */
+const LISTING_MIN_PHOTOS = 3;
+
+/**
+ * Efface les annonces qui n'ont AUCUNE photo.
+ *
+ * La publication exige déjà LISTING_MIN_PHOTOS photos, et la modification ne
+ * laisse jamais retomber une annonce à zéro. Restent celles d'avant la règle :
+ * une annonce sans photo ne se vend pas, elle occupe une place dans les
+ * résultats et elle donne du site l'image d'un catalogue vide. Le Patron a
+ * tranché — on les efface, on ne les masque pas.
+ *
+ * Trois précautions, parce que supprimer ne se rattrape pas :
+ *
+ *  1. On ne regarde QUE la colonne `images` en base, jamais le disque. Si
+ *     `uploads/` tombait ou changeait de chemin, les URL resteraient en base :
+ *     une panne de stockage ne peut donc pas déclencher d'effacement.
+ *  2. Les annonces VENDUES sont épargnées. Ce sont des pièces d'historique —
+ *     une vente, un avis, une commande s'y rattachent, et la comptabilité vit
+ *     de cette traçabilité. Une annonce vendue ne s'affiche plus au catalogue,
+ *     elle ne gêne donc personne.
+ *  3. Le vendeur est prévenu, avec le titre de son annonce et la raison. Une
+ *     annonce qui disparaît sans un mot, c'est un vendeur qui croit à un bug.
+ *
+ * Les favoris pointant sur l'annonce partent avec elle : un favori sans
+ * annonce s'affiche comme une carte vide dans « Mes favoris ».
+ *
+ * @return int nombre d'annonces effacées
+ */
+function listings_purge_sans_photo(PDO $pdo): int {
+  $efface = 0;
+  try {
+    // On relit et on décode en PHP plutôt que de filtrer en SQL : la colonne
+    // peut contenir NULL, '', '[]', ou un JSON abîmé, et chaque base écrit ces
+    // cas à sa façon. Le décodage tranche pareil partout.
+    $st = $pdo->query("SELECT id, user_id, title, images FROM listings
+                       WHERE (sold IS NULL OR sold = 0)");
+    $sansPhoto = [];
+    foreach ($st->fetchAll() as $r) {
+      $brut = (string) ($r['images'] ?? '');
+      $liste = $brut === '' ? [] : (json_decode($brut, true) ?: []);
+      // Une entrée vide ne compte pas pour une photo.
+      $liste = array_filter((array) $liste, fn($u) => trim((string) $u) !== '');
+      if (count($liste) === 0) $sansPhoto[] = $r;
+    }
+    if (!$sansPhoto) return 0;
+
+    $del = $pdo->prepare('DELETE FROM listings WHERE id = ?');
+    $delFav = $pdo->prepare('DELETE FROM favorites WHERE listing_id = ?');
+    foreach ($sansPhoto as $r) {
+      notify(
+        $pdo, (string) ($r['user_id'] ?? ''), 'listing',
+        'Annonce retirée — aucune photo',
+        'Votre annonce « ' . mb_substr((string) $r['title'], 0, 60) . ' » a été retirée : '
+        . 'elle ne portait aucune photo. Republiez-la avec au moins '
+        . LISTING_MIN_PHOTOS . ' photos de l’objet, elle repartira aussitôt.',
+        '/#/publier'
+      );
+      $del->execute([$r['id']]);
+      try { $delFav->execute([$r['id']]); } catch (Throwable $e) { /* table absente */ }
+      $efface++;
+    }
+  } catch (Throwable $e) { /* le ménage ne doit jamais casser la route */ }
+  return $efface;
+}
+
+/** id => le document porte-t-il un numéro à saisir ? */
+const FONCIER_DOCS = [
+  'tf' => 'du titre foncier',
+  'acd' => 'de l’ACD',
+  'tfr' => 'du titre foncier rural',
+  'cf' => 'du certificat foncier',
+  'acp' => 'de l’ACP',
+  'adu' => 'de l’ADU',
+  'lettre' => 'de la lettre d’attribution',
+  'village' => 'de l’attestation villageoise',
+  'aucun' => '', // aucun numéro : c'est justement l'absence de document
+];
+
+/**
+ * L'annonce relève-t-elle du dossier foncier ? Une VENTE immobilière.
+ * Les annonces d'avant la réforme n'ont pas d'attribut `transaction` : on ne
+ * les traite comme des locations que lorsqu'elles le disent, explicitement ou
+ * par leur sous-catégorie. Le doute penche du côté de l'acheteur.
+ */
+function foncier_concerne(string $categoryId, ?string $subcategory, array $attrs): bool {
+  if ($categoryId !== 'immobilier') return false;
+  $t = $attrs['transaction'] ?? '';
+  if ($t !== '') return $t === 'Vente';
+  return !in_array((string) $subcategory, ['Location', 'Colocation', 'Location vacances'], true);
+}
+
+/**
+ * Ce qui manque au dossier foncier. Tableau vide = complet.
+ * Les libellés sont ceux que verra le vendeur : ils doivent être lisibles tels
+ * quels dans un message d'erreur.
+ */
+function foncier_manques(array $attrs): array {
+  $out = [];
+  $docs = array_values(array_filter(
+    array_map('trim', explode(',', (string) ($attrs['docs'] ?? ''))),
+    fn($d) => $d !== '' && array_key_exists($d, FONCIER_DOCS),
+  ));
+  if (!$docs) $out[] = 'le ou les documents de propriété que vous détenez';
+  // Le NUMÉRO des documents et l'identifiant IDUFCI sont FACULTATIFS depuis le
+  // 6 août 2026. L'IDUFCI n'est délivré qu'à un notaire ou à un géomètre agréé :
+  // l'exiger pour publier obligeait le vendeur à payer un professionnel avant
+  // même d'avoir un acheteur, et l'acheteur ne pouvait de toute façon pas le
+  // vérifier lui-même. Ce qui reste exigé, c'est de dire QUELLE pièce on
+  // détient — c'est cela qui distingue un titre foncier d'une attestation
+  // villageoise, et c'est cela qui protège l'acheteur.
+  if (trim((string) ($attrs['titulaire'] ?? '')) === '') $out[] = 'le nom porté sur vos documents';
+  if (trim((string) ($attrs['bornage'] ?? '')) === '') $out[] = 'le bornage du terrain';
+  if (trim((string) ($attrs['juridique'] ?? '')) === '') $out[] = 'la situation juridique';
+  if (trim((string) ($attrs['occupation'] ?? '')) === '') $out[] = 'l’occupation du bien';
+  if (trim((string) ($attrs['nature'] ?? '')) === '') $out[] = 'la nature du bien';
+  if (trim((string) ($attrs['vendeur'] ?? '')) === '') $out[] = 'votre qualité (propriétaire, héritier…)';
+  if (($attrs['engagement'] ?? '') !== 'oui') $out[] = 'les trois engagements du vendeur';
+  return $out;
+}
+
+/**
+ * Refuse la publication d'une vente immobilière au dossier incomplet.
+ * Le message énumère ce qui manque : un refus qui ne dit pas quoi corriger
+ * fait abandonner le vendeur, et une annonce abandonnée ne protège personne.
+ */
+function foncier_exiger(string $categoryId, ?string $subcategory, array $attrs): void {
+  if (!foncier_concerne($categoryId, $subcategory, $attrs)) return;
+  $m = foncier_manques($attrs);
+  if (!$m) return;
+  jout([
+    'error' => 'Vente immobilière : le dossier foncier est incomplet. Il manque ' . implode(', ', $m) . '.',
+    'foncier' => true, 'manques' => $m,
+  ], 422);
+}
+
+// =============================================================================
+//  COMPTABILITÉ — le grand livre, ses règles, et le cadre fiscal ivoirien.
+//
+//  Ce bloc sert une seule chose : qu'un contrôle des Impôts se passe bien.
+//  Tout ce qu'il produit doit pouvoir être imprimé, daté, numéroté, et
+//  rapproché d'un relevé Mobile Money.
+// =============================================================================
+
+/**
+ * Les catégories de dépense, adossées au plan comptable SYSCOHADA révisé.
+ *
+ * Le numéro entre parenthèses est le compte SYSCOHADA correspondant. Il ne
+ * sert à rien au quotidien — mais le jour où un comptable reprend ces
+ * registres pour établir un bilan, il retrouve ses comptes sans avoir à
+ * réinterpréter des libellés maison. C'est ce qui distingue un tableur d'une
+ * comptabilité.
+ */
+const COMPTA_DEPENSES = [
+  'hebergement'   => ['Hébergement et nom de domaine', '6281'],
+  'logiciel'      => ['Logiciels, licences et abonnements', '6288'],
+  'boutique'      => ['Frais de boutique d’applications (Google Play, Apple)', '6288'],
+  'sms'           => ['SMS et communications', '6262'],
+  'publicite'     => ['Publicité et promotion', '6271'],
+  'honoraires'    => ['Honoraires (comptable, juriste, développeur)', '6324'],
+  'banque'        => ['Frais bancaires et Mobile Money', '6312'],
+  'materiel'      => ['Matériel et petit équipement', '6055'],
+  'transport'     => ['Transport et déplacements', '6131'],
+  'impots'        => ['Impôts et taxes', '6411'],
+  'autre'         => ['Autres charges', '6580'],
+];
+
+/** Les catégories de recette. */
+const COMPTA_RECETTES = [
+  'publicite' => ['Vente d’espace publicitaire', '7062'],
+  'mise_avant'=> ['Mise en avant d’annonce', '7062'],
+  'don'       => ['Dons et soutiens', '7588'],
+  'autre'     => ['Autres produits', '7588'],
+];
+
+/** Les moyens de paiement réellement utilisés en Côte d'Ivoire. */
+const COMPTA_MODES = ['orange', 'mtn', 'moov', 'wave', 'especes', 'virement', 'carte', 'autre'];
+
+/**
+ * Le régime fiscal qui s'applique à un chiffre d'affaires annuel.
+ *
+ * Seuils du Code général des impôts ivoirien, en francs CFA toutes taxes
+ * comprises. Ils décident de l'impôt dû ET des obligations comptables : en
+ * dessous de 50 millions, deux registres chronologiques suffisent ; au-delà,
+ * une comptabilité complète devient obligatoire et cet écran ne suffit plus.
+ *
+ * ⚠️ Ce calcul INFORME, il ne remplace pas un comptable. Il est là pour qu'on
+ * voie venir le seuil avant de le franchir, pas pour établir une déclaration.
+ */
+function compta_regime(int $caAnnuel): array {
+  if ($caAnnuel <= 5000000) return [
+    'code' => 'entreprenant_communal',
+    'nom' => 'Taxe communale de l’entreprenant',
+    'seuil' => 5000000,
+    'obligation' => 'Deux registres chronologiques (recettes, dépenses), conservés 3 ans.',
+  ];
+  if ($caAnnuel <= 50000000) return [
+    'code' => 'entreprenant_etat',
+    'nom' => 'Taxe d’État de l’entreprenant',
+    'seuil' => 50000000,
+    'obligation' => 'Deux registres chronologiques + résultat de fin d’exercice au Système Minimal de Trésorerie (SYSCOHADA révisé).',
+  ];
+  if ($caAnnuel <= 200000000) return [
+    'code' => 'microentreprise',
+    'nom' => 'Régime des microentreprises (impôt de 7 % du chiffre d’affaires TTC)',
+    'seuil' => 200000000,
+    'obligation' => 'Comptabilité SYSCOHADA. Faites-vous accompagner par un comptable : cet écran ne suffit plus.',
+  ];
+  if ($caAnnuel <= 500000000) return [
+    'code' => 'reel_simplifie',
+    'nom' => 'Régime du réel simplifié',
+    'seuil' => 500000000,
+    'obligation' => 'Comptabilité complète et états financiers annuels. Un expert-comptable est indispensable.',
+  ];
+  return [
+    'code' => 'reel_normal',
+    'nom' => 'Régime du réel normal',
+    'seuil' => null,
+    'obligation' => 'Comptabilité complète, états financiers certifiés. Un expert-comptable est indispensable.',
+  ];
+}
+
+/** L'exercice comptable d'une date ISO — l'année civile, comme le veut le CGI. */
+function compta_exercice(?string $iso): int {
+  $t = $iso ? strtotime($iso) : false;
+  return (int) gmdate('Y', $t !== false ? $t : time());
+}
+
+/** Cet exercice est-il clos ? Un exercice clos ne reçoit plus rien. */
+function compta_clos(PDO $pdo, int $annee): bool {
+  try {
+    $st = $pdo->prepare('SELECT cloture_le FROM exercices WHERE annee = ?');
+    $st->execute([$annee]);
+    return !empty($st->fetchColumn());
+  } catch (Throwable $e) { return false; }
+}
+
+/**
+ * Remet les numéros dans l'ordre des dates, pour un exercice et un sens.
+ *
+ * Le Code général des impôts demande un registre à la fois CHRONOLOGIQUE et
+ * tenu « selon l'ordre numérique » : les deux ordres doivent coïncider. Donner
+ * simplement le numéro suivant à chaque écriture ne suffit pas — la facture
+ * d'hébergement de janvier retrouvée en août arriverait en n° 12 tout en étant
+ * datée avant le n° 1, et un contrôleur qui feuillette le registre y verrait
+ * exactement ce qu'il cherche : une pièce ajoutée après coup. Une suppression
+ * laisserait de même un trou (n° 1, n° 3) tout aussi parlant.
+ *
+ * On renumérote donc le registre entier après chaque écriture et après chaque
+ * suppression. C'est sans danger tant que l'exercice est ouvert : le registre
+ * n'est définitif qu'à la clôture, et un exercice clos n'accepte plus ni
+ * écriture ni suppression — donc plus aucune renumérotation. Le registre
+ * imprimé après la clôture dira la même chose dans trois ans.
+ *
+ * À date égale, l'ordre de saisie départage : deux dépenses du même jour
+ * gardent l'ordre dans lequel le propriétaire les a inscrites.
+ */
+function compta_renumeroter(PDO $pdo, int $exercice, string $sens): void {
+  // Garde-fou : un exercice clos ne bouge plus, jamais, quoi qu'on lui demande.
+  // Les trois appelants vérifient déjà la clôture avant d'écrire ou d'effacer ;
+  // la garantie tient à ce que ce registre-là ne change plus, et une garantie
+  // pareille se tient à un seul endroit, pas à trois.
+  if (compta_clos($pdo, $exercice)) return;
+  try {
+    $st = $pdo->prepare('SELECT id, numero FROM compta WHERE exercice = ? AND sens = ?
+                         ORDER BY date_op ASC, cree_le ASC, id ASC');
+    $st->execute([$exercice, $sens]);
+    $lignes = $st->fetchAll();
+    $maj = $pdo->prepare('UPDATE compta SET numero = ? WHERE id = ?');
+    foreach ($lignes as $i => $l) {
+      $voulu = $i + 1;
+      if ((int) $l['numero'] !== $voulu) $maj->execute([$voulu, $l['id']]);
+    }
+  } catch (Throwable $e) { /* le registre reste lisible même si la remise en ordre échoue */ }
+}
+
+/**
+ * Inscrit une écriture au grand livre et lui donne son numéro.
+ *
+ * Le numéro provisoire est le suivant disponible ; `compta_renumeroter()` le
+ * remet ensuite à sa place chronologique. Deux saisies simultanées pourraient
+ * en théorie viser le même numéro ; à l'échelle de ce site — quelques écritures
+ * par mois, un seul propriétaire — le cas ne se présente pas, et la
+ * renumérotation qui suit chaque écriture le corrigerait de toute façon.
+ */
+function compta_ecrire(PDO $pdo, array $e): ?string {
+  $exercice = (int) ($e['exercice'] ?? compta_exercice($e['date_op'] ?? null));
+  if (compta_clos($pdo, $exercice)) return null;
+  $sens = ($e['sens'] ?? 'recette') === 'depense' ? 'depense' : 'recette';
+
+  // Idempotence : une publicité déjà reprise ne revient pas une seconde fois.
+  if (!empty($e['source']) && !empty($e['source_id'])) {
+    $st = $pdo->prepare('SELECT id FROM compta WHERE source = ? AND source_id = ?');
+    $st->execute([$e['source'], $e['source_id']]);
+    if ($st->fetchColumn()) return null;
+  }
+
+  $st = $pdo->prepare('SELECT MAX(numero) FROM compta WHERE exercice = ? AND sens = ?');
+  $st->execute([$exercice, $sens]);
+  $numero = (int) $st->fetchColumn() + 1;
+
+  $id = uuid();
+  $pdo->prepare('INSERT INTO compta
+      (id,exercice,sens,numero,date_op,libelle,montant,categorie,mode,reference,tiers,piece,note,source,source_id,verrouille,pointe,pointe_le,cree_le,cree_par)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,?)')
+    ->execute([
+      $id, $exercice, $sens, $numero,
+      $e['date_op'] ?? now_iso(),
+      mb_substr(trim((string) ($e['libelle'] ?? '')), 0, 160) ?: 'Opération',
+      max(0, (int) ($e['montant'] ?? 0)),
+      mb_substr((string) ($e['categorie'] ?? 'autre'), 0, 32),
+      in_array($e['mode'] ?? '', COMPTA_MODES, true) ? $e['mode'] : 'autre',
+      mb_substr(trim((string) ($e['reference'] ?? '')), 0, 60),
+      mb_substr(trim((string) ($e['tiers'] ?? '')), 0, 120),
+      mb_substr(trim((string) ($e['piece'] ?? '')), 0, 120),
+      mb_substr(trim((string) ($e['note'] ?? '')), 0, 300),
+      mb_substr((string) ($e['source'] ?? 'manuel'), 0, 16),
+      mb_substr((string) ($e['source_id'] ?? ''), 0, 60),
+      // Une publicité dont le paiement a déjà été pointé sur le relevé arrive
+      // pointée : le rapprochement déjà fait ne se refait pas.
+      !empty($e['pointe']) ? 1 : 0,
+      !empty($e['pointe']) ? now_iso() : null,
+      now_iso(), mb_substr((string) ($e['cree_par'] ?? ''), 0, 190),
+    ]);
+  // Une écriture antidatée doit reprendre sa place dans la chronologie, pas
+  // rester en queue de registre.
+  if (empty($e['sans_renumerotation'])) compta_renumeroter($pdo, $exercice, $sens);
+  return $id;
+}
+
+/**
+ * Fait entrer au grand livre ce qui a été encaissé sans passer par lui.
+ *
+ * Les publicités payées et les recettes relevées à la main existaient AVANT ce
+ * registre. Elles doivent y figurer, sinon le registre ment par omission — et
+ * un registre incomplet est pire qu'un registre absent devant un contrôleur.
+ *
+ * Idempotent par construction (voir `compta_ecrire`) : on peut l'appeler à
+ * chaque ouverture de l'écran sans jamais rien compter deux fois. C'est
+ * volontaire — un rapprochement qui demande de penser à le lancer finit par ne
+ * plus être lancé.
+ */
+function compta_reprise(PDO $pdo, string $par = 'reprise automatique'): int {
+  $candidats = [];
+
+  // Publicités réellement encaissées. Une diffusion maison (kind admin/seo) ou
+  // une demande refusée n'a jamais rapporté un franc : elle n'entre pas.
+  try {
+    $st = $pdo->query("SELECT id,title,price,pay_method,pay_number,email,starts_at,created_at,pay_confirmed
+                       FROM ads
+                       WHERE price > 0 AND (kind IS NULL OR kind NOT IN ('admin','seo'))
+                         AND status IN ('active','expired','merged')");
+    foreach ($st->fetchAll() as $a) {
+      $quand = $a['starts_at'] ?: $a['created_at'];
+      $candidats[] = [
+        'sens' => 'recette', 'date_op' => $quand,
+        'libelle' => 'Publicité — ' . (($a['title'] ?? '') ?: 'bannière image'),
+        'montant' => (int) $a['price'], 'categorie' => 'publicite',
+        'mode' => strtolower((string) ($a['pay_method'] ?? 'autre')),
+        'reference' => (string) ($a['pay_number'] ?? ''),
+        'tiers' => (string) ($a['email'] ?? ''),
+        'pointe' => (int) ($a['pay_confirmed'] ?? 0) === 1,
+        'source' => 'ads', 'source_id' => (string) $a['id'], 'cree_par' => $par,
+      ];
+    }
+  } catch (Throwable $e) { /* colonne absente sur une base ancienne */ }
+
+  // Recettes saisies à la main avant l'existence du registre (dons, virements).
+  try {
+    $st = $pdo->query('SELECT * FROM revenues');
+    foreach ($st->fetchAll() as $r) {
+      $k = (string) ($r['kind'] ?? 'don');
+      $candidats[] = [
+        'sens' => 'recette', 'date_op' => $r['occurred_at'] ?: $r['created_at'],
+        'libelle' => (string) ($r['label'] ?? 'Recette'),
+        'montant' => (int) $r['amount'],
+        'categorie' => isset(COMPTA_RECETTES[$k]) ? $k : ($k === 'pub' ? 'publicite' : 'autre'),
+        'mode' => strtolower((string) ($r['method'] ?? 'autre')),
+        'reference' => (string) ($r['number'] ?? ''),
+        'note' => (string) ($r['note'] ?? ''),
+        'pointe' => (int) ($r['confirmed'] ?? 0) === 1,
+        'source' => 'revenues', 'source_id' => (string) $r['id'],
+        'cree_par' => (string) ($r['created_by'] ?? $par),
+      ];
+    }
+  } catch (Throwable $e) { /* table absente */ }
+
+  // ⚠️ TRIER PAR DATE AVANT D'ÉCRIRE, et non source par source.
+  //
+  // Le texte parle d'un registre CHRONOLOGIQUE consigné selon l'ordre
+  // NUMÉRIQUE : les deux vont ensemble. Reprendre d'abord toutes les
+  // publicités puis tous les dons produisait un registre où la pièce n° 2
+  // était datée de janvier et la n° 1 de mars — exactement ce qu'un
+  // contrôleur relève en premier. Le numéro suit désormais la date.
+  usort($candidats, function (array $a, array $b): int {
+    $ta = strtotime((string) $a['date_op']) ?: 0;
+    $tb = strtotime((string) $b['date_op']) ?: 0;
+    // À date égale, l'identifiant d'origine départage : deux reprises
+    // successives rendent alors exactement le même ordre.
+    return $ta <=> $tb ?: strcmp((string) $a['source_id'], (string) $b['source_id']);
+  });
+
+  // Les candidats sont déjà triés : chacun arrive à sa place, inutile de
+  // renuméroter tout le registre à chaque ligne. On le fait une fois à la fin,
+  // pour chaque couple (exercice, sens) touché — ce qui remet aussi en ordre
+  // les écritures manuelles déjà présentes.
+  $n = 0;
+  $touches = [];
+  foreach ($candidats as $c) {
+    $c['sans_renumerotation'] = true;
+    if (compta_ecrire($pdo, $c)) {
+      $n++;
+      $touches[compta_exercice($c['date_op']) . '|' . $c['sens']] = true;
+    }
+  }
+  foreach (array_keys($touches) as $cle) {
+    [$ex, $sens] = explode('|', $cle);
+    compta_renumeroter($pdo, (int) $ex, $sens);
+  }
+  return $n;
+}
+
+/** Motif inscrit sur les annonces masquées par la campagne de mise à jour. */
+const FONCIER_MOTIF = 'Nouvelle règle sur les ventes immobilières : votre annonce doit indiquer '
+  . 'le ou les documents de propriété que vous détenez, le nom porté dessus, le bornage, la situation '
+  . 'juridique et l’occupation du bien. Modifiez-la avec le nouveau formulaire, elle repartira en ligne aussitôt.';
+
+/**
+ * L'ADRESSE DU LOGO, AVEC L'EMPREINTE DU FICHIER DEDANS.
+ *
+ * ⚠️ CECI N'EST PAS UNE COQUETTERIE, C'EST LE CŒUR DU PROBLÈME. Le 01/09/2026,
+ * le Patron a reçu son rapport avec le logo du 26 août — trois générations en
+ * arrière — alors que le bon fichier était sur le serveur depuis la veille,
+ * vérifié à l'octet près. La preuve était dans sa capture : le filet du drapeau,
+ * lui, était neuf. Le texte arrivait, l'image non.
+ *
+ * La cause : GMAIL RECOPIE LES IMAGES SUR SES PROPRES SERVEURS et les garde. Or
+ * l'adresse `/icons/icon-192.png` n'avait jamais changé de nom depuis juillet.
+ * Gmail resservait donc sa copie de juillet, et l'aurait resservie dans six mois.
+ *
+ * Un `?v=2` écrit à la main aurait réglé le jour même et rien de plus : au
+ * prochain changement de logo, on aurait oublié de l'incrémenter, et la panne
+ * serait revenue à l'identique. L'empreinte du fichier, elle, change TOUTE
+ * SEULE quand le dessin change. C'est la seule version qui ne se périme pas.
+ */
+function email_logo_url(string $site, ?string $racine = null): string {
+  static $cache = [];
+  $racine ??= __DIR__ . '/..'; // l'API vit dans public_html/api/, les icônes un étage au-dessus
+  if (isset($cache[$racine])) return $site . $cache[$racine];
+  $f = $racine . '/icons/icon-192.png';
+  // ⚠️ LA RETOMBÉE DOIT BOUGER, ELLE AUSSI, ET NE JAMAIS ÊTRE VIDE.
+  // Un `?v=` figé — ou vide, ce qui revient au même — ramènerait la panne du
+  // 01/09 à l'identique et sans bruit. Trois niveaux, aucun constant :
+  //   1. l'empreinte du dessin      → change quand le logo change ;
+  //   2. la date du fichier de l'API → change à chaque dépôt ;
+  //   3. la date du jour             → change tous les jours.
+  // Le troisième niveau existe parce que le deuxième a échoué en essai :
+  // `md5_file` sur un fichier introuvable rend `false`, et `substr(false,0,8)`
+  // rend la chaîne VIDE. La version tombait alors sur `?v=`, une constante.
+  $v = '';
+  if (is_file($f)) $v = (string) md5_file($f);
+  if ($v === '') $v = (string) @filemtime(__FILE__);
+  if ($v === '') $v = date('Ymd');
+  $cache[$racine] = '/icons/icon-192.png?v=' . substr($v, 0, 8);
+  return $site . $cache[$racine];
+}
+
+/**
+ * LE PAGNE — gabarit commun à tous les e-mails de Chap.ci.
+ * Direction retenue par le Patron le 01/09/2026 parmi trois propositions.
+ *
+ * Le bandeau tissé en tête est fait de CELLULES DE TABLEAU, pas d'une image :
+ * il s'affiche donc même quand la boîte mail bloque les images, ce que Gmail
+ * fait à la première ouverture de chaque message. C'était le critère du choix —
+ * une identité qui repose sur une image seule n'existe pas tant que le lecteur
+ * n'a pas cliqué « afficher les images », et beaucoup ne cliquent jamais.
+ *
+ * Tout ce que Chap.ci envoie passe ici : les 31 messages, la newsletter
+ * comprise. Changer ce gabarit les change tous d'un coup.
+ */
+function email_layout(array $config, string $inner, string $preheader = ''): string {
+  $site    = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name    = $config['mail_from_name'] ?? 'Chap.ci';
+  $logo    = email_logo_url($site);
+  $contact = $config['mail_reply_to'] ?? 'contact@chap.ci';
+  // Texte d'aperçu (masqué) affiché par les boîtes mail à côté de l'objet.
+  $pre = $preheader
+    ? '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f4f5f7">' . htmlspecialchars($preheader) . '</div>'
+    : '';
+  // Réseaux sociaux (config.php 'social' => ['Facebook'=>'https://…', …]).
+  $social = '';
+  foreach (($config['social'] ?? []) as $label => $url) {
+    if ($url) $social .= '<a href="' . htmlspecialchars($url) . '" style="color:#00734A;text-decoration:none;margin:0 7px">' . htmlspecialchars($label) . '</a>';
+  }
+  $socialRow = $social ? '<p style="margin:8px 0">' . $social . '</p>' : '';
+  $domain = preg_replace('#^https?://#', '', $site); // ex : chap.ci
+
+  // Le nom, avec son « .ci » en vert — comme sur le site. Écrit en LETTRES, pas
+  // en image : c'est ce qui reste quand la boîte mail bloque le logo.
+  $nomHtml = str_ends_with($name, '.ci')
+    ? htmlspecialchars(substr($name, 0, -3)) . '<span style="color:#009E60">.ci</span>'
+    : htmlspecialchars($name);
+
+  return $pre
+    . '<div style="background:#FFF6EA;padding:0;margin:0;font-family:Arial,Helvetica,sans-serif">'
+    . '<div style="max-width:520px;margin:auto;background:#FFF6EA;color:#3d3a33">'
+    . email_bandeau_pagne()
+    // En-tête : la couronne, puis le nom.
+    //
+    // ⚠️ LE LOGO EST UNE IMAGE DISTANTE, ET GMAIL LA BLOQUE PAR DÉFAUT. Le nom
+    // en dessous et le bandeau au-dessus sont, eux, du texte et des fonds de
+    // cellules : ils arrivent toujours. L'e-mail reste Chap.ci même quand la
+    // couronne n'est pas chargée — c'est la raison d'être de cette direction.
+    //
+    // Fond crème et arrondi de 17 px : les coins de l'icône elle-même (rayon 42
+    // sur une grille de 200, soit 21 % — 14 px à 66 px de large). Sans le fond,
+    // la case reste blanche quand l'image ne vient pas.
+    . '<div style="text-align:center;padding:22px 24px 0">'
+    . '<a href="' . $site . '" style="text-decoration:none;color:inherit;display:inline-block">'
+    . '<img src="' . $logo . '" alt="' . htmlspecialchars($name) . '" width="66" height="66" '
+    . 'style="width:66px;height:66px;border-radius:17px;display:inline-block;background:#FFFDF9">'
+    . '<div style="font-size:22px;font-weight:bold;color:#1B1A17;margin-top:8px;letter-spacing:-0.02em">'
+    . $nomHtml . '</div>'
+    . '</a></div>'
+    // La carte blanche : tout le message est dedans.
+    . '<div style="background:#ffffff;border-radius:16px;margin:16px 14px;'
+    . 'padding:22px 20px 24px;color:#3d3a33;font-size:15px;line-height:1.55">'
+    . $inner . '</div>'
+    // Pied de page, sur le crème.
+    . '<div style="text-align:center;color:#8a8271;font-size:12px;padding:4px 20px 26px;line-height:1.8">'
+    . '<p style="margin:6px 0">Visitez notre site : <a href="' . $site . '" style="color:#00734A;text-decoration:none;font-weight:bold">' . htmlspecialchars($domain) . '</a></p>'
+    . '<p style="margin:6px 0">Nous contacter : <a href="mailto:' . $contact . '" style="color:#00734A;text-decoration:none">' . $contact . '</a></p>'
+    . $socialRow
+    . '<p style="margin:6px 0"><a href="' . $site . '/#/confidentialite" style="color:#8a8271">Confidentialité</a> · '
+    . '<a href="' . $site . '/#/conditions" style="color:#8a8271">Conditions d’utilisation</a></p>'
+    . '<p style="margin:12px 0 0;color:#00734A;font-weight:bold">100 % ivoirien 🇨🇮</p>'
+    . '</div></div></div>';
+}
+
+/**
+ * LE BANDEAU TISSÉ, en tête de chaque e-mail.
+ *
+ * Une trame irrégulière, comme un pagne : des bandes de largeurs inégales qui
+ * ne se répètent pas à intervalle fixe. C'est cette irrégularité qui fait la
+ * différence entre « du tissu » et « des rayures ».
+ *
+ * ⚠️ EN CELLULES DE TABLEAU, ET C'EST TOUT L'INTÉRÊT. Outlook ignore les
+ * dégradés, les bordures et les images de fond ; il ne se trompe jamais sur un
+ * fond de cellule. Et comme ce n'est pas une image, aucune boîte mail ne peut
+ * le bloquer : l'e-mail est reconnaissable avant même d'être chargé.
+ */
+function email_bandeau_pagne(): string {
+  $trame = [3, 1, 2, 1, 4, 1, 2, 3, 1, 2, 1, 3, 2, 1, 4, 1, 2, 1, 3, 2, 1, 4, 2, 1, 2];
+  $tons  = ['#F77F00', '#00734A', '#FFC46B'];
+  $total = array_sum($trame);
+  $cells = '';
+  foreach ($trame as $i => $part) {
+    // Les pourcentages sont calculés à partir de la trame, jamais écrits à la
+    // main : ils tombent forcément juste à 100 %, même si on change la trame.
+    $largeur = round($part / $total * 100, 3);
+    $cells .= '<td width="' . $largeur . '%" height="14" style="width:' . $largeur . '%;'
+      . 'height:14px;line-height:14px;font-size:0;background:' . $tons[$i % 3] . '">&nbsp;</td>';
+  }
+  return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+    . 'style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>' . $cells . '</tr></table>';
+}
+/**
+ * Annonce immobilière masquée en attendant sa mise à jour : on explique
+ * pourquoi, on dit exactement quoi faire, et on donne le lien qui ouvre le
+ * formulaire sur la bonne annonce. Un message qui se contente d'annoncer un
+ * masquage fait perdre un vendeur ; celui-ci lui rend son annonce.
+ */
+function send_foncier_update_email(array $config, string $to, array $listing): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $titre = htmlspecialchars(mb_substr((string) $listing['title'], 0, 80));
+  $lien = $site . '/#/modifier/' . rawurlencode((string) $listing['id']);
+  $inner = '<h2 style="margin:0 0 12px;font-size:19px;color:#111827">Votre annonce immobilière doit être mise à jour</h2>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Bonjour,</p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Votre annonce '
+    . '<b>« ' . $titre . ' »</b> a été <b>temporairement masquée</b>. Elle n’est pas supprimée : '
+    . 'vos photos, votre texte et votre prix sont intacts.</p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">En Côte d’Ivoire, sept documents circulent '
+    . 'couramment pour un terrain, et trois seulement donnent la propriété. Depuis le 1<sup>er</sup> janvier 2025, '
+    . 'l’ADU à QR code est le seul document d’entrée accepté pour demander un ACD, et depuis le 31 mars 2025 '
+    . 'l’attestation villageoise n’ouvre plus de dossier. Un acheteur doit l’apprendre <b>avant</b> d’appeler, '
+    . 'pas après avoir versé un acompte.</p>'
+    . '<p style="margin:0 0 6px;font-size:15px;line-height:1.6">Le formulaire vous demande maintenant :</p>'
+    . '<ul style="margin:0 0 14px;padding-left:20px;font-size:15px;line-height:1.7;color:#374151">'
+    . '<li>le ou les documents que vous détenez — vous pouvez en cocher plusieurs ;</li>'
+    . '<li>le nom porté sur ces documents, et votre qualité ;</li>'
+    . '<li>le bornage, la situation juridique et l’occupation du bien.</li>'
+    . '</ul>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.6">Le numéro de vos documents et '
+    . 'l’identifiant IDUFCI de la parcelle restent <b>facultatifs</b> : renseignez-les si vous les avez '
+    . 'sous la main, ils rassurent l’acheteur — mais ils n’empêchent pas votre annonce de partir.</p>'
+    . '<p style="margin:0 0 4px;font-size:15px;line-height:1.6">Cela prend deux minutes. '
+    . 'Dès que c’est enregistré, votre annonce <b>repart en ligne automatiquement</b> — et elle affichera '
+    . 'votre dossier en clair, ce qui rassure les acheteurs sérieux.</p>'
+    . email_button($lien, 'Mettre mon annonce à jour')
+    . '<p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280">Vous n’avez pas le numéro IDUFCI ? '
+    . 'Il figure sur les documents récents. Sinon, votre notaire ou votre géomètre agréé peut vous le '
+    . 'communiquer : eux seuls ont accès à la plateforme qui le délivre.</p>';
+  return send_mail($config, $to, 'Votre annonce immobilière doit être mise à jour — Chap.ci',
+    email_layout($config, $inner, 'Deux minutes pour remettre votre annonce en ligne.'));
+}
+
+/**
+ * Campagne de mise en conformité : masque les ventes immobilières publiées
+ * avant la nouvelle règle, inscrit le motif et prévient chaque vendeur.
+ *
+ * Idempotente — une annonce déjà masquée pour ce motif n'est pas retraitée, et
+ * personne ne reçoit deux fois le même message. Bornée par $max pour ne jamais
+ * faire expirer la requête qui la déclenche.
+ */
+function foncier_campagne(array $config, PDO $pdo, int $max = 200, bool $simulation = false): array {
+  $st = $pdo->query("SELECT id, user_id, title, category_id, subcategory, attributes, hidden, hidden_reason
+                     FROM listings WHERE category_id = 'immobilier' ORDER BY created_at DESC");
+  $vues = 0; $conformes = 0; $masquees = 0; $mails = 0; $echecs = 0;
+  $dejaTraitees = 0; $masqueesAilleurs = 0; $sansCompte = 0; $restantes = 0;
+  foreach ($st->fetchAll() as $l) {
+    $attrs = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+    if (!foncier_concerne('immobilier', $l['subcategory'] ?? null, $attrs)) continue;
+    $vues++;
+    if (!foncier_manques($attrs)) { $conformes++; continue; }
+
+    if (!empty($l['hidden'])) {
+      // Déjà traitée par cette campagne : on ne réécrit rien, et surtout on
+      // n'envoie pas un second message.
+      if ((string) ($l['hidden_reason'] ?? '') === FONCIER_MOTIF) { $dejaTraitees++; continue; }
+      // Masquée pour une AUTRE raison — décision d'un modérateur, ou choix du
+      // vendeur. On n'y touche pas : écraser le motif effacerait la décision, et
+      // la remise en ligne automatique republierait ensuite une annonce que
+      // quelqu'un avait retirée. Elle n'est de toute façon vue par personne.
+      $masqueesAilleurs++;
+      continue;
+    }
+
+    if ($masquees >= $max) { $restantes++; continue; }
+    if ($simulation) { $masquees++; continue; } // état des lieux : on n'écrit rien
+
+    $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')
+        ->execute([FONCIER_MOTIF, $l['id']]);
+    $masquees++;
+
+    notify($pdo, (string) $l['user_id'], 'listing', 'Annonce à mettre à jour',
+      'Votre annonce « ' . mb_substr((string) $l['title'], 0, 60) . ' » est masquée en attendant son dossier foncier. '
+      . 'Modifiez-la : elle repartira en ligne aussitôt.',
+      '#/modifier/' . $l['id']);
+
+    $email = '';
+    if (!empty($l['user_id'])) {
+      $q = $pdo->prepare('SELECT email FROM users WHERE id = ?');
+      $q->execute([$l['user_id']]);
+      $email = (string) ($q->fetch()['email'] ?? '');
+    }
+    if ($email === '') {
+      // Annonce sans compte rattaché : masquée quand même — un acheteur ne doit
+      // pas la voir — mais PERSONNE ne peut la corriger. Elle est comptée à part
+      // pour que le Patron le sache au lieu de la découvrir des mois plus tard.
+      $sansCompte++;
+    } elseif (send_foncier_update_email($config, $email, $l)) {
+      $mails++;
+    } else {
+      $echecs++;
+    }
+  }
+  return [
+    'examinees' => $vues, 'conformes' => $conformes, 'masquees' => $masquees,
+    'emails' => $mails, 'echecs' => $echecs, 'sansCompte' => $sansCompte,
+    'dejaTraitees' => $dejaTraitees, 'masqueesAilleurs' => $masqueesAilleurs,
+    'restantes' => $restantes, 'simulation' => $simulation,
+  ];
+}
+
+/**
+ * Renvoie le message aux vendeurs dont l'annonce est déjà masquée par la
+ * campagne. Ne masque rien, ne touche à rien d'autre.
+ *
+ * Raison d'être : le premier passage s'exécute au fil d'une requête web
+ * ordinaire. Si l'envoi échoue à ce moment-là — SMTP momentanément muet,
+ * quota de l'hébergeur — l'annonce est masquée et son propriétaire n'en sait
+ * rien. Sans cette relance, il n'existerait aucun moyen de rattraper : la
+ * campagne, elle, considère l'annonce comme déjà traitée et se tait.
+ *
+ * Déclenchée à la main par le propriétaire, jamais automatiquement : c'est
+ * précisément parce qu'elle peut envoyer deux fois le même message qu'elle
+ * doit rester une décision.
+ */
+/**
+ * La contrepartie de la campagne : ce qu'elle a masqué et qui est redevenu
+ * conforme repart en ligne tout seul.
+ *
+ * Le 6 août 2026, le numéro des documents et l'identifiant IDUFCI sont passés
+ * facultatifs. Des annonces masquées pour ce seul motif étaient donc, du jour
+ * au lendemain, parfaitement en règle — et personne ne l'aurait dit à leur
+ * propriétaire : la campagne, elle, considère une annonce déjà masquée comme
+ * traitée et se tait. Une règle qu'on assouplit doit rendre ce qu'elle a pris.
+ *
+ * Idempotente par construction : une annonce rendue visible perd son
+ * `hidden_reason`, elle n'est donc plus sélectionnée au passage suivant.
+ */
+function foncier_reouvrir(PDO $pdo): array {
+  $st = $pdo->prepare('SELECT id, user_id, title, attributes FROM listings WHERE hidden = 1 AND hidden_reason = ?');
+  $st->execute([FONCIER_MOTIF]);
+  $rendues = 0; $encoreIncompletes = 0;
+  foreach ($st->fetchAll() as $l) {
+    $attrs = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+    if (foncier_manques($attrs)) { $encoreIncompletes++; continue; }
+    $pdo->prepare('UPDATE listings SET hidden = 0, hidden_reason = NULL WHERE id = ?')->execute([$l['id']]);
+    $rendues++;
+    if (!empty($l['user_id'])) {
+      notify($pdo, (string) $l['user_id'], 'listing', 'Annonce de nouveau en ligne ✅',
+        'La règle a été assouplie : le numéro de vos documents et l’identifiant IDUFCI ne sont plus obligatoires. '
+        . '« ' . mb_substr(trim((string) $l['title']), 0, 60) . ' » est de nouveau visible.',
+        '#/annonce/' . $l['id']);
+    }
+  }
+  return ['rendues' => $rendues, 'encoreIncompletes' => $encoreIncompletes];
+}
+
+/**
+ * Réouverture automatique, UNE SEULE FOIS, au premier passage après le
+ * déploiement qui assouplit la règle. Même mécanique de marqueur que la
+ * campagne : `migrate()` tourne à chaque requête.
+ */
+function foncier_reouverture_initiale(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.foncier_reouverture_v1';
+  if (@is_file($marque)) return;
+  @file_put_contents($marque, gmdate('c'));
+  @chmod($marque, 0600);
+  try {
+    $r = foncier_reouvrir($pdo);
+    $ligne = gmdate('c') . ' ' . json_encode($r, JSON_UNESCAPED_UNICODE);
+    error_log('[chapci] foncier reouverture: ' . $ligne);
+    @file_put_contents($marque, $ligne);
+  } catch (Throwable $e) { error_log('[chapci] foncier reouverture: ' . $e->getMessage()); }
+}
+
+function foncier_relance(array $config, PDO $pdo): array {
+  $st = $pdo->prepare('SELECT id, user_id, title FROM listings WHERE hidden = 1 AND hidden_reason = ?');
+  $st->execute([FONCIER_MOTIF]);
+  $envoyes = 0; $echecs = 0; $sansCompte = 0; $total = 0;
+  foreach ($st->fetchAll() as $l) {
+    $total++;
+    $email = '';
+    if (!empty($l['user_id'])) {
+      $q = $pdo->prepare('SELECT email FROM users WHERE id = ?');
+      $q->execute([$l['user_id']]);
+      $email = (string) ($q->fetch()['email'] ?? '');
+    }
+    if ($email === '') { $sansCompte++; continue; }
+    if (send_foncier_update_email($config, $email, $l)) $envoyes++; else $echecs++;
+  }
+  return ['concernees' => $total, 'envoyes' => $envoyes, 'echecs' => $echecs, 'sansCompte' => $sansCompte];
+}
+
+/** Email de bienvenue envoyé à la création d'un compte. */
+function send_welcome_email(array $config, string $to, string $fullName = ''): bool {
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name  = $config['mail_from_name'] ?? 'Chap.ci';
+  $hi    = trim($fullName) !== '' ? 'Bonjour ' . htmlspecialchars($fullName) . ',' : 'Bonjour,';
+  $inner =
+    '<h2 style="margin-top:0;color:#111827">Bienvenue sur ' . htmlspecialchars($name) . ' 🎉</h2>'
+    . '<p>' . $hi . '</p>'
+    . '<p>Votre compte est prêt. Achetez et vendez <b>chap-chap</b>, partout en Côte d’Ivoire :</p>'
+    . '<ul style="padding-left:18px;line-height:1.8">'
+    . '<li>📸 Publiez une annonce en quelques secondes.</li>'
+    . '<li>📍 Trouvez les bonnes affaires près de chez vous.</li>'
+    . '<li>💬 Échangez en toute sécurité avec la messagerie.</li>'
+    . '</ul>'
+    . email_button($site, 'Découvrir ' . htmlspecialchars($name))
+    . '<p style="margin-top:22px">Bonne découverte,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>'
+    . '<p style="color:#6b7280;font-size:13px;margin-top:14px">Une question ? Répondez simplement à cet email.</p>';
+  return send_mail($config, $to, "Bienvenue sur $name 🎉",
+    email_layout($config, $inner, "Votre compte $name est prêt — achetez et vendez chap-chap partout en Côte d’Ivoire."));
+}
+/** Notification e-mail à l'annonceur selon le statut de sa publicité. Best-effort. */
+/** Totaux d'audience d'une publicite (vues, clics) sur toute sa vie. */
+function ad_audience(PDO $pdo, string $adId): array {
+  try {
+    $st = $pdo->prepare('SELECT COALESCE(SUM(views),0) v, COALESCE(SUM(clicks),0) c FROM ad_stats WHERE ad_id = ?');
+    $st->execute([$adId]);
+    $r = $st->fetch() ?: [];
+    $v = (int) ($r['v'] ?? 0); $c = (int) ($r['c'] ?? 0);
+    return ['views' => $v, 'clicks' => $c, 'ctr' => $v > 0 ? round($c / $v * 100, 1) : 0.0];
+  } catch (Throwable $e) { return ['views' => 0, 'clicks' => 0, 'ctr' => 0.0]; }
+}
+
+/**
+ * Enregistre une tentative d'envoi a un annonceur.
+ *
+ * Le 28/07, un annonceur a paye et n'a rien recu. On ne pouvait meme pas dire
+ * si l'e-mail etait parti : send_mail renvoyait un booleen que personne ne
+ * gardait. Desormais chaque tentative laisse une ligne, avec son resultat.
+ */
+function log_ad_mail(?PDO $pdo, string $adId, string $kind, string $email, bool $ok): void {
+  if (!$pdo) return;
+  try {
+    $pdo->prepare('INSERT INTO ad_mails (id,ad_id,kind,email,ok,created_at) VALUES (?,?,?,?,?,?)')
+        ->execute([uuid(), $adId, mb_substr($kind, 0, 24), mb_substr($email, 0, 190), $ok ? 1 : 0, now_iso()]);
+  } catch (Throwable $e) { /* le journal ne doit jamais empecher un envoi */ }
+}
+
+/** Bloc HTML « chiffres de votre publicite », partage par plusieurs e-mails. */
+function ad_stats_block(array $a): string {
+  $v = (int) ($a['views'] ?? 0); $c = (int) ($a['clicks'] ?? 0); $ctr = (float) ($a['ctr'] ?? 0);
+  $n = fn($x) => number_format($x, 0, ',', "\u{00A0}");
+  return '<table role="presentation" style="width:100%;margin:14px 0;border-collapse:separate;border-spacing:8px 0">'
+    . '<tr>'
+    . '<td style="width:33%;background:#FFF6EC;border-radius:12px;padding:12px;text-align:center">'
+    . '<div style="font-size:22px;font-weight:800;color:#1a1f2b">' . $n($v) . '</div>'
+    . '<div style="font-size:12px;color:#6b7280">affichages</div></td>'
+    . '<td style="width:33%;background:#FFF6EC;border-radius:12px;padding:12px;text-align:center">'
+    . '<div style="font-size:22px;font-weight:800;color:#1a1f2b">' . $n($c) . '</div>'
+    . '<div style="font-size:12px;color:#6b7280">clics</div></td>'
+    . '<td style="width:33%;background:#FFF6EC;border-radius:12px;padding:12px;text-align:center">'
+    . '<div style="font-size:22px;font-weight:800;color:#1a1f2b">' . str_replace('.', ',', (string) $ctr) . '&nbsp;%</div>'
+    . '<div style="font-size:12px;color:#6b7280">taux de clic</div></td>'
+    . '</tr></table>';
+}
+
+/**
+ * E-mails du cycle de vie d'une publicite.
+ *
+ * Sept moments, du paiement a l'expiration :
+ *   pending   paiement recu, en attente de validation
+ *   active    validee, en ligne, avec la date ET l'heure de fin
+ *   rejected  refusee, AVEC LE MOTIF (saisi par l'administrateur)
+ *   report    tous les 3 jours : audience + invitation a prolonger
+ *   expiring  la veille de la fin : audience + date et heure exactes
+ *   expired   apres la fin : bilan complet
+ *
+ * $pdo sert uniquement a journaliser l'envoi (table ad_mails). Sans lui, la
+ * fonction marche toujours — mais on perd la trace, et c'est precisement ce
+ * qui a empeche de comprendre pourquoi un annonceur n'avait rien recu le 28/07.
+ */
+function send_ad_status_email(array $config, array $ad, string $kind, ?PDO $pdo = null, array $extra = []): bool {
+  $to = trim((string) ($ad['email'] ?? ''));
+  if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+    log_ad_mail($pdo, (string) ($ad['id'] ?? ''), $kind, $to, false);
+    return false;
+  }
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name  = $config['mail_from_name'] ?? 'Chap.ci';
+  $price = number_format((int) ($ad['price'] ?? 0), 0, ',', "\u{00A0}");
+  $titleTxt = trim((string) ($ad['title'] ?? '')) !== '' ? '« ' . htmlspecialchars((string) $ad['title']) . ' »' : 'votre bannière';
+  $ts = !empty($ad['expires_at']) ? (int) strtotime((string) $ad['expires_at']) : 0;
+  // Date ET heure : « le 04/08 » ne dit pas si la banniere tombe le matin ou le
+  // soir. Un annonceur qui veut prolonger a besoin de l'heure.
+  $expTxt  = $ts ? gmdate('d/m/Y', $ts) : '';
+  $expFull = $ts ? gmdate('d/m/Y \à H\hi', $ts) . ' (heure d’Abidjan)' : '';
+  $stats = $extra['stats'] ?? ($pdo && !empty($ad['id']) ? ad_audience($pdo, (string) $ad['id']) : null);
+  $bloc  = $stats ? ad_stats_block($stats) : '';
+  $pub   = $site . '/#/publicite';
+  // Lien direct vers SA publicite (prolongation, suivi) — jeton signe, sans compte.
+  $lien  = !empty($ad['id']) ? $site . '/#/pub/' . rawurlencode((string) $ad['id']) : $pub;
+
+  if ($kind === 'pending') {
+    $subject = "Votre publicité est bien reçue — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Publicité reçue ✅</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>Nous avons bien reçu ' . $titleTxt . '. Elle est <b>en attente de validation</b> : notre équipe '
+      . 'vérifie votre paiement de <b>' . $price . ' FCFA</b>, puis votre bannière passe à l’écran.</p>'
+      . '<p>Vous recevrez un e-mail dès qu’elle est en ligne — en général sous 24 heures. '
+      . 'Si vous n’avez rien reçu d’ici là, répondez simplement à ce message.</p>';
+  } elseif ($kind === 'active') {
+    $subject = "Votre publicité est en ligne 🎉 — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">C’est en ligne 🎉</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' est <b>validée et diffusée</b> sur l’écran publicitaire de ' . htmlspecialchars($name) . '.</p>'
+      . ($expFull ? '<p>Elle restera affichée jusqu’au <b>' . $expFull . '</b>.</p>' : '')
+      . '<p>Vous recevrez un rapport d’audience tous les 3 jours.</p>'
+      . email_button($lien, 'Voir ma publicité');
+  } elseif ($kind === 'rejected') {
+    // Le motif est saisi par l'administrateur au moment du refus. Sans lui,
+    // l'annonceur ne sait pas quoi corriger et recommence la meme erreur.
+    $motif = trim((string) ($extra['reason'] ?? ($ad['reject_reason'] ?? '')));
+    $subject = "Votre publicité n’a pas été validée — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Publicité non validée</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' n’a pas pu être validée.</p>'
+      . ($motif !== ''
+          ? '<p style="background:#FEF2F2;border-left:3px solid #DC2626;padding:10px 12px;margin:12px 0">'
+            . '<b>Motif :</b> ' . nl2br(htmlspecialchars($motif)) . '</p>'
+          : '<p>Motif : paiement introuvable ou visuel non conforme.</p>')
+      . '<p>Si vous pensez qu’il s’agit d’une erreur, répondez simplement à cet e-mail — '
+      . 'nous rouvrons le dossier.</p>'
+      . email_button($pub, 'Refaire une publicité');
+  } elseif ($kind === 'report') {
+    $subject = "Votre publicité en chiffres — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Où en est votre publicité 📊</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>Voici l’audience de ' . $titleTxt . ' depuis sa mise en ligne :</p>'
+      . $bloc
+      . ($expFull ? '<p>Elle reste à l’écran jusqu’au <b>' . $expFull . '</b>.</p>' : '')
+      . '<p>Une bannière qui reste plus longtemps est vue par des visiteurs différents : '
+      . 'la même annonce touche de nouvelles personnes chaque semaine. Vous pouvez '
+      . '<b>prolonger dès maintenant</b>, sans attendre la fin.</p>'
+      . email_button($lien, 'Prolonger ma publicité');
+  } elseif ($kind === 'expired') {
+    $subject = "Votre publicité est terminée — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Campagne terminée</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' est arrivée à son terme' . ($expTxt ? ' le <b>' . $expTxt . '</b>' : '') . '. '
+      . 'Voici son bilan complet :</p>'
+      . $bloc
+      . '<p>Merci de votre confiance. Pour repartir à l’écran, il suffit de '
+      . 'relancer une bannière — vos visuels sont conservés.</p>'
+      . email_button($pub, 'Relancer une publicité');
+  } else { // expiring — la VEILLE de la fin
+    $subject = "Votre publicité se termine demain ⏳ — $name";
+    $inner = '<h2 style="margin-top:0;color:#111827">Elle se termine demain ⏳</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>' . ucfirst($titleTxt) . ' quitte l’écran ' . ($expFull ? '<b>le ' . $expFull . '</b>' : 'demain') . '.</p>'
+      . $bloc
+      . '<p>Pour rester affiché <b>sans interruption</b>, prolongez avant cette heure : '
+      . 'la bannière enchaîne alors sans coupure.</p>'
+      . email_button($lien, 'Prolonger maintenant');
+  }
+  $ok = send_mail($config, $to, $subject, email_layout($config, $inner, $subject));
+  log_ad_mail($pdo, (string) ($ad['id'] ?? ''), $kind, $to, $ok);
+  return $ok;
+}
+
+/** Résumé lisible des articles d'une commande (ex : « Vélo » (+2 autres)). */
+function items_summary(array $items): string {
+  $titles = array_values(array_filter(array_map(fn($it) => trim((string) ($it['title'] ?? '')), $items)));
+  if (!$titles) return 'votre article';
+  $more = count($titles) - 1;
+  return $more > 0 ? '« ' . $titles[0] . ' » (+' . $more . ' autre' . ($more > 1 ? 's' : '') . ')' : '« ' . $titles[0] . ' »';
+}
+/** Confirmation d'inscription à la newsletter (à l'abonné). */
+function send_newsletter_email(array $config, string $to): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $inner =
+    '<h2 style="margin-top:0">C’est confirmé 🎉</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Vous êtes bien inscrit(e) à la newsletter de <b>' . htmlspecialchars($name) . '</b>. '
+    . 'Recevez nos meilleures annonces et bons plans, avant tout le monde.</p>'
+    . email_button($site, 'Voir les annonces')
+    . '<p style="margin-top:22px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  // La newsletter part de hello@ (réponse possible), pas de no-reply@.
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  return send_mail($config, $to, "Bienvenue dans la newsletter $name",
+    email_layout($config, $inner, "Votre inscription à la newsletter $name est confirmée."), $from, $from);
+}
+/** Notification au vendeur : une nouvelle demande d'achat. */
+function send_order_seller_email(array $config, string $to, array $items): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $inner =
+    '<h2 style="margin-top:0">Nouvelle demande d’achat 🛍️</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Bonne nouvelle ! Un acheteur souhaite acheter ' . htmlspecialchars(items_summary($items)) . '.</p>'
+    . '<p>Répondez-lui vite via la messagerie pour conclure la vente.</p>'
+    . email_button($site . '/#/messages', 'Répondre à l’acheteur')
+    . '<p style="margin-top:22px">Bonne vente,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return send_mail($config, $to, "Nouvelle demande d’achat sur $name",
+    email_layout($config, $inner, 'Un acheteur est intéressé par votre annonce.'));
+}
+/** Confirmation à l'acheteur : demande envoyée au vendeur. */
+function send_order_buyer_email(array $config, string $to, array $items): bool {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $inner =
+    '<h2 style="margin-top:0">Demande envoyée ✅</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Votre demande d’achat pour ' . htmlspecialchars(items_summary($items)) . ' a bien été transmise au vendeur. '
+    . 'Il vous répondra directement via la messagerie.</p>'
+    . email_button($site . '/#/compte', 'Suivre ma demande')
+    . '<p style="margin-top:22px">Bon achat,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return send_mail($config, $to, 'Votre demande a bien été envoyée',
+    email_layout($config, $inner, 'Votre demande d’achat a été transmise au vendeur.'));
+}
+/** Construit l'email HTML d'une campagne à partir d'un message texte libre. */
+/**
+ * L'e-mail d'invitation au test fermé du Play Store.
+ *
+ * CE QU'IL DOIT FAIRE COMPRENDRE EN TRENTE SECONDES : accepter l'invitation ne
+ * suffit pas — il faut ouvrir le lien, rejoindre le programme, PUIS installer
+ * l'application, et la garder installée. Un testeur qui se désinscrit remet le
+ * compteur des quatorze jours à zéro pour tout le monde.
+ *
+ * Le lien d'adhésion est celui que Google construit à partir de l'identifiant
+ * de l'application : https://play.google.com/apps/testing/{appId}. Il ne
+ * fonctionne QUE si le test fermé a été publié — d'où l'avertissement rendu
+ * par la route quand ce n'est pas encore le cas.
+ */
+function invitation_html(array $config, string $message, string $lienTest): string {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  // Texte libre du Patron -> paragraphes sûrs. Les sauts de ligne comptent.
+  $paras = array_values(array_filter(array_map('trim', preg_split('/\n\s*\n/', $message) ?: [])));
+  $corps = '';
+  foreach ($paras as $p) {
+    $corps .= '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+           . nl2br(htmlspecialchars($p)) . '</p>';
+  }
+  $inner =
+      '<h2 style="margin:0 0 6px;color:#111827;font-size:22px">Vous êtes invité à tester Chap.ci 🇨🇮</h2>'
+    . '<p style="margin:0 0 18px;font-size:13px;color:#6b7280">'
+    . 'L’application Android, avant tout le monde.</p>'
+    . $corps
+    . '<div style="margin:22px 0;padding:16px 18px;border-radius:12px;background:#FFF6EA;border:1px solid #E6DAC6">'
+    . '<p style="margin:0 0 10px;font-size:15px;font-weight:bold;color:#111827">Trois étapes, deux minutes</p>'
+    . '<p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#374151">'
+    . '<b>1.</b> Appuyez sur le bouton ci-dessous <b>depuis le téléphone Android</b> où vous voulez '
+    . 'l’application, et avec le compte Google de cette adresse e-mail.</p>'
+    . '<p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#374151">'
+    . '<b>2.</b> Sur la page qui s’ouvre, appuyez sur <b>« Devenir testeur »</b>.</p>'
+    . '<p style="margin:0;font-size:15px;line-height:1.6;color:#374151">'
+    . '<b>3.</b> Suivez le lien <b>« Télécharger sur Google Play »</b> et installez Chap.ci.</p>'
+    . '</div>'
+    . email_button($lienTest, 'Devenir testeur')
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+    . '<b>Gardez l’application installée.</b> Google demande que les testeurs restent inscrits '
+    . '<b>quatorze jours d’affilée</b> avant d’autoriser la publication au grand public. '
+    . 'Si quelqu’un se désinscrit, le compte à rebours repart de zéro — pour tout le monde. '
+    . 'C’est le seul délai que personne ne peut raccourcir.</p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+    . 'Le bouton ne s’ouvre pas ? Copiez ce lien dans le navigateur de votre téléphone :<br>'
+    . '<span style="font-size:13px;color:#6b7280;word-break:break-all">' . htmlspecialchars($lienTest) . '</span></p>'
+    . '<p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#374151">'
+    . 'Un souci, une question, une idée ? Répondez simplement à ce message, ou écrivez-nous '
+    . 'depuis <a href="' . htmlspecialchars($site) . '/#/assistance" style="color:#00734A">l’assistance</a> '
+    . 'une fois votre compte créé. C’est une vraie personne qui répond.</p>'
+    . '<p style="margin:0;font-size:15px;line-height:1.65;color:#374151">Merci — vraiment.</p>';
+  return email_layout($config, $inner, 'Deux minutes pour devenir testeur de Chap.ci.');
+}
+
+function campaign_html(array $config, string $message): string {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  // Texte libre -> paragraphes HTML sûrs (les sauts de ligne sont conservés).
+  $paras = array_filter(array_map('trim', preg_split('/\n\s*\n/', $message)));
+  $body = '';
+  foreach ($paras as $p) $body .= '<p>' . nl2br(htmlspecialchars($p)) . '</p>';
+  if ($body === '') $body = '<p>' . nl2br(htmlspecialchars($message)) . '</p>';
+  $inner = $body
+    . email_button($site, 'Voir les annonces')
+    . '<p style="margin-top:20px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return email_layout($config, $inner, mb_substr(trim(strip_tags($message)), 0, 90));
+}
+/** Sélectionne les annonces à mettre en avant (promos d'abord, puis récentes). */
+function digest_listings(PDO $pdo, int $limit = 6): array {
+  $rows = $pdo->query(
+    'SELECT id,title,price,images,commune,city_id,promo_price,promo_until FROM listings
+     ORDER BY (CASE WHEN promo_price IS NOT NULL THEN 0 ELSE 1 END), created_at DESC
+     LIMIT ' . (int) $limit
+  )->fetchAll();
+  return $rows;
+}
+/** Rangée de cartes d'annonces cliquables (réutilisée : offres, suggestions, alertes). */
+/**
+ * LA GRILLE À DEUX COLONNES — la disposition des annonces dans les e-mails.
+ * Demandée par le Patron le 01/09/2026, en remplacement d'une liste de rangées.
+ *
+ * Pourquoi une grille plutôt qu'une liste :
+ *  · six annonces en rangées font un e-mail de deux écrans et demi, qu'on
+ *    parcourt du haut et qu'on abandonne au tiers ; en grille elles tiennent
+ *    en trois rangs ;
+ *  · la photo passe de 92 px de côté à toute la largeur de la carte, soit
+ *    environ 150 px sur un téléphone — sur une place de marché, c'est la photo
+ *    qui vend, pas le titre ;
+ *  · c'est la disposition du site. Un acheteur qui ouvre l'e-mail puis le site
+ *    retrouve la même chose.
+ *
+ * ⚠️ EN TABLEAU, PAS EN FLEX NI EN GRID. Outlook ne connaît ni l'un ni l'autre
+ * et empilerait tout. Deux cellules par rangée, largeurs en pourcentage : c'est
+ * la seule construction que toutes les boîtes mail rendent pareil.
+ *
+ * `$forme` = 'auto' choisit seule : LISTE à une ou deux annonces (une grille
+ * d'un seul élément laisse un trou béant à droite), GRILLE au-delà.
+ */
+function email_listing_cards(string $site, array $rows, string $forme = 'auto'): string {
+  if ($forme === 'auto') $forme = count($rows) <= 2 ? 'liste' : 'grille';
+  if ($forme === 'grille') return email_listing_grid($site, $rows);
+  $cards = '';
+  foreach ($rows as $r) {
+    $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
+    $img = $imgs[0] ?? '';
+    if ($img && $img[0] === '/') $img = $site . $img; // /uploads/... -> URL absolue
+    $imgCell = ($img && (str_starts_with($img, 'http')))
+      ? '<img src="' . htmlspecialchars($img) . '" width="92" height="92" style="width:92px;height:92px;object-fit:cover;display:block;border-radius:10px">'
+      : '<div style="width:92px;height:92px;border-radius:10px;background:#FFF6EA;text-align:center;line-height:92px;font-size:34px">🛍️</div>';
+    $promoActive = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > now_iso());
+    // LE PRIX EN ORANGE PROFOND, comme sur les cartes du site. #B35700 rend
+    // 4,91:1 sur le blanc — l'orange de marque n'y rendrait que 2,3, et un prix
+    // est ce qu'on lit en premier dans une newsletter d'annonces.
+    $prix = fn(int $v) => '<span style="color:#B35700;font-weight:bold;font-size:16px">'
+      . email_prix($v) . '</span>';
+    $price = $promoActive
+      ? $prix((int) $r['promo_price'])
+        // L'ancien prix barré était en #aaa — 2,32:1, illisible. #6F6A5E rend 5,39.
+        . ' <span style="color:#6F6A5E;text-decoration:line-through;font-size:12px">' . email_prix((int) $r['price'], false) . '</span>'
+      : $prix((int) $r['price']);
+    $loc = $r['commune'] ?: ($r['city_id'] ?: '');
+    $cards .=
+      '<a href="' . $site . '/#/annonce/' . htmlspecialchars($r['id']) . '" style="display:block;text-decoration:none;color:inherit;border:1px solid #f0ece3;border-radius:12px;overflow:hidden;margin-bottom:12px">'
+      . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse"><tr>'
+      . '<td style="width:92px;padding:8px" valign="top">' . $imgCell . '</td>'
+      . '<td style="padding:10px 12px 10px 4px" valign="top">'
+      . '<div style="font-weight:bold;color:#1B1A17;font-size:15px">' . htmlspecialchars(mb_strimwidth($r['title'], 0, 60, '…')) . '</div>'
+      . '<div style="margin-top:4px">' . $price . ($promoActive ? ' <span style="background:#009E60;color:#fff;border-radius:6px;padding:1px 6px;font-size:11px;font-weight:bold">PROMO</span>' : '') . '</div>'
+      // ⚠️ La commune était en #9ca3af : 2,54:1 sur blanc, le même gris trop
+      // pâle que le « Fermé » des horaires corrigé le 31/08. C'est la ligne qui
+      // dit à l'acheteur si l'annonce est près de chez lui. #6F6A5E rend 5,39.
+      . ($loc ? '<div style="color:#6F6A5E;font-size:12px;margin-top:3px">📍 ' . htmlspecialchars($loc) . '</div>' : '')
+      . '</td></tr></table></a>';
+  }
+  return $cards;
+}
+
+/**
+ * UN PRIX QUI NE SE COUPE PAS EN DEUX.
+ *
+ * `number_format(..., ' ')` sépare les milliers par une espace ORDINAIRE : une
+ * boîte mail a donc le droit de renvoyer « 6 500 » sur une ligne et « 000 FCFA »
+ * sur la suivante. Invisible sur un écran large, systématique dans une carte de
+ * grille de 116 px sur un téléphone — et un prix coupé en deux ne se lit plus
+ * comme un prix.
+ *
+ * Espace fine insécable entre les milliers, espace insécable avant « FCFA » :
+ * c'est aussi la typographie française que ce dépôt exige partout.
+ */
+function email_prix(int $v, bool $avecDevise = true): string {
+  $n = number_format($v, 0, ',', "\u{202F}");   // espace fine insécable
+  return $avecDevise ? $n . "\u{00A0}FCFA" : $n;
+}
+
+/** Les éléments d'UNE annonce, communs aux deux dispositions. */
+function email_listing_piece(string $site, array $r): array {
+  $imgs = $r['images'] ? (json_decode($r['images'], true) ?: []) : [];
+  $img = $imgs[0] ?? '';
+  if ($img && $img[0] === '/') $img = $site . $img; // /uploads/... -> URL absolue
+  $promo = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > now_iso());
+  return [
+    'lien'    => $site . '/#/annonce/' . htmlspecialchars((string) $r['id']),
+    'img'     => (($img && str_starts_with($img, 'http')) ? htmlspecialchars($img) : ''),
+    'titre'   => htmlspecialchars(mb_strimwidth((string) $r['title'], 0, 46, '…')),
+    'prix'    => email_prix((int) ($promo ? $r['promo_price'] : $r['price'])),
+    'barre'   => $promo ? email_prix((int) $r['price'], false) : '',
+    'lieu'    => htmlspecialchars((string) ($r['commune'] ?: ($r['city_id'] ?: ''))),
+    'promo'   => $promo,
+  ];
+}
+
+/** La grille : deux annonces par rangée. Voir `email_listing_cards`. */
+function email_listing_grid(string $site, array $rows): string {
+  $out = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+    . 'style="width:100%;border-collapse:separate;border-spacing:0"><tr>';
+  $n = 0;
+  foreach ($rows as $r) {
+    $p = email_listing_piece($site, $r);
+    // Nouvelle rangée toutes les deux annonces.
+    if ($n > 0 && $n % 2 === 0) $out .= '</tr><tr>';
+    // La photo occupe toute la largeur de la carte. Hauteur FIXE : sans elle,
+    // deux photos de proportions différentes décalent les prix d'une carte à
+    // l'autre, et la grille se met à boiter.
+    $photo = $p['img'] !== ''
+      ? '<img src="' . $p['img'] . '" width="100%" height="132" '
+        . 'style="width:100%;height:132px;object-fit:cover;display:block;border-radius:10px 10px 0 0">'
+      : '<div style="height:132px;line-height:132px;text-align:center;font-size:40px;'
+        . 'background:#FFF6EA;border-radius:10px 10px 0 0">🛍️</div>';
+    // ⚠️ LA PROMO TIENT SUR DEUX LIGNES, PAS UNE. Premier essai : prix, prix
+    // barré et pastille « PROMO » à la suite. Une carte de grille fait 150 px
+    // sur un téléphone — la pastille passait à la ligne et sortait de la carte.
+    // La réduction est ce qui fait cliquer ; elle ne peut pas être ce qui
+    // déborde. Prix et pastille en haut, l'ancien prix juste sous eux.
+    $prix = '<div><span style="color:#B35700;font-weight:bold;font-size:15px">' . $p['prix'] . '</span>'
+      . ($p['promo'] ? ' <span style="background:#009E60;color:#fff;border-radius:5px;padding:1px 5px;'
+        . 'font-size:10px;font-weight:bold">PROMO</span>' : '') . '</div>'
+      // La ligne « au lieu de » est RÉSERVÉE même sans promotion, avec une
+      // espace insécable. Sans elle, la carte en promotion est plus haute que
+      // sa voisine et les deux bords du bas ne s'alignent plus — une grille qui
+      // boite se remarque avant les prix.
+      . '<div style="color:#6F6A5E;font-size:11px;margin-top:1px">'
+      . ($p['barre'] !== ''
+        ? 'au lieu de <span style="text-decoration:line-through">' . $p['barre'] . '</span>'
+        : '&nbsp;')
+      . '</div>';
+    $out .= '<td width="50%" valign="top" style="width:50%;padding:0 5px 12px 5px">'
+      . '<a href="' . $p['lien'] . '" style="display:block;text-decoration:none;color:inherit;'
+      . 'border:1px solid #f0ece3;border-radius:11px;overflow:hidden">'
+      . $photo
+      . '<div style="padding:9px 10px 11px">'
+      . $prix
+      . '<div style="font-size:13px;color:#1B1A17;margin-top:3px;line-height:1.35">' . $p['titre'] . '</div>'
+      . ($p['lieu'] !== '' ? '<div style="color:#6F6A5E;font-size:11.5px;margin-top:3px">📍 ' . $p['lieu'] . '</div>' : '')
+      . '</div></a></td>';
+    $n++;
+  }
+  // Une annonce seule sur la dernière rangée : on ferme avec une cellule vide,
+  // sinon la carte s'étire sur toute la largeur et casse l'alignement.
+  if ($n % 2 === 1) $out .= '<td width="50%" style="width:50%">&nbsp;</td>';
+  return $out . '</tr></table>';
+}
+/** Construit l'email « offres » avec des cartes d'annonces cliquables (type OLX/eBay). */
+function digest_html(array $config, array $rows, string $type, string $context = ''): string {
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $title = $type === 'weekly' ? '✨ La sélection de la semaine'
+    : ($type === 'perso' ? '✨ Sélectionné pour vous' : '🔥 Les bonnes affaires du jour');
+  if ($type === 'perso') {
+    // Message précis : on nomme la catégorie qui a motivé la sélection.
+    $intro = $context !== ''
+      ? 'Parce que vous vous intéressez à <b>' . htmlspecialchars($context) . '</b>, voici des articles similaires qui pourraient vous plaire 👇'
+      : 'Voici une sélection d’articles qui pourraient vous plaire 👇';
+  } else {
+    $intro = 'Voici les annonces à ne pas manquer sur <b>' . htmlspecialchars($name) . '</b> 👇';
+  }
+  $cards = email_listing_cards($site, $rows);
+  $inner =
+    '<h2 style="margin-top:0">' . $title . '</h2>'
+    . '<p>' . $intro . '</p>'
+    . $cards
+    . email_button($site, 'Voir toutes les annonces')
+    . '<p style="margin-top:20px">Bonnes affaires,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return email_layout($config, $inner, $title . ' sur ' . $name);
+}
+/** Envoie l'email « offres » à tous les abonnés (par lots). Renvoie le nb envoyé. */
+function send_digest(array $config, PDO $pdo, string $type): array {
+  $rows = digest_listings($pdo, 6);
+  if (!$rows) return ['sent' => 0, 'listings' => 0, 'reason' => 'aucune annonce'];
+  $html = digest_html($config, $rows, $type);
+  $subject = $type === 'weekly' ? 'La sélection de la semaine ✨' : 'Les bonnes affaires du jour 🔥';
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  // Envoi potentiellement long à l'échelle : on lève la limite de temps globale et
+  // on parcourt les abonnés PAR LOTS (borne la mémoire), en réarmant le budget à
+  // chaque envoi. Évite un timeout (500) qui n'enverrait qu'une partie des emails.
+  @set_time_limit(0);
+  $sent = 0; $total = 0; $offset = 0; $chunk = 200;
+  while (true) {
+    $st = $pdo->prepare('SELECT email FROM newsletter ORDER BY created_at ASC LIMIT ? OFFSET ?');
+    $st->bindValue(1, $chunk, PDO::PARAM_INT); $st->bindValue(2, $offset, PDO::PARAM_INT);
+    $st->execute();
+    $subs = $st->fetchAll();
+    if (!$subs) break;
+    foreach ($subs as $s) {
+      @set_time_limit(30); // réarme le budget à chaque envoi
+      $total++;
+      if (send_mail($config, $s['email'], $subject, $html, $from, $from)) $sent++;
+    }
+    if (count($subs) < $chunk) break;
+    $offset += $chunk;
+  }
+  return ['sent' => $sent, 'listings' => count($rows), 'subscribers' => $total];
+}
+/** Libellé français d'une catégorie (miroir de src/data/categories.ts) pour les emails. */
+function category_label(?string $id): string {
+  static $labels = [
+    'vehicules' => 'Véhicules', 'immobilier' => 'Immobilier', 'telephones' => 'Téléphones',
+    'electronique' => 'Électronique', 'maison' => 'Maison & Meubles', 'mode' => 'Mode & Beauté',
+    'emploi' => 'Emploi', 'services' => 'Services', 'materiel-pro' => 'Matériel Pro',
+    'alimentation' => 'Alimentation & Boissons', 'agriculture' => 'Agriculture',
+    'animaux' => 'Animaux', 'loisirs' => 'Loisirs & Sport', 'bebe' => 'Bébé & Enfant',
+    'sante' => 'Santé & Bien-être', 'voyage' => 'Voyage', 'a-donner' => 'À donner',
+    'scolaire' => 'École & Fournitures',
+  ];
+  return $labels[$id] ?? '';
+}
+
+/**
+ * « Agent » de recommandation : annonces des catégories préférées de l'utilisateur,
+ * classées finement — catégorie la plus aimée d'abord, puis MÊME SOUS-CATÉGORIE
+ * (produits similaires), puis promotions, puis les plus récentes.
+ */
+function suggestions_for_user(PDO $pdo, string $userId, int $limit = 6): array {
+  $c = $pdo->prepare('SELECT category_id, subcategory, weight FROM user_interests WHERE user_id = ? ORDER BY weight DESC, updated_at DESC LIMIT 3');
+  $c->execute([$userId]);
+  $interests = $c->fetchAll();
+  $cats = array_values(array_filter(array_column($interests, 'category_id')));
+  if (!$cats) return [];
+  // Sous-catégorie et poids mémorisés par catégorie (pour scorer la similarité).
+  $subByCat = []; $weightByCat = [];
+  foreach ($interests as $it) {
+    $subByCat[$it['category_id']]    = (string) ($it['subcategory'] ?? '');
+    $weightByCat[$it['category_id']] = (int) $it['weight'];
+  }
+  $in = implode(',', array_fill(0, count($cats), '?'));
+  // Vivier large, classé ensuite en PHP (portable MySQL/PostgreSQL/SQLite).
+  $st = $pdo->prepare(
+    "SELECT id,title,price,images,commune,city_id,promo_price,promo_until,category_id,subcategory,created_at
+     FROM listings WHERE category_id IN ($in) AND (user_id IS NULL OR user_id <> ?)
+     ORDER BY created_at DESC LIMIT 60"
+  );
+  $st->execute(array_merge($cats, [$userId]));
+  $rows = $st->fetchAll();
+  if (!$rows) return [];
+  $now = now_iso();
+  $score = function (array $r) use ($subByCat, $weightByCat, $now): int {
+    $s = ($weightByCat[$r['category_id']] ?? 0) * 10;          // catégorie préférée
+    $wantSub = $subByCat[$r['category_id']] ?? '';
+    if ($wantSub !== '' && (string) ($r['subcategory'] ?? '') === $wantSub) $s += 100; // similaire
+    $promo = !empty($r['promo_price']) && (empty($r['promo_until']) || $r['promo_until'] > $now);
+    if ($promo) $s += 5;                                        // promo
+    return $s;
+  };
+  usort($rows, function ($a, $b) use ($score) {
+    $d = $score($b) <=> $score($a);
+    return $d !== 0 ? $d : strcmp((string) $b['created_at'], (string) $a['created_at']); // récence
+  });
+  return array_slice($rows, 0, $limit);
+}
+/**
+ * Envoie l'email de suggestions personnalisées à un utilisateur.
+ *
+ * $preview : mode « aperçu » réservé au test admin. Si l'utilisateur n'a pas
+ * encore d'historique — ou si les seules annonces disponibles sont les siennes
+ * (exclues de ses propres suggestions) — on montre les annonces récentes pour
+ * visualiser le rendu de l'email. Le cron réel appelle SANS ce mode : les vrais
+ * abonnés ne reçoivent que des suggestions authentiquement personnalisées.
+ */
+function send_suggestions(array $config, PDO $pdo, array $user, bool $preview = false): array {
+  if (empty($user['email'])) return ['sent' => 0, 'listings' => 0, 'reason' => 'email manquant'];
+  $rows = suggestions_for_user($pdo, $user['id'], 6);
+  $personalized = !empty($rows);
+  if (!$rows && $preview) $rows = digest_listings($pdo, 6); // aperçu : annonces récentes
+  if (!$rows) return ['sent' => 0, 'listings' => 0, 'personalized' => false, 'reason' => 'aucune annonce à suggérer'];
+  // Catégorie dominante (1re annonce classée) = ce qui motive la sélection.
+  $context = $personalized ? category_label($rows[0]['category_id'] ?? null) : '';
+  $html = digest_html($config, $rows, 'perso', $context);
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  $ok = send_mail($config, $user['email'], 'Des annonces pour vous ✨', $html, $from, $from);
+  return ['sent' => $ok ? 1 : 0, 'listings' => count($rows), 'personalized' => $personalized,
+          'category' => $context, 'titles' => array_column($rows, 'title')];
+}
+/** Notifie une personne qu'elle est devenue modératrice du site. */
+function send_moderator_email(array $config, string $to): bool {
+  $site  = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name  = $config['mail_from_name'] ?? 'Chap.ci';
+  $admin = $site . '/#/admin';
+  $inner =
+    '<h2 style="margin-top:0">Bienvenue dans l’équipe 🎉</h2>'
+    . '<p>Bonjour,</p>'
+    . '<p>Vous rejoignez la modération de <b>' . htmlspecialchars($name) . '</b>. Merci de votre confiance !</p>'
+    . email_button($admin, 'Ouvrir le tableau de bord')
+    . '<p>Connectez-vous avec cette adresse (<b>' . htmlspecialchars($to) . '</b>) pour y accéder depuis votre profil.</p>'
+    . '<p style="margin-top:22px">À très vite,<br><b>L’équipe ' . htmlspecialchars($name) . '</b></p>';
+  return send_mail($config, $to, "Bienvenue dans l’équipe $name",
+    email_layout($config, $inner, "Vous rejoignez l’équipe de modération de $name."));
+}
+/** Notifie les administrateurs qu'une annonce a été signalée. */
+function send_report_email(array $config, string $reporter, string $title, string $listingId, string $reason, string $details): void {
+  $admins = report_recipients($config);
+  if (!$admins) return;
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $link = $site . '/#/annonce/' . rawurlencode($listingId);
+  $row = function (string $k, string $v): string {
+    return '<tr><td style="padding:4px 0;color:#6b7280;width:110px">' . $k . '</td><td style="padding:4px 0">' . $v . '</td></tr>';
+  };
+  $inner =
+    '<h2 style="margin-top:0">🚩 Nouveau signalement</h2>'
+    . '<p>Une annonce vient d’être signalée sur <b>' . htmlspecialchars($name) . '</b>.</p>'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:10px 0">'
+    . $row('Annonce', '<b>' . htmlspecialchars($title) . '</b>')
+    . $row('Motif', '<b>' . htmlspecialchars($reason) . '</b>')
+    . ($details !== '' ? $row('Détails', htmlspecialchars($details)) : '')
+    . $row('Signalé par', htmlspecialchars($reporter))
+    . '</table>'
+    . email_button($link, 'Voir l’annonce')
+    . '<p style="color:#6b7280;font-size:13px;margin-top:14px">Gérez les signalements depuis votre tableau de bord : '
+    . '<a href="' . $site . '/#/admin" style="color:#00734A">Modération</a>.</p>';
+  $html = email_layout($config, $inner, 'Nouveau signalement sur ' . $name);
+  $subject = '🚩 Signalement — ' . mb_strimwidth($title, 0, 40, '…');
+  foreach ($admins as $to) send_mail($config, $to, $subject, $html);
+}
+
+// ---- Recherches sauvegardées (alertes email) --------------------------------
+/** Retire les accents pour une recherche insensible (miroir de normalize() côté React). */
+// ---- LES FAVORIS QUI PRÉVIENNENT (chantier 4 du 04/09/2026) --------------------
+/** Le prix qu'un acheteur voit : la promotion si elle court, sinon le prix. */
+function listing_prix_effectif(int $prix, $promo, $promoUntil): int {
+  $p = (int) ($promo ?? 0);
+  if ($p > 0 && (empty($promoUntil) || (string) $promoUntil > now_iso())) return $p;
+  return $prix;
+}
+/**
+ * Prévient tous ceux qui ont l'annonce en favori — sauf son vendeur — d'un
+ * type unique, `favori_suivi`, que chacun peut couper dans ses réglages
+ * (notify() lit profiles.notif_prefs ; absent = permis). Renvoie le nombre de
+ * personnes prévenues. Deux cents au plus par annonce : au-delà, c'est une
+ * campagne, pas une notification.
+ */
+function favoris_prevenir(PDO $pdo, string $listingId, string $sauf, string $titre, string $corps): int {
+  try {
+    $st = $pdo->prepare('SELECT user_id FROM favorites WHERE listing_id = ? AND user_id <> ? LIMIT 200');
+    $st->execute([$listingId, $sauf]);
+    $n = 0;
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $uid) {
+      notify($pdo, (string) $uid, 'favori_suivi', $titre, $corps, '#/annonce/' . $listingId);
+      $n++;
+    }
+    return $n;
+  } catch (Throwable $e) { return 0; }
+}
+
+// ── SYNONYMES (généré) ── GÉNÉRÉ par scripts/synonymes.mjs depuis src/data/synonymes.json — NE PAS MODIFIER À LA MAIN.
+// 79 groupes, 327 mots, 53 locutions. Relancez : npm run synonymes
+const RECHERCHE_LOCUTIONS = [
+  ['atelier de couture', 'atelierdecouture'],
+  ['groupe electrogene', 'groupeelectrogene'],
+  ['bluetooth speaker', 'bluetoothspeaker'],
+  ['plaque de cuisson', 'plaquedecuisson'],
+  ['salon de coiffure', 'salondecoiffure'],
+  ['accessoires auto', 'accessoiresauto'],
+  ['bouteille de gaz', 'bouteilledegaz'],
+  ['chaise de bureau', 'chaisedebureau'],
+  ['local commercial', 'localcommercial'],
+  ['pieces detachees', 'piecesdetachees'],
+  ['soutien scolaire', 'soutienscolaire'],
+  ['banane plantain', 'bananeplantain'],
+  ['bracelet montre', 'braceletmontre'],
+  ['chargeur rapide', 'chargeurrapide'],
+  ['eau de toilette', 'eaudetoilette'],
+  ['femme de menage', 'femmedemenage'],
+  ['machine a laver', 'machinealaver'],
+  ['panneau solaire', 'panneausolaire'],
+  ['table de bureau', 'tabledebureau'],
+  ['billet d avion', 'billetdavion'],
+  ['brasseur d air', 'brasseurdair'],
+  ['entrer coucher', 'entrercoucher'],
+  ['entrer coucher', 'entrercoucher'],
+  ['garde d enfant', 'gardedenfant'],
+  ['huile de palme', 'huiledepalme'],
+  ['jamais utilise', 'jamaisutilise'],
+  ['piece detachee', 'piecedetachee'],
+  ['plaque solaire', 'plaquesolaire'],
+  ['sous emballage', 'sousemballage'],
+  ['aide menagere', 'aidemenagere'],
+  ['deuxieme main', 'deuxiememain'],
+  ['pret a porter', 'pretaporter'],
+  ['haut parleur', 'hautparleur'],
+  ['jamais servi', 'jamaisservi'],
+  ['seconde main', 'secondemain'],
+  ['baby sitter', 'babysitter'],
+  ['huile rouge', 'huilerouge'],
+  ['kit solaire', 'kitsolaire'],
+  ['poids lourd', 'poidslourd'],
+  ['riz parfume', 'rizparfume'],
+  ['deja servi', 'dejaservi'],
+  ['ecran plat', 'ecranplat'],
+  ['garde robe', 'garderobe'],
+  ['lave linge', 'lavelinge'],
+  ['sac a main', 'sacamain'],
+  ['chap chap', 'chapchap'],
+  ['chap chap', 'chapchap'],
+  ['jeu video', 'jeuvideo'],
+  ['riz local', 'rizlocal'],
+  ['woro woro', 'woroworo'],
+  ['woro woro', 'woroworo'],
+  ['a donner', 'adonner'],
+  ['smart tv', 'smarttv'],
+];
+const RECHERCHE_GROUPES = [
+  'accessoiresauto' => 'pieces',
+  'accu' => 'batterie',
+  'accumulateur' => 'batterie',
+  'adonner' => 'gratuit',
+  'aidemenagere' => 'menagere',
+  'airpods' => 'ecouteurs',
+  'appart' => 'appartement',
+  'appartement' => 'appartement',
+  'apple' => 'iphone',
+  'apt' => 'appartement',
+  'armoire' => 'armoire',
+  'atcheke' => 'attieke',
+  'atelierdecouture' => 'couture',
+  'attieke' => 'attieke',
+  'auto' => 'voiture',
+  'automobile' => 'voiture',
+  'babouche' => 'sandale',
+  'babysitter' => 'nounou',
+  'baffle' => 'enceinte',
+  'bagnole' => 'voiture',
+  'bambin' => 'bebe',
+  'bananeplantain' => 'igname',
+  'bar' => 'maquis',
+  'basket' => 'chaussure',
+  'baskets' => 'chaussure',
+  'batterie' => 'batterie',
+  'bazin' => 'pagne',
+  'bebe' => 'bebe',
+  'becane' => 'moto',
+  'belier' => 'mouton',
+  'benne' => 'camion',
+  'berger' => 'chien',
+  'bicyclette' => 'velo',
+  'bijou' => 'bijou',
+  'bijoux' => 'bijou',
+  'billet' => 'billet',
+  'billetdavion' => 'billet',
+  'bluetoothspeaker' => 'enceinte',
+  'boeuf' => 'boeuf',
+  'bonbonne' => 'bouteilledegaz',
+  'bonne' => 'menagere',
+  'bouc' => 'chevre',
+  'boulot' => 'emploi',
+  'bouquin' => 'livre',
+  'bouteilledegaz' => 'bouteilledegaz',
+  'boutique' => 'boutique',
+  'bovin' => 'boeuf',
+  'braceletmontre' => 'montre',
+  'brasseur' => 'ventilateur',
+  'brasseurdair' => 'ventilateur',
+  'brebis' => 'mouton',
+  'bureau' => 'bureau',
+  'buvette' => 'maquis',
+  'cable' => 'chargeur',
+  'cabri' => 'chevre',
+  'cadeau' => 'gratuit',
+  'caisse' => 'voiture',
+  'camion' => 'camion',
+  'canape' => 'canape',
+  'cartable' => 'sac',
+  'casque' => 'ecouteurs',
+  'cellulaire' => 'telephone',
+  'chaine' => 'bijou',
+  'chaisedebureau' => 'bureau',
+  'chambre' => 'chambre',
+  'chapchap' => 'chapchap',
+  'chargeur' => 'chargeur',
+  'chargeurrapide' => 'chargeur',
+  'chat' => 'chat',
+  'chaton' => 'chat',
+  'chauffeur' => 'chauffeur',
+  'chaussure' => 'chaussure',
+  'chaussures' => 'chaussure',
+  'cheveux' => 'meche',
+  'chevre' => 'chevre',
+  'chien' => 'chien',
+  'chiot' => 'chien',
+  'claquette' => 'sandale',
+  'clim' => 'climatiseur',
+  'climatiseur' => 'climatiseur',
+  'coaching' => 'cours',
+  'coiffeur' => 'coiffure',
+  'coiffeuse' => 'coiffure',
+  'coiffure' => 'coiffure',
+  'collier' => 'bijou',
+  'conducteur' => 'chauffeur',
+  'congelateur' => 'congelateur',
+  'congelo' => 'congelateur',
+  'console' => 'jeuvideo',
+  'copieur' => 'imprimante',
+  'coq' => 'poulet',
+  'cosmetique' => 'creme',
+  'cours' => 'cours',
+  'coursier' => 'demenagement',
+  'couture' => 'couture',
+  'couturier' => 'couture',
+  'couturiere' => 'couture',
+  'creme' => 'creme',
+  'cuisiniere' => 'cuisiniere',
+  'dejaservi' => 'occasion',
+  'demenagement' => 'demenagement',
+  'depannage' => 'reparation',
+  'depanneur' => 'reparation',
+  'deuxiememain' => 'occasion',
+  'divan' => 'canape',
+  'djossi' => 'emploi',
+  'don' => 'gratuit',
+  'driver' => 'chauffeur',
+  'duplex' => 'maison',
+  'earbuds' => 'ecouteurs',
+  'eaudetoilette' => 'parfum',
+  'ecouteurs' => 'ecouteurs',
+  'ecranplat' => 'tele',
+  'embauche' => 'emploi',
+  'emploi' => 'emploi',
+  'enceinte' => 'enceinte',
+  'enfant' => 'bebe',
+  'entrercoucher' => 'chambre',
+  'fauteuil' => 'canape',
+  'femmedemenage' => 'menagere',
+  'formalites' => 'visa',
+  'formation' => 'cours',
+  'fragrance' => 'parfum',
+  'frigidaire' => 'frigo',
+  'frigo' => 'frigo',
+  'fringue' => 'vetement',
+  'fringues' => 'vetement',
+  'gardedenfant' => 'nounou',
+  'garderobe' => 'armoire',
+  'gaz' => 'bouteilledegaz',
+  'gaziniere' => 'cuisiniere',
+  'gbaka' => 'gbaka',
+  'generateur' => 'groupeelectrogene',
+  'generatrice' => 'groupeelectrogene',
+  'godasse' => 'chaussure',
+  'gouvernante' => 'menagere',
+  'gratuit' => 'gratuit',
+  'greffage' => 'meche',
+  'groupe' => 'groupeelectrogene',
+  'groupeelectrogene' => 'groupeelectrogene',
+  'gsm' => 'telephone',
+  'habit' => 'vetement',
+  'haojue' => 'moto',
+  'hautparleur' => 'enceinte',
+  'huile' => 'huile',
+  'huiledepalme' => 'huile',
+  'huilerouge' => 'huile',
+  'igname' => 'igname',
+  'imprimante' => 'imprimante',
+  'ipad' => 'tablette',
+  'iphone' => 'iphone',
+  'jakarta' => 'moto',
+  'jamaisservi' => 'neuf',
+  'jamaisutilise' => 'neuf',
+  'jante' => 'pneu',
+  'jeuvideo' => 'jeuvideo',
+  'job' => 'emploi',
+  'kia' => 'camion',
+  'kita' => 'pagne',
+  'kitsolaire' => 'panneausolaire',
+  'lace' => 'meche',
+  'landau' => 'poussette',
+  'laptop' => 'ordinateur',
+  'lavelinge' => 'machinealaver',
+  'laveuse' => 'machinealaver',
+  'lit' => 'matelas',
+  'literie' => 'matelas',
+  'livraison' => 'demenagement',
+  'livre' => 'livre',
+  'local' => 'boutique',
+  'localcommercial' => 'boutique',
+  'lot' => 'terrain',
+  'lotion' => 'creme',
+  'lotissement' => 'terrain',
+  'machinealaver' => 'machinealaver',
+  'magasin' => 'boutique',
+  'maison' => 'maison',
+  'manette' => 'jeuvideo',
+  'manioc' => 'igname',
+  'manuel' => 'livre',
+  'maquis' => 'maquis',
+  'matelas' => 'matelas',
+  'meche' => 'meche',
+  'meches' => 'meche',
+  'menagere' => 'menagere',
+  'minibus' => 'gbaka',
+  'minicar' => 'gbaka',
+  'minou' => 'chat',
+  'mobile' => 'telephone',
+  'montre' => 'montre',
+  'moto' => 'moto',
+  'motocyclette' => 'moto',
+  'mouton' => 'mouton',
+  'neuf' => 'neuf',
+  'notebook' => 'ordinateur',
+  'nounou' => 'nounou',
+  'nourrice' => 'nounou',
+  'nourrisson' => 'bebe',
+  'occasion' => 'occasion',
+  'offert' => 'gratuit',
+  'ordi' => 'ordinateur',
+  'ordinateur' => 'ordinateur',
+  'oreillettes' => 'ecouteurs',
+  'pagne' => 'pagne',
+  'panneausolaire' => 'panneausolaire',
+  'parcelle' => 'terrain',
+  'parfum' => 'parfum',
+  'parure' => 'bijou',
+  'passeport' => 'visa',
+  'pc' => 'ordinateur',
+  'penderie' => 'armoire',
+  'perruque' => 'meche',
+  'phone' => 'telephone',
+  'photocopieuse' => 'imprimante',
+  'piece' => 'chambre',
+  'piecedetachee' => 'pieces',
+  'pieces' => 'pieces',
+  'piecesdetachees' => 'pieces',
+  'pintade' => 'poulet',
+  'placard' => 'armoire',
+  'plantain' => 'igname',
+  'plaquedecuisson' => 'cuisiniere',
+  'plaquesolaire' => 'panneausolaire',
+  'playstation' => 'jeuvideo',
+  'pneu' => 'pneu',
+  'pneus' => 'pneu',
+  'poidslourd' => 'camion',
+  'portable' => 'telephone',
+  'poste' => 'emploi',
+  'poule' => 'poulet',
+  'poulet' => 'poulet',
+  'poussette' => 'poussette',
+  'poussin' => 'poulet',
+  'pretaporter' => 'vetement',
+  'promo' => 'promo',
+  'promotion' => 'promo',
+  'ps4' => 'jeuvideo',
+  'ps5' => 'jeuvideo',
+  'rapide' => 'chapchap',
+  'rechaud' => 'cuisiniere',
+  'recrutement' => 'emploi',
+  'reduction' => 'promo',
+  'refrigerateur' => 'frigo',
+  'remise' => 'promo',
+  'reparateur' => 'reparation',
+  'reparation' => 'reparation',
+  'repetiteur' => 'cours',
+  'repetitrice' => 'cours',
+  'residence' => 'maison',
+  'restaurant' => 'maquis',
+  'resto' => 'maquis',
+  'riz' => 'riz',
+  'rizlocal' => 'riz',
+  'rizparfume' => 'riz',
+  'rob' => 'robe',
+  'robe' => 'robe',
+  'roman' => 'livre',
+  'roue' => 'pneu',
+  'sac' => 'sac',
+  'sacamain' => 'sac',
+  'sacoche' => 'sac',
+  'salon' => 'canape',
+  'salondecoiffure' => 'coiffure',
+  'sandale' => 'sandale',
+  'sandales' => 'sandale',
+  'sanili' => 'moto',
+  'scelle' => 'neuf',
+  'scooter' => 'scooter',
+  'secondemain' => 'occasion',
+  'smartphone' => 'telephone',
+  'smarttv' => 'tele',
+  'sneakers' => 'chaussure',
+  'sofa' => 'canape',
+  'soin' => 'creme',
+  'solaire' => 'panneausolaire',
+  'solde' => 'promo',
+  'soldes' => 'promo',
+  'sommier' => 'matelas',
+  'soulier' => 'chaussure',
+  'sousemballage' => 'neuf',
+  'soutienscolaire' => 'cours',
+  'speaker' => 'enceinte',
+  'split' => 'climatiseur',
+  'studio' => 'chambre',
+  'surgelateur' => 'congelateur',
+  'tab' => 'tablette',
+  'tabledebureau' => 'bureau',
+  'tablette' => 'tablette',
+  'tailleur' => 'couture',
+  'taureau' => 'boeuf',
+  'taxi' => 'taxi',
+  'technicien' => 'reparation',
+  'tele' => 'tele',
+  'telephone' => 'telephone',
+  'televiseur' => 'tele',
+  'television' => 'tele',
+  'tennis' => 'chaussure',
+  'tenue' => 'vetement',
+  'terrain' => 'terrain',
+  'ticket' => 'billet',
+  'tissage' => 'meche',
+  'tissu' => 'pagne',
+  'tong' => 'sandale',
+  'transport' => 'demenagement',
+  'travail' => 'emploi',
+  'tresses' => 'coiffure',
+  'tubercule' => 'igname',
+  'tv' => 'tele',
+  'urgent' => 'chapchap',
+  'utilise' => 'occasion',
+  'vache' => 'boeuf',
+  'velo' => 'velo',
+  'ventilateur' => 'ventilateur',
+  'ventilo' => 'ventilateur',
+  'vespa' => 'scooter',
+  'vetement' => 'vetement',
+  'villa' => 'maison',
+  'visa' => 'visa',
+  'vite' => 'chapchap',
+  'vlisco' => 'pagne',
+  'voiture' => 'voiture',
+  'vol' => 'billet',
+  'volaille' => 'poulet',
+  'vtt' => 'velo',
+  'wax' => 'pagne',
+  'woroworo' => 'taxi',
+  'xbox' => 'jeuvideo',
+];
+// ── FIN SYNONYMES (généré) ──
+
+// ---- LA RECHERCHE QUI COMPREND (chantier 3 du 04/09/2026) ---------------------
+// Jumeau PHP de src/lib/recherche.ts et flutter_app/lib/recherche.dart : mêmes
+// règles, même dictionnaire (le bloc généré ci-dessus), mêmes questions posées
+// par le banc. Sert aux alertes des recherches enregistrées et à ?q= sur
+// GET /listings. Une requête est découpée en mots, et chaque mot doit se
+// retrouver dans l'annonce : par son groupe de synonymes, par un début de mot
+// dès quatre lettres, ou à une faute près dès cinq lettres. Un nombre ne se
+// cherche qu'exactement.
+function recherche_normaliser(string $s): string {
+  $s = str_replace(['œ', 'æ'], ['oe', 'ae'], search_norm($s));
+  $s = trim((string) preg_replace('/[^a-z0-9]+/', ' ', $s));
+  $s = ' ' . $s . ' ';
+  foreach (RECHERCHE_LOCUTIONS as [$loc, $mot]) {
+    if (strpos($s, " $loc ") !== false) $s = str_replace(" $loc ", " $mot ", $s);
+  }
+  return trim($s);
+}
+function recherche_singulier(string $m): string {
+  $n = strlen($m);
+  if ($n > 3 && ($m[$n - 1] === 's' || $m[$n - 1] === 'x')) return substr($m, 0, -1);
+  return $m;
+}
+function recherche_groupe(string $m): string {
+  return RECHERCHE_GROUPES[$m] ?? RECHERCHE_GROUPES[recherche_singulier($m)] ?? recherche_singulier($m);
+}
+/** Les mots d'un texte, locutions soudées. */
+function recherche_mots(string $texte): array {
+  return array_values(array_filter(explode(' ', recherche_normaliser($texte)), 'strlen'));
+}
+/** Une annonce préparée : ses mots, et l'ensemble de leurs groupes. */
+function recherche_preparer(string $texte): array {
+  $mots = recherche_mots($texte);
+  $groupes = [];
+  foreach ($mots as $m) $groupes[recherche_groupe($m)] = true;
+  return ['mots' => $mots, 'groupes' => $groupes];
+}
+/** Distance de Damerau-Levenshtein (alignement optimal). */
+function recherche_distance(string $a, string $b): int {
+  $la = strlen($a); $lb = strlen($b);
+  if ($la === 0) return $lb;
+  if ($lb === 0) return $la;
+  $avant2 = []; $avant = range(0, $lb);
+  for ($i = 1; $i <= $la; $i++) {
+    $ligne = [$i];
+    for ($j = 1; $j <= $lb; $j++) {
+      $cout = $a[$i - 1] === $b[$j - 1] ? 0 : 1;
+      $v = min($avant[$j] + 1, $ligne[$j - 1] + 1, $avant[$j - 1] + $cout);
+      if ($i > 1 && $j > 1 && $a[$i - 1] === $b[$j - 2] && $a[$i - 2] === $b[$j - 1]) $v = min($v, $avant2[$j - 2] + 1);
+      $ligne[] = $v;
+    }
+    $avant2 = $avant; $avant = $ligne;
+  }
+  return $avant[$lb];
+}
+/** Le mot est-il dans le dictionnaire des synonymes ? */
+function recherche_connu(string $mot): bool {
+  return isset(RECHERCHE_GROUPES[$mot]) || isset(RECHERCHE_GROUPES[recherche_singulier($mot)]);
+}
+/** Un mot du dictionnaire se cherche par son groupe, et par lui seul : « clim »
+ *  ne doit pas rattraper la « climatisation » d'une voiture. */
+function recherche_correspond_mot(array $annonce, string $mot): bool {
+  if (isset($annonce['groupes'][recherche_groupe($mot)])) return true;
+  if (ctype_digit($mot) || recherche_connu($mot)) return false;
+  $n = strlen($mot);
+  if ($n >= 4) {
+    foreach ($annonce['mots'] as $t) if (strncmp($t, $mot, $n) === 0) return true;
+  }
+  if ($n >= 5) {
+    $tolerance = $n >= 9 ? 2 : 1;
+    foreach ($annonce['mots'] as $t) {
+      if (ctype_digit($t) || abs(strlen($t) - $n) > $tolerance) continue;
+      if (recherche_distance($t, $mot) <= $tolerance) return true;
+    }
+  }
+  return false;
+}
+/** Les mots qu'on cherche vraiment dans une requête (sans les mots de liaison). */
+function recherche_mots_requete(string $requete): array {
+  static $liaison = ['de','du','des','la','le','les','un','une','en','au','aux','et','ou','pour','avec','sur','dans','the','d','l'];
+  return array_values(array_filter(recherche_mots($requete),
+    fn($m) => !in_array($m, $liaison, true) && (strlen($m) > 1 || ctype_digit($m))));
+}
+/** L'annonce répond-elle à la requête ? Chaque mot doit s'y retrouver ; vide = oui. */
+function recherche_correspond(array $annonce, string $requete): bool {
+  foreach (recherche_mots_requete($requete) as $m) if (!recherche_correspond_mot($annonce, $m)) return false;
+  return true;
+}
+/** Le texte d'une annonce tel que la recherche le lit : titre, description,
+ *  sous-catégorie, nom de la catégorie, et les VALEURS des attributs (une
+ *  marque saisie dans le formulaire mais absente du titre se cherche aussi). */
+function listing_texte_recherche(array $l): string {
+  $attrs = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+  $valeurs = [];
+  foreach ($attrs as $v) if (is_scalar($v)) $valeurs[] = (string) $v;
+  return ($l['title'] ?? '') . ' ' . ($l['description'] ?? '') . ' ' . ($l['subcategory'] ?? '') . ' '
+    . category_label($l['category_id'] ?? null) . ' ' . implode(' ', $valeurs);
+}
+
+function search_norm(string $s): string {
+  $s = function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
+  return strtr($s, [
+    'à'=>'a','â'=>'a','ä'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e','î'=>'i','ï'=>'i',
+    'ô'=>'o','ö'=>'o','û'=>'u','ü'=>'u','ù'=>'u','ç'=>'c','œ'=>'oe',
+  ]);
+}
+/**
+ * Annonces correspondant à une recherche sauvegardée. `$paramsStr` est la
+ * query-string de /explorer (mêmes clés : q, cat, sub, cond, min, max, livr,
+ * promo, region, ville, commune). `$sinceIso` limite aux annonces plus récentes
+ * (pour n'alerter que sur les nouveautés).
+ */
+function search_matching_listings(PDO $pdo, string $paramsStr, string $sinceIso = ''): array {
+  $p = [];
+  parse_str($paramsStr, $p);
+  $q       = search_norm(trim((string) ($p['q'] ?? '')));
+  $cat     = trim((string) ($p['cat'] ?? ''));
+  $sub     = trim((string) ($p['sub'] ?? ''));
+  $cond    = trim((string) ($p['cond'] ?? ''));
+  $min     = (string) ($p['min'] ?? '');
+  $max     = (string) ($p['max'] ?? '');
+  $livr    = trim((string) ($p['livr'] ?? ''));
+  $promo   = ((string) ($p['promo'] ?? '')) === '1';
+  $region  = trim((string) ($p['region'] ?? ''));
+  $ville   = trim((string) ($p['ville'] ?? ''));
+  $commune = trim((string) ($p['commune'] ?? ''));
+  $rows = $pdo->query('SELECT * FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) ORDER BY created_at DESC LIMIT 500')->fetchAll();
+  $now = now_iso();
+  $out = [];
+  foreach ($rows as $l) {
+    if ($sinceIso !== '' && (string) $l['created_at'] <= $sinceIso) continue;
+    if ($cat && ($l['category_id'] ?? '') !== $cat) continue;
+    if ($sub && ($l['subcategory'] ?? '') !== $sub) continue;
+    if ($cond && ($l['condition_v'] ?? '') !== $cond) continue;
+    if ($region && ($l['region_id'] ?? '') !== $region) continue;
+    if ($ville && ($l['city_id'] ?? '') !== $ville) continue;
+    if ($commune && ($l['commune'] ?? '') !== $commune) continue;
+    if ($min !== '' && (int) $l['price'] < (int) $min) continue;
+    if ($max !== '' && (int) $l['price'] > (int) $max) continue;
+    if ($livr && empty($l['delivery'])) continue;
+    if ($promo) {
+      $isPromo = !empty($l['promo_price']) && (empty($l['promo_until']) || $l['promo_until'] > $now);
+      if (!$isPromo) continue;
+    }
+    // La recherche qui comprend (synonymes, débuts de mots, fautes) — la même
+    // que celle du site et de l'application, pour qu'une alerte enregistrée
+    // trouve ce que la personne aurait trouvé en cherchant elle-même.
+    if ($q !== '' && !recherche_correspond(recherche_preparer(listing_texte_recherche($l)), $q)) continue;
+    // Filtres par attributs de catégorie (a_<clé> = valeur ; a_<clé>_min/max = plage).
+    $attrs = $l['attributes'] ? (json_decode($l['attributes'], true) ?: []) : [];
+    $attrOk = true;
+    foreach ($p as $k => $v) {
+      if (strncmp($k, 'a_', 2) !== 0 || $v === '') continue;
+      if (substr($k, -4) === '_min') {
+        $key = substr($k, 2, -4);
+        if (!isset($attrs[$key]) || (float) $attrs[$key] < (float) $v) { $attrOk = false; break; }
+      } elseif (substr($k, -4) === '_max') {
+        $key = substr($k, 2, -4);
+        if (!isset($attrs[$key]) || (float) $attrs[$key] > (float) $v) { $attrOk = false; break; }
+      } else {
+        $key = substr($k, 2);
+        if (!isset($attrs[$key]) || (string) $attrs[$key] !== (string) $v) { $attrOk = false; break; }
+      }
+    }
+    if (!$attrOk) continue;
+    $out[] = $l;
+  }
+  return $out;
+}
+/** Email « nouvelles annonces » pour une alerte (recherche sauvegardée). */
+function send_search_alert(array $config, array $user, string $label, array $rows, string $paramsStr): bool {
+  if (empty($user['email']) || !$rows) return false;
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $link = $site . '/#/explorer' . ($paramsStr ? '?' . $paramsStr : '');
+  $n = count($rows);
+  $inner =
+    '<h2 style="margin-top:0">🔔 Du nouveau pour votre alerte</h2>'
+    . '<p>Bonne nouvelle ! <b>' . $n . ' nouvelle' . ($n > 1 ? 's' : '') . ' annonce' . ($n > 1 ? 's' : '')
+    . '</b> correspond' . ($n > 1 ? 'ent' : '') . ' à votre recherche <b>« ' . htmlspecialchars($label) . ' »</b> 👇</p>'
+    . email_listing_cards($site, $rows)
+    . email_button($link, 'Voir toutes les annonces')
+    . '<p style="color:#6b7280;font-size:13px;margin-top:16px">Vous recevez cet email car vous avez créé une alerte sur '
+    . htmlspecialchars($name) . '. Gérez vos alertes depuis <a href="' . $site . '/#/profil" style="color:#00734A">votre profil</a>.</p>';
+  $subject = '🔔 ' . $n . ' annonce' . ($n > 1 ? 's' : '') . ' pour « ' . mb_strimwidth($label, 0, 40, '…') . ' »';
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  return send_mail($config, $user['email'], $subject, email_layout($config, $inner, $subject . ' sur ' . $name), $from, $from);
+}
+
+// ---- Sauvegarde de la base (export JSON) ------------------------------------
+/** Exporte toutes les tables métier dans un tableau (pour sauvegarde / restauration). */
+function export_all(PDO $pdo): array {
+  $tables = ['users', 'profiles', 'listings', 'conversations', 'messages', 'orders',
+             'order_items', 'reviews', 'newsletter', 'admins', 'user_interests',
+             'reports', 'visits', 'saved_searches', 'quick_replies', 'contact_messages', 'ads',
+             // La messagerie de l'équipe : une sauvegarde qui l'oublierait
+             // perdrait la trace des décisions de modération, qui s'écrivent là.
+             'team_threads', 'team_messages'];
+  // `push_subs` est délibérément ABSENTE de cette liste. Chaque ligne contient
+  // les deux clés qui permettent de faire apparaître une notification sur un
+  // téléphone précis : les mettre dans un fichier téléchargeable donnerait à qui
+  // l'obtient le pouvoir d'écrire au nom de Chap.ci sur l'écran des inscrits.
+  // Et rien ne se perd : au premier passage sur le site, le navigateur se
+  // réabonne tout seul.
+  $data = [];
+  foreach ($tables as $t) {
+    try { $data[$t] = $pdo->query("SELECT * FROM $t")->fetchAll(PDO::FETCH_ASSOC); }
+    catch (Throwable $e) { $data[$t] = []; /* table absente : on ignore */ }
+  }
+  // Sécurité : on n'exporte JAMAIS les empreintes de mots de passe. Une
+  // sauvegarde (téléchargeable par un admin/modérateur, ou posée sur le disque)
+  // ne doit pas permettre de casser hors-ligne les mots de passe des comptes.
+  if (!empty($data['users'])) {
+    // On n'exporte JAMAIS les empreintes de mots de passe NI les secrets 2FA
+    // (secret TOTP, secret en attente, codes de secours) : une sauvegarde ne doit
+    // pas permettre de contourner l'authentification ou la double authentification.
+    foreach ($data['users'] as &$row) {
+      unset($row['password_hash'], $row['totp_secret'], $row['totp_pending'], $row['totp_recovery']);
+    }
+    unset($row);
+  }
+  $counts = [];
+  foreach ($data as $t => $rows) $counts[$t] = count($rows);
+  return ['app' => 'chap.ci', 'version' => 1, 'generated_at' => now_iso(), 'counts' => $counts, 'tables' => $data];
+}
+/** Prévient l'administrateur qu'une sauvegarde automatique vient d'être créée. */
+function send_backup_email(array $config, array $dump, string $file, int $bytes): void {
+  $admins = report_recipients($config);
+  if (!$admins) return;
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $rows = '';
+  foreach ($dump['counts'] as $t => $c) {
+    $rows .= '<tr><td style="padding:3px 0;color:#6b7280">' . htmlspecialchars($t) . '</td>'
+      . '<td style="padding:3px 0;text-align:right"><b>' . (int) $c . '</b></td></tr>';
+  }
+  $kb = number_format($bytes / 1024, 0, ',', ' ');
+  $inner =
+    '<h2 style="margin-top:0">💾 Sauvegarde effectuée</h2>'
+    . '<p>Une sauvegarde automatique de la base de <b>' . htmlspecialchars($name) . '</b> a été créée sur le serveur.</p>'
+    . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:10px 0;font-size:14px">' . $rows . '</table>'
+    . '<p style="color:#6b7280;font-size:13px">Fichier : <b>' . htmlspecialchars($file) . '</b> (' . $kb . ' Ko). '
+    . 'Les 7 dernières sauvegardes sont conservées. Téléchargez-les depuis votre tableau de bord.</p>';
+  foreach ($admins as $to) send_mail($config, $to, "💾 Sauvegarde Chap.ci — $file", email_layout($config, $inner, 'Sauvegarde de la base'));
+}
+
+/** Invitation (ou relance) à laisser un avis après une transaction. */
+function send_review_invite_email(array $config, string $to, string $counterpartName, string $listingTitle, string $convId, string $role): bool {
+  if ($to === '') return false;
+  $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+  $name = $config['mail_from_name'] ?? 'Chap.ci';
+  $link = $site . '/#/messages/' . rawurlencode($convId);
+  $who  = htmlspecialchars($counterpartName ?: 'votre interlocuteur');
+  $what = $listingTitle !== '' ? ' pour <b>« ' . htmlspecialchars(mb_strimwidth($listingTitle, 0, 50, '…')) . ' »</b>' : '';
+  $intro = $role === 'seller'
+    ? 'Vous avez conclu une vente avec <b>' . $who . '</b>' . $what . '. Comment s’est passée la transaction ?'
+    : 'Vous avez conclu un achat avec <b>' . $who . '</b>' . $what . '. Comment s’est passée la transaction ?';
+  $inner =
+    '<h2 style="margin-top:0">⭐ Laissez un avis</h2>'
+    . '<p>' . $intro . '</p>'
+    . '<p>Votre avis aide toute la communauté <b>' . htmlspecialchars($name) . '</b> à acheter et vendre en confiance. '
+    . 'Ça ne prend que 10 secondes 👇</p>'
+    . email_button($link, 'Noter ' . $who)
+    . '<p style="color:#6b7280;font-size:13px;margin-top:16px">Si la transaction n’a finalement pas eu lieu, ignorez simplement cet email.</p>';
+  $subject = '⭐ Votre avis sur votre transaction avec ' . mb_strimwidth($counterpartName ?: 'un membre', 0, 30, '…');
+  $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+  return send_mail($config, $to, $subject, email_layout($config, $inner, $subject), $from, $from);
+}
+
+/** Série temporelle des visites selon la granularité (jour/semaine/mois/année). */
+function visit_series(PDO $pdo, string $range): array {
+  $now = time();
+  $buckets = []; $keyOf = null; $since = '';
+  if ($range === 'day') {
+    for ($i = 29; $i >= 0; $i--) { $ts = $now - $i * 86400; $buckets[] = ['key' => gmdate('Y-m-d', $ts), 'label' => gmdate('d/m', $ts)]; }
+    $keyOf = fn($c) => substr($c, 0, 10);
+    $since = gmdate('Y-m-d', $now - 29 * 86400) . 'T00:00:00Z';
+  } elseif ($range === 'week') {
+    for ($i = 11; $i >= 0; $i--) { $ts = $now - $i * 7 * 86400; $d = (int) gmdate('N', $ts); $mon = $ts - ($d - 1) * 86400; $buckets[] = ['key' => gmdate('Y-m-d', $mon), 'label' => gmdate('d/m', $mon)]; }
+    $keyOf = function ($c) { $t = strtotime($c); $d = (int) gmdate('N', $t); return gmdate('Y-m-d', $t - ($d - 1) * 86400); };
+    $since = $buckets[0]['key'] . 'T00:00:00Z';
+  } elseif ($range === 'year') {
+    $y = (int) gmdate('Y', $now);
+    for ($i = 4; $i >= 0; $i--) { $buckets[] = ['key' => (string) ($y - $i), 'label' => (string) ($y - $i)]; }
+    $keyOf = fn($c) => substr($c, 0, 4);
+    $since = ($y - 4) . '-01-01T00:00:00Z';
+  } else {
+    $range = 'month'; $y = (int) gmdate('Y', $now); $m = (int) gmdate('n', $now);
+    for ($i = 11; $i >= 0; $i--) { $mm = $m - $i; $yy = $y; while ($mm <= 0) { $mm += 12; $yy--; } $buckets[] = ['key' => sprintf('%04d-%02d', $yy, $mm), 'label' => sprintf('%02d/%02d', $mm, $yy % 100)]; }
+    $keyOf = fn($c) => substr($c, 0, 7);
+    $since = $buckets[0]['key'] . '-01T00:00:00Z';
+  }
+  $idx = []; foreach ($buckets as $i => $b) $idx[$b['key']] = $i;
+  $views = array_fill(0, count($buckets), 0);
+  $vsets = array_fill(0, count($buckets), []);
+  // DES CHIFFRES DE PUBLIC. « Pages vues » et « Visiteurs uniques » ne comptent
+  // que les personnes NON connectées — le public. Un visiteur connecté, c'est
+  // vous, un modérateur ou l'un de vos testeurs : ils utilisent le site tous les
+  // jours et écrasaient le chiffre (25 pages par tête, un chiffre impossible pour
+  // du vrai trafic). On les retire.
+  //
+  //   · authed = 1  → la personne était connectée : équipe ou testeur. EXCLU.
+  //   · authed = 0  → visiteur anonyme : le public. COMPTÉ.
+  //   · authed NULL → visite d'AVANT la pose du drapeau (début août) : on ne sait
+  //     pas si elle était connectée. On la GARDE plutôt que de jeter de vrais
+  //     visiteurs du début — et à l'avenir chaque ligne vaut 0 ou 1, donc cette
+  //     zone d'incertitude se referme d'elle-même.
+  $st = $pdo->prepare('SELECT visitor_id, created_at FROM visits
+                       WHERE created_at >= ? AND (authed = 0 OR authed IS NULL)
+                       ORDER BY created_at ASC LIMIT 200000');
+  $st->execute([$since]);
+  while ($row = $st->fetch()) {
+    $k = $keyOf($row['created_at']);
+    if (isset($idx[$k])) { $i = $idx[$k]; $views[$i]++; $vsets[$i][$row['visitor_id']] = true; }
+  }
+
+  // INSCRIPTIONS ET ANNONCES, dans les MÊMES tranches que les visites.
+  //
+  // POURQUOI ELLES REJOIGNENT CETTE COURBE. Le point douloureux du site n'est
+  // pas le trafic : c'est ce que le trafic devient. Des dizaines de visiteurs
+  // par jour, une poignée d'inscrits, et moins encore d'annonces publiées. Tant
+  // que ces trois-là vivaient sur trois écrans différents, personne ne pouvait
+  // voir la marche où l'on perd le monde. Sur une seule journée, alignées, elles
+  // la montrent d'un coup d'œil.
+  $compter = function (string $table) use ($pdo, $since, $keyOf, $idx, $buckets): array {
+    $n = array_fill(0, count($buckets), 0);
+    $q = $pdo->prepare("SELECT created_at FROM $table WHERE created_at >= ? ORDER BY created_at ASC LIMIT 200000");
+    $q->execute([$since]);
+    while ($r = $q->fetch()) { $k = $keyOf($r['created_at']); if (isset($idx[$k])) $n[$idx[$k]]++; }
+    return $n;
+  };
+  $signups  = $compter('users');
+  $listings = $compter('listings');
+
+  $series = []; $totalViews = 0; $totalSignups = 0; $totalListings = 0;
+  foreach ($buckets as $i => $b) {
+    $series[] = [
+      'key'      => $b['key'],   // la date exacte : le front affiche le jour, pas un rang
+      'label'    => $b['label'],
+      'views'    => $views[$i],
+      'visitors' => count($vsets[$i]),
+      'signups'  => $signups[$i],
+      'listings' => $listings[$i],
+    ];
+    $totalViews += $views[$i]; $totalSignups += $signups[$i]; $totalListings += $listings[$i];
+  }
+  $tv = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) AS c FROM visits
+                       WHERE created_at >= ? AND (authed = 0 OR authed IS NULL)');
+  $tv->execute([$since]);
+
+  // DEPUIS QUAND MESURE-T-ON ? Un jour à zéro visite et un jour antérieur à la
+  // pose du compteur se ressemblent trait pour trait sur une courbe, et on lit
+  // le second comme une chute d'audience. Cette date permet au front de griser
+  // ce qu'il n'a pas mesuré au lieu de le dessiner à zéro.
+  $prem = $pdo->query('SELECT MIN(created_at) AS m FROM visits')->fetch();
+  $premiere = $prem && $prem['m'] ? (string) $prem['m'] : null;
+
+  return [
+    'range'         => $range,
+    'series'        => $series,
+    'totalViews'    => $totalViews,
+    'totalVisitors' => (int) $tv->fetch()['c'],
+    'totalSignups'  => $totalSignups,
+    'totalListings' => $totalListings,
+    'mesureDepuis'  => $premiere,
+  ];
+}
+
+/**
+ * Temps de réponse D'UN VENDEUR à ses acheteurs.
+ *
+ * POURQUOI CE CHIFFRE EST MONTRÉ AVANT DE CONTACTER. Ce que redoute un acheteur
+ * sur une marketplace, ce n'est pas le prix : c'est d'écrire dans le vide. Un
+ * vendeur qui répond en une heure et un vendeur qui ne répond jamais présentent
+ * aujourd'hui exactement la même fiche. Ce chiffre les sépare, et il récompense
+ * le vendeur sérieux sans qu'il ait rien à faire pour le mériter.
+ *
+ * ON MESURE LA MÉDIANE, PAS LA MOYENNE. Une seule réponse oubliée trois jours
+ * suffit à faire mentir une moyenne sur vingt réponses rapides. La médiane dit
+ * ce qui arrive d'habitude, et c'est la question que l'acheteur se pose.
+ *
+ * NE COMPTE QUE LES RÉPONSES DU VENDEUR : le délai part du dernier message de
+ * l'acheteur et s'arrête à la première réponse du vendeur. Les messages que le
+ * vendeur enchaîne tout seul ne comptent pas, ceux de l'acheteur non plus.
+ *
+ * Renvoie null tant qu'il y a moins de $mini réponses : trois points ne font pas
+ * une habitude, et afficher « répond en 2 minutes » sur un coup de chance est un
+ * mensonge que l'acheteur paiera.
+ */
+function seller_response_time(PDO $pdo, string $sellerId, int $mini = 3): ?array {
+  if ($sellerId === '') return null;
+  try {
+    $st = $pdo->prepare('SELECT m.conversation_id, m.sender_id, m.created_at
+      FROM messages m JOIN conversations c ON c.id = m.conversation_id
+      WHERE c.seller_id = ? ORDER BY m.conversation_id, m.created_at ASC');
+    $st->execute([$sellerId]);
+    $rows = $st->fetchAll();
+  } catch (Throwable $e) { return null; }
+
+  $deltas = []; $conv = null; $attenteDepuis = null;
+  foreach ($rows as $r) {
+    if ($r['conversation_id'] !== $conv) { $conv = $r['conversation_id']; $attenteDepuis = null; }
+    $duVendeur = ((string) $r['sender_id']) === $sellerId;
+    if (!$duVendeur) {
+      // Premier message d'acheteur d'une salve : c'est LUI qui démarre l'attente.
+      if ($attenteDepuis === null) $attenteDepuis = strtotime((string) $r['created_at']) ?: null;
+    } elseif ($attenteDepuis !== null) {
+      $d = (strtotime((string) $r['created_at']) ?: 0) - $attenteDepuis;
+      // Au-delà de 30 jours, ce n'est plus une réponse : c'est une autre histoire.
+      if ($d >= 0 && $d < 30 * 86400) $deltas[] = $d;
+      $attenteDepuis = null;
+    }
+  }
+  if (count($deltas) < $mini) return null;
+  sort($deltas); $n = count($deltas);
+  $median = $n % 2 ? $deltas[intdiv($n, 2)] : (int) round(($deltas[$n / 2 - 1] + $deltas[$n / 2]) / 2);
+  return ['count' => $n, 'medianSeconds' => (int) $median];
+}
+
+/** Temps de réponse moyen/médian aux messages (à chaque changement d'expéditeur). */
+function avg_response_time(PDO $pdo): array {
+  $rows = $pdo->query('SELECT conversation_id, sender_id, created_at FROM messages ORDER BY conversation_id, created_at ASC')->fetchAll();
+  $deltas = []; $curConv = null; $prevSender = null; $prevTs = null;
+  foreach ($rows as $r) {
+    if ($r['conversation_id'] !== $curConv) { $curConv = $r['conversation_id']; $prevSender = $r['sender_id']; $prevTs = strtotime($r['created_at']); continue; }
+    if ($r['sender_id'] !== $prevSender) {
+      $d = strtotime($r['created_at']) - $prevTs;
+      if ($d >= 0 && $d < 30 * 86400) $deltas[] = $d;
+    }
+    $prevSender = $r['sender_id']; $prevTs = strtotime($r['created_at']);
+  }
+  if (!$deltas) return ['count' => 0, 'avgSeconds' => null, 'medianSeconds' => null];
+  sort($deltas); $n = count($deltas);
+  $median = $n % 2 ? $deltas[intdiv($n, 2)] : ($deltas[$n / 2 - 1] + $deltas[$n / 2]) / 2;
+  return ['count' => $n, 'avgSeconds' => (int) round(array_sum($deltas) / $n), 'medianSeconds' => (int) round($median)];
+}
+
+// ============================================================================
+//  LE CONTRÔLE DES PHOTOS, CÔTÉ SERVEUR
+//
+//  ⚠️ CE QU'IL FAIT, ET CE QU'IL NE FAIT PAS. Il ne « reconnaît » rien : il n'y
+//  a pas de modèle d'intelligence artificielle ici, et il n'y en aura pas sur un
+//  hébergement mutualisé. Il compare des EMPREINTES : une photo déjà retirée par
+//  un humain ne peut plus revenir.
+//
+//  Pourquoi ce choix plutôt qu'un détecteur automatique côté serveur : les
+//  détecteurs bon marché reposent sur la proportion de « teinte de peau », et
+//  leurs seuils sont réglés sur des peaux claires. Sur Chap.ci, ils se
+//  tromperaient sur une partie des vendeurs et pas sur l'autre. Un contrôle qui
+//  vise mal vaut moins que pas de contrôle : il donne l'illusion d'en avoir un.
+//
+//  L'empreinte est une dHash : l'image est ramenée à 9×8 en gris, et l'on note
+//  seulement, pour chaque pixel, s'il est plus clair que son voisin de droite.
+//  64 comparaisons, 64 bits. Elle survit au redimensionnement, au recadrage
+//  léger, au changement de qualité JPEG et au filigrane — c'est-à-dire à tout ce
+//  qu'on fait pour reposter la même image sans se faire prendre.
+// ============================================================================
+
+/** Empreinte perceptuelle (dHash 64 bits, en hexadécimal) du contenu binaire. */
+function image_empreinte(string $bin): ?string {
+  if (!function_exists('imagecreatefromstring')) return null;
+  $src = @imagecreatefromstring($bin);
+  if (!$src) return null;
+  $p = @imagecreatetruecolor(9, 8);
+  if (!$p) { imagedestroy($src); return null; }
+  imagecopyresampled($p, $src, 0, 0, 0, 0, 9, 8, imagesx($src), imagesy($src));
+  imagedestroy($src);
+  $bits = '';
+  for ($y = 0; $y < 8; $y++) {
+    for ($x = 0; $x < 8; $x++) {
+      // Gris perçu (Rec. 601) : deux couleurs différentes de même clarté ne
+      // doivent pas produire deux empreintes différentes.
+      $g = function (int $c): float {
+        return 0.299 * (($c >> 16) & 255) + 0.587 * (($c >> 8) & 255) + 0.114 * ($c & 255);
+      };
+      $bits .= $g(imagecolorat($p, $x, $y)) > $g(imagecolorat($p, $x + 1, $y)) ? '1' : '0';
+    }
+  }
+  imagedestroy($p);
+  // 64 bits -> 16 caractères hexadécimaux.
+  $hex = '';
+  foreach (str_split($bits, 4) as $quartet) $hex .= dechex(bindec($quartet));
+  return $hex;
+}
+
+/** Distance de Hamming entre deux empreintes hexadécimales de même longueur. */
+function empreinte_distance(string $a, string $b): int {
+  if (strlen($a) !== strlen($b)) return 64;
+  $d = 0;
+  for ($i = 0, $n = strlen($a); $i < $n; $i++) {
+    $x = hexdec($a[$i]) ^ hexdec($b[$i]);
+    while ($x) { $d += $x & 1; $x >>= 1; }
+  }
+  return $d;
+}
+
+/**
+ * ⚠️ CETTE FONCTION NE REFUSE JAMAIS UNE PHOTO. ELLE ALERTE UN HUMAIN.
+ *
+ * C'est une décision prise CONTRE l'intention de départ, et elle vient d'une
+ * mesure. Le banc `scripts/banc-empreintes.php` a comparé, sur les photos
+ * réelles de chap.ci :
+ *
+ *   · la MÊME photo maltraitée comme le ferait quelqu'un qui la republie
+ *     (réenregistrée, redimensionnée, rognée de 3 %, éclaircie, filigranée) :
+ *     jusqu'à 14 bits d'écart, et déjà 4 bits sur un simple redimensionnement ;
+ *   · deux photos DIFFÉRENTES du catalogue : 3 bits d'écart seulement.
+ *
+ * Les deux nuages SE CHEVAUCHENT. Il n'existe donc aucun seuil qui rattrape une
+ * republication sans risquer de refuser une photo légitime.
+ *
+ * Et ce n'est pas un accident du jeu d'essai : la paire à 3 bits, ce sont deux
+ * affiches du MÊME vendeur, même gabarit, un mot de différence. Un vendeur qui
+ * publie une série d'annonces a forcément des photos qui se ressemblent. Bloquer
+ * sur l'empreinte reviendrait à lui refuser toute sa série le jour où une seule
+ * de ses affiches serait retirée.
+ *
+ * Refuser à tort la photo d'un vendeur présent est un dommage certain ; laisser
+ * passer une republication vers une file de relecture est un risque encadré. On
+ * choisit donc le signal, pas le verrou — et on dit ce que ça ne fait pas.
+ */
+/**
+ * La phrase que lit le relecteur dans sa file, à partir du signal.
+ *
+ * Elle était écrite en toutes lettres à la publication et nulle part ailleurs —
+ * ce qui a laissé la route de MODIFICATION sans aucune empreinte pendant que
+ * celle de publication en avait une. Une seule écriture, deux appels.
+ */
+function photo_signal_texte(?array $signal): ?string {
+  return $signal
+    ? 'ressemble à une photo retirée (' . $signal['distance'] . '/64) : ' . $signal['raison']
+    : null;
+}
+
+function photos_signal(PDO $pdo, array $dataUris): ?array {
+  // 16 BITS, ET LE CHIFFRE VIENT DE LA MESURE. Le banc a relevé jusqu'à 14 bits
+  // d'écart entre une photo et la MÊME photo rognée de 3 % — un seuil plus bas
+  // ne verrait même pas passer la republication la plus paresseuse.
+  //
+  // Ce seuil peut être généreux parce qu'il ne coûte rien de faux : il ne
+  // refuse personne, il ajoute une ligne dans la file d'un relecteur. Le seuil
+  // d'un VERROU aurait dû être serré, et c'est justement pourquoi il n'y a pas
+  // de verrou : à 3 bits, deux affiches légitimes du même vendeur se
+  // confondaient déjà.
+  $SEUIL_SIGNAL = 16;
+  try { $bloquees = $pdo->query('SELECT empreinte, raison FROM images_bloquees')->fetchAll(); }
+  catch (Throwable $e) { return null; } // table absente : aucun signal, aucun blocage
+  if (!$bloquees) return null;
+  $meilleur = null;
+  foreach ($dataUris as $uri) {
+    $uri = (string) $uri;
+    if (strncmp($uri, 'data:', 5) !== 0) continue;
+    $virgule = strpos($uri, ',');
+    if ($virgule === false) continue;
+    $bin = base64_decode(substr($uri, $virgule + 1));
+    if ($bin === false || $bin === '') continue;
+    $emp = image_empreinte($bin);
+    if ($emp === null) continue;
+    foreach ($bloquees as $b) {
+      $d = empreinte_distance($emp, (string) $b['empreinte']);
+      if ($d <= $SEUIL_SIGNAL && ($meilleur === null || $d < $meilleur['distance'])) {
+        $meilleur = ['distance' => $d, 'empreinte' => $emp, 'raison' => (string) ($b['raison'] ?? '')];
+      }
+    }
+  }
+  return $meilleur;
+}
+
+// ---- Photos : enregistre une data-URI base64 en fichier, renvoie l'URL -------
+/**
+ * Applique le filigrane « Chap.ci » (api/watermark.png) au centre d'une image
+ * raster, en semi-transparent. Best-effort : ne lève jamais d'erreur, ne casse
+ * jamais l'upload (si GD absent ou format non géré, l'image reste inchangée).
+ *  $scale  = largeur du filigrane en fraction de la largeur de la photo.
+ *  $opacity< 1 réduit encore l'opacité (le PNG est déjà semi-transparent).
+ */
+function apply_watermark(string $file, string $ext, string $wmPath, float $opacity = 1.0, float $scale = 0.42): bool {
+  if (!function_exists('imagecreatetruecolor') || !is_file($wmPath)) return false;
+  $src = null;
+  if ($ext === 'jpg') $src = @imagecreatefromjpeg($file);
+  elseif ($ext === 'png') $src = @imagecreatefrompng($file);
+  elseif ($ext === 'webp' && function_exists('imagecreatefromwebp')) $src = @imagecreatefromwebp($file);
+  elseif ($ext === 'gif') $src = @imagecreatefromgif($file);
+  if (!$src) return false;
+  $wm = @imagecreatefrompng($wmPath);
+  if (!$wm) { imagedestroy($src); return false; }
+  $iw = imagesx($src); $ih = imagesy($src);
+  $ww = imagesx($wm); $wh = imagesy($wm);
+  if ($ww < 1 || $wh < 1) { imagedestroy($src); imagedestroy($wm); return false; }
+  if ($opacity < 0.999) wm_apply_opacity($wm, $opacity);
+  $tw = max(1, (int) round($iw * $scale));
+  $th = max(1, (int) round($wh * $tw / $ww));
+  $dx = (int) round(($iw - $tw) / 2);
+  $dy = (int) round(($ih - $th) / 2);
+  imagealphablending($src, true);
+  imagesavealpha($src, false);
+  imagecopyresampled($src, $wm, $dx, $dy, 0, 0, $tw, $th, $ww, $wh);
+  $ok = false;
+  if ($ext === 'jpg') $ok = @imagejpeg($src, $file, 82);
+  elseif ($ext === 'png') $ok = @imagepng($src, $file);
+  elseif ($ext === 'webp' && function_exists('imagewebp')) $ok = @imagewebp($src, $file, 82);
+  elseif ($ext === 'gif') $ok = @imagegif($src, $file);
+  imagedestroy($src); imagedestroy($wm);
+  return (bool) $ok;
+}
+/** Réduit l'opacité d'un filigrane PNG (GD : alpha 0=opaque … 127=transparent). */
+function wm_apply_opacity($wm, float $opacity): void {
+  imagealphablending($wm, false);
+  imagesavealpha($wm, true);
+  $w = imagesx($wm); $h = imagesy($wm);
+  for ($y = 0; $y < $h; $y++) {
+    for ($x = 0; $x < $w; $x++) {
+      $c = imagecolorat($wm, $x, $y);
+      $a = ($c >> 24) & 0x7F;
+      if ($a === 0x7F) continue;
+      $na = (int) min(127, 127 - (127 - $a) * $opacity);
+      imagesetpixel($wm, $x, $y, ($na << 24) | ($c & 0xFFFFFF));
+    }
+  }
+}
+/** Chemin de la vignette d'une image : `<base>_min.jpg` (toujours JPEG). Même
+ *  règle côté client, qui dérive l'URL et se rabat sur l'image pleine si absente. */
+function thumb_path(string $file): string {
+  $dot = strrpos($file, '.');
+  $base = $dot === false ? $file : substr($file, 0, $dot);
+  return $base . '_min.jpg';
+}
+
+/** Génère une vignette ~480 px de large à côté de l'image d'annonce
+ *  (`<base>_min.jpg`, JPEG q72) : la carte de grille et le défilement infini la
+ *  servent au lieu de la photo pleine (≈ 233 Ko → ≈ 25 Ko, −90 % de data), la
+ *  fiche détail gardant l'originale. Best-effort : ne bloque jamais l'upload. */
+/**
+ * LA LARGEUR DE LA VIGNETTE DE GRILLE — 360 px depuis le 08/09/2026.
+ *
+ * Elle valait 480. Le banc du front, rejoué pour la première fois sur un écran
+ * d'ordinateur, a compté DOUZE vignettes sur douze plus grandes que leur case,
+ * sur Explorer comme sur une vitrine : 480 px servis dans 205 à 294. Sur
+ * téléphone l'écart passait inaperçu — la densité double le seuil — mais il
+ * était là aussi : une carte de 180 px sur un écran double densité n'a jamais
+ * eu besoin que de 360.
+ *
+ * 360 est le chiffre qui sert les deux : exactement ce qu'il faut au téléphone
+ * d'Abidjan (180 × 2), et large pour un ordinateur (230 × 1). Une tablette à
+ * double densité y perd un cheveu de finesse — c'est le seul cas, et le moins
+ * fréquent ici.
+ *
+ * Ce qu'on économise : environ 44 % des pixels, donc à peu près 6 Ko par
+ * vignette. Une page qui en montre douze en garde ~70 Ko, sur un forfait que
+ * le visiteur paie.
+ *
+ * ⚠️ Les vignettes DÉJÀ écrites gardent leurs 480 px : `backfill_thumbs` les
+ * régénère au fil des passages du cron `cleanup` (voir plus bas). Rien ne
+ * casse entre-temps — une image un peu large s'affiche parfaitement.
+ */
+const VIGNETTE_LARGEUR = 360;
+
+function make_thumb(string $file, string $ext, int $maxW = VIGNETTE_LARGEUR, int $quality = 72): void {
+  if (!function_exists('imagecreatetruecolor')) return;
+  $src = null;
+  if ($ext === 'jpg') $src = @imagecreatefromjpeg($file);
+  elseif ($ext === 'png') $src = @imagecreatefrompng($file);
+  elseif ($ext === 'webp' && function_exists('imagecreatefromwebp')) $src = @imagecreatefromwebp($file);
+  elseif ($ext === 'gif') $src = @imagecreatefromgif($file);
+  if (!$src) return;
+  $iw = imagesx($src); $ih = imagesy($src);
+  if ($iw < 1 || $ih < 1) { imagedestroy($src); return; }
+  // Jamais d'agrandissement : une petite image reste à sa taille, réencodée en JPEG.
+  $tw = $iw <= $maxW ? $iw : $maxW;
+  $th = max(1, (int) round($ih * $tw / $iw));
+  $dst = imagecreatetruecolor($tw, $th);
+  // Fond blanc : un PNG/GIF transparent devient un JPEG opaque propre.
+  imagefilledrectangle($dst, 0, 0, $tw, $th, imagecolorallocate($dst, 255, 255, 255));
+  imagecopyresampled($dst, $src, 0, 0, 0, 0, $tw, $th, $iw, $ih);
+  @imagejpeg($dst, thumb_path($file), $quality);
+  imagedestroy($src); imagedestroy($dst);
+}
+
+/** Génère les vignettes MANQUANTES des photos d'annonce déjà en ligne (celles
+ *  d'avant `make_thumb`). Appelée par le cron `cleanup` — donc sans nouvelle
+ *  tâche à créer. Best-effort, bornée par run ; n'agit que sur des fichiers
+ *  LOCAUX réellement présents, et n'écrit que des `.jpg` (jamais d'exécutable,
+ *  et dans le dossier uploads déjà interdit au script). `basename` neutralise
+ *  toute tentative de traversée de chemin. Une fois le retard rattrapé, chaque
+ *  passage fait ≈ 0 (les nouvelles photos ont déjà leur vignette à l'upload). */
+function backfill_thumbs(PDO $pdo, array $config, int $max = 300): int {
+  $dir = $config['uploads_dir'] ?? null;
+  if (!$dir || !is_dir($dir)) return 0;
+  $faites = 0;
+  foreach ($pdo->query("SELECT images FROM listings WHERE images IS NOT NULL AND images <> ''")->fetchAll() as $r) {
+    $imgs = json_decode((string) $r['images'], true);
+    if (!is_array($imgs)) continue;
+    foreach ($imgs as $u) {
+      if ($faites >= $max) return $faites;
+      if (!is_string($u) || !str_contains($u, '/uploads/')) continue;
+      $name = basename((string) (parse_url($u, PHP_URL_PATH) ?: $u));
+      $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+      if ($ext === 'jpeg') $ext = 'jpg';
+      if (!in_array($ext, ['jpg', 'png', 'webp', 'gif'], true)) continue;
+      $file = $dir . '/' . $name;
+      if (!is_file($file)) continue;
+
+      // Deux cas à traiter, et un seul à ignorer :
+      //   · la vignette MANQUE (photo d'avant `make_thumb`) ;
+      //   · la vignette existe mais fait plus de 360 px de large — elle date
+      //     d'avant le 08/09/2026, où la largeur est passée de 480 à 360. On
+      //     la refait une fois, puis on n'y revient plus.
+      // `getimagesize` sur un fichier local : quelques microsecondes, et c'est
+      // ce qui évite de rejouer indéfiniment le rattrapage sur tout le dossier.
+      $vignette = thumb_path($file);
+      if (is_file($vignette)) {
+        $t = @getimagesize($vignette);
+        if (!$t || (int) $t[0] <= VIGNETTE_LARGEUR) continue; // déjà à la bonne taille
+      }
+      try { make_thumb($file, $ext); if (is_file($vignette)) $faites++; }
+      catch (Throwable $e) { /* best-effort */ }
+    }
+  }
+  return $faites;
+}
+
+function save_data_uri(array $config, string $dataUri, bool $watermark = false): ?string {
+  // Déjà une URL (http/https ou /uploads/…) : on la garde telle quelle.
+  if (str_starts_with($dataUri, 'http') || str_starts_with($dataUri, '/')) return $dataUri;
+  // data:<meta>,<données> — on coupe au PREMIER virgule (le SVG peut contenir des virgules).
+  if (!str_starts_with($dataUri, 'data:')) return null;
+  $comma = strpos($dataUri, ',');
+  if ($comma === false) return null;
+  $meta = substr($dataUri, 5, $comma - 5); // ex: image/svg+xml;utf8  ou  image/png;base64
+  $data = substr($dataUri, $comma + 1);
+  if (!str_starts_with($meta, 'image/')) return null;
+  $isB64 = str_contains($meta, ';base64');
+  $mime = strtolower(explode(';', substr($meta, 6))[0]); // après "image/", avant le 1er ";"
+  $bin = $isB64 ? base64_decode($data) : rawurldecode($data);
+  if ($bin === false || $bin === '') return null;
+  // P8 · Taille maximale par image (anti-saturation du disque du serveur).
+  if (strlen($bin) > 8 * 1024 * 1024) return null;
+  // P8 · Ne stocker que de VRAIES images. SVG : refuser tout contenu actif
+  // (script / gestionnaires d'événements / références externes). Raster :
+  // vérifier avec getimagesizefromstring et déduire l'extension du type réel.
+  if (str_contains($mime, 'svg')) {
+    // Refuse tout contenu ACTIF ou référence externe/embarquée. Le simple
+    // « espace avant on… » d'avant était contournable (<svg/onload=…>) : on
+    // bloque désormais les gestionnaires d'événements quel que soit le séparateur,
+    // les éléments dangereux (script, use, set, animate, image, a, iframe…) et les
+    // URLs javascript/data dans href/xlink:href.
+    if (preg_match('/<\s*(script|foreignobject|iframe|use|set|animate|animatetransform|animatemotion|image|a)\b/i', $bin)
+        || preg_match('/\bon[a-z][a-z0-9_-]*\s*=/i', $bin)
+        || preg_match('/(?:javascript|vbscript)\s*:/i', $bin)
+        || preg_match('/(?:xlink:)?href\s*=\s*["\']?\s*(?:https?|data|javascript)\s*:/i', $bin)) return null;
+    $ext = 'svg';
+  } else {
+    $info = @getimagesizefromstring($bin);
+    $imap = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif', IMAGETYPE_WEBP => 'webp'];
+    if ($info === false || !isset($imap[$info[2]])) return null; // pas une image raster reconnue
+    $ext = $imap[$info[2]];
+  }
+  $dir = $config['uploads_dir'];
+  if (!is_dir($dir)) @mkdir($dir, 0775, true);
+  // Sécurité (P8) : interdire l'exécution de scripts ET neutraliser tout SVG
+  // servi (aucun script actif), même sur d'anciens fichiers déjà présents.
+  $ht = "$dir/.htaccess";
+  $htWant = "Options -ExecCGI\n"
+    . "<FilesMatch \"\\.(php|phtml|phar|cgi|pl|py|svgz)$\">\n  Require all denied\n</FilesMatch>\n"
+    . "<IfModule mod_headers.c>\n  Header set X-Content-Type-Options \"nosniff\"\n"
+    . "  <FilesMatch \"\\.svg$\">\n    Header set Content-Security-Policy \"script-src 'none'; object-src 'none'\"\n  </FilesMatch>\n"
+    . "</IfModule>\n";
+  $htHave = @is_readable($ht) ? (string) @file_get_contents($ht) : '';
+  if (strpos($htHave, "script-src 'none'") === false) @file_put_contents($ht, $htWant);
+  $name = date('Ym') . '-' . uuid() . '.' . $ext;
+  $full = "$dir/$name";
+  if (@file_put_contents($full, $bin) === false) return null;
+  // Filigrane « Chap.ci » au centre des photos d'annonce (jamais les SVG).
+  if ($watermark && $ext !== 'svg' && !empty($config['watermark'])) {
+    try { apply_watermark($full, $ext, __DIR__ . '/watermark.png'); }
+    catch (Throwable $e) { /* le filigrane ne doit jamais bloquer l'upload */ }
+  }
+  // Vignette de grille (photos d'annonce uniquement), générée APRÈS le filigrane
+  // pour qu'elle le porte aussi. Best-effort : ne bloque jamais l'upload.
+  if ($watermark && $ext !== 'svg') {
+    try { make_thumb($full, $ext); }
+    catch (Throwable $e) { /* la vignette ne doit jamais bloquer l'upload */ }
+  }
+  return rtrim($config['uploads_path'], '/') . '/' . $name;
+}
+
+// =============================================================================
+//  LES ABONNÉS ET LES OFFRES D'EMPLOI DU COMPTE PROFESSIONNEL (06/09/2026)
+//
+//  Demande du Patron : « que les entreprises, les ONG et autres structures
+//  puissent être suivies, que leur page ait un espace pour les offres
+//  d'emploi, avec lien de formulaire ou un formulaire qu'ils créent
+//  eux-mêmes, et que les abonnés reçoivent une notification quand ils
+//  publient ». Trois pièces, ici : les abonnés (`follows`), les offres et
+//  leur formulaire (`offres`), les réponses (`candidatures`).
+//
+//  Qui peut être suivi, qui peut publier une offre : un compte professionnel
+//  APPROUVÉ, quel que soit son type — commerce, prestataire, centre de
+//  formation, employeur, association. C'est le dossier vérifié par l'équipe
+//  qui donne ces droits, comme il donne la vitrine.
+// =============================================================================
+
+/**
+ * Les types d'organisation d'un compte professionnel — les mêmes identifiants
+ * que `src/data/secteursPro.ts` et `devenir_pro_screen.dart`. Une seule liste
+ * pour les deux routes qui la vérifient (la demande, la correction par l'admin).
+ */
+const PRO_TYPES = ['boutique', 'commerce', 'vehicules', 'immobilier', 'services',
+                   'formation', 'emploi', 'voyage', 'agro', 'sante', 'association',
+                   'restauration', 'hebergement', 'animalerie', 'finance', 'media'];
+
+// ── LE STOCK DES COMPTES PROFESSIONNELS (07/09/2026) ─────────────────────────
+// Le Patron : « pour les comptes Pro, il doit y avoir une gérance de stock et
+// un signalement si les produits sont à moins du minimum, 5 ».
+//
+// Une annonce d'un professionnel peut porter une QUANTITÉ EN STOCK et un SEUIL
+// d'alerte. Chaque vente conclue en retire une unité ; passer sous le seuil
+// envoie « Stock bas » au professionnel, arriver à zéro envoie « Rupture de
+// stock » — chacune UNE fois, jusqu'à ce qu'il réapprovisionne au-dessus du
+// seuil. À zéro, l'annonce reste visible avec « Rupture de stock » : la cacher
+// en silence ferait croire au professionnel qu'elle a disparu.
+const STOCK_MIN_DEFAUT = 5;
+
+/** Une quantité envoyée par le client → entier ≥ 0, ou NULL (« je ne suis pas de stock »). */
+function stock_normaliser($v): ?int {
+  if ($v === null || $v === '' || $v === false) return null;
+  if (!is_numeric($v)) return null;
+  return max(0, min(1000000, (int) $v));
+}
+
+/** Le seuil envoyé par le client → entier entre 0 et 100 000, 5 par défaut. */
+function stock_min_normaliser($v): int {
+  if ($v === null || $v === '' || !is_numeric($v)) return STOCK_MIN_DEFAUT;
+  return max(0, min(100000, (int) $v));
+}
+
+/** 'aucun' (pas de suivi), 'ok', 'bas' (≤ seuil), 'rupture' (zéro). */
+function stock_etat(?int $stock, int $min): string {
+  if ($stock === null) return 'aucun';
+  if ($stock <= 0) return 'rupture';
+  return $stock <= $min ? 'bas' : 'ok';
+}
+
+/** L'annonce suit-elle un stock ? */
+function stock_suivi(PDO $pdo, string $listingId): bool {
+  try {
+    $st = $pdo->prepare('SELECT stock FROM listings WHERE id = ?'); $st->execute([$listingId]);
+    $v = $st->fetchColumn();
+    return $v !== false && $v !== null;
+  } catch (Throwable $e) { return false; }
+}
+
+/**
+ * Relit le stock d'une annonce, pose le marqueur d'alerte, et PRÉVIENT le
+ * professionnel si on vient de franchir le seuil ou d'atteindre zéro —
+ * seulement quand `$prevenir` est vrai (une vente) : quand c'est lui qui
+ * écrit la quantité, il la connaît.
+ */
+function stock_marquer(PDO $pdo, string $listingId, bool $prevenir): string {
+  try {
+    $st = $pdo->prepare('SELECT user_id, title, stock, stock_min, stock_alerte FROM listings WHERE id = ?');
+    $st->execute([$listingId]);
+    $l = $st->fetch();
+    if (!$l || $l['stock'] === null) return 'aucun';
+    $stock = (int) $l['stock'];
+    $min = $l['stock_min'] === null ? STOCK_MIN_DEFAUT : (int) $l['stock_min'];
+    $etat = stock_etat($stock, $min);
+    $deja = (int) ($l['stock_alerte'] ?? 0);
+    $niveau = $etat === 'rupture' ? 2 : ($etat === 'bas' ? 1 : 0);
+    if ($niveau !== $deja) {
+      $pdo->prepare('UPDATE listings SET stock_alerte = ? WHERE id = ?')->execute([$niveau ?: null, $listingId]);
+      if ($prevenir && $niveau > $deja && !empty($l['user_id'])) {
+        $titre = mb_substr(trim((string) $l['title']), 0, 60);
+        if ($niveau === 2) {
+          notify($pdo, (string) $l['user_id'], 'stock', 'Rupture de stock 🔴',
+            '« ' . $titre . ' » : il n’en reste plus. Réapprovisionnez, ou retirez l’annonce.',
+            '#/compte?onglet=stock');
+        } else {
+          notify($pdo, (string) $l['user_id'], 'stock', 'Stock bas 🟠',
+            '« ' . $titre . ' » : il n’en reste que ' . $stock . ' (minimum ' . $min . ').',
+            '#/compte?onglet=stock');
+        }
+      }
+    }
+    return $etat;
+  } catch (Throwable $e) { return 'aucun'; }
+}
+
+/**
+ * Une commande CONCLUE retire une unité par article aux annonces qui suivent
+ * un stock — une seule fois par commande (`orders.stock_pris`).
+ */
+function stock_prendre(PDO $pdo, string $orderId): int {
+  try {
+    $o = $pdo->prepare('SELECT stock_pris FROM orders WHERE id = ?'); $o->execute([$orderId]);
+    $r = $o->fetch();
+    if (!$r || !empty($r['stock_pris'])) return 0;
+    $it = $pdo->prepare('SELECT listing_id FROM order_items WHERE order_id = ? AND listing_id IS NOT NULL');
+    $it->execute([$orderId]);
+    $n = 0;
+    foreach ($it->fetchAll(PDO::FETCH_COLUMN) as $lid) {
+      $u = $pdo->prepare('UPDATE listings SET stock = CASE WHEN stock > 0 THEN stock - 1 ELSE 0 END
+                          WHERE id = ? AND stock IS NOT NULL');
+      $u->execute([(string) $lid]);
+      if ($u->rowCount() > 0) { $n++; stock_marquer($pdo, (string) $lid, true); }
+    }
+    $pdo->prepare('UPDATE orders SET stock_pris = 1 WHERE id = ?')->execute([$orderId]);
+    return $n;
+  } catch (Throwable $e) { return 0; }
+}
+
+/** Une commande annulée ou rouverte rend ce qu'elle avait pris. */
+function stock_rendre(PDO $pdo, string $orderId): int {
+  try {
+    $o = $pdo->prepare('SELECT stock_pris FROM orders WHERE id = ?'); $o->execute([$orderId]);
+    $r = $o->fetch();
+    if (!$r || empty($r['stock_pris'])) return 0;
+    $it = $pdo->prepare('SELECT listing_id FROM order_items WHERE order_id = ? AND listing_id IS NOT NULL');
+    $it->execute([$orderId]);
+    $n = 0;
+    foreach ($it->fetchAll(PDO::FETCH_COLUMN) as $lid) {
+      $u = $pdo->prepare('UPDATE listings SET stock = stock + 1 WHERE id = ? AND stock IS NOT NULL');
+      $u->execute([(string) $lid]);
+      if ($u->rowCount() > 0) { $n++; stock_marquer($pdo, (string) $lid, false); }
+    }
+    $pdo->prepare('UPDATE orders SET stock_pris = 0 WHERE id = ?')->execute([$orderId]);
+    return $n;
+  } catch (Throwable $e) { return 0; }
+}
+
+/**
+ * Les commandes d'un compte, dans un rôle donné ('buyer' ou 'seller').
+ *
+ * ⚡ Le Mécanicien, 07/09/2026 : l'écran « Mon compte » demandait cette liste
+ * DEUX FOIS à l'ouverture — une fois pour les achats, une fois pour les ventes.
+ * Et chaque commande coûtait à elle seule deux requêtes de base : ses articles,
+ * puis le nom de l'autre personne. Cinquante commandes faisaient donc cent une
+ * requêtes SQL, deux fois. On lit désormais les articles et les noms EN UNE
+ * FOIS chacun, et la route sait répondre aux deux rôles d'un seul aller-retour
+ * (`role=deux`).
+ */
+function orders_lister(PDO $pdo, string $uid, string $role): array {
+  $col = $role === 'seller' ? 'seller_id' : 'buyer_id';
+  $st = $pdo->prepare("SELECT * FROM orders WHERE $col = ? ORDER BY created_at DESC");
+  $st->execute([$uid]);
+  $orders = $st->fetchAll();
+  if (!$orders) return [];
+
+  // Les identifiants dont on aura besoin : les commandes, et les autres personnes.
+  $ids = array_map(fn($o) => (string) $o['id'], $orders);
+  $autres = [];
+  foreach ($orders as $o) {
+    $autres[(string) ($role === 'seller' ? $o['buyer_id'] : $o['seller_id'])] = true;
+  }
+  $autres = array_keys($autres);
+
+  // Tous les articles d'un coup, rangés par commande.
+  $parCommande = [];
+  $trous = implode(',', array_fill(0, count($ids), '?'));
+  $its = $pdo->prepare("SELECT * FROM order_items WHERE order_id IN ($trous)");
+  $its->execute($ids);
+  foreach ($its->fetchAll() as $i) {
+    $parCommande[(string) $i['order_id']][] = [
+      'listingId' => $i['listing_id'], 'title' => $i['title'], 'price' => (int) $i['price'],
+      'image' => $i['image'] ?: null,
+    ];
+  }
+
+  // Tous les noms d'un coup.
+  $noms = [];
+  if ($autres) {
+    $trous = implode(',', array_fill(0, count($autres), '?'));
+    $pn = $pdo->prepare("SELECT id, full_name FROM profiles WHERE id IN ($trous)");
+    $pn->execute($autres);
+    foreach ($pn->fetchAll() as $p) $noms[(string) $p['id']] = (string) ($p['full_name'] ?? '');
+  }
+
+  $out = [];
+  foreach ($orders as $o) {
+    $autre = (string) ($role === 'seller' ? $o['buyer_id'] : $o['seller_id']);
+    $out[] = [
+      'id' => $o['id'], 'buyerId' => $o['buyer_id'], 'sellerId' => $o['seller_id'],
+      'conversationId' => $o['conversation_id'], 'status' => $o['status'] ?: 'en_cours',
+      'createdAt' => iso_to_ms($o['created_at']),
+      'items' => $parCommande[(string) $o['id']] ?? [],
+      // Commandes conclues avant l'ajout de la colonne : on retombe sur la
+      // date de demande plutôt que d'afficher un vide.
+      'finalizedAt' => ($o['status'] ?? '') === 'finalise'
+        ? iso_to_ms($o['finalized_at'] ?: $o['created_at']) : null,
+      'otherName' => ($noms[$autre] ?? '') !== '' ? $noms[$autre] : 'Utilisateur',
+    ];
+  }
+  return $out;
+}
+
+/** Le compte est-il un professionnel approuvé ? */
+function pro_approuve(PDO $pdo, string $uid): bool {
+  try {
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?'); $st->execute([$uid]);
+    return (string) ($st->fetchColumn() ?: '') === 'approuve';
+  } catch (Throwable $e) { return false; }
+}
+
+/** Le nom sous lequel on connaît le compte : l'enseigne, sinon le nom du profil. */
+function nom_public(PDO $pdo, string $uid): string {
+  try {
+    $st = $pdo->prepare('SELECT pro_nom, pro_status FROM users WHERE id = ?'); $st->execute([$uid]);
+    $u = $st->fetch() ?: [];
+    if ((string) ($u['pro_status'] ?? '') === 'approuve' && trim((string) ($u['pro_nom'] ?? '')) !== '') return trim((string) $u['pro_nom']);
+    $p = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $p->execute([$uid]);
+    return trim((string) ($p->fetchColumn() ?: '')) ?: 'Un vendeur';
+  } catch (Throwable $e) { return 'Un vendeur'; }
+}
+
+/** Combien de personnes suivent ce compte. */
+function abonnes_compter(PDO $pdo, string $proId): int {
+  try { $st = $pdo->prepare('SELECT COUNT(*) FROM follows WHERE pro_id = ?'); $st->execute([$proId]); return (int) $st->fetchColumn(); }
+  catch (Throwable $e) { return 0; }
+}
+
+/**
+ * Prévient les abonnés d'un compte : cloche, push, e-mail de secours — par
+ * `notify()`, type `abonnement`, que chacun peut couper dans ses réglages.
+ * Cinq cents abonnés par publication au plus : au-delà, on ne bloque pas la
+ * publication d'un vendeur pour envoyer des notifications.
+ */
+function abonnes_prevenir(PDO $pdo, string $proId, string $titre, string $corps, string $lien): int {
+  $n = 0;
+  try {
+    $st = $pdo->prepare('SELECT user_id FROM follows WHERE pro_id = ? ORDER BY created_at DESC LIMIT 500');
+    $st->execute([$proId]);
+    foreach ($st->fetchAll() as $r) {
+      // On ne compte que ceux qui l'ont reçue : celui qui a coupé ce type
+      // dans ses réglages n'est pas « prévenu ».
+      if (notify($pdo, (string) $r['user_id'], 'abonnement', $titre, $corps, $lien)) $n++;
+    }
+  } catch (Throwable $e) { /* prévenir ne doit jamais empêcher de publier */ }
+  return $n;
+}
+
+/** Les types de champs qu'un formulaire de candidature peut porter. */
+const OFFRE_CHAMPS_TYPES = ['texte', 'long', 'email', 'tel', 'choix', 'ouinon'];
+
+/** Le formulaire par défaut, quand la structure n'en dessine pas et ne donne pas de lien. */
+function offre_formulaire_defaut(): array {
+  return [
+    ['id' => 'nom', 'label' => 'Votre nom complet', 'type' => 'texte', 'requis' => true],
+    ['id' => 'tel', 'label' => 'Votre numéro de téléphone', 'type' => 'tel', 'requis' => true],
+    ['id' => 'message', 'label' => 'Présentez-vous en quelques lignes', 'type' => 'long', 'requis' => true],
+  ];
+}
+
+/**
+ * Le formulaire envoyé → propre, ou null s'il est mal formé. Douze champs au
+ * plus, un libellé de 80 caractères, un type connu, douze options de 40
+ * caractères pour un choix. L'identifiant est gardé s'il est sage, sinon
+ * numéroté : c'est lui qui relie une réponse à sa question.
+ */
+function offre_formulaire_normaliser($brut): ?array {
+  if ($brut === null || $brut === '') return [];
+  if (!is_array($brut)) return null;
+  $propre = [];
+  foreach (array_slice(array_values($brut), 0, 12) as $i => $c) {
+    if (!is_array($c)) return null;
+    $label = trim(mb_substr((string) ($c['label'] ?? ''), 0, 80));
+    $type = (string) ($c['type'] ?? 'texte');
+    if ($label === '' || !in_array($type, OFFRE_CHAMPS_TYPES, true)) return null;
+    $id = (string) ($c['id'] ?? '');
+    if (!preg_match('/^[a-z0-9_-]{1,20}$/', $id)) $id = 'q' . ($i + 1);
+    $champ = ['id' => $id, 'label' => $label, 'type' => $type, 'requis' => !empty($c['requis'])];
+    if ($type === 'choix') {
+      $options = [];
+      foreach (array_slice((array) ($c['options'] ?? []), 0, 12) as $o) {
+        $o = trim(mb_substr((string) $o, 0, 40));
+        if ($o !== '') $options[] = $o;
+      }
+      if (count($options) < 2) return null;
+      $champ['options'] = $options;
+    }
+    $propre[] = $champ;
+  }
+  // Deux questions ne peuvent pas porter le même identifiant.
+  $ids = array_column($propre, 'id');
+  if (count($ids) !== count(array_unique($ids))) return null;
+  return $propre;
+}
+
+/** Une ligne `offres` → le JSON du client. `$proprietaire` ajoute ce qui n'est qu'à lui. */
+function offre_out(PDO $pdo, array $r, bool $proprietaire = false): array {
+  static $noms = [];
+  $uid = (string) $r['user_id'];
+  if (!isset($noms[$uid])) {
+    $noms[$uid] = ['nom' => nom_public($pdo, $uid), 'logo' => null, 'type' => null];
+    try {
+      $st = $pdo->prepare('SELECT pro_logo, pro_type FROM users WHERE id = ?'); $st->execute([$uid]);
+      $u = $st->fetch() ?: [];
+      $noms[$uid]['logo'] = ($u['pro_logo'] ?? '') !== '' ? (string) $u['pro_logo'] : null;
+      $noms[$uid]['type'] = ($u['pro_type'] ?? '') !== '' ? (string) $u['pro_type'] : null;
+    } catch (Throwable $e) { /* base pas migrée */ }
+  }
+  $formulaire = json_decode((string) ($r['formulaire'] ?? ''), true);
+  return [
+    'id' => $r['id'], 'userId' => $uid,
+    'entreprise' => $noms[$uid]['nom'], 'logo' => $noms[$uid]['logo'], 'typeStructure' => $noms[$uid]['type'],
+    'titre' => $r['titre'], 'description' => $r['description'],
+    'contrat' => $r['contrat'] ?: null, 'lieu' => $r['lieu'] ?: null, 'salaire' => $r['salaire'] ?: null,
+    'lien' => $r['lien'] ?: null,
+    'formulaire' => is_array($formulaire) ? $formulaire : [],
+    'statut' => $r['statut'] ?: 'ouverte',
+    'candidatures' => $proprietaire ? (int) ($r['candidatures'] ?? 0) : null,
+    'createdAt' => iso_to_ms($r['created_at']),
+    'expiresAt' => $r['expires_at'] ? iso_to_ms($r['expires_at']) : null,
+  ];
+}
+
+// =============================================================================
+//  LES RÉSEAUX SOCIAUX DU PROFESSIONNEL (05/09/2026)
+//
+//  Un compte pro approuvé renseigne ses pages — Facebook, Instagram, TikTok,
+//  YouTube, Snapchat, LinkedIn, X, Telegram — et son site ; la page vendeur
+//  les montre en boutons cliquables. C'est ce qu'une enseigne d'Abidjan met
+//  sur sa carte de visite : on la retrouve là où elle poste déjà.
+//
+//  CE QUI EST VÉRIFIÉ, ET POURQUOI. La page vendeur d'un professionnel porte
+//  « Registre vérifié par l'équipe Chap.ci » : un lien qui y figure emprunte
+//  cette caution. Chaque réseau n'accepte donc qu'une adresse SUR SON PROPRE
+//  DOMAINE (un « Facebook » qui pointe ailleurs est refusé), ou un simple nom
+//  d'utilisateur qu'on complète nous-mêmes. Seul le site web est libre — il
+//  doit être une adresse http(s) plausible, et c'est lui que la modération
+//  regarde : chaque enregistrement passe au journal (pro_reseaux).
+//
+//  WHATSAPP, EN PREMIER — décision du Patron du 05/09/2026, après la réserve
+//  qui lui a été faite. Le numéro personnel du vendeur ne sort toujours pas
+//  du serveur (décision du 28/08) : ici, c'est le professionnel qui CHOISIT
+//  de publier son WhatsApp Business, et c'est le canal par lequel on vend à
+//  Abidjan. Un numéro tapé devient un lien wa.me au format international.
+// =============================================================================
+
+/** Les réseaux acceptés : leurs domaines, et la base qui complète un nom d'utilisateur. */
+function reseaux_definitions(): array {
+  return [
+    'whatsapp'  => ['nom' => 'WhatsApp',  'domaines' => ['wa.me', 'whatsapp.com'],           'base' => 'https://wa.me/'],
+    'facebook'  => ['nom' => 'Facebook',  'domaines' => ['facebook.com', 'fb.com', 'fb.me'], 'base' => 'https://www.facebook.com/'],
+    'instagram' => ['nom' => 'Instagram', 'domaines' => ['instagram.com'],                   'base' => 'https://www.instagram.com/'],
+    'tiktok'    => ['nom' => 'TikTok',    'domaines' => ['tiktok.com'],                      'base' => 'https://www.tiktok.com/@'],
+    'youtube'   => ['nom' => 'YouTube',   'domaines' => ['youtube.com', 'youtu.be'],         'base' => 'https://www.youtube.com/@'],
+    'snapchat'  => ['nom' => 'Snapchat',  'domaines' => ['snapchat.com'],                    'base' => 'https://www.snapchat.com/add/'],
+    'linkedin'  => ['nom' => 'LinkedIn',  'domaines' => ['linkedin.com'],                    'base' => 'https://www.linkedin.com/in/'],
+    'x'         => ['nom' => 'X',         'domaines' => ['x.com', 'twitter.com'],            'base' => 'https://x.com/'],
+    'telegram'  => ['nom' => 'Telegram',  'domaines' => ['t.me', 'telegram.me'],             'base' => 'https://t.me/'],
+    'site'      => ['nom' => 'Site web',  'domaines' => [],                                  'base' => ''],
+  ];
+}
+
+/**
+ * Une valeur saisie → l'adresse à enregistrer. '' = rien (le champ se vide),
+ * null = refusée. Accepte l'adresse complète de la page, ou le nom
+ * d'utilisateur (« @maboutique », « maboutique »).
+ */
+function reseau_normaliser(string $cle, string $valeur): ?string {
+  $defs = reseaux_definitions();
+  if (!isset($defs[$cle])) return null;
+  $v = trim($valeur);
+  if ($v === '') return '';
+  // Un numéro WhatsApp se tape avec des espaces (« 07 00 00 00 01 ») : on
+  // les retire AVANT le contrôle qui, pour tous les autres, refuse l'espace.
+  if ($cle === 'whatsapp') $v = preg_replace('/\s+/u', '', $v);
+  if (mb_strlen($v) > 200 || preg_match('/[\s<>"\'\\\\]/u', $v)) return null;
+  $d = $defs[$cle];
+
+  if ($cle === 'site') {
+    if (!preg_match('~^https?://~i', $v)) $v = 'https://' . $v;
+    $p = parse_url($v);
+    if (!$p || empty($p['host']) || !empty($p['user']) || !empty($p['pass'])) return null;
+    $hote = strtolower($p['host']);
+    if (!preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $hote)) return null; // un point au moins, rien d'exotique
+    return 'https://' . $hote . (isset($p['port']) ? ':' . $p['port'] : '') . ($p['path'] ?? '') . (isset($p['query']) ? '?' . $p['query'] : '');
+  }
+
+  // WhatsApp : un NUMÉRO (« 07 00 00 00 01 », « +225 07… »), ou un lien
+  // wa.me / api.whatsapp.com (le numéro en est extrait), ou un lien de
+  // canal / groupe sur whatsapp.com, gardé tel quel.
+  if ($cle === 'whatsapp') {
+    $numero = null;
+    if (preg_match('~(?:^|/)wa\.me/\+?([0-9][0-9 .-]{6,20})~i', $v, $m)) $numero = $m[1];
+    elseif (preg_match('~whatsapp\.com/send/?\?(?:.*&)?phone=\+?([0-9]{7,15})~i', $v, $m)) $numero = $m[1];
+    elseif (!preg_match('~^(https?://|www\.|chat\.|[a-z0-9.-]+\.[a-z]{2,}/)~i', $v)) $numero = $v;
+    if ($numero !== null) {
+      $chiffres = preg_replace('/\D/', '', $numero);
+      if (str_starts_with($chiffres, '00')) $chiffres = substr($chiffres, 2);
+      // Un numéro ivoirien à dix chiffres (07, 05, 01…) : on pose l'indicatif
+      // DEVANT le 0 — depuis 2021, le 0 fait partie du numéro (+225 07…).
+      if (strlen($chiffres) === 10 && $chiffres[0] === '0') $chiffres = '225' . $chiffres;
+      if (strlen($chiffres) < 8 || strlen($chiffres) > 15) return null;
+      return 'https://wa.me/' . $chiffres;
+    }
+    // Sinon : une adresse complète, vérifiée comme les autres réseaux.
+  }
+
+  // Une adresse complète : le domaine doit être celui du réseau.
+  if (preg_match('~^(https?://|www\.)~i', $v) || preg_match('~^[a-z0-9.-]+\.[a-z]{2,}/~i', $v)) {
+    if (!preg_match('~^https?://~i', $v)) $v = 'https://' . $v;
+    $p = parse_url($v);
+    if (!$p || empty($p['host']) || !empty($p['user'])) return null;
+    $hote = strtolower($p['host']);
+    $racine = preg_replace('/^(www|m|mobile|web|vm|vt|business|fr|chat|api)\./', '', $hote);
+    $ok = false;
+    foreach ($d['domaines'] as $dom) {
+      if ($racine === $dom || str_ends_with($racine, '.' . $dom)) { $ok = true; break; }
+    }
+    if (!$ok) return null;
+    $chemin = $p['path'] ?? '';
+    if (trim($chemin, '/') === '') return null; // « facebook.com » tout seul n'est pas une page
+    return 'https://' . $hote . $chemin . (isset($p['query']) ? '?' . $p['query'] : '');
+  }
+
+  // Un nom d'utilisateur.
+  $nom = ltrim($v, '@');
+  if (!preg_match('/^[A-Za-z0-9._-]{1,60}$/', $nom)) return null;
+  return $d['base'] . $nom;
+}
+
+/** L'objet reçu → [adresses propres, ou null si une est refusée ; la clé refusée]. */
+function reseaux_normaliser($entree): array {
+  if (!is_array($entree)) return [[], null];
+  $propre = [];
+  foreach (reseaux_definitions() as $cle => $d) {
+    if (!array_key_exists($cle, $entree)) continue;
+    $url = reseau_normaliser($cle, (string) $entree[$cle]);
+    if ($url === null) return [null, $cle];
+    if ($url !== '') $propre[$cle] = $url;
+  }
+  return [$propre, null];
+}
+
+/** Ce qui est en base → l'objet public, épuré (clés connues, adresses https). */
+function reseaux_lire($json): array {
+  $d = is_string($json) && $json !== '' ? json_decode($json, true) : null;
+  if (!is_array($d)) return [];
+  $out = [];
+  foreach (reseaux_definitions() as $cle => $def) {
+    $v = $d[$cle] ?? null;
+    if (is_string($v) && str_starts_with($v, 'https://')) $out[$cle] = $v;
+  }
+  return $out;
+}
+
+// =============================================================================
+//  LA VIDÉO DE QUINZE SECONDES PAR ANNONCE (chantier 6 du 04/09/2026)
+//
+//  C'est ainsi qu'on vend sur WhatsApp à Abidjan : une courte vidéo de l'objet
+//  qui tourne, qui s'allume, qui roule. Une par annonce, une minute au plus
+//  (quinze secondes au départ ; une minute depuis le 06/09 sur décision du
+//  Patron), après les photos — jamais à leur place (trois photos restent
+//  exigées).
+//
+//  Le fichier arrive en multipart (champ `video`), pas en data-URI comme les
+//  photos : dix mégaoctets en base64 dans un JSON, c'est treize mégaoctets à
+//  faire tenir en mémoire deux fois, et un forfait qui fond pour rien. Il est
+//  vérifié PAR SON CONTENU (finfo), jamais par son nom ni par le type annoncé,
+//  et rangé dans uploads/videos/ — sous le .htaccess d'uploads/ qui interdit
+//  déjà toute exécution. Le serveur ne transcode pas : pas de ffmpeg sur
+//  l'hébergement mutualisé, et un téléphone produit déjà du H.264 lisible
+//  partout. La durée se coupe DANS le client (l'enregistreur du téléphone
+//  s'arrête à 60 s ; le site lit la durée avant d'envoyer) — le serveur, lui,
+//  tient le poids, et c'est le poids qui coûte.
+// =============================================================================
+
+/** « 20M », « 512K », « 2G » → octets. 0 si vide ou illimité. */
+function ini_octets(string $v): int {
+  $v = trim($v);
+  if ($v === '' || $v === '-1') return 0;
+  $n = (float) $v;
+  switch (strtolower(substr($v, -1))) {
+    case 'g': $n *= 1024; // et on continue
+    case 'm': $n *= 1024;
+    case 'k': $n *= 1024;
+  }
+  return (int) $n;
+}
+
+/** Le plafond RÉEL d'une vidéo : le réglage, borné par ce que PHP accepte. */
+function video_limite_octets(array $config): int {
+  $limite = max(1, (int) ($config['video_max_mo'] ?? 60)) * 1024 * 1024;
+  foreach (['upload_max_filesize', 'post_max_size'] as $cle) {
+    $ini = ini_octets((string) ini_get($cle));
+    if ($ini > 0 && $ini < $limite) $limite = $ini;
+  }
+  return $limite;
+}
+
+/** Le chemin sur le disque d'une vidéo dont on a l'adresse publique, ou null
+ *  si l'adresse n'est pas une des nôtres. `basename` neutralise toute
+ *  traversée de chemin ; l'extension est contrôlée pour ne jamais toucher
+ *  autre chose qu'une vidéo. */
+function video_chemin_local(array $config, ?string $url): ?string {
+  if (!$url || !str_contains($url, '/uploads/videos/')) return null;
+  $nom = basename((string) (parse_url($url, PHP_URL_PATH) ?: $url));
+  $ext = strtolower(pathinfo($nom, PATHINFO_EXTENSION));
+  if (!in_array($ext, ['mp4', 'mov', 'webm', '3gp', 'm4v'], true)) return null;
+  $dir = $config['uploads_dir'] ?? null;
+  if (!$dir) return null;
+  $chemin = rtrim($dir, '/') . '/videos/' . $nom;
+  return is_file($chemin) ? $chemin : null;
+}
+
+/** Retire le fichier vidéo d'une annonce, s'il est chez nous. Ne lève jamais. */
+function video_supprimer(array $config, ?string $url): void {
+  $chemin = video_chemin_local($config, $url);
+  if ($chemin) @unlink($chemin);
+}
+
+/** Retire les vidéos des annonces visées par `$where` — À APPELER AVANT le
+ *  DELETE des lignes, sinon on ne sait plus quels fichiers sont orphelins. */
+function videos_supprimer_annonces(PDO $pdo, array $config, string $where, array $params): void {
+  try {
+    $st = $pdo->prepare("SELECT video FROM listings WHERE ($where) AND video IS NOT NULL AND video <> ''");
+    $st->execute($params);
+    foreach ($st->fetchAll() as $r) video_supprimer($config, (string) $r['video']);
+  } catch (Throwable $e) { /* colonne absente sur une base pas encore migrée */ }
+}
+
+// ---- Mise en forme des lignes -> JSON attendu par le frontend ---------------
+//
+// $withPhone : le téléphone du vendeur n'est JAMAIS renvoyé par défaut. Il ne
+// sort que pour le propriétaire de l'annonce (formulaire de modification) et
+// pour l'administration. Auparavant il partait dans /api/listings, route
+// PUBLIQUE et non authentifiée : un simple curl suffisait à récolter le numéro
+// de tous les vendeurs du site — matière première du démarchage et de la fraude
+// par SMS, et promesse inverse de celle faite dans la FAQ.
+function listing_out(array $r, bool $withPhone = false): array {
+  return [
+    'id' => $r['id'], 'title' => $r['title'], 'description' => $r['description'],
+    'price' => (int) $r['price'], 'negotiable' => (bool) $r['negotiable'], 'currency' => 'FCFA',
+    'categoryId' => $r['category_id'], 'subcategory' => $r['subcategory'] ?: null,
+    'condition' => $r['condition_v'] === 'neuf' ? 'neuf' : 'occasion',
+    'images' => $r['images'] ? (json_decode($r['images'], true) ?: []) : [],
+    'regionId' => $r['region_id'], 'cityId' => $r['city_id'] ?: '', 'commune' => $r['commune'] ?: null,
+    'lat' => $r['lat'] !== null ? (float) $r['lat'] : null,
+    'lng' => $r['lng'] !== null ? (float) $r['lng'] : null,
+    'sellerName' => $r['seller_name'], 'sellerPhone' => $withPhone ? $r['seller_phone'] : null,
+    'sellerId' => $r['user_id'] ?: null,
+    // Vendeur vérifié (badge bleu) : présent quand la requête joint users.verified.
+    'sellerVerified' => !empty($r['seller_verified']),
+    // Vendeur professionnel : présent quand la requête joint users.pro_status.
+    // Absent (false) sur une base pas encore migrée.
+    'sellerPro' => (string) ($r['seller_pro'] ?? '') === 'approuve',
+    // LE NOM DE LA BOUTIQUE, montré sur la carte d'annonce (choix du Patron du
+    // 28/08, option 3). On nomme le vendeur au lieu de l'étiqueter : un nom se
+    // reconnaît d'une annonce à l'autre, une étiquette « PRO » non — et le
+    // particulier n'a rien en moins, juste une ligne de moins.
+    //
+    // Uniquement si le dossier est APPROUVÉ : un nom commercial saisi dans une
+    // demande en attente n'a été vérifié par personne, et l'afficher
+    // reviendrait à laisser n'importe qui se donner une enseigne.
+    'sellerEnseigne' => (string) ($r['seller_pro'] ?? '') === 'approuve'
+      ? (trim((string) ($r['seller_enseigne'] ?? '')) ?: null) : null,
+    'createdAt' => iso_to_ms($r['created_at']),
+    'delivery' => (bool) $r['delivery'], 'featured' => (bool) $r['featured'],
+    'promoPrice' => $r['promo_price'] !== null ? (int) $r['promo_price'] : null,
+    'promoUntil' => $r['promo_until'] ? iso_to_ms($r['promo_until']) : null,
+    'attributes' => !empty($r['attributes']) ? (json_decode($r['attributes'], true) ?: null) : null,
+    'hidden' => !empty($r['hidden']),
+    'hiddenReason' => !empty($r['hidden']) ? ($r['hidden_reason'] ?: null) : null,
+    'sold' => !empty($r['sold']),
+    'views' => (int) ($r['views'] ?? 0),
+    // La vidéo de quinze secondes : son adresse publique, ou null. `?? null`
+    // pour une base pas encore migrée (la colonne arrive au premier appel).
+    'video' => (isset($r['video']) && (string) $r['video'] !== '') ? (string) $r['video'] : null,
+    // Le poids de la vidéo, en octets — pour l'annoncer avant de la lancer.
+    // Null sur une vidéo envoyée avant le 07/09/2026 : l'écran n'affiche
+    // alors rien plutôt qu'un chiffre inventé.
+    'videoOctets' => (isset($r['video_octets']) && $r['video_octets'] !== null)
+      ? (int) $r['video_octets'] : null,
+    // Le stock d'un professionnel (07/09/2026) : NULL quand l'annonce n'en
+    // suit pas. L'état dit ce que l'écran doit montrer — « Plus que 3 »,
+    // « Rupture de stock » — sans refaire le calcul à trois endroits.
+    'stock' => isset($r['stock']) && $r['stock'] !== null ? (int) $r['stock'] : null,
+    'stockMin' => isset($r['stock_min']) && $r['stock_min'] !== null ? (int) $r['stock_min'] : STOCK_MIN_DEFAUT,
+    'stockEtat' => stock_etat(isset($r['stock']) && $r['stock'] !== null ? (int) $r['stock'] : null,
+                              isset($r['stock_min']) && $r['stock_min'] !== null ? (int) $r['stock_min'] : STOCK_MIN_DEFAUT),
+  ];
+}
+
+// =============================================================================
+//  Routeur
+// =============================================================================
+try {
+  $pdo = db($config);
+} catch (Throwable $e) {
+  // Cause la plus fréquente à l'installation : identifiants MySQL erronés dans
+  // config.php. On renvoie un message clair plutôt qu'une erreur 500 brute.
+  error_log('[chapci] DB: ' . $e->getMessage());
+  jerr('Connexion à la base de données impossible. Vérifiez les identifiants dans api/config.php (driver mysql/pgsql, host, name, user, pass).'
+    . (!empty($config['debug']) ? ' Détail : ' . $e->getMessage() : ''), 500);
+}
+
+/**
+ * Les notifications push partent APRÈS la réponse.
+ *
+ * `notify()` empile ; ici on vide, une fois que le navigateur a déjà tout reçu.
+ * `litespeed_finish_request()` (chap.ci tourne sous LiteSpeed) coupe la
+ * connexion et laisse le script continuer seul : joindre trois relais peut
+ * prendre plusieurs secondes, et personne ne doit les attendre pour voir sa
+ * page revenir. Sur un hébergeur qui ne l'a pas, l'envoi se fait quand même —
+ * simplement avant que la connexion ne se ferme.
+ *
+ * Rien de tout cela ne peut faire échouer une requête : `push_vider()` attrape
+ * tout, et une fonction d'arrêt s'exécute même après `exit`.
+ */
+register_shutdown_function(static function () use ($config): void {
+  if (empty($GLOBALS['CHAPCI_PUSH'])) return;
+  if (function_exists('litespeed_finish_request')) litespeed_finish_request();
+  elseif (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+  push_vider($config);
+});
+
+// Réinitialisation UNIQUE (post-déploiement) des rôles : on vide la table admins
+// une seule fois. Le PROPRIÉTAIRE (email de config) reste admin (il ne dépend pas
+// de cette table) ; tous les autres comptes perdent leurs droits admin/modérateur
+// et devront être recréés via le nouveau système (permissions + code). Un marqueur
+// garantit que ça ne s'exécute qu'une fois (sinon on effacerait les modérateurs
+// recréés à chaque requête).
+/**
+ * Reprise de l'existant pour la vérification par e-mail — UNE SEULE FOIS.
+ *
+ * Tous les comptes présents le jour où la règle arrive sont considérés comme
+ * vérifiés. On ne bloque pas rétroactivement quelqu'un inscrit sous d'autres
+ * conditions : un vendeur actif qui trouverait soudain sa publication interdite
+ * ne viendrait pas demander pourquoi, il partirait.
+ *
+ * Le marqueur sur disque est ce qui rend l'opération unique. Sans lui, la
+ * reprise se rejouerait à chaque requête et rattraperait les comptes ouverts
+ * après la règle — ils n'auraient jamais à confirmer quoi que ce soit, et la
+ * fonctionnalité entière serait un décor.
+ */
+function backfill_email_verifie(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.email_verify_v1';
+  if (@is_file($marque)) return;
+  try {
+    $pdo->exec("UPDATE users SET email_verified_at = COALESCE(created_at, '2026-07-29T00:00:00Z')
+                WHERE email_verified_at IS NULL");
+    @file_put_contents($marque, gmdate('c'));
+    @chmod($marque, 0600);
+  } catch (Throwable $e) { /* colonne absente : on réessaiera au prochain passage */ }
+}
+backfill_email_verifie($config, $pdo);
+
+/**
+ * Mise en conformité des ventes immobilières — UNE SEULE FOIS, au déploiement.
+ *
+ * Le marqueur sur disque est indispensable : migrate() tourne à chaque requête,
+ * et sans lui la campagne repartirait en boucle. Elle est aussi idempotente en
+ * elle-même (une annonce déjà masquée pour ce motif est ignorée), mais deux
+ * garde-fous valent mieux qu'un quand il s'agit d'envoyer des e-mails.
+ *
+ * Le propriétaire peut la relancer à la demande : POST /api/admin/foncier/campagne.
+ */
+function foncier_campagne_initiale(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.foncier_v1';
+  if (@is_file($marque)) return;
+  // On pose le marqueur AVANT d'agir : si l'envoi des e-mails échoue à
+  // mi-parcours, on ne veut surtout pas que la requête suivante recommence tout
+  // et double les messages déjà partis. Le reliquat se rattrape par la route.
+  @file_put_contents($marque, gmdate('c'));
+  @chmod($marque, 0600);
+  try {
+    // Le résultat est écrit dans le journal ET dans le marqueur : une campagne
+    // qui masque des annonces et envoie des e-mails ne doit pas s'exécuter sans
+    // laisser de trace de ce qu'elle a fait. Sans cela, un e-mail non parti
+    // resterait invisible à jamais.
+    $r = foncier_campagne($config, $pdo, 200);
+    $ligne = gmdate('c') . ' ' . json_encode($r, JSON_UNESCAPED_UNICODE);
+    error_log('[chapci] foncier campagne: ' . $ligne);
+    @file_put_contents($marque, $ligne);
+  } catch (Throwable $e) { error_log('[chapci] foncier: ' . $e->getMessage()); }
+}
+foncier_campagne_initiale($config, $pdo);
+foncier_reouverture_initiale($config, $pdo);
+
+/**
+ * Reclassement des annonces après la fusion des catégories — UNE SEULE FOIS.
+ *
+ * Deux catégories ont disparu parce qu'elles disaient la même chose qu'une
+ * autre : « Téléphones » (un téléphone EST un appareil électronique) et
+ * « Agriculture » (un régime de bananes se vendait aussi en Alimentation ;
+ * personne ne savait lequel des deux rayons regarder). Plusieurs
+ * sous-catégories ont par ailleurs été renommées pour dire ce qu'elles
+ * contiennent vraiment.
+ *
+ * Sans ce reclassement, toute annonce publiée avant la fusion resterait
+ * accrochée à un identifiant que plus aucun écran ne connaît : elle
+ * disparaîtrait des filtres, de la page catégorie et des alertes — invisible,
+ * mais toujours facturée à son vendeur s'il l'avait mise en avant. On ne
+ * supprime rien et on ne masque rien : on déplace.
+ *
+ * Le marqueur sur disque est indispensable — ce fichier est exécuté à chaque
+ * requête. La campagne est de toute façon idempotente (elle ne cherche que
+ * les anciens noms, qu'elle fait disparaître), mais deux garde-fous valent
+ * mieux qu'un quand on écrit dans la table des annonces.
+ */
+function fusion_categories(array $config, PDO $pdo): void {
+  $marque = chapci_secret_dir($config) . '/.fusion_categories_v1';
+  if (@is_file($marque)) return;
+  @file_put_contents($marque, gmdate('c'));
+  @chmod($marque, 0600);
+
+  // [ancienne catégorie, ancienne sous-catégorie (null = toutes),
+  //  nouvelle catégorie, nouvelle sous-catégorie (null = inchangée)]
+  $regles = [
+    // --- Téléphones → Électronique -----------------------------------------
+    ['telephones', 'Smartphones',      'electronique', 'Smartphones'],
+    ['telephones', 'Tablettes',        'electronique', 'Tablettes'],
+    ['telephones', 'Téléphones fixes', 'electronique', 'Téléphones fixes'],
+    ['telephones', 'Accessoires',      'electronique', 'Accessoires téléphone'],
+    ['telephones', 'Réparation',       'electronique', 'Réparation & Dépannage'],
+    // Le reste (« Toutes », ou une valeur qu'on n'avait pas prévue) atterrit
+    // sur la sous-catégorie la plus fréquente plutôt que dans le vide.
+    ['telephones', null,               'electronique', 'Smartphones'],
+
+    // --- Agriculture → répartie selon ce qui est vendu ----------------------
+    ['agriculture', 'Produits vivriers',   'alimentation', 'Produits vivriers'],
+    ['agriculture', 'Cacao & Café',        'alimentation', 'Cacao & Café'],
+    ['agriculture', 'Semences & Intrants', 'alimentation', 'Semences & Intrants'],
+    ['agriculture', 'Élevage',             'animaux',      'Bétail & Élevage'],
+    ['agriculture', 'Matériel agricole',   'materiel-pro', 'Agriculture & Élevage'],
+    ['agriculture', null,                  'alimentation', 'Produits vivriers'],
+
+    // --- Sous-catégories renommées, à catégorie inchangée -------------------
+    ['vehicules',    'Location de véhicules',      'vehicules',    'Location'],
+    ['electronique', 'Accessoires',                'electronique', 'Accessoires téléphone'],
+    ['electronique', 'Réparation',                 'electronique', 'Réparation & Dépannage'],
+    ['services',     'Informatique',               'services',     'Informatique & Digital'],
+    ['services',     'Couture',                    'services',     'Couture & Artisanat'],
+    ['materiel-pro', 'Agriculture',                'materiel-pro', 'Agriculture & Élevage'],
+    ['materiel-pro', 'Restauration',               'materiel-pro', 'Restauration & Maquis'],
+    ['materiel-pro', 'Industrie',                  'materiel-pro', 'Industrie & Atelier'],
+    ['materiel-pro', 'Fournitures de bureau',      'materiel-pro', 'Bureau & Informatique'],
+    ['alimentation', 'Miel & Confitures',          'alimentation', 'Produits du terroir'],
+    ['animaux',      'Oiseaux & Poissons',         'animaux',      'Oiseaux, Poissons & Reptiles'],
+    ['animaux',      'Accessoires & Alimentation', 'animaux',      'Accessoires & Matériel'],
+    ['loisirs',      'Livres',                     'loisirs',      'Livres & BD'],
+    ['loisirs',      'Vélos',                      'loisirs',      'Vélos & Trottinettes'],
+    // « Jeux & Jouets » mélangeait deux marchés. On garde la catégorie plutôt
+    // que de déménager d'office chez Bébé : déplacer l'annonce de quelqu'un
+    // dans un autre rayon sans le lui dire est pire que de la laisser où elle
+    // est, et le vendeur peut la corriger en deux touches.
+    ['loisirs',      'Jeux & Jouets',              'loisirs',      'Jeux de société & Puzzles'],
+    ['bebe',         'Vêtements bébé',             'bebe',         'Vêtements bébé & enfant'],
+    ['bebe',         'Poussettes',                 'bebe',         'Poussettes & Sièges auto'],
+    ['bebe',         'Jouets',                     'bebe',         'Jouets & Éveil'],
+    ['bebe',         'Mobilier bébé',              'bebe',         'Mobilier & Chambre'],
+    ['bebe',         'Matériel de puériculture',   'bebe',         'Puériculture & Repas'],
+    ['sante',        'Compléments alimentaires',   'sante',        'Compléments & Tisanes'],
+    ['sante',        'Matériel médical & Paramédical', 'sante',    'Matériel médical de confort'],
+  ];
+
+  $bilan = [];
+  try {
+    foreach ($regles as [$cat, $sub, $ncat, $nsub]) {
+      if ($sub === null) {
+        $st = $pdo->prepare('UPDATE listings SET category_id = ?, subcategory = ? WHERE category_id = ?');
+        $st->execute([$ncat, $nsub, $cat]);
+      } else {
+        $st = $pdo->prepare('UPDATE listings SET category_id = ?, subcategory = ? WHERE category_id = ? AND subcategory = ?');
+        $st->execute([$ncat, $nsub, $cat, $sub]);
+      }
+      $n = $st->rowCount();
+      if ($n > 0) $bilan[] = "$cat/" . ($sub ?? '*') . " → $ncat/$nsub : $n";
+    }
+    // Les centres d'intérêt suivent les annonces — sinon les alertes de
+    // l'acheteur ne se déclencheraient plus jamais, sans rien signaler.
+    //
+    // La clé primaire est (user_id, category_id) : un acheteur qui suivait À LA
+    // FOIS « Téléphones » et « Électronique » ferait échouer la mise à jour sur
+    // un doublon, et TOUTE la reprise s'arrêterait là. On efface donc d'abord
+    // l'ancienne ligne de ceux qui ont déjà la nouvelle — ils ne perdent rien,
+    // c'est le même centre d'intérêt — avant de déplacer les autres.
+    foreach ([['telephones', 'electronique'], ['agriculture', 'alimentation']] as [$vieux, $neuf]) {
+      try {
+        $pdo->prepare('DELETE FROM user_interests WHERE category_id = ? AND user_id IN
+                       (SELECT user_id FROM (SELECT user_id FROM user_interests WHERE category_id = ?) AS t)')
+            ->execute([$vieux, $neuf]);
+        $st = $pdo->prepare('UPDATE user_interests SET category_id = ? WHERE category_id = ?');
+        $st->execute([$neuf, $vieux]);
+        if ($st->rowCount() > 0) $bilan[] = "alertes $vieux → $neuf : " . $st->rowCount();
+      } catch (Throwable $e) { /* table ou colonne absente : rien à reprendre */ }
+    }
+    $ligne = gmdate('c') . ' ' . json_encode($bilan, JSON_UNESCAPED_UNICODE);
+    error_log('[chapci] fusion categories: ' . $ligne);
+    @file_put_contents($marque, $ligne);
+  } catch (Throwable $e) {
+    error_log('[chapci] fusion categories: ' . $e->getMessage());
+  }
+}
+fusion_categories($config, $pdo);
+
+$resetMarker = chapci_secret_dir($config) . '/.reset_admins_v2';
+if (!file_exists($resetMarker)) {
+  try { $pdo->exec('DELETE FROM admins'); } catch (Throwable $e) { /* table absente : rien à faire */ }
+  admins_fp_save($config, $pdo); // référence d'intégrité = ensemble vide (propriétaire seul)
+  @file_put_contents($resetMarker, now_iso());
+}
+
+// NETTOYAGE UNIQUE : retirer les passages sur le tableau de bord des statistiques
+// de fréquentation.
+//
+// Un écran /admin n'est pas une page du site — personne ne « visite » un tableau
+// de bord. Or jusqu'ici, chaque fois que le Patron rafraîchissait son admin,
+// c'était compté comme une visite et des pages vues : d'où 4 154 pages pour 158
+// personnes (26 par tête, impossible pour du vrai trafic). Désormais /track ne
+// les enregistre plus (voir la route) ; ce nettoyage efface celles DÉJÀ en base.
+//
+// On ne touche QUE les lignes de chemin /admin — de l'accès au dashboard, aucune
+// donnée d'audience réelle. Le marqueur garantit un seul passage (migrate tourne
+// à chaque requête, et un DELETE avec scan à chaque fois coûterait cher).
+$purgeAdminVisits = chapci_secret_dir($config) . '/.visits_admin_purge_v1';
+if (!file_exists($purgeAdminVisits)) {
+  try { $pdo->prepare("DELETE FROM visits WHERE path LIKE ?")->execute(['/admin%']); }
+  catch (Throwable $e) { /* table absente : rien à faire */ }
+  @file_put_contents($purgeAdminVisits, now_iso());
+}
+$secret = $config['jwt_secret'];
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+// Chemin après /api
+$uri  = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+$path = preg_replace('#^.*/api/?#', '', $uri);
+$path = trim($path, '/');
+$seg  = $path === '' ? [] : explode('/', $path);
+
+try {
+  // ---------- CONFIG PUBLIQUE ----------
+  // Réglages non secrets exposés au frontend (l'ID client Google est public).
+  // Permet d'activer la connexion Google / téléphone sans reconstruire le site.
+  if ($path === 'config' && $method === 'GET') {
+    $sms = $config['sms'] ?? [];
+    jout([
+      'googleClientId' => (string) ($config['google_client_id'] ?? ''),
+      'facebookAppId'  => (string) ($config['facebook_app_id'] ?? ''),
+      'phoneAuth'      => (($sms['provider'] ?? '') !== '' || !empty($sms['debug'])),
+    ]);
+  }
+
+  // ---------- AUTH ----------
+  if ($path === 'auth/signup' && $method === 'POST') {
+    $b = body();
+    $email = strtolower(trim($b['email'] ?? ''));
+    $pass  = (string) ($b['password'] ?? '');
+    $name  = trim($b['full_name'] ?? '');
+    // Anti-abus : max 6 créations de compte par IP et par heure.
+    rate_limit($pdo, 'signup', null, 6, 3600);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    if (strlen($pass) < 8) jerr('Le mot de passe doit faire au moins 8 caractères.');
+    // Consentement obligatoire et horodaté (loi 2013-450 / 2013-546).
+    if (empty($b['consent'])) jerr('Vous devez accepter les CGU et la Politique de confidentialité.');
+    $ex = $pdo->prepare('SELECT id FROM users WHERE email = ?'); $ex->execute([$email]);
+    if ($ex->fetch()) jerr('Cet email a déjà un compte. Connectez-vous.');
+    $id = uuid();
+    $cguVersion = substr((string) ($b['cguVersion'] ?? '2026-07-14'), 0, 32);
+    $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version) VALUES (?,?,?,?,?,?)')
+        ->execute([$id, $email, password_hash($pass, PASSWORD_BCRYPT), now_iso(), now_iso(), $cguVersion]);
+    $pdo->prepare('INSERT INTO profiles (id,full_name,created_at) VALUES (?,?,?)')
+        ->execute([$id, $name, now_iso()]);
+    log_security_event($pdo, 'signup', $email);
+    // Email de bienvenue (best-effort : n'empêche jamais la création du compte).
+    send_welcome_email($config, $email, $name);
+    $token = mk_token($pdo, $id, $email, $secret);
+    set_session_cookie($config, $token); // P3 : ouvre la session via cookie HttpOnly
+    jout(['token' => $token, 'user' => user_public($pdo, ['id' => $id, 'email' => $email])]);
+  }
+
+  if ($path === 'auth/login' && $method === 'POST') {
+    $b = body();
+    $email = strtolower(trim($b['email'] ?? ''));
+    // Anti-force brute : max 8 tentatives par IP/email sur 15 minutes.
+    rate_limit($pdo, 'login_fail', $email, 8, 900);
+    $st = $pdo->prepare('SELECT id,email,password_hash,status FROM users WHERE email = ?');
+    $st->execute([$email]); $u = $st->fetch();
+    // Un compte créé via Google ou Facebook n'a PAS de mot de passe : la colonne
+    // password_hash reste NULL. Le fichier déclare strict_types, donc
+    // password_verify(..., null) levait une TypeError — l'utilisateur recevait
+    // « Erreur serveur. Réessayez plus tard. » au lieu d'un message utile.
+    //
+    // Deux dégâts, l'un visible, l'autre non :
+    //  - quelqu'un qui s'était inscrit avec Google et revenait par e-mail +
+    //    mot de passe se heurtait à une erreur incompréhensible et repartait ;
+    //  - la réponse DIFFÉRAIT de celle d'un e-mail inconnu, ce qui permettait
+    //    d'énumérer les comptes existants en comparant les deux messages.
+    // On traite donc l'absence de mot de passe comme un échec ordinaire.
+    $hash = $u ? (string) ($u['password_hash'] ?? '') : '';
+    if (!$u || $hash === '' || !password_verify((string) ($b['password'] ?? ''), $hash)) {
+      log_security_event($pdo, 'login_fail', $email);
+      // Le message dit la sortie, pas seulement l'échec.
+      //
+      // L'application Android ne montre PAS le bouton « Continuer avec Google »
+      // (src/pages/Login.tsx:41, `!isNative`) : Google refuse l'authentification
+      // dans une vue web embarquée. Quelqu'un qui a ouvert son compte avec Google
+      // sur chap.ci n'a donc, dans l'application, ni bouton Google, ni mot de
+      // passe — et lisait « Email ou mot de passe incorrect » sans savoir qu'il
+      // n'en a jamais eu. Il réessayait jusqu'à se faire bloquer 15 minutes.
+      //
+      // La phrase reste STRICTEMENT LA MÊME pour tout le monde, e-mail inconnu
+      // compris : c'est ce qui empêche d'énumérer les comptes existants en
+      // comparant deux réponses (voir le commentaire ci-dessus). On ne révèle
+      // rien de plus ; on indique simplement où aller.
+      jerr('Email ou mot de passe incorrect. Si vous vous êtes inscrit avec Google ou Facebook, ouvrez chap.ci dans votre navigateur, connectez-vous, puis choisissez un mot de passe dans votre profil : il vous servira ensuite ici.', 401);
+    }
+    if (($u['status'] ?? 'active') === 'blocked') {
+      log_security_event($pdo, 'login_blocked', $email);
+      jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403);
+    }
+    log_security_event($pdo, 'login_ok', $email);
+    // 2FA activée : on ne délivre PAS encore la session. On renvoie un « jeton de
+    // défi » de courte durée (5 min) ; la session n'est ouverte qu'après avoir
+    // validé un code sur /auth/2fa/verify.
+    $tf = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?'); $tf->execute([$u['id']]);
+    if ((int) ($tf->fetchColumn() ?: 0) === 1) {
+      $chal = jwt_sign(['sub' => $u['id'], 'mfa' => 1, 'exp' => time() + 300], $secret);
+      jout(['mfa_required' => true, 'mfa_token' => $chal]);
+    }
+    $token = mk_token($pdo, $u['id'], $u['email'], $secret);
+    set_session_cookie($config, $token); // P3
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+  }
+
+  // ---- MOT DE PASSE OUBLIÉ --------------------------------------------------
+  //
+  // Il n'y en avait AUCUN jusqu'au 29/08 : la page existait, elle répondait
+  // « contactez le support », et l'équipe n'avait elle-même aucun outil pour
+  // réinitialiser quoi que ce soit. Un utilisateur qui oubliait son mot de
+  // passe était perdu pour de bon.
+  //
+  // Ce n'était pas un trou de sécurité — pas de flux, pas de faille — mais un
+  // piège qui se refermait : le jour où quelqu'un écrit « c'est moi,
+  // réinitialisez-moi », la tentation de le faire à la main est exactement la
+  // porte qu'un escroc cherche. Mieux vaut une procédure qui prouve quelque
+  // chose qu'un humain qui se laisse convaincre.
+  //
+  // Le flux reprend celui de la vérification d'adresse, déjà éprouvé ici :
+  // code à six chiffres, haché en base, quinze minutes, cinq essais.
+
+  // Étape 1 — demander le code.
+  if ($path === 'auth/reset/send' && $method === 'POST') {
+    $email = strtolower(trim((string) (body()['email'] ?? '')));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    // 5 demandes par heure et par adresse : de quoi se tromper de boîte, pas
+    // de quoi transformer le site en distributeur d'e-mails.
+    rate_limit($pdo, 'reset_send', $email, 5, 3600);
+
+    $st = $pdo->prepare('SELECT id, password_hash, auth_provider FROM users WHERE LOWER(email) = ? LIMIT 1');
+    $st->execute([$email]);
+    $u = $st->fetch();
+
+    // ON NE DIT JAMAIS SI LE COMPTE EXISTE. La réponse est la même dans tous
+    // les cas — sinon cette route devient un annuaire : on y teste mille
+    // adresses et on repart avec la liste de celles qui sont inscrites.
+    if ($u) {
+      try { $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]); }
+      catch (Throwable $e) {}
+      try { $code = (string) random_int(100000, 999999); }
+      catch (Throwable $e) { $code = (string) mt_rand(100000, 999999); }
+      $pdo->prepare('INSERT INTO email_codes (id,email,code_hash,attempts,created_at,expires_at) VALUES (?,?,?,?,?,?)')
+          ->execute([uuid(), 'reset:' . $email, password_hash($code, PASSWORD_BCRYPT), 0, now_iso(),
+                     gmdate('Y-m-d\TH:i:s\Z', time() + 900)]);
+      $inner = '<h2 style="margin-top:0;color:#111827">Votre code de réinitialisation</h2>'
+        . '<p>Bonjour,</p>'
+        . '<p>Voici le code qui vous permet de choisir un nouveau mot de passe :</p>'
+        . '<p style="font-size:34px;font-weight:800;letter-spacing:10px;color:#1a1f2b;'
+        . 'background:#FFF6EC;border-radius:14px;padding:18px;text-align:center;margin:18px 0">'
+        . $code . '</p>'
+        . '<p>Il est valable <b>15 minutes</b>.</p>'
+        . '<p><b>Vous n\'avez rien demandé ?</b> Ignorez ce message : votre mot de passe '
+        . 'reste celui que vous connaissez, et personne ne peut le changer sans ce code.</p>';
+      send_mail($config, $email, 'Chap.ci — code de réinitialisation : ' . $code,
+                email_layout($config, $inner, 'Mot de passe oublié'));
+      log_security_event($pdo, 'reset_send', $email);
+    } else {
+      // Compte inconnu : on journalise quand même (une rafale d'adresses
+      // inconnues est le signe d'un balayage) et on répond pareil.
+      log_security_event($pdo, 'reset_send_inconnu', $email);
+    }
+    jout(['ok' => true]);
+  }
+
+  // Étape 2 — le code + le nouveau mot de passe.
+  if ($path === 'auth/reset/confirm' && $method === 'POST') {
+    $b = body();
+    $email = strtolower(trim((string) ($b['email'] ?? '')));
+    $saisi = preg_replace('/\D/', '', (string) ($b['code'] ?? ''));
+    $neuf  = (string) ($b['password'] ?? '');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    if (strlen($neuf) < 8) jerr('Mot de passe trop court (8 caractères minimum).');
+    rate_limit($pdo, 'reset_try', $email, 20, 3600);
+
+    $st = $pdo->prepare('SELECT id, code_hash, attempts, expires_at FROM email_codes
+                         WHERE email = ? ORDER BY created_at DESC');
+    $st->execute(['reset:' . $email]);
+    $row = $st->fetch();
+    if (!$row) jerr('Aucun code en cours. Demandez-en un nouveau.');
+    if (strtotime((string) $row['expires_at']) < time()) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]);
+      jerr('Ce code a expiré. Demandez-en un nouveau.');
+    }
+    if ((int) ($row['attempts'] ?? 0) >= 5) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]);
+      log_security_event($pdo, 'reset_trop_essais', $email);
+      jerr('Trop d’essais. Demandez un nouveau code.');
+    }
+    if (!password_verify($saisi, (string) $row['code_hash'])) {
+      $pdo->prepare('UPDATE email_codes SET attempts = attempts + 1 WHERE id = ?')
+          ->execute([$row['id']]);
+      log_security_event($pdo, 'reset_code_faux', $email);
+      jerr('Code incorrect.', 401);
+    }
+
+    $us = $pdo->prepare('SELECT id, totp_enabled, totp_secret, totp_recovery FROM users WHERE LOWER(email) = ? LIMIT 1');
+    $us->execute([$email]);
+    $u = $us->fetch();
+    if (!$u) jerr('Compte introuvable.', 404);
+
+    // LA DOUBLE AUTHENTIFICATION RESTE EXIGÉE. Sans cela, la réinitialisation
+    // par e-mail deviendrait le chemin de contournement de la 2FA : qui prend
+    // la boîte mail prend le compte, et les six chiffres de l'application
+    // n'auraient plus servi à rien.
+    if ((int) ($u['totp_enabled'] ?? 0) === 1) {
+      $code2fa = (string) ($b['code2fa'] ?? '');
+      if ($code2fa === '') {
+        jout(['mfa_required' => true,
+              'message' => 'Entrez le code à 6 chiffres de votre application d’authentification.'], 401);
+      }
+      if (!totp_check((string) $u['totp_secret'], $code2fa)
+          && !recovery_consume($pdo, (string) $u['id'], (string) ($u['totp_recovery'] ?? ''), $code2fa)) {
+        log_security_event($pdo, 'reset_2fa_faux', $email);
+        jerr('Code de double authentification incorrect.', 401);
+      }
+    }
+
+    // Le mot de passe change ET toutes les sessions ouvertes tombent : si
+    // quelqu'un était déjà entré dans le compte, la réinitialisation le met
+    // dehors. C'est le geste qui rend la procédure utile en cas de vol.
+    $pdo->prepare('UPDATE users SET password_hash = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+        ->execute([password_hash($neuf, PASSWORD_BCRYPT), $u['id']]);
+    $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute(['reset:' . $email]);
+    log_security_event($pdo, 'reset_ok', $email);
+
+    // On préviens la personne que son mot de passe VIENT de changer : si ce
+    // n'est pas elle, c'est ce message qui la fait réagir.
+    try {
+      $inner = '<h2 style="margin-top:0;color:#111827">Votre mot de passe a été changé</h2>'
+        . '<p>Le mot de passe de votre compte Chap.ci vient d\'être réinitialisé, et '
+        . 'toutes les sessions ouvertes ont été fermées.</p>'
+        . '<p><b>Ce n\'est pas vous ?</b> Écrivez immédiatement à contact@chap.ci.</p>';
+      send_mail($config, $email, 'Chap.ci — votre mot de passe a été changé',
+                email_layout($config, $inner, 'Mot de passe changé'));
+    } catch (Throwable $e) { /* le changement est fait quoi qu'il arrive */ }
+
+    jout(['ok' => true]);
+  }
+
+  // ---- Double authentification (2FA / TOTP) ---------------------------------
+  // État : la 2FA est-elle active sur mon compte ?
+  if ($path === 'auth/2fa/status' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?'); $st->execute([$u['id']]);
+    jout(['enabled' => (int) ($st->fetchColumn() ?: 0) === 1]);
+  }
+  // Étape 1 — génère un secret (non encore activé) + l'URI otpauth à scanner/ouvrir.
+  if ($path === 'auth/2fa/setup' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $sec = totp_secret_new();
+    $pdo->prepare('UPDATE users SET totp_pending = ? WHERE id = ?')->execute([$sec, $u['id']]);
+    jout(['factorId' => 'totp', 'secret' => $sec, 'uri' => totp_uri($sec, (string) ($u['email'] ?? ''))]);
+  }
+  // Étape 2 — vérifie un premier code contre le secret en attente → active la 2FA
+  // et renvoie (UNE seule fois) les codes de secours à conserver.
+  if ($path === 'auth/2fa/activate' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT totp_pending FROM users WHERE id = ?'); $st->execute([$u['id']]);
+    $pending = (string) ($st->fetchColumn() ?: '');
+    if ($pending === '') jerr('Commencez par générer un secret (étape 1).');
+    if (!totp_check($pending, (string) ($b['code'] ?? ''))) {
+      jerr('Code incorrect. Vérifiez l’heure de votre téléphone, puis réessayez.', 401);
+    }
+    $codes = recovery_codes_new();
+    $hashed = array_map(fn($c) => password_hash($c, PASSWORD_BCRYPT), $codes);
+    $pdo->prepare('UPDATE users SET totp_secret = ?, totp_pending = NULL, totp_enabled = 1, totp_recovery = ? WHERE id = ?')
+        ->execute([$pending, json_encode($hashed), $u['id']]);
+    log_security_event($pdo, '2fa_enabled', $u['email'] ?? null);
+    jout(['ok' => true, 'recoveryCodes' => $codes]);
+  }
+  // Désactive la 2FA — exige un code valide (TOTP ou code de secours).
+  if ($path === 'auth/2fa/disable' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT totp_secret, totp_recovery, totp_enabled FROM users WHERE id = ?'); $st->execute([$u['id']]);
+    $row = $st->fetch();
+    if (!$row || (int) ($row['totp_enabled'] ?? 0) !== 1) jout(['ok' => true]); // déjà désactivée
+    $code = (string) ($b['code'] ?? '');
+    if (!totp_check((string) $row['totp_secret'], $code)
+        && !recovery_consume($pdo, $u['id'], (string) ($row['totp_recovery'] ?? ''), $code)) {
+      jerr('Code incorrect.', 401);
+    }
+    $pdo->prepare('UPDATE users SET totp_secret = NULL, totp_pending = NULL, totp_enabled = 0, totp_recovery = NULL WHERE id = ?')
+        ->execute([$u['id']]);
+    log_security_event($pdo, '2fa_disabled', $u['email'] ?? null);
+    jout(['ok' => true]);
+  }
+  // Connexion — étape 2FA : échange le jeton de défi + un code contre une session.
+  if ($path === 'auth/2fa/verify' && $method === 'POST') {
+    $b = body();
+    $payload = jwt_verify((string) ($b['mfaToken'] ?? ''), $secret);
+    if (!$payload || empty($payload['sub']) || empty($payload['mfa'])) jerr('Session expirée. Reconnectez-vous.', 401);
+    $st = $pdo->prepare('SELECT id, email, status, totp_secret, totp_recovery FROM users WHERE id = ?');
+    $st->execute([$payload['sub']]); $u = $st->fetch();
+    if (!$u) jerr('Session expirée. Reconnectez-vous.', 401);
+    // Anti-force brute sur le code (6 chiffres) : 6 essais / 15 min par IP+email.
+    rate_limit($pdo, 'mfa_fail', (string) $u['email'], 6, 900);
+    if (($u['status'] ?? 'active') === 'blocked') jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403);
+    $code = (string) ($b['code'] ?? '');
+    if (!totp_check((string) $u['totp_secret'], $code)
+        && !recovery_consume($pdo, (string) $u['id'], (string) ($u['totp_recovery'] ?? ''), $code)) {
+      log_security_event($pdo, 'mfa_fail', $u['email'] ?? null);
+      jerr('Code incorrect.', 401);
+    }
+    log_security_event($pdo, 'mfa_ok', $u['email'] ?? null);
+    $token = mk_token($pdo, (string) $u['id'], (string) $u['email'], $secret);
+    set_session_cookie($config, $token);
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+  }
+
+  if ($path === 'auth/me' && $method === 'GET') {
+    $u = current_user($pdo, $secret);
+    // P3 · Rafraîchit le cookie à chaque chargement (session « glissante ») ET
+    // migre en douceur une session héritée (jeton Bearer) vers le cookie HttpOnly.
+    if ($u) set_session_cookie($config, mk_token($pdo, $u['id'], $u['email'] ?? '', $secret));
+    jout(['user' => $u ? user_public($pdo, $u) : null]);
+  }
+
+  // P3 · Déconnexion côté serveur : efface le cookie HttpOnly (le JavaScript ne
+  // peut pas le faire lui-même). Toujours « ok », même sans session.
+  if ($path === 'auth/logout' && $method === 'POST') {
+    clear_session_cookie($config);
+    clear_admin_unlock_cookie($config); // referme aussi la serrure du tableau de bord
+    jout(['ok' => true]);
+  }
+
+  if ($path === 'auth/password' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $new = (string) ($b['password'] ?? '');
+    if (strlen($new) < 8) jerr('Mot de passe trop court.');
+    // P12 · Si le compte a déjà un mot de passe, exiger et vérifier l'actuel
+    // (les comptes Google/téléphone sans mot de passe peuvent en définir un).
+    $cur = $pdo->prepare('SELECT password_hash FROM users WHERE id = ?'); $cur->execute([$u['id']]);
+    $hash = (string) ($cur->fetchColumn() ?: '');
+    if ($hash !== '') {
+      $old = (string) ($b['currentPassword'] ?? $b['oldPassword'] ?? '');
+      if ($old === '' || !password_verify($old, $hash)) {
+        log_security_event($pdo, 'password_change_denied', $u['email'] ?? null);
+        jerr('Mot de passe actuel incorrect.', 403);
+      }
+    }
+    // Met à jour + incrémente la version de session (déconnecte les autres
+    // sessions ouvertes).
+    $pdo->prepare('UPDATE users SET password_hash = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+        ->execute([password_hash($new, PASSWORD_BCRYPT), $u['id']]);
+    log_security_event($pdo, 'password_changed', $u['email'] ?? null);
+    // Nouveau jeton pour la session courante (les anciens sont désormais invalides).
+    $token = mk_token($pdo, $u['id'], $u['email'] ?? '', $secret);
+    set_session_cookie($config, $token); // P3 : la session courante reste ouverte
+    jout(['ok' => true, 'token' => $token]);
+  }
+
+  if ($path === 'auth/delete' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $id = $u['id']; $b = body();
+    // Vérification : on redemande le mot de passe avant toute suppression.
+    // Les comptes créés via Google ou par téléphone n'ont pas de mot de passe :
+    // le jeton d'authentification (Bearer) suffit alors à prouver l'identité.
+    $st = $pdo->prepare('SELECT password_hash FROM users WHERE id = ?'); $st->execute([$id]);
+    $hash = $st->fetch()['password_hash'] ?? '';
+    if ($hash !== '' && $hash !== null && !password_verify((string) ($b['password'] ?? ''), $hash))
+      jerr('Mot de passe incorrect. Suppression annulée.', 403);
+    $pdo->prepare('DELETE FROM reports WHERE reporter_id = ?')->execute([$id]);
+    // Ses demandes à l'équipe partent avec lui. Les fils d'équipe (kind
+    // 'staff'), eux, ne lui appartiennent pas : ils ne portent pas son
+    // identifiant et restent en place.
+    try {
+      $pdo->prepare("DELETE FROM team_messages WHERE thread_id IN (SELECT id FROM team_threads WHERE kind = 'user' AND user_id = ?)")->execute([$id]);
+      $pdo->prepare("DELETE FROM team_threads WHERE kind = 'user' AND user_id = ?")->execute([$id]);
+    } catch (Throwable $e) {}
+    $pdo->prepare('DELETE FROM messages WHERE sender_id = ?')->execute([$id]);
+    $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
+    $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
+    $pdo->prepare('DELETE FROM orders WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
+    $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ? OR target_id = ?')->execute([$id, $id, $id]);
+    // Nettoyage RGPD complet : aucune donnée liée ne doit survivre au compte
+    // (loi 2013-450, droit à l'effacement). Robuste si une table est absente.
+    foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
+              'saved_searches' => 'user_id', 'user_interests' => 'user_id',
+              'quick_replies' => 'user_id',
+              // Sans cette ligne, le téléphone d'un compte supprimé continuerait
+              // de recevoir les notifications du compte qui reprendrait son id.
+              'push_subs' => 'user_id',
+              // Ses abonnements, ses abonnés, ses offres et ses candidatures.
+              'follows' => 'user_id', 'offres' => 'user_id', 'candidatures' => 'user_id'] as $tbl => $col) {
+      try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
+    }
+    try { $pdo->prepare('DELETE FROM follows WHERE pro_id = ?')->execute([$id]); } catch (Throwable $e) {}
+    videos_supprimer_annonces($pdo, $config, 'user_id = ?', [$id]); // les vidéos, avant les lignes
+    $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
+    $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
+    $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+    clear_session_cookie($config); // P3 : ferme la session du compte supprimé
+    jout(['ok' => true]);
+  }
+
+  // Connexion / inscription via Google (Sign-In). Reçoit le « credential »
+  // (jeton d'identité) de Google Identity Services, le vérifie, puis ouvre la
+  // session. Crée le compte à la première connexion.
+  if ($path === 'auth/google' && $method === 'POST') {
+    $b = body();
+    rate_limit($pdo, 'oauth', null, 30, 3600);
+    if (($config['google_client_id'] ?? '') === '')
+      jerr('La connexion Google n’est pas encore activée sur le serveur.', 400);
+    $cred = (string) ($b['credential'] ?? '');
+    if ($cred === '') jerr('Jeton Google manquant.');
+    $claims = google_verify_id_token($config, $cred);
+    if (!$claims) { log_security_event($pdo, 'oauth_fail', null, 'google'); jerr('Connexion Google invalide. Réessayez.', 401); }
+    $email = strtolower(trim((string) ($claims['email'] ?? '')));
+    $name  = trim((string) ($claims['name'] ?? ''));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Ce compte Google n’a pas d’adresse email valide.', 400);
+    // `auth_provider` est lu ici parce qu'il décide, plus bas, s'il faut effacer
+    // le mot de passe local — voir le commentaire « anti-pré-détournement ».
+    $st = $pdo->prepare('SELECT id,email,status,password_hash,auth_provider FROM users WHERE email = ?'); $st->execute([$email]); $u = $st->fetch();
+    if (!$u) {
+      $id = uuid();
+      // email_verified_at pose d'emblee : Google et Facebook ont DEJA verifie
+      // l'adresse avant de nous la transmettre. Redemander un code serait une
+      // formalite vide, et un obstacle de plus a l'inscription la plus fluide.
+      $pdo->prepare('INSERT INTO users (id,email,password_hash,created_at,consent_at,cgu_version,auth_provider,email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([$id, $email, null, now_iso(), now_iso(), '2026-07-14', 'google', now_iso()]);
+      $pdo->prepare('INSERT INTO profiles (id,full_name,avatar_url,created_at) VALUES (?,?,?,?)')
+          ->execute([$id, $name, (string) ($claims['picture'] ?? '') ?: null, now_iso()]);
+      log_security_event($pdo, 'signup', $email, 'google');
+      send_welcome_email($config, $email, $name);
+      $u = ['id' => $id, 'email' => $email, 'status' => 'active'];
+    } else {
+      if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $email, 'google'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+      // Anti-pré-détournement : si ce compte possédait un mot de passe local
+      // (potentiellement défini par un tiers AVANT que le vrai propriétaire ne se
+      // connecte via Google — qui, lui, prouve la possession de l'email), on
+      // l'invalide et on incrémente session_version pour couper toute session
+      // ouverte avec cet ancien mot de passe.
+      //
+      // MAIS PAS QUAND C'EST GOOGLE QUI A CRÉÉ LE COMPTE.
+      // La règle ne vise que le compte ouvert par mot de passe puis revendiqué
+      // par Google. Appliquée à un compte que Google a lui-même ouvert, elle
+      // efface le mot de passe que son propriétaire légitime vient de choisir —
+      // et il n'a pas d'autre moyen d'entrer dans l'application Android, où le
+      // bouton Google n'existe pas. Le scénario était : il pose un mot de passe
+      // depuis chap.ci, se reconnecte une fois avec le bouton Google qu'il
+      // connaît, et se retrouve dehors le lendemain sans comprendre.
+      // Un compte marqué `auth_provider = 'google'` n'a jamais eu de mot de
+      // passe d'origine : il n'y a rien à s'y pré-détourner.
+      $creeParGoogle = ($u['auth_provider'] ?? '') === 'google';
+      if (!$creeParGoogle && ($u['password_hash'] ?? null) !== null && (string) $u['password_hash'] !== '') {
+        $pdo->prepare('UPDATE users SET password_hash = NULL, auth_provider = ?, session_version = COALESCE(session_version,0) + 1 WHERE id = ?')
+            ->execute(['google', $u['id']]);
+        log_security_event($pdo, 'oauth_password_reset', $email, 'google');
+      }
+      log_security_event($pdo, 'login_ok', $email, 'google');
+    }
+    $token = mk_token($pdo, $u['id'], $u['email'], $secret);
+    set_session_cookie($config, $token); // P3
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+  }
+
+  // Connexion / inscription via Facebook. Reçoit le jeton d'accès du SDK
+  // Facebook, le vérifie (débog + profil), puis ouvre la session.
+  if ($path === 'auth/facebook' && $method === 'POST') {
+    $b = body();
+    rate_limit($pdo, 'oauth', null, 30, 3600);
+    if (($config['facebook_app_id'] ?? '') === '' || ($config['facebook_app_secret'] ?? '') === '')
+      jerr('La connexion Facebook n’est pas encore activée sur le serveur.', 400);
+    $tok = (string) ($b['accessToken'] ?? $b['token'] ?? '');
+    if ($tok === '') jerr('Jeton Facebook manquant.');
+    $fb = facebook_verify_token($config, $tok);
+    if (!$fb) { log_security_event($pdo, 'oauth_fail', null, 'facebook'); jerr('Connexion Facebook invalide. Réessayez.', 401); }
+    $sess = fb_session_from_identity($pdo, $config, $secret, $fb);
+    set_session_cookie($config, $sess['token']);
+    jout(['token' => $sess['token'], 'user' => user_public($pdo, $sess['user'])]);
+  }
+
+  // Connexion Facebook « web » pour l'app mobile (sans SDK natif — le téléphone
+  // ouvre juste la page Facebook dans le navigateur du système). Facebook nous
+  // renvoie ici un `code` d'autorisation ; on l'échange contre un jeton d'accès
+  // (le SECRET Facebook ne quitte jamais le serveur), on ouvre la session, puis
+  // on renvoie l'app par un schéma privé `chapci://` — que seule l'application
+  // enregistrée sur ce schéma peut recevoir.
+  if ($path === 'auth/facebook/mobile' && $method === 'GET') {
+    $ret = 'chapci://facebook-auth';
+    $redirectUri = 'https://chap.ci/api/auth/facebook/mobile';
+    if (($config['facebook_app_id'] ?? '') === '' || ($config['facebook_app_secret'] ?? '') === '') {
+      header('Location: ' . $ret . '?error=' . rawurlencode('Facebook non activé sur le serveur')); exit;
+    }
+    $code = (string) ($_GET['code'] ?? '');
+    if ($code === '') {
+      // Facebook a renvoyé une erreur (refus, fenêtre fermée…).
+      header('Location: ' . $ret . '?error=' . rawurlencode((string) ($_GET['error_description'] ?? $_GET['error'] ?? 'Connexion annulée'))); exit;
+    }
+    rate_limit($pdo, 'oauth', null, 30, 3600);
+    $ex = http_fetch('https://graph.facebook.com/v18.0/oauth/access_token?client_id=' . urlencode((string) $config['facebook_app_id'])
+      . '&client_secret=' . urlencode((string) $config['facebook_app_secret'])
+      . '&redirect_uri=' . urlencode($redirectUri)
+      . '&code=' . urlencode($code));
+    $ej = json_decode((string) ($ex['body'] ?? ''), true);
+    $accessToken = is_array($ej) ? (string) ($ej['access_token'] ?? '') : '';
+    if ($accessToken === '') {
+      header('Location: ' . $ret . '?error=' . rawurlencode('Échec de la connexion Facebook')); exit;
+    }
+    $fb = facebook_verify_token($config, $accessToken);
+    if (!$fb) { log_security_event($pdo, 'oauth_fail', null, 'facebook'); header('Location: ' . $ret . '?error=' . rawurlencode('Connexion Facebook invalide')); exit; }
+    // On répercute le `state` anti-CSRF émis par l'app (Facebook l'a renvoyé tel
+    // quel dans ?state=…). L'app vérifiera qu'il correspond exactement à celui
+    // qu'elle a émis avant d'accepter la session — protection contre la fixation
+    // de session. Le serveur ne stocke rien : c'est l'app, seul « client » du
+    // flux, qui tranche.
+    $state = (string) ($_GET['state'] ?? '');
+    $sess = fb_session_from_identity($pdo, $config, $secret, $fb);
+    $loc = $ret . '?token=' . rawurlencode($sess['token']);
+    if ($state !== '') $loc .= '&state=' . rawurlencode($state);
+    header('Location: ' . $loc); exit;
+  }
+
+  // Connexion par téléphone — étape 1 : envoi d'un code à 6 chiffres par SMS.
+  if ($path === 'auth/phone/start' && $method === 'POST') {
+    $b = body();
+    $phone = normalize_phone((string) ($b['phone'] ?? ''));
+    if (strlen($phone) < 8) jerr('Numéro de téléphone invalide.');
+    // Anti-abus : max 5 envois par numéro/IP et par heure.
+    rate_limit($pdo, 'otp_send', $phone, 5, 3600);
+    $sms   = $config['sms'] ?? [];
+    $prov  = $sms['provider'] ?? '';
+    $debug = !empty($sms['debug']);
+    if ($prov === '' && !$debug)
+      jerr('La connexion par téléphone n’est pas encore activée sur le serveur.', 400);
+    $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+    $pdo->prepare('INSERT INTO otp_codes (id,phone,code_hash,attempts,created_at,expires_at) VALUES (?,?,?,?,?,?)')
+        ->execute([uuid(), $phone, password_hash($code, PASSWORD_BCRYPT), 0, now_iso(), gmdate('Y-m-d\TH:i:s\Z', time() + 600)]);
+    log_security_event($pdo, 'otp_send', $phone);
+    $text = "Chap.ci : votre code de verification est $code (valable 10 minutes). Ne le partagez avec personne.";
+    $delivered = ($prov !== '') ? sms_send($config, $phone, $text) : false;
+    if (!$delivered && !$debug) jerr('Envoi du SMS impossible pour le moment. Réessayez plus tard.', 502);
+    $resp = ['delivered' => $delivered];
+    // P11 : ne JAMAIS renvoyer le code au client en production. Il n'est révélé
+    // que si le mode debug GLOBAL est explicitement activé (développement).
+    if ($debug && !empty($config['debug'])) $resp['debugCode'] = $code;
+    jout($resp);
+  }
+
+  // Connexion par téléphone — étape 2 : vérification du code + ouverture de session.
+  if ($path === 'auth/phone/verify' && $method === 'POST') {
+    $b = body();
+    $phone = normalize_phone((string) ($b['phone'] ?? ''));
+    $code  = preg_replace('/\D/', '', (string) ($b['code'] ?? ''));
+    $name  = trim((string) ($b['full_name'] ?? ''));
+    rate_limit($pdo, 'otp_verify_fail', $phone, 10, 900);
+    if ($phone === '' || $code === '') jerr('Numéro ou code manquant.');
+    $st = $pdo->prepare('SELECT id,code_hash,attempts,expires_at FROM otp_codes WHERE phone = ? ORDER BY created_at DESC');
+    $st->execute([$phone]); $row = $st->fetch();
+    if (!$row) jerr('Aucun code en attente. Demandez un nouveau code.', 400);
+    if (strtotime((string) $row['expires_at']) < time()) {
+      $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+      jerr('Code expiré. Demandez un nouveau code.', 400);
+    }
+    if ((int) $row['attempts'] >= 5) {
+      $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+      jerr('Trop d’essais. Demandez un nouveau code.', 429);
+    }
+    if (!password_verify($code, (string) $row['code_hash'])) {
+      $pdo->prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?')->execute([$row['id']]);
+      log_security_event($pdo, 'otp_verify_fail', $phone);
+      jerr('Code incorrect.', 401);
+    }
+    // Code valide : on le consomme, puis on trouve/crée le compte lié au numéro.
+    $pdo->prepare('DELETE FROM otp_codes WHERE phone = ?')->execute([$phone]);
+    $st = $pdo->prepare('SELECT id,email,status FROM users WHERE phone = ?'); $st->execute([$phone]); $u = $st->fetch();
+    if (!$u) {
+      $id = uuid();
+      $pdo->prepare('INSERT INTO users (id,email,phone,password_hash,created_at,consent_at,cgu_version,auth_provider) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([$id, null, $phone, null, now_iso(), now_iso(), '2026-07-14', 'phone']);
+      $pdo->prepare('INSERT INTO profiles (id,full_name,phone,created_at) VALUES (?,?,?,?)')
+          ->execute([$id, $name, $phone, now_iso()]);
+      log_security_event($pdo, 'signup', $phone, 'phone');
+      $u = ['id' => $id, 'email' => null, 'status' => 'active'];
+    } else {
+      if (($u['status'] ?? 'active') === 'blocked') { log_security_event($pdo, 'login_blocked', $phone, 'phone'); jerr('Votre compte a été bloqué. Contactez le support à contact@chap.ci.', 403); }
+      log_security_event($pdo, 'login_ok', $phone, 'phone');
+    }
+    $token = mk_token($pdo, $u['id'], $u['email'] ?? '', $secret);
+    set_session_cookie($config, $token); // P3
+    jout(['token' => $token, 'user' => user_public($pdo, $u)]);
+  }
+
+  // ---------- LISTINGS ----------
+  // ── « ÇA VAUT COMBIEN ? » — la fourchette du marché sur Chap.ci ──────────
+  //
+  // Nouveauté n° 3 du 03/09/2026. Le vendeur qui tape son prix voit ce que le
+  // même objet se vend ici ; l'acheteur voit si un prix est dans la moyenne ou
+  // « bien en dessous » — le signal n° 1 de l'arnaque (skill moderation-ci :
+  // « prix trop beau »). Rien de tout cela ne refuse une annonce.
+  //
+  // La base de calcul est la SOUS-CATÉGORIE (et l'état, s'il est donné). Si la
+  // marque est donnée et qu'elle réunit assez d'annonces, on se resserre sur
+  // elle : un iPhone et un Itel ne se vendent pas au même prix dans « Téléphones ».
+  // Sous cinq annonces, on rend le compte mais AUCUNE fourchette : trois prix
+  // ne font pas un marché, et une fausse moyenne ferait plus de mal qu'un blanc.
+  //
+  // Les percentiles se prennent au rang le plus proche sur les prix triés :
+  // simple, déterministe, et le banc peut les recalculer à la main.
+  if ($path === 'listings/prix-marche' && $method === 'GET') {
+    $cat  = trim((string) ($_GET['categoryId'] ?? ''));
+    $sous = trim((string) ($_GET['subcategory'] ?? ''));
+    $etat = trim((string) ($_GET['condition'] ?? ''));
+    $marque = mb_strtolower(trim((string) ($_GET['marque'] ?? '')));
+    $sauf = trim((string) ($_GET['sauf'] ?? '')); // l'annonce qu'on modifie ne se compare pas à elle-même
+    if ($cat === '' || $sous === '') jerr('Catégorie et sous-catégorie requises.', 400);
+    $JOURS = 180;
+    $depuis = gmdate('Y-m-d\TH:i:s\Z', time() - $JOURS * 86400);
+    // 500 annonces récentes au plus : la fourchette d'un marché ne change pas
+    // au-delà, et la requête reste bornée quelle que soit la taille du site.
+    $sql = 'SELECT id, price, condition_v, attributes FROM listings
+            WHERE category_id = ? AND subcategory = ? AND price > 0
+              AND COALESCE(hidden, 0) = 0 AND created_at >= ?';
+    $args = [$cat, $sous, $depuis];
+    if ($etat === 'neuf' || $etat === 'occasion') { $sql .= ' AND condition_v = ?'; $args[] = $etat; }
+    $sql .= ' ORDER BY created_at DESC LIMIT 500';
+    $st = $pdo->prepare($sql); $st->execute($args);
+    $tous = []; $deMarque = [];
+    foreach ($st->fetchAll() as $r) {
+      if ($sauf !== '' && $r['id'] === $sauf) continue;
+      $p = (int) $r['price'];
+      $tous[] = $p;
+      if ($marque !== '') {
+        $a = $r['attributes'] ? (json_decode((string) $r['attributes'], true) ?: []) : [];
+        $m = mb_strtolower(trim((string) ($a['marque'] ?? $a['brand'] ?? '')));
+        if ($m !== '' && $m === $marque) $deMarque[] = $p;
+      }
+    }
+    $MIN = 5;
+    $base = 'sous-catégorie';
+    $prix = $tous;
+    if ($marque !== '' && count($deMarque) >= $MIN) { $prix = $deMarque; $base = 'marque'; }
+    sort($prix);
+    $n = count($prix);
+    $pct = function (float $q) use ($prix, $n): int { return $prix[(int) floor($q * ($n - 1))]; };
+    jout([
+      'n' => $n, 'jours' => $JOURS, 'base' => $base, 'minimum' => $MIN,
+      'mediane' => $n >= $MIN ? $pct(0.5) : null,
+      'p25' => $n >= $MIN ? $pct(0.25) : null,
+      'p75' => $n >= $MIN ? $pct(0.75) : null,
+    ]);
+  }
+
+  if ($path === 'listings' && $method === 'GET') {
+    // Le public ne voit pas les annonces masquées (par le vendeur ou la modération).
+    // Jointure users.verified → badge « vendeur vérifié » affiché sur la carte.
+    //
+    // Pagination OPTIONNELLE : ?limit=20&offset=40 renvoie une page (pour le
+    // défilement infini de l'app). Sans ces paramètres, on garde le comportement
+    // historique (jusqu'à 500 d'un coup) — le site consomme cette route sans
+    // pagination, la réponse reste un simple tableau dans les deux cas. Le client
+    // sait qu'il a atteint la fin quand une page renvoie moins que `limit`.
+    if (isset($_GET['limit']) || isset($_GET['offset'])) {
+      $limit  = max(1, min(100, (int) ($_GET['limit'] ?? 20)));   // borne dure : 100
+      $offset = max(0, (int) ($_GET['offset'] ?? 0));
+    } else {
+      $limit = 500; $offset = 0;
+    }
+    // $limit et $offset sont des entiers déjà bornés (jamais des chaînes) :
+    // interpolation sûre, et on évite le piège du binding LIMIT/OFFSET en PDO.
+    $rows = $pdo->query("SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro,
+             u.pro_nom AS seller_enseigne FROM listings l
+      LEFT JOIN users u ON u.id = l.user_id
+      WHERE (l.hidden IS NULL OR l.hidden = 0) AND (l.sold IS NULL OR l.sold = 0)
+      ORDER BY l.created_at DESC LIMIT $limit OFFSET $offset")->fetchAll();
+    // ?q= : la recherche qui comprend, côté serveur — la même que celle du site
+    // et de l'application. Le site filtre encore chez lui ; cette entrée sert
+    // au banc, aux alertes, et au jour où la recherche passera côté serveur.
+    $q = trim((string) ($_GET['q'] ?? ''));
+    if ($q !== '') {
+      $rows = array_values(array_filter($rows,
+        fn($l) => recherche_correspond(recherche_preparer(listing_texte_recherche($l)), $q)));
+    }
+    jout(array_map('listing_out', $rows));
+  }
+
+  if ($path === 'listings' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    // Comptes restreints/bloqués : publication interdite.
+    $stt = $pdo->prepare('SELECT status FROM users WHERE id = ?'); $stt->execute([$u['id']]);
+    $ustatus = $stt->fetch()['status'] ?? 'active';
+    if (in_array($ustatus, ['blocked', 'restricted'], true))
+      jerr('Votre compte ne peut pas publier d’annonce pour le moment. Contactez le support.', 403);
+    // Anti-abus : un vendeur actif ne publie pas 30 annonces en une heure. La
+    // limite est GÉNÉREUSE (aucun usage normal ne l'atteint) mais borne une
+    // requête forgée qui enchaînerait les créations pour saturer le disque.
+    rate_limit($pdo, 'listing_create', $u['email'] ?? null, 30, 3600);
+    // Adresse e-mail confirmée : obligatoire pour PUBLIER, et là seulement.
+    // Le message porte un code que l'écran sait reconnaître pour ouvrir la
+    // saisie du code au lieu d'afficher une erreur sèche.
+    if (!email_verifie($pdo, (string) $u['id'])) {
+      jout(['error' => 'Confirmez votre adresse e-mail avant de publier : nous vous envoyons un code.',
+            'emailUnverified' => true], 403);
+    }
+    if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
+    // Le Gardien : analyse anti-arnaque + contenu interdit AVANT publication.
+    $mod = moderate_text(($b['title'] ?? '') . ' ' . ($b['description'] ?? ''));
+    if (!$mod['ok']) {
+      log_security_event($pdo, 'listing_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $mod['reasons'])));
+      jout([
+        'error' => 'Votre annonce n’a pas pu être publiée : elle enfreint nos règles.',
+        'moderation' => true, 'reasons' => $mod['reasons'],
+      ], 422);
+    }
+    $images = [];
+    // Plafond de sécurité : max 10 photos. L'écran en autorise 5 (site) / 8
+    // (app) ; au-delà, c'est une requête forgée qui cherche à saturer le disque
+    // (comme /ads plafonne déjà ses visuels à 3). Chaque image reste vérifiée
+    // par son contenu réel et limitée à 8 Mo par save_data_uri().
+    // `$brutes` retient les data-URI RETENUES, pour l'empreinte plus bas.
+    // Deux raisons, et la seconde est la plus importante :
+    //  · le plafond de 10 s'applique aussi à l'empreinte — sinon une requête
+    //    forgée à deux cents photos ferait tourner image_empreinte() (décodage
+    //    GD + rééchantillonnage) sur chacune, hors de tout garde-fou ;
+    //  · on n'empreinte que ce qui est PUBLIÉ. Une photo refusée par
+    //    save_data_uri() (format invalide, SVG actif) n'est pas sur l'annonce :
+    //    la signaler enverrait un relecteur chercher une photo absente.
+    $brutes = [];
+    foreach (array_slice((array) ($b['images'] ?? []), 0, 10) as $img) {
+      $img = (string) $img;
+      $url = save_data_uri($config, $img, true); // true = filigrane Chap.ci
+      if ($url) { $images[] = $url; $brutes[] = $img; }
+    }
+    // Trois photos au minimum. La règle est ici, et pas seulement dans l'écran :
+    // un formulaire se contourne, une route non.
+    //
+    // Pourquoi trois. Une annonce sans photo ne se vend pas — l'acheteur
+    // ivoirien qui doit se déplacer à travers Abidjan veut voir avant de bouger.
+    // Une seule photo, c'est la photo du fabricant ; deux, c'est la même sous
+    // deux angles. Trois, c'est le moment où le vendeur montre l'objet qu'il a
+    // réellement chez lui, avec ses défauts. C'est exactement ce qui distingue
+    // une vraie annonce d'une annonce recopiée.
+    //
+    // On compte les images RETENUES, pas celles envoyées : une photo refusée
+    // par save_data_uri (format invalide, SVG actif) ne compte pas, sans quoi
+    // on publierait une annonce à deux photos en croyant en avoir trois.
+    if (count($images) < LISTING_MIN_PHOTOS) {
+      jerr('Ajoutez au moins ' . LISTING_MIN_PHOTOS . ' photos de l’objet. Une annonce sans photo ne se vend pas : montrez-le sous plusieurs angles, et n’hésitez pas à montrer les défauts — c’est ce qui inspire confiance.', 422);
+    }
+    $id = uuid();
+    $promoUntil = !empty($b['promoUntil']) ? gmdate('Y-m-d\TH:i:s\Z', (int) ($b['promoUntil'] / 1000)) : null;
+    // Attributs spécifiques à la catégorie (marque, année, surface…) : on ne
+    // garde que des paires clé/valeur textuelles non vides.
+    $attrs = [];
+    if (!empty($b['attributes']) && is_array($b['attributes'])) {
+      foreach ($b['attributes'] as $k => $v) {
+        $k = substr(trim((string) $k), 0, 40);
+        $v = substr(trim((string) $v), 0, 120);
+        if ($k !== '' && $v !== '') $attrs[$k] = $v;
+      }
+    }
+    // Vente immobilière : le dossier foncier est exigé ici aussi, pas seulement
+    // à l'écran. Sinon la règle ne tiendrait pas devant un simple curl.
+    foncier_exiger((string) ($b['categoryId'] ?? ''), $b['subcategory'] ?? null, $attrs);
+    $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+
+    // ── LES PHOTOS ONT-ELLES TRAVERSÉ UN FILTRE ? ────────────────────────────
+    //
+    // Le seul filtre de photos de Chap.ci (NSFW.js) tourne DANS LE NAVIGATEUR.
+    // C'est une courtoisie du site à lui-même : l'application ne l'exécute pas,
+    // et un `curl` passe à côté sans effort. Jusqu'ici, personne ne le savait au
+    // moment de publier — une annonce avec photos arrivait en ligne sans que
+    // rien n'indique si quoi que ce soit l'avait regardée.
+    //
+    // Le site déclare désormais `photosAnalysees` quand il a fait tourner son
+    // analyse. Ce que le serveur en fait : il le NOTE. Il ne le croit pas.
+    //
+    // ⚠️ CE DRAPEAU N'EST PAS UNE SÉCURITÉ. N'importe qui peut l'envoyer à vrai.
+    // Il ne sert qu'à une chose, et elle suffit : une annonce avec photos dont
+    // le client n'affirme rien remonte en tête de la file de relecture. Ce qui
+    // n'avait AUCUN contrôle avant relecture humaine en a donc un — celui d'y
+    // arriver, au lieu d'attendre un signalement.
+    $photosVerifiees = (!empty($images) && !empty($b['photosAnalysees'])) ? 1 : 0;
+    // Et si l'une des photos ressemble à une photo déjà retirée par un humain,
+    // on garde la trace de la ressemblance. `photos_signal()` ne refuse jamais —
+    // voir le commentaire de la fonction, la mesure interdit de conclure seule.
+    $signal = $brutes ? photos_signal($pdo, $brutes) : null;
+    $photoSignal = photo_signal_texte($signal);
+
+    // Le stock (07/09/2026) : seulement pour un professionnel approuvé — un
+    // particulier vend UN objet, il n'a pas de stock à suivre.
+    $estPro = pro_approuve($pdo, (string) $u['id']);
+    $stock = $estPro ? stock_normaliser($b['stock'] ?? null) : null;
+    $stockMin = $estPro ? stock_min_normaliser($b['stockMin'] ?? null) : STOCK_MIN_DEFAUT;
+    $pdo->prepare('INSERT INTO listings
+      (id,user_id,title,description,price,negotiable,category_id,subcategory,condition_v,images,
+       region_id,city_id,commune,lat,lng,seller_name,seller_phone,delivery,featured,promo_price,promo_until,attributes,created_at,
+       photos_verifiees,photo_signal,stock,stock_min)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+      ->execute([
+        $id, $u['id'], trim($b['title']), trim($b['description'] ?? ''), (int) ($b['price'] ?? 0),
+        !empty($b['negotiable']) ? 1 : 0, $b['categoryId'] ?? '', $b['subcategory'] ?? null,
+        ($b['condition'] ?? 'occasion'), json_encode($images, JSON_UNESCAPED_SLASHES),
+        $b['regionId'] ?? '', $b['cityId'] ?? '', $b['commune'] ?? null,
+        isset($b['lat']) ? (float) $b['lat'] : null, isset($b['lng']) ? (float) $b['lng'] : null,
+        $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0, 0,
+        isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson, now_iso(),
+        $photosVerifiees, $photoSignal, $stock, $stockMin,
+      ]);
+    if ($stock !== null) stock_marquer($pdo, $id, false);
+    // Notification de statut : l'annonce a passé la modération et est en ligne.
+    notify($pdo, $u['id'], 'listing', 'Annonce publiée ✅',
+      'Votre annonce « ' . mb_substr(trim($b['title']), 0, 60) . ' » est maintenant en ligne.',
+      '#/annonce/' . $id);
+    // Les abonnés d'un compte professionnel l'apprennent (06/09/2026).
+    if (pro_approuve($pdo, (string) $u['id'])) {
+      abonnes_prevenir($pdo, (string) $u['id'], 'Nouveauté chez ' . nom_public($pdo, (string) $u['id']),
+        mb_substr(trim($b['title']), 0, 80) . ((int) ($b['price'] ?? 0) > 0 ? ' — ' . number_format((int) $b['price'], 0, ',', ' ') . ' FCFA' : ''),
+        '#/annonce/' . $id);
+    }
+    // Indexation instantanée : on signale la nouvelle annonce à tout le net (IndexNow).
+    chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $id]);
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro,
+             u.pro_nom AS seller_enseigne FROM listings l
+      LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?'); $st->execute([$id]);
+    jout(listing_out($st->fetch(), true)); // réponse au propriétaire : téléphone inclus
+  }
+
+  // Mes annonces — inclut les annonces masquées (gestion par le vendeur).
+  if ($path === 'listings/mine' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    $rows = $st->fetchAll();
+    // Les deux chiffres qui manquaient à « Mes annonces » : combien de
+    // personnes l'ont enregistrée, combien ont écrit. Un vendeur qui voit
+    // « 214 vues, 12 favoris, 0 contact » sait quoi corriger ; « 214 vues »
+    // tout seul ne dit rien. Best-effort : une base non migrée rend des zéros.
+    $fav = []; $conv = [];
+    $ids = array_column($rows, 'id');
+    if ($ids) {
+      $in = implode(',', array_fill(0, count($ids), '?'));
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM favorites
+                            WHERE listing_id IN ($in) GROUP BY listing_id");
+        $q->execute($ids);
+        foreach ($q->fetchAll() as $r) $fav[(string) $r['listing_id']] = (int) $r['c'];
+      } catch (Throwable $e) {}
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM conversations
+                            WHERE listing_id IN ($in) GROUP BY listing_id");
+        $q->execute($ids);
+        foreach ($q->fetchAll() as $r) $conv[(string) $r['listing_id']] = (int) $r['c'];
+      } catch (Throwable $e) {}
+    }
+    // « Mes annonces » : le demandeur est authentifié et n'obtient que les
+    // siennes — son propre téléphone peut donc lui être renvoyé.
+    jout(array_map(function ($r) use ($fav, $conv) {
+      $o = listing_out($r, true);
+      $o['favoris'] = $fav[(string) $r['id']] ?? 0;
+      $o['contacts'] = $conv[(string) $r['id']] ?? 0;
+      return $o;
+    }, $rows));
+  }
+
+  // Marquer une annonce vendue (ou la remettre en vente) depuis « Mes
+  // annonces ». Le vendeur seul décide : une annonce vendue sort des
+  // résultats sans être supprimée, et ses statistiques restent.
+  // LE STOCK D'UNE ANNONCE (07/09/2026) — la quantité et le seuil, depuis la
+  // console du professionnel (« + / − » sur chaque produit). Réservé au
+  // propriétaire de l'annonce, professionnel approuvé. `stock: null` cesse
+  // de suivre le stock. Pas de notification ici : c'est lui qui écrit.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'stock' && $method === 'PUT') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT user_id, stock, stock_min FROM listings WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ((string) $row['user_id'] !== (string) $u['id']) jerr('Cette annonce n’est pas la vôtre.', 403);
+    if (!pro_approuve($pdo, (string) $u['id'])) jerr('Le suivi de stock est réservé aux comptes professionnels approuvés.', 403);
+    $stock = array_key_exists('stock', $b) ? stock_normaliser($b['stock'])
+      : ($row['stock'] === null ? null : (int) $row['stock']);
+    $min = array_key_exists('stockMin', $b) ? stock_min_normaliser($b['stockMin'])
+      : ($row['stock_min'] === null ? STOCK_MIN_DEFAUT : (int) $row['stock_min']);
+    $pdo->prepare('UPDATE listings SET stock = ?, stock_min = ? WHERE id = ?')->execute([$stock, $min, $seg[1]]);
+    $etat = stock_marquer($pdo, $seg[1], false);
+    jout(['ok' => true, 'stock' => $stock, 'stockMin' => $min, 'stockEtat' => $etat]);
+  }
+
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'vendue' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ((string) $row['user_id'] !== (string) $u['id']) jerr('Cette annonce n’est pas la vôtre.', 403);
+    $vendue = !empty(body()['sold']) ? 1 : 0;
+    $pdo->prepare('UPDATE listings SET sold = ? WHERE id = ?')->execute([$vendue, $seg[1]]);
+    jout(['ok' => true, 'sold' => (bool) $vendue]);
+  }
+
+  // Lire UNE annonce par son id. Le fil `/listings` renvoie déjà l'objet
+  // complet, donc le parcours « liste → détail » n'a pas besoin de cette route ;
+  // mais l'app ouvre aussi une annonce à partir de son seul id — depuis une
+  // notification et depuis la modération (`Listing.parId`). Sans cette route,
+  // ces deux écrans recevaient « Route inconnue » (404). Lecture publique par
+  // id exact (non énumérable) ; l'objet porte ses drapeaux `hidden`/`sold` pour
+  // que l'écran affiche le bon état. Pas de téléphone (forme publique).
+  if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'GET') {
+    $st = $pdo->prepare('SELECT l.*, u.verified AS seller_verified, u.pro_status AS seller_pro,
+             u.pro_nom AS seller_enseigne FROM listings l
+      LEFT JOIN users u ON u.id = l.user_id WHERE l.id = ?');
+    $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    jout(listing_out($row));
+  }
+
+  // Traduire le titre et la description d'une annonce (texte écrit par le
+  // vendeur, donc intraduisible d'avance) vers la langue choisie dans l'app.
+  //
+  // Le moteur est un LibreTranslate auto-hébergé, pointé par le réglage
+  // `traduction_url`. Tant qu'il est vide, la route répond 503 et l'application
+  // se replie sur Google Traduction — le jour où le VPS existe, remplir le
+  // réglage suffit. Chaque traduction est mise en cache (table `traductions`,
+  // empreinte du texte source) : un texte n'est traduit qu'UNE fois, quel que
+  // soit le nombre de lecteurs — c'est ce qui rend le moteur bon marché.
+  //
+  // Route publique (les visiteurs lisent les annonces sans compte), throttlée
+  // par IP pour que personne n'en fasse un traducteur gratuit à volonté.
+  // ── « CHAP.CI ÉCRIT L'ANNONCE » — le moteur de vision ────────────────────
+  //
+  // Nouveauté n° 1 du 03/09/2026, l'effet « waouh » : le vendeur prend la photo,
+  // le titre, la catégorie, la sous-catégorie, l'état et les caractéristiques
+  // se remplissent ; il corrige et publie. Publier passe de cinq minutes à
+  // trente secondes.
+  //
+  // Même patron que la traduction : un moteur branchable derrière un réglage.
+  // Sans clé (`vision_cle`), GET répond « pas disponible » et l'écran ne montre
+  // rien. Le moteur est l'API Claude (Messages) : la photo en base64, le
+  // catalogue des catégories envoyé PAR LE CLIENT — c'est lui qui le connaît,
+  // le serveur PHP n'en a pas de copie, et une copie divergerait —, et une
+  // réponse contrainte à un schéma JSON. Le serveur VÉRIFIE ensuite que la
+  // catégorie et la sous-catégorie rendues existent dans ce catalogue : un
+  // moteur peut inventer, l'écran ne doit pas le voir.
+  //
+  // Ce que ça ne fait pas : le prix. Un moteur inventerait un chiffre ; le prix
+  // conseillé vient de « Ça vaut combien ? », mesuré sur Chap.ci.
+  //
+  // Le quota (`vision_quota` par personne et par jour) passe par rate_limit(),
+  // donc par le journal de sécurité — chaque appel réussi y est écrit, c'est ce
+  // qui le compte.
+  if ($path === 'annonce/deviner' && $method === 'GET') {
+    jout(['disponible' => (string) ($config['vision_cle'] ?? '') !== '']);
+  }
+  // ── LE CONTRÔLE DES PHOTOS PAR LE MOTEUR (chantier 5 du 04/09/2026) ──────────
+  //
+  // Jusqu'ici, la nudité était filtrée DANS le téléphone du vendeur par un
+  // modèle de 5,4 Mo (TensorFlow + NSFW.js) téléchargé à la première photo :
+  // sur un forfait ivoirien, c'est le prix d'une annonce. Quand la clé du
+  // moteur de vision est en place, le contrôle se fait ici, sur les mêmes
+  // photos réduites à 768 px que « Chap.ci écrit l'annonce », en UN appel pour
+  // toutes les photos ajoutées d'un coup. Le site et l'application ne chargent
+  // alors jamais le modèle local ; sans clé, le site garde son modèle (repli),
+  // l'application ne contrôle pas (elle ne contrôlait pas avant).
+  //
+  // Les règles sont celles de la modération (skill moderation-ci) : refuser la
+  // nudité, la pornographie, tout acte sexuel, tout mineur dénudé ; LAISSER
+  // PASSER le maillot de bain et la lingerie présentés comme des articles de
+  // mode. Le moteur répond photo par photo, dans l'ordre.
+  if ($path === 'photos/controle' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if ((string) ($config['vision_cle'] ?? '') === '') jerr('Le moteur de vision n’est pas configuré.', 503);
+    $b = body();
+    $images = is_array($b['images'] ?? null) ? array_values($b['images']) : [];
+    if (!$images) jerr('Aucune photo à contrôler.', 400);
+    if (count($images) > 8) jerr('Huit photos au plus par contrôle.', 400);
+    $blocs = [];
+    foreach ($images as $i => $img) {
+      if (!is_string($img) || !preg_match('#^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$#', $img, $m)) jerr('Photo ' . ($i + 1) . ' illisible.', 400);
+      if (strlen($m[2]) > 2_000_000) jerr('Photo ' . ($i + 1) . ' trop lourde pour le moteur (2 Mo max).', 413);
+      $blocs[] = ['type' => 'text', 'text' => 'Photo ' . $i . ' :'];
+      $blocs[] = ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => 'image/' . $m[1], 'data' => $m[2]]];
+    }
+    $blocs[] = ['type' => 'text', 'text' => 'Contrôle ces ' . count($images) . ' photo(s), dans l’ordre, index 0 à ' . (count($images) - 1) . '.'];
+    // Même quota que la rédaction : un appel par lot de photos, pas par photo.
+    // rate_limit() COMPTE les événements du journal : chaque tentative s'y
+    // inscrit avant l'appel, sinon le quota ne ferme jamais (vu au banc).
+    rate_limit($pdo, 'controle_photos', $u['email'] ?? null, (int) ($config['vision_quota'] ?? 40), 86400);
+    log_security_event($pdo, 'controle_photos', $u['email'] ?? null, (string) count($images));
+
+    $consigne = "Tu contrôles les photos d'une annonce sur Chap.ci, place de marché de Côte d'Ivoire, avant leur publication.\n"
+      . "Pour CHAQUE photo, dis si elle est REFUSÉE. Est refusée : la nudité (seins, sexe, fesses nus), la pornographie, "
+      . "tout acte ou pose sexuelle, tout mineur dénudé ou sexualisé. Motif : « nudite », « sexuel » ou « mineur ».\n"
+      . "N'est PAS refusée, motif « ok » : un maillot de bain, de la lingerie ou des sous-vêtements présentés comme des articles "
+      . "de mode (sur cintre, sur mannequin, ou portés sans mise en scène sexuelle), et tout le reste — objets, véhicules, "
+      . "animaux, nourriture, maisons, personnes habillées. Dans le doute sur un article de mode, laisse passer.";
+    $schema = [
+      'type' => 'object', 'additionalProperties' => false, 'required' => ['photos'],
+      'properties' => ['photos' => ['type' => 'array', 'items' => [
+        'type' => 'object', 'additionalProperties' => false, 'required' => ['index', 'refusee', 'motif'],
+        'properties' => [
+          'index' => ['type' => 'integer'],
+          'refusee' => ['type' => 'boolean'],
+          'motif' => ['type' => 'string', 'enum' => ['ok', 'nudite', 'sexuel', 'mineur']],
+        ],
+      ]]],
+    ];
+    $requete = [
+      'model' => (string) $config['vision_modele'],
+      'max_tokens' => 512,
+      'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
+      'fallbacks' => 'default',
+      'system' => $consigne,
+      'messages' => [['role' => 'user', 'content' => $blocs]],
+    ];
+    $r = http_fetch((string) $config['vision_url'], [
+      'method' => 'POST', 'timeout' => 60,
+      'headers' => [
+        'Content-Type: application/json',
+        'x-api-key: ' . $config['vision_cle'],
+        'anthropic-version: 2023-06-01',
+        'anthropic-beta: server-side-fallback-2026-07-01',
+      ],
+      'body' => json_encode($requete, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    if ($r['status'] !== 200) {
+      error_log('[chapci] controle photos · moteur HTTP ' . $r['status'] . ' · ' . substr($r['body'], 0, 200));
+      jerr('Le moteur n’a pas répondu.', 502);
+    }
+    $rep = json_decode($r['body'], true);
+    $stop = (string) ($rep['stop_reason'] ?? '');
+    // Un refus du moteur de REGARDER ces photos est lui-même un verdict : le
+    // client refuse tout le lot. C'est 422, pas 502 — rien n'est en panne.
+    if ($stop === 'refusal') jerr('Le moteur n’a pas voulu regarder ces photos.', 422);
+    $texte = '';
+    foreach ((array) ($rep['content'] ?? []) as $bloc) if (($bloc['type'] ?? '') === 'text') $texte .= $bloc['text'];
+    $d = json_decode($texte, true);
+    if (!is_array($d) || !is_array($d['photos'] ?? null) || $stop === 'max_tokens') {
+      error_log('[chapci] controle photos · réponse illisible · ' . substr($texte, 0, 200));
+      jerr('Le moteur a répondu de travers.', 502);
+    }
+    // Une photo dont le moteur n'a rien dit passe : le filet reste la
+    // modération humaine et le signalement, comme avant.
+    $verdicts = array_fill(0, count($images), ['refusee' => false, 'motif' => 'ok']);
+    foreach ($d['photos'] as $p) {
+      $i = (int) ($p['index'] ?? -1);
+      if ($i < 0 || $i >= count($images)) continue;
+      $refusee = !empty($p['refusee']);
+      $verdicts[$i] = ['refusee' => $refusee, 'motif' => $refusee ? (string) ($p['motif'] ?? 'nudite') : 'ok'];
+    }
+    $refusees = count(array_filter($verdicts, fn($v) => $v['refusee']));
+    if ($refusees > 0) log_security_event($pdo, 'photos_refusees', $u['email'] ?? null, (string) $refusees);
+    jout(['verdicts' => $verdicts, 'modele' => (string) ($rep['model'] ?? $config['vision_modele'])]);
+  }
+
+  if ($path === 'annonce/deviner' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if ((string) ($config['vision_cle'] ?? '') === '') jerr('Le moteur de vision n’est pas configuré.', 503);
+    $b = body();
+    $image = (string) ($b['image'] ?? '');
+    $catalogue = is_array($b['catalogue'] ?? null) ? $b['catalogue'] : [];
+    if (!preg_match('#^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$#', $image, $m)) jerr('Photo illisible.', 400);
+    if (strlen($m[2]) > 2_000_000) jerr('Photo trop lourde pour le moteur (2 Mo max).', 413);
+    if (!$catalogue) jerr('Catalogue des catégories manquant.', 400);
+    rate_limit($pdo, 'deviner', $u['email'] ?? null, (int) ($config['vision_quota'] ?? 40), 86400);
+
+    // Le catalogue tel que le moteur le lira, et tel qu'on vérifiera sa réponse.
+    $valides = []; $lignes = [];
+    foreach ($catalogue as $c) {
+      $cid = (string) ($c['id'] ?? ''); if ($cid === '') continue;
+      $sous = [];
+      foreach ((array) ($c['sous'] ?? []) as $s) {
+        $sid = (string) ($s['id'] ?? ''); if ($sid === '') continue;
+        $sous[$sid] = (string) ($s['label'] ?? $sid);
+      }
+      $valides[$cid] = $sous;
+      $lignes[] = $cid . ' (' . (string) ($c['label'] ?? $cid) . ') : '
+        . implode(', ', array_map(fn($k, $v) => "$k ($v)", array_keys($sous), $sous));
+    }
+
+    $consigne = "Tu aides un vendeur de Chap.ci, place de marché de Côte d'Ivoire, à rédiger son annonce à partir d'une photo.\n"
+      . "Réponds en français, comme un vendeur ivoirien soigné : titre court et concret (marque et modèle s'ils se voient), "
+      . "description de deux à quatre phrases, honnête, sans inventer ce que la photo ne montre pas.\n"
+      . "Choisis la catégorie et la sous-catégorie UNIQUEMENT dans ce catalogue (identifiants exacts) :\n"
+      . implode("\n", $lignes) . "\n"
+      . "Si l'objet ne va nulle part, mets confiance à 0. N'indique JAMAIS de prix.";
+    $schema = [
+      'type' => 'object', 'additionalProperties' => false,
+      'required' => ['titre', 'description', 'categoryId', 'subcategory', 'etat', 'caracteristiques', 'confiance'],
+      'properties' => [
+        'titre' => ['type' => 'string'],
+        'description' => ['type' => 'string'],
+        'categoryId' => ['type' => 'string'],
+        'subcategory' => ['type' => 'string'],
+        'etat' => ['type' => 'string', 'enum' => ['neuf', 'occasion']],
+        // marque, modele, couleur, taille… — le client garde celles que la
+        // sous-catégorie connaît.
+        'caracteristiques' => ['type' => 'array', 'items' => [
+          'type' => 'object', 'additionalProperties' => false, 'required' => ['cle', 'valeur'],
+          'properties' => ['cle' => ['type' => 'string'], 'valeur' => ['type' => 'string']],
+        ]],
+        'confiance' => ['type' => 'integer'],
+      ],
+    ];
+    $requete = [
+      'model' => (string) $config['vision_modele'],
+      'max_tokens' => 1024,
+      // Une tâche de classification : peu de réflexion suffit, et ça coûte moins.
+      'output_config' => ['effort' => 'low', 'format' => ['type' => 'json_schema', 'schema' => $schema]],
+      // Repli automatique si le modèle décline (voir la doc « fallbacks ») :
+      // une photo d'annonce n'a aucune raison d'être refusée, mais on ne laisse
+      // pas le vendeur devant un écran vide si ça arrive.
+      'fallbacks' => 'default',
+      'system' => $consigne,
+      'messages' => [['role' => 'user', 'content' => [
+        ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => 'image/' . $m[1], 'data' => $m[2]]],
+        ['type' => 'text', 'text' => 'Rédige l’annonce pour cette photo.'],
+      ]]],
+    ];
+    $r = http_fetch((string) $config['vision_url'], [
+      'method' => 'POST', 'timeout' => 60,
+      'headers' => [
+        'Content-Type: application/json',
+        'x-api-key: ' . $config['vision_cle'],
+        'anthropic-version: 2023-06-01',
+        'anthropic-beta: server-side-fallback-2026-07-01',
+      ],
+      'body' => json_encode($requete, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    if ($r['status'] !== 200) {
+      error_log('[chapci] deviner · moteur HTTP ' . $r['status'] . ' · ' . substr($r['body'], 0, 200));
+      jerr('Le moteur n’a pas répondu. Écrivez l’annonce vous-même, ou réessayez.', 502);
+    }
+    $rep = json_decode($r['body'], true);
+    // On lit stop_reason AVANT le contenu : un refus ou une coupure ne se
+    // parsent pas comme une réponse.
+    $stop = (string) ($rep['stop_reason'] ?? '');
+    if ($stop === 'refusal') jerr('Le moteur n’a pas voulu décrire cette photo.', 422);
+    $texte = '';
+    foreach ((array) ($rep['content'] ?? []) as $bloc) if (($bloc['type'] ?? '') === 'text') $texte .= $bloc['text'];
+    $d = json_decode($texte, true);
+    if (!is_array($d) || $stop === 'max_tokens') {
+      error_log('[chapci] deviner · réponse illisible · ' . substr($texte, 0, 200));
+      jerr('Le moteur a répondu de travers. Écrivez l’annonce vous-même, ou réessayez.', 502);
+    }
+    // La vérification : la catégorie et la sous-catégorie DOIVENT être du catalogue.
+    $cat = (string) ($d['categoryId'] ?? ''); $sous = (string) ($d['subcategory'] ?? '');
+    if (!isset($valides[$cat])) { $cat = ''; $sous = ''; }
+    elseif (!isset($valides[$cat][$sous])) $sous = '';
+    $carac = [];
+    foreach ((array) ($d['caracteristiques'] ?? []) as $kv) {
+      $k = mb_strtolower(trim((string) ($kv['cle'] ?? ''))); $v = trim((string) ($kv['valeur'] ?? ''));
+      if ($k !== '' && $v !== '' && mb_strlen($v) <= 120) $carac[$k] = $v;
+    }
+    log_security_event($pdo, 'deviner', $u['email'] ?? null, $cat . '/' . $sous);
+    jout([
+      'titre' => mb_substr(trim((string) ($d['titre'] ?? '')), 0, 120),
+      'description' => mb_substr(trim((string) ($d['description'] ?? '')), 0, 2000),
+      'categoryId' => $cat, 'subcategory' => $sous,
+      'etat' => in_array($d['etat'] ?? '', ['neuf', 'occasion'], true) ? $d['etat'] : 'occasion',
+      'caracteristiques' => $carac,
+      'confiance' => max(0, min(100, (int) ($d['confiance'] ?? 0))),
+      'modele' => (string) ($rep['model'] ?? $config['vision_modele']),
+    ]);
+  }
+
+  if ($path === 'traduire' && $method === 'POST') {
+    $b = body();
+    $listingId = (string) ($b['listingId'] ?? '');
+    $langue = (string) ($b['langue'] ?? '');
+    if (!in_array($langue, ['en', 'es', 'pt', 'ar', 'zh'], true)) {
+      jerr('Langue non prise en charge.');
+    }
+    $st = $pdo->prepare('SELECT title, description FROM listings WHERE id = ?');
+    $st->execute([$listingId]);
+    $a = $st->fetch();
+    if (!$a) jerr('Annonce introuvable.', 404);
+    $titre = (string) $a['title'];
+    $description = (string) $a['description'];
+    $hash = md5($titre . '|' . $description);
+
+    // Déjà traduit (et le texte source n'a pas changé) ? On ressert le cache.
+    $st = $pdo->prepare('SELECT titre, description FROM traductions
+      WHERE listing_id = ? AND langue = ? AND hash = ?');
+    $st->execute([$listingId, $langue, $hash]);
+    if ($cache = $st->fetch()) {
+      jout(['titre' => $cache['titre'], 'description' => $cache['description'],
+            'cache' => true]);
+    }
+
+    // 60 traductions NEUVES par heure et par IP : de quoi lire beaucoup
+    // d'annonces, pas de quoi pomper le moteur (le cache ne compte pas).
+    rate_limit($pdo, 'traduire', null, 60, 3600);
+    log_security_event($pdo, 'traduire', null, $langue);
+
+    // Trois moteurs, essayés dans l'ordre — le premier qui répond gagne :
+    //
+    //  1. LibreTranslate auto-hébergé, si `traduction_url` est rempli — le
+    //     choix de fond (nos données restent chez nous, pas de dépendance).
+    //  2. Le point de traduction public de Google (« client=gtx », celui des
+    //     outils libres) : gratuit et sans clé, mais NON officiel — certaines
+    //     IP le voient répondre 429. D'où le troisième :
+    //  3. MyMemory (api.mymemory.translated.net), API officielle et gratuite,
+    //     limitée à ~500 caractères par requête (on découpe aux phrases) et à
+    //     un quota journalier — suffisant ici parce que le cache réduit le
+    //     volume à presque rien : une annonce = une traduction par langue,
+    //     pour toujours.
+    $moteur = rtrim((string) ($config['traduction_url'] ?? ''), '/');
+
+    $viaLibre = function (string $texte) use ($moteur, $config, $langue): ?string {
+      $corps = ['q' => $texte, 'source' => 'fr', 'target' => $langue, 'format' => 'text'];
+      if (($config['traduction_cle'] ?? '') !== '') $corps['api_key'] = $config['traduction_cle'];
+      $r = http_fetch($moteur . '/translate', [
+        'method' => 'POST',
+        'headers' => ['Content-Type: application/json'],
+        'body' => json_encode($corps),
+      ]);
+      if ($r['status'] !== 200) return null;
+      $d = json_decode($r['body'], true);
+      $t = is_array($d) ? ($d['translatedText'] ?? null) : null;
+      return is_string($t) ? $t : null;
+    };
+
+    // Google gtx : POST en formulaire (les descriptions peuvent être longues,
+    // une URL GET déborderait). Réponse en segments [[["trad","orig",…],…],…]
+    // qu'on recolle dans l'ordre.
+    $viaGoogle = function (string $texte) use ($langue): ?string {
+      $r = http_fetch(
+        'https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl='
+          . rawurlencode($langue) . '&dt=t',
+        [
+          'method' => 'POST',
+          'headers' => ['Content-Type: application/x-www-form-urlencoded'],
+          'body' => 'q=' . rawurlencode($texte),
+        ]
+      );
+      if ($r['status'] !== 200) return null;
+      $d = json_decode($r['body'], true);
+      if (!is_array($d) || !is_array($d[0] ?? null)) return null;
+      $out = '';
+      foreach ($d[0] as $seg) {
+        if (is_array($seg) && is_string($seg[0] ?? null)) $out .= $seg[0];
+      }
+      return $out === '' ? null : $out;
+    };
+
+    // MyMemory : ~500 caractères max par requête → on découpe aux fins de
+    // phrase (puis aux espaces si une « phrase » dépasse à elle seule).
+    $viaMyMemory = function (string $texte) use ($langue): ?string {
+      $morceaux = [];
+      $restant = $texte;
+      while (mb_strlen($restant) > 450) {
+        $tranche = mb_substr($restant, 0, 450);
+        $coupe = 0;
+        foreach (['. ', '! ', '? ', "\n", ', ', ' '] as $sep) {
+          $p = mb_strrpos($tranche, $sep);
+          if ($p !== false && $p > 0) { $coupe = $p + mb_strlen($sep); break; }
+        }
+        if ($coupe === 0) $coupe = 450;
+        $morceaux[] = mb_substr($restant, 0, $coupe);
+        $restant = mb_substr($restant, $coupe);
+      }
+      if ($restant !== '') $morceaux[] = $restant;
+      $out = [];
+      foreach ($morceaux as $m) {
+        $r = http_fetch('https://api.mymemory.translated.net/get?q=' . rawurlencode($m)
+          . '&langpair=' . rawurlencode('fr|' . $langue));
+        if ($r['status'] !== 200) return null;
+        $d = json_decode($r['body'], true);
+        $t = is_array($d) ? ($d['responseData']['translatedText'] ?? null) : null;
+        if (!is_string($t) || $t === '') return null;
+        $out[] = $t;
+      }
+      return implode(' ', $out);
+    };
+
+    $traduire = function (string $texte) use ($moteur, $viaLibre, $viaGoogle, $viaMyMemory): ?string {
+      if (trim($texte) === '') return '';
+      if ($moteur !== '') {
+        $t = $viaLibre($texte);
+        if ($t !== null) return $t;
+      }
+      return $viaGoogle($texte) ?? $viaMyMemory($texte);
+    };
+    $titreTr = $traduire($titre);
+    $descTr = $traduire($description);
+    if ($titreTr === null || $descTr === null) {
+      jerr('Le moteur de traduction ne répond pas. Réessayez plus tard.', 502);
+    }
+    try {
+      $pdo->prepare('DELETE FROM traductions WHERE listing_id = ? AND langue = ?')
+          ->execute([$listingId, $langue]);
+      $pdo->prepare('INSERT INTO traductions (id, listing_id, langue, hash, titre, description, created_at)
+                     VALUES (?,?,?,?,?,?,?)')
+          ->execute([uuid(), $listingId, $langue, $hash, $titreTr, $descTr, now_iso()]);
+    } catch (Throwable $e) { /* cache raté = juste retraduit la prochaine fois */ }
+    jout(['titre' => $titreTr, 'description' => $descTr, 'cache' => false]);
+  }
+
+  // Statistiques du tableau de bord vendeur : vues (avec tendance vs période
+  // précédente), annonces actives, demandes reçues, ventes, et série des vues
+  // sur les 7 derniers jours (pour le graphique). Chiffres 100 % réels.
+  if ($path === 'seller/analytics' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $period = $_GET['period'] ?? '7j';
+    $days = $period === 'annee' ? 365 : ($period === '30j' ? 30 : 7);
+    $now = time();
+    $dayStr = fn(int $t) => gmdate('Y-m-d', $t);
+    $tsStr  = fn(int $t) => gmdate('Y-m-d', $t) . 'T00:00:00Z';
+    $startCur  = $now - ($days - 1) * 86400;   // début période courante (jour)
+    $startPrev = $startCur - $days * 86400;    // début période précédente
+    $fCur = $dayStr($startCur); $fPrev = $dayStr($startPrev);
+    $tCur = $tsStr($startCur); $tPrev = $tsStr($startPrev);
+
+    // Annonces du vendeur + nombre d'actives (ni masquées ni vendues).
+    $ls = $pdo->prepare('SELECT id, hidden, sold FROM listings WHERE user_id = ?');
+    $ls->execute([$u['id']]);
+    $rows = $ls->fetchAll();
+    $ids = array_column($rows, 'id');
+    $active = 0;
+    foreach ($rows as $r) { if (empty($r['hidden']) && empty($r['sold'])) $active++; }
+
+    $viewsCur = 0; $viewsPrev = 0; $byDay = [];
+    if ($ids) {
+      $in = implode(',', array_fill(0, count($ids), '?'));
+      $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) AS s FROM listing_view_days WHERE day >= ? AND listing_id IN ($in)");
+      $q->execute(array_merge([$fCur], $ids)); $viewsCur = (int) $q->fetch()['s'];
+      $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) AS s FROM listing_view_days WHERE day >= ? AND day < ? AND listing_id IN ($in)");
+      $q->execute(array_merge([$fPrev, $fCur], $ids)); $viewsPrev = (int) $q->fetch()['s'];
+      $chartStart = $dayStr($now - 6 * 86400);
+      $q = $pdo->prepare("SELECT day, COALESCE(SUM(n),0) AS s FROM listing_view_days WHERE day >= ? AND listing_id IN ($in) GROUP BY day");
+      $q->execute(array_merge([$chartStart], $ids));
+      foreach ($q->fetchAll() as $r) $byDay[$r['day']] = (int) $r['s'];
+    }
+    // Série des 7 derniers jours (jours vides = 0).
+    $series = [];
+    for ($i = 6; $i >= 0; $i--) {
+      $t = $now - $i * 86400; $d = $dayStr($t);
+      $series[] = ['day' => $d, 'dow' => (int) gmdate('N', $t), 'n' => $byDay[$d] ?? 0];
+    }
+
+    // Demandes reçues (commandes en tant que vendeur) et ventes finalisées.
+    $cnt = function (string $extra, array $args) use ($pdo, $u) {
+      $q = $pdo->prepare("SELECT COUNT(*) AS c FROM orders WHERE seller_id = ? $extra");
+      $q->execute(array_merge([$u['id']], $args));
+      return (int) $q->fetch()['c'];
+    };
+    $demCur  = $cnt('AND created_at >= ?', [$tCur]);
+    $demPrev = $cnt('AND created_at >= ? AND created_at < ?', [$tPrev, $tCur]);
+    $venCur  = $cnt("AND status = 'finalise' AND created_at >= ?", [$tCur]);
+    $venPrev = $cnt("AND status = 'finalise' AND created_at >= ? AND created_at < ?", [$tPrev, $tCur]);
+
+    $trend = fn(int $cur, int $prev) => $prev <= 0 ? null : (int) round((($cur - $prev) / $prev) * 100);
+
+    jout([
+      'period' => $period,
+      'views' => ['value' => $viewsCur, 'trend' => $trend($viewsCur, $viewsPrev)],
+      'activeListings' => $active,
+      'demands' => ['value' => $demCur, 'trend' => $trend($demCur, $demPrev)],
+      'sales' => ['value' => $venCur, 'trend' => $trend($venCur, $venPrev)],
+      'series' => $series,
+    ]);
+  }
+
+  // Comptabiliser une vue d'annonce (statistiques). On n'incrémente pas les
+  // vues du propriétaire ; le frontend limite à une vue par visiteur/session.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'view' && $method === 'POST') {
+    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if ($row) {
+      $viewer = current_user($pdo, $secret);
+      if (!$viewer || $viewer['id'] !== $row['user_id']) {
+        $pdo->prepare('UPDATE listings SET views = COALESCE(views, 0) + 1 WHERE id = ?')->execute([$seg[1]]);
+        // Série quotidienne des vues (tableau de bord vendeur). Upsert portable
+        // (UPDATE puis INSERT si absent) — compatible SQLite / PostgreSQL / MySQL.
+        $today = gmdate('Y-m-d');
+        $up = $pdo->prepare('UPDATE listing_view_days SET n = n + 1 WHERE listing_id = ? AND day = ?');
+        $up->execute([$seg[1], $today]);
+        if ($up->rowCount() < 1) {
+          try { $pdo->prepare('INSERT INTO listing_view_days (listing_id, day, n) VALUES (?, ?, 1)')->execute([$seg[1], $today]); }
+          catch (Throwable $e) { $pdo->prepare('UPDATE listing_view_days SET n = n + 1 WHERE listing_id = ? AND day = ?')->execute([$seg[1], $today]); }
+        }
+        // Même compte, à l'heure près — c'est ce qui répond à « quand
+        // publier ? ». Heure d'Abidjan (UTC+0), la même que le serveur.
+        // Best-effort : une vue ne doit jamais échouer pour une statistique.
+        try {
+          $heure = (int) gmdate('G');
+          $uh = $pdo->prepare('UPDATE listing_view_hours SET n = n + 1 WHERE listing_id = ? AND day = ? AND hour = ?');
+          $uh->execute([$seg[1], $today, $heure]);
+          if ($uh->rowCount() < 1) {
+            try { $pdo->prepare('INSERT INTO listing_view_hours (listing_id, day, hour, n) VALUES (?, ?, ?, 1)')->execute([$seg[1], $today, $heure]); }
+            catch (Throwable $e) { $uh->execute([$seg[1], $today, $heure]); }
+          }
+        } catch (Throwable $e) { /* table absente : la vue reste comptée */ }
+      }
+    }
+    jout(['ok' => true]);
+  }
+
+  // Modifier son annonce.
+  if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'PUT') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT user_id, hidden, hidden_reason, images, price, promo_price, promo_until FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    if (!trim($b['title'] ?? '')) jerr('Titre manquant.');
+    // Le Gardien : re-vérifie le contenu à chaque modification.
+    $mod = moderate_text(($b['title'] ?? '') . ' ' . ($b['description'] ?? ''));
+    if (!$mod['ok']) {
+      log_security_event($pdo, 'listing_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $mod['reasons'])));
+      jout([
+        'error' => 'Votre annonce n’a pas pu être enregistrée : elle enfreint nos règles.',
+        'moderation' => true, 'reasons' => $mod['reasons'],
+      ], 422);
+    }
+    // Images : on garde les URLs existantes, on enregistre les nouvelles (data-URI).
+    // Même plafond qu'à la publication (max 10) — voir POST /listings.
+    $images = [];
+    $brutes = []; // les NOUVELLES photos retenues — voir le bloc d'empreinte plus bas
+    foreach (array_slice((array) ($b['images'] ?? []), 0, 10) as $img) {
+      $img = (string) $img;
+      if ($img === '') continue;
+      if (strncmp($img, 'data:', 5) === 0) {
+        $url = save_data_uri($config, $img, true);
+        if ($url) { $images[] = $url; $brutes[] = $img; }
+      }
+      else $images[] = $img;
+    }
+    // Trois photos minimum, comme à la publication — mais SANS piéger les
+    // annonces d'avant la règle.
+    //
+    // Une annonce publiée hier avec une seule photo est là, en ligne, et son
+    // vendeur a le droit d'en corriger le prix ou une faute. Lui refuser la
+    // modification tant qu'il n'a pas trouvé deux photos de plus, c'est le
+    // punir d'une règle qui n'existait pas quand il a publié — et le plus
+    // souvent, il abandonne la correction plutôt que de chercher des photos.
+    //
+    // On exige donc le minimum aux annonces qui l'atteignaient déjà, et pour
+    // les autres, on demande seulement de ne pas descendre plus bas. Le seuil
+    // se resserre tout seul, sans jamais bloquer personne.
+    $avant = $row['images'] ? (json_decode((string) $row['images'], true) ?: []) : [];
+    $plancher = min(LISTING_MIN_PHOTOS, max(1, count($avant)));
+    if (count($images) < $plancher) {
+      jerr($plancher >= LISTING_MIN_PHOTOS
+        ? 'Ajoutez au moins ' . LISTING_MIN_PHOTOS . ' photos de l’objet. Une annonce sans photo ne se vend pas.'
+        : 'Gardez au moins ' . $plancher . ' photo' . ($plancher > 1 ? 's' : '') . ' sur cette annonce. Vous pouvez en ajouter, pas en retirer toutes.', 422);
+    }
+    $attrs = [];
+    if (!empty($b['attributes']) && is_array($b['attributes'])) {
+      foreach ($b['attributes'] as $k => $v) {
+        $k = substr(trim((string) $k), 0, 40); $v = substr(trim((string) $v), 0, 120);
+        if ($k !== '' && $v !== '') $attrs[$k] = $v;
+      }
+    }
+    foncier_exiger((string) ($b['categoryId'] ?? ''), $b['subcategory'] ?? null, $attrs);
+    $attrsJson = $attrs ? json_encode($attrs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+    $promoUntil = !empty($b['promoUntil']) ? gmdate('Y-m-d\TH:i:s\Z', (int) ($b['promoUntil'] / 1000)) : null;
+
+    // ── DES PHOTOS NEUVES SUR UNE ANNONCE DÉJÀ EN LIGNE ──────────────────────
+    //
+    // ⚠️ CE BLOC MANQUAIT, ET SON ABSENCE ANNULAIT LE CONTRÔLE DE LA
+    // PUBLICATION. On publiait trois photos propres avec le filtre du
+    // navigateur — `photos_verifiees` passait à 1 — puis on modifiait
+    // l'annonce pour y glisser une photo interdite : le drapeau restait à 1,
+    // aucune empreinte n'était calculée, et l'annonce ne remontait PAS dans la
+    // file de relecture. Le contrôle se contournait en une modification.
+    //
+    // Cas classique du chemin qui marche cachant celui qui ne marche pas : la
+    // route de publication avait tout, celle de modification n'avait rien, et
+    // rien ne le disait.
+    //
+    // On ne touche à ces colonnes QUE si de nouvelles photos arrivent : garder
+    // les mêmes photos ne change pas ce qu'on sait d'elles.
+    $majPhotos = [];
+    if ($brutes) {
+      // Même règle qu'à la publication : le drapeau du client ne prouve rien,
+      // il ne sert qu'à faire remonter dans la file ce dont personne n'affirme
+      // qu'il a été regardé.
+      $majPhotos['photos_verifiees'] = !empty($b['photosAnalysees']) ? 1 : 0;
+      // Un signal trouvé sur les NOUVELLES photos remplace l'ancien. S'il n'y
+      // en a pas, on garde celui qui était là : la photo qu'il désignait peut
+      // très bien être encore sur l'annonce, et un signal de trop ne coûte
+      // qu'un coup d'œil — l'effacer coûterait une photo manquée.
+      $s = photo_signal_texte(photos_signal($pdo, $brutes));
+      if ($s !== null) $majPhotos['photo_signal'] = $s;
+    }
+    $colsPhotos = '';
+    foreach (array_keys($majPhotos) as $c) $colsPhotos .= ",$c=?";
+
+    $pdo->prepare('UPDATE listings SET title=?,description=?,price=?,negotiable=?,category_id=?,subcategory=?,
+        condition_v=?,images=?,region_id=?,city_id=?,commune=?,lat=?,lng=?,seller_name=?,seller_phone=?,
+        delivery=?,promo_price=?,promo_until=?,attributes=?' . $colsPhotos . ' WHERE id=?')
+      ->execute([
+        trim($b['title']), trim($b['description'] ?? ''), (int) ($b['price'] ?? 0),
+        !empty($b['negotiable']) ? 1 : 0, $b['categoryId'] ?? '', $b['subcategory'] ?? null,
+        ($b['condition'] ?? 'occasion'), json_encode($images, JSON_UNESCAPED_SLASHES),
+        $b['regionId'] ?? '', $b['cityId'] ?? '', $b['commune'] ?? null,
+        isset($b['lat']) ? (float) $b['lat'] : null, isset($b['lng']) ? (float) $b['lng'] : null,
+        $b['sellerName'] ?? '', $b['sellerPhone'] ?? '', !empty($b['delivery']) ? 1 : 0,
+        isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil, $attrsJson,
+        ...array_values($majPhotos), $seg[1],
+      ]);
+    // Le stock (07/09/2026), seulement si le formulaire l'envoie — une
+    // application d'hier qui ne connaît pas le champ ne doit pas l'effacer.
+    if (array_key_exists('stock', $b) && pro_approuve($pdo, (string) $u['id'])) {
+      $pdo->prepare('UPDATE listings SET stock = ?, stock_min = ? WHERE id = ?')
+          ->execute([stock_normaliser($b['stock']), stock_min_normaliser($b['stockMin'] ?? null), $seg[1]]);
+      stock_marquer($pdo, $seg[1], false);
+    }
+    // LES FAVORIS QUI PRÉVIENNENT (chantier 4 du 04/09/2026) : le prix baisse —
+    // par le prix lui-même ou par une promotion — et ceux qui ont mis
+    // l'annonce en favori l'apprennent. C'est l'acheteur qui revient sans
+    // qu'on le paie. On compare le prix EFFECTIF d'avant (promo active ou
+    // prix) au prix effectif d'après ; une hausse ou un prix égal ne dit rien.
+    $avantEff = listing_prix_effectif((int) ($row['price'] ?? 0), $row['promo_price'] ?? null, $row['promo_until'] ?? null);
+    $apresEff = listing_prix_effectif((int) ($b['price'] ?? 0), isset($b['promoPrice']) ? (int) $b['promoPrice'] : null, $promoUntil);
+    if ($apresEff > 0 && $avantEff > 0 && $apresEff < $avantEff) {
+      favoris_prevenir($pdo, $seg[1], (string) $u['id'], 'Baisse de prix sur un favori 💚',
+        '« ' . mb_substr(trim($b['title']), 0, 60) . ' » passe de ' . number_format($avantEff, 0, ',', ' ')
+        . ' à ' . number_format($apresEff, 0, ',', ' ') . ' FCFA.');
+    }
+    // Annonce masquée pour dossier foncier incomplet : la mise à jour vient de
+    // passer la validation, elle repart donc en ligne d'elle-même. Le vendeur a
+    // fait ce qu'on lui demandait ; lui imposer une démarche de plus serait une
+    // punition, pas une règle.
+    if (!empty($row['hidden']) && (string) ($row['hidden_reason'] ?? '') === FONCIER_MOTIF) {
+      $pdo->prepare('UPDATE listings SET hidden = 0, hidden_reason = NULL WHERE id = ?')->execute([$seg[1]]);
+      notify($pdo, $u['id'], 'listing', 'Annonce de nouveau en ligne ✅',
+        'Votre dossier foncier est complet : « ' . mb_substr(trim($b['title']), 0, 60) . ' » est de nouveau visible.',
+        '#/annonce/' . $seg[1]);
+    }
+    // Contenu modifié : on redemande une réindexation instantanée (IndexNow).
+    chapci_indexnow_ping($config, [rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/') . '/annonce/' . $seg[1]]);
+    $st = $pdo->prepare('SELECT * FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    jout(listing_out($st->fetch(), true)); // réponse au propriétaire : téléphone inclus
+  }
+
+  // Masquer / réafficher son annonce (le vendeur, ou un admin).
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'visibility' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT user_id, category_id, subcategory, attributes, hidden_reason FROM listings WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    $hidden = !empty($b['hidden']) ? 1 : 0;
+    // Réafficher une annonce masquée pour dossier foncier incomplet reviendrait
+    // à contourner la règle d'un clic. Le seul chemin de retour est le
+    // formulaire, qui remet l'annonce en ligne dès qu'il est rempli.
+    if (!$hidden && (string) ($row['hidden_reason'] ?? '') === FONCIER_MOTIF) {
+      $attrs = !empty($row['attributes']) ? (json_decode((string) $row['attributes'], true) ?: []) : [];
+      $m = foncier_manques($attrs);
+      if ($m) {
+        jout(['error' => 'Complétez d’abord le dossier foncier de cette annonce : il manque '
+              . implode(', ', $m) . '.', 'foncier' => true, 'manques' => $m], 422);
+      }
+    }
+    $pdo->prepare('UPDATE listings SET hidden = ?, hidden_reason = CASE WHEN ? = 1 THEN hidden_reason ELSE NULL END WHERE id = ?')
+        ->execute([$hidden, $hidden, $seg[1]]);
+    jout(['ok' => true, 'hidden' => (bool) $hidden]);
+  }
+
+  // ---------- LA VIDÉO DE QUINZE SECONDES ----------
+  // POST /listings/{id}/video — multipart, champ `video`. Le propriétaire
+  // seulement. Remplace la vidéo précédente s'il y en avait une.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'video' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id, video FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    // Vingt vidéos par heure et par compte : personne n'en met autant, et une
+    // requête forgée ne remplit pas le disque. Compté par le journal, comme
+    // le contrôle des photos.
+    rate_limit($pdo, 'video_ajout', $u['email'] ?? null, 20, 3600);
+    log_security_event($pdo, 'video_ajout', $u['email'] ?? null, $seg[1]);
+    $limite = video_limite_octets($config);
+    $limiteMo = max(1, (int) floor($limite / 1024 / 1024));
+    $f = $_FILES['video'] ?? null;
+    if (!$f) {
+      // Au-delà de post_max_size, PHP vide $_FILES sans un mot : la seule
+      // trace est la taille annoncée par le client.
+      $annonce = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+      $postMax = ini_octets((string) ini_get('post_max_size'));
+      if ($annonce > 0 && $postMax > 0 && $annonce > $postMax) {
+        jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à une minute au plus.', 413);
+      }
+      jerr('Aucune vidéo reçue (champ « video » attendu).');
+    }
+    $erreur = (int) ($f['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($erreur === UPLOAD_ERR_INI_SIZE || $erreur === UPLOAD_ERR_FORM_SIZE) {
+      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à une minute au plus.', 413);
+    }
+    if ($erreur !== UPLOAD_ERR_OK || empty($f['tmp_name']) || !is_uploaded_file((string) $f['tmp_name'])) {
+      jerr('La vidéo n’est pas arrivée entière. Réessayez.');
+    }
+    $taille = (int) ($f['size'] ?? 0);
+    if ($taille <= 0) jerr('La vidéo est vide.');
+    if ($taille > $limite) {
+      jerr('Vidéo trop lourde : ' . $limiteMo . ' Mo au maximum. Coupez-la à une minute au plus.', 413);
+    }
+    // Le type RÉEL, lu dans les premiers octets — jamais le nom du fichier ni
+    // ce que le client annonce. Un .mp4 qui est un script ne passe pas.
+    $mime = '';
+    try { $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->file((string) $f['tmp_name']); }
+    catch (Throwable $e) { $mime = ''; }
+    $exts = ['video/mp4' => 'mp4', 'video/quicktime' => 'mov', 'video/webm' => 'webm',
+             'video/3gpp' => '3gp', 'video/x-m4v' => 'm4v'];
+    if (!isset($exts[$mime])) {
+      log_security_event($pdo, 'video_refusee', $u['email'] ?? null, $mime ?: 'type inconnu');
+      jerr('Ce fichier n’est pas une vidéo lisible (MP4, MOV, WebM ou 3GP attendu).', 415);
+    }
+    $dir = rtrim((string) $config['uploads_dir'], '/') . '/videos';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    if (!is_dir($dir) || !is_writable($dir)) jerr('Le dossier des vidéos n’est pas accessible en écriture.', 500);
+    $nom = date('Ym') . '-' . uuid() . '.' . $exts[$mime];
+    if (!@move_uploaded_file((string) $f['tmp_name'], "$dir/$nom")) jerr('La vidéo n’a pas pu être enregistrée. Réessayez.', 500);
+    @chmod("$dir/$nom", 0644);
+    $url = rtrim((string) $config['uploads_path'], '/') . '/videos/' . $nom;
+    // L'ancienne vidéo ne sert plus à personne : on la retire tout de suite,
+    // sinon chaque remplacement laisserait dix mégaoctets orphelins.
+    video_supprimer($config, (string) ($row['video'] ?? ''));
+    // Le poids part avec l'adresse : c'est lui qui s'affichera sur le bouton.
+    $pdo->prepare('UPDATE listings SET video = ?, video_octets = ? WHERE id = ?')
+        ->execute([$url, $taille, $seg[1]]);
+    jout(['ok' => true, 'video' => $url, 'octets' => $taille]);
+  }
+
+  // DELETE /listings/{id}/video — le propriétaire, ou un administrateur (une
+  // vidéo qui enfreint les règles se retire sans retirer l'annonce).
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'video' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id, video FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    video_supprimer($config, (string) ($row['video'] ?? ''));
+    $pdo->prepare('UPDATE listings SET video = NULL, video_octets = NULL WHERE id = ?')->execute([$seg[1]]);
+    if ($row['user_id'] !== $u['id']) log_security_event($pdo, 'admin_video_deleted', $u['email'] ?? null, $seg[1]);
+    jout(['ok' => true]);
+  }
+
+  if (count($seg) === 2 && $seg[0] === 'listings' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    // La vidéo part avec l'annonce — avant la ligne, sinon on ne sait plus
+    // quel fichier était le sien.
+    videos_supprimer_annonces($pdo, $config, 'id = ?', [$seg[1]]);
+    $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---------- SIGNALEMENTS ----------
+  if ($path === 'reports' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $listingId = trim((string) ($b['listingId'] ?? ''));
+    $reason = substr(trim((string) ($b['reason'] ?? '')), 0, 80);
+    $details = substr(trim((string) ($b['details'] ?? '')), 0, 500);
+    if ($listingId === '' || $reason === '') jerr('Signalement incomplet (motif requis).');
+    $st = $pdo->prepare('SELECT title FROM listings WHERE id = ?'); $st->execute([$listingId]);
+    $title = $st->fetch()['title'] ?? '(annonce introuvable)';
+    $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at) VALUES (?,?,?,?,?,?,?)')
+        ->execute([uuid(), $listingId, $u['id'], $reason, $details ?: null, 'open', now_iso()]);
+    // Auto-masquage : au-delà de 3 signalements ouverts, l'annonce est masquée
+    // automatiquement en attendant la décision d'un administrateur.
+    $cnt = $pdo->prepare("SELECT COUNT(*) AS c FROM reports WHERE listing_id = ? AND status = 'open'");
+    $cnt->execute([$listingId]);
+    $autoHidden = (int) $cnt->fetch()['c'] >= 3;
+    if ($autoHidden) $pdo->prepare('UPDATE listings SET hidden = 1 WHERE id = ?')->execute([$listingId]);
+    send_report_email($config, $u['email'], $title, $listingId, $reason, $details);
+    jout(['ok' => true, 'autoHidden' => $autoHidden]);
+  }
+
+  // ---------- RECHERCHES SAUVEGARDÉES (alertes email) ----------
+  // Liste mes alertes.
+  if ($path === 'searches' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM saved_searches WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => [
+      'id' => $r['id'], 'label' => $r['label'], 'params' => $r['params'],
+      'createdAt' => iso_to_ms($r['created_at']),
+    ], $st->fetchAll()));
+  }
+  // Créer une alerte (max 20 par personne).
+  if ($path === 'searches' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $label  = substr(trim((string) ($b['label'] ?? '')), 0, 120);
+    $params2 = ltrim(substr(trim((string) ($b['params'] ?? '')), 0, 600), '?');
+    if ($label === '') jerr('Nom de l’alerte manquant.');
+    $cnt = $pdo->prepare('SELECT COUNT(*) AS c FROM saved_searches WHERE user_id = ?');
+    $cnt->execute([$u['id']]);
+    if ((int) $cnt->fetch()['c'] >= 20) jerr('Vous avez atteint la limite de 20 alertes.', 400);
+    $id = uuid();
+    // Point de départ = maintenant : on n'alerte que sur les annonces publiées ensuite.
+    $pdo->prepare('INSERT INTO saved_searches (id,user_id,label,params,last_notified_at,created_at) VALUES (?,?,?,?,?,?)')
+        ->execute([$id, $u['id'], $label, $params2, now_iso(), now_iso()]);
+    jout(['id' => $id, 'label' => $label, 'params' => $params2, 'createdAt' => iso_to_ms(now_iso())]);
+  }
+  // Supprimer une alerte.
+  if (count($seg) === 2 && $seg[0] === 'searches' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id FROM saved_searches WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Alerte introuvable.', 404);
+    if ($row['user_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $pdo->prepare('DELETE FROM saved_searches WHERE id = ?')->execute([$seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---------- RÉPONSES TOUTES PRÊTES ----------
+  // Mes phrases enregistrées, la plus ancienne en premier : l'ordre ne bouge
+  // pas d'une fois sur l'autre, la main retrouve la bonne puce sans lire.
+  if ($path === 'reponses' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT id, body, created_at FROM quick_replies WHERE user_id = ? ORDER BY created_at ASC');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => [
+      'id' => $r['id'], 'texte' => $r['body'], 'createdAt' => iso_to_ms($r['created_at']),
+    ], $st->fetchAll()));
+  }
+  // Enregistrer une phrase (12 au maximum : au-delà, on ne les retrouve plus).
+  if ($path === 'reponses' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $texte = trim((string) (body()['texte'] ?? ''));
+    if ($texte === '') jerr('Écrivez la phrase à enregistrer.');
+    $texte = mb_substr($texte, 0, 400);
+    $cnt = $pdo->prepare('SELECT COUNT(*) AS c FROM quick_replies WHERE user_id = ?');
+    $cnt->execute([$u['id']]);
+    if ((int) $cnt->fetch()['c'] >= 12) jerr('Vous avez atteint la limite de 12 réponses enregistrées.', 400);
+    $rid = uuid();
+    $pdo->prepare('INSERT INTO quick_replies (id,user_id,body,created_at) VALUES (?,?,?,?)')
+        ->execute([$rid, $u['id'], $texte, now_iso()]);
+    jout(['id' => $rid, 'texte' => $texte, 'createdAt' => iso_to_ms(now_iso())]);
+  }
+  // Retirer une phrase.
+  if (count($seg) === 2 && $seg[0] === 'reponses' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id FROM quick_replies WHERE id = ?'); $st->execute([$seg[1]]);
+    $row = $st->fetch();
+    if (!$row) jerr('Réponse introuvable.', 404);
+    if ((string) $row['user_id'] !== (string) $u['id']) jerr('Non autorisé.', 403);
+    $pdo->prepare('DELETE FROM quick_replies WHERE id = ?')->execute([$seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---------- CONVERSATIONS & MESSAGES ----------
+  if ($path === 'conversations' && $method === 'GET') {
+    $u = require_user($pdo, $secret); $id = $u['id'];
+    // Blocages me concernant, chargés une fois (petit volume).
+    $bl = $pdo->prepare('SELECT blocker_id, blocked_id FROM blocks WHERE blocker_id = ? OR blocked_id = ?');
+    $bl->execute([$id, $id]);
+    $jaiBloque = []; $maBloque = [];
+    foreach ($bl->fetchAll() as $r) {
+      if ((string) $r['blocker_id'] === (string) $id) $jaiBloque[(string) $r['blocked_id']] = true;
+      else $maBloque[(string) $r['blocker_id']] = true;
+    }
+    $st = $pdo->prepare('SELECT * FROM conversations WHERE buyer_id = ? OR seller_id = ? ORDER BY created_at DESC');
+    $st->execute([$id, $id]); $convs = $st->fetchAll();
+    $out = [];
+    foreach ($convs as $c) {
+      $estAcheteur = $c['buyer_id'] === $id;
+      $otherId = $estAcheteur ? $c['seller_id'] : $c['buyer_id'];
+      $supprLe = $estAcheteur ? ($c['buyer_deleted_at'] ?? null) : ($c['seller_deleted_at'] ?? null);
+      $archLe  = $estAcheteur ? ($c['buyer_archived_at'] ?? null) : ($c['seller_archived_at'] ?? null);
+      $epingle = (bool) ($estAcheteur ? ($c['buyer_pinned_at'] ?? null) : ($c['seller_pinned_at'] ?? null));
+      $lm = $pdo->prepare('SELECT body,sender_id,created_at,deleted_at,auto FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+      $lm->execute([$c['id']]); $last = $lm->fetch();
+      // Le dernier expéditeur HUMAIN — celui qui décide si la conversation
+      // attend encore une réponse. Une réponse automatique ne clôt rien.
+      $dh = $pdo->prepare('SELECT sender_id FROM messages WHERE conversation_id = ?
+                             AND (auto IS NULL OR auto = 0)
+                           ORDER BY created_at DESC LIMIT 1');
+      $dh->execute([$c['id']]);
+      $dernierHumain = $dh->fetchColumn() ?: null;
+      $lastAt = $last['created_at'] ?? $c['created_at'];
+      // Supprimée de MON côté et aucun message plus récent que ma suppression :
+      // on la cache. Un message postérieur la fait réapparaître.
+      if ($supprLe && strtotime((string) $lastAt) <= strtotime((string) $supprLe)) continue;
+      // Archivée pareil : le reste tant qu'aucun message n'est plus récent.
+      $archivee = $archLe && strtotime((string) $lastAt) <= strtotime((string) $archLe);
+      $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$otherId]);
+      $otherName = $pn->fetch()['full_name'] ?? 'Utilisateur';
+      $li = null; $lt = null;
+      if ($c['listing_id']) {
+        $ls = $pdo->prepare('SELECT title,images FROM listings WHERE id = ?'); $ls->execute([$c['listing_id']]);
+        if ($lr = $ls->fetch()) { $lt = $lr['title']; $imgs = json_decode($lr['images'] ?: '[]', true); $li = $imgs[0] ?? null; }
+      }
+      $apercu = $last ? (!empty($last['deleted_at']) ? 'Message supprimé' : $last['body']) : null;
+      // L'offre qui M'attend : la dernière de l'autre, encore « proposée ».
+      // C'est elle que la liste des messages montre en pastille — « 3 offres
+      // reçues » se voit là où le vendeur répond, pas dans un tableau à part.
+      $offreEnAttente = null;
+      $oa = $pdo->prepare('SELECT offre FROM messages WHERE conversation_id = ? AND sender_id <> ? AND offre IS NOT NULL
+                           ORDER BY created_at DESC LIMIT 1');
+      $oa->execute([$c['id'], $id]);
+      if (($oj = $oa->fetchColumn()) && ($od = json_decode((string) $oj, true)) && ($od['statut'] ?? '') === 'proposee') {
+        $offreEnAttente = (int) $od['montant'];
+      }
+      $out[] = [
+        'id' => $c['id'], 'listingId' => $c['listing_id'], 'buyerId' => $c['buyer_id'],
+        'sellerId' => $c['seller_id'], 'createdAt' => iso_to_ms($c['created_at']),
+        'listingTitle' => $lt, 'listingImage' => $li, 'otherName' => $otherName ?: 'Utilisateur',
+        'lastMessage' => $apercu,
+        'lastAt' => iso_to_ms($lastAt),
+        'lastSenderId' => $last['sender_id'] ?? null,
+        'dernierHumain' => $dernierHumain,
+        'lastAuto' => !empty($last['auto']),
+        'offreEnAttente' => $offreEnAttente,
+        'archived' => (bool) $archivee,
+        'pinned' => $epingle,
+        'blockedByMe' => isset($jaiBloque[(string) $otherId]),
+        'blockedMe' => isset($maBloque[(string) $otherId]),
+      ];
+    }
+    // Ordre : épinglées d'abord, puis par message le plus récent. (La liste
+    // n'était triée que par date de création — le dernier message pouvait se
+    // retrouver en bas.)
+    usort($out, function ($a, $b) {
+      $pa = $a['pinned'] ? 1 : 0; $pb = $b['pinned'] ? 1 : 0;
+      if ($pa !== $pb) return $pb - $pa;
+      return ($b['lastAt'] ?? 0) <=> ($a['lastAt'] ?? 0);
+    });
+    jout($out);
+  }
+
+  if ($path === 'conversations' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $listingId = trim((string) ($b['listingId'] ?? '')); $sellerId = trim((string) ($b['sellerId'] ?? ''));
+    if ($sellerId === '') jerr('Vendeur manquant.');
+    if ($sellerId === $u['id']) jerr('Vous ne pouvez pas vous contacter vous-même.', 400);
+    // Sécurité : la conversation doit porter sur une annonce RÉELLE dont le vendeur
+    // indiqué est bien le propriétaire. Sinon, un utilisateur pourrait fabriquer une
+    // fausse relation acheteur→vendeur (spam de messages, fausses commandes/avis).
+    if ($listingId === '') jerr('Annonce manquante.', 400);
+    $lo = $pdo->prepare('SELECT user_id FROM listings WHERE id = ?'); $lo->execute([$listingId]);
+    $lr = $lo->fetch();
+    if (!$lr) jerr('Annonce introuvable.', 404);
+    if ((string) $lr['user_id'] !== $sellerId) jerr('Vendeur invalide pour cette annonce.', 400);
+    $st = $pdo->prepare('SELECT id FROM conversations WHERE listing_id = ? AND buyer_id = ?');
+    $st->execute([$listingId, $u['id']]);
+    if ($ex = $st->fetch()) jout(['id' => $ex['id']]);
+    $id = uuid();
+    $pdo->prepare('INSERT INTO conversations (id,listing_id,buyer_id,seller_id,created_at) VALUES (?,?,?,?,?)')
+        ->execute([$id, $listingId, $u['id'], $sellerId, now_iso()]);
+    jout(['id' => $id]);
+  }
+
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'messages') {
+    $u = require_user($pdo, $secret); $convId = $seg[1];
+    $cs = $pdo->prepare('SELECT * FROM conversations WHERE id = ?'); $cs->execute([$convId]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+
+    if ($method === 'GET') {
+      $ms = $pdo->prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC');
+      $ms->execute([$convId]);
+      jout(array_map(fn($m) => [
+        'id' => $m['id'], 'conversationId' => $m['conversation_id'], 'senderId' => $m['sender_id'],
+        'body' => empty($m['deleted_at']) ? $m['body'] : null,
+        'deleted' => !empty($m['deleted_at']),
+        'auto' => !empty($m['auto']),
+        'offre' => !empty($m['offre']) ? (json_decode((string) $m['offre'], true) ?: null) : null,
+        'createdAt' => iso_to_ms($m['created_at']),
+      ], $ms->fetchAll()));
+    }
+    if ($method === 'POST') {
+      $b = body(); $bodyTxt = trim($b['body'] ?? '');
+      if (!$bodyTxt) jerr('Message vide.');
+      // Blocage : si l'un OU l'autre a bloqué, plus aucun message ne passe.
+      $autreB = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+      $bk = $pdo->prepare('SELECT blocker_id FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)');
+      $bk->execute([$u['id'], $autreB, $autreB, $u['id']]);
+      if ($brow = $bk->fetch()) {
+        $jeBloque = (string) $brow['blocker_id'] === (string) $u['id'];
+        jerr($jeBloque
+          ? 'Vous avez bloqué cette personne. Débloquez-la pour lui écrire.'
+          : 'Vous ne pouvez plus écrire dans cette conversation.', 403);
+      }
+      // Modération du chat : on bloque le contenu clairement illégal (drogue,
+      // sexe, services de plaisir…), pas les questions de paiement légitimes.
+      $mod = moderate_text($bodyTxt);
+      $illegal = array_values(array_filter($mod['reasons'], fn($r) =>
+        in_array($r['code'], ['drogue','arme','faux','sexuel_service','contenu_sexuel','especes','medicament'], true)));
+      if ($illegal) {
+        log_security_event($pdo, 'message_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $illegal)));
+        jout(['error' => 'Message bloqué : il contient du contenu interdit.', 'moderation' => true, 'reasons' => $illegal], 422);
+      }
+      $id = uuid(); $ts = now_iso();
+      $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at) VALUES (?,?,?,?,?)')
+          ->execute([$id, $convId, $u['id'], $bodyTxt, $ts]);
+      // Notifie le destinataire (l'autre participant de la conversation).
+      $recipient = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+      $sn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $sn->execute([$u['id']]);
+      $senderName = trim((string) ($sn->fetch()['full_name'] ?? '')) ?: 'Un utilisateur';
+      notify($pdo, (string) $recipient, 'message', 'Nouveau message',
+        $senderName . ' vous a envoyé un message.', '#/messages/' . $convId);
+
+      // LA RÉPONSE AUTOMATIQUE. Elle part quand un ACHETEUR écrit à un
+      // professionnel approuvé qui l'a activée, et seulement tant que le
+      // vendeur n'a JAMAIS écrit dans cette conversation : au deuxième message
+      // de l'acheteur, il ne veut plus lire la même phrase.
+      //
+      // Elle est marquée `auto = 1`. Elle ne compte donc ni dans le taux de
+      // réponse, ni pour sortir la conversation de « sans réponse » : le
+      // vendeur doit toujours répondre lui-même. Une réponse automatique
+      // achète du temps, elle ne remplace personne.
+      $auto = null;
+      if ((string) $u['id'] === (string) $conv['buyer_id']) {
+        try {
+          $ar = $pdo->prepare('SELECT pro_status, pro_auto_reply, pro_auto_reply_on, pro_nom
+                               FROM users WHERE id = ?');
+          $ar->execute([$conv['seller_id']]);
+          $v = $ar->fetch() ?: [];
+          $texte = trim((string) ($v['pro_auto_reply'] ?? ''));
+          if ((string) ($v['pro_status'] ?? '') === 'approuve'
+              && !empty($v['pro_auto_reply_on']) && $texte !== '') {
+            $deja = $pdo->prepare('SELECT COUNT(*) FROM messages
+                                   WHERE conversation_id = ? AND sender_id = ?');
+            $deja->execute([$convId, $conv['seller_id']]);
+            if ((int) $deja->fetchColumn() === 0) {
+              $autoId = uuid();
+              $autoTs = gmdate('Y-m-d\TH:i:s\Z', time() + 1); // après le message reçu
+              $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at,auto)
+                             VALUES (?,?,?,?,?,1)')
+                  ->execute([$autoId, $convId, $conv['seller_id'], $texte, $autoTs]);
+              $auto = ['id' => $autoId, 'conversationId' => $convId,
+                       'senderId' => (string) $conv['seller_id'], 'body' => $texte,
+                       'createdAt' => iso_to_ms($autoTs), 'auto' => true];
+            }
+          }
+        } catch (Throwable $e) { /* une réponse auto ratée ne casse pas l'envoi */ }
+      }
+      jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'],
+            'body' => $bodyTxt, 'createdAt' => iso_to_ms($ts), 'auto' => $auto]);
+    }
+  }
+
+  // ---- Supprimer un de MES messages (pour tout le monde) --------------------
+  // ── « FAIRE UNE OFFRE » — la négociation, structurée ─────────────────────
+  //
+  // Nouveauté n° 4 du 03/09/2026. Au lieu de « dernier prix ? » dans le chat :
+  // un montant, que l'autre accepte, refuse, ou contre-propose. Une offre est
+  // un MESSAGE de la conversation (colonne `offre`, JSON {montant, statut,
+  // par}) : elle hérite des notifications, des non-lus, des blocages et de la
+  // suppression, sans rien réinventer. Son texte (« Offre : 120 000 FCFA »)
+  // reste lisible par une application qui ne connaît pas encore les offres.
+  //
+  // Les états : proposee → acceptee | refusee ; une nouvelle offre du même
+  // auteur rend la précédente « remplacee ». Répond seul le DESTINATAIRE de
+  // l'offre ; l'auteur ne peut pas accepter sa propre offre — c'est le banc
+  // qui le vérifie, pas l'écran.
+  //
+  // Accepter n'est pas payer, et ne change pas le prix affiché de l'annonce :
+  // c'est une parole donnée dans la conversation. Le paiement reste ce qu'il
+  // est aujourd'hui — en main propre, ou à la livraison.
+  if (count($seg) >= 3 && $seg[0] === 'conversations' && $seg[2] === 'offre' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $convId = $seg[1];
+    $cs = $pdo->prepare('SELECT * FROM conversations WHERE id = ?'); $cs->execute([$convId]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $autre = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+    // Même règle que pour un message : bloqué d'un côté ou de l'autre, rien ne passe.
+    $bk = $pdo->prepare('SELECT 1 FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)');
+    $bk->execute([$u['id'], $autre, $autre, $u['id']]);
+    if ($bk->fetch()) jerr('Vous ne pouvez plus écrire dans cette conversation.', 403);
+    $b = body();
+    $sn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $sn->execute([$u['id']]);
+    $nom = trim((string) ($sn->fetch()['full_name'] ?? '')) ?: 'Un utilisateur';
+
+    if (count($seg) === 3) {
+      // ── Proposer ──
+      $montant = (int) ($b['montant'] ?? 0);
+      if ($montant <= 0 || $montant > 1000000000) jerr('Indiquez un montant en FCFA.', 400);
+      // Ma précédente offre encore ouverte est remplacée : une seule parole à la fois.
+      $prec = $pdo->prepare('SELECT id, offre FROM messages WHERE conversation_id = ? AND sender_id = ? AND offre IS NOT NULL');
+      $prec->execute([$convId, $u['id']]);
+      foreach ($prec->fetchAll() as $pm) {
+        $po = json_decode((string) $pm['offre'], true) ?: [];
+        if (($po['statut'] ?? '') === 'proposee') {
+          $po['statut'] = 'remplacee';
+          $pdo->prepare('UPDATE messages SET offre = ? WHERE id = ?')->execute([json_encode($po), $pm['id']]);
+        }
+      }
+      $id = uuid(); $ts = now_iso();
+      $offre = ['montant' => $montant, 'statut' => 'proposee', 'par' => (string) $u['id']];
+      $texte = 'Offre : ' . number_format($montant, 0, ',', ' ') . ' FCFA';
+      $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at,offre) VALUES (?,?,?,?,?,?)')
+          ->execute([$id, $convId, $u['id'], $texte, $ts, json_encode($offre)]);
+      notify($pdo, (string) $autre, 'message', 'Nouvelle offre',
+        $nom . ' vous propose ' . number_format($montant, 0, ',', ' ') . ' FCFA.', '#/messages/' . $convId);
+      jout(['id' => $id, 'conversationId' => $convId, 'senderId' => $u['id'], 'body' => $texte,
+            'createdAt' => iso_to_ms($ts), 'offre' => $offre]);
+    }
+
+    // ── Répondre : /conversations/{id}/offre/{messageId} ──
+    $mid = (string) ($seg[3] ?? '');
+    $action = (string) ($b['action'] ?? '');
+    if (!in_array($action, ['accepter', 'refuser'], true)) jerr('Action inconnue.', 400);
+    $ms = $pdo->prepare('SELECT * FROM messages WHERE id = ? AND conversation_id = ? AND offre IS NOT NULL');
+    $ms->execute([$mid, $convId]);
+    $m = $ms->fetch();
+    if (!$m) jerr('Offre introuvable.', 404);
+    $o = json_decode((string) $m['offre'], true) ?: [];
+    // Seul le DESTINATAIRE répond. L'auteur qui « accepte » sa propre offre
+    // fabriquerait une preuve d'accord que personne n'a donné.
+    if ((string) $m['sender_id'] === (string) $u['id']) jerr('Vous ne pouvez pas répondre à votre propre offre.', 403);
+    if (($o['statut'] ?? '') !== 'proposee') jerr('Cette offre n’est plus ouverte.', 409);
+    $o['statut'] = $action === 'accepter' ? 'acceptee' : 'refusee';
+    $o['repondu'] = now_iso();
+    $pdo->prepare('UPDATE messages SET offre = ? WHERE id = ?')->execute([json_encode($o), $mid]);
+    // La réponse s'écrit aussi en clair dans le fil : la conversation se relit
+    // sans avoir à deviner l'état d'une pastille.
+    $rid = uuid(); $rts = now_iso();
+    $rtexte = ($action === 'accepter' ? 'Offre acceptée : ' : 'Offre refusée : ')
+            . number_format((int) $o['montant'], 0, ',', ' ') . ' FCFA';
+    $pdo->prepare('INSERT INTO messages (id,conversation_id,sender_id,body,created_at) VALUES (?,?,?,?,?)')
+        ->execute([$rid, $convId, $u['id'], $rtexte, $rts]);
+    notify($pdo, (string) $m['sender_id'], 'message', $action === 'accepter' ? 'Offre acceptée ✅' : 'Offre refusée',
+      $nom . ($action === 'accepter' ? ' accepte votre offre de ' : ' refuse votre offre de ')
+      . number_format((int) $o['montant'], 0, ',', ' ') . ' FCFA.', '#/messages/' . $convId);
+    jout(['ok' => true, 'offre' => $o, 'message' => ['id' => $rid, 'conversationId' => $convId,
+          'senderId' => $u['id'], 'body' => $rtexte, 'createdAt' => iso_to_ms($rts)]]);
+  }
+
+  if (count($seg) === 4 && $seg[0] === 'conversations' && $seg[2] === 'messages' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret); $convId = $seg[1]; $msgId = $seg[3];
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$convId]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $ms = $pdo->prepare('SELECT sender_id FROM messages WHERE id = ? AND conversation_id = ?'); $ms->execute([$msgId, $convId]);
+    $m = $ms->fetch();
+    if (!$m) jerr('Message introuvable.', 404);
+    // On ne supprime QUE ses propres messages (suppression pour tout le monde).
+    if ((string) $m['sender_id'] !== (string) $u['id']) jerr('Vous ne pouvez supprimer que vos propres messages.', 403);
+    $pdo->prepare('UPDATE messages SET deleted_at = ?, body = ? WHERE id = ?')->execute([now_iso(), '', $msgId]);
+    jout(['ok' => true]);
+  }
+
+  // ---- Supprimer une conversation (de MON côté seulement) -------------------
+  if (count($seg) === 2 && $seg[0] === 'conversations' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    // Colonne choisie dans une liste FIXE (jamais une entrée utilisateur).
+    $col = $conv['buyer_id'] === $u['id'] ? 'buyer_deleted_at'
+         : ($conv['seller_id'] === $u['id'] ? 'seller_deleted_at' : null);
+    if ($col === null) jerr('Non autorisé.', 403);
+    $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([now_iso(), $seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // ---- Archiver / désarchiver une conversation (de MON côté) ----------------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'archive' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $col = $conv['buyer_id'] === $u['id'] ? 'buyer_archived_at'
+         : ($conv['seller_id'] === $u['id'] ? 'seller_archived_at' : null);
+    if ($col === null) jerr('Non autorisé.', 403);
+    $archiver = (bool) (body()['archived'] ?? true);
+    $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([$archiver ? now_iso() : null, $seg[1]]);
+    jout(['ok' => true, 'archived' => $archiver]);
+  }
+
+  // ---- Épingler / désépingler une conversation (de MON côté) ----------------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'pin' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $col = $conv['buyer_id'] === $u['id'] ? 'buyer_pinned_at'
+         : ($conv['seller_id'] === $u['id'] ? 'seller_pinned_at' : null);
+    if ($col === null) jerr('Non autorisé.', 403);
+    $epingler = (bool) (body()['pinned'] ?? true);
+    // Au plus 5 conversations épinglées par personne. On compte celles déjà
+    // épinglées de MON côté (acheteur OU vendeur selon le rôle), en excluant
+    // celle-ci pour rester idempotent.
+    if ($epingler) {
+      $cnt = $pdo->prepare(
+        'SELECT COUNT(*) FROM conversations WHERE id <> ? AND ' .
+        '((buyer_id = ? AND buyer_pinned_at IS NOT NULL) OR (seller_id = ? AND seller_pinned_at IS NOT NULL))'
+      );
+      $cnt->execute([$seg[1], $u['id'], $u['id']]);
+      if ((int) $cnt->fetchColumn() >= 5) {
+        jerr('Vous pouvez épingler 5 conversations au maximum. Désépinglez-en une d’abord.', 422);
+      }
+    }
+    $pdo->prepare("UPDATE conversations SET $col = ? WHERE id = ?")->execute([$epingler ? now_iso() : null, $seg[1]]);
+    jout(['ok' => true, 'pinned' => $epingler]);
+  }
+
+  // ---- Bloquer / débloquer l'autre participant ------------------------------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'block' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $autre = $conv['buyer_id'] === $u['id'] ? $conv['seller_id'] : $conv['buyer_id'];
+    $bloquer = (bool) (body()['block'] ?? true);
+    if ($bloquer) {
+      $ex = $pdo->prepare('SELECT id FROM blocks WHERE blocker_id = ? AND blocked_id = ?'); $ex->execute([$u['id'], $autre]);
+      if (!$ex->fetch()) {
+        $pdo->prepare('INSERT INTO blocks (id,blocker_id,blocked_id,created_at) VALUES (?,?,?,?)')
+            ->execute([uuid(), $u['id'], $autre, now_iso()]);
+      }
+    } else {
+      $pdo->prepare('DELETE FROM blocks WHERE blocker_id = ? AND blocked_id = ?')->execute([$u['id'], $autre]);
+    }
+    log_security_event($pdo, $bloquer ? 'user_blocked' : 'user_unblocked', $u['email'] ?? null);
+    jout(['ok' => true, 'blocked' => $bloquer]);
+  }
+
+  // ---- Signaler une conversation (cases à cocher + détail) → modération ------
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'report' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $cs = $pdo->prepare('SELECT buyer_id, seller_id, listing_id FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    if ($conv['buyer_id'] !== $u['id'] && $conv['seller_id'] !== $u['id']) jerr('Non autorisé.', 403);
+    $motifs = is_array($b['reasons'] ?? null) ? $b['reasons'] : (isset($b['reason']) ? [$b['reason']] : []);
+    $reason = substr(trim(implode(', ', array_map(fn($r) => (string) $r, $motifs))), 0, 80);
+    $details = substr(trim((string) ($b['details'] ?? '')), 0, 500);
+    if ($reason === '') jerr('Signalement incomplet (choisissez au moins un motif).');
+    // listing_id reste NULL : un signalement de CONVERSATION ne doit jamais
+    // compter dans l'auto-masquage d'une annonce (seuil de 3). La cible est la
+    // conversation (`target_id`) ; l'annonce n'est qu'un contexte pour l'e-mail.
+    $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at,kind,target_id) VALUES (?,?,?,?,?,?,?,?,?)')
+        ->execute([uuid(), null, $u['id'], $reason, $details ?: null, 'open', now_iso(), 'conversation', $seg[1]]);
+    send_report_email($config, (string) ($u['email'] ?? ''), 'Conversation signalée', (string) ($conv['listing_id'] ?? ''), $reason, $details);
+    log_security_event($pdo, 'conversation_reported', $u['email'] ?? null, $reason);
+    jout(['ok' => true]);
+  }
+
+  // ==========================================================================
+  //  MESSAGERIE DE L'ÉQUIPE
+  //
+  //  Trois besoins, un seul mécanisme (voir le commentaire des tables) :
+  //    · un utilisateur écrit à l'équipe — bouton « Contacter l'équipe » ;
+  //    · un administrateur ou un modérateur lui répond ;
+  //    · les modérateurs se parlent entre eux, hors de vue.
+  //
+  //  RÈGLE QUI NE SE NÉGOCIE PAS : un fil `staff` n'est JAMAIS servi à un
+  //  non-membre de l'équipe, ni en liste, ni en détail, ni par identifiant
+  //  deviné. Le contrôle est fait à chaque route, pas une seule fois en amont :
+  //  une route ajoutée demain sans le contrôle ne doit pas ouvrir la porte.
+  // ==========================================================================
+
+  /** Nom affichable d'un compte, pour signer un message. */
+  $nomDe = function (string $userId) use ($pdo): string {
+    $st = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
+    $st->execute([$userId]);
+    return trim((string) ($st->fetchColumn() ?: '')) ?: 'Utilisateur';
+  };
+
+  /**
+   * Un fil, mis en forme pour CELUI qui le lit.
+   *
+   * Un utilisateur ne voit jamais quel modérateur lui a répondu : il voit
+   * « L'équipe Chap.ci ». Ce n'est pas de la coquetterie — nommer la personne
+   * qui vient de masquer une annonce, c'est lui livrer celui qui la cherche.
+   */
+  $filOut = function (array $t, bool $staff, bool $voitIdentite): array {
+    return [
+      'id' => $t['id'], 'kind' => $t['kind'] ?: 'user',
+      'sujet' => $t['subject'] ?: '(sans objet)',
+      'statut' => $t['status'] ?: 'open',
+      // QUI a écrit ne sort que pour l'équipe QUI A LE DROIT DE LE SAVOIR.
+      // Répondre à une demande n'exige pas de connaître l'e-mail de qui la
+      // pose : le fil suffit. Partout ailleurs dans le tableau de bord,
+      // l'e-mail et le téléphone sont derrière la fonctionnalité
+      // « Utilisateurs » ; ces trois champs-là n'avaient aucune raison d'y
+      // échapper, et un modérateur sans cette case les lisait quand même.
+      // Signalé par la ronde du Gardien du 6 août, vérifié, corrigé.
+      'userId' => $voitIdentite ? ($t['user_id'] ?: null) : null,
+      'userNom' => $voitIdentite ? ($t['user_nom'] ?? null) : null,
+      'userEmail' => $voitIdentite ? ($t['user_email'] ?? null) : null,
+      'creeLe' => iso_to_ms($t['created_at']),
+      'dernierLe' => iso_to_ms($t['last_at'] ?: $t['created_at']),
+      'dernierPar' => ($t['last_by'] ?? '') === 'equipe' ? 'equipe' : 'utilisateur',
+      'nonLus' => (int) ($staff ? ($t['unread_staff'] ?? 0) : ($t['unread_user'] ?? 0)),
+    ];
+  };
+
+  /**
+   * Ce modérateur a-t-il le droit de savoir QUI a ouvert le fil ?
+   *
+   * On ne restreint PAS l'accès à l'assistance elle-même : c'est une boîte
+   * partagée, et un modérateur dont le métier est de répondre aux gens doit
+   * pouvoir y répondre. Ce qu'on restreint, c'est l'identité — nom et adresse
+   * e-mail — exactement comme sur la fiche d'un compte.
+   */
+  $voitIdentite = function (array $u) use ($config, $pdo): bool {
+    return is_admin($config, $pdo, $u) && admin_can($config, $pdo, $u, 'users');
+  };
+
+  // ---- Liste des fils --------------------------------------------------------
+  if ($path === 'team/threads' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $staff = is_admin($config, $pdo, $u);
+    if ($staff) {
+      // L'équipe voit tout : les demandes des membres ET ses propres fils.
+      $st = $pdo->query("SELECT t.*, p.full_name AS user_nom, us.email AS user_email
+                         FROM team_threads t
+                         LEFT JOIN profiles p ON p.id = t.user_id
+                         LEFT JOIN users us ON us.id = t.user_id
+                         ORDER BY (CASE WHEN t.status = 'open' THEN 0 ELSE 1 END), t.last_at DESC LIMIT 300");
+      $rows = $st->fetchAll();
+    } else {
+      // Un membre ne voit QUE ses propres fils, et jamais un fil d'équipe.
+      $st = $pdo->prepare("SELECT * FROM team_threads WHERE kind = 'user' AND user_id = ? ORDER BY last_at DESC LIMIT 100");
+      $st->execute([$u['id']]);
+      $rows = $st->fetchAll();
+    }
+    $idOK = $voitIdentite($u);
+    jout(['equipe' => $staff, 'identites' => $idOK,
+          'fils' => array_map(fn($t) => $filOut($t, $staff, $idOK), $rows)]);
+  }
+
+  // ---- Ouvrir un fil ---------------------------------------------------------
+  if ($path === 'team/threads' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $staff = is_admin($config, $pdo, $u);
+    $b = body();
+    $kind = ($b['kind'] ?? 'user') === 'staff' ? 'staff' : 'user';
+    if ($kind === 'staff' && !$staff) jerr('Non autorisé.', 403);
+
+    // ------------------------------------------------------------------------
+    //  L'ÉQUIPE PEUT OUVRIR LE FIL, ET PAS SEULEMENT RÉPONDRE.
+    //
+    //  Jusqu'ici, un échange ne pouvait naître que d'un membre qui écrivait le
+    //  premier. Or l'essentiel de ce qu'un administrateur a à dire vient de lui :
+    //  « votre annonce est floue », « ce prix paraît faux », « votre compte
+    //  est bloqué, voici pourquoi ». Sans ce chemin, il n'avait que la
+    //  messagerie acheteur-vendeur — qui exige une annonce et fait passer
+    //  l'équipe pour un client. Un modérateur qui doit se déguiser en acheteur
+    //  pour prévenir quelqu'un, c'est un outil qui manque.
+    //
+    //  Le fil créé appartient au DESTINATAIRE, pas à l'expéditeur : c'est chez
+    //  lui qu'il apparaît, dans son assistance, et il peut répondre.
+    // ------------------------------------------------------------------------
+    $destinataire = trim((string) ($b['destinataire'] ?? ''));
+    if ($destinataire !== '') {
+      if (!$staff) jerr('Non autorisé.', 403);
+      if ($kind !== 'user') jerr('Un fil d’équipe n’a pas de destinataire.');
+      if (!admin_can($config, $pdo, $u, 'users')) {
+        jerr('Écrire à un membre nommément demande la fonctionnalité « Utilisateurs ».', 403);
+      }
+      $q = $pdo->prepare('SELECT id FROM users WHERE id = ?');
+      $q->execute([$destinataire]);
+      if (!$q->fetchColumn()) jerr('Destinataire introuvable.', 404);
+    }
+
+    $sujet = mb_substr(trim((string) ($b['sujet'] ?? '')), 0, 120);
+    $texte = trim((string) ($b['body'] ?? ''));
+    if ($sujet === '') jerr('Indiquez l’objet de votre demande.');
+    if ($texte === '') jerr('Écrivez votre message.');
+    if (mb_strlen($texte) > 4000) jerr('Message trop long (4 000 caractères maximum).');
+
+    // Anti-spam : cinq fils par heure et par compte. Un membre honnête n'en
+    // ouvre pas six ; un robot, si.
+    if (!$staff) rate_limit($pdo, 'team_thread', $u['email'] ?? null, 5, 3600);
+
+    // Même modération que la messagerie acheteur-vendeur : on ne veut pas d'un
+    // canal propre pour ce qu'on refuse ailleurs.
+    $mod = moderate_text($texte);
+    $illegal = array_values(array_filter($mod['reasons'], fn($r) =>
+      in_array($r['code'], ['drogue','arme','faux','sexuel_service','contenu_sexuel','especes','medicament'], true)));
+    if ($illegal) {
+      log_security_event($pdo, 'message_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $illegal)));
+      jout(['error' => 'Message bloqué : il contient du contenu interdit.', 'moderation' => true, 'reasons' => $illegal], 422);
+    }
+
+    $id = uuid(); $mid = uuid(); $ts = now_iso();
+    $role = $staff ? 'equipe' : 'utilisateur';
+    // À QUI appartient le fil : au destinataire quand l'équipe écrit la
+    // première, à l'auteur sinon, et à personne pour un fil interne.
+    $proprietaire = $kind === 'staff' ? '' : ($destinataire !== '' ? $destinataire : $u['id']);
+    $pdo->prepare('INSERT INTO team_threads (id,kind,user_id,subject,status,created_at,last_at,last_by,unread_user,unread_staff)
+                   VALUES (?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$id, $kind, $proprietaire, $sujet, 'open', $ts, $ts, $role,
+                   $role === 'equipe' && $kind === 'user' ? 1 : 0, $role === 'utilisateur' ? 1 : 0]);
+    $pdo->prepare('INSERT INTO team_messages (id,thread_id,sender_id,sender_role,sender_name,body,created_at)
+                   VALUES (?,?,?,?,?,?,?)')
+        ->execute([$mid, $id, $u['id'], $role, $nomDe($u['id']), $texte, $ts]);
+
+    // L'équipe écrit à quelqu'un : c'est LUI qu'on prévient, et le lien mène
+    // droit au fil. Une notification qui ne mène nulle part ne sert à rien.
+    if ($destinataire !== '') {
+      notify($pdo, $destinataire, 'message', 'Message de l’équipe Chap.ci',
+        $sujet, '#/assistance/' . $id);
+      log_security_event($pdo, 'admin_message_membre', $u['email'] ?? null, $destinataire . ' · ' . $sujet);
+    }
+
+    // Prévenir l'équipe : sans cela, une demande peut attendre trois jours.
+    if ($kind === 'user' && $role === 'utilisateur') {
+      try {
+        foreach ($pdo->query('SELECT email FROM admins')->fetchAll(PDO::FETCH_COLUMN) as $mail) {
+          $q = $pdo->prepare('SELECT id FROM users WHERE email = ?'); $q->execute([strtolower((string) $mail)]);
+          if ($aid = $q->fetchColumn()) {
+            notify($pdo, (string) $aid, 'message', 'Nouvelle demande d’un membre',
+              $sujet, '#/assistance');
+          }
+        }
+      } catch (Throwable $e) { /* la notification n'est pas le message : on ne bloque pas */ }
+    }
+    jout(['id' => $id]);
+  }
+
+  // ---- Lire et répondre ------------------------------------------------------
+  if (count($seg) === 4 && $seg[0] === 'team' && $seg[1] === 'threads' && $seg[3] === 'messages') {
+    $u = require_user($pdo, $secret);
+    $staff = is_admin($config, $pdo, $u);
+    $ts_ = $pdo->prepare('SELECT * FROM team_threads WHERE id = ?');
+    $ts_->execute([$seg[2]]);
+    $fil = $ts_->fetch();
+    if (!$fil) jerr('Conversation introuvable.', 404);
+    // La garde, répétée volontairement : un fil d'équipe ne sort jamais, et un
+    // membre ne lit que le sien.
+    if (!$staff && (($fil['kind'] ?: 'user') !== 'user' || (string) $fil['user_id'] !== (string) $u['id'])) {
+      jerr('Non autorisé.', 403);
+    }
+
+    if ($method === 'GET') {
+      $ms = $pdo->prepare('SELECT * FROM team_messages WHERE thread_id = ? ORDER BY created_at ASC');
+      $ms->execute([$seg[2]]);
+      // Lire, c'est avoir lu : on remet à zéro le compteur de CELUI qui lit.
+      $pdo->prepare('UPDATE team_threads SET ' . ($staff ? 'unread_staff' : 'unread_user') . ' = 0 WHERE id = ?')
+          ->execute([$seg[2]]);
+      // …et dans la réponse aussi : `$fil` a été lu AVANT la remise à zéro, et
+      // renvoyer l'ancien compte ferait clignoter une pastille déjà éteinte.
+      $fil[$staff ? 'unread_staff' : 'unread_user'] = 0;
+      jout([
+        'fil' => $filOut($fil, $staff, $voitIdentite($u)),
+        'messages' => array_map(fn($m) => [
+          'id' => $m['id'],
+          'role' => $m['sender_role'] ?: 'utilisateur',
+          // L'équipe est anonyme vue d'un membre — jamais l'inverse.
+          'nom' => ($m['sender_role'] ?? '') === 'equipe' && !$staff
+                     ? 'L’équipe Chap.ci' : ($m['sender_name'] ?: 'Utilisateur'),
+          'body' => $m['body'], 'createdAt' => iso_to_ms($m['created_at']),
+        ], $ms->fetchAll()),
+      ]);
+    }
+
+    if ($method === 'POST') {
+      if (($fil['status'] ?: 'open') !== 'open') jerr('Cette conversation est close.', 409);
+      $texte = trim((string) (body()['body'] ?? ''));
+      if ($texte === '') jerr('Message vide.');
+      if (mb_strlen($texte) > 4000) jerr('Message trop long (4 000 caractères maximum).');
+      if (!$staff) rate_limit($pdo, 'team_message', $u['email'] ?? null, 30, 3600);
+
+      $mod = moderate_text($texte);
+      $illegal = array_values(array_filter($mod['reasons'], fn($r) =>
+        in_array($r['code'], ['drogue','arme','faux','sexuel_service','contenu_sexuel','especes','medicament'], true)));
+      if ($illegal) {
+        log_security_event($pdo, 'message_blocked', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $illegal)));
+        jout(['error' => 'Message bloqué : il contient du contenu interdit.', 'moderation' => true, 'reasons' => $illegal], 422);
+      }
+
+      $role = $staff ? 'equipe' : 'utilisateur';
+      $mid = uuid(); $now = now_iso();
+      $pdo->prepare('INSERT INTO team_messages (id,thread_id,sender_id,sender_role,sender_name,body,created_at)
+                     VALUES (?,?,?,?,?,?,?)')
+          ->execute([$mid, $seg[2], $u['id'], $role, $nomDe($u['id']), $texte, $now]);
+      // Le non-lu monte chez l'AUTRE côté, et se remet à zéro chez celui qui écrit.
+      if ($role === 'equipe') {
+        $pdo->prepare('UPDATE team_threads SET last_at = ?, last_by = ?, unread_staff = 0,
+                       unread_user = unread_user + ? WHERE id = ?')
+            ->execute([$now, $role, ($fil['kind'] ?: 'user') === 'user' ? 1 : 0, $seg[2]]);
+        if (($fil['kind'] ?: 'user') === 'user' && !empty($fil['user_id'])) {
+          notify($pdo, (string) $fil['user_id'], 'message', 'Réponse de l’équipe Chap.ci',
+            (string) ($fil['subject'] ?: 'Votre demande'), '#/assistance/' . $seg[2]);
+        }
+      } else {
+        $pdo->prepare('UPDATE team_threads SET last_at = ?, last_by = ?, unread_user = 0,
+                       unread_staff = unread_staff + 1 WHERE id = ?')
+            ->execute([$now, $role, $seg[2]]);
+      }
+      jout(['id' => $mid, 'role' => $role, 'body' => $texte, 'createdAt' => iso_to_ms($now)]);
+    }
+  }
+
+  // ---- Clore ou rouvrir un fil — l'équipe seulement ---------------------------
+  if (count($seg) === 4 && $seg[0] === 'team' && $seg[1] === 'threads' && $seg[3] === 'statut' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if (!is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    $statut = (body()['statut'] ?? '') === 'closed' ? 'closed' : 'open';
+    $pdo->prepare('UPDATE team_threads SET status = ? WHERE id = ?')->execute([$statut, $seg[2]]);
+    jout(['ok' => true, 'statut' => $statut]);
+  }
+
+  // ---------- FAVORIS (côté serveur) ----------
+  if ($path === 'favorites' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT listing_id FROM favorites WHERE user_id = ?'); $st->execute([$u['id']]);
+    jout(array_map(fn($r) => $r['listing_id'], $st->fetchAll()));
+  }
+  // Le détail de mes favoris : le prix retenu au moment de l'enregistrement —
+  // qui permet de dire « prix baissé » sans deviner — ET l'annonce elle-même.
+  //
+  // La liste publique écarte les annonces vendues ou masquées. Une annonce
+  // mise en favori puis vendue disparaissait donc sans un mot : le vendeur
+  // croyait l'avoir retirée lui-même. Ici on la garde, marquée « vendue ».
+  if ($path === 'favorites/detail' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    try {
+      $st = $pdo->prepare('SELECT f.listing_id, f.price_at, f.created_at,
+                                  l.title, l.price, l.promo_price, l.promo_until, l.images,
+                                  l.commune, l.sold, l.hidden, l.user_id AS vendeur
+                           FROM favorites f LEFT JOIN listings l ON l.id = f.listing_id
+                           WHERE f.user_id = ? ORDER BY f.created_at DESC');
+      $st->execute([$u['id']]);
+      $out = [];
+      foreach ($st->fetchAll() as $r) {
+        if ($r['title'] === null) continue;   // annonce supprimée depuis
+        $imgs = json_decode((string) ($r['images'] ?: '[]'), true) ?: [];
+        $prix = (int) $r['price'];
+        if (!empty($r['promo_price']) && !empty($r['promo_until'])
+            && strtotime((string) $r['promo_until']) > time()) $prix = (int) $r['promo_price'];
+        $out[] = [
+          'listingId' => $r['listing_id'],
+          'titre' => (string) $r['title'],
+          'prix' => $prix,
+          'prixAlors' => $r['price_at'] === null ? null : (int) $r['price_at'],
+          'image' => $imgs[0] ?? null,
+          'commune' => (string) ($r['commune'] ?? ''),
+          'vendue' => !empty($r['sold']),
+          'retiree' => !empty($r['hidden']),
+          'vendeurId' => (string) ($r['vendeur'] ?? ''),
+          'createdAt' => iso_to_ms($r['created_at']),
+        ];
+      }
+      jout($out);
+    } catch (Throwable $e) { jout([]); }
+  }
+  if (count($seg) === 2 && $seg[0] === 'favorites' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $lid = $seg[1];
+    $ls = $pdo->prepare('SELECT user_id,title,price,promo_price,promo_until FROM listings WHERE id = ?');
+    $ls->execute([$lid]); $l = $ls->fetch();
+    if (!$l) jerr('Annonce introuvable.', 404);
+    $ex = $pdo->prepare('SELECT 1 FROM favorites WHERE user_id = ? AND listing_id = ?'); $ex->execute([$u['id'], $lid]);
+    if (!$ex->fetch()) {
+      // Prix RÉELLEMENT affiché ce jour-là : la promotion si elle court encore.
+      $prix = (int) $l['price'];
+      if (!empty($l['promo_price']) && !empty($l['promo_until'])
+          && strtotime((string) $l['promo_until']) > time()) $prix = (int) $l['promo_price'];
+      try {
+        $pdo->prepare('INSERT INTO favorites (user_id,listing_id,created_at,price_at) VALUES (?,?,?,?)')
+            ->execute([$u['id'], $lid, now_iso(), $prix]);
+      } catch (Throwable $e) {
+        $pdo->prepare('INSERT INTO favorites (user_id,listing_id,created_at) VALUES (?,?,?)')->execute([$u['id'], $lid, now_iso()]);
+      }
+      // Notifie le vendeur, sauf pour ses propres annonces.
+      //
+      // POUR UN PROFESSIONNEL APPROUVÉ, la personne est NOMMÉE (demande du
+      // Patron du 27/08) : un vendeur qui sait qui suit son annonce sait quoi
+      // republier et à quel prix. Pour tous les autres, la notification reste
+      // anonyme comme avant.
+      //
+      // Ce que cela n'ouvre PAS : le vendeur ne peut toujours pas écrire le
+      // premier — la création d'une conversation est réservée à l'acheteur
+      // (route POST /conversations). Nommer ne donne donc aucun moyen de
+      // relancer quelqu'un qui n'a rien demandé.
+      if (!empty($l['user_id']) && $l['user_id'] !== $u['id']) {
+        $pro = false;
+        try {
+          $ps = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+          $ps->execute([$l['user_id']]);
+          $pro = (string) ($ps->fetchColumn() ?: '') === 'approuve';
+        } catch (Throwable $e) { /* base pas migrée : on reste anonyme */ }
+        $qui = 'Une personne';
+        if ($pro) {
+          try {
+            $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
+            $pn->execute([$u['id']]);
+            $nomFav = trim((string) ($pn->fetch()['full_name'] ?? ''));
+            if ($nomFav !== '') $qui = $nomFav;
+          } catch (Throwable $e) { /* pas de nom : on reste anonyme */ }
+        }
+        notify($pdo, (string) $l['user_id'], 'favorite', 'Nouveau favori ❤️',
+          $qui . ' a ajouté « ' . $l['title'] . ' » à ses favoris.', '#/annonce/' . $lid);
+      }
+    }
+    jout(['ok' => true]);
+  }
+  if (count($seg) === 2 && $seg[0] === 'favorites' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret);
+    $pdo->prepare('DELETE FROM favorites WHERE user_id = ? AND listing_id = ?')->execute([$u['id'], $seg[1]]);
+    jout(['ok' => true]);
+  }
+
+  // QUI a mis MON annonce en favori. Réservé au propriétaire, et seulement
+  // s'il est professionnel approuvé : c'est une information de vendeur, pas
+  // une liste de curieux ouverte à tous.
+  if (count($seg) === 3 && $seg[0] === 'listings' && $seg[2] === 'favoris' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $ls = $pdo->prepare('SELECT user_id, title FROM listings WHERE id = ?');
+    $ls->execute([$seg[1]]);
+    $l = $ls->fetch();
+    if (!$l) jerr('Annonce introuvable.', 404);
+    if ((string) $l['user_id'] !== (string) $u['id']) jerr('Cette annonce n’est pas la vôtre.', 403);
+    $ps = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $ps->execute([$u['id']]);
+    if ((string) ($ps->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    try {
+      $q = $pdo->prepare('SELECT f.created_at, p.id AS pid, p.full_name, p.avatar_url, p.commune
+                          FROM favorites f LEFT JOIN profiles p ON p.id = f.user_id
+                          WHERE f.listing_id = ? ORDER BY f.created_at DESC LIMIT 100');
+      $q->execute([$seg[1]]);
+      jout(['titre' => (string) $l['title'], 'gens' => array_map(fn($r) => [
+        'id' => (string) ($r['pid'] ?? ''),
+        'nom' => trim((string) ($r['full_name'] ?? '')) ?: 'Utilisateur',
+        'avatar' => (string) ($r['avatar_url'] ?? ''),
+        'commune' => (string) ($r['commune'] ?? ''),
+        'quand' => iso_to_ms($r['created_at']),
+      ], $q->fetchAll())]);
+    } catch (Throwable $e) { jout(['titre' => (string) $l['title'], 'gens' => []]); }
+  }
+
+  // ---------- RÉPONSE AUTOMATIQUE DU PROFESSIONNEL ----------
+  // Le texte qui part tout seul quand un acheteur écrit pour la première fois.
+  if ($path === 'pro/reponse-auto' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    try {
+      $st = $pdo->prepare('SELECT pro_auto_reply, pro_auto_reply_on FROM users WHERE id = ?');
+      $st->execute([$u['id']]);
+      $r = $st->fetch() ?: [];
+      jout(['texte' => (string) ($r['pro_auto_reply'] ?? ''), 'active' => !empty($r['pro_auto_reply_on'])]);
+    } catch (Throwable $e) { jout(['texte' => '', 'active' => false]); }
+  }
+  if ($path === 'pro/reponse-auto' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $b = body();
+    $texte = trim(mb_substr((string) ($b['texte'] ?? ''), 0, 400));
+    $active = !empty($b['active']);
+    // Activer sans texte n'aurait aucun effet : on le dit plutôt que de
+    // laisser croire que quelque chose part.
+    if ($active && $texte === '') jerr('Écrivez d’abord la phrase qui partira.');
+    $pdo->prepare('UPDATE users SET pro_auto_reply = ?, pro_auto_reply_on = ? WHERE id = ?')
+        ->execute([$texte, $active ? 1 : 0, $u['id']]);
+    jout(['ok' => true, 'texte' => $texte, 'active' => $active]);
+  }
+
+  // ---------- NOTIFICATIONS ----------
+  if ($path === 'notifications' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($n) => [
+      'id' => $n['id'], 'type' => $n['type'], 'title' => $n['title'], 'body' => $n['body'],
+      'link' => $n['link'], 'read' => !empty($n['read_flag']), 'createdAt' => iso_to_ms($n['created_at']),
+    ], $st->fetchAll()));
+  }
+  if ($path === 'notifications/count' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND (read_flag IS NULL OR read_flag = 0)');
+    $st->execute([$u['id']]);
+    jout(['count' => (int) $st->fetchColumn()]);
+  }
+  if ($path === 'notifications/read' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!empty($b['id'])) $pdo->prepare('UPDATE notifications SET read_flag = 1 WHERE user_id = ? AND id = ?')->execute([$u['id'], $b['id']]);
+    else $pdo->prepare('UPDATE notifications SET read_flag = 1 WHERE user_id = ?')->execute([$u['id']]);
+    jout(['ok' => true]);
+  }
+  // Effacer des notifications : {ids:[...]} pour une sélection, sinon tout effacer.
+  if ($path === 'notifications' && $method === 'DELETE') {
+    $u = require_user($pdo, $secret); $b = body();
+    $ids = $b['ids'] ?? null;
+    if (is_array($ids) && count($ids)) {
+      $ids = array_values(array_filter($ids, 'is_string'));
+      if ($ids) {
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $pdo->prepare("DELETE FROM notifications WHERE user_id = ? AND id IN ($in)")
+            ->execute(array_merge([$u['id']], $ids));
+      }
+    } else {
+      $pdo->prepare('DELETE FROM notifications WHERE user_id = ?')->execute([$u['id']]);
+    }
+    jout(['ok' => true]);
+  }
+  // Les reglages de notification vivent dans profiles.notif_prefs — c'est la
+  // colonne que notify() consulte avant chaque envoi. On rend TOUT ce qui y est
+  // ecrit : la liste des cases s'allonge (rappels du professionnel, heures
+  // calmes, alerte prix baisse) et le serveur n'a pas a la connaitre.
+  if ($path === 'notifications/prefs' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$u['id']]);
+    $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
+    // Les trois historiques gardent leur defaut a vrai : on n'a jamais dit non
+    // tant qu'on n'a pas dit non.
+    foreach (['favorite', 'message', 'email'] as $k) {
+      if (!isset($prefs[$k])) $prefs[$k] = true;
+    }
+    jout($prefs);
+  }
+  if ($path === 'notifications/prefs' && $method === 'PUT') {
+    $u = require_user($pdo, $secret); $b = body();
+    // FUSION, jamais remplacement : l'ecran des favoris n'envoie qu'une case,
+    // et il ne doit pas effacer les six autres au passage.
+    $st = $pdo->prepare('SELECT notif_prefs FROM profiles WHERE id = ?'); $st->execute([$u['id']]);
+    $prefs = json_decode((string) ($st->fetch()['notif_prefs'] ?? ''), true) ?: [];
+    foreach (array_slice($b, 0, 40, true) as $k => $v) {
+      $k = mb_substr((string) $k, 0, 40);
+      if ($k === '' || is_array($v)) continue;
+      $prefs[$k] = (bool) $v;
+    }
+    // Repli par e-mail : defaut a vrai, c'est la seule voie qui atteint tout
+    // le monde.
+    if (!isset($prefs['email'])) $prefs['email'] = true;
+    $ex = $pdo->prepare('SELECT id FROM profiles WHERE id = ?'); $ex->execute([$u['id']]);
+    if (!$ex->fetch()) $pdo->prepare('INSERT INTO profiles (id,created_at) VALUES (?,?)')->execute([$u['id'], now_iso()]);
+    $pdo->prepare('UPDATE profiles SET notif_prefs = ? WHERE id = ?')->execute([json_encode($prefs), $u['id']]);
+    jout(['ok' => true, 'reglages' => (object) $prefs]);
+  }
+
+  // ---------- NOTIFICATIONS PUSH ----------
+  //
+  // Le navigateur s'abonne auprès de son propre relais (Google pour Chrome,
+  // Mozilla pour Firefox, Apple pour Safari) et nous rapporte trois choses :
+  // une adresse, et deux clés. On les range, et à chaque notification on
+  // chiffre POUR ces clés-là. Le relais transporte sans pouvoir lire.
+
+  /** La clé publique du site : le navigateur en a besoin AVANT de s'abonner. */
+  if ($path === 'push/key' && $method === 'GET') {
+    $cles = push_cles($config);
+    jout(['cle' => $cles['pubB64'] ?? '', 'actif' => (bool) $cles]);
+  }
+
+  /** Enregistre l'appareil courant. Rejouable : le navigateur ré-appelle à chaque
+   *  démarrage, car il renouvelle parfois l'adresse sans prévenir. */
+  if ($path === 'push/subscribe' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $endpoint = trim((string) ($b['endpoint'] ?? ''));
+    $p256dh   = trim((string) ($b['keys']['p256dh'] ?? $b['p256dh'] ?? ''));
+    $auth     = trim((string) ($b['keys']['auth']   ?? $b['auth']   ?? ''));
+    if ($endpoint === '' || $p256dh === '' || $auth === '') jerr('Abonnement incomplet.');
+    if (!str_starts_with($endpoint, 'https://') || mb_strlen($endpoint) > 500) jerr('Adresse d’abonnement invalide.');
+    // Les longueurs sont imposées par la RFC 8291. Une clé mal formée ne
+    // provoquerait aucune erreur ici — juste des notifications qui n'arrivent
+    // jamais, et personne pour s'en apercevoir. On refuse tout de suite.
+    if (strlen(b64url_dec($p256dh)) !== 65 || strlen(b64url_dec($auth)) !== 16) {
+      jerr('Clés d’abonnement invalides.');
+    }
+    // Le même appareil peut avoir servi à un autre compte : l'adresse change de
+    // propriétaire, elle ne se dédouble pas.
+    $pdo->prepare('DELETE FROM push_subs WHERE endpoint = ?')->execute([$endpoint]);
+    $pdo->prepare(
+      'INSERT INTO push_subs (id,user_id,endpoint,p256dh,auth_secret,agent,created_at,fails)
+       VALUES (?,?,?,?,?,?,?,0)'
+    )->execute([uuid(), $u['id'], $endpoint, $p256dh, $auth, push_appareil((string) ($_SERVER['HTTP_USER_AGENT'] ?? '')), now_iso()]);
+    // Plafond volontaire : au-delà de dix appareils, les plus anciens sont des
+    // téléphones changés ou des navigateurs réinstallés. Les garder ne fait
+    // qu'ajouter des requêtes réseau à chaque notification.
+    $st = $pdo->prepare('SELECT id FROM push_subs WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    foreach (array_slice($st->fetchAll(PDO::FETCH_COLUMN), 10) as $vieux) {
+      $pdo->prepare('DELETE FROM push_subs WHERE id = ?')->execute([$vieux]);
+    }
+    jout(['ok' => true]);
+  }
+
+  /** Coupe les notifications sur un appareil : par son adresse, ou par son id
+   *  depuis la liste des appareils du compte. */
+  if ($path === 'push/unsubscribe' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $endpoint = trim((string) ($b['endpoint'] ?? ''));
+    $id       = trim((string) ($b['id'] ?? ''));
+    if ($endpoint !== '') $pdo->prepare('DELETE FROM push_subs WHERE user_id = ? AND endpoint = ?')->execute([$u['id'], $endpoint]);
+    elseif ($id !== '')   $pdo->prepare('DELETE FROM push_subs WHERE user_id = ? AND id = ?')->execute([$u['id'], $id]);
+    else jerr('Aucun appareil indiqué.');
+    jout(['ok' => true]);
+  }
+
+  /**
+   * L'APPLICATION ENREGISTRE SON APPAREIL (08/09/2026).
+   *
+   * `PushNatif.enregistrer()` appelait ces deux routes DEPUIS LE 04/09 —
+   * elles n'existaient pas. Le client encaissait le 404 en silence (le `catch`
+   * de `push_natif.dart`), et personne ne pouvait s'en apercevoir : la
+   * fonction est justement écrite pour ne jamais gêner l'application. Un
+   * appel muet dans le vide pendant quatre jours.
+   *
+   * Le jeton identifie l'INSTALLATION, pas la personne : si le même téléphone
+   * change de compte, la ligne suit le nouveau. D'où l'écriture en deux temps
+   * plutôt qu'un INSERT qui buterait sur l'index unique.
+   */
+  if ($path === 'push/native' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $token = trim((string) ($b['token'] ?? ''));
+    if ($token === '' || strlen($token) > 500) jerr('Jeton absent ou trop long.');
+    $plateforme = in_array(($b['platform'] ?? ''), ['android', 'ios'], true)
+      ? (string) $b['platform'] : 'android';
+    $repere = mb_substr(trim((string) ($b['label'] ?? '')), 0, 80);
+
+    $maj = $pdo->prepare('UPDATE push_natifs SET user_id = ?, platform = ?, label = ?, fails = 0 WHERE token = ?');
+    $maj->execute([$u['id'], $plateforme, $repere, $token]);
+    if ($maj->rowCount() === 0) {
+      try {
+        $pdo->prepare('INSERT INTO push_natifs (id, user_id, token, platform, label, created_at, fails)
+                       VALUES (?,?,?,?,?,?,0)')
+            ->execute([uuid(), $u['id'], $token, $plateforme, $repere, now_iso()]);
+      } catch (Throwable $e) {
+        // Course entre deux ouvertures de l'application : l'index unique a
+        // tranché, la ligne existe. Ce n'est pas une erreur pour l'appelant.
+      }
+    }
+    jout(['ok' => true, 'actif' => fcm_config($config) !== null]);
+  }
+
+  /** L'application retire son appareil : déconnexion, ou notifications refusées. */
+  if ($path === 'push/native/remove' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $token = trim((string) ($b['token'] ?? ''));
+    if ($token === '') jerr('Aucun appareil indiqué.');
+    $pdo->prepare('DELETE FROM push_natifs WHERE user_id = ? AND token = ?')->execute([$u['id'], $token]);
+    jout(['ok' => true]);
+  }
+
+  /** Les appareils abonnés de ce compte — pour que la personne voie ce qu'elle
+   *  a autorisé, et puisse le retirer depuis n'importe où. */
+  if ($path === 'push/devices' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT id, agent, endpoint, created_at, last_ok_at FROM push_subs WHERE user_id = ? ORDER BY created_at DESC');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => [
+      'id'      => $r['id'],
+      'appareil'=> $r['agent'] ?: 'Appareil inconnu',
+      // L'adresse complète est un identifiant de suivi : on n'en rend que la
+      // fin, assez pour distinguer deux appareils, pas assez pour en faire quoi
+      // que ce soit.
+      'repere'  => substr((string) $r['endpoint'], -8),
+      'depuis'  => iso_to_ms($r['created_at']),
+      'dernier' => iso_to_ms($r['last_ok_at'] ?? null),
+    ], $st->fetchAll()));
+  }
+
+  /** L'essai. Une notification part tout de suite vers tous les appareils du
+   *  compte, et la réponse dit combien de relais l'ont acceptée. C'est la seule
+   *  façon de savoir si ça marche sans attendre qu'un acheteur écrive. */
+  if ($path === 'push/test' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    $st = $pdo->prepare('SELECT COUNT(*) FROM push_subs WHERE user_id = ?');
+    $st->execute([$u['id']]);
+    $appareils = (int) $st->fetchColumn();
+    $envoyes = push_utilisateur($config, $pdo, $u['id'], [
+      'titre' => 'Chap.ci — essai ✅',
+      'corps' => 'Vous lisez ceci : les notifications marchent sur cet appareil.',
+      'lien'  => $site . '/#/notifications',
+      'type'  => 'test',
+      'tag'   => 'test',
+    ]);
+    jout(['appareils' => $appareils, 'envoyes' => $envoyes]);
+  }
+
+  // ---------- ORDERS ----------
+  if ($path === 'orders' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $sellerId = trim((string) ($b['sellerId'] ?? ''));
+    if ($sellerId === '') jerr('Vendeur manquant.');
+    if ($sellerId === $u['id']) jerr('Vous ne pouvez pas commander auprès de vous-même.', 400);
+    // Le vendeur doit exister.
+    $se = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $se->execute([$sellerId]);
+    $seller = $se->fetch();
+    if (!$seller) jerr('Vendeur introuvable.', 404);
+    // Anti-abus (P2) : une VRAIE relation acheteur→vendeur est exigée — le
+    // demandeur doit avoir déjà contacté ce vendeur (conversation existante).
+    // Sans cela, on pourrait fabriquer de fausses commandes pour poster de faux
+    // avis (harcèlement) ou spammer un vendeur par email.
+    $cc = $pdo->prepare('SELECT 1 FROM conversations WHERE buyer_id = ? AND seller_id = ? LIMIT 1');
+    $cc->execute([$u['id'], $sellerId]);
+    if (!$cc->fetch()) jerr('Contactez d’abord le vendeur avant de passer commande.', 403);
+    // Chaque article commandé doit référencer une annonce RÉELLE appartenant au
+    // vendeur indiqué. Une commande VIDE est refusée : sinon on pourrait créer une
+    // fausse commande (sans article) pour fabriquer un faux avis (harcèlement).
+    $items = (array) ($b['items'] ?? []);
+    if (!$items) jerr('Commande vide.', 400);
+    // SÉCURITÉ : ne JAMAIS faire confiance au prix / titre / image envoyés par le
+    // client. Pour chaque article, on relit la vérité depuis l'annonce (comme le
+    // flux « deal » via $ensureOrder). Sinon un acheteur pourrait forger un prix
+    // arbitraire (emails de confirmation et statistique ordersValue faussés).
+    $valid = [];
+    foreach ($items as $it) {
+      $lid = trim((string) ($it['listingId'] ?? ''));
+      if ($lid === '') jerr('Article invalide (annonce manquante).', 400);
+      $ls = $pdo->prepare('SELECT user_id, title, price, images FROM listings WHERE id = ?'); $ls->execute([$lid]);
+      $lr = $ls->fetch();
+      if (!$lr || (string) $lr['user_id'] !== $sellerId) jerr('Article invalide pour ce vendeur.', 400);
+      $imgs = $lr['images'] ? (json_decode($lr['images'], true) ?: []) : [];
+      $valid[] = [
+        'listingId' => $lid,
+        'title'     => (string) ($lr['title'] ?? ''),
+        'price'     => (int) ($lr['price'] ?? 0),
+        'image'     => $imgs[0] ?? null,
+      ];
+    }
+    // Cohérence défensive : le conversationId fourni doit appartenir à CE couple
+    // acheteur→vendeur, sinon on ne lie pas la commande à une conversation
+    // étrangère (aucune route ne l'exploite pour l'autorisation, mais autant
+    // garder des données saines).
+    $convId = trim((string) ($b['conversationId'] ?? ''));
+    if ($convId !== '') {
+      $cv = $pdo->prepare('SELECT 1 FROM conversations WHERE id = ? AND buyer_id = ? AND seller_id = ? LIMIT 1');
+      $cv->execute([$convId, $u['id'], $sellerId]);
+      if (!$cv->fetch()) $convId = '';
+    }
+    $oid = uuid();
+    $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,status,created_at) VALUES (?,?,?,?,?,?)')
+        ->execute([$oid, $u['id'], $sellerId, $convId !== '' ? $convId : null, 'en_cours', now_iso()]);
+    foreach ($valid as $it) {
+      $pdo->prepare('INSERT INTO order_items (id,order_id,listing_id,title,price,image) VALUES (?,?,?,?,?,?)')
+          ->execute([uuid(), $oid, $it['listingId'], $it['title'], $it['price'], $it['image']]);
+    }
+    // Notifications email (best-effort) : vendeur + acheteur — à partir des
+    // données serveur validées (jamais celles du client).
+    $sellerEmail = $seller['email'] ?? null;
+    if ($sellerEmail) send_order_seller_email($config, $sellerEmail, $valid);
+    if (!empty($u['email'])) send_order_buyer_email($config, $u['email'], $valid);
+    jout(['id' => $oid]);
+  }
+
+  if ($path === 'orders' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $demande = (string) ($_GET['role'] ?? 'buyer');
+    // `role=deux` (07/09/2026) : les achats ET les ventes en UN aller-retour.
+    // Les anciens `role=buyer` / `role=seller` répondent comme avant — une
+    // application déjà installée continue de fonctionner.
+    if ($demande === 'deux') {
+      jout([
+        'achats' => orders_lister($pdo, $u['id'], 'buyer'),
+        'ventes' => orders_lister($pdo, $u['id'], 'seller'),
+      ]);
+    }
+    jout(orders_lister($pdo, $u['id'], $demande === 'seller' ? 'seller' : 'buyer'));
+  }
+
+  if (count($seg) === 2 && $seg[0] === 'orders' && $method === 'PATCH') {
+    $u = require_user($pdo, $secret); $b = body();
+    $st = $pdo->prepare('SELECT buyer_id, seller_id, finalized_at FROM orders WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $o = $st->fetch();
+    if (!$o) jerr('Commande introuvable.', 404);
+    $vendeur  = (string) $o['seller_id'] === (string) $u['id'];
+    $acheteur = (string) $o['buyer_id'] === (string) $u['id'];
+    if (!$vendeur && !$acheteur) jerr('Non autorisé.', 403);
+    // Statut restreint à une liste blanche (pas de valeur arbitraire en base).
+    $status = (string) ($b['status'] ?? 'en_cours');
+    if (!in_array($status, ['en_cours', 'finalise', 'annule'], true)) jerr('Statut de commande invalide.', 400);
+    // L'acheteur peut confirmer qu'il a reçu — c'est sa moitié de la vente.
+    // Annuler ou rouvrir reste au vendeur : lui seul sait si l'objet est parti.
+    if (!$vendeur && $status !== 'finalise') jerr('Seul le vendeur peut annuler ou rouvrir cette commande.', 403);
+    // La date de conclusion se pose une fois et ne bouge plus.
+    $fin = $status === 'finalise' ? ($o['finalized_at'] ?: now_iso()) : null;
+    $pdo->prepare('UPDATE orders SET status = ?, finalized_at = ? WHERE id = ?')
+        ->execute([$status, $fin, $seg[1]]);
+    // Le stock du professionnel (07/09/2026) : une commande conclue retire une
+    // unité par article, une commande annulée ou rouverte la rend.
+    if ($status === 'finalise') stock_prendre($pdo, $seg[1]); else stock_rendre($pdo, $seg[1]);
+    // L'AUTRE partie l'apprend : une vente se conclut à deux, et c'est le
+    // moment où l'on peut demander un avis.
+    if ($status === 'finalise') {
+      $autre = $vendeur ? (string) $o['buyer_id'] : (string) $o['seller_id'];
+      $titre = '';
+      try {
+        $ti = $pdo->prepare('SELECT title FROM order_items WHERE order_id = ? LIMIT 1');
+        $ti->execute([$seg[1]]);
+        $titre = (string) ($ti->fetch()['title'] ?? '');
+      } catch (Throwable $e) { /* le titre est un confort */ }
+      // Le lien mène à la commande dont on parle : l'acheteur dans ses achats,
+      // le vendeur dans ses ventes — pas sur l'accueil du compte (07/09/2026).
+      notify($pdo, $autre, 'vente', 'Commande finalisée 🤝',
+             ($titre !== '' ? '« ' . $titre . ' » : ' : '') . 'la commande est marquée finalisée. '
+             . 'Vous pouvez maintenant laisser un avis.', $vendeur ? '#/compte?onglet=achats' : '#/compte?onglet=ventes');
+    }
+    jout(['ok' => true, 'finalizedAt' => $fin ? iso_to_ms($fin) : null]);
+  }
+
+  if ($path === 'purchased' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT DISTINCT oi.listing_id FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id WHERE o.buyer_id = ? AND oi.listing_id IS NOT NULL');
+    $st->execute([$u['id']]);
+    jout(array_values(array_filter(array_column($st->fetchAll(), 'listing_id'))));
+  }
+
+  // ---------- SUIVI DE TRANSACTION (« deal » lié à une conversation) ----------
+  // État du deal pour l'utilisateur courant : rôle, commande, annonce vendue,
+  // avis déjà laissé. Sert à afficher la bonne action dans la conversation.
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'deal' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $cs = $pdo->prepare('SELECT * FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $isBuyer = $conv['buyer_id'] === $u['id']; $isSeller = $conv['seller_id'] === $u['id'];
+    if (!$isBuyer && !$isSeller) jerr('Non autorisé.', 403);
+    $otherId = $isBuyer ? $conv['seller_id'] : $conv['buyer_id'];
+    $os = $pdo->prepare('SELECT * FROM orders WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+    $os->execute([$seg[1]]); $order = $os->fetch() ?: null;
+    $listingId = $conv['listing_id']; $listingTitle = null; $sold = false;
+    if ($listingId) {
+      $ls = $pdo->prepare('SELECT title, sold FROM listings WHERE id = ?'); $ls->execute([$listingId]);
+      if ($lr = $ls->fetch()) { $listingTitle = $lr['title']; $sold = !empty($lr['sold']); }
+    }
+    $rv = $pdo->prepare('SELECT rating FROM reviews WHERE reviewer_id = ? AND target_id = ? ORDER BY created_at DESC LIMIT 1');
+    $rv->execute([$u['id'], $otherId]); $mine = $rv->fetch();
+    $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$otherId]);
+    jout([
+      'role' => $isBuyer ? 'buyer' : 'seller',
+      'listingId' => $listingId, 'listingTitle' => $listingTitle,
+      'sellerId' => $conv['seller_id'], 'buyerId' => $conv['buyer_id'],
+      'otherId' => $otherId, 'otherName' => ($pn->fetch()['full_name'] ?? null) ?: 'Utilisateur',
+      'order' => $order ? ['id' => $order['id'], 'status' => $order['status'] ?: 'en_cours',
+                           'sellerConfirmed' => !empty($order['seller_confirmed'])] : null,
+      'sold' => $sold,
+      'iReviewed' => $mine ? true : false,
+      'myRating' => $mine ? (int) $mine['rating'] : null,
+    ]);
+  }
+  // Action sur le deal : bought / received / sold / cancel.
+  if (count($seg) === 3 && $seg[0] === 'conversations' && $seg[2] === 'deal' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $cs = $pdo->prepare('SELECT * FROM conversations WHERE id = ?'); $cs->execute([$seg[1]]);
+    $conv = $cs->fetch();
+    if (!$conv) jerr('Conversation introuvable.', 404);
+    $isBuyer = $conv['buyer_id'] === $u['id']; $isSeller = $conv['seller_id'] === $u['id'];
+    if (!$isBuyer && !$isSeller) jerr('Non autorisé.', 403);
+    $action = (string) ($b['action'] ?? '');
+    $listingId = $conv['listing_id'];
+    $os = $pdo->prepare('SELECT * FROM orders WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+    $os->execute([$seg[1]]); $order = $os->fetch() ?: null;
+    // Crée la commande « deal » à partir de la conversation (1 annonce).
+    $ensureOrder = function (string $status) use ($pdo, $conv, $listingId, &$order): array {
+      if ($order) return $order;
+      $oid = uuid();
+      $pdo->prepare('INSERT INTO orders (id,buyer_id,seller_id,conversation_id,listing_id,status,created_at) VALUES (?,?,?,?,?,?,?)')
+          ->execute([$oid, $conv['buyer_id'], $conv['seller_id'], $conv['id'], $listingId, $status, now_iso()]);
+      if ($listingId) {
+        $ls = $pdo->prepare('SELECT title,price,images FROM listings WHERE id = ?'); $ls->execute([$listingId]);
+        if ($lr = $ls->fetch()) {
+          $imgs = json_decode($lr['images'] ?: '[]', true); $img = $imgs[0] ?? null;
+          $pdo->prepare('INSERT INTO order_items (id,order_id,listing_id,title,price,image) VALUES (?,?,?,?,?,?)')
+              ->execute([uuid(), $oid, $listingId, $lr['title'] ?? '', (int) ($lr['price'] ?? 0), $img]);
+        }
+      }
+      $s = $pdo->prepare('SELECT * FROM orders WHERE id = ?'); $s->execute([$oid]);
+      $order = $s->fetch();
+      return $order;
+    };
+    if ($action === 'bought' && $isBuyer) {
+      $ensureOrder('en_cours');
+      jout(['ok' => true, 'status' => 'en_cours']);
+    }
+    // Une annonce qui SUIT UN STOCK (professionnel, 07/09/2026) ne devient
+    // pas « vendue » à la première vente : elle perd une unité. Un
+    // particulier, lui, vend un objet — l'annonce est vendue.
+    $suitStock = $listingId ? stock_suivi($pdo, (string) $listingId) : false;
+    if ($action === 'received' && $isBuyer) {
+      $o = $ensureOrder('finalise');
+      $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['finalise', $o['id']]);
+      // Achat livré = annonce vendue : on la retire du public.
+      if ($listingId && !$suitStock) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ?')->execute([$listingId]);
+      if ($suitStock) stock_prendre($pdo, (string) $o['id']);
+      jout(['ok' => true, 'status' => 'finalise']);
+    }
+    if ($action === 'sold' && $isSeller) {
+      if ($listingId && !$suitStock) $pdo->prepare('UPDATE listings SET sold = 1 WHERE id = ? AND user_id = ?')->execute([$listingId, $u['id']]);
+      $o = $ensureOrder('en_cours');
+      $pdo->prepare('UPDATE orders SET seller_confirmed = 1 WHERE id = ?')->execute([$o['id']]);
+      if ($suitStock) stock_prendre($pdo, (string) $o['id']);
+      jout(['ok' => true, 'sold' => true]);
+    }
+    if ($action === 'cancel') {
+      if ($order) {
+        $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['annule', $order['id']]);
+        stock_rendre($pdo, (string) $order['id']);
+      }
+      if ($isSeller && $listingId) $pdo->prepare('UPDATE listings SET sold = 0 WHERE id = ? AND user_id = ?')->execute([$listingId, $u['id']]);
+      jout(['ok' => true, 'status' => 'annule']);
+    }
+    jerr('Action invalide pour votre rôle.', 400);
+  }
+
+  // ---------- REVIEWS (à double sens : acheteur ↔ vendeur) ----------
+  // Temps de réponse habituel d'un vendeur — PUBLIC, lu avant de le contacter.
+  // Route séparée et volontairement légère : la calculer dans /api/listings la
+  // referait pour chacune des cent annonces d'une page de résultats.
+  if ($path === 'seller/response-time' && $method === 'GET') {
+    $rt = seller_response_time($pdo, (string) ($_GET['seller_id'] ?? ''));
+    jout($rt ?? ['count' => 0, 'medianSeconds' => null]);
+  }
+
+  // ───────────────────────── L'AVIS SUR L'APPLICATION ──────────────────────────
+  //
+  // À NE PAS CONFONDRE AVEC `/reviews`, juste en dessous, qui note un VENDEUR
+  // après une vente confirmée. Ici on note **Chap.ci**, et la seule condition est
+  // d'avoir un compte.
+  //
+  // POURQUOI LA RÉPONSE VIT SUR LE SERVEUR ET NON DANS LE TÉLÉPHONE. Le Patron
+  // demande que la question ne revienne plus chez quelqu'un qui a déjà répondu.
+  // Une mémoire locale y suffirait sur UN téléphone — et redemanderait sur le
+  // second, après une réinstallation, ou après un simple vidage de cache. La
+  // seule mémoire qui suit la personne est celle du compte.
+
+  // A-T-IL DÉJÀ DONNÉ SON AVIS ? Appelée au lancement de l'application.
+  // Volontairement minuscule et sans donnée : elle ne renvoie qu'un booléen, donc
+  // elle peut être appelée souvent sans peser sur un forfait 3G.
+  if ($path === 'avis-app/mien' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT note, created_at FROM avis_app WHERE user_id = ? LIMIT 1');
+    $st->execute([$u['id']]);
+    $r = $st->fetch();
+
+    // Deux façons d'en avoir fini, et une seule conséquence : on ne redemande
+    // plus. Soit la personne a donné son avis ICI, soit elle a été envoyée sur
+    // la fiche du Play Store.
+    $magasin = null;
+    try {
+      $q = $pdo->prepare('SELECT avis_magasin_at FROM profiles WHERE id = ? LIMIT 1');
+      $q->execute([$u['id']]);
+      $p = $q->fetch();
+      $magasin = $p && $p['avis_magasin_at'] ? (string) $p['avis_magasin_at'] : null;
+    } catch (Throwable $e) { /* colonne absente sur une base ancienne */ }
+
+    jout([
+      'aEvalue'     => (bool) $r || $magasin !== null,
+      'note'        => $r ? (int) $r['note'] : null,
+      'le'          => $r ? (string) $r['created_at'] : null,
+      'alleAuMagasin' => $magasin !== null,
+    ]);
+  }
+
+  // « JE L'AI ENVOYÉE SUR LA FICHE DU PLAY STORE. » Appelée par l'application au
+  // moment où elle ouvre le magasin.
+  //
+  // ⚠️ CE QUE CETTE ROUTE ENREGISTRE, ET CE QU'ELLE N'ENREGISTRE PAS.
+  // Elle note un DÉPART vers le magasin, pas une note déposée. Personne ne peut
+  // enregistrer la seconde : ni l'API d'avis de Google ni celle d'Apple ne
+  // renvoient le résultat, c'est écrit dans leur documentation. Le Patron demande
+  // « si l'utilisateur a déjà évalué, ne plus afficher » ; la seule version
+  // honnête de cette règle est « s'il a été envoyé noter, ne plus afficher ».
+  // Le nom de la colonne le dit — `avis_magasin_at`, pas `a_note`.
+  if ($path === 'avis-app/magasin' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    try {
+      $pdo->prepare('UPDATE profiles SET avis_magasin_at = ? WHERE id = ?')
+        ->execute([now_iso(), $u['id']]);
+    } catch (Throwable $e) {
+      // Une base qui n'a pas encore la colonne ne doit pas faire échouer
+      // l'ouverture du magasin : le geste utile a déjà eu lieu.
+    }
+    jout(['ok' => true, 'aEvalue' => true]);
+  }
+
+  if ($path === 'avis-app' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+
+    // La note est OBLIGATOIRE, le commentaire est FACULTATIF. C'est l'inverse qui
+    // serait tentant (« dites-nous ce qui ne va pas ») et qui ferait fuir : on
+    // obtient dix fois plus de notes que de textes, et une note seule vaut mieux
+    // qu'un silence.
+    $note = (int) ($b['note'] ?? 0);
+    if ($note < 1 || $note > 5) jerr('Choisissez une note de 1 à 5 étoiles.', 400);
+
+    // 2 000 caractères : assez pour un vrai retour, trop peu pour servir de dépôt.
+    $commentaire = trim((string) ($b['commentaire'] ?? ''));
+    if (mb_strlen($commentaire) > 2000) $commentaire = mb_substr($commentaire, 0, 2000);
+
+    // D'où vient l'avis, et avec quelle version. Sans ces deux champs, un avis
+    // « l'application plante » ne sert à rien : on ne sait ni sur quel appareil,
+    // ni sur quelle version corriger. Ils viennent du client, donc ils sont
+    // bornés — c'est une information, pas une autorisation.
+    $plateforme = (string) ($b['plateforme'] ?? '');
+    if (!in_array($plateforme, ['android', 'ios', 'web'], true)) $plateforme = 'web';
+    $version = mb_substr(trim((string) ($b['version'] ?? '')), 0, 20);
+
+    // Le contrôle aimable. L'unicité réelle est garantie par l'index
+    // `idx_avis_app_user` ; celui-ci ne sert qu'à rendre un message clair au lieu
+    // d'une erreur de base.
+    $st = $pdo->prepare('SELECT id FROM avis_app WHERE user_id = ? LIMIT 1');
+    $st->execute([$u['id']]);
+    if ($st->fetch()) jerr('Vous avez déjà donné votre avis sur l’application. Merci !', 409);
+
+    try {
+      $pdo->prepare('INSERT INTO avis_app (id, user_id, note, commentaire, plateforme, version, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)')
+        ->execute([uuid(), $u['id'], $note, $commentaire, $plateforme, $version, now_iso()]);
+    } catch (Throwable $e) {
+      // L'index unique a parlé : deux envois simultanés. Ce n'est pas une panne,
+      // c'est exactement ce qu'il doit faire.
+      jerr('Vous avez déjà donné votre avis sur l’application. Merci !', 409);
+    }
+
+    jout(['ok' => true, 'aEvalue' => true]);
+  }
+
+  if ($path === 'reviews' && $method === 'GET') {
+    $sellerId = $_GET['seller_id'] ?? null; $listingId = $_GET['listing_id'] ?? null;
+    $targetId = $_GET['target_id'] ?? null;
+    if ($targetId) {
+      // Tous les avis REÇUS par cette personne (comme vendeur et comme acheteur).
+      $st = $pdo->prepare('SELECT * FROM reviews WHERE target_id = ? ORDER BY created_at DESC');
+      $st->execute([$targetId]);
+    } elseif ($sellerId) {
+      // Rétro-compat : avis reçus en tant que VENDEUR.
+      $st = $pdo->prepare("SELECT * FROM reviews WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+        AND (kind = 'seller' OR kind IS NULL) ORDER BY created_at DESC");
+      $st->execute([$sellerId, $sellerId]);
+    } elseif ($listingId) {
+      $st = $pdo->prepare('SELECT * FROM reviews WHERE listing_id = ? ORDER BY created_at DESC');
+      $st->execute([$listingId]);
+    } else jout([]);
+    $rows = $st->fetchAll(); $out = [];
+    foreach ($rows as $r) {
+      $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$r['reviewer_id']]);
+      $out[] = [
+        'id' => $r['id'], 'listingId' => $r['listing_id'], 'sellerId' => $r['seller_id'],
+        'targetId' => $r['target_id'] ?: $r['seller_id'], 'kind' => $r['kind'] ?: 'seller',
+        'reviewerId' => $r['reviewer_id'], 'rating' => (int) $r['rating'], 'comment' => $r['comment'] ?: null,
+        'createdAt' => iso_to_ms($r['created_at']), 'reviewerName' => ($pn->fetch()['full_name'] ?? null) ?: 'Utilisateur',
+      ];
+    }
+    jout($out);
+  }
+
+  if ($path === 'reviews' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    $listingId = $b['listingId'] ?? null;
+    $kind = (($b['kind'] ?? 'seller') === 'buyer') ? 'buyer' : 'seller';
+    // La cible : le vendeur (avis acheteur→vendeur) ou l'acheteur (avis vendeur→acheteur).
+    $targetId = trim((string) ($b['targetId'] ?? ($b['sellerId'] ?? '')));
+    if ($targetId === '' || $targetId === $u['id']) jerr('Destinataire de l’avis invalide.', 400);
+    // Autorisation : la vente doit avoir été CONFIRMÉE PAR LE VENDEUR
+    // (seller_confirmed = 1). C'est le seul signal qu'un acheteur ne peut PAS
+    // falsifier : il peut créer et même « finaliser » lui-même une commande sur une
+    // vraie annonce, mais pas la confirmer côté vendeur. Sans cette condition, un
+    // acheteur pourrait poster un faux avis diffamatoire sur un vendeur qu'il a
+    // seulement contacté (cohérent avec le garde-fou du cron review-invites).
+    // ⚠️ ON RETIENT LE VENDEUR DE LA VENTE. La colonne `seller_id` de l'avis
+    // était remplie depuis le CORPS DE LA REQUÊTE (`$b['sellerId']`) pour un
+    // avis `kind=buyer`, et depuis `$targetId` pour `kind=seller` — or `kind`
+    // vient lui aussi du client. Les deux chemins laissaient un vendeur poser
+    // sa note sur le dos de quelqu'un d'autre : cette colonne alimente, SANS
+    // filtre sur `kind`, la note du tableau de bord vendeur (« avis », « note »)
+    // et celle de la fiche admin. Signalé par 🛡️ Le Gardien le 30/08, puis
+    // reproduit au banc — la note d'un tiers étranger à la vente montait bien
+    // d'un cran, et le second chemin salissait celle de l'acheteur.
+    //
+    // Le vendeur n'est donc plus DÉCLARÉ, il est LU dans la vente confirmée
+    // qui sert déjà de laissez-passer. Il n'y a plus rien à falsifier.
+    $vente = null;
+    if ($listingId) {
+      // Portée stricte (Le Gardien) : quand l'avis vise une ANNONCE précise, la
+      // vente confirmée doit concerner CETTE annonce — pas n'importe quelle
+      // commande entre les deux personnes.
+      $chk = $pdo->prepare('SELECT o.seller_id FROM order_items oi JOIN orders o ON o.id = oi.order_id
+        WHERE oi.listing_id = ? AND o.seller_confirmed = 1 AND
+          ((o.buyer_id = ? AND o.seller_id = ?) OR (o.seller_id = ? AND o.buyer_id = ?)) LIMIT 1');
+      $chk->execute([$listingId, $u['id'], $targetId, $u['id'], $targetId]);
+      $vente = $chk->fetch();
+      if (!$vente) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur pour cette annonce.', 403);
+    } else {
+      // Avis de profil (sans annonce) : une vente confirmée entre les deux suffit.
+      $chk = $pdo->prepare('SELECT seller_id FROM orders WHERE seller_confirmed = 1 AND
+        ((buyer_id = ? AND seller_id = ?) OR (seller_id = ? AND buyer_id = ?)) LIMIT 1');
+      $chk->execute([$u['id'], $targetId, $u['id'], $targetId]);
+      $vente = $chk->fetch();
+      if (!$vente) jerr('Vous ne pouvez noter qu’après une vente confirmée par le vendeur.', 403);
+    }
+    $vendeurReel = (string) ($vente['seller_id'] ?? '');
+    // Un seul avis par personne notée (par annonce). Sinon on met à jour.
+    $ex = $pdo->prepare('SELECT id FROM reviews WHERE reviewer_id = ? AND target_id = ? AND (listing_id = ? OR ? = \'\') LIMIT 1');
+    $ex->execute([$u['id'], $targetId, $listingId, (string) $listingId]);
+    $rating = max(1, min(5, (int) ($b['rating'] ?? 5)));
+    $comment = $b['comment'] ?? null;
+    if ($row = $ex->fetch()) {
+      $pdo->prepare('UPDATE reviews SET rating = ?, comment = ?, created_at = ? WHERE id = ?')
+          ->execute([$rating, $comment, now_iso(), $row['id']]);
+    } else {
+      $pdo->prepare('INSERT INTO reviews (id,listing_id,seller_id,target_id,kind,reviewer_id,rating,comment,created_at)
+        VALUES (?,?,?,?,?,?,?,?,?)')
+        ->execute([uuid(), $listingId, $vendeurReel, $targetId, $kind, $u['id'], $rating, $comment, now_iso()]);
+      // La personne notée l'apprend. Une note qui tombe sans un mot, on la
+      // découvre des semaines plus tard sur sa propre page publique.
+      $nom = '';
+      try {
+        $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $pn->execute([$u['id']]);
+        $nom = (string) ($pn->fetch()['full_name'] ?? '');
+      } catch (Throwable $e) { /* le nom est un confort */ }
+      notify($pdo, $targetId, 'avis', 'Nouvel avis ⭐',
+             ($nom !== '' ? $nom : 'Un membre') . ' vous a mis ' . $rating . ' sur 5.',
+             '#/vendeur/' . $targetId);
+    }
+    jout(['ok' => true]);
+  }
+
+  // ---------- PROFILES ----------
+  if (count($seg) === 2 && $seg[0] === 'profile' && $method === 'GET') {
+    $st = $pdo->prepare('SELECT id,full_name,bio,avatar_url FROM profiles WHERE id = ?');
+    $st->execute([$seg[1]]); $p = $st->fetch();
+    if (!$p) jout(null);
+    $badge = badge_of($config, $pdo, ['id' => $p['id'], 'email' => '']);
+    // La fiche Pro publique (nom commercial, type) — seulement si approuvée.
+    $pro = null;
+    try {
+      $pq = $pdo->prepare('SELECT pro_status, pro_nom, pro_type, pro_secteur,
+                                  pro_banniere, pro_logo, pro_numero, pro_decide_at,
+                                  pro_description, pro_horaires, pro_reseaux FROM users WHERE id = ?');
+      $pq->execute([$seg[1]]);
+      $pr = $pq->fetch();
+      if ($pr && (string) ($pr['pro_status'] ?? '') === 'approuve') {
+        // Les VENTES CONCLUES, rendues publiques à la demande du Patron
+        // (28/08). C'est le chiffre qui distingue une boutique qui tourne d'une
+        // vitrine à l'arrêt — et il ne se gonfle pas tout seul : il faut que
+        // l'acheteur ait confirmé la réception.
+        $ventes = 0;
+        try {
+          $vq = $pdo->prepare("SELECT COUNT(*) FROM orders
+                               WHERE seller_id = ? AND status = 'finalise'");
+          $vq->execute([$seg[1]]);
+          $ventes = (int) $vq->fetchColumn();
+        } catch (Throwable $e) { /* table absente : zéro, pas d'erreur */ }
+
+        // La vitrine part avec la fiche : une bannière que personne ne voit
+        // ne sert à rien — c'est justement ce que le professionnel montre.
+        $pro = ['nom' => $pr['pro_nom'] ?: null, 'type' => $pr['pro_type'] ?: null,
+                'secteur' => $pr['pro_secteur'] ?: null,
+                'banniere' => $pr['pro_banniere'] ?: null,
+                'logo' => $pr['pro_logo'] ?: null,
+                // Ce que fait l'entreprise et quand on peut lui ecrire : c'est
+                // ce que l'acheteur cherche avant de se decider.
+                'description' => $pr['pro_description'] ?: null,
+                'horaires' => $pr['pro_horaires'] ? (json_decode((string) $pr['pro_horaires'], true) ?: null) : null,
+                // LE NUMÉRO NE SORT PLUS. Le Patron a tranché le 28/08 : la page
+                // dit « Registre vérifié », pas le numéro. Le laisser dans la
+                // réponse le rendrait public quand même — il suffit de regarder
+                // ce que la page reçoit. Ne pas l'envoyer est la seule façon de
+                // ne pas le publier.
+                'registreVerifie' => trim((string) ($pr['pro_numero'] ?? '')) !== '',
+                'ventes' => $ventes,
+                'depuis' => iso_to_ms($pr['pro_decide_at'] ?? null),
+                // Les réseaux sociaux (05/09/2026) : {facebook: url, …}, un
+                // objet même vide — `[]` serait une liste pour l'application.
+                'reseaux' => (object) reseaux_lire($pr['pro_reseaux'] ?? null),
+                // Les abonnés (06/09/2026) : combien suivent ce compte, et
+                // combien d'offres d'emploi sont ouvertes.
+                'abonnes' => abonnes_compter($pdo, (string) $p['id']),
+                'offres' => (function () use ($pdo, $p) {
+                  try {
+                    $q = $pdo->prepare("SELECT COUNT(*) FROM offres WHERE user_id = ? AND statut = 'ouverte' AND (expires_at IS NULL OR expires_at > ?)");
+                    $q->execute([$p['id'], now_iso()]);
+                    return (int) $q->fetchColumn();
+                  } catch (Throwable $e) { return 0; }
+                })()];
+      }
+    } catch (Throwable $e) { /* base pas migrée : pas de fiche pro */ }
+    // Le visiteur suit-il ce compte ? Seulement s'il est connecté.
+    $abonne = false;
+    try {
+      $moi = current_user($pdo, $secret);
+      if ($moi) {
+        $f = $pdo->prepare('SELECT 1 FROM follows WHERE user_id = ? AND pro_id = ?'); $f->execute([$moi['id'], $p['id']]);
+        $abonne = (bool) $f->fetch();
+      }
+    } catch (Throwable $e) { /* pas connecté, ou base pas migrée */ }
+    jout(['id' => $p['id'], 'fullName' => $p['full_name'] ?: 'Vendeur', 'bio' => $p['bio'] ?: null,
+          'avatarUrl' => $p['avatar_url'] ?: null,
+          'badge' => $badge, 'verified' => $badge !== '',
+          'pro' => $pro, 'abonne' => $abonne]);
+  }
+
+  // ---------- LES ABONNÉS (06/09/2026) ----------
+  // Suivre un compte professionnel approuvé : on reçoit ses publications.
+  if (count($seg) === 2 && $seg[0] === 'suivre' && in_array($method, ['POST', 'DELETE', 'GET'], true)) {
+    $proId = $seg[1];
+    if ($method === 'GET') {
+      $abonne = false;
+      $moi = current_user($pdo, $secret);
+      if ($moi) {
+        $f = $pdo->prepare('SELECT 1 FROM follows WHERE user_id = ? AND pro_id = ?'); $f->execute([$moi['id'], $proId]);
+        $abonne = (bool) $f->fetch();
+      }
+      jout(['abonne' => $abonne, 'abonnes' => abonnes_compter($pdo, $proId)]);
+    }
+    $u = require_user($pdo, $secret);
+    if ($method === 'POST') {
+      if ((string) $u['id'] === $proId) jerr('On ne se suit pas soi-même.');
+      if (!pro_approuve($pdo, $proId)) jerr('Seul un compte professionnel approuvé peut être suivi.', 403);
+      // Cinquante abonnements par heure : personne n'en fait autant à la main.
+      rate_limit($pdo, 'suivre', $u['email'] ?? null, 50, 3600);
+      log_security_event($pdo, 'suivre', $u['email'] ?? null, $proId);
+      $f = $pdo->prepare('SELECT 1 FROM follows WHERE user_id = ? AND pro_id = ?'); $f->execute([$u['id'], $proId]);
+      if (!$f->fetch()) {
+        $pdo->prepare('INSERT INTO follows (user_id, pro_id, created_at) VALUES (?,?,?)')->execute([$u['id'], $proId, now_iso()]);
+      }
+      jout(['ok' => true, 'abonne' => true, 'abonnes' => abonnes_compter($pdo, $proId)]);
+    }
+    $pdo->prepare('DELETE FROM follows WHERE user_id = ? AND pro_id = ?')->execute([$u['id'], $proId]);
+    jout(['ok' => true, 'abonne' => false, 'abonnes' => abonnes_compter($pdo, $proId)]);
+  }
+  // Les comptes que je suis.
+  if ($path === 'suivis' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT f.pro_id, f.created_at, u.pro_nom, u.pro_type, u.pro_logo FROM follows f
+      LEFT JOIN users u ON u.id = f.pro_id WHERE f.user_id = ? ORDER BY f.created_at DESC LIMIT 200');
+    $st->execute([$u['id']]);
+    jout(array_map(fn($r) => ['id' => $r['pro_id'], 'nom' => $r['pro_nom'] ?: nom_public($pdo, (string) $r['pro_id']),
+      'type' => $r['pro_type'] ?: null, 'logo' => $r['pro_logo'] ?: null, 'depuis' => iso_to_ms($r['created_at'])], $st->fetchAll()));
+  }
+
+  // ---------- LES OFFRES D'EMPLOI (06/09/2026) ----------
+  // Les offres ouvertes d'une structure (page vendeur), ou toutes les offres
+  // ouvertes du site (?user_id absent) — les plus récentes d'abord.
+  if ($path === 'offres' && $method === 'GET') {
+    $cible = trim((string) ($_GET['user_id'] ?? ''));
+    $sql = "SELECT * FROM offres WHERE statut = 'ouverte' AND (expires_at IS NULL OR expires_at > ?)";
+    $params = [now_iso()];
+    if ($cible !== '') { $sql .= ' AND user_id = ?'; $params[] = $cible; }
+    $sql .= ' ORDER BY created_at DESC LIMIT 100';
+    $st = $pdo->prepare($sql); $st->execute($params);
+    jout(array_map(fn($r) => offre_out($pdo, $r), $st->fetchAll()));
+  }
+  // Mes offres, ouvertes ou fermées, avec le nombre de candidatures.
+  if ($path === 'offres/mine' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE user_id = ? ORDER BY created_at DESC LIMIT 100'); $st->execute([$u['id']]);
+    jout(array_map(fn($r) => offre_out($pdo, $r, true), $st->fetchAll()));
+  }
+  if ($path === 'offres' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!pro_approuve($pdo, (string) $u['id'])) jerr('Les offres d’emploi sont réservées aux comptes professionnels approuvés (entreprises, ONG, structures).', 403);
+    rate_limit($pdo, 'offre_create', $u['email'] ?? null, 20, 3600);
+    $titre = trim(mb_substr((string) ($b['titre'] ?? ''), 0, 120));
+    $description = trim(mb_substr((string) ($b['description'] ?? ''), 0, 4000));
+    if (mb_strlen($titre) < 4) jerr('Donnez un titre à l’offre (ex. : « Vendeuse en boutique, Cocody »).');
+    if (mb_strlen($description) < 20) jerr('Décrivez le poste en quelques lignes : les missions, le profil attendu, comment postuler.');
+    // Le Gardien lit les offres comme les annonces : une offre d'emploi est
+    // le terrain de jeu préféré des arnaques « payez pour être recruté ».
+    $mod = moderate_text($titre . ' ' . $description);
+    if (!$mod['ok']) {
+      log_security_event($pdo, 'offre_bloquee', $u['email'] ?? null, implode(',', array_map(fn($r) => $r['code'], $mod['reasons'])));
+      jout(['error' => 'Cette offre n’a pas pu être publiée : elle enfreint nos règles.', 'moderation' => true, 'reasons' => $mod['reasons']], 422);
+    }
+    $lien = trim(mb_substr((string) ($b['lien'] ?? ''), 0, 300));
+    if ($lien !== '' && !preg_match('~^https://[a-z0-9.-]+\.[a-z]{2,}(/|$)~i', $lien)) jerr('Le lien du formulaire doit commencer par https:// (Google Forms, WhatsApp, votre site).');
+    $formulaire = offre_formulaire_normaliser($b['formulaire'] ?? null);
+    if ($formulaire === null) jerr('Le formulaire n’est pas valide : chaque question a un libellé, un type connu, et un choix a au moins deux options.');
+    // Ni lien ni formulaire : trois questions de base, pour que l'on puisse
+    // toujours postuler.
+    if ($lien === '' && !$formulaire) $formulaire = offre_formulaire_defaut();
+    $id = uuid();
+    $pdo->prepare('INSERT INTO offres (id,user_id,titre,description,contrat,lieu,salaire,lien,formulaire,statut,candidatures,created_at,updated_at,expires_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,0,?,?,?)')->execute([
+        $id, $u['id'], $titre, $description,
+        trim(mb_substr((string) ($b['contrat'] ?? ''), 0, 40)) ?: null,
+        trim(mb_substr((string) ($b['lieu'] ?? ''), 0, 80)) ?: null,
+        trim(mb_substr((string) ($b['salaire'] ?? ''), 0, 80)) ?: null,
+        $lien ?: null, json_encode($formulaire, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'ouverte', now_iso(), now_iso(), gmdate('Y-m-d\TH:i:s\Z', time() + 60 * 86400)]);
+    log_security_event($pdo, 'offre_publiee', $u['email'] ?? null, $id);
+    // Les abonnés l'apprennent — c'est pour ça qu'ils suivent.
+    $prevenus = abonnes_prevenir($pdo, (string) $u['id'], 'Offre d’emploi : ' . nom_public($pdo, (string) $u['id']),
+      mb_substr($titre, 0, 100) . (trim((string) ($b['lieu'] ?? '')) !== '' ? ' — ' . trim(mb_substr((string) $b['lieu'], 0, 40)) : ''),
+      '#/emploi/' . $id);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$id]);
+    jout(offre_out($pdo, $st->fetch(), true) + ['abonnesPrevenus' => $prevenus]);
+  }
+  if (count($seg) === 2 && $seg[0] === 'offres' && $seg[1] !== 'mine' && $method === 'GET') {
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    $moi = current_user($pdo, $secret);
+    $proprietaire = $moi && (string) $moi['id'] === (string) $r['user_id'];
+    if (!$proprietaire && ($r['statut'] !== 'ouverte' || ($r['expires_at'] && $r['expires_at'] <= now_iso()))) jerr('Cette offre est fermée.', 410);
+    $out = offre_out($pdo, $r, $proprietaire);
+    if ($moi && !$proprietaire) {
+      $c = $pdo->prepare('SELECT 1 FROM candidatures WHERE offre_id = ? AND user_id = ?'); $c->execute([$r['id'], $moi['id']]);
+      $out['dejaCandidate'] = (bool) $c->fetch();
+    }
+    jout($out);
+  }
+  if (count($seg) === 2 && $seg[0] === 'offres' && in_array($method, ['PUT', 'DELETE'], true)) {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    if ((string) $r['user_id'] !== (string) $u['id'] && !is_admin($config, $pdo, $u)) jerr('Non autorisé.', 403);
+    if ($method === 'DELETE') {
+      $pdo->prepare('DELETE FROM candidatures WHERE offre_id = ?')->execute([$seg[1]]);
+      $pdo->prepare('DELETE FROM offres WHERE id = ?')->execute([$seg[1]]);
+      if ((string) $r['user_id'] !== (string) $u['id']) log_security_event($pdo, 'admin_offre_deleted', $u['email'] ?? null, $seg[1]);
+      jout(['ok' => true]);
+    }
+    $b = body();
+    $sets = []; $vals = [];
+    if (array_key_exists('titre', $b)) { $t = trim(mb_substr((string) $b['titre'], 0, 120)); if (mb_strlen($t) < 4) jerr('Le titre est trop court.'); $sets[] = 'titre = ?'; $vals[] = $t; }
+    if (array_key_exists('description', $b)) { $d = trim(mb_substr((string) $b['description'], 0, 4000)); if (mb_strlen($d) < 20) jerr('La description est trop courte.'); $sets[] = 'description = ?'; $vals[] = $d; }
+    if ($sets) {
+      $mod = moderate_text(($b['titre'] ?? $r['titre']) . ' ' . ($b['description'] ?? $r['description']));
+      if (!$mod['ok']) jout(['error' => 'Cette offre enfreint nos règles.', 'moderation' => true, 'reasons' => $mod['reasons']], 422);
+    }
+    foreach (['contrat' => 40, 'lieu' => 80, 'salaire' => 80] as $champ => $max) {
+      if (array_key_exists($champ, $b)) { $sets[] = "$champ = ?"; $vals[] = trim(mb_substr((string) $b[$champ], 0, $max)) ?: null; }
+    }
+    if (array_key_exists('lien', $b)) {
+      $lien = trim(mb_substr((string) $b['lien'], 0, 300));
+      if ($lien !== '' && !preg_match('~^https://[a-z0-9.-]+\.[a-z]{2,}(/|$)~i', $lien)) jerr('Le lien du formulaire doit commencer par https://');
+      $sets[] = 'lien = ?'; $vals[] = $lien ?: null;
+    }
+    if (array_key_exists('formulaire', $b)) {
+      $f = offre_formulaire_normaliser($b['formulaire']);
+      if ($f === null) jerr('Le formulaire n’est pas valide.');
+      $sets[] = 'formulaire = ?'; $vals[] = json_encode($f, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    if (array_key_exists('statut', $b)) { $sets[] = 'statut = ?'; $vals[] = ($b['statut'] === 'fermee') ? 'fermee' : 'ouverte'; }
+    if (!$sets) jerr('Rien à enregistrer.');
+    $sets[] = 'updated_at = ?'; $vals[] = now_iso(); $vals[] = $seg[1];
+    $pdo->prepare('UPDATE offres SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($vals);
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    jout(offre_out($pdo, $st->fetch(), true));
+  }
+  // Postuler : un compte connecté, une adresse confirmée, une fois par offre.
+  if (count($seg) === 3 && $seg[0] === 'offres' && $seg[2] === 'candidater' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!email_verifie($pdo, (string) $u['id'])) {
+      jout(['error' => 'Confirmez votre adresse e-mail avant de postuler : nous vous envoyons un code.', 'emailUnverified' => true], 403);
+    }
+    $st = $pdo->prepare('SELECT * FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    if ((string) $r['user_id'] === (string) $u['id']) jerr('C’est votre propre offre.');
+    if ($r['statut'] !== 'ouverte' || ($r['expires_at'] && $r['expires_at'] <= now_iso())) jerr('Cette offre est fermée.', 410);
+    $formulaire = json_decode((string) $r['formulaire'], true);
+    if (!is_array($formulaire) || !$formulaire) jerr('Cette offre se postule par son lien, pas ici.');
+    rate_limit($pdo, 'candidature', $u['email'] ?? null, 30, 3600);
+    $c = $pdo->prepare('SELECT 1 FROM candidatures WHERE offre_id = ? AND user_id = ?'); $c->execute([$r['id'], $u['id']]);
+    if ($c->fetch()) jerr('Vous avez déjà postulé à cette offre.', 409);
+    // Chaque question obligatoire a sa réponse ; un choix est parmi les options.
+    $reponses = is_array($b['reponses'] ?? null) ? $b['reponses'] : [];
+    $propres = [];
+    foreach ($formulaire as $champ) {
+      $v = $reponses[$champ['id']] ?? '';
+      $v = is_bool($v) ? ($v ? 'oui' : 'non') : trim(mb_substr((string) $v, 0, $champ['type'] === 'long' ? 3000 : 200));
+      if ($champ['requis'] && $v === '') jerr('Répondez à « ' . $champ['label'] . ' ».', 422);
+      if ($champ['type'] === 'choix' && $v !== '' && !in_array($v, $champ['options'] ?? [], true)) jerr('« ' . $champ['label'] . ' » : choisissez une des réponses proposées.', 422);
+      if ($champ['type'] === 'email' && $v !== '' && !filter_var($v, FILTER_VALIDATE_EMAIL)) jerr('« ' . $champ['label'] . ' » : l’adresse e-mail n’est pas valide.', 422);
+      $propres[$champ['id']] = $v;
+    }
+    $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80)) ?: nom_public($pdo, (string) $u['id']);
+    $id = uuid();
+    $pdo->prepare('INSERT INTO candidatures (id,offre_id,user_id,nom,email,tel,reponses,created_at) VALUES (?,?,?,?,?,?,?,?)')
+      ->execute([$id, $r['id'], $u['id'], $nom, (string) ($u['email'] ?? ''), trim(mb_substr((string) ($b['tel'] ?? ''), 0, 20)) ?: null,
+        json_encode($propres, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), now_iso()]);
+    $pdo->prepare('UPDATE offres SET candidatures = candidatures + 1 WHERE id = ?')->execute([$r['id']]);
+    log_security_event($pdo, 'candidature', $u['email'] ?? null, $r['id']);
+    notify($pdo, (string) $r['user_id'], 'candidature', 'Nouvelle candidature 📩',
+      $nom . ' a postulé à « ' . mb_substr((string) $r['titre'], 0, 60) . ' ».', '#/emploi/' . $r['id']);
+    jout(['ok' => true, 'id' => $id]);
+  }
+  // Les candidatures reçues sur une offre — son auteur seulement.
+  if (count($seg) === 3 && $seg[0] === 'offres' && $seg[2] === 'candidatures' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT user_id, formulaire FROM offres WHERE id = ?'); $st->execute([$seg[1]]);
+    $r = $st->fetch();
+    if (!$r) jerr('Offre introuvable.', 404);
+    if ((string) $r['user_id'] !== (string) $u['id']) jerr('Non autorisé.', 403);
+    $c = $pdo->prepare('SELECT * FROM candidatures WHERE offre_id = ? ORDER BY created_at DESC LIMIT 500'); $c->execute([$seg[1]]);
+    jout(['formulaire' => json_decode((string) $r['formulaire'], true) ?: [],
+          'candidatures' => array_map(fn($x) => ['id' => $x['id'], 'nom' => $x['nom'], 'email' => $x['email'], 'tel' => $x['tel'],
+            'reponses' => json_decode((string) $x['reponses'], true) ?: (object) [], 'createdAt' => iso_to_ms($x['created_at'])], $c->fetchAll())]);
+  }
+
+  // ---------- COMPTES PROFESSIONNELS (« devenir Pro ») ----------
+  //
+  // Le dossier : type d'organisation, nom commercial, numéro officiel, secteur.
+  // Cinq types — commerce, prestataire de services, centre de formation,
+  // employeur/recruteur, association — parce qu'une « boutique » n'est pas
+  // réservée aux commerces : une école vend ses formations, un employeur
+  // publie ses offres, une association donne. Même machinerie, mots adaptés.
+  // La validation est HUMAINE (tableau de bord admin, 24-48 h) : le numéro
+  // RCCM se vérifie sur le registre OHADA, un récépissé d'association à l'œil.
+
+  if ($path === 'pro/demande' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+    if (!email_verifie($pdo, (string) $u['id'])) {
+      jerr('Confirmez d’abord votre adresse e-mail (onglet Compte).');
+    }
+    $type = (string) ($b['type'] ?? '');
+    // Quinze types, calqués sur les 16 catégories du site (« commerce » reste
+    // accepté : c'était le nom du type boutique dans la première version).
+    // Les cinq derniers datent du 07/09/2026 : restaurant, hôtel, animalerie,
+    // banque, média n'avaient aucune case.
+    if (!in_array($type, PRO_TYPES, true)) {
+      jerr('Type d’organisation inconnu.');
+    }
+    $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
+    if (mb_strlen($nom) < 2) jerr('Indiquez le nom de votre organisation.');
+    $numero = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 60));
+    $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 60));
+    $tel = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+    // Un compte déjà approuvé ne redépose pas de dossier ; un refusé peut
+    // réessayer (le dossier remplace l'ancien) ; un dossier en attente se met
+    // simplement à jour.
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') === 'approuve') {
+      jerr('Votre compte est déjà professionnel.');
+    }
+    rate_limit($pdo, 'pro_demande', $u['email'] ?? null, 5, 86400);
+    $pdo->prepare('UPDATE users SET pro_status = ?, pro_type = ?, pro_nom = ?, pro_numero = ?,
+                   pro_secteur = ?, pro_tel = ?, pro_demande_at = ?, pro_decide_at = NULL, pro_motif = NULL
+                   WHERE id = ?')
+        ->execute(['en_attente', $type, $nom, $numero, $secteur, $tel, now_iso(), $u['id']]);
+    log_security_event($pdo, 'pro_demande', $u['email'] ?? null, $type);
+    // Prévenir l'ÉQUIPE — best-effort : le dossier est en base quoi qu'il
+    // arrive. L'équipe = le Patron (owner_emails) + les modérateurs qui ont la
+    // permission « users » (ce sont eux qui peuvent décider — même porte que
+    // admin_feature_for_path('admin/pro')). Chacun reçoit l'e-mail ET, s'il a
+    // un compte sur le site, la notification (cloche du site, cloche de
+    // l'app, push) via notify().
+    try {
+      // TOUT LE PERSONNEL est prévenu (demande du Patron, 28/08) — auparavant
+      // seuls le Patron et les modérateurs ayant le droit « utilisateurs »
+      // l'étaient, si bien qu'un dossier pouvait dormir tout un week-end parce
+      // que les deux seules personnes habilitées étaient absentes.
+      //
+      // Mais on ne dit pas la même chose à tout le monde : celui qui PEUT
+      // décider reçoit le lien direct vers le dossier ; les autres sont
+      // informés sans lien, parce qu'un lien qui mène à un onglet qu'on n'a pas
+      // le droit de voir est pire que pas de lien du tout.
+      $decideurs = array_map('strtolower', owner_emails($config));
+      $informes = [];
+      try {
+        foreach ($pdo->query('SELECT email, permissions, blocked FROM admins')->fetchAll() as $a) {
+          if ((int) ($a['blocked'] ?? 0) === 1) continue;
+          $mail = strtolower(trim((string) $a['email']));
+          if ($mail === '') continue;
+          $perms = json_decode((string) ($a['permissions'] ?? '[]'), true) ?: [];
+          if (in_array('users', $perms, true)) $decideurs[] = $mail;
+          else $informes[] = $mail;
+        }
+      } catch (Throwable $e) { /* table admins absente : le Patron suffit */ }
+      $decideurs = array_values(array_unique(array_filter($decideurs)));
+      // Personne ne reçoit deux fois le même message.
+      $informes = array_values(array_diff(array_unique(array_filter($informes)), $decideurs));
+
+      $entete = '<h2 style="margin-top:0">Nouvelle demande de compte Pro</h2>'
+        . '<p><b>' . htmlspecialchars($nom) . '</b> (' . htmlspecialchars($type) . ')<br>'
+        . 'Numéro : ' . htmlspecialchars($numero !== '' ? $numero : '— non fourni —') . '<br>'
+        . 'Compte : ' . htmlspecialchars((string) ($u['email'] ?? '')) . '</p>';
+      $pourDecideurs = $entete
+        . '<p>À valider dans le tableau de bord → Demandes Pro (vérifiez le RCCM sur rccm.ohada.org).</p>';
+      $pourInformes = $entete
+        . '<p>Vous recevez ce message pour information : la décision revient aux '
+        . 'personnes ayant le droit « Utilisateurs ».</p>';
+
+      $stEquipe = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1');
+      $prevenir = function (array $gens, string $corps, string $genre, string $texte, string $lien)
+                  use ($config, $pdo, $stEquipe, $nom, $u): void {
+        foreach ($gens as $to) {
+          send_mail($config, $to, 'Chap.ci — demande de compte Pro : ' . $nom,
+                    email_layout($config, $corps, 'Demande de compte professionnel'));
+          $stEquipe->execute([$to]);
+          $idEquipe = (string) ($stEquipe->fetchColumn() ?: '');
+          // On ne se notifie pas soi-même : un membre de l'équipe peut très
+          // bien déposer sa propre demande de compte professionnel.
+          if ($idEquipe !== '' && $idEquipe !== (string) $u['id']) {
+            notify($pdo, $idEquipe, $genre, 'Demande de compte Pro 💼', $texte, $lien);
+          }
+        }
+      };
+      // Deux GENRES de notification, et c'est volontaire : l'application ouvre
+      // l'écran de décision dès qu'elle voit le type « pro_demande ». L'envoyer
+      // à quelqu'un qui n'a pas le droit « utilisateurs » le ferait atterrir sur
+      // un refus. Le type « pro_demande_info » ne déclenche aucune ouverture.
+      $prevenir($decideurs, $pourDecideurs, 'pro_demande',
+                $nom . ' (' . $type . ') attend votre décision — Tableau de bord → Demandes Pro.',
+                '#/admin?onglet=pro&demande=' . $u['id']);
+      $prevenir($informes, $pourInformes, 'pro_demande_info',
+                $nom . ' (' . $type . ') vient de demander un compte professionnel.',
+                '');
+    } catch (Throwable $e) { /* l'e-mail peut rater, le dossier est déposé */ }
+    jout(['ok' => true, 'status' => 'en_attente']);
+  }
+
+  if ($path === 'pro/statut' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    try {
+      $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_numero, pro_secteur, pro_motif
+                           FROM users WHERE id = ?');
+      $st->execute([$u['id']]);
+      $r = $st->fetch() ?: [];
+    } catch (Throwable $e) { $r = []; }
+    jout([
+      'status' => (string) ($r['pro_status'] ?? ''),
+      'type' => $r['pro_type'] ?? null,
+      'nom' => $r['pro_nom'] ?? null,
+      'numero' => $r['pro_numero'] ?? null,
+      'secteur' => $r['pro_secteur'] ?? null,
+      'motif' => $r['pro_motif'] ?? null,
+    ]);
+  }
+
+  // ---------- VÉRIFICATION DE L'ADRESSE E-MAIL ----------
+  //
+  // Un code à 6 chiffres, valable 15 minutes, 5 essais. C'est la condition
+  // pour PUBLIER une annonce — pas pour s'inscrire, ni pour acheter, ni pour
+  // écrire à un vendeur. On ne dresse un obstacle que devant l'action qui
+  // engage : une annonce publiée est vue par tout le monde, et une adresse
+  // jetable est ce qui permet de recommencer indéfiniment après un bannissement.
+  // Le tableau de bord de l'ESPACE PROFESSIONNEL : les chiffres du compte,
+  // réservés aux dossiers approuvés. Chaque agrégat est best-effort (try/catch
+  // par table) : une table absente rend 0, jamais un 500.
+  // La vitrine d'un professionnel : sa bannière et son logo. Le corps porte
+  // `banniere` et/ou `logo` — soit une image `data:` (enregistrée par
+  // save_data_uri, qui vérifie que c'en est vraiment une), soit une chaîne
+  // vide pour retirer l'image. Réservé aux comptes approuvés.
+  if ($path === 'pro/vitrine' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $b = body();
+    $set = []; $vals = [];
+    foreach (['banniere' => 'pro_banniere', 'logo' => 'pro_logo'] as $champ => $colonne) {
+      if (!array_key_exists($champ, $b)) continue;
+      $v = $b[$champ];
+      if (!is_string($v)) continue;
+      if ($v === '') {                       // retirer l'image
+        $set[] = "$colonne = ?"; $vals[] = null;
+        continue;
+      }
+      $chemin = save_data_uri($config, $v);  // refuse tout ce qui n'est pas une image
+      if ($chemin === null) jerr('Cette image n’a pas pu être lue. Choisissez une photo (JPG ou PNG).');
+      $set[] = "$colonne = ?"; $vals[] = $chemin;
+    }
+    if (!$set) jerr('Rien à enregistrer.');
+    $vals[] = $u['id'];
+    $pdo->prepare('UPDATE users SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
+    $q = $pdo->prepare('SELECT pro_banniere, pro_logo FROM users WHERE id = ?');
+    $q->execute([$u['id']]);
+    $r2 = $q->fetch() ?: [];
+    jout(['ok' => true,
+          'banniere' => (string) ($r2['pro_banniere'] ?? ''),
+          'logo' => (string) ($r2['pro_logo'] ?? '')]);
+  }
+
+  // La FICHE professionnelle : la carte de visite que voient les acheteurs.
+  // Un dossier approuvé la modifie sans redéposer de demande — refaire une
+  // demande pour corriger un numéro de téléphone n'aurait aucun sens.
+  if ($path === 'pro/fiche' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ((string) ($st->fetchColumn() ?: '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $b = body();
+    // LE NOM, LE TYPE, LE SECTEUR ET LE NUMÉRO NE SE MODIFIENT PAS ICI.
+    //
+    // Ces quatre-là sont ce que l'équipe a VÉRIFIÉ avant d'approuver le dossier
+    // — le numéro RCCM se contrôle au registre, et c'est lui qui porte la
+    // mention « entreprise enregistrée » sur la page vendeur. Les laisser
+    // modifiables, c'est laisser une enseigne approuvée en boutique se
+    // déclarer association le lendemain, avec le badge en prime.
+    //
+    // LE NOM A REJOINT LES TROIS AUTRES LE 29/08, et il y avait urgence : la
+    // veille, le nom commercial est passé sur TOUTES les cartes d'annonces du
+    // site — accueil, recherche, catégories, favoris. Un professionnel
+    // approuvé pouvait donc se renommer « Orange CI » tout seul et voir ce nom
+    // s'afficher partout, en orange, avec la caution implicite de la
+    // validation de l'équipe. Ce qui n'était qu'un risque de fiche est devenu
+    // un risque d'usurpation à l'échelle du site.
+    //
+    // Ils changent par une seule porte : un administrateur ou un modérateur
+    // qui a le droit « utilisateurs » (route admin/pro/fiche), qui journalise
+    // l'avant → après et prévient l'intéressé. Le corps de la requête peut les
+    // porter, on ne les lit pas.
+    // CHAQUE CHAMP NE CHANGE QUE S'IL EST ENVOYÉ. Jusqu'au 05/09/2026, la
+    // route écrivait le téléphone et la description quoi qu'il arrive : un
+    // client qui n'enverrait que ses réseaux sociaux (l'application) aurait
+    // effacé les deux autres sans le savoir. Le site, lui, envoie tout.
+    $sets = []; $vals = [];
+    if (array_key_exists('tel', $b)) {
+      $sets[] = 'pro_tel = ?';
+      $vals[] = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+    }
+    if (array_key_exists('description', $b)) {
+      $sets[] = 'pro_description = ?';
+      $vals[] = trim(mb_substr((string) ($b['description'] ?? ''), 0, 300));
+    }
+    // Les horaires : sept jours, chacun ouvert ou fermé avec deux heures.
+    // Stockés en JSON — un tableau de sept, jamais autre chose.
+    if (array_key_exists('horaires', $b)) {
+      $h = $b['horaires'];
+      if (is_array($h)) {
+        $propre = [];
+        foreach (array_slice($h, 0, 7) as $j) {
+          if (!is_array($j)) continue;
+          $propre[] = [
+            'ouvert' => !empty($j['ouvert']),
+            'de' => mb_substr((string) ($j['de'] ?? ''), 0, 5),
+            'a'  => mb_substr((string) ($j['a'] ?? ''), 0, 5),
+          ];
+        }
+        if (count($propre) === 7) { $sets[] = 'pro_horaires = ?'; $vals[] = json_encode($propre, JSON_UNESCAPED_UNICODE); }
+      }
+    }
+    // Les réseaux sociaux (05/09/2026) : l'objet envoyé REMPLACE l'ensemble —
+    // le site et l'application envoient toujours les neuf champs. Une adresse
+    // refusée bloque tout l'enregistrement, en nommant le réseau fautif.
+    $reseaux = null;
+    if (array_key_exists('reseaux', $b)) {
+      [$reseaux, $faute] = reseaux_normaliser($b['reseaux']);
+      if ($faute !== null) {
+        $nom = reseaux_definitions()[$faute]['nom'];
+        jout(['error' => $faute === 'site'
+                ? 'L’adresse du site n’est pas valide : elle doit ressembler à https://www.exemple.ci'
+                : ($faute === 'whatsapp'
+                  ? 'Le WhatsApp n’est pas valide : tapez le numéro (ex. : 07 00 00 00 01), ou collez un lien wa.me.'
+                  : 'Le lien ' . $nom . ' n’est pas valide : collez l’adresse de votre page ' . $nom . ', ou votre nom d’utilisateur (ex. : @maboutique).'),
+              'reseau' => $faute], 422);
+      }
+      $sets[] = 'pro_reseaux = ?';
+      $vals[] = $reseaux ? json_encode($reseaux, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
+      // Au journal : un lien sur une page « registre vérifié » emprunte la
+      // caution de l'équipe. Le site web, libre, est celui qu'on regarde.
+      log_security_event($pdo, 'pro_reseaux', $u['email'] ?? null,
+        implode(',', array_keys($reseaux)) . (isset($reseaux['site']) ? ' · site=' . (string) parse_url($reseaux['site'], PHP_URL_HOST) : ''));
+    }
+    if (!$sets) jerr('Rien à enregistrer.');
+    $vals[] = $u['id'];
+    $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($vals);
+    jout(['ok' => true] + ($reseaux !== null ? ['reseaux' => (object) $reseaux] : []));
+  }
+
+  // LE CHEMIN DE L'ACHETEUR — vues → favoris → contacts → ventes, plus les
+  // heures où l'on est regardé et les communes d'où viennent les acheteurs.
+  // Compter ne suffit pas : c'est l'endroit où l'on perd le monde qui dit quoi
+  // corriger.
+  if ($path === 'pro/entonnoir' && $method === 'GET') {
+    $u = require_user($pdo, $secret); $uid = (string) $u['id'];
+    $jours = (int) ($_GET['periode'] ?? 7);
+    if (!in_array($jours, [7, 30], true)) $jours = 7;
+    $depuisJour = gmdate('Y-m-d', time() - ($jours - 1) * 86400);
+    $depuisIso  = gmdate('Y-m-d\TH:i:s\Z', time() - $jours * 86400);
+
+    $ids = [];
+    try {
+      $st = $pdo->prepare('SELECT id FROM listings WHERE user_id = ?'); $st->execute([$uid]);
+      $ids = array_column($st->fetchAll(), 'id');
+    } catch (Throwable $e) { /* aucune annonce : tout reste à zéro */ }
+    $in = $ids ? implode(',', array_fill(0, count($ids), '?')) : '';
+
+    $vues = 0; $favoris = 0; $contacts = 0; $ventes = 0;
+    $heures = array_fill(0, 24, 0); $communes = [];
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) AS s FROM listing_view_days
+                            WHERE day >= ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$depuisJour], $ids));
+        $vues = (int) $q->fetch()['s'];
+      } catch (Throwable $e) { /* 0 */ }
+      try {
+        $q = $pdo->prepare("SELECT COUNT(*) AS c FROM favorites
+                            WHERE created_at >= ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$depuisIso], $ids));
+        $favoris = (int) $q->fetch()['c'];
+      } catch (Throwable $e) { /* 0 */ }
+      try {
+        $q = $pdo->prepare("SELECT hour, COALESCE(SUM(n),0) AS s FROM listing_view_hours
+                            WHERE day >= ? AND listing_id IN ($in) GROUP BY hour");
+        $q->execute(array_merge([$depuisJour], $ids));
+        foreach ($q->fetchAll() as $r) {
+          $h = (int) $r['hour'];
+          if ($h >= 0 && $h < 24) $heures[$h] = (int) $r['s'];
+        }
+      } catch (Throwable $e) { /* table jeune : le graphique se remplira */ }
+    }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) AS c FROM conversations WHERE seller_id = ? AND created_at >= ?');
+      $q->execute([$uid, $depuisIso]);
+      $contacts = (int) $q->fetch()['c'];
+    } catch (Throwable $e) { /* 0 */ }
+    try {
+      $q = $pdo->prepare("SELECT COUNT(*) AS c FROM orders WHERE seller_id = ? AND status = 'finalise'
+                          AND COALESCE(finalized_at, created_at) >= ?");
+      $q->execute([$uid, $depuisIso]);
+      $ventes = (int) $q->fetch()['c'];
+    } catch (Throwable $e) { /* 0 */ }
+
+    // D'où viennent les acheteurs : la commune de ceux qui ont écrit, et de
+    // ceux qui ont enregistré une annonce. Deux gestes d'intérêt, un seul
+    // classement — sur trente jours, les seuls contacts sont trop peu nombreux
+    // pour dessiner quoi que ce soit.
+    try {
+      $compte = [];
+      $q = $pdo->prepare('SELECT p.commune AS commune FROM conversations c
+                          JOIN profiles p ON p.id = c.buyer_id
+                          WHERE c.seller_id = ? AND c.created_at >= ?');
+      $q->execute([$uid, $depuisIso]);
+      $lignes = $q->fetchAll();
+      if ($ids) {
+        $q2 = $pdo->prepare("SELECT p.commune AS commune FROM favorites f
+                             JOIN profiles p ON p.id = f.user_id
+                             WHERE f.created_at >= ? AND f.listing_id IN ($in)");
+        $q2->execute(array_merge([$depuisIso], $ids));
+        $lignes = array_merge($lignes, $q2->fetchAll());
+      }
+      foreach ($lignes as $r) {
+        $nomC = trim((string) ($r['commune'] ?? ''));
+        if ($nomC === '') continue;
+        $compte[$nomC] = ($compte[$nomC] ?? 0) + 1;
+      }
+      arsort($compte);
+      $totalC = array_sum($compte);
+      foreach (array_slice($compte, 0, 5, true) as $nomC => $n) {
+        $communes[] = ['nom' => $nomC, 'n' => $n,
+                       'pct' => $totalC > 0 ? (int) round($n * 100 / $totalC) : 0];
+      }
+    } catch (Throwable $e) { /* pas de communes : le bloc se tait */ }
+
+    jout([
+      'periode' => $jours,
+      'entonnoir' => ['vues' => $vues, 'favoris' => $favoris, 'contacts' => $contacts, 'ventes' => $ventes],
+      'heures' => $heures,
+      'communes' => $communes,
+    ]);
+  }
+
+  // ---------- SÉCURITÉ DU COMPTE ----------
+  // Les appareils abonnés, les dernières connexions réussies, et la date du
+  // dernier changement de mot de passe. Rien d'autre : on ne rend jamais les
+  // clés de chiffrement d'un abonnement push.
+  if ($path === 'securite' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $email = strtolower(trim((string) ($u['email'] ?? '')));
+    $appareils = []; $connexions = []; $mdpLe = null; $twofa = false;
+    try {
+      $st = $pdo->prepare('SELECT agent, created_at, last_ok_at FROM push_subs WHERE user_id = ? ORDER BY created_at DESC LIMIT 10');
+      $st->execute([$u['id']]);
+      $appareils = array_map(fn($r) => [
+        'nom' => nom_appareil((string) ($r['agent'] ?? '')),
+        'depuis' => iso_to_ms($r['created_at']),
+        'vuLe' => $r['last_ok_at'] ? iso_to_ms($r['last_ok_at']) : null,
+      ], $st->fetchAll());
+    } catch (Throwable $e) { /* aucun appareil abonné */ }
+    if ($email !== '') {
+      try {
+        $st = $pdo->prepare("SELECT ip, ua, created_at FROM security_events
+                             WHERE kind = 'login_ok' AND email = ? ORDER BY created_at DESC LIMIT 5");
+        $st->execute([$email]);
+        $connexions = array_map(fn($r) => [
+          'quand' => iso_to_ms($r['created_at']),
+          'appareil' => nom_appareil((string) ($r['ua'] ?? '')),
+          // L'adresse est tronquée : elle sert à reconnaître « ce n'est pas
+          // moi », pas à pister. Les deux derniers groupes sont masqués.
+          'ip' => masque_ip((string) ($r['ip'] ?? '')),
+        ], $st->fetchAll());
+      } catch (Throwable $e) { /* journal vide */ }
+      try {
+        $st = $pdo->prepare("SELECT created_at FROM security_events
+                             WHERE kind = 'password_changed' AND email = ? ORDER BY created_at DESC LIMIT 1");
+        $st->execute([$email]);
+        $v = $st->fetchColumn();
+        if ($v) $mdpLe = iso_to_ms((string) $v);
+      } catch (Throwable $e) { /* jamais changé */ }
+    }
+    try {
+      $st = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?');
+      $st->execute([$u['id']]);
+      $twofa = !empty($st->fetchColumn());
+    } catch (Throwable $e) { /* colonne absente */ }
+    jout(['twofa' => $twofa, 'motDePasseLe' => $mdpLe,
+          'appareils' => $appareils, 'connexions' => $connexions]);
+  }
+
+  // Le tableau de bord professionnel, façon CRM : chiffres de la période (7 ou
+  // 30 jours) avec tendance vs période précédente, taux de réponse, messages en
+  // attente, série des vues, top des annonces et fil d'activité. Chaque bloc est
+  // en best-effort : une table manquante donne des zéros, jamais une erreur.
+  // LE STOCK DU PROFESSIONNEL (07/09/2026) — toutes ses annonces, celles qui
+  // manquent en premier : rupture, puis sous le seuil, puis le reste par
+  // quantité croissante, et enfin celles qui ne suivent pas de stock (il peut
+  // l'activer d'un geste). Les compteurs servent au bandeau d'alerte.
+  if ($path === 'pro/stock' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    if (!pro_approuve($pdo, (string) $u['id'])) jerr('Réservé aux comptes professionnels approuvés.', 403);
+    $st = $pdo->prepare('SELECT id, title, price, images, stock, stock_min, sold, hidden, created_at
+                         FROM listings WHERE user_id = ? ORDER BY created_at DESC LIMIT 500');
+    $st->execute([$u['id']]);
+    $out = []; $bas = 0; $rupture = 0; $suivies = 0;
+    foreach ($st->fetchAll() as $l) {
+      $stock = $l['stock'] === null ? null : (int) $l['stock'];
+      $min = $l['stock_min'] === null ? STOCK_MIN_DEFAUT : (int) $l['stock_min'];
+      $etat = stock_etat($stock, $min);
+      if ($stock !== null) $suivies++;
+      if ($etat === 'rupture') { $rupture++; $bas++; } elseif ($etat === 'bas') $bas++;
+      $imgs = $l['images'] ? (json_decode($l['images'], true) ?: []) : [];
+      $out[] = [
+        'id' => $l['id'], 'title' => $l['title'], 'price' => (int) $l['price'],
+        'image' => $imgs[0] ?? null, 'stock' => $stock, 'stockMin' => $min, 'stockEtat' => $etat,
+        'sold' => !empty($l['sold']), 'hidden' => !empty($l['hidden']),
+      ];
+    }
+    $rang = ['rupture' => 0, 'bas' => 1, 'ok' => 2, 'aucun' => 3];
+    usort($out, fn($a, $b) => ($rang[$a['stockEtat']] <=> $rang[$b['stockEtat']])
+      ?: (($a['stock'] ?? PHP_INT_MAX) <=> ($b['stock'] ?? PHP_INT_MAX)));
+    jout(['annonces' => $out, 'suivies' => $suivies, 'bas' => $bas, 'rupture' => $rupture, 'minDefaut' => STOCK_MIN_DEFAUT]);
+  }
+
+  if ($path === 'pro/tableau' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $uid = (string) $u['id'];
+    $emailCible = (string) ($u['email'] ?? '');
+
+    // VUE EN LECTURE SEULE D'UN ADMINISTRATEUR. Le Patron teste tout lui-même
+    // et n'a pas de compte professionnel : chaque écran pro lui était donc
+    // invisible, et il redemandait des choses déjà livrées. Un administrateur
+    // qui a le droit « utilisateurs », et dont la session est déverrouillée,
+    // peut regarder la console d'un professionnel telle que celui-ci la voit.
+    // Aucune écriture n'est possible par cette porte : la route est en GET.
+    $vise = trim((string) ($_GET['userId'] ?? ''));
+    $lecture = false;
+    if ($vise !== '' && $vise !== $uid) {
+      if (!admin_can($config, $pdo, $u, 'users')
+          || !admin_unlocked($config, $pdo, $secret, $u)) {
+        jerr('Non autorisé.', 403);
+      }
+      $ce = $pdo->prepare('SELECT email FROM users WHERE id = ?');
+      $ce->execute([$vise]);
+      $emailCible = (string) ($ce->fetchColumn() ?: '');
+      if ($emailCible === '') jerr('Compte introuvable.', 404);
+      $uid = $vise;
+      $lecture = true;
+      // Regarder le tableau de bord de quelqu'un se journalise : c'est un
+      // accès aux données d'un tiers, même sans y toucher.
+      log_security_event($pdo, 'pro_tableau_vue', (string) ($u['email'] ?? ''), $emailCible);
+    }
+
+    $st = $pdo->prepare('SELECT pro_status, pro_type, pro_nom, pro_secteur, pro_decide_at,
+                                pro_numero, pro_tel, pro_banniere, pro_logo,
+                                pro_description, pro_horaires, pro_reseaux,
+                                pro_auto_reply, pro_auto_reply_on
+                         FROM users WHERE id = ?');
+    $st->execute([$uid]);
+    $r = $st->fetch() ?: [];
+    if ((string) ($r['pro_status'] ?? '') !== 'approuve') {
+      jerr('Réservé aux comptes professionnels approuvés.', 403);
+    }
+    $periode = (($_GET['periode'] ?? '7') === '30') ? 30 : 7;
+    $now = time();
+    $jour = fn(int $t) => gmdate('Y-m-d', $t);
+    $debCur  = $now - ($periode - 1) * 86400;
+    $debPrev = $debCur - $periode * 86400;
+    $jCur = $jour($debCur); $jPrev = $jour($debPrev);
+    $tCur = $jCur . 'T00:00:00Z'; $tPrev = $jPrev . 'T00:00:00Z';
+
+    // Les annonces du compte : la matière première de tous les blocs.
+    $annonces = [];
+    try {
+      $q = $pdo->prepare('SELECT id, title, price, images, sold, hidden, featured,
+                                 COALESCE(views, 0) AS vues FROM listings WHERE user_id = ?');
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $l) $annonces[(string) $l['id']] = $l;
+    } catch (Throwable $e) { /* colonnes pas encore migrées */ }
+    $ids = array_keys($annonces);
+    $in = $ids ? implode(',', array_fill(0, count($ids), '?')) : '';
+
+    $stats = ['annoncesActives' => 0, 'annoncesTotal' => count($annonces), 'vues' => 0,
+              'favoris' => 0, 'conversations' => 0, 'note' => null, 'avis' => 0];
+    foreach ($annonces as $l) {
+      $stats['vues'] += (int) $l['vues'];
+      if (empty($l['sold']) && empty($l['hidden'])) $stats['annoncesActives']++;
+    }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM favorites f
+                          JOIN listings l ON l.id = f.listing_id WHERE l.user_id = ?');
+      $q->execute([$uid]);
+      $stats['favoris'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) { /* idem */ }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ?');
+      $q->execute([$uid]);
+      $stats['conversations'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) { /* idem */ }
+    try {
+      // ⚠️ « REÇUS », PAS « ÉCRITS ». Cette requête comptait tous les avis
+      // portant `seller_id = moi`, sans regarder `kind` — or un avis
+      // `kind=buyer` (le vendeur note SON acheteur) porte lui aussi le vendeur
+      // dans cette colonne. Un vendeur qui mettait 1 à un client difficile
+      // faisait donc tomber SA PROPRE note : mesuré au banc, 5 sur un avis
+      // devenait 3 sur deux. Ce n'était pas une attaque, c'était l'usage normal.
+      // La condition ci-dessous est celle, déjà éprouvée, de la page publique
+      // des avis (route GET /reviews) : elle gère aussi les vieilles lignes
+      // sans `target_id` ni `kind`.
+      $q = $pdo->prepare("SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews
+        WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+          AND (kind = 'seller' OR kind IS NULL)");
+      $q->execute([$uid, $uid]);
+      $n = $q->fetch() ?: [];
+      $stats['avis'] = (int) ($n['n'] ?? 0);
+      $stats['note'] = $stats['avis'] > 0 ? round((float) $n['moy'], 1) : null;
+    } catch (Throwable $e) { /* idem */ }
+
+    // Les chiffres de la période, chacun avec sa valeur précédente pour la flèche.
+    $kpi = ['vues' => ['n' => 0, 'prev' => 0], 'contacts' => ['n' => 0, 'prev' => 0],
+            'favoris' => ['n' => 0, 'prev' => 0], 'ventes' => ['n' => 0, 'prev' => 0]];
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) FROM listing_view_days
+                            WHERE day >= ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$jCur], $ids));
+        $kpi['vues']['n'] = (int) $q->fetchColumn();
+        $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) FROM listing_view_days
+                            WHERE day >= ? AND day < ? AND listing_id IN ($in)");
+        $q->execute(array_merge([$jPrev, $jCur], $ids));
+        $kpi['vues']['prev'] = (int) $q->fetchColumn();
+      } catch (Throwable $e) {}
+    }
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ? AND created_at >= ?');
+      $q->execute([$uid, $tCur]); $kpi['contacts']['n'] = (int) $q->fetchColumn();
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations
+                          WHERE seller_id = ? AND created_at >= ? AND created_at < ?');
+      $q->execute([$uid, $tPrev, $tCur]); $kpi['contacts']['prev'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM favorites f JOIN listings l ON l.id = f.listing_id
+                          WHERE l.user_id = ? AND f.created_at >= ?');
+      $q->execute([$uid, $tCur]); $kpi['favoris']['n'] = (int) $q->fetchColumn();
+      $q = $pdo->prepare('SELECT COUNT(*) FROM favorites f JOIN listings l ON l.id = f.listing_id
+                          WHERE l.user_id = ? AND f.created_at >= ? AND f.created_at < ?');
+      $q->execute([$uid, $tPrev, $tCur]); $kpi['favoris']['prev'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare("SELECT COUNT(*) FROM orders
+                          WHERE seller_id = ? AND status = 'finalise' AND created_at >= ?");
+      $q->execute([$uid, $tCur]); $kpi['ventes']['n'] = (int) $q->fetchColumn();
+      $q = $pdo->prepare("SELECT COUNT(*) FROM orders
+                          WHERE seller_id = ? AND status = 'finalise' AND created_at >= ? AND created_at < ?");
+      $q->execute([$uid, $tPrev, $tCur]); $kpi['ventes']['prev'] = (int) $q->fetchColumn();
+    } catch (Throwable $e) {}
+
+    // Le taux de réponse (conversations où le vendeur a écrit au moins une fois)
+    // et les conversations qui attendent une réponse depuis plus de 24 h.
+    $tauxReponse = null;
+    $aRepondre = ['n' => 0, 'noms' => []];
+    try {
+      $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ?');
+      $q->execute([$uid]);
+      $convTotal = (int) $q->fetchColumn();
+      if ($convTotal > 0) {
+        // `m.auto` exclu : une réponse écrite par la machine n'est pas une
+        // réponse du vendeur. Sinon le taux afficherait 100 % dès le premier
+        // jour, et l'acheteur découvrirait le contraire en attendant.
+        $q = $pdo->prepare('SELECT COUNT(DISTINCT c.id) FROM conversations c
+                            JOIN messages m ON m.conversation_id = c.id AND m.sender_id = c.seller_id
+                                           AND (m.auto IS NULL OR m.auto = 0)
+                            WHERE c.seller_id = ?');
+        $q->execute([$uid]);
+        $tauxReponse = (int) round((int) $q->fetchColumn() / $convTotal * 100);
+      }
+      $limite = gmdate('Y-m-d\TH:i:s\Z', $now - 86400);
+      $q = $pdo->prepare(
+        'SELECT p.full_name FROM conversations c
+           LEFT JOIN profiles p ON p.id = c.buyer_id
+          WHERE c.seller_id = ?
+            AND EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)
+            AND (SELECT m.sender_id FROM messages m WHERE m.conversation_id = c.id
+                   AND (m.auto IS NULL OR m.auto = 0)
+                  ORDER BY m.created_at DESC LIMIT 1) <> c.seller_id
+            AND (SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = c.id
+                   AND (m.auto IS NULL OR m.auto = 0)) < ?');
+      $q->execute([$uid, $limite]);
+      $attente = $q->fetchAll();
+      $aRepondre['n'] = count($attente);
+      foreach (array_slice($attente, 0, 3) as $c) {
+        $p = trim((string) (preg_split('/\s+/', trim((string) ($c['full_name'] ?? '')))[0] ?? ''));
+        if ($p !== '') $aRepondre['noms'][] = $p;
+      }
+    } catch (Throwable $e) {}
+
+    // La série des vues, jour par jour, sur la période (jours vides = 0).
+    $serie = [];
+    $parJour = [];
+    $vuesAnnonce = [];
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT day, listing_id, COALESCE(SUM(n),0) AS s FROM listing_view_days
+                            WHERE day >= ? AND listing_id IN ($in) GROUP BY day, listing_id");
+        $q->execute(array_merge([$jCur], $ids));
+        foreach ($q->fetchAll() as $d) {
+          $parJour[$d['day']] = ($parJour[$d['day']] ?? 0) + (int) $d['s'];
+          $vuesAnnonce[(string) $d['listing_id']] = ($vuesAnnonce[(string) $d['listing_id']] ?? 0) + (int) $d['s'];
+        }
+      } catch (Throwable $e) {}
+    }
+    for ($i = $periode - 1; $i >= 0; $i--) {
+      $d = $jour($now - $i * 86400);
+      $serie[] = ['jour' => $d, 'n' => $parJour[$d] ?? 0];
+    }
+
+    // Le top des annonces : vues de la période d'abord, vues cumulées ensuite.
+    $top = [];
+    if ($ids) {
+      $favAnnonce = []; $convAnnonce = [];
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM favorites
+                            WHERE listing_id IN ($in) GROUP BY listing_id");
+        $q->execute($ids);
+        foreach ($q->fetchAll() as $d) $favAnnonce[(string) $d['listing_id']] = (int) $d['c'];
+      } catch (Throwable $e) {}
+      try {
+        $q = $pdo->prepare("SELECT listing_id, COUNT(*) AS c FROM conversations
+                            WHERE seller_id = ? AND listing_id IN ($in) GROUP BY listing_id");
+        $q->execute(array_merge([$uid], $ids));
+        foreach ($q->fetchAll() as $d) $convAnnonce[(string) $d['listing_id']] = (int) $d['c'];
+      } catch (Throwable $e) {}
+      $classees = $annonces;
+      uasort($classees, function ($a, $b) use ($vuesAnnonce) {
+        $va = $vuesAnnonce[(string) $a['id']] ?? 0;
+        $vb = $vuesAnnonce[(string) $b['id']] ?? 0;
+        if ($va !== $vb) return $vb <=> $va;
+        return ((int) $b['vues']) <=> ((int) $a['vues']);
+      });
+      foreach (array_slice($classees, 0, 5, true) as $l) {
+        $k = (string) $l['id'];
+        $imgs = $l['images'] ? (json_decode((string) $l['images'], true) ?: []) : [];
+        $etat = !empty($l['sold']) ? 'vendue'
+              : (!empty($l['hidden']) ? 'masquee'
+              : (!empty($l['featured']) ? 'une' : 'active'));
+        $top[] = ['id' => $k, 'titre' => (string) $l['title'], 'prix' => (int) ($l['price'] ?? 0),
+                  'image' => is_string($imgs[0] ?? null) ? $imgs[0] : null,
+                  'vues' => $vuesAnnonce[$k] ?? 0, 'favoris' => $favAnnonce[$k] ?? 0,
+                  'contacts' => $convAnnonce[$k] ?? 0, 'etat' => $etat];
+      }
+    }
+
+    // Le fil d'activité : contacts, favoris, avis, ventes — et le record de vues
+    // s'il est récent. Trié du plus frais au plus ancien, six événements.
+    $activite = [];
+    $titreDe = fn($lid) => (string) ($annonces[(string) $lid]['title'] ?? '');
+    try {
+      $q = $pdo->prepare('SELECT c.created_at, c.listing_id, p.full_name FROM conversations c
+                          LEFT JOIN profiles p ON p.id = c.buyer_id
+                          WHERE c.seller_id = ? ORDER BY c.created_at DESC LIMIT 6');
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $mots = preg_split('/\s+/', trim((string) ($e2['full_name'] ?? ''))) ?: [];
+        $nom = (string) ($mots[0] ?? '');
+        if (!empty($mots[1])) $nom .= ' ' . mb_strtoupper(mb_substr((string) $mots[1], 0, 1)) . '.';
+        $activite[] = ['type' => 'contact', 'quand' => iso_to_ms($e2['created_at']),
+                       'nom' => $nom, 'annonce' => $titreDe($e2['listing_id'])];
+      }
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare('SELECT f.created_at, f.listing_id FROM favorites f
+                          JOIN listings l ON l.id = f.listing_id
+                          WHERE l.user_id = ? ORDER BY f.created_at DESC LIMIT 6');
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $activite[] = ['type' => 'favori', 'quand' => iso_to_ms($e2['created_at']),
+                       'annonce' => $titreDe($e2['listing_id'])];
+      }
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare('SELECT rating, comment, created_at FROM reviews
+                          WHERE seller_id = ? ORDER BY created_at DESC LIMIT 6');
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $activite[] = ['type' => 'avis', 'quand' => iso_to_ms($e2['created_at']),
+                       'note' => (int) $e2['rating'],
+                       'commentaire' => mb_substr(trim((string) ($e2['comment'] ?? '')), 0, 90)];
+      }
+    } catch (Throwable $e) {}
+    try {
+      $q = $pdo->prepare("SELECT o.created_at, oi.title, oi.price FROM orders o
+                          LEFT JOIN order_items oi ON oi.order_id = o.id
+                          WHERE o.seller_id = ? AND o.status = 'finalise'
+                          ORDER BY o.created_at DESC LIMIT 6");
+      $q->execute([$uid]);
+      foreach ($q->fetchAll() as $e2) {
+        $activite[] = ['type' => 'vente', 'quand' => iso_to_ms($e2['created_at']),
+                       'annonce' => (string) ($e2['title'] ?? ''), 'prix' => (int) ($e2['price'] ?? 0)];
+      }
+    } catch (Throwable $e) {}
+    if ($ids) {
+      try {
+        $q = $pdo->prepare("SELECT day, COALESCE(SUM(n),0) AS s FROM listing_view_days
+                            WHERE listing_id IN ($in) GROUP BY day ORDER BY s DESC, day DESC LIMIT 1");
+        $q->execute($ids);
+        $rec = $q->fetch();
+        if ($rec && (int) $rec['s'] > 0 && (string) $rec['day'] >= $jour($now - 29 * 86400)) {
+          $activite[] = ['type' => 'record', 'quand' => iso_to_ms($rec['day'] . 'T12:00:00Z'),
+                         'n' => (int) $rec['s']];
+        }
+      } catch (Throwable $e) {}
+    }
+    usort($activite, fn($a, $b) => $b['quand'] <=> $a['quand']);
+    $activite = array_slice($activite, 0, 6);
+
+    // TOUT LE COMPTE DANS LE TABLEAU DE BORD (demande du Patron, 27/08).
+    // Pour un professionnel, la page Compte n'est plus une liste de réglages à
+    // côté d'un tableau : c'est une seule console. Ces champs alimentent les
+    // tuiles (chacune porte son chiffre) et la fiche d'entreprise.
+    $compteur = function (string $sql, array $args) use ($pdo): int {
+      try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+      catch (Throwable $e) { return 0; }
+    };
+    $annoncesMasquees = 0; $annoncesVendues = 0;
+    foreach ($annonces as $l) {
+      if (!empty($l['hidden'])) $annoncesMasquees++;
+      if (!empty($l['sold'])) $annoncesVendues++;
+    }
+    $profil = [];
+    try {
+      $q = $pdo->prepare('SELECT full_name, phone, commune, city_id, region_id, avatar_url
+                          FROM profiles WHERE id = ?');
+      $q->execute([$uid]);
+      $profil = $q->fetch() ?: [];
+    } catch (Throwable $e) {}
+    $pubFin = null;
+    try {
+      $q = $pdo->prepare("SELECT MIN(expires_at) FROM ads
+                          WHERE user_id = ? AND status = 'active' AND expires_at > ?");
+      $q->execute([$uid, now_iso()]);
+      $pubFin = $q->fetchColumn() ?: null;
+    } catch (Throwable $e) {}
+
+    jout([
+      'pro' => [
+        'nom' => (string) ($r['pro_nom'] ?? ''),
+        'type' => (string) ($r['pro_type'] ?? ''),
+        'secteur' => (string) ($r['pro_secteur'] ?? ''),
+        'depuis' => iso_to_ms($r['pro_decide_at'] ?? null),
+        'numero' => (string) ($r['pro_numero'] ?? ''),
+        'tel' => (string) ($r['pro_tel'] ?? ''),
+        'banniere' => (string) ($r['pro_banniere'] ?? ''),
+        'logo' => (string) ($r['pro_logo'] ?? ''),
+        'description' => (string) ($r['pro_description'] ?? ''),
+        'horaires' => ($r['pro_horaires'] ?? '') !== ''
+          ? (json_decode((string) $r['pro_horaires'], true) ?: null) : null,
+        // Les réseaux sociaux, tels qu'enregistrés (adresses normalisées).
+        'reseaux' => (object) reseaux_lire($r['pro_reseaux'] ?? null),
+        // La réponse automatique, pour que la tuile du tableau de bord dise
+        // d'un coup d'œil si elle est active — et laquelle part.
+        'reponseAuto' => !empty($r['pro_auto_reply_on'])
+          && trim((string) ($r['pro_auto_reply'] ?? '')) !== '',
+        'reponseAutoTexte' => trim((string) ($r['pro_auto_reply'] ?? '')),
+        'reponsesPretes' => $compteur('SELECT COUNT(*) FROM quick_replies WHERE user_id = ?', [$uid]),
+        // Les abonnés et les offres d'emploi (06/09/2026) : de quoi remplir
+        // la tuile « Offres d'emploi » et le champ « Abonnés » sans second appel.
+        'abonnes' => abonnes_compter($pdo, $uid),
+        'offres' => $compteur("SELECT COUNT(*) FROM offres WHERE user_id = ? AND statut = 'ouverte' AND (expires_at IS NULL OR expires_at > ?)", [$uid, now_iso()]),
+        'candidatures' => $compteur('SELECT COALESCE(SUM(candidatures), 0) FROM offres WHERE user_id = ?', [$uid]),
+        // Le stock (07/09/2026) : combien de produits sous le seuil, dont
+        // combien à zéro — la tuile « Stock » s'allume dessus.
+        'stockSuivi' => $compteur('SELECT COUNT(*) FROM listings WHERE user_id = ? AND stock IS NOT NULL', [$uid]),
+        'stockBas' => $compteur('SELECT COUNT(*) FROM listings WHERE user_id = ? AND stock IS NOT NULL AND stock <= COALESCE(stock_min, ' . STOCK_MIN_DEFAUT . ')', [$uid]),
+        'stockRupture' => $compteur('SELECT COUNT(*) FROM listings WHERE user_id = ? AND stock IS NOT NULL AND stock <= 0', [$uid]),
+      ],
+      'compte' => [
+        'nom' => (string) ($profil['full_name'] ?? ''),
+        'email' => $emailCible,
+        'commune' => (string) ($profil['commune'] ?? ''),
+        // Les identifiants bruts du lieu : la fiche professionnelle en fait
+        // « Abidjan · Abobo » sans avoir à interroger une seconde route.
+        'villeId' => (string) ($profil['city_id'] ?? ''),
+        'regionId' => (string) ($profil['region_id'] ?? ''),
+        'avatar' => (string) ($profil['avatar_url'] ?? ''),
+        'twofa' => $compteur('SELECT COALESCE(totp_enabled, 0) FROM users WHERE id = ?', [$uid]) === 1,
+        'annoncesMasquees' => $annoncesMasquees,
+        'annoncesVendues' => $annoncesVendues,
+        'favorisEnregistres' => $compteur('SELECT COUNT(*) FROM favorites WHERE user_id = ?', [$uid]),
+        'commandesEnCours' => $compteur(
+          "SELECT COUNT(*) FROM orders WHERE (buyer_id = ? OR seller_id = ?) AND status = 'en_cours'",
+          [$uid, $uid]),
+        'commandesFinalisees' => $compteur(
+          "SELECT COUNT(*) FROM orders WHERE (buyer_id = ? OR seller_id = ?) AND status = 'finalise'",
+          [$uid, $uid]),
+        'pubsActives' => $compteur(
+          "SELECT COUNT(*) FROM ads WHERE user_id = ? AND status = 'active' AND expires_at > ?",
+          [$uid, now_iso()]),
+        'pubFin' => iso_to_ms($pubFin),
+      ],
+      'stats' => $stats,
+      'periode' => $periode,
+      // Vrai quand un administrateur regarde la console de quelqu'un d'autre :
+      // l'écran se met alors en lecture seule et le dit en haut.
+      'lecture' => $lecture,
+      'kpi' => $kpi,
+      'tauxReponse' => $tauxReponse,
+      'aRepondre' => $aRepondre,
+      'serie' => $serie,
+      'top' => $top,
+      'activite' => $activite,
+    ]);
+  }
+
+  if ($path === 'verify/email/send' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if (email_verifie($pdo, (string) $u['id'])) jout(['ok' => true, 'already' => true]);
+    $email = strtolower(trim((string) $u['email']));
+    // 5 envois par heure et par compte : de quoi se tromper, pas de quoi
+    // transformer le site en distributeur d'e-mails.
+    rate_limit($pdo, 'verify_email_send', $email, 5, 3600);
+    try { $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]); } catch (Throwable $e) {}
+    try { $code = (string) random_int(100000, 999999); } catch (Throwable $e) { $code = (string) mt_rand(100000, 999999); }
+    $pdo->prepare('INSERT INTO email_codes (id,email,code_hash,attempts,created_at,expires_at) VALUES (?,?,?,?,?,?)')
+        ->execute([uuid(), $email, password_hash($code, PASSWORD_BCRYPT), 0, now_iso(),
+                   gmdate('Y-m-d\TH:i:s\Z', time() + 900)]);
+    $inner = '<h2 style="margin-top:0;color:#111827">Votre code de vérification</h2>'
+      . '<p>Bonjour,</p>'
+      . '<p>Voici le code qui confirme votre adresse sur Chap.ci :</p>'
+      . '<p style="font-size:34px;font-weight:800;letter-spacing:10px;color:#1a1f2b;'
+      . 'background:#FFF6EC;border-radius:14px;padding:18px;text-align:center;margin:18px 0">'
+      . $code . '</p>'
+      . '<p>Il est valable <b>15 minutes</b>. Si vous n\'avez rien demandé, ignorez ce message : '
+      . 'votre compte reste inchangé et personne ne peut publier en votre nom.</p>';
+    $ok = send_mail($config, $email, 'Votre code Chap.ci : ' . $code,
+                    email_layout($config, $inner, 'Code de vérification'));
+    log_security_event($pdo, 'verify_email_send', $email);
+    // On ne dit PAS si l'envoi a échoué côté serveur de messagerie : l'écran
+    // affiche la même chose dans les deux cas, et le journal garde la trace.
+    jout(['ok' => true, 'sent' => $ok]);
+  }
+
+  if ($path === 'verify/email/confirm' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    if (email_verifie($pdo, (string) $u['id'])) jout(['ok' => true, 'already' => true]);
+    $email = strtolower(trim((string) $u['email']));
+    rate_limit($pdo, 'verify_email_try', $email, 20, 3600);
+    $saisi = preg_replace('/\D/', '', (string) (body()['code'] ?? ''));
+    $st = $pdo->prepare('SELECT id, code_hash, attempts, expires_at FROM email_codes WHERE email = ? ORDER BY created_at DESC');
+    $st->execute([$email]);
+    $row = $st->fetch();
+    if (!$row) jerr('Aucun code en cours. Demandez-en un nouveau.');
+    if (strtotime((string) $row['expires_at']) < time()) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]);
+      jerr('Ce code a expiré. Demandez-en un nouveau.');
+    }
+    if ((int) $row['attempts'] >= 5) {
+      $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]);
+      log_security_event($pdo, 'verify_email_fail', $email, 'trop_d_essais');
+      jerr('Trop d’essais. Demandez un nouveau code.');
+    }
+    if ($saisi === '' || !password_verify($saisi, (string) $row['code_hash'])) {
+      $pdo->prepare('UPDATE email_codes SET attempts = attempts + 1 WHERE id = ?')->execute([$row['id']]);
+      log_security_event($pdo, 'verify_email_fail', $email, 'code_errone');
+      jerr('Code incorrect.');
+    }
+    $pdo->prepare('DELETE FROM email_codes WHERE email = ?')->execute([$email]);
+    $pdo->prepare('UPDATE users SET email_verified_at = ? WHERE id = ?')->execute([now_iso(), $u['id']]);
+    log_security_event($pdo, 'verify_email_ok', $email);
+    jout(['ok' => true, 'emailVerified' => true, 'badge' => badge_of($config, $pdo, $u)]);
+  }
+
+  // État de vérification et badge — tout est calculé, rien n'est à demander.
+  if ($path === 'verify/status' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT created_at, email_verified_at FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $r = $st->fetch() ?: [];
+    $mois = (time() - (int) strtotime((string) ($r['created_at'] ?? now_iso()))) / (30.44 * 86400);
+    jout([
+      'emailVerified' => !empty($r['email_verified_at']),
+      'badge'         => badge_of($config, $pdo, $u),
+      'mois'          => (int) floor(max(0, $mois)),
+      // Nombre de mois restants avant le badge vert — de quoi l'annoncer sans
+      // le promettre au jour près.
+      'moisRestants'  => max(0, (int) ceil(6 - $mois)),
+      'membreDepuis'  => iso_to_ms($r['created_at'] ?? null),
+    ]);
+  }
+
+  // MON profil, en entier. `profile/{id}` est la fiche PUBLIQUE : elle ne rend
+  // ni le téléphone, ni l'adresse, ni la commune — et c'est très bien ainsi.
+  // Les écrans de réglages, eux, doivent pouvoir relire ce qu'ils écrivent.
+  if ($path === 'profile' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT full_name, first_name, last_name, gender, birth_date, phone, bio,
+                                avatar_url, region_id, city_id, commune, address, lat, lng
+                         FROM profiles WHERE id = ?');
+    $st->execute([$u['id']]);
+    $p = $st->fetch() ?: [];
+    jout([
+      'fullName' => (string) ($p['full_name'] ?? ''),
+      'firstName' => (string) ($p['first_name'] ?? ''),
+      'lastName' => (string) ($p['last_name'] ?? ''),
+      'gender' => (string) ($p['gender'] ?? ''),
+      'birthDate' => (string) ($p['birth_date'] ?? ''),
+      'phone' => (string) ($p['phone'] ?? ''),
+      'bio' => (string) ($p['bio'] ?? ''),
+      'avatarUrl' => (string) ($p['avatar_url'] ?? ''),
+      'regionId' => (string) ($p['region_id'] ?? ''),
+      'cityId' => (string) ($p['city_id'] ?? ''),
+      'commune' => (string) ($p['commune'] ?? ''),
+      'address' => (string) ($p['address'] ?? ''),
+      'lat' => $p['lat'] === null ? null : (float) $p['lat'],
+      'lng' => $p['lng'] === null ? null : (float) $p['lng'],
+      'email' => (string) ($u['email'] ?? ''),
+    ]);
+  }
+
+  // MONTRER MA POSITION SUR MES ANNONCES — l'interrupteur de l'écran
+  // « Adresse & localisation ». Il agit sur les annonces DÉJÀ publiées, sinon
+  // la phrase « sur mes annonces » serait un mensonge.
+  //
+  // Éteindre efface les coordonnées des annonces ; rallumer y remet la position
+  // du profil, qui n'a jamais bougé. C'est ce qui rend le geste réversible.
+  if ($path === 'position/annonces' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    $montrer = !empty(body()['montrer']);
+    if (!$montrer) {
+      $st = $pdo->prepare('UPDATE listings SET lat = NULL, lng = NULL WHERE user_id = ?');
+      $st->execute([$u['id']]);
+      jout(['ok' => true, 'annonces' => $st->rowCount()]);
+    }
+    $q = $pdo->prepare('SELECT lat, lng FROM profiles WHERE id = ?'); $q->execute([$u['id']]);
+    $p = $q->fetch() ?: [];
+    if ($p['lat'] === null || $p['lng'] === null) {
+      jout(['ok' => true, 'annonces' => 0, 'sansPosition' => true]);
+    }
+    $st = $pdo->prepare('UPDATE listings SET lat = ?, lng = ? WHERE user_id = ? AND lat IS NULL');
+    $st->execute([$p['lat'], $p['lng'], $u['id']]);
+    jout(['ok' => true, 'annonces' => $st->rowCount()]);
+  }
+
+  if ($path === 'profile' && $method === 'PUT') {
+    $u = require_user($pdo, $secret); $b = body();
+    $fields = ['full_name','first_name','last_name','gender','birth_date','phone','bio',
+               'avatar_url','region_id','city_id','commune','address','lat','lng'];
+    $set = []; $vals = [];
+    foreach ($fields as $f) {
+      if (array_key_exists($f, $b)) {
+        $v = $b[$f];
+        if ($f === 'avatar_url' && is_string($v) && str_starts_with($v, 'data:image')) {
+          $v = save_data_uri($config, $v) ?? $v;
+        }
+        $set[] = "$f = ?"; $vals[] = $v;
+      }
+    }
+    // upsert : crée la ligne profil si absente
+    $ex = $pdo->prepare('SELECT id FROM profiles WHERE id = ?'); $ex->execute([$u['id']]);
+    if (!$ex->fetch()) $pdo->prepare('INSERT INTO profiles (id,created_at) VALUES (?,?)')->execute([$u['id'], now_iso()]);
+    if ($set) { $vals[] = $u['id']; $pdo->prepare('UPDATE profiles SET ' . implode(',', $set) . ' WHERE id = ?')->execute($vals); }
+    jout(['ok' => true]);
+  }
+
+  // ---------- SUIVI DES VISITES (analytics) ----------
+  // Public : le front enregistre une vue de page (visiteur anonyme).
+  if ($path === 'track' && $method === 'POST') {
+    $b = body();
+    $vid = substr(trim((string) ($b['vid'] ?? '')), 0, 40) ?: 'anon';
+    // Anti-flood léger : au-delà de 300 visites/heure pour un même visiteur, on
+    // ignore silencieusement (le suivi n'est pas critique — on protège le disque).
+    try {
+      $since = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
+      $cc = $pdo->prepare('SELECT COUNT(*) FROM visits WHERE visitor_id = ? AND created_at >= ?');
+      $cc->execute([$vid, $since]);
+      if ((int) $cc->fetchColumn() >= 300) jout(['ok' => true]);
+    } catch (Throwable $e) { /* en cas d'erreur DB, ne pas bloquer */ }
+    $p   = substr(trim((string) ($b['path'] ?? '')), 0, 200) ?: '/';
+    $ref = substr(trim((string) ($b['ref'] ?? '')), 0, 200);
+    // Connecté ou non ? On tranche d'abord CÔTÉ SERVEUR, à partir de la session :
+    // sur le web, sendBeacon envoie le cookie HttpOnly (même origine). Repli sur le
+    // drapeau du client pour l'app native, où la requête part d'une autre origine
+    // et n'emporte pas le cookie. Ce drapeau n'ouvre aucun droit : au pire, une
+    // statistique de fréquentation est légèrement faussée.
+    $u = current_user($pdo, $secret);
+    $authed = $u ? 1 : (!empty($b['auth']) ? 1 : 0);
+    // DES CHIFFRES VRAIS : on ne compte PAS les passages de l'équipe, ni les
+    // pages du tableau de bord.
+    //
+    //   · L'équipe (propriétaire, modérateurs) n'est pas le public. Le Patron
+    //     qui rafraîchit son admin cinquante fois par jour n'est pas cinquante
+    //     visiteurs — et sans cette garde, il l'était. C'est ce qui donnait
+    //     4 154 pages pour 158 personnes : 26 par tête, un chiffre impossible
+    //     pour du vrai trafic.
+    //   · Les écrans /admin ne sont pas des pages du site : personne ne « visite »
+    //     un tableau de bord. On ne les enregistre pas.
+    //
+    // On répond « ok » sans rien écrire : le front n'a pas à savoir qu'on a
+    // ignoré la mesure.
+    if ($u && is_admin($config, $pdo, $u)) jout(['ok' => true]);
+    if (str_starts_with($p, '/admin')) jout(['ok' => true]);
+
+    // ── MARCHE DE LA PUBLICATION ────────────────────────────────────────────
+    // Même porte, même gardes (équipe exclue ci-dessus, `authed` tranché côté
+    // serveur), mais une AUTRE TABLE : ces événements ne sont pas des pages vues
+    // et ne doivent jamais entrer dans « Pages vues ». On sort ici, avant
+    // l'INSERT dans `visits`.
+    $etape = substr(trim((string) ($b['etape'] ?? '')), 0, 24);
+    if ($etape !== '') {
+      // Liste blanche : un client ne choisit pas les noms d'étapes, sinon la
+      // table se remplit de valeurs inventées et l'entonnoir devient illisible.
+      $connues = ['arrivee', 'mur_connexion', 'mur_email', 'formulaire', 'echec', 'publiee'];
+      if (!in_array($etape, $connues, true)) jout(['ok' => true]);
+      // `detail` n'accompagne QUE « echec », et ne porte jamais une valeur
+      // saisie : uniquement le nom du champ qui a bloqué.
+      $detail = $etape === 'echec'
+        ? substr(preg_replace('/[^a-zA-Z0-9_:-]/', '', (string) ($b['detail'] ?? '')), 0, 60)
+        : '';
+      try {
+        $pdo->prepare('INSERT INTO publier_etapes (id,visitor_id,etape,detail,authed,created_at) VALUES (?,?,?,?,?,?)')
+            ->execute([uuid(), $vid, $etape, $detail ?: null, $authed, now_iso()]);
+      } catch (Throwable $e) { /* la mesure ne casse jamais la publication */ }
+      jout(['ok' => true]);
+    }
+    // D'où vient ce visiteur ? Lu dans les en-têtes Cloudflare, aucun appel
+    // réseau. Colonnes ajoutées par migration : sur une base pas encore migrée,
+    // l'INSERT complet échouerait, alors on retombe sur l'INSERT d'origine.
+    $geo = geo_from_request();
+    try {
+      $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,authed,country,city,created_at) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([uuid(), $vid, $p, $ref ?: null, $authed, $geo['country'], $geo['city'], now_iso()]);
+    } catch (Throwable $e) {
+      $pdo->prepare('INSERT INTO visits (id,visitor_id,path,referrer,authed,created_at) VALUES (?,?,?,?,?,?)')
+          ->execute([uuid(), $vid, $p, $ref ?: null, $authed, now_iso()]);
+    }
+    jout(['ok' => true]);
+  }
+
+  // ---------- NEWSLETTER ----------
+  // Inscription publique : n'importe quel visiteur peut s'abonner.
+  if ($path === 'newsletter' && $method === 'POST') {
+    $b = body();
+    $email = strtolower(trim($b['email'] ?? ''));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+    // Anti-spam (P22) : max 5 inscriptions par IP/email et par heure — empêche
+    // d'inscrire en masse des adresses de tiers et de déclencher des emails.
+    rate_limit($pdo, 'newsletter', $email, 5, 3600);
+    $ex = $pdo->prepare('SELECT id FROM newsletter WHERE email = ?'); $ex->execute([$email]);
+    if (!$ex->fetch()) {
+      $pdo->prepare('INSERT INTO newsletter (id,email,created_at) VALUES (?,?,?)')
+          ->execute([uuid(), $email, now_iso()]);
+      log_security_event($pdo, 'newsletter', $email); // compteur anti-spam
+      send_newsletter_email($config, $email); // confirmation (best-effort)
+    }
+    jout(['ok' => true]); // idempotent : déjà inscrit = succès aussi
+  }
+
+  // Formulaire de contact : enregistre le message ET l'envoie à contact@chap.ci.
+  // ---- Écran publicitaire (pubs payantes, ouvertes aux non-inscrits) --------
+
+  // Tarif applicable au visiteur : plein tarif par défaut ; MOITIÉ PRIX pour un
+  // membre « actif » (compte d'au moins 30 jours ET au moins une annonce active).
+  if ($path === 'ads/tarif' && $method === 'GET') {
+    jout(ad_tariff($pdo, current_user($pdo, $secret)));
+  }
+
+  // Dépôt d'une demande de pub — SANS compte requis. Le prix est recalculé côté
+  // serveur (le client ne fixe jamais le montant). Statut « pending » jusqu'à
+  // validation par l'admin (après réception du paiement Mobile Money).
+  if ($path === 'ads' && $method === 'POST') {
+    $b = body();
+    // Pot de miel anti-robot.
+    if (trim((string) ($b['website'] ?? '')) !== '') jout(['ok' => true]);
+    $u = current_user($pdo, $secret);
+    // Anti-spam : 5 demandes max par IP (ou compte) et par heure.
+    rate_limit($pdo, 'ad_submit', $u['email'] ?? null, 5, 3600);
+    // Titre FACULTATIF : on peut publier une pub « image seule » (sans message).
+    $title = mb_substr(trim((string) ($b['title'] ?? '')), 0, 80);
+    $desc  = mb_substr(trim((string) ($b['description'] ?? '')), 0, 600);
+    $link  = trim((string) ($b['link'] ?? ''));
+    // Lien facultatif : http(s) uniquement (pas de javascript: ni autre schéma).
+    if ($link !== '' && (!preg_match('#^https?://#i', $link) || strlen($link) > 300)) {
+      jerr('Le lien doit commencer par https:// (300 caractères maximum).');
+    }
+    // 1 à 3 visuels (data URI compressés côté client, sauvés en fichiers).
+    $images = [];
+    foreach (array_slice((array) ($b['images'] ?? []), 0, 3) as $img) {
+      $url = save_data_uri($config, (string) $img, false);
+      if ($url) $images[] = $url;
+    }
+    if (!$images) jerr('Ajoutez au moins un visuel pour votre bannière.');
+    $formule = in_array($b['formule'] ?? '', ['day', 'week', 'month'], true) ? $b['formule'] : 'week';
+    $qty = max(1, min(31, (int) ($b['qty'] ?? 1)));
+    $method_ = in_array($b['payMethod'] ?? '', ['orange', 'wave'], true) ? $b['payMethod'] : 'orange';
+    $payNum = preg_replace('/[^0-9+ ]/', '', (string) ($b['payNumber'] ?? ''));
+    if (strlen(preg_replace('/\D/', '', $payNum)) < 8) jerr('Indiquez le numéro Mobile Money qui a effectué le paiement.');
+    // Contact de l'annonceur : e-mail OBLIGATOIRE (sert aux notifications de statut).
+    $email = strtolower(trim((string) ($b['email'] ?? ($u['email'] ?? ''))));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Indiquez un e-mail valide pour recevoir le statut de votre publicité.');
+    $phone = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['phone'] ?? '')), 0, 20);
+    // Options d'animation du texte (mêmes réglages que le compositeur admin).
+    $style = in_array($b['style'] ?? '', ['classique', 'neon', 'script', 'impact', 'ivoire'], true) ? $b['style'] : 'classique';
+    $anims = [];
+    foreach ((array) ($b['anims'] ?? []) as $a) { $a = (string) $a; if (preg_match('/^[a-z0-9-]{2,24}$/', $a)) $anims[] = $a; }
+    $anims = array_slice(array_values(array_unique($anims)), 0, 20);
+    if (!$anims) $anims = ['fondu'];
+    $anim  = $anims[0];
+    $gap   = (string) max(5, min(60, (int) ($b['gap'] ?? 8)));
+    $loop  = array_key_exists('loop', $b) ? (!empty($b['loop']) ? '1' : '0') : '1';
+    $tcol  = is_string($b['textColor'] ?? null) && preg_match('/^#[0-9a-fA-F]{3,8}$/', $b['textColor']) ? strtoupper($b['textColor']) : '';
+    $tariff = ad_tariff($pdo, $u);
+    $price  = $tariff['prices'][$formule] * $qty;
+    $id = uuid();
+    // Prolongation d'une bannière EN COURS uniquement : on vérifie que la pub
+    // visée existe, qu'elle est active et qu'elle n'est pas déjà finie. Sans
+    // cette vérification, n'importe qui pourrait rallonger la campagne d'un
+    // autre en devinant un identifiant.
+    $prolonge = null;
+    $cible = trim((string) ($b['extends'] ?? ''));
+    if ($cible !== '') {
+      $q = $pdo->prepare("SELECT id, email, user_id FROM ads WHERE id = ? AND status = 'active' AND expires_at > ?");
+      $q->execute([$cible, now_iso()]);
+      $src = $q->fetch();
+      if (!$src) jerr('Cette publicité n’est plus en cours : elle ne peut pas être prolongée.');
+      $memeCompte = !empty($u['id']) && (string) $src['user_id'] === (string) $u['id'];
+      $memeEmail  = strtolower((string) $src['email']) === $email;
+      if (!$memeCompte && !$memeEmail) jerr('Cette publicité ne vous appartient pas.', 403);
+      $prolonge = (string) $src['id'];
+    }
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,email,phone,style,anim,anim_loop,anims,anim_gap,text_color,extends_ad_id)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), $formule, $qty,
+                   $price, $method_, mb_substr($payNum, 0, 20), 'pending', null, null, client_ip(), now_iso(), $email, $phone,
+                   $style, $anim, $loop, json_encode($anims), $gap, $tcol, $prolonge]);
+    log_security_event($pdo, 'ad_submit', $u['email'] ?? null); // compteur anti-spam
+    // Notification « reçue, en attente de validation » à l'annonceur.
+    send_ad_status_email($config, ['id' => $id, 'email' => $email, 'title' => $title, 'price' => $price], 'pending', $pdo);
+    jout(['ok' => true, 'id' => $id, 'price' => $price, 'member' => $tariff['member']]);
+  }
+
+  // Mes publicités (titulaire de compte) : historique, coût, performance.
+  // Un annonceur sans compte suit la sienne par le lien reçu par e-mail ;
+  // celui qui a un compte retrouve TOUTES les siennes, y compris les anciennes.
+  if ($path === 'ads/mine' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    // On retrouve aussi les publicités payées SANS être connecté : le formulaire
+    // est ouvert à tous, et l'annonceur y saisit son e-mail. Sans ce second
+    // critère, quelqu'un qui a un compte mais a commandé en visiteur ne verrait
+    // rien ici — et conclurait, à juste titre, que Chap.ci a perdu sa campagne.
+    $st = $pdo->prepare('SELECT id,title,description,images,formule,qty,price,status,starts_at,expires_at,created_at,reject_reason
+                         FROM ads WHERE user_id = ? OR LOWER(email) = ? ORDER BY created_at DESC LIMIT 100');
+    $st->execute([$u['id'], strtolower((string) ($u['email'] ?? ''))]);
+    $out = [];
+    $totalDepense = 0; $totalVues = 0; $totalClics = 0;
+    foreach ($st->fetchAll() as $a) {
+      $aud = ad_audience($pdo, (string) $a['id']);
+      // Le coût ne compte que si la publicité a réellement été diffusée : une
+      // demande refusée, ou en attente de paiement, n'est pas une dépense.
+      // 'merged' EN FAIT PARTIE : c'est une prolongation payée, fondue dans la
+      // bannière d'origine. L'oublier faisait afficher 2 000 F à quelqu'un qui
+      // en avait versé 6 000 — il l'aurait vu avant nous.
+      if (in_array($a['status'], ['active', 'expired', 'merged'], true)) $totalDepense += (int) $a['price'];
+      $totalVues += $aud['views']; $totalClics += $aud['clicks'];
+      $out[] = [
+        'id' => $a['id'], 'title' => $a['title'], 'description' => $a['description'],
+        'images' => json_decode((string) $a['images'], true) ?: [],
+        'formule' => $a['formule'], 'qty' => (int) $a['qty'], 'price' => (int) $a['price'],
+        'status' => $a['status'], 'rejectReason' => $a['reject_reason'] ?? '',
+        'createdAt' => iso_to_ms($a['created_at'] ?? null),
+        'startsAt' => iso_to_ms($a['starts_at'] ?? null),
+        'expiresAt' => iso_to_ms($a['expires_at'] ?? null),
+        'views' => $aud['views'], 'clicks' => $aud['clicks'], 'ctr' => $aud['ctr'],
+        // CE QUE LA CAMPAGNE A RAPPORTÉ — les contacts reçus et les ventes
+        // conclues PENDANT sa diffusion. Ce n'est pas une attribution : rien
+        // ne prouve que cet acheteur-là venait de la bannière. C'est une
+        // coïncidence de dates, et c'est ainsi que l'écran le dit. Un chiffre
+        // faussement précis serait pire que pas de chiffre du tout.
+        'pendant' => ad_retombees($pdo, (string) $u['id'], $a),
+      ];
+    }
+    // Courbe consolidée : toutes ses publicités confondues, 30 derniers jours.
+    $courbe = [];
+    try {
+      $c = $pdo->prepare('SELECT s.day, SUM(s.views) v, SUM(s.clicks) c
+                          FROM ad_stats s JOIN ads a ON a.id = s.ad_id
+                          WHERE a.user_id = ? OR LOWER(a.email) = ? GROUP BY s.day ORDER BY s.day DESC LIMIT 30');
+      $c->execute([$u['id'], strtolower((string) ($u['email'] ?? ''))]);
+      $courbe = array_reverse($c->fetchAll(PDO::FETCH_ASSOC));
+    } catch (Throwable $e) { $courbe = []; }
+    jout([
+      'ads' => $out,
+      'total' => [
+        'depense' => $totalDepense, 'vues' => $totalVues, 'clics' => $totalClics,
+        'ctr' => $totalVues > 0 ? round($totalClics / $totalVues * 100, 1) : 0,
+        'cpv' => $totalVues > 0 ? round($totalDepense / $totalVues, 1) : 0, // coût pour 1 affichage
+      ],
+      'courbe' => $courbe,
+    ]);
+  }
+
+  // ---- MESURE D'AUDIENCE DES PUBLICITES --------------------------------------
+  // Deux routes publiques : un affichage compte une VUE, un appui sur le bouton
+  // compte un CLIC. Sans elles, impossible de rendre le moindre compte à un
+  // annonceur — et c'est bien ce qu'on lui vend.
+  //
+  // Trois garde-fous, parce qu'une route publique qui écrit en base est une
+  // invitation :
+  //  1. l'identifiant doit correspondre à une publicité ACTIVE — sinon on
+  //     laisserait n'importe qui créer des lignes à volonté ;
+  //  2. les compteurs sont agrégés par jour, pas un événement par vue : la
+  //     table reste minuscule quel que soit le trafic ;
+  //  3. une limite par IP empêche de gonfler artificiellement les chiffres
+  //     d'un annonceur — les siens comme ceux d'un concurrent.
+  if (count($seg) === 3 && $seg[0] === 'ads' && in_array($seg[2], ['view', 'click'], true) && $method === 'POST') {
+    $adId = $seg[1];
+    $chk = $pdo->prepare("SELECT 1 FROM ads WHERE id = ? AND status = 'active'");
+    $chk->execute([$adId]);
+    if (!$chk->fetch()) jout(['ok' => true]);        // pub inconnue ou inactive : on ignore, sans rien dire
+    rate_limit($pdo, 'ad_' . $seg[2], null, $seg[2] === 'view' ? 400 : 60, 3600);
+    $col = $seg[2] === 'view' ? 'views' : 'clicks';
+    $day = gmdate('Y-m-d');
+    try {
+      $up = $pdo->prepare("UPDATE ad_stats SET $col = $col + 1 WHERE ad_id = ? AND day = ?");
+      $up->execute([$adId, $day]);
+      if ($up->rowCount() === 0) {
+        $pdo->prepare('INSERT INTO ad_stats (ad_id,day,views,clicks) VALUES (?,?,?,?)')
+            ->execute([$adId, $day, $col === 'views' ? 1 : 0, $col === 'clicks' ? 1 : 0]);
+      }
+    } catch (Throwable $e) { /* une statistique perdue ne casse jamais une page */ }
+    jout(['ok' => true]);
+  }
+
+  // Chiffres d'une publicité : ce que SON annonceur voit sur /pub/:id.
+  //
+  // Réservé au propriétaire (ou à un administrateur). Ces chiffres ne sont pas
+  // publics : les laisser ouverts revenait à publier l'audience de chaque
+  // annonceur — lisible par son concurrent — et à afficher le trafic réel du
+  // site sur une page indexable. L'annonceur SANS compte, lui, reçoit les
+  // mêmes chiffres par e-mail tous les 3 jours : il n'a rien à consulter ici.
+  if (count($seg) === 3 && $seg[0] === 'ads' && $seg[2] === 'stats' && $method === 'GET') {
+    $st = $pdo->prepare('SELECT id,title,status,starts_at,expires_at,formule,qty,user_id,email FROM ads WHERE id = ?');
+    $st->execute([$seg[1]]);
+    $ad = $st->fetch();
+    if (!$ad) jerr('Publicité introuvable.', 404);
+    $u = current_user($pdo, $secret);
+    $sien = $u && (
+      ((string) ($ad['user_id'] ?? '') !== '' && (string) $ad['user_id'] === (string) $u['id'])
+      || strtolower((string) ($ad['email'] ?? '')) === strtolower((string) ($u['email'] ?? ''))
+      || is_admin($config, $pdo, $u)
+    );
+    if (!$sien) jerr('Ces statistiques ne sont visibles que par l’annonceur.', 403);
+    $a = ad_audience($pdo, (string) $ad['id']);
+    // Courbe des 14 derniers jours, pour que l'annonceur voie l'évolution.
+    $par = $pdo->prepare('SELECT day, views, clicks FROM ad_stats WHERE ad_id = ? ORDER BY day DESC LIMIT 14');
+    $par->execute([$seg[1]]);
+    jout([
+      'id'        => $ad['id'],
+      'title'     => $ad['title'],
+      'status'    => $ad['status'],
+      'startsAt'  => iso_to_ms($ad['starts_at'] ?? null),
+      'expiresAt' => iso_to_ms($ad['expires_at'] ?? null),
+      'views'     => $a['views'],
+      'clicks'    => $a['clicks'],
+      'ctr'       => $a['ctr'],
+      'parJour'   => array_reverse($par->fetchAll(PDO::FETCH_ASSOC)),
+    ]);
+  }
+
+  // Pubs actives (écran publicitaire de l'accueil). Le mélange se fait côté client.
+  if ($path === 'ads/active' && $method === 'GET') {
+    $st = $pdo->prepare("SELECT id,title,description,link,images,kind,style,anim,anim_loop,anims,anim_gap,text_color FROM ads
+      WHERE status = 'active' AND expires_at > ? ORDER BY created_at DESC LIMIT 50");
+    $st->execute([now_iso()]);
+
+    // LE 7 AOÛT, LE BANDEAU DU SITE CHANGE TOUTES LES DEUX HEURES.
+    //
+    // La diffusion SEO est écrite une fois par jour et rangée en base : sans
+    // ceci, le même texte tournerait pendant vingt-six heures. On le remplace
+    // donc À LA LECTURE — le visiteur reçoit le message du créneau en cours,
+    // sans qu'aucune tâche planifiée n'ait à s'exécuter et sans rien réécrire
+    // en base. Si le cron saute ce jour-là, le bandeau tourne quand même.
+    //
+    // Seules les diffusions maison (kind = 'seo') sont touchées. Les publicités
+    // payantes ne sont JAMAIS réécrites : un annonceur a payé pour son texte.
+    $fete = gmdate('m-d') === '08-07';
+    $motDuMoment = $fete ? seo_independence_now(rtrim($config['site_url'] ?? 'https://chap.ci', '/')) : null;
+
+    jout(array_map(function (array $r) use ($motDuMoment) {
+      if ($motDuMoment !== null && ($r['kind'] ?? '') === 'seo') {
+        $r['title'] = $motDuMoment['title'];
+        $r['description'] = $motDuMoment['description'];
+        $r['link'] = $motDuMoment['link'];
+        $r['style'] = $motDuMoment['style'];
+        $r['anim'] = $motDuMoment['anim'];
+        $r['anims'] = null; // une seule animation ce jour-là : la pulsation
+      }
+      return [
+      'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
+      'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
+      'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+      'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
+      'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
+      'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
+      'textColor' => ($r['text_color'] ?? '') !== '' ? $r['text_color'] : null,
+      ];
+    }, $st->fetchAll()));
+  }
+
+  // ------------------------------------------------------------------------
+  //  QUI A PAYÉ CETTE PUBLICITÉ — ce que le visiteur a le droit de savoir.
+  //
+  //  Une bannière sans visage ne vend qu'une fois. Le commerçant qui achète de
+  //  la publicité chez nous a presque toujours des annonces sur le site : lui
+  //  ouvrir son profil, c'est transformer un clic en boutique.
+  //
+  //  On ne renvoie que ce qui est DÉJÀ public sur /vendeur/{id} : le nom
+  //  d'affichage, la photo de profil, le nombre d'annonces visibles et la date
+  //  d'inscription. Jamais le téléphone, jamais l'e-mail — ils ne sortent que
+  //  quand un vendeur répond, et une publicité n'est pas une réponse.
+  //
+  //  Rend `null` dans trois cas, et c'est voulu : la pub a été achetée sans
+  //  compte, le compte a disparu, ou il est bloqué. Un compte bloqué ne
+  //  regagne pas une vitrine parce qu'il avait payé d'avance.
+  // ------------------------------------------------------------------------
+  $annonceurPublic = function (?string $userId) use ($pdo): ?array {
+    $userId = trim((string) $userId);
+    if ($userId === '') return null;
+    $st = $pdo->prepare('SELECT u.id, u.created_at, u.status, p.full_name, p.avatar_url, p.commune
+                         FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?');
+    $st->execute([$userId]);
+    $r = $st->fetch();
+    if (!$r) return null;
+    if (($r['status'] ?? 'active') === 'blocked') return null;
+    $c = $pdo->prepare('SELECT COUNT(*) FROM listings WHERE user_id = ? AND (hidden IS NULL OR hidden = 0)');
+    $c->execute([$userId]);
+    return [
+      'id' => $r['id'],
+      'nom' => trim((string) ($r['full_name'] ?? '')) ?: 'Vendeur sur Chap.ci',
+      'avatarUrl' => $r['avatar_url'] ?: null,
+      'commune' => $r['commune'] ?: null,
+      'annonces' => (int) $c->fetchColumn(),
+      'inscritLe' => iso_to_ms($r['created_at']),
+    ];
+  };
+
+  // Page de détail d'une pub (clic sans lien externe) : uniquement les actives.
+  if (count($seg) === 2 && $seg[0] === 'ads' && $method === 'GET' && !in_array($seg[1], ['tarif', 'active'], true)) {
+    $st = $pdo->prepare("SELECT * FROM ads WHERE id = ? AND status = 'active' AND expires_at > ?");
+    $st->execute([$seg[1], now_iso()]);
+    $r = $st->fetch();
+    if (!$r) jerr('Publicité introuvable ou expirée.', 404);
+    // Les réglages du texte (style, animations, couleur) sont renvoyés ici comme
+    // ils le sont déjà sur /ads/active : ils servent à la PROLONGATION, qui
+    // repart de la bannière existante au lieu de la faire refaire.
+    jout([
+      'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
+      'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
+      'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+      'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
+      'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
+      'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
+      'textColor' => ($r['text_color'] ?? '') !== '' ? $r['text_color'] : null,
+      'expiresAt' => iso_to_ms($r['expires_at']),
+      // Le compte derrière la bannière — `null` si la pub a été achetée sans
+      // compte, ou si ce compte est bloqué. Les diffusions maison (kind 'seo')
+      // n'ont pas d'annonceur : c'est le site qui se parle à lui-même.
+      'annonceur' => ($r['kind'] ?? 'paid') === 'seo' ? null : $annonceurPublic($r['user_id'] ?? null),
+    ]);
+  }
+
+  if ($path === 'contact' && $method === 'POST') {
+    $b = body();
+    $name    = trim((string) ($b['name'] ?? ''));
+    $email   = strtolower(trim((string) ($b['email'] ?? '')));
+    $subject = trim((string) ($b['subject'] ?? '')) ?: 'Message';
+    $message = trim((string) ($b['message'] ?? ''));
+    // Pot de miel anti-robot : ce champ caché doit rester vide. Rempli = bot :
+    // on répond « ok » sans rien faire (ni stockage, ni email).
+    if (trim((string) ($b['company'] ?? '')) !== '') jout(['ok' => true]);
+    if ($message === '') jerr('Votre message est vide.');
+    // Validation stricte : FILTER_VALIDATE_EMAIL accepte '?', '&', '=' et '%' dans
+    // la partie locale — on les refuse pour bloquer l'injection de paramètres
+    // mailto (cc/bcc/body) dans le bouton « Répondre » de l'admin (CWE-88).
+    if ($email !== '' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || preg_match('/[?&=%\s"()<>,;:\\\\]/', $email))) jerr('Adresse email invalide.');
+    // Anti-spam : max 5 messages par IP/email et par heure (empêche l'abus du
+    // formulaire pour envoyer des emails en masse).
+    rate_limit($pdo, 'contact', $email ?: null, 5, 3600);
+    // Bornage des longueurs.
+    $name = mb_substr($name, 0, 120);
+    $subject = mb_substr($subject, 0, 160);
+    $message = mb_substr($message, 0, 5000);
+    // 1) Copie en base : rien n'est perdu, même si l'email échoue.
+    try {
+      $pdo->prepare('INSERT INTO contact_messages (id,name,email,subject,message,ip,handled,created_at) VALUES (?,?,?,?,?,?,?,?)')
+          ->execute([uuid(), $name, $email, $subject, $message, client_ip(), 0, now_iso()]);
+    } catch (Throwable $e) { /* ne bloque pas l'envoi email */ }
+    log_security_event($pdo, 'contact', $email ?: null); // compteur anti-spam
+    // 2) Notification email vers contact@chap.ci (+ admins), réponse dirigée vers
+    //    l'expéditeur. Best-effort : l'échec d'envoi ne perd pas le message (stocké).
+    $to = array_values(array_unique(array_filter(array_merge(
+      report_recipients($config),
+      [$config['mail_reply_to'] ?? 'contact@chap.ci'],
+    ))));
+    $safe = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    $html = '<p><b>Nouveau message de contact — Chap.ci</b></p>'
+          . '<p><b>Nom :</b> ' . $safe($name ?: '—') . '<br>'
+          . '<b>Email :</b> ' . $safe($email ?: '—') . '<br>'
+          . '<b>Sujet :</b> ' . $safe($subject) . '</p>'
+          . '<hr><p style="white-space:pre-wrap">' . nl2br($safe($message)) . '</p>';
+    $delivered = false;
+    foreach ($to as $addr) {
+      if (send_mail($config, $addr, '[Contact] ' . $subject, $html, null, $email ?: null)) $delivered = true;
+    }
+    jout(['ok' => true, 'delivered' => $delivered]);
+  }
+
+  // L'utilisateur connecté est-il abonné à la newsletter ? (pour le popup)
+  if ($path === 'newsletter/status' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT 1 FROM newsletter WHERE email = ?');
+    $st->execute([strtolower($u['email'] ?? '')]);
+    jout(['subscribed' => (bool) $st->fetch()]);
+  }
+
+  // Liste des abonnés : réservée aux administrateurs (export CSV côté app).
+  if ($path === 'newsletter' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    if (!admin_can($config, $pdo, $u, 'newsletter')) jerr('Accès réservé à l’administrateur.', 403);
+    $rows = $pdo->query('SELECT email, created_at FROM newsletter ORDER BY created_at DESC')->fetchAll();
+    $out = array_map(fn($r) => ['email' => $r['email'], 'createdAt' => iso_to_ms($r['created_at'])], $rows);
+    jout(['count' => count($out), 'subscribers' => $out]);
+  }
+
+  // ---------- ADMINISTRATION ----------
+  // Toutes les routes /api/admin/* exigent un compte administrateur.
+  if (($seg[0] ?? '') === 'admin') {
+    $u = require_user($pdo, $secret);
+    $userIsAdmin = is_admin($config, $pdo, $u);
+    // Vérification légère : indique si l'utilisateur connecté est admin
+    // (sans erreur 403) — sert à afficher/masquer le lien dans l'app.
+    if ($path === 'admin/check') {
+      $email = strtolower((string) ($u['email'] ?? ''));
+      $owner = in_array($email, owner_emails($config), true);
+      jout([
+        'admin'       => $userIsAdmin,
+        'owner'       => $owner,
+        // Propriétaire = tout ('*'). Modérateur = ses fonctionnalités cochées.
+        'permissions' => $owner ? ['*'] : ($userIsAdmin ? admin_permissions_for($pdo, $email) : []),
+      ]);
+    }
+    if (!$userIsAdmin) jerr('Accès réservé à l’administrateur.', 403);
+
+    // ---- 2ᵉ serrure : code d'accès du tableau de bord ----------------------
+    // Être admin ne suffit pas : il faut aussi DÉVERROUILLER avec le code d'accès
+    // (stocké côté serveur, remis par l'admin principal). Les routes ci-dessous
+    // sont exemptées (sinon on ne pourrait jamais déverrouiller).
+    if ($path === 'admin/unlock/status' && $method === 'GET') {
+      jout(['unlocked' => admin_unlocked($config, $pdo, $secret, $u)]);
+    }
+    if ($path === 'admin/unlock' && $method === 'POST') {
+      $b = body();
+      // Anti-force brute sur le code : 8 essais / 15 min par IP+email.
+      rate_limit($pdo, 'admin_unlock_fail', (string) ($u['email'] ?? ''), 8, 900);
+      $code  = strtoupper(trim((string) ($b['code'] ?? '')));
+      $email = strtolower((string) ($u['email'] ?? ''));
+      $ok = false; $persistent = false; $maxAge = 60 * 60 * 12; // propriétaire : 12 h
+      if (in_array($email, owner_emails($config), true)) {
+        // PROPRIÉTAIRE : code à usage unique expirant (reçu par email). Fini le code fixe.
+        $ok = admin_otp_valid($config, $code);
+      } else {
+        // MODÉRATEUR : son code personnel + doit ne pas être bloqué. Accès PERMANENT
+        // (jeton long, 30 j) jusqu'à ce que l'admin le bloque.
+        $st = $pdo->prepare('SELECT access_code_hash, blocked FROM admins WHERE email = ?'); $st->execute([$email]);
+        $row = $st->fetch();
+        if ($row && (int) ($row['blocked'] ?? 0) === 1) {
+          log_security_event($pdo, 'admin_unlock_blocked', $u['email'] ?? null);
+          jerr('Votre accès a été bloqué par l’administrateur.', 403);
+        }
+        $h = (string) ($row['access_code_hash'] ?? '');
+        $ok = $code !== '' && $h !== '' && password_verify($code, $h);
+        $persistent = true; $maxAge = 60 * 60 * 24 * 30; // 30 jours
+      }
+      if (!$ok) {
+        log_security_event($pdo, 'admin_unlock_fail', $u['email'] ?? null);
+        jerr('Code d’accès incorrect ou expiré.', 401);
+      }
+      log_security_event($pdo, 'admin_unlock_ok', $u['email'] ?? null);
+      $tok = jwt_sign(['sub' => $u['id'], 'au' => 1, 'exp' => time() + $maxAge], $secret);
+      set_admin_unlock_cookie($config, $tok, $maxAge);
+      jout(['ok' => true, 'token' => $tok, 'persistent' => $persistent]);
+    }
+    if ($path === 'admin/unlock/email' && $method === 'POST') {
+      // Réservé au PROPRIÉTAIRE (un modérateur reçoit son code de l'admin principal).
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jout(['ok' => false, 'message' => 'Votre code d’accès vous est remis par l’administrateur principal.']);
+      }
+      rate_limit($pdo, 'admin_code_email', (string) ($u['email'] ?? ''), 6, 3600);
+      // Génère un code À USAGE UNIQUE qui EXPIRE (60 s) et l'envoie par email.
+      $code = admin_otp_generate($config);
+      $ttl  = admin_otp_ttl($config);
+      $html = '<p>Bonjour,</p><p>Votre <b>code d’accès au tableau de bord</b> Chap.ci :</p>'
+            . '<p style="font-size:28px;font-weight:bold;letter-spacing:8px;font-family:monospace">' . htmlspecialchars($code) . '</p>'
+            . '<p>⏱️ Ce code <b>expire dans ' . $ttl . ' secondes</b> et ne sert <b>qu’une seule fois</b>. '
+            . 'Saisissez-le tout de suite. S’il a expiré, cliquez à nouveau sur « Recevoir le code ». '
+            . 'Si vous n’êtes pas à l’origine de cette demande, ignorez cet email.</p>';
+      $sent = 0;
+      // Envoi au propriétaire ET à l'adresse de rapport (contact@chap.ci).
+      foreach (security_notify_recipients($config) as $to) { if (send_mail($config, $to, 'Chap.ci — code d’accès (expire dans 1 min)', $html)) $sent++; }
+      log_security_event($pdo, 'admin_code_emailed', $u['email'] ?? null);
+      jout(['ok' => true, 'sent' => $sent]);
+    }
+    // Toute autre route admin exige une session DÉVERROUILLÉE.
+    if (!admin_unlocked($config, $pdo, $secret, $u)) {
+      jout(['error' => 'Tableau de bord verrouillé. Entrez le code d’accès administrateur.', 'locked' => true], 423);
+    }
+
+    // 3ᵉ contrôle : permissions fines. Le propriétaire a tout ; un modérateur n'a
+    // accès qu'aux fonctionnalités que l'admin lui a cochées (le reste = 403).
+    if (!admin_can($config, $pdo, $u, admin_feature_for_path($path))) {
+      jerr('Cette section n’est pas autorisée pour votre compte.', 403);
+    }
+
+    // Sauvegarde immédiate : télécharge un export JSON complet de la base.
+    if ($path === 'admin/backup' && $method === 'GET') {
+      $dump = export_all($pdo);
+      $json = json_encode($dump, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+      $file = 'chapci-' . gmdate('Y-m-d-His') . '.json';
+      header('Content-Type: application/json; charset=utf-8');
+      header('Content-Disposition: attachment; filename="' . $file . '"');
+      header('Content-Length: ' . strlen($json));
+      echo $json; exit;
+    }
+    // Liste des sauvegardes automatiques présentes sur le serveur.
+    if ($path === 'admin/backups' && $method === 'GET') {
+      $dir = __DIR__ . '/backups';
+      $files = is_dir($dir) ? (glob($dir . '/chapci-*.json') ?: []) : [];
+      rsort($files);
+      $out = array_map(fn($f) => [
+        'file' => basename($f), 'bytes' => (int) @filesize($f), 'at' => iso_to_ms(gmdate('Y-m-d\TH:i:s\Z', (int) @filemtime($f))),
+      ], $files);
+      jout(['cronKey' => $config['cron_key'] ?? '', 'site' => rtrim($config['site_url'] ?? 'https://chap.ci', '/'), 'backups' => $out]);
+    }
+
+    // ----- Jetons de service « modération auto » (propriétaire uniquement) -----
+    // Liste des jetons (métadonnées seulement — jamais le secret, qui n'est
+    // montré qu'une fois à la création).
+    if ($path === 'admin/service-tokens' && $method === 'GET') {
+      $rows = $pdo->query('SELECT id,label,scope,prefix,created_at,last_used_at,uses,revoked_at FROM service_tokens ORDER BY created_at DESC')->fetchAll();
+      jout([
+        'site' => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+        'tokens' => array_map(fn($t) => [
+          'id' => $t['id'], 'label' => $t['label'] ?: 'Modération', 'scope' => $t['scope'],
+          'prefix' => $t['prefix'], 'createdAt' => iso_to_ms($t['created_at']),
+          'lastUsedAt' => $t['last_used_at'] ? iso_to_ms($t['last_used_at']) : null,
+          'uses' => (int) ($t['uses'] ?? 0), 'revoked' => !empty($t['revoked_at']),
+        ], $rows),
+      ]);
+    }
+    // Émettre un NOUVEAU jeton (scope 'moderation'). Le secret n'est renvoyé
+    // qu'ICI, une seule fois. Option {rotate:true} → révoque d'abord les jetons
+    // 'moderation' encore actifs (rotation propre).
+    if ($path === 'admin/service-tokens' && $method === 'POST') {
+      $b = body();
+      $label = mb_substr(trim((string) ($b['label'] ?? 'Le Gardien — modération')), 0, 60) ?: 'Le Gardien — modération';
+      $scope = 'moderation'; // seul périmètre exposé pour l'instant
+      if (!empty($b['rotate'])) {
+        $pdo->prepare('UPDATE service_tokens SET revoked_at = ? WHERE scope = ? AND revoked_at IS NULL')->execute([now_iso(), $scope]);
+      }
+      $raw  = 'cmst_' . bin2hex(random_bytes(30)); // 65 caractères, imprédictible
+      $pdo->prepare('INSERT INTO service_tokens (id,label,scope,token_hash,prefix,created_at,last_used_at,uses,revoked_at) VALUES (?,?,?,?,?,?,?,?,?)')
+          ->execute([uuid(), $label, $scope, service_token_hash($raw), mb_substr($raw, 0, 12), now_iso(), null, 0, null]);
+      log_security_event($pdo, 'service_token_created', $u['email'] ?? null, $scope);
+      jout(['token' => $raw, 'scope' => $scope, 'label' => $label]); // secret montré une seule fois
+    }
+    // Révoquer un jeton (irréversible : il faut en émettre un nouveau ensuite).
+    if (count($seg) === 4 && $seg[1] === 'service-tokens' && $seg[3] === 'revoke' && $method === 'POST') {
+      $pdo->prepare('UPDATE service_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL')->execute([now_iso(), $seg[2]]);
+      log_security_event($pdo, 'service_token_revoked', $u['email'] ?? null, $seg[2]);
+      jout(['ok' => true]);
+    }
+    // Journal d'audit des actions de modération automatique (100 dernières).
+    if ($path === 'admin/mod-audit' && $method === 'GET') {
+      $rows = $pdo->query("SELECT m.id, m.action, m.listing_id, m.reason, m.confidence, m.created_at, l.title AS listing_title
+        FROM mod_actions m LEFT JOIN listings l ON l.id = m.listing_id
+        ORDER BY m.created_at DESC LIMIT 100")->fetchAll();
+      jout(['entries' => array_map(fn($r) => [
+        'id' => $r['id'], 'action' => $r['action'], 'listingId' => $r['listing_id'],
+        'listingTitle' => $r['listing_title'] ?? null, 'reason' => $r['reason'],
+        'confidence' => $r['confidence'], 'at' => iso_to_ms($r['created_at']),
+      ], $rows)]);
+    }
+
+    // Télécharge une sauvegarde automatique précise (nom de fichier sécurisé).
+    if ($path === 'admin/backup/download' && $method === 'GET') {
+      $file = basename((string) ($_GET['file'] ?? ''));
+      if (!preg_match('/^chapci-[0-9\-]+\.json$/', $file)) jerr('Nom de fichier invalide.', 400);
+      $full = __DIR__ . '/backups/' . $file;
+      if (!is_file($full)) jerr('Sauvegarde introuvable.', 404);
+      header('Content-Type: application/json; charset=utf-8');
+      header('Content-Disposition: attachment; filename="' . $file . '"');
+      header('Content-Length: ' . (string) filesize($full));
+      readfile($full); exit;
+    }
+
+    // Réinitialisation : efface les données de test pour repartir à zéro.
+    // Une SAUVEGARDE automatique est créée avant toute suppression (filet de
+    // sécurité). Exige une confirmation explicite (« EFFACER »).
+    if ($path === 'admin/reset' && $method === 'POST') {
+      $b = body();
+      if (trim((string) ($b['confirm'] ?? '')) !== 'EFFACER') jerr('Confirmation requise (tapez EFFACER).', 400);
+      $withAccounts = !empty($b['accounts']);
+      // 1) Sauvegarde de sécurité avant purge.
+      $dir = __DIR__ . '/backups';
+      if (!is_dir($dir)) @mkdir($dir, 0700, true);
+      $backupFile = null;
+      if (is_dir($dir) && is_writable($dir)) {
+        if (!is_file($dir . '/.htaccess')) @file_put_contents($dir . '/.htaccess', "Require all denied\nDeny from all\n");
+        $dump = export_all($pdo);
+        $backupFile = 'chapci-avant-reset-' . gmdate('Y-m-d-His') . '.json';
+        @file_put_contents($dir . '/' . $backupFile, json_encode($dump, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+      }
+      // 2) Purge du catalogue + transactions + analytics (toujours).
+      $wipe = ['order_items', 'orders', 'messages', 'conversations', 'reviews', 'reports',
+               'user_interests', 'saved_searches', 'quick_replies', 'visits', 'listings',
+               'team_messages', 'team_threads'];
+      $deleted = [];
+      foreach ($wipe as $t) {
+        try { $before = (int) $pdo->query("SELECT COUNT(*) AS c FROM $t")->fetch()['c']; $pdo->exec("DELETE FROM $t"); $deleted[$t] = $before; }
+        catch (Throwable $e) { $deleted[$t] = 0; }
+      }
+      // 3) Comptes de test : on garde les administrateurs (config + table admins)
+      //    et l'administrateur connecté. Le reste (comptes + profils + newsletter) est effacé.
+      if ($withAccounts) {
+        $keep = owner_emails($config);
+        foreach ($pdo->query('SELECT email FROM admins')->fetchAll() as $a) $keep[] = strtolower($a['email']);
+        $keep[] = strtolower($u['email'] ?? '');
+        $keep = array_values(array_unique(array_filter($keep)));
+        $ph = $keep ? implode(',', array_fill(0, count($keep), '?')) : "''";
+        try {
+          // Profils des comptes supprimés.
+          $ids = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) NOT IN ($ph)");
+          $ids->execute($keep); $delIds = array_column($ids->fetchAll(), 'id');
+          $cntU = 0;
+          foreach ($delIds as $did) {
+            $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$did]);
+            // L'abonnement push survit au compte s'il n'est pas effacé ici : le
+            // téléphone resterait joignable au nom d'un compte qui n'existe plus.
+            try { $pdo->prepare('DELETE FROM push_subs WHERE user_id = ?')->execute([$did]); } catch (Throwable $e) {}
+            $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$did]); $cntU++;
+          }
+          $deleted['users'] = $cntU;
+          $before = (int) $pdo->query('SELECT COUNT(*) AS c FROM newsletter')->fetch()['c'];
+          $pdo->exec('DELETE FROM newsletter'); $deleted['newsletter'] = $before;
+        } catch (Throwable $e) { /* ignore */ }
+      }
+      jout(['ok' => true, 'deleted' => $deleted, 'backup' => $backupFile, 'accounts' => $withAccounts]);
+    }
+
+    /* ══ ANNONCER UNE NOUVEAUTÉ ═══════════════════════════════════════════════
+     *
+     * Trois routes : composer, envoyer un lot, relire ce qui est parti.
+     *
+     * L'envoi est DÉLIBÉRÉMENT séparé de la composition. Écrire l'annonce ne
+     * prévient personne ; il faut un second geste, et ce geste dit combien de
+     * personnes vont la recevoir. On ne réveille pas six cents téléphones par
+     * un clic ambigu.
+     *
+     * LA PORTE N'EST PAS ICI, et c'est voulu. Le bloc admin exige déjà une
+     * session déverrouillée (423 sinon), puis `admin_feature_for_path()` réclame
+     * la fonctionnalité `annonces` — RÉSERVÉE AU PROPRIÉTAIRE, comme les
+     * invitations. Un premier jet contrôlait tout cela dans chaque route : le
+     * déverrouillage y était déjà acquis, et la permission se serait retrouvée
+     * déclarée à un endroit que personne n'inspecte quand il audite les droits.
+     * Les permissions de ce fichier vivent dans UNE table, qu'on relit d'un
+     * coup d'œil.
+     */
+
+    /** Qui reçoit, selon la cible. Un seul endroit pour cette question. */
+    $annonceQui = function (string $cible, string $curseur, int $limite = 0) use ($pdo): array {
+      $ou = "u.status IS NULL OR u.status NOT IN ('blocked','deleted')";
+      if ($cible === 'pros')     $ou = "u.pro_status = 'approuve' AND ($ou)";
+      if ($cible === 'non_pros') $ou = "(u.pro_status IS NULL OR u.pro_status <> 'approuve') AND ($ou)";
+      // Ordre par `id` : stable, unique, et il donne un curseur qui ne peut pas
+      // sauter quelqu'un ni le servir deux fois — contrairement à un OFFSET,
+      // qui décale dès qu'un compte est créé pendant l'envoi.
+      $sql = "SELECT u.id FROM users u WHERE ($ou) AND u.id > ? ORDER BY u.id ASC";
+      if ($limite > 0) $sql .= ' LIMIT ' . (int) $limite;
+      $st = $pdo->prepare($sql); $st->execute([$curseur]);
+      return array_column($st->fetchAll(), 'id');
+    };
+
+    if ($path === 'admin/annonce' && $method === 'POST') {
+      $b = body();
+      $titre = trim(mb_substr((string) ($b['titre'] ?? ''), 0, 120));
+      $corps = trim(mb_substr((string) ($b['corps'] ?? ''), 0, 240));
+      $lien  = trim(mb_substr((string) ($b['lien'] ?? ''), 0, 200));
+      $cible = in_array($b['cible'] ?? '', ['tous', 'pros', 'non_pros'], true) ? $b['cible'] : 'tous';
+      if (mb_strlen($titre) < 4) jerr('Donnez un titre d’au moins 4 caractères.');
+      if (mb_strlen($corps) < 10) jerr('Expliquez la nouveauté en une phrase au moins.');
+      // Le lien reste INTERNE. Une notification signée Chap.ci qui ouvre un site
+      // extérieur est exactement la forme d'une arnaque par hameçonnage : si
+      // nous nous l'autorisons, nous ne pouvons plus apprendre à personne à s'en
+      // méfier. Et le service worker préfixe déjà par le domaine du site.
+      // ⚠️ `(?!/)` N'EST PAS UN DÉTAIL. Sans lui, « //evil.com » passait : le
+      // motif exigeait bien un « / » en tête, mais un lien qui commence par
+      // DEUX barres est une adresse absolue pour un navigateur — il y met le
+      // protocole de la page et s'en va sur l'autre domaine. Le service worker
+      // passe ce lien tel quel à `openWindow()` : une notification signée
+      // Chap.ci ouvrait donc un site extérieur, exactement l'hameçonnage que
+      // ce contrôle est censé empêcher. Trouvé par 🛡️ Le Gardien le 31/08.
+      if ($lien !== '' && !preg_match('#^/(?!/)[A-Za-z0-9/_\-?=&.%]*$#', $lien)) {
+        jerr('Le lien doit être une page du site, comme « /guide/pro ».');
+      }
+      $id = uuid();
+      $pdo->prepare('INSERT INTO annonces_produit (id,titre,corps,lien,cible,curseur,envoyes,cree_par,created_at,termine_at)
+                     VALUES (?,?,?,?,?,?,0,?,?,NULL)')
+          ->execute([$id, $titre, $corps, $lien, $cible, '', (string) ($u['email'] ?? ''), now_iso()]);
+      log_security_event($pdo, 'annonce_creee', (string) ($u['email'] ?? ''), $titre);
+      jout(['ok' => true, 'id' => $id, 'destinataires' => count($annonceQui($cible, ''))]);
+    }
+
+    if ($path === 'admin/annonce/envoyer' && $method === 'POST') {
+      $b = body();
+      $st = $pdo->prepare('SELECT * FROM annonces_produit WHERE id = ?');
+      $st->execute([(string) ($b['id'] ?? '')]);
+      $a = $st->fetch();
+      if (!$a) jerr('Annonce introuvable.', 404);
+      if (!empty($a['termine_at'])) jout(['ok' => true, 'envoyes' => (int) $a['envoyes'], 'restants' => 0, 'termine' => true]);
+
+      // 40 par lot : chaque destinataire coûte une requête HTTPS vers le service
+      // de notifications de son navigateur, en série. Au-delà, le lot dépasse le
+      // temps d'exécution et l'écran d'en face croit à une panne.
+      $lot = $annonceQui((string) $a['cible'], (string) $a['curseur'], 40);
+      foreach ($lot as $uid) {
+        notify($pdo, (string) $uid, 'nouveaute', (string) $a['titre'], (string) $a['corps'], (string) $a['lien']);
+      }
+      $curseur = $lot ? (string) end($lot) : (string) $a['curseur'];
+      $envoyes = (int) $a['envoyes'] + count($lot);
+      $restants = count($annonceQui((string) $a['cible'], $curseur));
+      $fini = $restants === 0;
+      $pdo->prepare('UPDATE annonces_produit SET curseur = ?, envoyes = ?, termine_at = ? WHERE id = ?')
+          ->execute([$curseur, $envoyes, $fini ? now_iso() : null, (string) $a['id']]);
+      if ($fini) log_security_event($pdo, 'annonce_envoyee', (string) ($u['email'] ?? ''),
+                                    $a['titre'] . ' — ' . $envoyes . ' personnes');
+      jout(['ok' => true, 'envoyes' => $envoyes, 'restants' => $restants, 'termine' => $fini]);
+    }
+
+    if ($path === 'admin/annonces' && $method === 'GET') {
+      $rows = $pdo->query('SELECT * FROM annonces_produit ORDER BY created_at DESC LIMIT 30')->fetchAll();
+      jout(['items' => array_map(fn($r) => [
+        'id' => $r['id'], 'titre' => $r['titre'], 'corps' => $r['corps'], 'lien' => $r['lien'],
+        'cible' => $r['cible'], 'envoyes' => (int) $r['envoyes'],
+        'creePar' => $r['cree_par'], 'creeLe' => iso_to_ms((string) $r['created_at']),
+        'termine' => !empty($r['termine_at']),
+      ], $rows)]);
+    }
+
+    // Vue d'ensemble : compteurs + activité récente.
+    // ── L'ENTONNOIR HEBDOMADAIRE : visiteurs → fiches vues → contacts → annonces
+    //
+    // Demande du Patron, 04/09/2026 : « mesurer avant d'améliorer — sans ce
+    // chiffre, chaque amélioration reste une opinion ». Huit semaines ISO
+    // (lundi → dimanche, en UTC, Abidjan est à UTC+0), les quatre marches, et
+    // le taux d'une marche à la suivante calculé côté écran.
+    //
+    //   visiteurs   : personnes distinctes, PUBLIC seulement — même règle que la
+    //                 carte du haut (authed = 0 ou NULL ; l'équipe et les comptes
+    //                 connectés sont exclus depuis les 9 et 10 août) ;
+    //   fichesVues  : la somme de listing_view_days (une ligne par annonce et par
+    //                 jour) — des vues de fiche, pas des pages vues ;
+    //   contacts    : les conversations ouvertes cette semaine-là ;
+    //   annonces    : les annonces créées cette semaine-là.
+    //
+    // La semaine en cours est incomplète : l'écran la marque « en cours » et
+    // ne la compare pas aux autres. Les visites sont purgées après 120 jours
+    // (cron/cleanup) : huit semaines restent dans la fenêtre.
+    if ($path === 'admin/entonnoir' && $method === 'GET') {
+      $aujourdhui = strtotime(gmdate('Y-m-d') . ' 00:00:00 UTC');
+      $lundi = $aujourdhui - (((int) gmdate('N', $aujourdhui)) - 1) * 86400;
+      $iso = fn(int $t) => gmdate('Y-m-d\TH:i:s\Z', $t);
+      $jour = fn(int $t) => gmdate('Y-m-d', $t);
+      $compter = function (string $sql, array $args) use ($pdo): int {
+        try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+        catch (Throwable $e) { return 0; }
+      };
+      $semaines = [];
+      for ($i = 7; $i >= 0; $i--) {
+        $debut = $lundi - $i * 7 * 86400;
+        $fin = $debut + 7 * 86400;
+        $semaines[] = [
+          'numero'     => (int) gmdate('W', $debut),
+          'debut'      => $jour($debut),
+          'fin'        => $jour($fin - 86400),
+          'enCours'    => $i === 0,
+          'visiteurs'  => $compter('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ? AND created_at < ? AND (authed = 0 OR authed IS NULL)', [$iso($debut), $iso($fin)]),
+          'fichesVues' => $compter('SELECT COALESCE(SUM(n),0) FROM listing_view_days WHERE day >= ? AND day < ?', [$jour($debut), $jour($fin)]),
+          'contacts'   => $compter('SELECT COUNT(*) FROM conversations WHERE created_at >= ? AND created_at < ?', [$iso($debut), $iso($fin)]),
+          'annonces'   => $compter('SELECT COUNT(*) FROM listings WHERE created_at >= ? AND created_at < ?', [$iso($debut), $iso($fin)]),
+        ];
+      }
+      jout(['semaines' => $semaines, 'genereLe' => now_iso()]);
+    }
+
+    // LES PAYS (07/09/2026). Le Patron veut savoir, hors Côte d'Ivoire, d'où
+    // viennent les inscrits — pays, villes, combien — pour choisir où étendre
+    // le site. Un compte hors CI porte region_id = 'autres-pays', city_id =
+    // 'pays-xx' (code ISO en minuscules) et commune = sa ville en clair ; le
+    // site connaît les noms des pays, le serveur ne rend que les codes.
+    if ($path === 'admin/pays' && $method === 'GET') {
+      $lire = function (string $sql, array $args = []) use ($pdo): array {
+        try { $s = $pdo->prepare($sql); $s->execute($args); return $s->fetchAll(); } catch (Throwable $e) { return []; }
+      };
+      $un = function (string $sql, array $args = []) use ($pdo): int {
+        try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); } catch (Throwable $e) { return 0; }
+      };
+      $il30 = gmdate('Y-m-d\TH:i:s\Z', time() - 30 * 86400);
+      $code = fn($cityId) => strtoupper(substr((string) $cityId, 5)) ?: 'ZZ';
+      $pays = [];
+      foreach ($lire("SELECT city_id, COUNT(*) AS n, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS recents
+                      FROM profiles WHERE region_id = 'autres-pays' GROUP BY city_id", [$il30]) as $r) {
+        $c = $code($r['city_id']);
+        $pays[$c] = ['code' => $c, 'inscrits' => (int) $r['n'], 'recents' => (int) $r['recents'], 'annonces' => 0, 'villes' => []];
+      }
+      foreach ($lire("SELECT city_id, commune, COUNT(*) AS n FROM profiles
+                      WHERE region_id = 'autres-pays' AND commune IS NOT NULL AND commune <> ''
+                      GROUP BY city_id, commune ORDER BY n DESC") as $r) {
+        $c = $code($r['city_id']);
+        if (!isset($pays[$c]) || count($pays[$c]['villes']) >= 30) continue;
+        $pays[$c]['villes'][] = ['ville' => (string) $r['commune'], 'inscrits' => (int) $r['n']];
+      }
+      foreach ($lire("SELECT city_id, COUNT(*) AS n FROM listings WHERE region_id = 'autres-pays' GROUP BY city_id") as $r) {
+        $c = $code($r['city_id']);
+        if (!isset($pays[$c])) $pays[$c] = ['code' => $c, 'inscrits' => 0, 'recents' => 0, 'annonces' => 0, 'villes' => []];
+        $pays[$c]['annonces'] = (int) $r['n'];
+      }
+      usort($pays, fn($a, $b) => ($b['inscrits'] <=> $a['inscrits']) ?: ($b['annonces'] <=> $a['annonces']));
+      // Les inscriptions hors CI, mois par mois, sur douze mois.
+      $premier = strtotime(gmdate('Y-m-01') . ' 00:00:00 UTC');
+      $mois = [];
+      for ($i = 11; $i >= 0; $i--) $mois[gmdate('Y-m', strtotime("-$i months", $premier))] = 0;
+      foreach ($lire("SELECT SUBSTR(created_at, 1, 7) AS m, COUNT(*) AS n FROM profiles
+                      WHERE region_id = 'autres-pays' AND created_at >= ? GROUP BY m",
+                     [gmdate('Y-m-d\TH:i:s\Z', strtotime('-11 months', $premier))]) as $r) {
+        if (isset($mois[$r['m']])) $mois[$r['m']] = (int) $r['n'];
+      }
+      // D'où viennent les VISITEURS des trente derniers jours, hors CI — c'est
+      // l'adresse IP qui le dit, avant même qu'ils ne s'inscrivent.
+      $visites = [];
+      foreach ($lire("SELECT country, COUNT(DISTINCT visitor_id) AS n FROM visits
+                      WHERE created_at >= ? AND country IS NOT NULL AND country <> '' AND country <> 'CI'
+                      GROUP BY country ORDER BY n DESC LIMIT 20", [$il30]) as $r) {
+        $visites[] = ['code' => strtoupper((string) $r['country']), 'visiteurs' => (int) $r['n']];
+      }
+      jout([
+        'total'         => $un('SELECT COUNT(*) FROM profiles'),
+        'horsCi'        => $un("SELECT COUNT(*) FROM profiles WHERE region_id = 'autres-pays'"),
+        'horsCiRecents' => $un("SELECT COUNT(*) FROM profiles WHERE region_id = 'autres-pays' AND created_at >= ?", [$il30]),
+        'sansLieu'      => $un("SELECT COUNT(*) FROM profiles WHERE region_id IS NULL OR region_id = ''"),
+        'pays'          => array_values($pays),
+        'mois'          => array_map(fn($m, $n) => ['mois' => $m, 'inscrits' => $n], array_keys($mois), array_values($mois)),
+        'visites'       => $visites,
+        'visiteursCi'   => $un("SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ? AND country = 'CI'", [$il30]),
+        'genereLe'      => now_iso(),
+      ]);
+    }
+
+    if ($path === 'admin/stats' && $method === 'GET') {
+      $count = fn(string $t) => (int) $pdo->query("SELECT COUNT(*) AS c FROM $t")->fetch()['c'];
+      $ordersByStatus = [];
+      foreach ($pdo->query('SELECT status, COUNT(*) AS c FROM orders GROUP BY status')->fetchAll() as $r) {
+        $ordersByStatus[$r['status'] ?: 'inconnu'] = (int) $r['c'];
+      }
+      $ordersValue = (int) ($pdo->query('SELECT COALESCE(SUM(price),0) AS s FROM order_items')->fetch()['s']);
+      $recentListings = array_map('listing_out',
+        $pdo->query('SELECT * FROM listings ORDER BY created_at DESC LIMIT 5')->fetchAll());
+      $recentUsers = array_map(
+        fn($r) => ['id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
+                   'status' => $r['status'] ?: 'active', 'createdAt' => iso_to_ms($r['created_at'])],
+        $pdo->query('SELECT u.id, u.email, u.created_at, u.status, p.full_name FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC LIMIT 5')->fetchAll());
+      // Statistiques temporelles : nouveaux inscrits / annonces par période
+      // (fenêtres glissantes). created_at est en ISO UTC, donc comparable en texte.
+      $cut = fn(int $days) => gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
+      $since = function (string $table, string $iso) use ($pdo): int {
+        $s = $pdo->prepare("SELECT COUNT(*) AS c FROM $table WHERE created_at >= ?");
+        $s->execute([$iso]);
+        return (int) $s->fetch()['c'];
+      };
+      $periodStats = function (string $table) use ($since, $cut) {
+        return [
+          'day' => $since($table, $cut(1)), 'week' => $since($table, $cut(7)),
+          'month' => $since($table, $cut(30)), 'year' => $since($table, $cut(365)),
+        ];
+      };
+      // Série journalière (14 derniers jours) pour les graphiques évolutifs.
+      $dailyMap = function (string $table) use ($pdo): array {
+        $m = [];
+        foreach ($pdo->query("SELECT substr(created_at,1,10) AS d, COUNT(*) AS c FROM $table GROUP BY substr(created_at,1,10)")->fetchAll() as $r) {
+          $m[$r['d']] = (int) $r['c'];
+        }
+        return $m;
+      };
+      $uMap = $dailyMap('users'); $lMap = $dailyMap('listings');
+      $series = [];
+      for ($i = 13; $i >= 0; $i--) {
+        $d = gmdate('Y-m-d', time() - $i * 86400);
+        $series[] = ['date' => $d, 'users' => $uMap[$d] ?? 0, 'listings' => $lMap[$d] ?? 0];
+      }
+      jout([
+        'users' => $count('users'), 'listings' => $count('listings'),
+        'conversations' => $count('conversations'), 'messages' => $count('messages'),
+        'orders' => $count('orders'), 'reviews' => $count('reviews'),
+        'newsletter' => $count('newsletter'),
+        'reportsOpen' => (int) ($pdo->query("SELECT COUNT(*) AS c FROM reports WHERE status = 'open'")->fetch()['c']),
+        // Compteur réservé aux comptes ayant la permission 'contact' (pas de fuite
+        // du volume de messages vers un modérateur non habilité).
+        'contactOpen' => admin_can($config, $pdo, $u, 'contact')
+          ? (int) ($pdo->query('SELECT COUNT(*) AS c FROM contact_messages WHERE handled = 0 OR handled IS NULL')->fetch()['c'])
+          : null,
+        'adsPending' => admin_can($config, $pdo, $u, 'ads')
+          ? (int) ($pdo->query("SELECT COUNT(*) AS c FROM ads WHERE status = 'pending'")->fetch()['c'])
+          : null,
+        'ordersByStatus' => $ordersByStatus, 'ordersValue' => $ordersValue,
+        // VISITES pour la carte du haut : visiteurs uniques aujourd'hui, sur 7
+        // jours, et la moyenne par jour. Des VISITEURS, pas des pages vues :
+        // c'est le nombre de personnes qui compte, pas leurs clics.
+        'visites' => (function () use ($pdo): array {
+          $u1 = function (string $depuis) use ($pdo): int {
+            // Public seulement (même règle que visit_series) : hors équipe et
+            // comptes connectés. authed=1 exclu ; 0 ou NULL comptés.
+            try { $s = $pdo->prepare('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ? AND (authed = 0 OR authed IS NULL)'); $s->execute([$depuis]); return (int) $s->fetchColumn(); }
+            catch (Throwable $e) { return 0; }
+          };
+          $jour = $u1(gmdate('Y-m-d\TH:i:s\Z', time() - 86400));
+          $sem  = $u1(gmdate('Y-m-d\TH:i:s\Z', time() - 7 * 86400));
+          return ['jour' => $jour, 'semaine' => $sem, 'parJour' => (int) round($sem / 7)];
+        })(),
+        // LES TENDANCES de l'aperçu : chaque grand chiffre avec la valeur de la
+        // période précédente, pour la flèche. Les deux fenêtres (7 et 30 jours)
+        // partent ensemble : le sélecteur du front bascule sans rappeler le
+        // serveur.
+        'tendances' => (function () use ($pdo, $cut): array {
+          $un = function (string $sql, array $args) use ($pdo): int {
+            try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+            catch (Throwable $e) { return 0; }
+          };
+          $fen = function (int $j) use ($un, $cut): array {
+            $d = $cut($j); $d2 = $cut($j * 2);
+            $paire = fn(string $sql) => [
+              'n'    => $un($sql . ' AND created_at >= ?', [$d]),
+              'prev' => $un($sql . ' AND created_at >= ? AND created_at < ?', [$d2, $d]),
+            ];
+            return [
+              'visiteurs' => [
+                'n'    => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits
+                               WHERE (authed = 0 OR authed IS NULL) AND created_at >= ?', [$d]),
+                'prev' => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits
+                               WHERE (authed = 0 OR authed IS NULL) AND created_at >= ? AND created_at < ?',
+                              [$d2, $d]),
+              ],
+              'inscrits'  => $paire('SELECT COUNT(*) FROM users WHERE 1=1'),
+              'annonces'  => $paire('SELECT COUNT(*) FROM listings WHERE 1=1'),
+              'commandes' => $paire('SELECT COUNT(*) FROM orders WHERE 1=1')
+                + ['valeur' => $un('SELECT COALESCE(SUM(oi.price),0) FROM order_items oi
+                                    JOIN orders o ON o.id = oi.order_id WHERE o.created_at >= ?', [$d])],
+              'abonnes'   => $paire('SELECT COUNT(*) FROM newsletter WHERE 1=1'),
+            ];
+          };
+          return ['j7' => $fen(7), 'j30' => $fen(30)];
+        })(),
+        // La note moyenne du site, tous les avis confondus.
+        'noteMoyenne' => (function () use ($pdo): array {
+          try {
+            $r = $pdo->query('SELECT AVG(rating) AS m, COUNT(*) AS n FROM reviews')->fetch();
+            $n = (int) ($r['n'] ?? 0);
+            return ['note' => $n > 0 ? round((float) $r['m'], 1) : null, 'avis' => $n];
+          } catch (Throwable $e) { return ['note' => null, 'avis' => 0]; }
+        })(),
+        // La file « à traiter » : ce que les compteurs seuls ne disent pas —
+        // l'ancienneté des signalements, la dernière demande Pro en attente,
+        // l'heure du dernier message de contact. Chaque champ respecte la
+        // permission de son onglet (null = masqué à ce modérateur).
+        'aTraiter' => (function () use ($pdo, $config, $u): array {
+          $out = ['signalementsVieux' => 0, 'proEnAttente' => null,
+                  'proDernier' => null, 'contactDernier' => null];
+          try {
+            $s = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE status = 'open' AND created_at < ?");
+            $s->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 48 * 3600)]);
+            $out['signalementsVieux'] = (int) $s->fetchColumn();
+          } catch (Throwable $e) {}
+          if (admin_can($config, $pdo, $u, 'users')) {
+            try {
+              $out['proEnAttente'] = (int) $pdo->query(
+                "SELECT COUNT(*) FROM users WHERE pro_status = 'en_attente'")->fetchColumn();
+              $r = $pdo->query("SELECT pro_nom, pro_demande_at FROM users
+                                WHERE pro_status = 'en_attente'
+                                ORDER BY pro_demande_at DESC LIMIT 1")->fetch();
+              if ($r) {
+                $out['proDernier'] = ['nom' => (string) ($r['pro_nom'] ?? ''),
+                                      'quand' => iso_to_ms($r['pro_demande_at'] ?? null)];
+              }
+            } catch (Throwable $e) { $out['proEnAttente'] = 0; }
+          }
+          if (admin_can($config, $pdo, $u, 'contact')) {
+            try {
+              $r = $pdo->query('SELECT created_at FROM contact_messages
+                                WHERE handled = 0 OR handled IS NULL
+                                ORDER BY created_at DESC LIMIT 1')->fetch();
+              if ($r) $out['contactDernier'] = iso_to_ms($r['created_at']);
+            } catch (Throwable $e) {}
+          }
+          return $out;
+        })(),
+        // La courbe « visiteurs et inscriptions » de l'aperçu : 30 jours, le
+        // front n'en montre que 7 quand la période courte est choisie. Même
+        // règle de comptage que l'onglet Visiteurs (public seul, équipe exclue).
+        'serieVisites' => admin_can($config, $pdo, $u, 'visitors')
+          ? array_map(
+              fn($b) => ['jour' => $b['key'], 'visiteurs' => $b['visitors'], 'inscrits' => $b['signups']],
+              visit_series($pdo, 'day')['series'])
+          : null,
+        // LE PARCOURS. Quatre marches, dans l'ordre où une personne les monte :
+        // elle arrive, elle crée un compte, elle publie, elle vend. Chaque
+        // marche est un SOUS-ENSEMBLE de la précédente (sauf la première), donc
+        // l'écart entre deux chiffres est une PERTE, pas une comparaison.
+        //
+        // C'est le seul tableau qui dise OÙ ça fuit. « 148 visiteurs et 12
+        // comptes » ne se lit pas : « 148 arrivés, 12 inscrits, 5 ont publié,
+        // 0 ont vendu » se lit, et désigne la marche à réparer.
+        //
+        // Les trois dernières marches suivent la COHORTE des comptes créés dans
+        // la fenêtre — pas l'activité de la fenêtre. Sinon un vendeur inscrit
+        // l'an dernier gonflerait le « ont publié » des sept derniers jours, et
+        // le taux ne voudrait plus rien dire.
+        'parcours' => (function () use ($pdo, $cut): array {
+          $un = function (string $sql, array $args = []) use ($pdo): int {
+            try { $s = $pdo->prepare($sql); $s->execute($args); return (int) $s->fetchColumn(); }
+            catch (Throwable $e) { return 0; }
+          };
+          $fenetre = function (?string $depuis) use ($un): array {
+            $ouTemps = $depuis === null ? '' : ' WHERE created_at >= ?';
+            $a = $depuis === null ? [] : [$depuis];
+            $ouU = $depuis === null ? '' : ' AND u.created_at >= ?';
+            return [
+              // « Arrivés » = le public (hors équipe/comptes connectés), même
+              // règle que le haut du tableau ; sinon la première marche du
+              // parcours et le grand chiffre « Visiteurs uniques » se
+              // contrediraient.
+              'visiteurs' => $un('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE (authed = 0 OR authed IS NULL)'
+                                 . ($depuis === null ? '' : ' AND created_at >= ?'), $a),
+              'comptes'   => $un('SELECT COUNT(*) FROM users' . $ouTemps, $a),
+              'publie'    => $un('SELECT COUNT(DISTINCT l.user_id) FROM listings l
+                                    JOIN users u ON u.id = l.user_id WHERE 1=1' . $ouU, $a),
+              'vendu'     => $un('SELECT COUNT(DISTINCT l.user_id) FROM listings l
+                                    JOIN users u ON u.id = l.user_id WHERE l.sold = 1' . $ouU, $a),
+            ];
+          };
+          return ['j7' => $fenetre($cut(7)), 'j30' => $fenetre($cut(30)), 'tout' => $fenetre(null)];
+        })(),
+        'periods' => ['users' => $periodStats('users'), 'listings' => $periodStats('listings')],
+        'series' => $series,
+        'recentListings' => $recentListings,
+        // Liste nominative (emails) : réservée aux comptes ayant la permission
+        // « Utilisateurs » — pas de fuite vers un modérateur non habilité.
+        'recentUsers' => admin_can($config, $pdo, $u, 'users') ? $recentUsers : [],
+        // Carte « Sécurité » de l'aperçu : réservée au PROPRIÉTAIRE (un modérateur
+        // n'a pas à voir l'état 2FA du compte principal ni le journal global).
+        'security' => in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)
+          ? (function () use ($pdo, $config, $u, $cut) {
+              try {
+                $q = function (string $kinds) use ($pdo, $cut): int {
+                  $st = $pdo->prepare("SELECT COUNT(*) AS c FROM security_events WHERE kind IN ($kinds) AND created_at >= ?");
+                  $st->execute([$cut(7)]);
+                  return (int) $st->fetchColumn();
+                };
+                // Intégrité de la table admins : empreinte actuelle vs référence.
+                $ref = @file_get_contents(admins_fp_file($config));
+                $integrity = $ref === false ? null : (trim((string) $ref) === admins_fingerprint($pdo));
+                // 2FA du propriétaire actuellement connecté.
+                $tf = $pdo->prepare('SELECT totp_enabled FROM users WHERE id = ?');
+                $tf->execute([$u['id']]);
+                $twofa = (int) ($tf->fetchColumn() ?: 0) === 1;
+                return [
+                  'failedLogins'    => $q("'login_fail','admin_unlock_fail','mfa_fail'"),
+                  'adminsIntegrity' => $integrity,
+                  'owner2fa'        => $twofa,
+                  'alerts'          => $q("'admins_tampered','cron_fail'"),
+                ];
+              } catch (Throwable $e) { return null; /* la carte s'efface, stats OK */ }
+            })()
+          : null,
+      ]);
+    }
+
+    // ---- Demandes de comptes professionnels ---------------------------------
+    if ($path === 'admin/pro' && $method === 'GET') {
+      try {
+        $rows = $pdo->query("SELECT u.id, u.email, u.pro_status, u.pro_type, u.pro_nom, u.pro_numero,
+                                    u.pro_secteur, u.pro_tel, u.pro_demande_at, u.pro_decide_at, u.pro_motif,
+                                    p.full_name
+                             FROM users u LEFT JOIN profiles p ON p.id = u.id
+                             WHERE u.pro_status IS NOT NULL AND u.pro_status != ''
+                             ORDER BY (CASE WHEN u.pro_status = 'en_attente' THEN 0 ELSE 1 END),
+                                      u.pro_demande_at DESC")->fetchAll();
+      } catch (Throwable $e) { $rows = []; }
+      jout(['demandes' => array_map(fn($r) => [
+        'userId' => $r['id'], 'email' => $r['email'], 'nom' => $r['full_name'] ?: null,
+        'status' => $r['pro_status'], 'type' => $r['pro_type'], 'proNom' => $r['pro_nom'],
+        'numero' => $r['pro_numero'] ?: null, 'secteur' => $r['pro_secteur'] ?: null,
+        'tel' => $r['pro_tel'] ?: null, 'demandeAt' => iso_to_ms($r['pro_demande_at'] ?? null),
+        'decideAt' => iso_to_ms($r['pro_decide_at'] ?? null), 'motif' => $r['pro_motif'] ?: null,
+      ], $rows)]);
+    }
+
+    // LA SEULE PORTE par laquelle le type, le secteur et le numéro d'un dossier
+    // approuvé peuvent changer. Le professionnel, lui, ne le peut pas : ces
+    // trois-là sont ce que l'équipe a vérifié avant d'approuver.
+    //
+    // Réservé au droit « utilisateurs » (admin_feature_for_path le donne à
+    // tout ce qui commence par admin/pro). Chaque modification est journalisée
+    // avec l'ancienne et la nouvelle valeur : on doit pouvoir dire QUI a changé
+    // un RCCM, et quand.
+    if ($path === 'admin/pro/fiche' && $method === 'POST') {
+      $b = body();
+      $userId = (string) ($b['userId'] ?? '');
+      $st = $pdo->prepare('SELECT email, pro_status, pro_nom, pro_type, pro_secteur, pro_numero, pro_tel
+                           FROM users WHERE id = ?');
+      $st->execute([$userId]);
+      $cible = $st->fetch();
+      if (!$cible || (string) ($cible['pro_status'] ?? '') === '') jerr('Dossier introuvable.', 404);
+
+      $nom = trim(mb_substr((string) ($b['nom'] ?? ''), 0, 80));
+      if (mb_strlen($nom) < 2) jerr('Le nom commercial est obligatoire.');
+      $type = (string) ($b['type'] ?? '');
+      if (!in_array($type, PRO_TYPES, true)) {
+        jerr('Type d’organisation inconnu.');
+      }
+      $secteur = trim(mb_substr((string) ($b['secteur'] ?? ''), 0, 60));
+      $numero  = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 60));
+      $tel     = mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['tel'] ?? '')), 0, 20);
+
+      $change = [];
+      foreach ([['pro_nom', $nom], ['pro_type', $type], ['pro_secteur', $secteur],
+                ['pro_numero', $numero], ['pro_tel', $tel]] as [$col, $neuf]) {
+        $avant = (string) ($cible[$col] ?? '');
+        if ($avant !== (string) $neuf) $change[] = $col . ' : « ' . $avant . ' » → « ' . $neuf . ' »';
+      }
+      if (!$change) jout(['ok' => true, 'change' => 0]);
+
+      $pdo->prepare('UPDATE users SET pro_nom = ?, pro_type = ?, pro_secteur = ?, pro_numero = ?,
+                     pro_tel = ? WHERE id = ?')
+          ->execute([$nom, $type, $secteur, $numero, $tel, $userId]);
+      log_security_event($pdo, 'pro_fiche_admin', $cible['email'] ?? null, implode(' · ', $change));
+      // La personne concernée l'apprend : une fiche qui change sans un mot,
+      // c'est ce qui fait écrire « on a modifié mon compte sans me prévenir ».
+      try {
+        notify($pdo, $userId, 'pro_decision', 'Votre fiche professionnelle a été modifiée',
+               'L’équipe Chap.ci a mis à jour votre dossier. Vérifiez-la dans Compte → Modifier ma fiche.',
+               '#/compte?onglet=fiche');
+      } catch (Throwable $e) { /* la modification est enregistrée quoi qu'il arrive */ }
+      jout(['ok' => true, 'change' => count($change)]);
+    }
+
+    if ($path === 'admin/pro/decider' && $method === 'POST') {
+      $b = body();
+      $userId = (string) ($b['userId'] ?? '');
+      $action = (string) ($b['action'] ?? '');
+      if (!in_array($action, ['approuver', 'refuser'], true)) jerr('Action inconnue.');
+      $motif = trim(mb_substr((string) ($b['motif'] ?? ''), 0, 300));
+      $st = $pdo->prepare('SELECT email, pro_nom, pro_status FROM users WHERE id = ?');
+      $st->execute([$userId]);
+      $cible = $st->fetch();
+      if (!$cible || (string) ($cible['pro_status'] ?? '') === '') jerr('Demande introuvable.', 404);
+      $statut = $action === 'approuver' ? 'approuve' : 'refuse';
+      $pdo->prepare('UPDATE users SET pro_status = ?, pro_decide_at = ?, pro_motif = ? WHERE id = ?')
+          ->execute([$statut, now_iso(), $statut === 'refuse' ? $motif : null, $userId]);
+      log_security_event($pdo, 'pro_decision', $cible['email'] ?? null, $statut);
+      // Prévenir la personne — best-effort.
+      try {
+        $nomB = htmlspecialchars((string) ($cible['pro_nom'] ?? ''));
+        if ($statut === 'approuve') {
+          $inner = '<h2 style="margin-top:0">Votre compte est professionnel 🎉</h2>'
+            . "<p>Félicitations ! <b>$nomB</b> est maintenant un compte professionnel sur Chap.ci : "
+            . 'le badge <b>PRO</b> apparaît sur vos annonces et votre page vendeur.</p>'
+            . '<p>Merci de faire vivre le marché ivoirien avec nous.</p>';
+          $sujet = 'Chap.ci — votre compte Pro est approuvé 🎉';
+        } else {
+          $inner = '<h2 style="margin-top:0">Votre demande de compte Pro</h2>'
+            . "<p>Nous n'avons pas pu approuver la demande pour <b>$nomB</b>.</p>"
+            . ($motif !== '' ? '<p>Motif : ' . htmlspecialchars($motif) . '</p>' : '')
+            . '<p>Vous pouvez corriger votre dossier et redéposer une demande depuis '
+            . 'l’application (Compte → Passer en compte Pro).</p>';
+          $sujet = 'Chap.ci — votre demande de compte Pro';
+        }
+        send_mail($config, (string) $cible['email'], $sujet, email_layout($config, $inner, $sujet));
+      } catch (Throwable $e) { /* décision enregistrée quoi qu'il arrive */ }
+      // Et la cloche (site + app + push) — l'écran « Devenir professionnel »
+      // promet une réponse « par e-mail et dans l'application » : la voici.
+      try {
+        if ($statut === 'approuve') {
+          notify($pdo, $userId, 'pro_decision', 'Votre compte est professionnel 🎉',
+                 'Le badge PRO apparaît sur vos annonces — découvrez votre espace professionnel.',
+                 '#/pro');
+        } else {
+          notify($pdo, $userId, 'pro_decision', 'Votre demande de compte Pro',
+                 'Demande refusée' . ($motif !== '' ? ' — ' . $motif : '')
+                 . '. Vous pouvez corriger votre dossier et redéposer.', '#/pro');
+        }
+      } catch (Throwable $e) { /* la décision est enregistrée quoi qu'il arrive */ }
+      jout(['ok' => true, 'status' => $statut]);
+    }
+
+    // Utilisateurs.
+    if ($path === 'admin/users' && $method === 'GET') {
+      // `last_seen_at` arrive par migration : sur une base qui n'a pas encore
+      // migré, la requête entière échouerait et la liste des utilisateurs
+      // disparaîtrait. On la rejoue donc sans elle plutôt que de rendre un 500.
+      $base = 'u.id, u.email, u.created_at, u.status, p.full_name, p.phone, p.commune,
+          (SELECT COUNT(*) FROM listings l WHERE l.user_id = u.id) AS listings';
+      $suffixe = ' FROM users u LEFT JOIN profiles p ON p.id = u.id ORDER BY u.created_at DESC';
+      try {
+        $rows = $pdo->query('SELECT ' . $base . ', u.last_seen_at' . $suffixe)->fetchAll();
+      } catch (Throwable $e) {
+        $rows = $pdo->query('SELECT ' . $base . $suffixe)->fetchAll();
+      }
+      jout(array_map(function ($r) {
+        $depuis = vu_il_y_a($r['last_seen_at'] ?? null);
+        return [
+          'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
+          'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
+          'status' => $r['status'] ?: 'active',
+          'listings' => (int) $r['listings'], 'createdAt' => iso_to_ms($r['created_at']),
+          // « En ligne » = vu il y a moins de cinq minutes, la même fenêtre que
+          // celle où l'on réécrit la trace. Au-delà, on donne l'ancienneté en
+          // secondes et l'écran la met en mots — « il y a 2 h » se dit mieux
+          // côté interface qu'en base.
+          'derniereActivite' => iso_to_ms($r['last_seen_at'] ?? null),
+          'vuIlYA' => $depuis,
+          'enLigne' => $depuis !== null && $depuis < 300,
+        ];
+      }, $rows));
+    }
+
+    // ------------------------------------------------------------------------
+    //  LA FICHE D'UN UTILISATEUR — pour les administrateurs ET les modérateurs,
+    //  jamais pour le public.
+    //
+    //  Un modérateur qui doit décider du sort d'un compte ne peut pas le faire
+    //  sur un nom et une adresse e-mail. Ce qui fait la décision, c'est
+    //  l'ensemble : depuis quand il est là, combien d'annonces il a mises en
+    //  ligne et combien sont masquées, combien de fois il a été signalé, ce
+    //  qu'il a acheté, ce qu'on a écrit de lui.
+    //
+    //  Un compte inscrit hier avec quatre annonces signalées, et un compte de
+    //  huit mois avec un seul signalement, se ressemblent dans une liste. Ils
+    //  n'appellent pas la même décision.
+    //
+    //  ⚠️ CETTE ROUTE PORTE LE TÉLÉPHONE ET L'E-MAIL. Elle est derrière la
+    //  fonctionnalité « users », qui se coche modérateur par modérateur, et
+    //  rien de ce qu'elle renvoie ne doit jamais atterrir sur une page
+    //  publique. Le profil public d'un vendeur, c'est /vendeur/{id}, et il ne
+    //  montre ni l'un ni l'autre.
+    // ------------------------------------------------------------------------
+    if (count($seg) === 3 && $seg[1] === 'users' && $method === 'GET') {
+      // `auth_provider` et `email_verified_at` sont ajoutés par migration : sur
+      // une base qui n'a pas encore migré, la requête échouerait en entier et
+      // la fiche ne s'afficherait plus du tout. On la rejoue donc sans elles.
+      $colonnes = 'u.id, u.email, u.created_at, u.status, u.auth_provider, u.email_verified_at,
+          u.last_seen_at,
+          p.full_name, p.phone, p.commune, p.city_id, p.region_id, p.bio, p.avatar_url';
+      try {
+        $st = $pdo->prepare("SELECT $colonnes FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?");
+        $st->execute([$seg[2]]);
+      } catch (Throwable $e) {
+        $st = $pdo->prepare('SELECT u.id, u.email, u.created_at, u.status,
+            p.full_name, p.phone, p.commune, p.city_id, p.region_id, p.bio, p.avatar_url
+          FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.id = ?');
+      }
+      $st->execute([$seg[2]]); $r = $st->fetch();
+      if (!$r) jerr('Utilisateur introuvable.', 404);
+      $uid = $seg[2];
+
+      $ls = $pdo->prepare('SELECT * FROM listings WHERE user_id = ? ORDER BY created_at DESC');
+      $ls->execute([$uid]);
+      $annonces = $ls->fetchAll();
+
+      /** Un compteur qui ne fait jamais échouer la fiche : une table absente
+       *  (base ancienne, migration en cours) rend 0, pas une erreur 500. */
+      $compte = function (string $sql, array $args) use ($pdo): int {
+        try { $q = $pdo->prepare($sql); $q->execute($args); return (int) $q->fetchColumn(); }
+        catch (Throwable $e) { return 0; }
+      };
+
+      // Les signalements SUBIS — ceux qui visent ses annonces — et les
+      // signalements ÉMIS. Les deux comptent : le premier dit ce qu'on lui
+      // reproche, le second si c'est quelqu'un qui aide, ou qui dénonce à tort.
+      $subisOuverts = $compte("SELECT COUNT(*) FROM reports r JOIN listings l ON l.id = r.listing_id
+                               WHERE l.user_id = ? AND r.status = 'open'", [$uid]);
+      $subisTotal   = $compte('SELECT COUNT(*) FROM reports r JOIN listings l ON l.id = r.listing_id
+                               WHERE l.user_id = ?', [$uid]);
+
+      // Les motifs qu'on lui reproche, du plus fréquent au moins fréquent.
+      $motifs = [];
+      try {
+        $ms = $pdo->prepare('SELECT r.reason, COUNT(*) AS n FROM reports r JOIN listings l ON l.id = r.listing_id
+                             WHERE l.user_id = ? GROUP BY r.reason ORDER BY n DESC LIMIT 6');
+        $ms->execute([$uid]);
+        $motifs = array_map(fn($m) => ['motif' => $m['reason'], 'n' => (int) $m['n']], $ms->fetchAll());
+      } catch (Throwable $e) { $motifs = []; }
+
+      $note = null;
+      try {
+        // Même correction que pour le tableau de bord du vendeur : la note
+        // affichée sur la fiche admin doit être celle qu'on a DONNÉE à cette
+        // personne comme vendeuse, pas celle qu'elle a donnée à ses acheteurs.
+        $nq = $pdo->prepare("SELECT AVG(rating) AS moy, COUNT(*) AS n FROM reviews
+          WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+            AND (kind = 'seller' OR kind IS NULL)");
+        $nq->execute([$uid, $uid]);
+        if (($nr = $nq->fetch()) && (int) $nr['n'] > 0) {
+          $note = ['moyenne' => round((float) $nr['moy'], 1), 'nombre' => (int) $nr['n']];
+        }
+      } catch (Throwable $e) { $note = null; }
+
+      $masquees = count(array_filter($annonces, fn($a) => !empty($a['hidden'])));
+      $vendues  = count(array_filter($annonces, fn($a) => !empty($a['sold'])));
+
+      // Est-il de l'équipe ? Un modérateur ne doit pas découvrir en bloquant un
+      // compte qu'il vient de bloquer un collègue.
+      $email = strtolower((string) ($r['email'] ?? ''));
+      $estProprio = in_array($email, owner_emails($config), true);
+      $estModo = false;
+      try {
+        $mq = $pdo->prepare('SELECT 1 FROM admins WHERE email = ?');
+        $mq->execute([$email]); $estModo = (bool) $mq->fetchColumn();
+      } catch (Throwable $e) { $estModo = false; }
+
+      jout([
+        'id' => $r['id'], 'email' => $r['email'], 'fullName' => $r['full_name'] ?: '—',
+        'phone' => $r['phone'] ?: null, 'commune' => $r['commune'] ?: null,
+        'cityId' => $r['city_id'] ?: null, 'regionId' => $r['region_id'] ?: null,
+        'bio' => $r['bio'] ?: null, 'avatarUrl' => $r['avatar_url'] ?: null,
+        'status' => $r['status'] ?: 'active', 'createdAt' => iso_to_ms($r['created_at']),
+        // Comment il s'est inscrit, et ce qu'il a confirmé. Un compte Google a
+        // une adresse vérifiée par Google ; un compte e-mail non confirmé, non.
+        'provider' => ($r['auth_provider'] ?? '') ?: 'email',
+        'emailVerifie' => !empty($r['email_verified_at']),
+        'derniereActivite' => iso_to_ms($r['last_seen_at'] ?? null),
+        'vuIlYA' => vu_il_y_a($r['last_seen_at'] ?? null),
+        'enLigne' => ($d = vu_il_y_a($r['last_seen_at'] ?? null)) !== null && $d < 300,
+        'equipe' => $estProprio ? 'proprietaire' : ($estModo ? 'moderateur' : null),
+        'chiffres' => [
+          'annonces' => count($annonces),
+          'annoncesMasquees' => $masquees,
+          'annoncesVendues' => $vendues,
+          'signalementsSubis' => $subisTotal,
+          'signalementsSubisOuverts' => $subisOuverts,
+          'signalementsEmis' => $compte('SELECT COUNT(*) FROM reports WHERE reporter_id = ?', [$uid]),
+          'conversations' => $compte('SELECT COUNT(*) FROM conversations WHERE buyer_id = ? OR seller_id = ?', [$uid, $uid]),
+          'messages' => $compte('SELECT COUNT(*) FROM messages WHERE sender_id = ?', [$uid]),
+          'commandesPassees' => $compte('SELECT COUNT(*) FROM orders WHERE buyer_id = ?', [$uid]),
+          'commandesRecues' => $compte('SELECT COUNT(*) FROM orders WHERE seller_id = ?', [$uid]),
+          // Le nom du champ dit « reçus » : il doit compter ce qu'on a reçu.
+          'avisRecus' => $compte("SELECT COUNT(*) FROM reviews
+            WHERE (target_id = ? OR (target_id IS NULL AND seller_id = ?))
+              AND (kind = 'seller' OR kind IS NULL)", [$uid, $uid]),
+          'publicites' => $compte('SELECT COUNT(*) FROM ads WHERE user_id = ?', [$uid]),
+        ],
+        'note' => $note,
+        'motifsSignales' => $motifs,
+        'listings' => array_map('listing_out', $annonces),
+      ]);
+    }
+
+    // Changer le statut d'un compte : active / restricted / blocked.
+    if (count($seg) === 4 && $seg[1] === 'users' && $seg[3] === 'status' && $method === 'POST') {
+      $b = body();
+      $status = in_array($b['status'] ?? '', ['active', 'restricted', 'blocked'], true) ? $b['status'] : null;
+      if (!$status) jerr('Statut invalide.');
+      // On ne peut pas bloquer un propriétaire (admin config permanent).
+      $st = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $st->execute([$seg[2]]);
+      $target = $st->fetch();
+      if (!$target) jerr('Utilisateur introuvable.', 404);
+      if (in_array(strtolower($target['email']), array_map('strtolower', $config['admin_emails'] ?? []), true))
+        jerr('Ce compte administrateur ne peut pas être modifié.', 403);
+      $pdo->prepare('UPDATE users SET status = ? WHERE id = ?')->execute([$status, $seg[2]]);
+      // Bloqué : on masque aussi ses annonces ; réactivé : on les réaffiche.
+      $pdo->prepare('UPDATE listings SET hidden = ? WHERE user_id = ?')
+          ->execute([$status === 'blocked' ? 1 : 0, $seg[2]]);
+      jout(['ok' => true, 'status' => $status]);
+    }
+
+    // Supprimer un compte (et tout son contenu).
+    if (count($seg) === 3 && $seg[1] === 'users' && $method === 'DELETE') {
+      $st = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $st->execute([$seg[2]]);
+      $target = $st->fetch();
+      if (!$target) jerr('Utilisateur introuvable.', 404);
+      if (in_array(strtolower($target['email']), array_map('strtolower', $config['admin_emails'] ?? []), true))
+        jerr('Ce compte administrateur ne peut pas être supprimé.', 403);
+      $id = $seg[2];
+      $pdo->prepare('DELETE FROM reports WHERE reporter_id = ?')->execute([$id]);
+    // Ses demandes à l'équipe partent avec lui. Les fils d'équipe (kind
+    // 'staff'), eux, ne lui appartiennent pas : ils ne portent pas son
+    // identifiant et restent en place.
+    try {
+      $pdo->prepare("DELETE FROM team_messages WHERE thread_id IN (SELECT id FROM team_threads WHERE kind = 'user' AND user_id = ?)")->execute([$id]);
+      $pdo->prepare("DELETE FROM team_threads WHERE kind = 'user' AND user_id = ?")->execute([$id]);
+    } catch (Throwable $e) {}
+      $pdo->prepare('DELETE FROM messages WHERE sender_id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM conversations WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE buyer_id = ? OR seller_id = ?)')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM orders WHERE buyer_id = ? OR seller_id = ?')->execute([$id, $id]);
+      $pdo->prepare('DELETE FROM reviews WHERE reviewer_id = ? OR seller_id = ? OR target_id = ?')->execute([$id, $id, $id]);
+      // Nettoyage RGPD complet (idem suppression par l'utilisateur).
+      foreach (['favorites' => 'user_id', 'notifications' => 'user_id',
+                'saved_searches' => 'user_id', 'user_interests' => 'user_id',
+                'quick_replies' => 'user_id', 'push_subs' => 'user_id',
+                'follows' => 'user_id', 'offres' => 'user_id', 'candidatures' => 'user_id'] as $tbl => $col) {
+        try { $pdo->prepare("DELETE FROM $tbl WHERE $col = ?")->execute([$id]); } catch (Throwable $e) {}
+      }
+      try { $pdo->prepare('DELETE FROM follows WHERE pro_id = ?')->execute([$id]); } catch (Throwable $e) {}
+      videos_supprimer_annonces($pdo, $config, 'user_id = ?', [$id]); // les vidéos, avant les lignes
+      $pdo->prepare('DELETE FROM listings WHERE user_id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM profiles WHERE id = ?')->execute([$id]);
+      $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+      jout(['ok' => true]);
+    }
+
+    // Annonces (avec email du vendeur, pour la modération).
+    if ($path === 'admin/listings' && $method === 'GET') {
+      $rows = $pdo->query('SELECT l.*, u.email AS seller_email FROM listings l
+        LEFT JOIN users u ON u.id = l.user_id ORDER BY l.created_at DESC')->fetchAll();
+      jout(array_map(function ($r) {
+        $o = listing_out($r);
+        $o['sellerEmail'] = $r['seller_email'] ?: null;
+        return $o;
+      }, $rows));
+    }
+
+    // ------------------------------------------------------------------------
+    //  MASQUER, DÉMASQUER, RETIRER — et toujours DIRE POURQUOI.
+    //
+    //  Un vendeur dont l'annonce disparaît sans un mot ne comprend pas : il la
+    //  republie à l'identique, et on recommence. Le motif n'est donc pas une
+    //  option de confort, c'est ce qui fait que la modération sert à quelque
+    //  chose. Il est exigé au masquage comme au retrait, et il part au vendeur.
+    //
+    //  Le retour en ligne d'une annonce masquée par la campagne foncière reste
+    //  interdit ici : le seul chemin est le formulaire, qui la remet en ligne
+    //  dès qu'il est rempli. Un administrateur ne contourne pas cette règle
+    //  d'un clic — sinon elle ne veut plus rien dire.
+    // ------------------------------------------------------------------------
+    if (count($seg) === 4 && $seg[1] === 'listings' && $seg[3] === 'visibility' && $method === 'POST') {
+      $b = body();
+      $st = $pdo->prepare('SELECT user_id, title, hidden, hidden_reason, attributes FROM listings WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $row = $st->fetch();
+      if (!$row) jerr('Annonce introuvable.', 404);
+      $hidden = !empty($b['hidden']) ? 1 : 0;
+      $motif  = mb_substr(trim((string) ($b['motif'] ?? '')), 0, 400);
+
+      if ($hidden) {
+        if ($motif === '') jerr('Indiquez le motif : c’est lui qui part au vendeur.');
+        $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')->execute([$motif, $seg[2]]);
+        if (!empty($row['user_id'])) {
+          notify($pdo, (string) $row['user_id'], 'listing', 'Annonce masquée',
+            '« ' . mb_substr(trim((string) $row['title']), 0, 60) . ' » a été masquée : ' . $motif
+            . ' Corrigez-la et elle repartira en ligne.',
+            '#/modifier/' . $seg[2]);
+        }
+      } else {
+        if ((string) ($row['hidden_reason'] ?? '') === FONCIER_MOTIF) {
+          $attrs = !empty($row['attributes']) ? (json_decode((string) $row['attributes'], true) ?: []) : [];
+          $m = foncier_manques($attrs);
+          if ($m) {
+            jout(['error' => 'Cette annonce est masquée pour dossier foncier incomplet : il manque '
+                  . implode(', ', $m) . '. Seul le vendeur peut la remettre en ligne, en complétant le formulaire.',
+                  'foncier' => true, 'manques' => $m], 422);
+          }
+        }
+        $pdo->prepare('UPDATE listings SET hidden = 0, hidden_reason = NULL WHERE id = ?')->execute([$seg[2]]);
+        if (!empty($row['user_id'])) {
+          notify($pdo, (string) $row['user_id'], 'listing', 'Annonce de nouveau en ligne ✅',
+            '« ' . mb_substr(trim((string) $row['title']), 0, 60) . ' » est de nouveau visible.',
+            '#/annonce/' . $seg[2]);
+        }
+      }
+      log_security_event($pdo, $hidden ? 'admin_listing_hidden' : 'admin_listing_shown',
+        $u['email'] ?? null, $seg[2] . ($motif !== '' ? ' · ' . $motif : ''));
+      jout(['ok' => true, 'hidden' => (bool) $hidden]);
+    }
+
+    // Modération : suppression d'une annonce par l'administrateur.
+    //
+    // Le motif est facultatif ici, et seulement ici : on retire aussi des
+    // annonces dont le vendeur n'existe plus, ou du contenu qu'on ne veut pas
+    // recopier dans une notification. Quand il est donné, il part au vendeur —
+    // c'est sa dernière chance de comprendre avant que l'annonce disparaisse.
+    if (count($seg) === 3 && $seg[1] === 'listings' && $method === 'DELETE') {
+      $st = $pdo->prepare('SELECT user_id, title FROM listings WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $row = $st->fetch();
+      $motif = mb_substr(trim((string) (body()['motif'] ?? '')), 0, 400);
+      videos_supprimer_annonces($pdo, $config, 'id = ?', [$seg[2]]); // la vidéo, avant la ligne
+      $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$seg[2]]);
+      // Les signalements qui la visaient n'ont plus d'objet : on les clôt, sans
+      // quoi la file de modération garderait des lignes pointant vers le vide.
+      $pdo->prepare("UPDATE reports SET status = 'resolved' WHERE listing_id = ?")->execute([$seg[2]]);
+      if ($row && !empty($row['user_id'])) {
+        notify($pdo, (string) $row['user_id'], 'listing', 'Annonce retirée',
+          '« ' . mb_substr(trim((string) $row['title']), 0, 60) . ' » a été retirée de Chap.ci'
+          . ($motif !== '' ? ' : ' . $motif : '.'), '#/compte?onglet=annonces');
+      }
+      log_security_event($pdo, 'admin_listing_deleted', $u['email'] ?? null,
+        $seg[2] . ($motif !== '' ? ' · ' . $motif : ''));
+      jout(['ok' => true]);
+    }
+
+    // Signalements : liste pour la modération (les ouverts d'abord).
+    if ($path === 'admin/reports' && $method === 'GET') {
+      $rows = $pdo->query("SELECT r.*, l.title AS listing_title, l.hidden AS listing_hidden,
+          u.email AS reporter_email
+        FROM reports r
+        LEFT JOIN listings l ON l.id = r.listing_id
+        LEFT JOIN users u ON u.id = r.reporter_id
+        ORDER BY (CASE WHEN r.status = 'open' THEN 0 ELSE 1 END), r.created_at DESC LIMIT 200")->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'listingId' => $r['listing_id'],
+        'listingTitle' => $r['listing_title'] ?: '(annonce supprimée)',
+        'listingHidden' => !empty($r['listing_hidden']),
+        'reason' => $r['reason'], 'details' => $r['details'] ?: null,
+        'reporterEmail' => $r['reporter_email'] ?: null,
+        'status' => $r['status'] ?: 'open', 'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // ------------------------------------------------------------------------
+    //  TRAITER UN SIGNALEMENT — et agir sur l'annonce dans le même geste.
+    //
+    //  Jusqu'ici, « traiter » ne faisait que ranger la ligne : il fallait
+    //  ensuite retrouver l'annonce dans un autre onglet pour la masquer ou la
+    //  retirer. Deux écrans pour une décision, et la moitié du temps le second
+    //  n'était pas fait — le signalement était classé, l'annonce toujours en
+    //  ligne. C'est exactement ce qu'un signalement est censé empêcher.
+    //
+    //  Trois actions, un seul appel :
+    //    · `classer`   — rien à reprocher, la ligne est rangée ;
+    //    · `masquer`   — l'annonce sort de la vue, le vendeur reçoit le motif
+    //                    et peut corriger ;
+    //    · `supprimer` — elle disparaît, définitivement.
+    //
+    //  Le motif par défaut reprend la raison du signalement : dans la grande
+    //  majorité des cas c'est déjà le bon mot, et un modérateur pressé ne doit
+    //  pas avoir à le réécrire pour bien faire.
+    // ------------------------------------------------------------------------
+    if (count($seg) === 3 && $seg[1] === 'reports' && $method === 'POST') {
+      $b = body();
+      $action = (string) ($b['action'] ?? 'classer');
+      if (!in_array($action, ['classer', 'masquer', 'supprimer'], true)) jerr('Action inconnue.');
+
+      $rs = $pdo->prepare('SELECT listing_id, reason FROM reports WHERE id = ?');
+      $rs->execute([$seg[2]]);
+      $rep = $rs->fetch();
+      if (!$rep) jerr('Signalement introuvable.', 404);
+
+      $motif = mb_substr(trim((string) ($b['motif'] ?? '')), 0, 400);
+      if ($motif === '') $motif = 'signalée par un utilisateur — ' . (string) $rep['reason'];
+
+      $agi = 'classer';
+      if ($action !== 'classer' && !empty($rep['listing_id'])) {
+        $ls = $pdo->prepare('SELECT user_id, title FROM listings WHERE id = ?');
+        $ls->execute([$rep['listing_id']]);
+        if ($l = $ls->fetch()) {
+          $titre = mb_substr(trim((string) $l['title']), 0, 60);
+          if ($action === 'supprimer') {
+            videos_supprimer_annonces($pdo, $config, 'id = ?', [$rep['listing_id']]);
+            $pdo->prepare('DELETE FROM listings WHERE id = ?')->execute([$rep['listing_id']]);
+            if (!empty($l['user_id'])) {
+              notify($pdo, (string) $l['user_id'], 'listing', 'Annonce retirée',
+                '« ' . $titre . ' » a été retirée de Chap.ci : ' . $motif, '#/compte?onglet=annonces');
+            }
+          } else {
+            $pdo->prepare('UPDATE listings SET hidden = 1, hidden_reason = ? WHERE id = ?')
+                ->execute([$motif, $rep['listing_id']]);
+            if (!empty($l['user_id'])) {
+              notify($pdo, (string) $l['user_id'], 'listing', 'Annonce masquée',
+                '« ' . $titre . ' » a été masquée : ' . $motif . ' Corrigez-la et elle repartira en ligne.',
+                '#/modifier/' . $rep['listing_id']);
+            }
+          }
+          $agi = $action;
+          log_security_event($pdo, 'admin_report_' . $action, $u['email'] ?? null,
+            (string) $rep['listing_id'] . ' · ' . $motif);
+        }
+      }
+
+      // Le signalement est clos dans tous les cas — et TOUS ceux qui visaient la
+      // même annonce avec lui : trois personnes signalent souvent la même chose,
+      // et laisser les deux autres ouverts ferait retraiter une décision prise.
+      $pdo->prepare('UPDATE reports SET status = ? WHERE id = ?')->execute(['resolved', $seg[2]]);
+      if ($agi !== 'classer' && !empty($rep['listing_id'])) {
+        $pdo->prepare("UPDATE reports SET status = 'resolved' WHERE listing_id = ? AND status = 'open'")
+            ->execute([$rep['listing_id']]);
+      }
+      jout(['ok' => true, 'action' => $agi]);
+    }
+
+    // ------------------------------------------------------------------------
+    //  RECETTES DU SITE — ce que Chap.ci a réellement encaissé
+    //
+    //  Deux natures de recette, et elles ne se connaissent pas de la même façon.
+    //
+    //  Les PUBLICITÉS, le site les connaît : chaque bannière porte son prix, son
+    //  moyen de paiement et le numéro qui a payé. Rien à saisir.
+    //
+    //  Les DONS, le site ne les connaît PAS — et ce n'est pas un oubli. La page
+    //  /don affiche un numéro Mobile Money ; le donateur envoie l'argent depuis
+    //  son téléphone, directement à l'opérateur. Chap.ci n'est à aucun moment
+    //  dans la transaction : aucun serveur ne peut deviner qu'elle a eu lieu.
+    //  On les inscrit donc à la main, d'après le relevé Mobile Money.
+    //
+    //  D'où la colonne « confirmé » : elle ne dit pas « payé », elle dit
+    //  « retrouvé sur le relevé de l'opérateur ». C'est la seule preuve qui
+    //  vaille, et elle vient du téléphone du propriétaire, pas d'ici.
+    // ------------------------------------------------------------------------
+    //  Réservé au PROPRIÉTAIRE. Un modérateur modère ; il n'a pas à connaître
+    //  le chiffre d'affaires, ni les numéros de téléphone des payeurs.
+    if (str_starts_with($path, 'admin/revenues')) {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('Les recettes sont réservées au propriétaire du site.', 403);
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    //  Campagne de mise en conformité des ventes immobilières.
+    //
+    //  Masque les annonces publiées avant la nouvelle règle, inscrit le motif
+    //  et prévient chaque vendeur — notification dans l'application ET e-mail
+    //  avec le lien qui ouvre le formulaire sur la bonne annonce.
+    //
+    //  Elle s'exécute une fois toute seule au déploiement ; cette route existe
+    //  pour la relancer si de vieilles annonces réapparaissent, et pour voir le
+    //  compte rendu. Idempotente : personne n'est prévenu deux fois.
+    //
+    //  Réservée au PROPRIÉTAIRE : elle masque des annonces et envoie des
+    //  e-mails en série. Un modérateur modère au cas par cas.
+    // ------------------------------------------------------------------------
+    if (str_starts_with($path, 'admin/foncier/')) {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('Cette campagne est réservée au propriétaire du site.', 403);
+      }
+    }
+    // État des lieux — ne masque rien, n'envoie rien. C'est la réponse à
+    // « qu'est-ce que la campagne a fait, au juste ? », consultable à tout moment.
+    if ($path === 'admin/foncier/campagne' && $method === 'GET') {
+      $etat = foncier_campagne($config, $pdo, 200, true);
+      $st = $pdo->query("SELECT id, title, hidden, hidden_reason, attributes FROM listings
+                         WHERE category_id = 'immobilier' ORDER BY created_at DESC LIMIT 100");
+      $etat['annonces'] = array_map(function (array $l) {
+        $a = !empty($l['attributes']) ? (json_decode((string) $l['attributes'], true) ?: []) : [];
+        return [
+          'id' => $l['id'], 'titre' => $l['title'],
+          'masquee' => !empty($l['hidden']),
+          'parLaCampagne' => (string) ($l['hidden_reason'] ?? '') === FONCIER_MOTIF,
+          'vente' => foncier_concerne('immobilier', null, $a),
+          'manques' => foncier_manques($a),
+        ];
+      }, $st->fetchAll());
+      jout($etat);
+    }
+    if ($path === 'admin/foncier/campagne' && $method === 'POST') {
+      jout(foncier_campagne($config, $pdo, 200));
+    }
+    // Renvoi du message aux vendeurs déjà prévenus. À déclencher seulement si
+    // l'on soupçonne que le premier e-mail n'est pas parti : il peut arriver
+    // deux fois, ce qui est moins grave qu'une annonce masquée sans explication.
+    if ($path === 'admin/foncier/relance' && $method === 'POST') {
+      jout(foncier_relance($config, $pdo));
+    }
+    // Rend visibles les annonces que la campagne avait masquées et qui sont
+    // redevenues conformes — après un assouplissement de la règle, ou après une
+    // correction faite en base. S'exécute déjà toute seule une fois au
+    // déploiement ; cette route est là pour la rejouer.
+    if ($path === 'admin/foncier/reouvrir' && $method === 'POST') {
+      jout(foncier_reouvrir($pdo));
+    }
+
+    // ========================================================================
+    //  COMPTABILITÉ — réservée au propriétaire, comme les recettes.
+    //
+    //  Un modérateur modère ; il n'a rien à faire dans les comptes. La garde
+    //  est posée ici et non dans chaque route : une route ajoutée demain sous
+    //  `admin/comptabilite/` est protégée sans que personne n'y pense.
+    // ========================================================================
+    if (str_starts_with($path, 'admin/comptabilite')) {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('La comptabilité est réservée au propriétaire du site.', 403);
+      }
+    }
+
+    // Le tableau complet d'un exercice : les deux registres, les totaux, le
+    // résultat, le régime fiscal applicable. La reprise tourne à chaque
+    // ouverture — elle est idempotente, et un rapprochement qu'il faut penser
+    // à lancer finit par ne plus être lancé.
+    if ($path === 'admin/comptabilite' && $method === 'GET') {
+      $exercice = (int) ($_GET['exercice'] ?? gmdate('Y'));
+      if ($exercice < 2020 || $exercice > 2100) $exercice = (int) gmdate('Y');
+      $reprises = compta_reprise($pdo, (string) ($u['email'] ?? ''));
+
+      $lire = function (string $sens) use ($pdo, $exercice): array {
+        $st = $pdo->prepare('SELECT * FROM compta WHERE exercice = ? AND sens = ? ORDER BY numero ASC');
+        $st->execute([$exercice, $sens]);
+        return array_map(fn($r) => [
+          'id' => $r['id'], 'numero' => (int) $r['numero'],
+          'date' => (string) $r['date_op'], 'libelle' => (string) $r['libelle'],
+          'montant' => (int) $r['montant'], 'categorie' => (string) $r['categorie'],
+          'mode' => (string) $r['mode'], 'reference' => (string) ($r['reference'] ?? ''),
+          'tiers' => (string) ($r['tiers'] ?? ''), 'piece' => (string) ($r['piece'] ?? ''),
+          'note' => (string) ($r['note'] ?? ''), 'source' => (string) ($r['source'] ?? 'manuel'),
+          'pointe' => (int) ($r['pointe'] ?? 0) === 1,
+        ], $st->fetchAll());
+      };
+      $recettes = $lire('recette');
+      $depenses = $lire('depense');
+      $somme = fn(array $l) => array_sum(array_map(fn($x) => (int) $x['montant'], $l));
+      $totalR = $somme($recettes); $totalD = $somme($depenses);
+
+      // Ventilation par mois — c'est ce qu'on regarde pour voir venir un seuil.
+      $mois = [];
+      for ($m = 1; $m <= 12; $m++) $mois[sprintf('%04d-%02d', $exercice, $m)] = ['recettes' => 0, 'depenses' => 0];
+      foreach ([['recette', $recettes], ['depense', $depenses]] as [$sens, $lignes]) {
+        foreach ($lignes as $l) {
+          $k = substr((string) $l['date'], 0, 7);
+          if (isset($mois[$k])) $mois[$k][$sens === 'recette' ? 'recettes' : 'depenses'] += (int) $l['montant'];
+        }
+      }
+      $parMois = [];
+      foreach ($mois as $k => $v) $parMois[] = ['mois' => $k, 'recettes' => $v['recettes'], 'depenses' => $v['depenses'], 'resultat' => $v['recettes'] - $v['depenses']];
+
+      $ventil = function (array $lignes, array $ref): array {
+        $t = [];
+        foreach ($lignes as $l) {
+          $c = (string) $l['categorie'];
+          $t[$c] = ($t[$c] ?? 0) + (int) $l['montant'];
+        }
+        arsort($t);
+        $out = [];
+        foreach ($t as $c => $v) $out[] = ['code' => $c, 'nom' => $ref[$c][0] ?? $c, 'compte' => $ref[$c][1] ?? '', 'total' => $v];
+        return $out;
+      };
+
+      // Les exercices qui ont une écriture — c'est ce qui peuple le sélecteur.
+      $annees = [];
+      try {
+        foreach ($pdo->query('SELECT DISTINCT exercice FROM compta ORDER BY exercice DESC')->fetchAll() as $r) $annees[] = (int) $r['exercice'];
+      } catch (Throwable $e) {}
+      if (!in_array((int) gmdate('Y'), $annees, true)) array_unshift($annees, (int) gmdate('Y'));
+
+      jout([
+        'exercice' => $exercice,
+        'exercices' => $annees,
+        'clos' => compta_clos($pdo, $exercice),
+        'reprises' => $reprises,
+        'recettes' => $recettes,
+        'depenses' => $depenses,
+        'totaux' => [
+          'recettes' => $totalR,
+          'depenses' => $totalD,
+          'resultat' => $totalR - $totalD,
+          'nbRecettes' => count($recettes),
+          'nbDepenses' => count($depenses),
+          // Le rapprochement : ce qui a été retrouvé sur le relevé de
+          // l'opérateur. Une recette non pointée n'est pas une recette
+          // douteuse — c'est une recette qu'on n'a pas encore vérifiée.
+          'aPointer' => count(array_filter(array_merge($recettes, $depenses), fn($x) => !$x['pointe'])),
+        ],
+        'parMois' => $parMois,
+        'parCategorie' => [
+          'recettes' => $ventil($recettes, COMPTA_RECETTES),
+          'depenses' => $ventil($depenses, COMPTA_DEPENSES),
+        ],
+        'regime' => compta_regime($totalR),
+        // L'identité qui figure en tête des registres exportés.
+        //
+        // Le zip de déploiement n'écrase JAMAIS `api/config.php` — c'est la
+        // règle qui protège les mots de passe du Patron. Le bloc `entite` livré
+        // dans `server/config.php` n'arrive donc pas tout seul sur le serveur,
+        // et sans RCCM ni NCC un registre remis aux Impôts est incomplet. On
+        // renvoie ce qui manque pour que l'écran le dise, au lieu de laisser
+        // découvrir le trou au guichet.
+        'entite' => [
+          'nom' => trim((string) (($config['entite']['nom'] ?? '') ?: 'Chap.ci')),
+          'rccm' => trim((string) ($config['entite']['rccm'] ?? '')),
+          'ncc' => trim((string) ($config['entite']['ncc'] ?? '')),
+        ],
+        'categories' => [
+          'recettes' => array_map(fn($k) => ['code' => $k, 'nom' => COMPTA_RECETTES[$k][0], 'compte' => COMPTA_RECETTES[$k][1]], array_keys(COMPTA_RECETTES)),
+          'depenses' => array_map(fn($k) => ['code' => $k, 'nom' => COMPTA_DEPENSES[$k][0], 'compte' => COMPTA_DEPENSES[$k][1]], array_keys(COMPTA_DEPENSES)),
+        ],
+        'modes' => COMPTA_MODES,
+      ]);
+    }
+
+    // Inscrire une opération — une dépense le plus souvent, une recette au
+    // besoin (un virement reçu hors publicité).
+    if ($path === 'admin/comptabilite' && $method === 'POST') {
+      $b = body();
+      $montant = (int) ($b['montant'] ?? 0);
+      if ($montant <= 0) jerr('Indiquez le montant, en francs CFA.');
+      $libelle = trim((string) ($b['libelle'] ?? ''));
+      if ($libelle === '') jerr('Décrivez l’opération : c’est ce que lira le contrôleur.');
+      $sens = ($b['sens'] ?? 'depense') === 'recette' ? 'recette' : 'depense';
+      $ref = $sens === 'recette' ? COMPTA_RECETTES : COMPTA_DEPENSES;
+      $cat = (string) ($b['categorie'] ?? '');
+      if (!isset($ref[$cat])) $cat = 'autre';
+      $d = trim((string) ($b['date'] ?? ''));
+      $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d . 'T12:00:00Z' : now_iso();
+      $exercice = compta_exercice($date);
+      if (compta_clos($pdo, $exercice)) jerr("L’exercice $exercice est clos : plus aucune écriture ne peut y être ajoutée.", 409);
+
+      $id = compta_ecrire($pdo, [
+        'sens' => $sens, 'date_op' => $date, 'libelle' => $libelle, 'montant' => $montant,
+        'categorie' => $cat, 'mode' => (string) ($b['mode'] ?? 'autre'),
+        'reference' => (string) ($b['reference'] ?? ''), 'tiers' => (string) ($b['tiers'] ?? ''),
+        'piece' => (string) ($b['piece'] ?? ''), 'note' => (string) ($b['note'] ?? ''),
+        'source' => 'manuel', 'cree_par' => (string) ($u['email'] ?? ''),
+      ]);
+      if (!$id) jerr('L’écriture n’a pas pu être inscrite.', 500);
+      jout(['ok' => true, 'id' => $id]);
+    }
+
+    // Supprimer une écriture SAISIE À LA MAIN, et seulement elle.
+    //
+    // Une ligne venue d'une publicité encaissée ne se supprime pas : elle
+    // correspond à de l'argent réellement reçu, et l'effacer ferait mentir le
+    // registre. Une saisie manuelle, en revanche, peut être une faute de
+    // frappe qu'il faut pouvoir retirer le jour même.
+    if (count($seg) === 3 && $seg[1] === 'comptabilite' && $method === 'DELETE') {
+      $st = $pdo->prepare('SELECT exercice, sens, source FROM compta WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $row = $st->fetch();
+      if (!$row) jerr('Écriture introuvable.', 404);
+      if ((string) $row['source'] !== 'manuel') {
+        jerr('Cette ligne vient d’une opération réelle du site : elle ne peut pas être supprimée. Ajoutez une écriture de correction si le montant est faux.', 409);
+      }
+      if (compta_clos($pdo, (int) $row['exercice'])) jerr('Exercice clos : plus aucune modification.', 409);
+      $pdo->prepare('DELETE FROM compta WHERE id = ?')->execute([$seg[2]]);
+      // Sans cela le registre garderait un trou — n° 1, n° 3 — qui se lit comme
+      // une pièce retirée après coup.
+      compta_renumeroter($pdo, (int) $row['exercice'], (string) $row['sens']);
+      jout(['ok' => true]);
+    }
+
+    // Pointer une écriture : « je l'ai retrouvée sur le relevé Mobile Money ».
+    //
+    // C'est le rapprochement, et c'est ce qui distingue une liste d'une
+    // comptabilité. Il reste possible sur un exercice clos : pointer ne change
+    // aucun montant, cela note seulement qu'on a vérifié.
+    if (count($seg) === 4 && $seg[1] === 'comptabilite' && $seg[3] === 'pointer' && $method === 'POST') {
+      $b = body();
+      $v = array_key_exists('pointe', $b) ? (!empty($b['pointe']) ? 1 : 0) : 1;
+      $st = $pdo->prepare('SELECT id FROM compta WHERE id = ?');
+      $st->execute([$seg[2]]);
+      if (!$st->fetchColumn()) jerr('Écriture introuvable.', 404);
+      $pdo->prepare('UPDATE compta SET pointe = ?, pointe_le = ? WHERE id = ?')
+          ->execute([$v, $v ? now_iso() : null, $seg[2]]);
+      jout(['ok' => true, 'pointe' => $v === 1]);
+    }
+
+    // Clore un exercice. Geste volontaire, irréversible depuis l'écran : à
+    // partir de là, le registre imprimé et le registre en ligne diront
+    // toujours la même chose.
+    if ($path === 'admin/comptabilite/cloturer' && $method === 'POST') {
+      $b = body();
+      $annee = (int) ($b['exercice'] ?? 0);
+      if ($annee < 2020 || $annee > 2100) jerr('Exercice invalide.');
+      if ($annee >= (int) gmdate('Y')) jerr('On ne clôt pas un exercice en cours. Attendez le 1ᵉʳ janvier.', 409);
+      if (compta_clos($pdo, $annee)) jerr("L’exercice $annee est déjà clos.", 409);
+      $st = $pdo->prepare("SELECT sens, SUM(montant) t FROM compta WHERE exercice = ? GROUP BY sens");
+      $st->execute([$annee]);
+      $tot = ['recette' => 0, 'depense' => 0];
+      foreach ($st->fetchAll() as $r) $tot[(string) $r['sens']] = (int) $r['t'];
+      $pdo->prepare('INSERT INTO exercices (annee,cloture_le,cloture_par,total_recettes,total_depenses) VALUES (?,?,?,?,?)')
+          ->execute([$annee, now_iso(), (string) ($u['email'] ?? ''), $tot['recette'], $tot['depense']]);
+      $pdo->prepare('UPDATE compta SET verrouille = 1 WHERE exercice = ?')->execute([$annee]);
+      jout(['ok' => true, 'exercice' => $annee, 'totaux' => $tot]);
+    }
+
+    // ------------------------------------------------------------------------
+    //  LES EXPORTS — ce qui sort de l'écran et part chez le comptable.
+    //
+    //  Trois formats, trois usages :
+    //   · `recettes` / `depenses` en CSV — les deux registres chronologiques
+    //     exigés par le Code général des impôts, chacun dans son fichier,
+    //     ouvrables dans n'importe quel tableur.
+    //   · `smt` — le résultat de fin d'exercice présenté selon le Système
+    //     Minimal de Trésorerie du SYSCOHADA révisé, en HTML fait pour être
+    //     imprimé ou enregistré en PDF depuis le navigateur.
+    //
+    //  Le CSV porte un BOM UTF-8 : sans lui, Excel affiche « Coté d'Ivoire »
+    //  et « Hébergement » en charabia, et le document devient impossible à
+    //  présenter. Le séparateur est le point-virgule, celui qu'attend un
+    //  tableur configuré en français.
+    // ------------------------------------------------------------------------
+    if ($path === 'admin/comptabilite/export' && $method === 'GET') {
+      $exercice = (int) ($_GET['exercice'] ?? gmdate('Y'));
+      if ($exercice < 2020 || $exercice > 2100) $exercice = (int) gmdate('Y');
+      $quoi = (string) ($_GET['quoi'] ?? 'recettes');
+      compta_reprise($pdo, (string) ($u['email'] ?? ''));
+
+      $lignes = function (string $sens) use ($pdo, $exercice): array {
+        $st = $pdo->prepare('SELECT * FROM compta WHERE exercice = ? AND sens = ? ORDER BY numero ASC');
+        $st->execute([$exercice, $sens]);
+        return $st->fetchAll();
+      };
+      $ident = $config['entite'] ?? [];
+      $nomEntite = trim((string) ($ident['nom'] ?? '')) ?: 'Chap.ci';
+
+      if ($quoi === 'recettes' || $quoi === 'depenses') {
+        $sens = $quoi === 'recettes' ? 'recette' : 'depense';
+        $ref = $sens === 'recette' ? COMPTA_RECETTES : COMPTA_DEPENSES;
+        $rows = $lignes($sens);
+        $csv = "\xEF\xBB\xBF"; // BOM : Excel lit alors correctement les accents
+        $sep = ';';
+        $esc = function ($v) { return '"' . str_replace('"', '""', (string) $v) . '"'; };
+        // Un en-tête qui dit de quoi il s'agit : le fichier voyage seul.
+        $csv .= $esc($nomEntite) . $sep . $esc(($sens === 'recette' ? 'REGISTRE DES RECETTES' : 'REGISTRE DES ACHATS ET DÉPENSES') . " — exercice $exercice") . "\n";
+        if (!empty($ident['rccm'])) $csv .= $esc('RCCM') . $sep . $esc($ident['rccm']) . "\n";
+        if (!empty($ident['ncc'])) $csv .= $esc('Compte contribuable (NCC)') . $sep . $esc($ident['ncc']) . "\n";
+        $csv .= $esc('Édité le') . $sep . $esc(gmdate('d/m/Y H:i') . ' UTC') . "\n\n";
+        $csv .= implode($sep, array_map($esc, ['N°', 'Date', 'Libellé', 'Tiers', 'Catégorie', 'Compte SYSCOHADA', 'Mode de règlement', 'Référence', 'Pièce justificative', 'Pointé sur relevé', 'Montant (FCFA)'])) . "\n";
+        $total = 0;
+        foreach ($rows as $r) {
+          $c = (string) $r['categorie'];
+          $total += (int) $r['montant'];
+          $csv .= implode($sep, array_map($esc, [
+            (int) $r['numero'],
+            gmdate('d/m/Y', strtotime((string) $r['date_op']) ?: time()),
+            (string) $r['libelle'],
+            (string) ($r['tiers'] ?? ''),
+            $ref[$c][0] ?? $c,
+            $ref[$c][1] ?? '',
+            (string) $r['mode'],
+            (string) ($r['reference'] ?? ''),
+            (string) ($r['piece'] ?? ''),
+            ((int) ($r['pointe'] ?? 0) === 1) ? 'oui' : 'non',
+            (int) $r['montant'],
+          ])) . "\n";
+        }
+        $csv .= "\n" . implode($sep, array_map($esc, ['', '', 'TOTAL', '', '', '', '', '', '', '', $total])) . "\n";
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="chapci-' . $quoi . '-' . $exercice . '.csv"');
+        header('X-Content-Type-Options: nosniff');
+        echo $csv;
+        exit;
+      }
+
+      if ($quoi === 'smt') {
+        $rec = $lignes('recette'); $dep = $lignes('depense');
+        $sum = fn(array $l) => array_sum(array_map(fn($x) => (int) $x['montant'], $l));
+        $tr = $sum($rec); $td = $sum($dep);
+        $regime = compta_regime($tr);
+        $grp = function (array $l, array $ref): array {
+          $t = [];
+          foreach ($l as $x) { $c = (string) $x['categorie']; $t[$c] = ($t[$c] ?? 0) + (int) $x['montant']; }
+          arsort($t); return $t;
+        };
+        $gr = $grp($rec, COMPTA_RECETTES); $gd = $grp($dep, COMPTA_DEPENSES);
+        $f = fn(int $n) => number_format($n, 0, ',', ' ');
+        $h = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+        $clos = compta_clos($pdo, $exercice);
+
+        $ligneCat = function (array $t, array $ref) use ($f, $h): string {
+          $out = '';
+          foreach ($t as $c => $v) {
+            $out .= '<tr><td>' . $h($ref[$c][0] ?? $c) . '</td><td class="c">' . $h($ref[$c][1] ?? '—')
+                 . '</td><td class="n">' . $f($v) . '</td></tr>';
+          }
+          return $out ?: '<tr><td colspan="3" class="vide">Aucune écriture</td></tr>';
+        };
+
+        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Disposition: inline; filename="chapci-etat-financier-' . $exercice . '.html"');
+        header('X-Content-Type-Options: nosniff');
+        echo '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+          . '<title>' . $h($nomEntite) . ' — état financier ' . $exercice . '</title>'
+          . '<style>'
+          . '@page{size:A4;margin:18mm}'
+          . 'body{font-family:Georgia,"Times New Roman",serif;color:#111;max-width:800px;margin:0 auto;padding:28px;line-height:1.5}'
+          . 'h1{font-size:20px;margin:0 0 2px;letter-spacing:-.3px}'
+          . 'h2{font-size:14px;margin:26px 0 8px;padding-bottom:5px;border-bottom:1.5px solid #111;text-transform:uppercase;letter-spacing:.6px}'
+          . '.ent{font-size:12.5px;color:#444;margin-bottom:22px}'
+          . 'table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px}'
+          . 'th,td{padding:5px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}'
+          . 'th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#555;border-bottom:1px solid #111}'
+          . '.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}'
+          . '.c{color:#666;font-size:11.5px;white-space:nowrap}'
+          . '.tot td{border-top:1.5px solid #111;border-bottom:none;font-weight:bold;padding-top:8px}'
+          . '.res{margin:22px 0;padding:14px 16px;border:2px solid #111}'
+          . '.res .l{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#555}'
+          . '.res .v{font-size:26px;font-weight:bold;font-variant-numeric:tabular-nums}'
+          . '.neg{color:#A81E1E}'
+          . '.vide{color:#888;font-style:italic}'
+          . '.pied{margin-top:30px;padding-top:12px;border-top:1px solid #ccc;font-size:11px;color:#555;line-height:1.7}'
+          . '.att{background:#FFF8E1;border-left:3px solid #E8A100;padding:10px 12px;margin:16px 0;font-size:11.5px}'
+          . '@media print{.noprint{display:none}}'
+          . '</style></head><body>'
+          . '<button class="noprint" onclick="window.print()" style="float:right;font:inherit;padding:7px 14px;cursor:pointer">Imprimer / PDF</button>'
+          . '<h1>' . $h($nomEntite) . '</h1>'
+          . '<div class="ent">'
+          . ($ident['activite'] ?? 'Plateforme de petites annonces en ligne') . '<br>'
+          . ($ident['adresse'] ?? 'Abidjan, Côte d’Ivoire')
+          . (!empty($ident['rccm']) ? '<br>RCCM : ' . $h($ident['rccm']) : '')
+          . (!empty($ident['ncc']) ? ' &nbsp;·&nbsp; Compte contribuable : ' . $h($ident['ncc']) : '')
+          . '</div>'
+          . '<h2>État financier — exercice ' . $exercice . '</h2>'
+          . '<p style="font-size:12.5px;margin:0 0 4px">Système Minimal de Trésorerie — référentiel SYSCOHADA révisé.<br>'
+          . 'Période du 1<sup>er</sup> janvier au 31 décembre ' . $exercice . '. Montants en francs CFA (XOF).</p>'
+          . ($clos ? '' : '<div class="att"><b>Exercice non clos.</b> Ce document reflète les écritures enregistrées au '
+              . gmdate('d/m/Y') . '. Il n’est définitif qu’une fois l’exercice clôturé.</div>')
+          . '<h2>Recettes encaissées</h2>'
+          . '<table><tr><th>Nature</th><th>Compte</th><th class="n">Montant</th></tr>'
+          . $ligneCat($gr, COMPTA_RECETTES)
+          . '<tr class="tot"><td>Total des recettes</td><td></td><td class="n">' . $f($tr) . '</td></tr></table>'
+          . '<p style="font-size:11.5px;color:#555;margin-top:2px">' . count($rec) . ' écriture(s), numérotées de 1 à ' . count($rec) . ' au registre des recettes.</p>'
+          . '<h2>Dépenses décaissées</h2>'
+          . '<table><tr><th>Nature</th><th>Compte</th><th class="n">Montant</th></tr>'
+          . $ligneCat($gd, COMPTA_DEPENSES)
+          . '<tr class="tot"><td>Total des dépenses</td><td></td><td class="n">' . $f($td) . '</td></tr></table>'
+          . '<p style="font-size:11.5px;color:#555;margin-top:2px">' . count($dep) . ' écriture(s), numérotées de 1 à ' . count($dep) . ' au registre des dépenses.</p>'
+          . '<div class="res"><div class="l">Résultat de l’exercice ' . $exercice . '</div>'
+          . '<div class="v' . ($tr - $td < 0 ? ' neg' : '') . '">' . $f($tr - $td) . ' FCFA</div></div>'
+          . '<h2>Régime fiscal applicable</h2>'
+          . '<p style="font-size:12.5px;margin:0"><b>' . $h($regime['nom']) . '</b><br>'
+          . 'Déterminé par le chiffre d’affaires de l’exercice : ' . $f($tr) . ' FCFA TTC.<br>'
+          . $h($regime['obligation']) . '</p>'
+          . '<div class="pied">'
+          . 'Document établi le ' . gmdate('d/m/Y à H:i') . ' UTC à partir du grand livre tenu par le site Chap.ci.<br>'
+          . 'Les registres détaillés — recettes et dépenses, chronologiques et numérotés — sont exportables séparément au format CSV.<br>'
+          . 'Conformément au Code général des impôts, ces documents sont conservés <b>trois ans</b> et présentés à toute réquisition du service des Impôts.<br>'
+          . '<i>Ce document est produit automatiquement. Il ne remplace pas l’avis d’un expert-comptable, et n’a pas valeur de déclaration fiscale.</i>'
+          . '</div></body></html>';
+        exit;
+      }
+      jerr('Export inconnu.', 400);
+    }
+
+    if ($path === 'admin/revenues' && $method === 'GET') {
+      $depuis = trim((string) ($_GET['from'] ?? ''));   // AAAA-MM-JJ (facultatif)
+      $jusqua = trim((string) ($_GET['to'] ?? ''));
+      $borne = function (string $col) use ($depuis, $jusqua): array {
+        $w = []; $p = [];
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $depuis)) { $w[] = "$col >= ?"; $p[] = $depuis . 'T00:00:00Z'; }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $jusqua)) { $w[] = "$col <= ?"; $p[] = $jusqua . 'T23:59:59Z'; }
+        return [$w ? ' AND ' . implode(' AND ', $w) : '', $p];
+      };
+
+      // Publicités encaissées : payantes uniquement. Une diffusion maison
+      // (kind admin/seo) ou une demande refusée n'a jamais rapporté un franc.
+      [$wAds, $pAds] = $borne('created_at');
+      $st = $pdo->prepare("SELECT id,title,price,pay_method,pay_number,email,status,created_at,starts_at,pay_confirmed,pay_confirmed_at
+        FROM ads
+        WHERE price > 0 AND (kind IS NULL OR kind NOT IN ('admin','seo'))
+          AND status IN ('active','expired','merged')$wAds
+        ORDER BY created_at DESC LIMIT 500");
+      $st->execute($pAds);
+      $pubs = array_map(fn($r) => [
+        'id' => $r['id'], 'label' => ($r['title'] ?: '(bannière image seule)'),
+        'amount' => (int) $r['price'],
+        'method' => $r['pay_method'] ?: '', 'number' => $r['pay_number'] ?: '',
+        'email' => $r['email'] ?: null,
+        'status' => $r['status'],
+        'at' => iso_to_ms($r['starts_at'] ?: $r['created_at']),
+        'confirmed' => (int) ($r['pay_confirmed'] ?? 0) === 1,
+        'confirmedAt' => !empty($r['pay_confirmed_at']) ? iso_to_ms($r['pay_confirmed_at']) : null,
+      ], $st->fetchAll());
+
+      // Recettes saisies à la main (dons et autres).
+      [$wRev, $pRev] = $borne('occurred_at');
+      $st2 = $pdo->prepare("SELECT * FROM revenues WHERE 1 = 1$wRev ORDER BY occurred_at DESC LIMIT 500");
+      $st2->execute($pRev);
+      $manuelles = array_map(fn($r) => [
+        'id' => $r['id'], 'kind' => $r['kind'] ?: 'don', 'label' => (string) $r['label'],
+        'amount' => (int) $r['amount'], 'method' => $r['method'] ?: '', 'number' => $r['number'] ?: '',
+        'note' => (string) ($r['note'] ?? ''),
+        'at' => iso_to_ms($r['occurred_at'] ?: $r['created_at']),
+        'confirmed' => (int) ($r['confirmed'] ?? 0) === 1,
+        'confirmedAt' => !empty($r['confirmed_at']) ? iso_to_ms($r['confirmed_at']) : null,
+      ], $st2->fetchAll());
+
+      $somme = fn(array $l) => array_sum(array_map(fn($x) => (int) $x['amount'], $l));
+      $dons  = array_values(array_filter($manuelles, fn($x) => $x['kind'] === 'don'));
+      $autres = array_values(array_filter($manuelles, fn($x) => $x['kind'] !== 'don'));
+      $toutes = array_merge($pubs, $manuelles);
+      $confirmees = array_values(array_filter($toutes, fn($x) => $x['confirmed']));
+
+      // Recettes par mois : de quoi voir une tendance sans exporter quoi que ce soit.
+      $mois = [];
+      foreach ($toutes as $x) {
+        if (!$x['at']) continue;
+        $m = gmdate('Y-m', (int) ($x['at'] / 1000));
+        $mois[$m] = ($mois[$m] ?? 0) + (int) $x['amount'];
+      }
+      krsort($mois);
+      $parMois = [];
+      foreach (array_slice($mois, 0, 12, true) as $m => $v) $parMois[] = ['mois' => $m, 'total' => $v];
+
+      jout([
+        'pubs' => $pubs,
+        'dons' => $dons,
+        'autres' => $autres,
+        'totaux' => [
+          'pub' => $somme($pubs),
+          'don' => $somme($dons),
+          'autre' => $somme($autres),
+          'total' => $somme($toutes),
+          'confirme' => $somme($confirmees),
+          'aVerifier' => $somme($toutes) - $somme($confirmees),
+          'nbAVerifier' => count($toutes) - count($confirmees),
+        ],
+        'parMois' => array_reverse($parMois),
+      ]);
+    }
+
+    // Inscrire une recette relevée sur le compte Mobile Money (don, virement…).
+    if ($path === 'admin/revenues' && $method === 'POST') {
+      $b = body();
+      $montant = (int) ($b['amount'] ?? 0);
+      if ($montant <= 0) jerr('Indiquez le montant reçu.');
+      $kind = in_array($b['kind'] ?? '', ['don', 'pub', 'autre'], true) ? $b['kind'] : 'don';
+      $quand = trim((string) ($b['occurredAt'] ?? ''));
+      $quand = preg_match('/^\d{4}-\d{2}-\d{2}$/', $quand) ? $quand . 'T12:00:00Z' : now_iso();
+      $id = uuid();
+      $pdo->prepare('INSERT INTO revenues (id,kind,label,amount,method,number,occurred_at,note,confirmed,confirmed_at,created_at,created_by)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+          ->execute([$id, $kind,
+            mb_substr(trim((string) ($b['label'] ?? '')), 0, 120) ?: 'Don',
+            $montant,
+            in_array($b['method'] ?? '', ['orange', 'wave', 'mtn', 'moov', 'especes', 'autre'], true) ? $b['method'] : 'orange',
+            mb_substr(preg_replace('/[^0-9+ ]/', '', (string) ($b['number'] ?? '')), 0, 20),
+            $quand,
+            mb_substr(trim((string) ($b['note'] ?? '')), 0, 300),
+            // Saisi d'après le relevé : la ligne naît donc confirmée, sauf mention contraire.
+            array_key_exists('confirmed', $b) && empty($b['confirmed']) ? 0 : 1,
+            array_key_exists('confirmed', $b) && empty($b['confirmed']) ? null : now_iso(),
+            now_iso(), (string) ($u['email'] ?? '')]);
+      jout(['ok' => true, 'id' => $id]);
+    }
+
+    // Pointer / dépointer une recette (« retrouvée sur le relevé Mobile Money »).
+    if (count($seg) === 4 && $seg[1] === 'revenues' && $seg[3] === 'confirm' && $method === 'POST') {
+      $on = !empty(body()['confirmed']);
+      $pdo->prepare('UPDATE revenues SET confirmed = ?, confirmed_at = ? WHERE id = ?')
+          ->execute([$on ? 1 : 0, $on ? now_iso() : null, $seg[2]]);
+      // La même bascule vaut pour un paiement de publicité.
+      $pdo->prepare('UPDATE ads SET pay_confirmed = ?, pay_confirmed_at = ? WHERE id = ?')
+          ->execute([$on ? 1 : 0, $on ? now_iso() : null, $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    if (count($seg) === 3 && $seg[1] === 'revenues' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM revenues WHERE id = ?')->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Publicités : demandes en attente d'abord, puis récentes.
+    if ($path === 'admin/ads' && $method === 'GET') {
+      $rows = $pdo->query("SELECT * FROM ads
+        ORDER BY (CASE WHEN status = 'pending' THEN 0 ELSE 1 END), created_at DESC LIMIT 200")->fetchAll();
+      $now = now_iso();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'title' => $r['title'], 'description' => (string) $r['description'],
+        'link' => $r['link'] ?: null, 'images' => json_decode((string) $r['images'], true) ?: [],
+        'formule' => $r['formule'], 'qty' => (int) $r['qty'], 'price' => (int) $r['price'],
+        'payMethod' => $r['pay_method'], 'payNumber' => $r['pay_number'],
+        'email' => ($r['email'] ?? '') !== '' ? $r['email'] : null,
+        'phone' => ($r['phone'] ?? '') !== '' ? $r['phone'] : null,
+        'kind' => $r['kind'] ?: 'paid', 'style' => $r['style'] ?: null, 'anim' => $r['anim'] ?: null,
+        'animLoop' => (($r['anim_loop'] ?? '') === '0') ? false : true,
+        'anims' => (($a = json_decode((string) ($r['anims'] ?? ''), true)) && is_array($a) && $a) ? $a : ($r['anim'] ? [$r['anim']] : []),
+        'animGap' => ((int) ($r['anim_gap'] ?? 0)) ?: 8,
+        'textColor' => ($r['text_color'] ?? '') !== '' ? $r['text_color'] : null,
+        // Une pub « active » dont la date est passée est présentée comme expirée.
+        'status' => ($r['status'] === 'active' && ($r['expires_at'] ?? '') !== '' && $r['expires_at'] <= $now) ? 'expired' : $r['status'],
+        'expiresAt' => !empty($r['expires_at']) ? iso_to_ms($r['expires_at']) : null,
+        'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Bureau de Croissance SEO : état (activé, diffusion du jour) + bascule +
+    // déclenchement manuel immédiat (pour tester sans attendre le cron).
+    if ($path === 'admin/seo' && $method === 'GET') {
+      $today = gmdate('Y-m-d');
+      $st = $pdo->prepare("SELECT title, created_at FROM ads WHERE kind = 'seo' AND status = 'active' ORDER BY created_at DESC LIMIT 1");
+      $st->execute();
+      $cur = $st->fetch();
+      jout([
+        'enabled'   => seo_auto_enabled($config),
+        'todayDone' => (int) (function () use ($pdo, $today) { $s = $pdo->prepare("SELECT COUNT(*) FROM ads WHERE kind='seo' AND substr(created_at,1,10)=?"); $s->execute([$today]); return $s->fetchColumn(); })() > 0,
+        'current'   => $cur ? ['title' => $cur['title'], 'createdAt' => iso_to_ms($cur['created_at'])] : null,
+        'cronKey'   => $config['cron_key'] ?? '',
+        'site'      => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+      ]);
+    }
+    if ($path === 'admin/seo' && $method === 'POST') {
+      $b = body();
+      seo_auto_set($config, !empty($b['enabled']));
+      jout(['ok' => true, 'enabled' => seo_auto_enabled($config)]);
+    }
+    // Générer MAINTENANT la diffusion du jour (remplace celle du jour si besoin).
+    if ($path === 'admin/seo/run' && $method === 'POST') {
+      $pdo->prepare("UPDATE ads SET status = 'expired' WHERE kind = 'seo' AND status = 'active'")->execute([]);
+      $bc = seo_daily_broadcast($config, $pdo);
+      $id = uuid(); $now = now_iso();
+      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 26 * 3600);
+      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+          ->execute([$id, $u['id'] ?? null, $bc['title'], $bc['description'], $bc['link'] ?? '', json_encode([]), 'day', 1,
+                     0, '', '', 'active', $now, $expires, 'admin', $now, 'seo', $bc['style'], $bc['anim'], '1']);
+      jout(['ok' => true, 'goal' => $bc['goal'], 'title' => $bc['title']]);
+    }
+
+    // Diffusion ADMIN sur l'écran : message/annonce avec animation et style
+    // d'écriture, actif immédiatement (pas de paiement — c'est la maison).
+    if ($path === 'admin/ads/broadcast' && $method === 'POST') {
+      $b = body();
+      $title = mb_substr(trim((string) ($b['title'] ?? '')), 0, 90);
+      $desc  = mb_substr(trim((string) ($b['description'] ?? '')), 0, 600);
+      $link  = trim((string) ($b['link'] ?? ''));
+      if ($link !== '' && (!preg_match('#^https?://#i', $link) || strlen($link) > 300)) {
+        jerr('Le lien doit commencer par https://.');
+      }
+      $style = in_array($b['style'] ?? '', ['classique', 'neon', 'script', 'impact', 'ivoire'], true) ? $b['style'] : 'classique';
+      // Animations enchaînées du texte : liste de clés (une ou plusieurs).
+      $anims = [];
+      foreach ((array) ($b['anims'] ?? []) as $a) {
+        $a = (string) $a;
+        if (preg_match('/^[a-z0-9-]{2,24}$/', $a)) $anims[] = $a;
+      }
+      $anims = array_slice(array_values(array_unique($anims)), 0, 20);
+      // Repli sur l'ancien champ unique, sinon « fondu ».
+      if (!$anims) {
+        $single = is_string($b['anim'] ?? null) && preg_match('/^[a-z0-9-]{2,24}$/', $b['anim']) ? $b['anim'] : 'fondu';
+        $anims = [$single];
+      }
+      $anim  = $anims[0]; // colonne « anim » (compatibilité)
+      // Pause entre deux animations : de 5 s à 60 s.
+      $gap   = (string) max(5, min(60, (int) ($b['gap'] ?? 8)));
+      // Couleur du texte : #RGB ou #RRGGBB (sinon vide = couleur par défaut).
+      $tcol  = is_string($b['textColor'] ?? null) && preg_match('/^#[0-9a-fA-F]{3,8}$/', $b['textColor']) ? strtoupper($b['textColor']) : '';
+      // Boucle continue pendant toute la durée ('1') ou une seule fois ('0').
+      $loop  = array_key_exists('loop', $b) ? (!empty($b['loop']) ? '1' : '0') : '1';
+      $days  = max(1, min(90, (int) ($b['days'] ?? 7)));
+      $images = [];
+      foreach (array_slice((array) ($b['images'] ?? []), 0, 3) as $img) {
+        $url = save_data_uri($config, (string) $img, false);
+        if ($url) $images[] = $url;
+      }
+      // Il faut au moins un message OU une image (diffusion « image seule » permise).
+      if (mb_strlen($title) < 2 && !$images) jerr('Écrivez un message ou ajoutez une image à diffuser.');
+      $id = uuid();
+      $now = now_iso();
+      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $days * 86400);
+      $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop,anims,anim_gap,text_color)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+          ->execute([$id, $u['id'] ?? null, $title, $desc, $link, json_encode($images), 'day', $days,
+                     0, '', '', 'active', $now, $expires, client_ip(), $now, 'admin', $style, $anim, $loop, json_encode($anims), $gap, $tcol]);
+      jout(['ok' => true, 'id' => $id, 'expiresAt' => iso_to_ms($expires)]);
+    }
+
+    // Approuver une pub (paiement reçu) : activation + calcul de l'expiration.
+    if (count($seg) === 4 && $seg[1] === 'ads' && $seg[3] === 'approve' && $method === 'POST') {
+      $st = $pdo->prepare('SELECT * FROM ads WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $ad = $st->fetch();
+      if (!$ad) jerr('Publicité introuvable.', 404);
+      $unit = ['day' => 86400, 'week' => 7 * 86400, 'month' => 30 * 86400][$ad['formule']] ?? 7 * 86400;
+      $duree = $unit * max(1, (int) $ad['qty']);
+      $cible = trim((string) ($ad['extends_ad_id'] ?? ''));
+      if ($cible !== '') {
+        // PROLONGATION : on repousse la fin de la bannière d'origine à partir
+        // de SA date de fin, pas de maintenant — l'annonceur ne perd aucun jour
+        // de ce qu'il a déjà payé, et l'affichage ne s'interrompt jamais.
+        $q = $pdo->prepare('SELECT expires_at FROM ads WHERE id = ?'); $q->execute([$cible]);
+        $base = (int) strtotime((string) ($q->fetchColumn() ?: now_iso()));
+        if ($base < time()) $base = time();
+        $expires = gmdate('Y-m-d\TH:i:s\Z', $base + $duree);
+        $pdo->prepare("UPDATE ads SET expires_at = ?, expiry_notified = '', expired_notified = '' WHERE id = ?")
+            ->execute([$expires, $cible]);
+        // La demande de prolongation, elle, est classée : elle ne doit pas
+        // apparaître comme une seconde bannière à l'écran.
+        $pdo->prepare("UPDATE ads SET status = 'merged', starts_at = ?, expires_at = ?, pay_confirmed = 1, pay_confirmed_at = ? WHERE id = ?")
+            ->execute([now_iso(), $expires, now_iso(), $seg[2]]);
+        $src = $pdo->prepare('SELECT * FROM ads WHERE id = ?'); $src->execute([$cible]);
+        $orig = $src->fetch() ?: $ad;
+        send_ad_status_email($config, array_merge($orig, ['expires_at' => $expires]), 'active', $pdo);
+        jout(['ok' => true, 'prolonge' => $cible, 'expiresAt' => iso_to_ms($expires)]);
+      }
+      $expires = gmdate('Y-m-d\TH:i:s\Z', time() + $duree);
+      // last_report_at est daté de la MISE EN LIGNE, pas laissé vide : sinon le
+      // premier rapport d'audience part au prochain passage du cron — quelques
+      // heures après le « c'est en ligne », avec des chiffres à zéro. On veut
+      // le premier bilan à J+3, comme annoncé à l'annonceur.
+      // pay_confirmed_at : approuver, c'est avoir verifie le versement sur le
+      // compte Mobile Money. La recette est donc pointee dans le meme geste,
+      // sans un second clic ailleurs — et reste depointable si l'on s'est
+      // trompe (voir l'onglet Recettes).
+      $pdo->prepare("UPDATE ads SET status = 'active', starts_at = ?, expires_at = ?, expiry_notified = '', last_report_at = ?, pay_confirmed = 1, pay_confirmed_at = ? WHERE id = ?")
+          ->execute([now_iso(), $expires, now_iso(), now_iso(), $seg[2]]);
+      // Notification « en ligne » à l'annonceur (avec la date de fin).
+      send_ad_status_email($config, array_merge($ad, ['expires_at' => $expires]), 'active', $pdo);
+      jout(['ok' => true, 'expiresAt' => iso_to_ms($expires)]);
+    }
+
+    // Rejeter une pub (visuel non conforme, paiement absent…).
+    if (count($seg) === 4 && $seg[1] === 'ads' && $seg[3] === 'reject' && $method === 'POST') {
+      $st = $pdo->prepare('SELECT * FROM ads WHERE id = ?'); $st->execute([$seg[2]]); $ad = $st->fetch();
+      // Motif OBLIGATOIRE dans l'e-mail : « non conforme » sans explication
+      // fait recommencer la même erreur, et revenir se plaindre.
+      //
+      // Le commentaire disait « obligatoire » et le serveur acceptait le vide —
+      // relevé par le Gardien le 29/07. Un commentaire qui ment est pire que
+      // pas de commentaire : le prochain lecteur s'y fie. Le front impose déjà
+      // cinq caractères ; le serveur ne s'en remet plus à lui.
+      $motif = mb_substr(trim((string) (body()['reason'] ?? '')), 0, 400);
+      if (mb_strlen($motif) < 5) {
+        jerr('Indiquez le motif du refus : il part tel quel dans l’e-mail à l’annonceur.');
+      }
+      $pdo->prepare("UPDATE ads SET status = 'rejected', reject_reason = ? WHERE id = ?")
+          ->execute([$motif, $seg[2]]);
+      if ($ad) send_ad_status_email($config, $ad, 'rejected', $pdo, ['reason' => $motif]);
+      jout(['ok' => true]);
+    }
+
+    // Supprimer une pub.
+    if (count($seg) === 3 && $seg[1] === 'ads' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM ads WHERE id = ?')->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Messages du formulaire de contact : non traités d'abord, puis récents.
+    if ($path === 'admin/contact-messages' && $method === 'GET') {
+      $rows = $pdo->query('SELECT * FROM contact_messages
+        ORDER BY (CASE WHEN handled = 1 THEN 1 ELSE 0 END), created_at DESC LIMIT 200')->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'name' => $r['name'] ?: null, 'email' => $r['email'] ?: null,
+        'subject' => $r['subject'] ?: 'Message', 'message' => (string) $r['message'],
+        'handled' => !empty($r['handled']), 'createdAt' => iso_to_ms($r['created_at']),
+        'replyBody' => ($r['reply_body'] ?? '') !== '' ? $r['reply_body'] : null,
+        'repliedAt' => !empty($r['replied_at']) ? iso_to_ms($r['replied_at']) : null,
+        'repliedBy' => ($r['replied_by'] ?? '') !== '' ? $r['replied_by'] : null,
+      ], $rows));
+    }
+
+    // Brouillon de réponse proposé (IA si clé configurée, sinon gabarit local).
+    if (count($seg) === 4 && $seg[1] === 'contact-messages' && $seg[3] === 'suggest' && $method === 'POST') {
+      $st = $pdo->prepare('SELECT * FROM contact_messages WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $msg = $st->fetch();
+      if (!$msg) jerr('Message introuvable.', 404);
+      jout(contact_ai_draft($config, (string) ($msg['name'] ?? ''), (string) ($msg['subject'] ?? 'Message'), (string) ($msg['message'] ?? '')));
+    }
+
+    // Répondre DEPUIS le tableau de bord : l'email part de contact@chap.ci
+    // (signature ajoutée), la personne le reçoit dans sa boîte et peut répondre
+    // directement à contact@chap.ci — la suite se passe par email.
+    if (count($seg) === 4 && $seg[1] === 'contact-messages' && $seg[3] === 'reply' && $method === 'POST') {
+      $b = body();
+      $reply = trim((string) ($b['body'] ?? ''));
+      if ($reply === '') jerr('Écrivez votre réponse avant d’envoyer.');
+      $reply = mb_substr($reply, 0, 8000);
+      $st = $pdo->prepare('SELECT * FROM contact_messages WHERE id = ?');
+      $st->execute([$seg[2]]);
+      $msg = $st->fetch();
+      if (!$msg) jerr('Message introuvable.', 404);
+      $toAddr = strtolower(trim((string) ($msg['email'] ?? '')));
+      // Même validation stricte qu'à la réception (défense en profondeur).
+      if ($toAddr === '' || !filter_var($toAddr, FILTER_VALIDATE_EMAIL) || preg_match('/[?&=%\s"()<>,;:\\\\]/', $toAddr)) {
+        jerr('Ce message n’a pas d’adresse email valide : réponse impossible.', 400);
+      }
+      $contactAddr = $config['mail_reply_to'] ?? 'contact@chap.ci';
+      $safe = fn(string $s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+      // Corps : texte de l'admin tel quel + signature + message d'origine cité.
+      $inner = '<p style="white-space:pre-wrap;line-height:1.65">' . nl2br($safe($reply)) . '</p>'
+             . '<p style="margin-top:22px;line-height:1.5">— L’équipe Chap.ci 🇨🇮<br>'
+             . '<a href="mailto:' . $safe($contactAddr) . '" style="color:#00734A;text-decoration:none">' . $safe($contactAddr) . '</a>'
+             . ' · <a href="' . $safe(rtrim($config['site_url'] ?? 'https://chap.ci', '/')) . '" style="color:#00734A;text-decoration:none">chap.ci</a></p>'
+             . '<hr style="border:none;border-top:1px solid #EFE6D7;margin:22px 0 12px">'
+             . '<p style="color:#8B857C;font-size:12px;margin:0 0 6px">Votre message :</p>'
+             . '<blockquote style="margin:0;padding:10px 14px;border-left:3px solid #EFE6D7;color:#57534E;font-size:13px;white-space:pre-wrap">'
+             . nl2br($safe((string) $msg['message'])) . '</blockquote>';
+      $subject = 'Re: ' . ((string) ($msg['subject'] ?? '') ?: 'Votre message à Chap.ci');
+      $html = email_layout($config, $inner, 'Réponse de l’équipe Chap.ci à votre message');
+      // Expéditeur ET adresse de réponse = contact@chap.ci.
+      if (!send_mail($config, $toAddr, $subject, $html, $contactAddr, $contactAddr)) {
+        jerr('Envoi impossible pour le moment (email). Réessayez dans un instant.', 502);
+      }
+      // Envoi réussi → on archive la réponse et on marque le message traité.
+      $pdo->prepare('UPDATE contact_messages SET reply_body = ?, replied_at = ?, replied_by = ?, handled = 1 WHERE id = ?')
+          ->execute([$reply, now_iso(), strtolower((string) ($u['email'] ?? '')), $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Marquer un message de contact traité (ou le rouvrir avec {handled:false}).
+    if (count($seg) === 3 && $seg[1] === 'contact-messages' && $method === 'POST') {
+      $b = body();
+      $handled = array_key_exists('handled', $b) ? (int) !empty($b['handled']) : 1;
+      $pdo->prepare('UPDATE contact_messages SET handled = ? WHERE id = ?')->execute([$handled, $seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Supprimer un message de contact.
+    if (count($seg) === 3 && $seg[1] === 'contact-messages' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM contact_messages WHERE id = ?')->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Conversations (supervision) : parties, annonce, nb de messages, dernier message.
+    if ($path === 'admin/conversations' && $method === 'GET') {
+      // `last_human` : le dernier expéditeur HORS réponse automatique, et
+      // `last_at` : quand. Les deux servent à trier ce qui attend vraiment une
+      // réponse — une liste de 200 conversations sans cette distinction ne dit
+      // pas laquelle regarder.
+      $rows = $pdo->query('SELECT c.*, b.email AS buyer_email, s.email AS seller_email,
+          l.title AS listing_title,
+          (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS msg_count,
+          (SELECT m2.body FROM messages m2 WHERE m2.conversation_id = c.id ORDER BY m2.created_at DESC LIMIT 1) AS last_body,
+          (SELECT m3.created_at FROM messages m3 WHERE m3.conversation_id = c.id ORDER BY m3.created_at DESC LIMIT 1) AS last_at,
+          (SELECT m4.sender_id FROM messages m4 WHERE m4.conversation_id = c.id
+             AND (m4.auto IS NULL OR m4.auto = 0) ORDER BY m4.created_at DESC LIMIT 1) AS last_human
+        FROM conversations c
+        LEFT JOIN users b ON b.id = c.buyer_id
+        LEFT JOIN users s ON s.id = c.seller_id
+        LEFT JOIN listings l ON l.id = c.listing_id
+        ORDER BY c.created_at DESC LIMIT 200')->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'buyerEmail' => $r['buyer_email'] ?: null, 'sellerEmail' => $r['seller_email'] ?: null,
+        'listingTitle' => $r['listing_title'] ?: null, 'messages' => (int) $r['msg_count'],
+        'lastMessage' => $r['last_body'] ?: null, 'createdAt' => iso_to_ms($r['created_at']),
+        'lastAt' => iso_to_ms($r['last_at'] ?? $r['created_at']),
+        // Le vendeur n'a pas encore répondu : c'est la seule ligne qui appelle
+        // une action de l'équipe (relancer, ou comprendre pourquoi).
+        'sansReponse' => $r['last_human'] !== null
+          && (string) $r['last_human'] !== (string) $r['seller_id'],
+      ], $rows));
+    }
+
+    // Avis (modération) : note, commentaire, auteur, vendeur, annonce.
+    // LES AVIS SUR L'APPLICATION, pour le Patron. Renvoie la liste ET le compte
+    // par note : sans la répartition, une moyenne de 3,5 ne dit pas si elle vient
+    // de dix avis tièdes ou de cinq enthousiastes et cinq furieux — ce ne sont pas
+    // les mêmes applications, ni les mêmes décisions.
+    if ($path === 'admin/avis-app' && $method === 'GET') {
+      $rows = $pdo->query('SELECT a.*, u.email AS email, p.full_name AS nom
+        FROM avis_app a
+        LEFT JOIN users u ON u.id = a.user_id
+        LEFT JOIN profiles p ON p.id = a.user_id
+        ORDER BY a.created_at DESC LIMIT 300')->fetchAll();
+
+      $repartition = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+      $total = 0; $somme = 0; $avecTexte = 0;
+      foreach ($rows as $r) {
+        $n = (int) $r['note'];
+        if ($n >= 1 && $n <= 5) { $repartition[$n]++; $total++; $somme += $n; }
+        if (trim((string) $r['commentaire']) !== '') $avecTexte++;
+      }
+
+      jout([
+        'moyenne'     => $total ? round($somme / $total, 2) : null,
+        'total'       => $total,
+        'avecTexte'   => $avecTexte,
+        'repartition' => $repartition,
+        'avis' => array_map(fn($r) => [
+          'id'          => $r['id'],
+          'note'        => (int) $r['note'],
+          'commentaire' => trim((string) $r['commentaire']) !== '' ? $r['commentaire'] : null,
+          'nom'         => $r['nom'] ?: null,
+          'email'       => $r['email'] ?: null,
+          'plateforme'  => $r['plateforme'] ?: null,
+          'version'     => $r['version'] ?: null,
+          'createdAt'   => iso_to_ms($r['created_at']),
+        ], $rows),
+      ]);
+    }
+
+    if ($path === 'admin/reviews' && $method === 'GET') {
+      $rows = $pdo->query('SELECT r.*, ru.email AS reviewer_email, su.email AS seller_email,
+          p.full_name AS reviewer_name, l.title AS listing_title
+        FROM reviews r
+        LEFT JOIN users ru ON ru.id = r.reviewer_id
+        LEFT JOIN users su ON su.id = r.seller_id
+        LEFT JOIN profiles p ON p.id = r.reviewer_id
+        LEFT JOIN listings l ON l.id = r.listing_id
+        ORDER BY r.created_at DESC LIMIT 200')->fetchAll();
+      jout(array_map(fn($r) => [
+        'id' => $r['id'], 'rating' => (int) $r['rating'], 'comment' => $r['comment'] ?: null,
+        'reviewerName' => $r['reviewer_name'] ?: null, 'reviewerEmail' => $r['reviewer_email'] ?: null,
+        'sellerEmail' => $r['seller_email'] ?: null, 'listingId' => $r['listing_id'],
+        'listingTitle' => $r['listing_title'] ?: null, 'createdAt' => iso_to_ms($r['created_at']),
+      ], $rows));
+    }
+
+    // Supprimer un avis abusif.
+    if (count($seg) === 3 && $seg[1] === 'reviews' && $method === 'DELETE') {
+      $pdo->prepare('DELETE FROM reviews WHERE id = ?')->execute([$seg[2]]);
+      jout(['ok' => true]);
+    }
+
+    // Suivi des visiteurs (courbe par jour/semaine/mois/année).
+    if ($path === 'admin/visits' && $method === 'GET') {
+      $range = in_array($_GET['range'] ?? '', ['day', 'week', 'month', 'year'], true) ? $_GET['range'] : 'day';
+      jout(visit_series($pdo, $range));
+    }
+
+    // D'OÙ VIENNENT LES VISITEURS — pays et ville, par jour / semaine / mois.
+    //
+    // `range` choisit la fenêtre : `day` = les dernières 24 h, `week` = 7 jours,
+    // `month` = 30 jours. On rend les pays et les villes les plus fréquents sur
+    // cette fenêtre, avec le nombre de visiteurs UNIQUES (pas de pages vues :
+    // « 40 visiteurs d'Abidjan » veut dire quelque chose, « 400 pages » non).
+    //
+    // `sansGeo` compte les visites dont Cloudflare n'a pas donné la ville — le
+    // plus souvent parce que les en-têtes de localisation ne sont pas activés.
+    // On le rend explicitement pour que l'écran dise la vérité au lieu de faire
+    // croire que personne ne vient de nulle part.
+    if ($path === 'admin/geo' && $method === 'GET') {
+      $range = in_array($_GET['range'] ?? '', ['day', 'week', 'month'], true) ? $_GET['range'] : 'week';
+      $jours = $range === 'day' ? 1 : ($range === 'month' ? 30 : 7);
+      $since = gmdate('Y-m-d\TH:i:s\Z', time() - $jours * 86400);
+
+      $lignes = [];
+      try {
+        $st = $pdo->prepare('SELECT country, city, visitor_id FROM visits WHERE created_at >= ? LIMIT 200000');
+        $st->execute([$since]);
+        $lignes = $st->fetchAll();
+      } catch (Throwable $e) { $lignes = []; /* base pas encore migrée */ }
+
+      $paysVis = []; $villeVis = []; $totalVis = []; $avecVille = [];
+      foreach ($lignes as $r) {
+        $vid = (string) $r['visitor_id'];
+        $totalVis[$vid] = true;
+        $c = strtoupper((string) ($r['country'] ?? ''));
+        $ville = trim((string) ($r['city'] ?? ''));
+        if ($c !== '') $paysVis[$c][$vid] = true;
+        if ($c !== '' && $ville !== '') { $villeVis[$c . '|' . $ville][$vid] = true; $avecVille[$vid] = true; }
+      }
+      $tri = function (array $m): array {
+        $out = [];
+        foreach ($m as $k => $set) $out[] = ['k' => $k, 'n' => count($set)];
+        usort($out, fn($a, $b) => $b['n'] <=> $a['n']);
+        return $out;
+      };
+      $pays = array_map(fn($x) => [
+        'code' => $x['k'], 'nom' => pays_nom($x['k']), 'visiteurs' => $x['n'],
+      ], array_slice($tri($paysVis), 0, 12));
+      $villes = array_map(function ($x) {
+        [$c, $ville] = explode('|', $x['k'], 2);
+        return ['ville' => $ville, 'pays' => pays_nom($c), 'code' => $c, 'visiteurs' => $x['n']];
+      }, array_slice($tri($villeVis), 0, 15));
+
+      jout([
+        'range'      => $range,
+        'visiteurs'  => count($totalVis),
+        'pays'       => $pays,
+        'villes'     => $villes,
+        // Visiteurs qu'on n'a pas pu placer sur une ville (pays inconnu, ou ville
+        // non fournie par Cloudflare) : le total moins ceux qu'on a situés.
+        'sansVille'  => count($totalVis) - count($avecVille),
+        'villesActives' => count($villeVis) > 0, // au moins une ville connue → headers actifs
+      ]);
+    }
+
+    // Temps de réponse moyen aux messages.
+    if ($path === 'admin/response-time' && $method === 'GET') {
+      jout(avg_response_time($pdo));
+    }
+
+    // Commandes (avec emails acheteur/vendeur et articles).
+    if ($path === 'admin/orders' && $method === 'GET') {
+      $orders = $pdo->query('SELECT o.*, b.email AS buyer_email, s.email AS seller_email
+        FROM orders o LEFT JOIN users b ON b.id = o.buyer_id LEFT JOIN users s ON s.id = o.seller_id
+        ORDER BY o.created_at DESC')->fetchAll();
+      $itemsStmt = $pdo->prepare('SELECT title, price, image FROM order_items WHERE order_id = ?');
+      $out = [];
+      foreach ($orders as $o) {
+        $itemsStmt->execute([$o['id']]);
+        $its = $itemsStmt->fetchAll();
+        $out[] = [
+          'id' => $o['id'], 'status' => $o['status'] ?: 'pending',
+          'buyerEmail' => $o['buyer_email'] ?: null, 'sellerEmail' => $o['seller_email'] ?: null,
+          'createdAt' => iso_to_ms($o['created_at']),
+          'items' => array_map(fn($it) => ['title' => $it['title'], 'price' => (int) $it['price'], 'image' => $it['image'] ?: null], $its),
+          'total' => array_sum(array_map(fn($it) => (int) $it['price'], $its)),
+        ];
+      }
+      jout($out);
+    }
+
+    // Modérateurs : créés PAR l'admin avec un email, des fonctionnalités cochées
+    // et un code d'accès personnel. (Section réservée au propriétaire via le gate.)
+    if ($path === 'admin/moderators' && $method === 'GET') {
+      $mods = array_map(fn($r) => [
+        'email'       => $r['email'],
+        'createdAt'   => iso_to_ms($r['created_at']),
+        'permissions' => json_decode((string) ($r['permissions'] ?? '[]'), true) ?: [],
+        'hasCode'     => !empty($r['access_code_hash']),
+        'blocked'     => (int) ($r['blocked'] ?? 0) === 1,
+      ], $pdo->query('SELECT email, created_at, permissions, access_code_hash, blocked FROM admins ORDER BY created_at DESC')->fetchAll());
+      $feats = array_map(fn($k) => ['key' => $k, 'label' => admin_feature_labels()[$k] ?? $k], admin_grantable_features());
+      jout(['owners' => owner_emails($config), 'moderators' => $mods, 'features' => $feats]);
+    }
+    if ($path === 'admin/moderators' && $method === 'POST') {
+      $b = body();
+      $email = strtolower(trim($b['email'] ?? ''));
+      if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jerr('Adresse email invalide.');
+      if (in_array($email, owner_emails($config), true)) jerr('Cet email est déjà propriétaire du site.');
+      // Permissions : on ne retient que les fonctionnalités réellement délégables.
+      $grant = admin_grantable_features();
+      $perms = array_values(array_intersect($grant, array_map('strval', (array) ($b['permissions'] ?? []))));
+      $ex = $pdo->prepare('SELECT access_code_hash FROM admins WHERE email = ?'); $ex->execute([$email]);
+      $exRow = $ex->fetch(); $already = (bool) $exRow;
+      $codeHash = $already ? (string) ($exRow['access_code_hash'] ?? '') : '';
+      // Code d'accès : fourni par l'admin, ou généré (à la création / si absent).
+      $rawCode = strtoupper(trim((string) ($b['code'] ?? ''))); $shownCode = null;
+      if ($rawCode !== '') {
+        if (strlen($rawCode) < 6) jerr('Le code d’accès doit faire au moins 6 caractères.');
+        $shownCode = $rawCode;
+      } elseif (!$already || $codeHash === '') {
+        $A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; $shownCode = '';
+        for ($i = 0; $i < 8; $i++) { try { $r = random_int(0, 31); } catch (Throwable $e) { $r = mt_rand(0, 31); } $shownCode .= $A[$r]; }
+      }
+      if ($shownCode !== null) $codeHash = password_hash($shownCode, PASSWORD_BCRYPT);
+      if ($already) {
+        $pdo->prepare('UPDATE admins SET permissions = ?, access_code_hash = ? WHERE email = ?')
+            ->execute([json_encode($perms), $codeHash, $email]);
+      } else {
+        $pdo->prepare('INSERT INTO admins (email, created_at, permissions, access_code_hash) VALUES (?,?,?,?)')
+            ->execute([$email, now_iso(), json_encode($perms), $codeHash]);
+      }
+      admins_fp_save($config, $pdo); // changement légitime : met à jour la référence d'intégrité
+      $emailed = send_moderator_email($config, $email); // notification (sans le code)
+      log_security_event($pdo, $already ? 'moderator_updated' : 'moderator_added', $email);
+      // Le code EN CLAIR n'est renvoyé qu'une fois (si (re)défini) pour que l'admin
+      // le transmette au modérateur. Sinon `code` = null (permissions mises à jour).
+      jout(['ok' => true, 'already' => $already, 'emailed' => $emailed, 'permissions' => $perms, 'code' => $shownCode]);
+    }
+    if ($path === 'admin/moderators' && $method === 'DELETE') {
+      $b = body();
+      $email = strtolower(trim($b['email'] ?? ''));
+      if (in_array($email, owner_emails($config), true)) jerr('Le propriétaire ne peut pas être retiré.', 403);
+      $pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
+      admins_fp_save($config, $pdo); // changement légitime : met à jour la référence d'intégrité
+      log_security_event($pdo, 'moderator_removed', $email);
+      jout(['ok' => true]);
+    }
+    // Bloquer / débloquer un modérateur : coupe (ou rétablit) son accès au tableau
+    // de bord. Bloqué = son jeton de déverrouillage ne vaut plus rien (accès révoqué
+    // immédiatement) et il ne peut plus déverrouiller tant qu'il n'est pas débloqué.
+    if ($path === 'admin/moderators/block' && $method === 'POST') {
+      $b = body();
+      $email = strtolower(trim($b['email'] ?? ''));
+      if (in_array($email, owner_emails($config), true)) jerr('Le propriétaire ne peut pas être bloqué.', 403);
+      $blocked = !empty($b['blocked']) ? 1 : 0;
+      $pdo->prepare('UPDATE admins SET blocked = ? WHERE email = ?')->execute([$blocked, $email]);
+      log_security_event($pdo, $blocked ? 'moderator_blocked' : 'moderator_unblocked', $email);
+      jout(['ok' => true, 'blocked' => (bool) $blocked]);
+    }
+
+    // Réglages SMTP : lecture (sans le mot de passe).
+    if ($path === 'admin/smtp' && $method === 'GET') {
+      $s = $config['smtp'] ?? [];
+      jout([
+        'host'       => $s['host'] ?? 'localhost',
+        'port'       => (string) ($s['port'] ?? '465'),
+        'secure'     => $s['secure'] ?? 'ssl',
+        'user'       => $s['user'] ?? 'no-reply@chap.ci',
+        'configured' => !empty($s['pass']),
+      ]);
+    }
+    // Réglages SMTP : enregistrement (écrit api/data/smtp.json, hors du web).
+    if ($path === 'admin/smtp' && $method === 'POST') {
+      $b = body();
+      $arr = [
+        'host'   => trim((string) ($b['host'] ?? 'localhost')) ?: 'localhost',
+        'port'   => trim((string) ($b['port'] ?? '465')) ?: '465',
+        'secure' => in_array(($b['secure'] ?? 'ssl'), ['ssl', 'tls'], true) ? $b['secure'] : 'ssl',
+        'user'   => trim((string) ($b['user'] ?? '')),
+        'pass'   => (string) ($b['pass'] ?? ''),
+      ];
+      if (!filter_var($arr['user'], FILTER_VALIDATE_EMAIL)) jerr('Utilisateur SMTP (email) invalide.');
+      if ($arr['pass'] === '') jerr('Renseignez le mot de passe de la boîte email.');
+      // Des DONNÉES, pas du code : du JSON inerte, dans le dossier data (0700,
+      // refusé au web). Voir la note en tête de fichier : générer un .php
+      // exécutable depuis une requête web est indéfendable, quelle que soit la
+      // protection posée par-dessus.
+      $fichier = chapci_secret_dir($config) . '/smtp.json';
+      $json = json_encode($arr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+      if ($json === false || @file_put_contents($fichier, $json) === false) {
+        jerr('Écriture impossible dans le dossier api/data (droits). Renseignez plutôt le bloc smtp dans config.php.', 500);
+      }
+      @chmod($fichier, 0600);
+      // L'ancien fichier généré n'a plus lieu d'être : on le retire dès qu'on
+      // sait écrire ailleurs, pour qu'il ne reste pas un .php écrit par PHP
+      // dans le dossier web.
+      if (is_file(__DIR__ . '/smtp.local.php')) @unlink(__DIR__ . '/smtp.local.php');
+      log_security_event($pdo, 'smtp_settings_saved', null, 'api/data/smtp.json');
+      jout(['ok' => true]);
+    }
+
+    // Campagnes : nombre d'abonnés destinataires.
+    if ($path === 'admin/campaign/count' && $method === 'GET') {
+      jout(['total' => (int) $pdo->query('SELECT COUNT(*) AS c FROM newsletter')->fetch()['c']]);
+    }
+    // Campagnes : envoi d'un LOT (l'app boucle avec offset croissant).
+    if ($path === 'admin/campaign/send' && $method === 'POST') {
+      $b = body();
+      $subject = trim((string) ($b['subject'] ?? ''));
+      $message = trim((string) ($b['message'] ?? ''));
+      if ($subject === '' || $message === '') jerr('Objet et message obligatoires.');
+      $offset = max(0, (int) ($b['offset'] ?? 0));
+      $limit  = min(40, max(1, (int) ($b['limit'] ?? 25)));
+      $total  = (int) $pdo->query('SELECT COUNT(*) AS c FROM newsletter')->fetch()['c'];
+      $rows = $pdo->query("SELECT email FROM newsletter ORDER BY created_at ASC LIMIT $limit OFFSET $offset")->fetchAll();
+      $html = campaign_html($config, $message);
+      $from = $config['mail_newsletter_from'] ?? 'hello@chap.ci';
+      $sent = 0;
+      foreach ($rows as $r) { if (send_mail($config, $r['email'], $subject, $html, $from, $from)) $sent++; }
+      $processed = $offset + count($rows);
+      jout(['sent' => $sent, 'processed' => $processed, 'total' => $total, 'done' => (count($rows) < $limit || $processed >= $total)]);
+    }
+
+    // ------------------------------------------------------------------------
+    //  INVITATIONS AU TEST FERMÉ — réservé au PROPRIÉTAIRE.
+    //
+    //  Ce n'est pas de la modération : c'est écrire à des personnes nommées, à
+    //  leur adresse personnelle, au nom du site. Un modérateur n'a pas à le
+    //  faire, et surtout pas à voir la liste.
+    //
+    //  ⚠️ LES ADRESSES NE SONT PAS DANS LE CODE. Elles arrivent par cet appel,
+    //  se rangent en base, et n'apparaissent nulle part ailleurs. Écrire dix-huit
+    //  adresses personnelles dans un dépôt Git, c'est les y laisser pour
+    //  toujours, dans chaque copie, chez chaque personne qui le clone.
+    // ------------------------------------------------------------------------
+    if (str_starts_with($path, 'admin/invitations')) {
+      if (!in_array(strtolower((string) ($u['email'] ?? '')), owner_emails($config), true)) {
+        jerr('Les invitations sont réservées au propriétaire du site.', 403);
+      }
+    }
+
+    // Qui a déjà été invité, et combien de fois.
+    if ($path === 'admin/invitations' && $method === 'GET') {
+      $rows = [];
+      try {
+        $rows = $pdo->query('SELECT email, envois, dernier_envoi, dernier_statut FROM invitations
+                             ORDER BY dernier_envoi DESC LIMIT 300')->fetchAll();
+      } catch (Throwable $e) { $rows = []; }
+      jout([
+        'lien' => 'https://play.google.com/apps/testing/' . ($config['app_id'] ?? 'ci.chap.app'),
+        'invites' => array_map(fn($r) => [
+          'email' => $r['email'],
+          'envois' => (int) $r['envois'],
+          'dernierEnvoi' => iso_to_ms($r['dernier_envoi']),
+          'statut' => $r['dernier_statut'] ?: 'inconnu',
+        ], $rows),
+      ]);
+    }
+
+    // Envoi. Un lot par appel : dix-huit e-mails SMTP peuvent dépasser le temps
+    // d'exécution d'une requête web, et un envoi coupé au milieu ne se rattrape
+    // pas — on ne saurait plus qui a reçu quoi.
+    if ($path === 'admin/invitations' && $method === 'POST') {
+      $b = body();
+      $sujet   = trim((string) ($b['sujet'] ?? ''));
+      $message = trim((string) ($b['message'] ?? ''));
+      if ($sujet === '' || $message === '') jerr('Objet et message obligatoires.');
+
+      // On accepte du texte collé tel quel : une adresse par ligne, séparées par
+      // des virgules, des points-virgules ou des espaces. Le Patron colle depuis
+      // la Play Console, il ne met pas la liste en forme.
+      $brut = (string) ($b['destinataires'] ?? '');
+      $morceaux = preg_split('/[\s,;]+/', $brut) ?: [];
+      $emails = [];
+      $rejetes = [];
+      foreach ($morceaux as $m) {
+        $m = strtolower(trim($m));
+        if ($m === '') continue;
+        if (filter_var($m, FILTER_VALIDATE_EMAIL)) { $emails[$m] = true; }
+        else { $rejetes[] = $m; }
+      }
+      $emails = array_keys($emails);
+      if (!$emails) jerr('Aucune adresse valable dans la liste.' . ($rejetes ? ' Refusées : ' . implode(', ', array_slice($rejetes, 0, 5)) : ''));
+      if (count($emails) > 200) jerr('200 adresses au maximum par envoi.');
+
+      $relancer = !empty($b['relancer']);
+      $offset = max(0, (int) ($b['offset'] ?? 0));
+      $limit  = min(20, max(1, (int) ($b['limit'] ?? 10)));
+
+      $lien = 'https://play.google.com/apps/testing/' . ($config['app_id'] ?? 'ci.chap.app');
+      $html = invitation_html($config, $message, $lien);
+      // « no-reply » comme demandé — mais une réponse doit rester possible :
+      // un testeur bloqué qui répond dans le vide ne réessaie pas. L'expéditeur
+      // est no-reply@, l'adresse de réponse est celle du contact.
+      $from = $config['mail_from'] ?? 'no-reply@chap.ci';
+
+      $lot = array_slice($emails, $offset, $limit);
+      $envoyes = 0; $echecs = 0; $ignores = 0;
+      foreach ($lot as $email) {
+        @set_time_limit(30); // le budget se réarme à chaque envoi
+        // Déjà invité ? On ne renvoie pas, sauf demande explicite : relancer
+        // quelqu'un qui a déjà accepté est le meilleur moyen de le faire partir.
+        $deja = 0;
+        try {
+          $q = $pdo->prepare('SELECT envois FROM invitations WHERE email = ?');
+          $q->execute([$email]); $deja = (int) ($q->fetchColumn() ?: 0);
+        } catch (Throwable $e) { $deja = 0; }
+        if ($deja > 0 && !$relancer) { $ignores++; continue; }
+
+        $ok = send_mail($config, $email, $sujet, $html, $from, $config['mail_reply_to'] ?? 'contact@chap.ci');
+        $ok ? $envoyes++ : $echecs++;
+        try {
+          if ($deja > 0) {
+            $pdo->prepare('UPDATE invitations SET envois = envois + 1, dernier_envoi = ?, dernier_statut = ? WHERE email = ?')
+                ->execute([now_iso(), $ok ? 'envoye' : 'echec', $email]);
+          } else {
+            $pdo->prepare('INSERT INTO invitations (email, envois, dernier_envoi, dernier_statut, cree_le) VALUES (?,?,?,?,?)')
+                ->execute([$email, 1, now_iso(), $ok ? 'envoye' : 'echec', now_iso()]);
+          }
+        } catch (Throwable $e) { /* la trace ne doit jamais empêcher l'envoi */ }
+      }
+
+      $traites = $offset + count($lot);
+      log_security_event($pdo, 'invitations_envoyees', $u['email'] ?? null,
+        $envoyes . ' envoyée(s), ' . $echecs . ' échec(s), ' . $ignores . ' déjà invitée(s)');
+      jout([
+        'envoyes' => $envoyes, 'echecs' => $echecs, 'ignores' => $ignores,
+        'traites' => $traites, 'total' => count($emails),
+        'rejetes' => $rejetes,
+        'fini' => $traites >= count($emails),
+        'lien' => $lien,
+      ]);
+    }
+
+    // Offres automatiques : infos pour la commande cron.
+    if ($path === 'admin/digest-info' && $method === 'GET') {
+      // Dernier passage réussi de chaque tâche, pour que le panneau puisse
+      // afficher « il y a 2 h » ou « jamais » au lieu de laisser croire que tout
+      // tourne. Clé = suffixe de la route (backup, cleanup…), comme le registre
+      // CRON_JOBS côté interface.
+      $runs = [];
+      try {
+        foreach ($pdo->query('SELECT path, last_ok_at, runs FROM cron_runs')->fetchAll() as $r) {
+          $runs[substr((string) $r['path'], 5)] = [
+            'lastOkAt' => $r['last_ok_at'],
+            'runs'     => (int) $r['runs'],
+          ];
+        }
+      } catch (Throwable $e) { /* table absente : on renvoie une liste vide */ }
+      // Depuis quand cette trace existe-t-elle ? Sans cette date, une tâche dont
+      // l'heure n'est pas encore venue paraît « en panne » alors qu'elle attend
+      // simplement son tour — et le panneau crie au loup dès le déploiement.
+      $since = null;
+      try { $since = $pdo->query('SELECT MIN(last_ok_at) FROM cron_runs')->fetchColumn() ?: null; }
+      catch (Throwable $e) { /* table absente */ }
+      jout([
+        'cronKey'      => $config['cron_key'] ?? '',
+        'site'         => rtrim($config['site_url'] ?? 'https://chap.ci', '/'),
+        'runs'         => $runs,
+        'trackedSince' => $since,
+        // Vrai si une clé écrite dans config.php a été refusée et remplacée en
+        // silence. C'est la cause la plus probable d'un « Clé invalide » qui se
+        // répète : l'opérateur copie SA clé dans cPanel, le serveur en attend
+        // une autre, et rien nulle part ne le dit.
+        'cleIgnoree'   => (bool) ($GLOBALS['chapci_cron_key_ignoree'] ?? false),
+        'cleMotif'     => (string) ($GLOBALS['chapci_cron_key_motif'] ?? ''),
+      ]);
+    }
+    // Offres automatiques : envoi manuel immédiat (pour tester).
+    if ($path === 'admin/digest-send' && $method === 'POST') {
+      $b = body();
+      $type = (($b['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
+      jout(send_digest($config, $pdo, $type));
+    }
+    // Suggestions personnalisées : test sur son propre compte (mode aperçu).
+    if ($path === 'admin/suggestions-test' && $method === 'POST') {
+      jout(send_suggestions($config, $pdo, $u, true));
+    }
+
+    // Diagnostic : envoie un email de test à l'administrateur connecté.
+    if ($path === 'admin/test-email' && $method === 'POST') {
+      $name = $config['mail_from_name'] ?? 'Chap.ci';
+      $inner = '<h2 style="margin-top:0">Email de test ✅</h2>'
+        . '<p>Bravo ! Si vous lisez ce message, l’envoi des emails de <b>' . htmlspecialchars($name) . '</b> '
+        . 'fonctionne correctement.</p>'
+        . '<p style="color:#6b7280;font-size:13px">Vous pouvez maintenant ajouter des modérateurs et vos '
+        . 'utilisateurs recevront bien leurs emails (bienvenue, notifications…).</p>';
+      $sent = send_mail($config, $u['email'], "Test d’envoi — $name", email_layout($config, $inner, 'Email de test Chap.ci'));
+      jout(['sent' => $sent, 'to' => $u['email'], 'via' => empty($config['smtp']['pass']) ? 'mail()' : 'smtp']);
+    }
+
+    jerr('Route admin inconnue: ' . $path, 404);
+  }
+
+  // ---------- CENTRES D'INTÉRÊT (l'« agent » observe) ----------
+  // Enregistre un signal d'intérêt (favori, recherche, catégorie consultée).
+  if ($path === 'interests' && $method === 'POST') {
+    $u = current_user($pdo, $secret); // silencieux si non connecté
+    $b = body();
+    $cat = trim((string) ($b['categoryId'] ?? ''));
+    $sub = trim((string) ($b['subcategory'] ?? ''));
+    if ($u && $cat !== '') {
+      $w = max(1, min(5, (int) ($b['weight'] ?? 1)));
+      $ex = $pdo->prepare('SELECT weight, subcategory FROM user_interests WHERE user_id = ? AND category_id = ?');
+      $ex->execute([$u['id'], $cat]);
+      $row = $ex->fetch();
+      if ($row) {
+        // On conserve la dernière sous-catégorie précise consultée (sinon l'ancienne).
+        $subToStore = $sub !== '' ? $sub : ($row['subcategory'] ?? null);
+        $pdo->prepare('UPDATE user_interests SET weight = ?, subcategory = ?, updated_at = ? WHERE user_id = ? AND category_id = ?')
+            ->execute([min(1000, (int) $row['weight'] + $w), $subToStore, now_iso(), $u['id'], $cat]);
+      } else {
+        $pdo->prepare('INSERT INTO user_interests (user_id, category_id, weight, subcategory, updated_at) VALUES (?,?,?,?,?)')
+            ->execute([$u['id'], $cat, $w, $sub !== '' ? $sub : null, now_iso()]);
+      }
+    }
+    jout(['ok' => true]);
+  }
+
+  // ---- Défense en profondeur commune aux endpoints cron/* -------------------
+  // Avant tout traitement : on ralentit un balayage de clé. La clé reste forte
+  // (32 octets, non devinable) ; ceci limite juste les ESSAIS ratés par IP. Un
+  // cron légitime (bonne clé) n'est jamais compté ni pénalisé.
+  if (str_starts_with($path, 'cron/')) {
+    rate_limit($pdo, 'cron_fail', null, 20, 600); // max 20 échecs / 10 min / IP
+    // Clé cron : DE PRÉFÉRENCE dans l'en-tête X-Cron-Key (n'apparaît pas dans
+    // les journaux d'accès serveur/CDN), sinon en repli ?key= (tâches cPanel
+    // qui ne peuvent pas poser d'en-tête), sinon corps JSON (POST report-email).
+    $cronKey = (string) ($_SERVER['HTTP_X_CRON_KEY'] ?? '');
+    if ($cronKey === '' && function_exists('apache_request_headers')) {
+      foreach (apache_request_headers() as $hk => $hv) {
+        if (strcasecmp($hk, 'X-Cron-Key') === 0) { $cronKey = (string) $hv; break; }
+      }
+    }
+    $cronOu = $cronKey !== '' ? 'entete' : '';
+    if ($cronKey === '') { $cronKey = (string) ($_GET['key'] ?? ''); if ($cronKey !== '') $cronOu = 'url'; }
+    if ($cronKey === '' && $method === 'POST') { $cronKey = (string) (body()['key'] ?? ''); if ($cronKey !== '') $cronOu = 'corps'; }
+
+    // UNE CLÉ DE 65 CARACTÈRES QUAND LA VRAIE EN FAIT 64, C'EST UN SAUT DE
+    // LIGNE. ⚡ Le Mécanicien en a relevé une le 07/09/2026 dans le journal
+    // d'audit. Un fichier de tâches cPanel se termine par un retour à la
+    // ligne, une valeur recopiée dans un champ garde l'espace qui la suivait :
+    // la clé est bonne, la comparaison échoue, et la sauvegarde de la nuit ne
+    // se fait pas — sans un mot, parce qu'un cron qui reçoit 403 ne prévient
+    // personne.
+    //
+    // On enlève donc les blancs AUTOUR, et rien d'autre. Une clé valide ne
+    // contient que `[A-Za-z0-9._~-]` (chapci_hardened_secret) : aucun blanc à
+    // l'intérieur, donc ce nettoyage ne peut pas rendre valide une clé qui ne
+    // l'était pas. La longueur brute reste écrite au journal en cas d'échec,
+    // pour que la vraie cause se voie.
+    $cronKeyBrute = strlen($cronKey);
+    $cronKey = trim($cronKey);
+
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey)) {
+      // POURQUOI l'échec, et pas seulement sur quelle route.
+      //
+      // « cron_fail » qui monte pose toujours la même question, et la route
+      // seule n'y répond pas : est-ce un robot qui tape au hasard, ou une de mes
+      // tâches cPanel qui porte une clé périmée ? Les deux se soignent de façon
+      // opposée — on ignore le premier, on corrige la seconde.
+      //
+      // « sans-cle » = personne n'a présenté de clé : un scanner, ou une tâche
+      // mal recopiée. « cle-differente » = quelqu'un connaît la route ET envoie
+      // une clé : presque toujours une tâche configurée avec l'ancienne valeur.
+      // L'endroit (en-tête / url / corps) et la longueur désignent laquelle,
+      // sans jamais écrire le moindre morceau du secret dans le journal.
+      // D'OÙ vient l'appel, et la clé aurait-elle PU être valide un jour.
+      //
+      // La longueur seule ne suffit pas, on l'a appris à ses dépens : le
+      // 02/08, six échecs portant des clés de 5, 28 et 30 caractères ont été
+      // lus comme « une tâche cPanel restée sur une ancienne clé » alors que
+      // c'étaient des sondes de vérification tirées depuis l'extérieur. Un
+      // rapport de sécurité qui accuse à tort fait perdre plus de temps qu'un
+      // rapport muet.
+      //
+      // « jamais-valide » : moins de 24 caractères, donc une valeur que ce
+      // serveur n'a JAMAIS pu accepter — chapci_hardened_secret refuse plus
+      // court. Ce n'est donc pas une ancienne clé oubliée quelque part, c'est
+      // un essai. Cette marque-là est vraie partout, quel que soit le réseau.
+      //
+      // « local » : l'appel vient DÉMONTRABLEMENT du serveur. On ne l'écrit que
+      // lorsqu'on peut le prouver, et on n'écrit RIEN sinon — surtout pas
+      // « externe ».
+      //
+      // Pourquoi cette prudence : chap.ci est derrière Cloudflare. Une tâche
+      // cPanel qui appelle https://chap.ci sort sur Internet et revient par le
+      // CDN ; PHP ne voit alors ni 127.0.0.1 ni SERVER_ADDR, mais l'adresse
+      // publique de sortie de l'hébergeur. Affirmer « externe » dans ce cas
+      // reviendrait à jurer que la tâche du Patron n'est pas en cause alors
+      // qu'elle l'est — l'erreur exactement inverse de celle qu'on répare ici,
+      // et la plus coûteuse des deux. Une marque absente veut dire « je ne
+      // sais pas », et c'est une réponse honnête.
+      $ipApp = (string) ($_SERVER['SERVER_ADDR'] ?? '');
+      $ipCli = client_ip();
+      $local = $ipCli === '127.0.0.1' || $ipCli === '::1' || ($ipApp !== '' && $ipCli === $ipApp);
+      // La longueur BRUTE, avant nettoyage : c'est elle qui trahit le saut de
+      // ligne. « 64 car. » alors que la clé en fait 64 dit tout autre chose
+      // que « 65 car. » — et sans elle, la trace effacerait la cause qu'on
+      // vient d'apprendre à réparer.
+      $motif = $cronKey === ''
+        ? 'sans-cle'
+        : 'cle-differente(' . $cronOu . ',' . strlen($cronKey) . ' car.'
+          . ($cronKeyBrute !== strlen($cronKey) ? ',brute ' . $cronKeyBrute : '')
+          . (strlen($cronKey) < 24 ? ',jamais-valide' : '') . ')';
+      log_security_event($pdo, 'cron_fail', null, $path . ' · ' . $motif . ($local ? ' · local' : ''));
+      jerr('Clé invalide.', 403);
+    }
+    // Trace du passage. On l'écrit ICI, à l'authentification réussie, et non à la
+    // fin du traitement : ce qu'il s'agit de détecter, c'est une tâche qui ne
+    // s'exécute plus DU TOUT — cron absent, clé périmée, commande mal écrite.
+    // C'est exactement ce qui est arrivé à la sauvegarde quotidienne, muette
+    // pendant douze jours. Une tâche qui passe ici mais échoue ensuite se
+    // signalerait autrement (erreur 500, e-mail manquant).
+    try {
+      $st = $pdo->prepare('UPDATE cron_runs SET last_ok_at = ?, runs = COALESCE(runs,0) + 1 WHERE path = ?');
+      $st->execute([now_iso(), $path]);
+      if ($st->rowCount() === 0) {
+        $pdo->prepare('INSERT INTO cron_runs (path,last_ok_at,runs) VALUES (?,?,1)')
+            ->execute([$path, now_iso()]);
+      }
+    } catch (Throwable $e) { /* la trace ne doit jamais empêcher la tâche de tourner */ }
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : offres du jour / de la semaine ----------
+  // Appelée par une tâche cron cPanel. Authentifiée par clé (pas de JWT).
+  if ($path === 'cron/digest' && $method === 'GET') {
+    // Redondance défensive : réutilise la clé résolue par le portail cron/*
+    // ci-dessus (en-tête X-Cron-Key ou ?key=).
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $type = (($_GET['type'] ?? 'daily') === 'weekly') ? 'weekly' : 'daily';
+    jout(send_digest($config, $pdo, $type));
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : Bureau de Croissance SEO (1 diffusion / jour) ----------
+  // Publie automatiquement UNE diffusion animée par jour sur l'écran publicitaire,
+  // selon les objectifs du site. Idempotent : une seule création par jour civil.
+  if ($path === 'cron/seo' && $method === 'GET') {
+    // Redondance défensive : réutilise la clé résolue par le portail cron/*.
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    if (!seo_auto_enabled($config)) jout(['skipped' => 'disabled']);
+    $today = gmdate('Y-m-d');
+    // Déjà une diffusion SEO aujourd'hui ? On ne double pas.
+    $ex = $pdo->prepare("SELECT COUNT(*) FROM ads WHERE kind = 'seo' AND substr(created_at,1,10) = ?");
+    $ex->execute([$today]);
+    if ((int) $ex->fetchColumn() > 0) jout(['skipped' => 'already_today']);
+    // Expire les diffusions SEO de la veille (une seule à l'écran à la fois).
+    $pdo->prepare("UPDATE ads SET status = 'expired' WHERE kind = 'seo' AND status = 'active'")->execute([]);
+    $b = seo_daily_broadcast($config, $pdo);
+    $id = uuid(); $now = now_iso();
+    // Active ~26 h : léger chevauchement pour qu'il y ait toujours une diffusion.
+    $expires = gmdate('Y-m-d\TH:i:s\Z', time() + 26 * 3600);
+    $pdo->prepare('INSERT INTO ads (id,user_id,title,description,link,images,formule,qty,price,pay_method,pay_number,status,starts_at,expires_at,ip,created_at,kind,style,anim,anim_loop)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$id, null, $b['title'], $b['description'], $b['link'] ?? '', json_encode([]), 'day', 1,
+                   0, '', '', 'active', $now, $expires, 'cron', $now, 'seo', $b['style'], $b['anim'], '1']);
+    jout(['ok' => true, 'id' => $id, 'goal' => $b['goal'], 'title' => $b['title'], 'style' => $b['style'], 'anim' => $b['anim']]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : rappel d'expiration des publicités ----------
+  // Prévient l'annonceur ~3 jours avant la fin pour qu'il renouvelle (1 seul rappel).
+  if ($path === 'cron/ads-expiring' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    @set_time_limit(0);
+    $now = now_iso();
+    // « echecs » compte les envois DUS qui n'ont pas pu partir. Sans lui, un
+    // relevé à 0/0/0 se lit « rien à envoyer » aussi bien que « la messagerie
+    // est tombée » — deux situations opposées, et seule la seconde est grave.
+    $res = ['rapports' => 0, 'veille' => 0, 'terminees' => 0, 'echecs' => 0];
+
+    // ── 1. RAPPORT D'AUDIENCE tous les 3 jours ─────────────────────────────
+    // On vend de la visibilité : un annonceur doit voir ce qu'il achète, sans
+    // avoir à le demander. C'est aussi le meilleur moment pour proposer une
+    // prolongation — quand les chiffres sont sous ses yeux.
+    $il3j = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400);
+    $st = $pdo->prepare("SELECT * FROM ads
+      WHERE status = 'active' AND email IS NOT NULL AND email <> '' AND expires_at > ?
+        AND (last_report_at IS NULL OR last_report_at = '' OR last_report_at <= ?)");
+    $st->execute([$now, $il3j]);
+    foreach ($st->fetchAll() as $ad) {
+      @set_time_limit(30);
+      if (send_ad_status_email($config, $ad, 'report', $pdo)) $res['rapports']++; else $res['echecs']++;
+      $pdo->prepare('UPDATE ads SET last_report_at = ? WHERE id = ?')->execute([now_iso(), $ad['id']]);
+    }
+
+    // ── 2. LA VEILLE de la fin ─────────────────────────────────────────────
+    // Avant : 3 jours avant, sans heure. Un annonceur qui veut prolonger a
+    // besoin de savoir à quelle HEURE sa bannière tombe, et d'être prévenu
+    // assez tard pour que l'information soit encore d'actualité.
+    $demain = gmdate('Y-m-d\TH:i:s\Z', time() + 86400);
+    $st = $pdo->prepare("SELECT * FROM ads
+      WHERE status = 'active' AND email IS NOT NULL AND email <> ''
+        AND (expiry_notified IS NULL OR expiry_notified <> '1')
+        AND expires_at > ? AND expires_at <= ?");
+    $st->execute([$now, $demain]);
+    foreach ($st->fetchAll() as $ad) {
+      @set_time_limit(30);
+      if (send_ad_status_email($config, $ad, 'expiring', $pdo)) $res['veille']++; else $res['echecs']++;
+      $pdo->prepare("UPDATE ads SET expiry_notified = '1' WHERE id = ?")->execute([$ad['id']]);
+    }
+
+    // ── 3. TERMINÉES : bilan complet, une seule fois ───────────────────────
+    $st = $pdo->prepare("SELECT * FROM ads
+      WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at <= ?
+        AND (expired_notified IS NULL OR expired_notified <> '1')");
+    $st->execute([$now]);
+    foreach ($st->fetchAll() as $ad) {
+      @set_time_limit(30);
+      if (send_ad_status_email($config, $ad, 'expired', $pdo)) $res['terminees']++; else $res['echecs']++;
+      // Le statut passe à « expired » ici : la bannière quitte l'écran et
+      // l'annonceur reçoit son bilan dans le même mouvement.
+      $pdo->prepare("UPDATE ads SET status = 'expired', expired_notified = '1' WHERE id = ?")
+          ->execute([$ad['id']]);
+    }
+
+    jout($res);
+  }
+
+
+
+  // ---------- RELANCE D'ACTIVATION : inscrits sans annonce ----------
+  // Invite (UNE seule fois) les comptes créés depuis ≥ 3 jours, sans aucune
+  // annonce, à publier leur première. Authentifié par la clé cron. Chaque envoi
+  // est marqué (activation_emailed) → jamais deux fois, jamais de spam.
+  if ($path === 'cron/activation-relance' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $before = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400); // inscrit il y a ≥ 3 jours
+    $st = $pdo->prepare("SELECT u.id, u.email FROM users u
+      WHERE u.email IS NOT NULL AND u.email <> ''
+        AND (u.status IS NULL OR u.status NOT IN ('blocked','restricted'))
+        AND u.activation_emailed IS NULL
+        AND u.created_at <= ?
+        AND NOT EXISTS (SELECT 1 FROM listings l WHERE l.user_id = u.id)
+      ORDER BY u.created_at ASC LIMIT 200");
+    $st->execute([$before]);
+    $rows = $st->fetchAll();
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    @set_time_limit(0);
+    $sent = 0;
+    foreach ($rows as $u) {
+      @set_time_limit(30);
+      $inner = '<h2 style="margin:0 0 6px">Vendez votre premier article sur Chap.ci 🇨🇮</h2>'
+        . '<p style="color:#374151;margin:0 0 14px">Bonjour,<br>Vous avez un téléphone, un vêtement, un meuble ou un service à proposer ? '
+        . 'Sur Chap.ci, publier une annonce est <b>100&nbsp;% gratuit</b> et prend <b>moins de 2&nbsp;minutes</b> — '
+        . 'des milliers d\'Ivoiriens cherchent des bonnes affaires près de chez eux.</p>'
+        . '<p style="margin:0 0 16px">' . email_button($site . '/#/publier', 'Publier une annonce gratuitement') . '</p>'
+        . '<p style="color:#6b7280;font-size:13px;margin:0">C\'est rapide, sûr, et vous gérez tout depuis votre compte. À très vite sur Chap.ci&nbsp;! 🧡💚</p>';
+      $html = email_layout($config, $inner, 'Publiez votre première annonce, c\'est gratuit');
+      if (send_mail($config, (string) $u['email'], 'Vendez votre premier article sur Chap.ci 🇨🇮', $html)) $sent++;
+      // Marqué dans tous les cas → une seule tentative par compte (comme les autres relances).
+      $pdo->prepare('UPDATE users SET activation_emailed = ? WHERE id = ?')->execute([now_iso(), $u['id']]);
+    }
+    jout(['checked' => count($rows), 'emailed' => $sent]);
+  }
+
+  // ---------- MODÉRATION AUTOMATIQUE — jeton de service cloisonné ----------
+  // « Le Gardien » (routine) s'authentifie avec un JETON DE SERVICE de périmètre
+  // 'moderation' (en-tête X-Service-Token UNIQUEMENT — jamais en query-string,
+  // pour éviter toute fuite du jeton dans les journaux/URL). Ce jeton n'ouvre QUE ces
+  // routes : lire la file, masquer, signaler. JAMAIS de compte, réglage ni sauvegarde.
+  // Retenir l'empreinte des photos d'une annonce retirée, pour qu'une
+  // republication de la même image se signale d'elle-même la prochaine fois.
+  //
+  // ⚠️ CE N'EST PAS UN BLOCAGE — voir `photos_signal()`. La mesure a montré que
+  // deux affiches d'un même vendeur peuvent être plus proches que la même photo
+  // recadrée : refuser sur cette base condamnerait des vendeurs honnêtes. On
+  // retient donc pour SIGNALER, et un humain tranche à nouveau.
+  if ($path === 'mod/image-retenir' && $method === 'POST') {
+    require_service_token($pdo, 'moderation');
+    $b = body();
+    $listingId = (string) ($b['listingId'] ?? '');
+    $raison = mb_substr(trim((string) ($b['raison'] ?? 'retirée par la modération')), 0, 160);
+    if ($listingId === '') jerr('listingId manquant.');
+    $st = $pdo->prepare('SELECT images FROM listings WHERE id = ?'); $st->execute([$listingId]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    $imgs = json_decode((string) ($row['images'] ?? '[]'), true);
+    if (!is_array($imgs)) $imgs = [];
+    $dir = $config['uploads_dir'];
+    $retenues = 0;
+    foreach ($imgs as $chemin) {
+      $chemin = (string) $chemin;
+      // On ne lit QUE dans le dossier des envois, et jamais un chemin composé
+      // par l'appelant : basename() coupe tout « ../ ».
+      $f = $dir . '/' . basename($chemin);
+      if (!is_file($f)) continue;
+      $emp = image_empreinte((string) file_get_contents($f));
+      if ($emp === null) continue;
+      try {
+        $pdo->prepare('INSERT INTO images_bloquees (empreinte,raison,listing_id,created_at) VALUES (?,?,?,?)')
+          ->execute([$emp, $raison, $listingId, now_iso()]);
+        $retenues++;
+      } catch (Throwable $e) { /* déjà retenue : la clé primaire suffit */ }
+    }
+    log_security_event($pdo, 'image_retenue', null, $listingId . ' · ' . $retenues . ' empreinte(s)');
+    jout(['ok' => true, 'retenues' => $retenues, 'photos' => count($imgs)]);
+  }
+
+  if ($path === 'mod/queue' && $method === 'GET') {
+    $tok = require_service_token($pdo, 'moderation');
+    $limit = min(200, max(1, (int) ($_GET['limit'] ?? 80)));
+    $shape = function (array $l): array {
+      $imgs = json_decode((string) ($l['images'] ?? '[]'), true); if (!is_array($imgs)) $imgs = [];
+      return [
+        'id'          => $l['id'],
+        'title'       => (string) ($l['title'] ?? ''),
+        'description' => mb_substr((string) ($l['description'] ?? ''), 0, 1200),
+        'price'       => (int) ($l['price'] ?? 0),
+        'category'    => (string) ($l['category_id'] ?? ''),
+        'images'      => array_slice(array_values(array_filter($imgs, 'is_string')), 0, 4),
+        'imageCount'  => count($imgs),
+        'sellerId'    => $l['user_id'] ?? null,
+        'hidden'      => !empty($l['hidden']),
+        'createdAt'   => iso_to_ms($l['created_at'] ?? null),
+        'risk'        => moderation_risk($l),
+        // ⚠️ CE QUE CES DEUX CHAMPS DISENT AU RELECTEUR.
+        // `photosVerifiees` à faux ne veut PAS dire « photo suspecte » : il veut
+        // dire « personne n'a regardé cette photo ». C'est le cas de toute
+        // annonce publiée depuis l'application, dont le seul filtre du site —
+        // qui tourne dans le navigateur — n'a jamais eu l'occasion de tourner.
+        // Ces annonces-là sont celles à ouvrir en premier.
+        'photosVerifiees' => !empty($l['images']) && $l['images'] !== '[]'
+          ? (bool) ($l['photos_verifiees'] ?? 0) : null,
+        'photoSignal'     => $l['photo_signal'] ?? null,
+      ];
+    };
+    // 1) Signalements ouverts (priorité) + l'annonce liée.
+    $rp = $pdo->query("SELECT r.id AS report_id, r.listing_id, r.kind, r.target_id, r.reason, r.details, r.created_at AS reported_at,
+        l.id, l.title, l.description, l.price, l.category_id, l.images, l.hidden, l.user_id, l.created_at
+      FROM reports r LEFT JOIN listings l ON l.id = r.listing_id
+      WHERE r.status = 'open' ORDER BY r.created_at DESC LIMIT 200")->fetchAll();
+    // DÉJÀ EXAMINÉ ? Le bureau de modération ne doit pas refaire chaque jour
+    // l'analyse d'un signalement sur lequel il a déjà conclu.
+    //
+    // Un signalement ouvert revient dans la file tant qu'il n'est pas classé —
+    // et c'est VOULU : classer le signalement d'un humain sur l'annonce d'un
+    // autre humain est une décision qui appartient au Patron, pas à un jeton de
+    // service. Ce que le bureau peut faire, lui, c'est marquer l'annonce
+    // « examinée » ; on lui rend donc cette date, pour qu'il écrive « déjà vu le
+    // 07/08, inchangé » au lieu de repartir de zéro.
+    $vues = [];
+    $idsVises = array_values(array_filter(array_map(fn($r) => (string) ($r['listing_id'] ?? ''), $rp)));
+    if ($idsVises) {
+      $in = implode(',', array_fill(0, count($idsVises), '?'));
+      $sv = $pdo->prepare("SELECT listing_id, created_at FROM mod_seen WHERE listing_id IN ($in)");
+      $sv->execute($idsVises);
+      foreach ($sv->fetchAll() as $v) $vues[(string) $v['listing_id']] = iso_to_ms($v['created_at']);
+    }
+    $reports = array_map(function ($r) use ($shape, $vues) {
+      $signaleLe = iso_to_ms($r['reported_at']);
+      $examineLe = $vues[(string) ($r['listing_id'] ?? '')] ?? null;
+      // ⚠️ UN EXAMEN ANTÉRIEUR AU SIGNALEMENT NE VAUT RIEN POUR CE SIGNALEMENT.
+      //
+      // Livré le 08/08 à 16 h, ce champ rendait la date de n'importe quel
+      // « examinée-OK », même bien plus ancienne que le signalement. Le soir
+      // même, le Gardien a lu « dejaVu 28/07 » sur un signalement du 07/08 et a
+      // conclu « déjà vu, inchangé, aucune nouvelle analyse » — il a sauté une
+      // analyse qu'il n'avait jamais faite. L'annonce avait été contrôlée dix
+      // jours AVANT que quiconque la signale : le contrôle ne portait pas sur
+      // le motif du signalement, forcément.
+      //
+      // Une aide qui fait sauter une vérification doit prouver qu'elle couvre
+      // ce qu'on saute. Sinon elle fabrique un angle mort, ce qui est pire que
+      // de ne rien rendre du tout.
+      if ($examineLe !== null && $signaleLe !== null && $examineLe < $signaleLe) $examineLe = null;
+      return [
+        'reportId'   => $r['report_id'],
+        'listingId'  => $r['listing_id'],
+        // 'listing' (défaut) ou 'conversation' : un signalement de conversation
+        // n'a pas de listing_id (pour ne pas gonfler l'auto-masquage), mais il
+        // DOIT rester identifiable dans la file — sinon il y revient à chaque
+        // ronde sans contexte. Sa cible est la conversation (`targetId`).
+        'kind'       => $r['kind'] ?: 'listing',
+        'targetId'   => $r['target_id'] ?? null,
+        'reason'     => $r['reason'],
+        'details'    => $r['details'],
+        'reportedAt' => $signaleLe,
+        // null = jamais examinée DEPUIS ce signalement. Sinon, la date de
+        // l'examen qui l'a suivi.
+        'dejaVu'     => $examineLe,
+        'listing'    => $r['id'] ? $shape($r) : null,
+      ];
+    }, $rp);
+    // 2) Annonces récentes visibles jamais encore examinées par la modération auto
+    //    (ni action dans mod_actions, ni marquage « vue/RAS » dans mod_seen).
+    $st = $pdo->prepare("SELECT l.id, l.title, l.description, l.price, l.category_id, l.images, l.hidden, l.user_id, l.created_at
+      FROM listings l
+      WHERE (l.hidden IS NULL OR l.hidden = 0)
+        AND l.id NOT IN (SELECT listing_id FROM mod_actions WHERE listing_id IS NOT NULL)
+        AND l.id NOT IN (SELECT listing_id FROM mod_seen)
+      ORDER BY l.created_at DESC LIMIT " . (int) $limit);
+    $st->execute();
+    $recent = array_map($shape, $st->fetchAll());
+    jout([
+      'reports' => $reports,
+      'recent'  => $recent,
+      'counts'  => ['reports' => count($reports), 'recent' => count($recent)],
+      'guide'   => 'Authentification: en-tête HTTP X-Service-Token. '
+        . 'Masquer: POST /api/mod/hide {listingId,reason,confidence}. '
+        . 'Signaler: POST /api/mod/flag {listingId,reason,details}. '
+        . 'Marquer examinées-OK (pour ne plus les revoir dans « recent »): POST /api/mod/seen {listingIds:[]}. '
+        . 'Digest: POST /api/mod/digest {examined,hidden:[],flagged:[],notes}. '
+        . 'UN SIGNALEMENT OUVERT REVIENT TANT QU\'IL N\'EST PAS CLASSÉ, et mod/seen ne le classe pas : '
+        . 'clore le signalement d\'un humain sur l\'annonce d\'un autre est une décision réservée au Patron '
+        . '(admin → Signalements → Classer). Le champ « dejaVu » ne porte une date QUE si vous avez examiné '
+        . 'l\'annonce APRÈS ce signalement — un examen antérieur ne peut pas l\'avoir couvert, il rend donc '
+        . 'null. dejaVu renseigné et rien de changé : dites « déjà examiné le JJ/MM, inchangé » et passez. '
+        . 'dejaVu null : analysez, même si l\'annonce vous dit quelque chose.',
+    ]);
+  }
+  // Masquer une annonce (cas à haute confiance : illégal / NSFW). Idempotent + audité.
+  if ($path === 'mod/hide' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $lid = trim((string) ($b['listingId'] ?? ''));
+    if ($lid === '') jerr('listingId requis.');
+    $reason = mb_substr(trim((string) ($b['reason'] ?? '')), 0, 300) ?: 'Modération automatique';
+    $conf   = mb_substr(trim((string) ($b['confidence'] ?? 'high')), 0, 20);
+    $st = $pdo->prepare('SELECT id, hidden FROM listings WHERE id = ?'); $st->execute([$lid]);
+    $row = $st->fetch();
+    if (!$row) jerr('Annonce introuvable.', 404);
+    $already = !empty($row['hidden']);
+    if (!$already) $pdo->prepare('UPDATE listings SET hidden = 1 WHERE id = ?')->execute([$lid]);
+    mod_audit($pdo, $tok['id'], 'hide', $lid, $reason, $conf, ['already' => $already]);
+    jout(['ok' => true, 'listingId' => $lid, 'alreadyHidden' => $already]);
+  }
+  // Signaler une annonce (cas douteux) → signalement ouvert pour revue humaine. Anti-doublon.
+  if ($path === 'mod/flag' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $lid = trim((string) ($b['listingId'] ?? ''));
+    $reason = mb_substr(trim((string) ($b['reason'] ?? '')), 0, 80);
+    $details = mb_substr(trim((string) ($b['details'] ?? '')), 0, 500);
+    if ($lid === '' || $reason === '') jerr('listingId et reason requis.');
+    $st = $pdo->prepare('SELECT id FROM listings WHERE id = ?'); $st->execute([$lid]);
+    if (!$st->fetch()) jerr('Annonce introuvable.', 404);
+    $ex = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE listing_id = ? AND status = 'open' AND reporter_id = 'moderation-bot'");
+    $ex->execute([$lid]);
+    $created = false;
+    if ((int) $ex->fetchColumn() === 0) {
+      $pdo->prepare('INSERT INTO reports (id,listing_id,reporter_id,reason,details,status,created_at) VALUES (?,?,?,?,?,?,?)')
+          ->execute([uuid(), $lid, 'moderation-bot', $reason, $details ?: null, 'open', now_iso()]);
+      $created = true;
+    }
+    mod_audit($pdo, $tok['id'], 'flag', $lid, $reason . ($details ? ' — ' . $details : ''), 'medium', ['created' => $created]);
+    jout(['ok' => true, 'listingId' => $lid, 'created' => $created]);
+  }
+  // Marquer des annonces « examinées et OK » → elles ne reviennent plus dans la file.
+  // (N'entre PAS dans le journal d'audit : réservé aux vraies actions hide/flag.)
+  if ($path === 'mod/seen' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $ids = array_values(array_unique(array_filter(array_map(fn($x) => trim((string) $x), (array) ($b['listingIds'] ?? [])))));
+    $ids = array_slice($ids, 0, 500);
+    $ins = $pdo->prepare('INSERT INTO mod_seen (listing_id, created_at) VALUES (?, ?)');
+    $marked = 0;
+    foreach ($ids as $lid) {
+      try { $ins->execute([$lid, now_iso()]); $marked++; }
+      catch (Throwable $e) { /* déjà marquée (clé primaire) : on ignore */ }
+    }
+    // `marked: 0` seul se lit comme un échec — le bureau l'a signalé le 08/08 en
+    // le prenant pour une panne, alors que l'annonce était simplement déjà
+    // marquée depuis la veille. On distingue donc les deux : rien n'a échoué,
+    // il n'y avait rien de neuf à marquer.
+    jout(['ok' => true, 'marked' => $marked, 'deja' => count($ids) - $marked, 'total' => count($ids)]);
+  }
+  // Envoyer le digest de modération aux propriétaires + modérateurs.
+  if ($path === 'mod/digest' && $method === 'POST') {
+    $tok = require_service_token($pdo, 'moderation');
+    $b = body();
+    $examined = max(0, (int) ($b['examined'] ?? 0));
+    $hidden  = array_values(array_filter((array) ($b['hidden'] ?? []), 'is_array'));
+    $flagged = array_values(array_filter((array) ($b['flagged'] ?? []), 'is_array'));
+    $notes   = mb_substr(trim((string) ($b['notes'] ?? '')), 0, 2000);
+    if (!$hidden && !$flagged && $notes === '') {
+      mod_audit($pdo, $tok['id'], 'digest', null, 'RAS', '', ['examined' => $examined]);
+      jout(['ok' => true, 'emailed' => 0, 'skipped' => true]);
+    }
+    $esc  = fn($s) => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+    $site = rtrim($config['site_url'] ?? 'https://chap.ci', '/');
+    $listHtml = function (array $items, string $emptyMsg) use ($esc, $site): string {
+      if (!$items) return '<p style="color:#8a94a6;margin:4px 0 0">' . $esc($emptyMsg) . '</p>';
+      $out = '';
+      foreach (array_slice($items, 0, 50) as $it) {
+        $id = (string) ($it['listingId'] ?? ($it['id'] ?? ''));
+        $link = $id ? $site . '/#/annonce/' . rawurlencode($id) : '';
+        $out .= '<div style="border:1px solid #eef0f2;border-radius:10px;padding:10px 12px;margin:6px 0">'
+              . '<div style="font-weight:600;color:#1a1f2b">' . $esc($it['title'] ?? '(sans titre)') . '</div>'
+              . (isset($it['reason']) && $it['reason'] !== '' ? '<div style="font-size:13px;color:#6b7280;margin-top:2px">' . $esc($it['reason']) . '</div>' : '')
+              . ($link ? '<a href="' . $esc($link) . '" style="font-size:12px;color:#e8590c">Voir l’annonce →</a>' : '')
+              . '</div>';
+      }
+      return $out;
+    };
+    $inner = '<h2 style="margin:0 0 4px">🛡️ Modération automatique — récapitulatif</h2>'
+      . '<p style="color:#6b7280;margin:0 0 14px">' . (int) $examined . ' annonce(s) examinée(s) · '
+      . count($hidden) . ' masquée(s) · ' . count($flagged) . ' signalée(s) pour revue humaine.</p>'
+      . '<h3 style="margin:14px 0 2px;color:#b42318">Masquées automatiquement (haute confiance)</h3>'
+      . $listHtml($hidden, 'Aucune annonce masquée automatiquement.')
+      . '<h3 style="margin:16px 0 2px;color:#b54708">À vérifier (signalées)</h3>'
+      . $listHtml($flagged, 'Rien à vérifier manuellement.')
+      . ($notes !== '' ? '<h3 style="margin:16px 0 2px">Notes du Gardien</h3><p style="color:#374151;white-space:pre-wrap">' . $esc($notes) . '</p>' : '')
+      . '<p style="margin-top:16px">' . email_button($site . '/#/admin', 'Ouvrir le tableau de bord') . '</p>';
+    $html = email_layout($config, $inner, 'Récapitulatif de modération Chap.ci');
+    $recips = moderation_notify_recipients($config, $pdo);
+    $sent = 0;
+    foreach ($recips as $to) { if (send_mail($config, $to, 'Chap.ci — modération auto (' . count($hidden) . ' masquée(s), ' . count($flagged) . ' à vérifier)', $html)) $sent++; }
+    mod_audit($pdo, $tok['id'], 'digest', null, 'Digest envoyé', '', ['examined' => $examined, 'hidden' => count($hidden), 'flagged' => count($flagged), 'emailed' => $sent]);
+    jout(['ok' => true, 'emailed' => $sent, 'recipients' => count($recips)]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : suggestions personnalisées (2×/semaine) ----------
+  if ($path === 'cron/suggestions' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $users = $pdo->query('SELECT DISTINCT ui.user_id AS id, u.email
+      FROM user_interests ui JOIN users u ON u.id = ui.user_id')->fetchAll();
+    @set_time_limit(0); // envois potentiellement longs : pas de timeout à l'échelle
+    $reached = 0; $emailed = 0;
+    foreach ($users as $usr) {
+      @set_time_limit(30); // réarme le budget à chaque utilisateur
+      $r = send_suggestions($config, $pdo, $usr);
+      $reached++;
+      if ($r['sent']) $emailed++;
+    }
+    jout(['users' => $reached, 'emailed' => $emailed]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : alertes « recherches sauvegardées » ----------
+  // Pour chaque alerte, on cherche les annonces publiées depuis la dernière
+  // notification. S'il y en a, on prévient par email et on avance le curseur.
+  if ($path === 'cron/alerts' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $searches = $pdo->query('SELECT s.*, u.email FROM saved_searches s JOIN users u ON u.id = s.user_id')->fetchAll();
+    @set_time_limit(0); // envois potentiellement longs : pas de timeout à l'échelle
+    $checked = 0; $emailed = 0; $matched = 0;
+    foreach ($searches as $s) {
+      @set_time_limit(30); // réarme le budget à chaque alerte
+      $checked++;
+      $rows = search_matching_listings($pdo, (string) $s['params'], (string) ($s['last_notified_at'] ?? ''));
+      if ($rows) {
+        $rows = array_slice($rows, 0, 8);
+        $matched += count($rows);
+        if (send_search_alert($config, ['email' => $s['email']], (string) $s['label'], $rows, (string) $s['params'])) $emailed++;
+      }
+      // On avance toujours le curseur (évite de renvoyer les mêmes annonces).
+      $pdo->prepare('UPDATE saved_searches SET last_notified_at = ? WHERE id = ?')->execute([now_iso(), $s['id']]);
+    }
+    jout(['searches' => $checked, 'matched' => $matched, 'emailed' => $emailed]);
+  }
+
+  // ---------- STATISTIQUES POUR LE RAPPORT D'ACTIVITÉ (routine hebdo) ----------
+  // Agrégats anonymes (aucune donnée personnelle). Authentifié par la clé cron.
+  if ($path === 'cron/stats' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $days = max(1, min(90, (int) ($_GET['days'] ?? 7)));
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
+    $one = function (string $sql, array $p = []) use ($pdo) {
+      $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn();
+    };
+    $topCats = $pdo->prepare('SELECT category_id, COUNT(*) AS n FROM listings WHERE created_at >= ? GROUP BY category_id ORDER BY n DESC LIMIT 5');
+    $topCats->execute([$since]);
+    // Chaque page est scindée en « vues connectées » / « vues visiteur ». C'est ce
+    // qui rend /publier interprétable : beaucoup de visiteurs = le mur est la
+    // création de compte ; beaucoup de connectés = le mur est le formulaire.
+    // (`n` reste en tête pour ne rien casser chez les consommateurs existants.)
+    // DES VUES **ET** DES PERSONNES.
+    //
+    // Ces colonnes ne comptaient que des vues, et une vue ne décide de rien.
+    // Le 05/08, 📣 Le Crieur a rapporté « 68 vues connectées sur /publier » et a
+    // eu l'honnêteté d'ajouter qu'il ne pouvait pas trancher : soit 68 comptes
+    // différents butent sur le formulaire, soit les 2 vendeurs actifs y
+    // reviennent trente fois chacun. Les deux lectures mènent à des décisions
+    // opposées — refaire le formulaire, ou ne pas y toucher.
+    //
+    // `personnes` et `personnesConnectees` tranchent : ce sont des visiteurs
+    // DISTINCTS. Rapporté au nombre de comptes existants, on sait enfin si la
+    // page est un mur ou un passage.
+    $topPaths = $pdo->prepare(
+      'SELECT path, COUNT(*) AS n,
+              COUNT(DISTINCT visitor_id) AS personnes,
+              COUNT(DISTINCT CASE WHEN authed = 1 THEN visitor_id END) AS personnesConnectees,
+              SUM(CASE WHEN authed = 1 THEN 1 ELSE 0 END) AS connectes,
+              SUM(CASE WHEN authed = 0 THEN 1 ELSE 0 END) AS visiteurs,
+              SUM(CASE WHEN authed IS NULL THEN 1 ELSE 0 END) AS inconnu
+       FROM visits WHERE created_at >= ? GROUP BY path ORDER BY n DESC LIMIT 8');
+    $topPaths->execute([$since]);
+    jout([
+      'periodDays' => $days,
+      'since'      => $since,
+      'users'      => [
+        'total' => $one('SELECT COUNT(*) FROM users'),
+        'new'   => $one('SELECT COUNT(*) FROM users WHERE created_at >= ?', [$since]),
+      ],
+      'listings'   => [
+        'active' => $one('SELECT COUNT(*) FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)'),
+        'new'    => $one('SELECT COUNT(*) FROM listings WHERE created_at >= ?', [$since]),
+        'sold'   => $one('SELECT COUNT(*) FROM listings WHERE sold = 1'),
+        'hidden' => $one('SELECT COUNT(*) FROM listings WHERE hidden = 1'),
+      ],
+      // L'ENTONNOIR DE LA PUBLICATION — les marches, dans l'ordre où on les monte.
+      //
+      // Il répond à la question que `topPaths` ne pouvait pas trancher : on
+      // voyait 219 arrivées sur /publier pour une annonce, sans savoir OÙ les
+      // gens s'arrêtaient. Chaque marche donne des PERSONNES distinctes, pas des
+      // vues — une vue ne décide de rien (leçon du 05/08).
+      //
+      // `echecs` détaille CE QUI a bloqué à l'envoi, champ par champ. C'est la
+      // ligne à lire en premier : elle nomme le coupable.
+      'publier'    => (function () use ($pdo, $since): array {
+        $par = function (string $sql) use ($pdo, $since): array {
+          try {
+            $st = $pdo->prepare($sql); $st->execute([$since]);
+            $out = [];
+            foreach ($st->fetchAll() as $r) $out[(string) ($r['k'] ?? '')] = (int) ($r['n'] ?? 0);
+            return $out;
+          } catch (Throwable $e) { return []; }
+        };
+        $marches = $par('SELECT etape AS k, COUNT(DISTINCT visitor_id) AS n
+                           FROM publier_etapes WHERE created_at >= ? GROUP BY etape');
+        // L'ordre RÉEL du parcours depuis le 29/08 : le formulaire s'affiche à
+        // tout le monde, et le compte se demande au moment de publier. Ranger
+        // « mur_connexion » avant « formulaire », comme autrefois, ferait lire
+        // l'entonnoir à l'envers — on croirait perdre des gens à une marche
+        // qu'ils n'ont pas encore atteinte.
+        $ordre = ['arrivee', 'formulaire', 'mur_connexion', 'mur_email', 'echec', 'publiee'];
+        $rangees = [];
+        foreach ($ordre as $e) $rangees[$e] = $marches[$e] ?? 0;
+        return [
+          'personnes' => $rangees,
+          'echecs'    => $par('SELECT detail AS k, COUNT(*) AS n
+                                 FROM publier_etapes
+                                WHERE created_at >= ? AND etape = \'echec\' AND detail IS NOT NULL
+                                GROUP BY detail ORDER BY n DESC'),
+        ];
+      })(),
+      'messages'   => [
+        'new'              => $one('SELECT COUNT(*) FROM messages WHERE created_at >= ?', [$since]),
+        'newConversations' => $one('SELECT COUNT(*) FROM conversations WHERE created_at >= ?', [$since]),
+      ],
+      'orders'     => ['new' => $one('SELECT COUNT(*) FROM orders WHERE created_at >= ?', [$since])],
+      'reviews'    => ['new' => $one('SELECT COUNT(*) FROM reviews WHERE created_at >= ?', [$since])],
+      'reports'    => ['new' => $one('SELECT COUNT(*) FROM reports WHERE created_at >= ?', [$since])],
+      'newsletter' => ['total' => $one('SELECT COUNT(*) FROM newsletter')],
+      'visits'     => [
+        'total'    => $one('SELECT COUNT(*) FROM visits WHERE created_at >= ?', [$since]),
+        'visitors' => $one('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?', [$since]),
+        'topPages' => $topPaths->fetchAll(),
+      ],
+      'topCategories' => $topCats->fetchAll(),
+    ]);
+  }
+
+  // ---------- SYNTHÈSE SÉCURITÉ (Le Greffier — journal d'audit) ----------
+  // Compteurs d'événements + IP les plus actives sur les échecs. Clé cron.
+  if ($path === 'cron/security' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $days = max(1, min(90, (int) ($_GET['days'] ?? 1)));
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
+    $sec = security_stats($pdo, $config, $since);
+
+    // On rassemble tous les motifs d'alerte dans une seule liste → un seul email.
+    $alerts = [];
+
+    // (a) Intégrité de la table admins : une ligne « admin » ajoutée AUTREMENT que
+    // par le tableau de bord (injection, accès direct à la base) casse l'empreinte.
+    $fp = admins_fp_file($config);
+    $expected = @is_readable($fp) ? trim((string) @file_get_contents($fp)) : '';
+    $adminsTampered = false; $currentAdmins = [];
+    if ($expected === '') {
+      admins_fp_save($config, $pdo); // 1re exécution : on établit la référence
+    } elseif (!hash_equals($expected, admins_fingerprint($pdo))) {
+      $adminsTampered = true;
+      $currentAdmins = $pdo->query('SELECT email FROM admins ORDER BY email')->fetchAll(PDO::FETCH_COLUMN);
+      $alerts[] = 'Liste des administrateurs modifiée HORS du tableau de bord (injection / accès direct '
+                . 'à la base). Comptes actuels : ' . (implode(', ', $currentAdmins) ?: '(aucun)') . '.';
+      log_security_event($pdo, 'admins_tampered', null, implode(',', $currentAdmins));
+    }
+
+    // (b) Seuils d'activité suspecte (surchargeable via config['security_alerts']).
+    $thr       = $config['security_alerts'] ?? [];
+    $loginFail  = (int) $sec['loginFail'];
+    $unlockFail = (int) ($sec['counts']['admin_unlock_fail'] ?? 0);
+    $mfaFail    = (int) ($sec['counts']['mfa_fail'] ?? 0);
+    $nSusp      = count($sec['suspicious']);
+    if ($loginFail  >= (int) ($thr['login_fail']        ?? 30)) $alerts[] = "Pic de connexions échouées : $loginFail sur $days j.";
+    if ($unlockFail >= (int) ($thr['admin_unlock_fail'] ?? 3))  $alerts[] = "Tentatives de déverrouillage admin ratées : $unlockFail (compte admin peut-être compromis).";
+    if ($mfaFail    >= (int) ($thr['mfa_fail']          ?? 5))  $alerts[] = "Échecs de code 2FA répétés : $mfaFail.";
+    if ($nSusp      >= (int) ($thr['suspicious_ips']    ?? 3)) {
+      $top = array_slice(array_map(fn($x) => $x['ip'] . ' (' . $x['n'] . ')', $sec['suspicious']), 0, 5);
+      $alerts[] = "$nSusp IP suspectes (≥ 5 échecs) : " . implode(', ', $top) . '.';
+    }
+
+    // Un SEUL email récapitulatif, throttlé à 1×/24 h (anti-spam) via le journal d'audit.
+    if ($alerts) {
+      $recent = $pdo->prepare("SELECT COUNT(*) FROM security_events WHERE kind = 'security_alert' AND created_at >= ?");
+      $recent->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 86400)]);
+      if ((int) $recent->fetchColumn() === 0) {
+        $items = '<ul><li>' . implode('</li><li>', array_map('htmlspecialchars', $alerts)) . '</li></ul>';
+        $html = '<p><b>⚠️ Alerte sécurité Chap.ci</b></p>'
+              . '<p>Le scan de sécurité a détecté <b>' . count($alerts) . ' point(s)</b> à vérifier :</p>' . $items
+              . '<p>Connectez-vous au tableau de bord pour investiguer (onglet Aperçu / Visiteurs). En cas de '
+              . 'doute sur un compte admin, ouvrez <b>Modérateurs</b>. Si un intrus y figure, supprimez-le ; '
+              . 'en cas de doute sérieux, changez le mot de passe de la base.</p>';
+        foreach (security_notify_recipients($config) as $to) { send_mail($config, $to, 'Chap.ci — ⚠️ alerte sécurité', $html); }
+        log_security_event($pdo, 'security_alert', null, implode(' | ', $alerts));
+      }
+    }
+
+    // DERNIER PASSAGE RÉUSSI DE CHAQUE TÂCHE — la moitié manquante du tableau.
+    //
+    // Le Gardien voit « cron/stats a échoué 7 fois » et en conclut, faute de
+    // mieux, qu'une tâche du Patron est cassée. Il se trompe à chaque fois où
+    // ces échecs viennent d'ailleurs — une sonde, un robot — pendant que la
+    // vraie tâche, elle, tourne très bien. Il a passé deux rondes à faire
+    // chercher au Patron des tâches à réparer qui n'existaient pas.
+    //
+    // Un échec ne dit rien tout seul. Échec + AUCUN passage récent = tâche
+    // cassée, à corriger. Échec + passage récent = la tâche va bien, et les
+    // échecs sont le fait de quelqu'un d'autre : rien à faire.
+    //
+    // Ces horodatages vivent dans cron_runs, que le tableau de bord affiche
+    // déjà — mais derrière une session administrateur, à laquelle le Gardien
+    // n'a pas accès, et c'est très bien ainsi. On les expose donc ici, sur une
+    // route qu'il a déjà le droit de lire. Ce ne sont que des dates : aucun
+    // secret, aucune donnée personnelle.
+    $passages = [];
+    try {
+      foreach ($pdo->query('SELECT path, last_ok_at, runs FROM cron_runs')->fetchAll() as $r) {
+        $passages[substr((string) $r['path'], 5)] = [
+          'dernier' => (string) $r['last_ok_at'],
+          'passages' => (int) $r['runs'],
+        ];
+      }
+    } catch (Throwable $e) { /* table absente : liste vide */ }
+
+    jout([
+      'periodDays'      => $days,
+      'since'           => $since,
+      'counts'          => $sec['counts'],
+      'derniersPassages' => $passages,
+      'suspiciousIps'   => $sec['suspicious'],
+      'failRatio'       => $sec['ratio'],
+      'loginFail'       => $loginFail,
+      'adminUnlockFail' => $unlockFail,
+      'mfaFail'         => $mfaFail,
+      'rateLimited'     => $sec['counts']['rate_limited'] ?? 0,
+      'newSignups'      => $sec['counts']['signup'] ?? 0,
+      // Quelle route échoue, et combien de fois. Sans ce détail, un compteur
+      // cron_fail qui monte ne dit pas s'il s'agit d'une tâche cassée ou d'un
+      // balayage extérieur — les deux se corrigent très différemment.
+      'byDetail'        => $sec['byDetail'],
+      // Ce que la CSP aurait bloqué si elle n'était pas en mode rapport.
+      // Tant que cette liste contient des origines légitimes, la durcir
+      // casserait le site : c'est le relevé qui dit quand on peut le faire.
+      //
+      // ⚠️ LA FENÊTRE EST INDISPENSABLE, et son absence a déjà trompé un bureau.
+      // La table csp_reports est un COMPTEUR CUMULÉ (une ligne par origine, un
+      // « n » qui monte depuis le 27/07). Servie sans borne de temps, elle se
+      // lisait comme l'activité du jour : le 29/07, le Gardien a proposé
+      // d'autoriser quatre origines dont TROIS l'étaient déjà depuis deux jours.
+      // Leurs lignes ne bougeaient plus — il regardait un vestige.
+      //
+      // On ne renvoie donc que ce qui a été revu RÉCEMMENT, et l'on annonce la
+      // fenêtre dans la réponse. Une origine corrigée disparaît d'elle-même du
+      // relevé au bout de sept jours : c'est ainsi que le relevé dit la vérité
+      // sans qu'on ait à purger la table ni à se souvenir de rien.
+      'cspFenetreJours' => 7,
+      'cspViolations'   => (function () use ($pdo) {
+        try {
+          $st = $pdo->prepare('SELECT directive, blocked, n, first_at, last_at FROM csp_reports
+                               WHERE last_at >= ? ORDER BY last_at DESC, n DESC LIMIT 20');
+          $st->execute([gmdate('Y-m-d\TH:i:s\Z', time() - 7 * 86400)]);
+          return $st->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) { return []; }
+      })(),
+      // Le cumul reste disponible, mais NOMMÉ pour ce qu'il est : un historique.
+      'cspViolationsHistorique' => (function () use ($pdo) {
+        try {
+          return $pdo->query('SELECT directive, blocked, n, last_at FROM csp_reports ORDER BY n DESC LIMIT 20')
+                     ->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) { return []; }
+      })(),
+      'ignoredIps'      => $config['security_ignore_ips'] ?? [],
+      // Intégrité des rôles admin : « ok » ou « ALTÉRÉE » (+ liste si altérée).
+      'adminsIntegrity' => $adminsTampered ? 'ALTÉRÉE' : 'ok',
+      'adminsTampered'  => $adminsTampered,
+      'currentAdmins'   => $currentAdmins,
+      // Motifs d'alerte de ce scan (vide = rien à signaler).
+      'alerts'          => $alerts,
+    ]);
+  }
+
+  // ---------- MÉNAGE / MAINTENANCE (L'Intendant) ----------
+  // Purge les données temporaires anciennes + expire les vieilles annonces. Clé cron.
+  if ($path === 'cron/cleanup' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $done = [];
+    // Visites de plus de 120 jours (analytics anonymes, inutiles au-delà).
+    $d = gmdate('Y-m-d\TH:i:s\Z', time() - 120 * 86400);
+    $st = $pdo->prepare('DELETE FROM visits WHERE created_at < ?'); $st->execute([$d]); $done['visits_purgees'] = $st->rowCount();
+    // Journal de sécurité de plus de 180 jours.
+    $d2 = gmdate('Y-m-d\TH:i:s\Z', time() - 180 * 86400);
+    $st = $pdo->prepare('DELETE FROM security_events WHERE created_at < ?'); $st->execute([$d2]); $done['evenements_securite_purges'] = $st->rowCount();
+    // LES FAVORIS QUI PRÉVIENNENT (chantier 4 du 04/09/2026) : une semaine
+    // avant qu'une annonce n'expire (90 jours, juste en dessous), ceux qui
+    // l'ont mise en favori l'apprennent — « c'est le moment d'écrire au
+    // vendeur ». Une fois par annonce (expire_prevenu), quel que soit le
+    // nombre de passages du cron.
+    try {
+      $d83 = gmdate('Y-m-d\TH:i:s\Z', time() - 83 * 86400);
+      $d90 = gmdate('Y-m-d\TH:i:s\Z', time() - 90 * 86400);
+      $st = $pdo->prepare('SELECT id, user_id, title FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)
+        AND created_at < ? AND created_at >= ? AND (expire_prevenu IS NULL OR expire_prevenu = 0) LIMIT 200');
+      $st->execute([$d83, $d90]);
+      $prevenus = 0;
+      foreach ($st->fetchAll() as $l) {
+        $prevenus += favoris_prevenir($pdo, (string) $l['id'], (string) $l['user_id'], 'Un favori se termine bientôt ⏳',
+          '« ' . mb_substr((string) $l['title'], 0, 60) . ' » disparaît dans 7 jours : c’est le moment d’écrire au vendeur.');
+        $pdo->prepare('UPDATE listings SET expire_prevenu = 1 WHERE id = ?')->execute([$l['id']]);
+      }
+      $done['favoris_prevenus_expiration'] = $prevenus;
+    } catch (Throwable $e) { $done['favoris_prevenus_expiration'] = 'erreur : ' . $e->getMessage(); }
+    // Annonces actives non vendues de plus de 90 jours → masquées (expirées), pas supprimées.
+    $d3 = gmdate('Y-m-d\TH:i:s\Z', time() - 90 * 86400);
+    $st = $pdo->prepare('UPDATE listings SET hidden = 1 WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0) AND created_at < ?');
+    $st->execute([$d3]); $done['annonces_expirees'] = $st->rowCount();
+    // Annonces sans aucune photo → effacées (le vendeur est prévenu).
+    // Contrairement à l'expiration ci-dessus, celle-ci supprime : une annonce
+    // sans photo n'a rien à montrer, la masquer reviendrait à la garder en base
+    // pour rien. Voir listings_purge_sans_photo() pour les précautions.
+    $done['annonces_sans_photo_effacees'] = listings_purge_sans_photo($pdo);
+    // Vignettes manquantes des anciennes photos (avant make_thumb) : générées
+    // par petits lots, sans nouvelle tâche cron. Une fois rattrapé, ≈ 0/passage.
+    $done['vignettes_generees'] = backfill_thumbs($pdo, $config);
+    jout(['ok' => true, 'nettoyage' => $done]);
+  }
+
+  // ---------- RAPPORT PÉRIODIQUE PAR EMAIL (serveur, sans Claude) ----------
+  // Envoie à report_email (contact@chap.ci) un récap : activité + sécurité +
+  // santé de la base. Appelé par une tâche cron cPanel (ex. mensuel : ?days=30).
+  // Lecture seule (aucune modification de données) hormis l'envoi de l'email.
+  if ($path === 'cron/report' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $days  = max(1, min(365, (int) ($_GET['days'] ?? 30)));
+    $since = gmdate('Y-m-d\TH:i:s\Z', time() - $days * 86400);
+    $one = function (string $sql, array $p = []) use ($pdo) {
+      $st = $pdo->prepare($sql); $st->execute($p); return (int) $st->fetchColumn();
+    };
+    $fr = function ($n): string { return number_format((int) $n, 0, ',', ' '); };
+
+    // Activité sur la période
+    $act = [
+      'Nouveaux inscrits'       => $one('SELECT COUNT(*) FROM users WHERE created_at >= ?', [$since]),
+      'Annonces publiées'       => $one('SELECT COUNT(*) FROM listings WHERE created_at >= ?', [$since]),
+      'Annonces vendues'        => $one('SELECT COUNT(*) FROM listings WHERE sold = 1 AND created_at >= ?', [$since]),
+      'Nouvelles conversations' => $one('SELECT COUNT(*) FROM conversations WHERE created_at >= ?', [$since]),
+      'Messages échangés'       => $one('SELECT COUNT(*) FROM messages WHERE created_at >= ?', [$since]),
+      'Commandes'               => $one('SELECT COUNT(*) FROM orders WHERE created_at >= ?', [$since]),
+      'Avis laissés'            => $one('SELECT COUNT(*) FROM reviews WHERE created_at >= ?', [$since]),
+      'Signalements'            => $one('SELECT COUNT(*) FROM reports WHERE created_at >= ?', [$since]),
+      'Visites'                 => $one('SELECT COUNT(*) FROM visits WHERE created_at >= ?', [$since]),
+      'Visiteurs uniques'       => $one('SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE created_at >= ?', [$since]),
+    ];
+    // Santé de la base (instantané)
+    $health = [
+      'Comptes au total'           => $one('SELECT COUNT(*) FROM users'),
+      'Annonces actives'           => $one('SELECT COUNT(*) FROM listings WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)'),
+      'Annonces masquées/expirées' => $one('SELECT COUNT(*) FROM listings WHERE hidden = 1'),
+      'Abonnés newsletter'         => $one('SELECT COUNT(*) FROM newsletter'),
+    ];
+    // Sécurité sur la période (IP de monitoring exclues → pas de fausse alerte)
+    $sec = security_stats($pdo, $config, $since);
+    $loginOk = $sec['loginOk']; $loginFail = $sec['loginFail'];
+    $ratio = (int) round($sec['ratio'] * 100);
+    $suspicious = array_slice($sec['suspicious'], 0, 5);
+
+    // Construction de l'email (charte via email_layout)
+    $tbl = function (array $data) use ($fr): string {
+      $rows = '';
+      foreach ($data as $label => $val) {
+        $rows .= '<tr><td style="padding:7px 0;border-bottom:1px solid #f0f0f0;color:#555">' . htmlspecialchars($label)
+               . '</td><td style="padding:7px 0;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#111">' . $fr($val) . '</td></tr>';
+      }
+      return '<table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 18px">' . $rows . '</table>';
+    };
+    $secLine = '<p style="font-size:14px;margin:6px 0 4px"><b>Connexions :</b> ' . $fr($loginOk) . ' réussies · ' . $fr($loginFail) . ' échouées (' . $ratio . '% d\'échec)</p>';
+    if ($suspicious) {
+      $parts = [];
+      foreach ($suspicious as $s) $parts[] = htmlspecialchars((string) $s['ip']) . ' (' . (int) $s['n'] . ')';
+      $secLine .= '<p style="font-size:14px;margin:6px 0;color:#b91c1c"><b>⚠️ IP à surveiller :</b> ' . implode(', ', $parts) . '</p>';
+    } else {
+      $secLine .= '<p style="font-size:14px;margin:6px 0;color:#059669">✅ Aucune IP suspecte sur la période.</p>';
+    }
+    $inner =
+      '<h2 style="margin-top:0;color:#111827">Rapport Chap.ci 📊</h2>'
+      . '<p style="color:#555;font-size:14px;margin:0 0 18px">Récapitulatif automatique — période : ' . $days . ' jours.</p>'
+      . '<h3 style="color:#00734A;font-size:15px;margin:16px 0 4px">Activité</h3>' . $tbl($act)
+      . '<h3 style="color:#00734A;font-size:15px;margin:16px 0 4px">Sécurité</h3>' . $secLine
+      . '<h3 style="color:#00734A;font-size:15px;margin:22px 0 4px">Santé de la base</h3>' . $tbl($health)
+      . '<p style="color:#9ca3af;font-size:12px;margin-top:22px">Généré automatiquement par le serveur Chap.ci — aucune action requise, sauf en cas d\'alerte sécurité.</p>';
+    $html = email_layout($config, $inner, 'Rapport Chap.ci');
+    $subject = 'Rapport Chap.ci — ' . gmdate('d/m/Y');
+
+    // Destinataires : le PROPRIÉTAIRE (bracknetswilliam@…) ET contact@chap.ci.
+    $to = security_notify_recipients($config); $sent = 0;
+    foreach ($to as $addr) { if (send_mail($config, $addr, $subject, $html)) $sent++; }
+    jout(['ok' => true, 'destinataires' => count($to), 'envoyes' => $sent, 'periodeJours' => $days]);
+  }
+
+  // ---------- ENVOI D'UN RAPPORT PAR EMAIL (avec PDF joint) ----------
+  // Appelé par la routine de sourcing (agents). Authentifié par la clé cron.
+  // Corps JSON : { key, subject, html, pdf_base64, filename, to? }
+  if ($path === 'cron/report-email' && $method === 'POST') {
+    $b = body();
+    // `trim` ici aussi : cette route-ci lit la clé dans le corps JSON, où un
+    // retour à la ligne se glisse tout aussi bien (voir le portail cron/*).
+    $key = ($cronKey ?? '') !== '' ? $cronKey : trim((string) ($b['key'] ?? ($_GET['key'] ?? '')));
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $key)) jerr('Clé invalide.', 403);
+    // Destinataires par défaut = le PROPRIÉTAIRE ET contact@chap.ci (les deux).
+    $admins = security_notify_recipients($config);
+    // Destinataires AUTORISÉS = admins + destinataires de rapport configurés.
+    $allowed = array_values(array_unique(array_merge(
+      array_values($config['admin_emails'] ?? []), report_recipients($config), $admins)));
+    // Sécurité : un `to` explicite doit faire partie des destinataires autorisés.
+    // On n'envoie JAMAIS vers une adresse arbitraire — sinon la clé cron (connue
+    // des admins/modérateurs) permettrait d'expédier du HTML « from chap.ci » à
+    // n'importe quelle adresse (phishing crédible).
+    if (!empty($b['to']) && filter_var($b['to'], FILTER_VALIDATE_EMAIL)
+        && in_array(strtolower((string) $b['to']), array_map('strtolower', $allowed), true)) {
+      $admins = [(string) $b['to']];
+    } elseif (!$admins) {
+      $admins = $allowed; // repli ultime
+    }
+    if (!$admins) jerr('Aucun destinataire administrateur configuré.', 400);
+    $subject  = trim((string) ($b['subject'] ?? '')) ?: 'Rapport de sourcing — Chap.ci';
+    $html     = (string) ($b['html'] ?? '<p>Rapport de sourcing Chap.ci.</p>');
+    $pdf      = (string) ($b['pdf_base64'] ?? '');
+    $filename = preg_replace('/[^A-Za-z0-9._-]/', '_', (string) ($b['filename'] ?? 'rapport-sourcing.pdf'));
+    if ($filename === '') $filename = 'rapport-sourcing.pdf';
+    $sent = [];
+    foreach ($admins as $adm) {
+      $sent[$adm] = ($pdf !== '')
+        ? send_report_mail($config, $adm, $subject, $html, $pdf, $filename)
+        : send_mail($config, $adm, $subject, $html);
+    }
+    jout(['sent' => $sent, 'withPdf' => $pdf !== '']);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : sauvegarde automatique de la base ----------
+  // Écrit un export JSON dans api/backups/ (dossier protégé), garde les 7 plus
+  // récents et prévient l'administrateur par email.
+  if ($path === 'cron/backup' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $dir = __DIR__ . '/backups';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    if (!is_dir($dir) || !is_writable($dir)) {
+      jerr('Dossier api/backups/ non inscriptible (droits).', 500);
+    }
+    // Protège le dossier des accès web directs.
+    if (!is_file($dir . '/.htaccess')) @file_put_contents($dir . '/.htaccess', "Require all denied\nDeny from all\n");
+    $dump = export_all($pdo);
+    $json = json_encode($dump, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $file = 'chapci-' . gmdate('Y-m-d-His') . '.json';
+    $bytes = @file_put_contents($dir . '/' . $file, $json);
+    if ($bytes === false) jerr('Écriture de la sauvegarde impossible.', 500);
+    // Rotation : ne conserver que les 7 sauvegardes les plus récentes.
+    $files = glob($dir . '/chapci-*.json') ?: [];
+    rsort($files);
+    foreach (array_slice($files, 7) as $old) @unlink($old);
+    send_backup_email($config, $dump, $file, (int) $bytes);
+    jout(['ok' => true, 'file' => $file, 'bytes' => (int) $bytes, 'counts' => $dump['counts']]);
+  }
+
+  // ---------- TÂCHE PLANIFIÉE : invitations / relances d'avis ----------
+  // Pour chaque transaction conclue (réception confirmée OU vente confirmée),
+  // on invite par email la partie qui n'a pas encore laissé d'avis. Relance
+  // espacée de 3 jours, 2 fois maximum.
+  // ---- LES RAPPELS DU PROFESSIONNEL ------------------------------------------
+  //
+  // Trois rappels, un passage par jour. Chacun a son marqueur : un rappel qui
+  // repart chaque nuit sur la même conversation fait couper TOUTES les
+  // notifications, y compris celles qui font vendre.
+  //
+  // Chaque case se coupe dans Compte → Notifications, et notify() consulte
+  // profiles.notif_prefs avant d'écrire : rien à vérifier ici.
+  if ($path === 'cron/rappels-pro' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $fait = ['sans_reponse' => 0, 'essouffle' => 0, 'bilan' => 0];
+
+    // 1) MESSAGE SANS RÉPONSE — le dernier mot est à l'acheteur depuis 24 h.
+    try {
+      $limite  = gmdate('Y-m-d\TH:i:s\Z', time() - 86400);
+      $reDelai = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400);
+      $convs = $pdo->query('SELECT id, seller_id, buyer_id, listing_id, seller_reminded_at FROM conversations')->fetchAll();
+      foreach ($convs as $c) {
+        if (!empty($c['seller_reminded_at']) && (string) $c['seller_reminded_at'] > $reDelai) continue;
+        $lm = $pdo->prepare('SELECT sender_id, created_at FROM messages
+                             WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 1');
+        $lm->execute([$c['id']]);
+        $last = $lm->fetch();
+        if (!$last) continue;
+        if ((string) $last['sender_id'] === (string) $c['seller_id']) continue;   // déjà répondu
+        if ((string) $last['created_at'] > $limite) continue;                     // moins de 24 h
+        $qui = '';
+        $pn = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?');
+        $pn->execute([$c['buyer_id']]);
+        $qui = (string) ($pn->fetch()['full_name'] ?? '');
+        notify($pdo, (string) $c['seller_id'], 'sans_reponse', 'Un acheteur attend votre réponse ⏳',
+               ($qui !== '' ? $qui : 'Un acheteur') . ' vous a écrit il y a plus de 24 h. '
+               . 'Votre taux de réponse est le premier chiffre qu’un acheteur regarde.',
+               '#/messages/' . $c['id']);
+        $pdo->prepare('UPDATE conversations SET seller_reminded_at = ? WHERE id = ?')
+            ->execute([now_iso(), $c['id']]);
+        $fait['sans_reponse']++;
+      }
+    } catch (Throwable $e) { /* un rappel raté ne casse pas la ronde */ }
+
+    // 2) ANNONCE QUI S'ESSOUFFLE — plus une seule vue depuis dix jours.
+    try {
+      $depuis  = gmdate('Y-m-d', time() - 10 * 86400);
+      $reDelai = gmdate('Y-m-d\TH:i:s\Z', time() - 30 * 86400);
+      $ls = $pdo->query("SELECT id, user_id, title, essouffle_at, created_at FROM listings
+                         WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)")->fetchAll();
+      foreach ($ls as $l) {
+        if (empty($l['user_id'])) continue;
+        if (!empty($l['essouffle_at']) && (string) $l['essouffle_at'] > $reDelai) continue;
+        // Une annonce publiée hier n'est pas « essoufflée » : elle est jeune.
+        if ((string) ($l['created_at'] ?? '') > gmdate('Y-m-d\TH:i:s\Z', time() - 10 * 86400)) continue;
+        $q = $pdo->prepare('SELECT COALESCE(SUM(n),0) FROM listing_view_days WHERE listing_id = ? AND day >= ?');
+        $q->execute([$l['id'], $depuis]);
+        if ((int) $q->fetchColumn() > 0) continue;
+        notify($pdo, (string) $l['user_id'], 'essouffle', 'Une annonce ne bouge plus 💤',
+               '« ' . $l['title'] . ' » n’a pas été vue depuis dix jours. Une nouvelle photo, '
+               . 'un prix ajusté ou une republication la remettent en tête.',
+               '#/modifier/' . $l['id']);
+        $pdo->prepare('UPDATE listings SET essouffle_at = ? WHERE id = ?')->execute([now_iso(), $l['id']]);
+        $fait['essouffle']++;
+      }
+    } catch (Throwable $e) { /* idem */ }
+
+    // 3) BILAN DE LA SEMAINE — le lundi seulement, aux comptes professionnels.
+    if (gmdate('N') === '1') {
+      try {
+        $depuisJour = gmdate('Y-m-d', time() - 7 * 86400);
+        $depuisIso  = gmdate('Y-m-d\TH:i:s\Z', time() - 7 * 86400);
+        $pros = $pdo->query("SELECT id FROM users WHERE pro_status = 'approuve'")->fetchAll();
+        foreach ($pros as $p) {
+          $uid = (string) $p['id'];
+          $lst = $pdo->prepare('SELECT id FROM listings WHERE user_id = ?'); $lst->execute([$uid]);
+          $ids = array_column($lst->fetchAll(), 'id');
+          $vues = 0;
+          if ($ids) {
+            $in = implode(',', array_fill(0, count($ids), '?'));
+            $q = $pdo->prepare("SELECT COALESCE(SUM(n),0) FROM listing_view_days
+                                WHERE day >= ? AND listing_id IN ($in)");
+            $q->execute(array_merge([$depuisJour], $ids));
+            $vues = (int) $q->fetchColumn();
+          }
+          $q = $pdo->prepare('SELECT COUNT(*) FROM conversations WHERE seller_id = ? AND created_at >= ?');
+          $q->execute([$uid, $depuisIso]);
+          $contacts = (int) $q->fetchColumn();
+          $q = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE seller_id = ? AND status = 'finalise'
+                              AND COALESCE(finalized_at, created_at) >= ?");
+          $q->execute([$uid, $depuisIso]);
+          $ventes = (int) $q->fetchColumn();
+          if ($vues === 0 && $contacts === 0 && $ventes === 0) continue;  // rien à raconter
+          notify($pdo, $uid, 'bilan', 'Votre semaine sur Chap.ci 📊',
+                 $vues . ' vue' . ($vues > 1 ? 's' : '') . ', ' . $contacts . ' contact'
+                 . ($contacts > 1 ? 's' : '') . ', ' . $ventes . ' vente' . ($ventes > 1 ? 's' : '')
+                 . '. Le détail est dans Statistiques de vente.',
+                 '#/compte?onglet=stats');
+          $fait['bilan']++;
+        }
+      } catch (Throwable $e) { /* idem */ }
+    }
+
+    jout($fait);
+  }
+
+  if ($path === 'cron/review-invites' && $method === 'GET') {
+    if (!hash_equals((string) ($config['cron_key'] ?? '__none__'), $cronKey ?? '')) {
+      jerr('Clé invalide.', 403);
+    }
+    $minAge  = gmdate('Y-m-d\TH:i:s\Z', time() - 86400);      // conclu il y a ≥ 1 jour
+    $reDelay = gmdate('Y-m-d\TH:i:s\Z', time() - 3 * 86400);  // relance ≥ 3 jours après la dernière
+    $orders = $pdo->query("SELECT * FROM orders WHERE status = 'finalise' OR seller_confirmed = 1")->fetchAll();
+    $checked = 0; $emailed = 0;
+    foreach ($orders as $o) {
+      if ((string) ($o['created_at'] ?? '') > $minAge) continue;               // trop récent
+      if ((int) ($o['reminder_count'] ?? 0) >= 2) continue;                    // déjà relancé 2×
+      if (!empty($o['review_reminded_at']) && (string) $o['review_reminded_at'] > $reDelay) continue; // pas encore l'heure
+      $checked++;
+      $buyerId = $o['buyer_id']; $sellerId = $o['seller_id'];
+      $em = function (string $id) use ($pdo): string {
+        $s = $pdo->prepare('SELECT email FROM users WHERE id = ?'); $s->execute([$id]);
+        return (string) ($s->fetch()['email'] ?? '');
+      };
+      $nm = function (string $id) use ($pdo): string {
+        $s = $pdo->prepare('SELECT full_name FROM profiles WHERE id = ?'); $s->execute([$id]);
+        return (string) ($s->fetch()['full_name'] ?? '');
+      };
+      $reviewed = function (string $reviewer, string $target) use ($pdo): bool {
+        $s = $pdo->prepare('SELECT 1 FROM reviews WHERE reviewer_id = ? AND target_id = ? LIMIT 1');
+        $s->execute([$reviewer, $target]); return (bool) $s->fetch();
+      };
+      // Titre de l'annonce (via order_items ou listing_id).
+      $title = '';
+      $ti = $pdo->prepare('SELECT title FROM order_items WHERE order_id = ? LIMIT 1'); $ti->execute([$o['id']]);
+      $title = (string) ($ti->fetch()['title'] ?? '');
+      $convId = (string) ($o['conversation_id'] ?? '');
+      $sent = false;
+      // Acheteur → vendeur (priorité : « laissez un avis ») — uniquement si le
+      // vendeur a confirmé la vente (cohérent avec la règle des avis : pas d'avis
+      // sur une transaction non confirmée par le vendeur).
+      if ($convId && !empty($o['seller_confirmed']) && !$reviewed($buyerId, $sellerId)) {
+        if (send_review_invite_email($config, $em($buyerId), $nm($sellerId), $title, $convId, 'buyer')) { $emailed++; $sent = true; }
+      }
+      // Vendeur → acheteur (uniquement s'il a confirmé la vente).
+      if ($convId && !empty($o['seller_confirmed']) && !$reviewed($sellerId, $buyerId)) {
+        if (send_review_invite_email($config, $em($sellerId), $nm($buyerId), $title, $convId, 'seller')) { $emailed++; $sent = true; }
+      }
+      if ($sent) {
+        $pdo->prepare('UPDATE orders SET review_reminded_at = ?, reminder_count = ? WHERE id = ?')
+            ->execute([now_iso(), (int) ($o['reminder_count'] ?? 0) + 1, $o['id']]);
+      }
+    }
+    jout(['orders' => $checked, 'emailed' => $emailed]);
+  }
+
+  // ---- Rapports de violation de la CSP ---------------------------------------
+  // Le navigateur poste ici, tout seul, ce que la politique AURAIT bloqué. Route
+  // publique par nécessité : aucun navigateur n'y joindra de jeton.
+  //
+  // Trois garde-fous, parce qu'une route publique qui écrit en base est une
+  // invitation :
+  //  1. la charge utile est plafonnée (un rapport CSP tient en quelques lignes) ;
+  //  2. l'origine bloquée est réduite à « schéma://hôte » — sans le chemin, qui
+  //     serait de cardinalité infinie et remplirait la table à lui seul ;
+  //  3. le nombre de lignes distinctes est plafonné : au-delà, on compte sans
+  //     créer de nouvelle ligne. Personne ne peut faire gonfler la base en
+  //     postant mille URL différentes.
+  // On agrège au lieu de tout garder : ce qui compte, c'est QUELLES origines
+  // reviennent, pas combien de fois exactement.
+  if ($path === 'csp-report' && $method === 'POST') {
+    $raw = file_get_contents('php://input') ?: '';
+    if (strlen($raw) > 8192) jout(['ok' => true]);          // trop gros : on ignore en silence
+    $b = json_decode($raw, true);
+    $r = is_array($b) ? ($b['csp-report'] ?? $b) : null;
+    if (!is_array($r)) jout(['ok' => true]);
+    $dir = substr((string) ($r['effective-directive'] ?? $r['violated-directive'] ?? '?'), 0, 64);
+    $blk = (string) ($r['blocked-uri'] ?? '?');
+    // « inline », « eval », « data » n'ont pas d'hôte : on les garde tels quels.
+    if (preg_match('~^https?://~i', $blk)) {
+      $u = parse_url($blk);
+      $blk = ($u['scheme'] ?? 'https') . '://' . ($u['host'] ?? '?');
+    }
+    $blk = substr($blk, 0, 190);
+    $k = substr(sha1($dir . '|' . $blk), 0, 40);
+    try {
+      $up = $pdo->prepare('UPDATE csp_reports SET n = n + 1, last_at = ? WHERE k = ?');
+      $up->execute([now_iso(), $k]);
+      if ($up->rowCount() === 0) {
+        $cnt = (int) $pdo->query('SELECT COUNT(*) FROM csp_reports')->fetchColumn();
+        if ($cnt < 300) {
+          $pdo->prepare('INSERT INTO csp_reports (k,directive,blocked,n,first_at,last_at) VALUES (?,?,?,1,?,?)')
+              ->execute([$k, $dir, $blk, now_iso(), now_iso()]);
+        }
+      }
+    } catch (Throwable $e) { /* un rapport perdu ne doit jamais casser une page */ }
+    jout(['ok' => true]);
+  }
+
+  // Santé — et EMPREINTE du fichier réellement servi.
+  //
+  // Deux fois aujourd'hui il a fallu deviner si un correctif était vraiment en
+  // production : le zip est extrait à la main, et rien côté serveur ne disait
+  // quelle version tournait. L'empreinte est le md5 de ce fichier-ci ; elle se
+  // compare en une commande à celle du dépôt :
+  //
+  //     md5sum server/index.php    (les 12 premiers caractères)
+  //
+  // Elle n'expose rien : c'est une somme de contrôle d'un fichier que le
+  // serveur exécute déjà, pas un secret. `depose` est sa date d'écriture sur
+  // le disque — donc l'heure réelle de l'extraction du zip.
+  // UNE EMPREINTE PAR MORCEAU DU DÉPLOIEMENT — parce qu'une seule ment.
+  //
+  // Le 03/08, un bureau a écrit que le correctif XSS de `seo.php` était
+  // « confirmé déployé grâce au champ d'empreinte ». C'était vrai ce jour-là,
+  // mais le raisonnement était faux : `empreinte` ne couvre que ce fichier-ci.
+  // Un zip extrait au mauvais endroit, ou un `seo.php` resté en arrière,
+  // n'aurait rien changé à sa valeur — et la même phrase aurait été écrite
+  // avec la même assurance. Une vérification qui ne peut pas échouer ne
+  // vérifie rien.
+  //
+  // Trois empreintes, donc, une par morceau qui se déploie séparément :
+  //   · api   -> server/index.php   (ce fichier)
+  //   · seo   -> seo.php            (rendu serveur pour les robots)
+  //   · site  -> index.html         (donc le paquet JavaScript qu'il désigne)
+  //
+  // Chacune se compare en une commande au dépôt :
+  //     md5sum server/index.php web/seo.php dist/index.html
+  //
+  // Aucune n'expose quoi que ce soit : ce sont des sommes de contrôle de
+  // fichiers déjà servis publiquement, pas des secrets. `depose` reste la date
+  // d'écriture de l'API sur le disque — l'heure réelle de l'extraction.
+  if ($path === '' || $path === 'health') {
+    $somme = function (string $chemin): array {
+      $c = @file_get_contents($chemin);
+      if ($c === false) return ['', null];
+      $t = @filemtime($chemin);
+      return [substr(md5($c), 0, 12), $t ? gmdate('Y-m-d\TH:i:s\Z', $t) : null];
+    };
+    [$empreinte, $depose] = $somme(__FILE__);
+    // seo.php et index.html vivent à la racine du site, un cran au-dessus d'api/.
+    [$empSeo]  = $somme(__DIR__ . '/../seo.php');
+    [$empSite, $deposeSite] = $somme(__DIR__ . '/../index.html');
+    // ── LE DOSSIER api/ CONTIENT-IL AUTRE CHOSE QUE CE QU'IL DOIT ? ──────────
+    //
+    // ⚠️ POURQUOI CE COMPTEUR EXISTE. Dans la nuit du 1ᵉʳ au 2 septembre 2026,
+    // le dossier api/ de la production contenait TROIS anciennes copies de ce
+    // fichier — index-ANCIEN.php, indexmax5.php, « index (4).php » —, chacune
+    // exécutable, chacune branchée sur la même base, chacune avec les failles
+    // corrigées depuis. Plus les scripts de diagnostic du 3 août, jamais
+    // retirés. Plus deux extractions de zip au mauvais étage.
+    //
+    // Le Gardien a rendu « ronde entièrement verte » sur ce dossier. Il lit
+    // cette route et le dépôt ; il ne pouvait pas voir le dossier réel. Une
+    // vérification qui ne peut pas échouer ne vaut rien — celle-ci le peut.
+    //
+    // ON DONNE UN NOMBRE, JAMAIS DES NOMS. Les noms diraient à n'importe qui où
+    // chercher un « reparer-….php ». Le nombre suffit : zéro, rien à faire ;
+    // autre chose, le Patron ouvre le Gestionnaire de fichiers et regarde.
+    //
+    // `smtp.local.php` est toléré : le code le lit encore en secours et le
+    // retire lui-même au premier enregistrement SMTP depuis le tableau de bord.
+    // Le compter ferait un rouge permanent, et un rouge permanent s'ignore.
+    $attendus = ['index.php', 'config.php', '.htaccess', 'watermark.png',
+                 'data', 'backups',
+                 // écrits par PHP ou par cPanel, jamais par une main :
+                 'error_log', 'smtp.local.php', '.user.ini', 'php.ini'];
+    $inattendus = 0;
+    foreach ((@scandir(__DIR__) ?: []) as $f) {
+      if ($f === '.' || $f === '..' || in_array($f, $attendus, true)) continue;
+      $inattendus++;
+    }
+    jout(['ok' => true, 'name' => 'Chap.ci API', 'time' => now_iso(), 'php' => PHP_VERSION,
+          'empreinte' => $empreinte, 'depose' => $depose,
+          // Vides si le fichier n'est pas là où on l'attend — ce qui est en soi
+          // une information : le site n'a pas été extrait au bon endroit.
+          'empreinteSeo' => $empSeo, 'empreinteSite' => $empSite, 'deposeSite' => $deposeSite,
+          // Zéro attendu. Autre chose : le dossier api/ est à nettoyer.
+          'fichiersInattendus' => $inattendus,
+          // Le poids maximal RÉEL d'une vidéo d'annonce (réglage borné par ce
+          // que PHP accepte). Si c'est moins que 15, l'hébergement plafonne :
+          // cPanel → Sélectionner une version PHP → Options →
+          // upload_max_filesize et post_max_size.
+          'videoMaxMo' => (int) floor(video_limite_octets($config) / 1024 / 1024),
+          // LA CLÉ FIREBASE EST-ELLE LUE ? (08/09/2026)
+          //
+          // Le Patron dépose `api/data/fcm.json` lui-même, à la main, dans
+          // cPanel. Sans ce témoin, il n'avait AUCUN moyen de savoir si son
+          // geste avait porté : le serveur se taisait, et l'erreur la plus
+          // probable — mauvais dossier, fichier tronqué à l'envoi, mauvais
+          // fichier téléchargé depuis la console — ne se serait vue qu'au
+          // build de l'application, des jours plus tard, sans rien pour la
+          // relier à sa cause.
+          //
+          // `true` dit trois choses, et rien de plus : le fichier est là, il
+          // est lisible par PHP, et il porte bien les trois champs attendus
+          // (projet, compte de service, clé privée). AUCUN MORCEAU DU SECRET
+          // N'EST EXPOSÉ — ni le projet, ni l'adresse du compte, ni bien sûr
+          // la clé : cette page est publique.
+          'fcm' => fcm_config($config) !== null]);
+  }
+
+  jerr('Route inconnue: ' . $path, 404);
+} catch (Throwable $e) {
+  error_log('[chapci] ' . $e->getMessage());
+  // P13 : pas de détail technique côté client hors mode debug.
+  jerr(!empty($config['debug']) ? ('Erreur serveur : ' . $e->getMessage()) : 'Erreur serveur. Réessayez plus tard.', 500);
+}

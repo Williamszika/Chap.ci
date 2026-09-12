@@ -284,10 +284,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final premiere = _annonces.length <= parLigne ? _annonces.length : parLigne;
     return [
       _grille(debut: 0, fin: premiere),
-      const SliverToBoxAdapter(child: BanniereDon()),
-      // L'avis sur l'application, juste sous « Soutenir Chap.ci » : même
-      // endroit de respiration dans la grille, et une seule interruption à la
-      // fois — la carte n'apparaît que quelques lancements par an.
+      // UNE SEULE CARTE À CET ENDROIT, JAMAIS DEUX. Décision du Patron du
+      // 13/09/2026 : tant que la personne n'a pas donné son avis, l'invitation
+      // **remplace** « Soutenir Chap.ci » ; dès qu'elle l'a donné, la bannière de
+      // soutien revient et reste.
+      //
+      // C'est le bon arbitrage, et pas seulement une préférence : deux bandeaux
+      // l'un sur l'autre entre la première et la deuxième ligne d'annonces, ce
+      // n'est plus une respiration, c'est un mur. Et demander de l'argent et un
+      // avis dans le même souffle n'obtient ni l'un ni l'autre.
       if (_montrerAvis)
         SliverToBoxAdapter(
           child: CarteAvisApp(
@@ -295,7 +300,9 @@ class _HomeScreenState extends State<HomeScreen> {
               if (mounted) setState(() => _montrerAvis = false);
             },
           ),
-        ),
+        )
+      else
+        const SliverToBoxAdapter(child: BanniereDon()),
       if (premiere < _annonces.length) _grille(debut: premiere, fin: _annonces.length),
       SliverToBoxAdapter(child: _pied()),
     ];
