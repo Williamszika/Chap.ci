@@ -549,6 +549,40 @@ Tapez le mot de passe du keystore quand il le demande. Il **ne s'affiche pas** e
 | Une liste avec `… , date, PrivateKeyEntry` | ✅ Le mot de passe du **keystore** est bon. C'est donc `keyPassword` qui est faux — **et le premier mot de chaque ligne est le vrai alias**, à comparer avec votre `keyAlias`. |
 | `keystore password was incorrect` | C'est `storePassword` qui est faux dans `key.properties`. |
 
+### 🔐 Le keystore de Chap.ci est un PKCS12 : les deux mots de passe sont LE MÊME
+
+Constaté le 12/09/2026, et c'est la clé de toute cette affaire :
+
+```
+Keystore-Typ: PKCS12
+Keystore enthält 1 Eintrag
+chapci, 12.08.2026, PrivateKeyEntry,
+```
+
+**PKCS12 est un format qui ne sait pas garder deux mots de passe différents.** La clé
+et le coffre en partagent forcément un seul. *(L'ancien format JKS, lui, le
+permettait — d'où le modèle `key.properties` qui présente deux champs et laisse croire
+à deux valeurs distinctes.)*
+
+Donc, dans `android/key.properties` :
+
+```
+keyPassword=<le même>
+storePassword=<le même>
+```
+
+**Deux valeurs différentes = build impossible**, avec le message trompeur
+« keystore password was incorrect » qui ne dit jamais lequel des deux.
+
+**La vérification qui le prouve sans rien montrer :**
+
+```bash
+[ "$(grep '^keyPassword=' android/key.properties | cut -d= -f2-)" = "$(grep '^storePassword=' android/key.properties | cut -d= -f2-)" ] && echo IDENTIQUES || echo DIFFERENTS
+```
+
+Elle doit répondre **`IDENTIQUES`**. Elle compare, elle n'affiche pas : sa sortie est
+un mot, qui s'envoie sans risque.
+
 **Les deux pièges qui ne se voient pas à l'œil**, dans un fichier `.properties` :
 
 ```bash

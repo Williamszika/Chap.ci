@@ -458,6 +458,36 @@ fermée. Il manquait la moitié serveur ET la moitié Firebase.
   témoin dans ses **deux** états.
 - **Le plancher Android monte à 23** (voir le tableau en tête de section).
 
+### 🔑 Le keystore de signature — ce qu'on en sait enfin, relevé le 12/09/2026
+
+Quatre faits établis en ouvrant réellement le fichier, après des mois où la fiche les
+supposait. **Aucun n'est un secret** : une empreinte de certificat se lit dans
+n'importe quelle application installée, et la Play Console l'affiche.
+
+| | |
+|---|---|
+| Nom du fichier | `chapci-upload.jks` — **pas** `chapci.jks` comme l'écrivaient les fiches |
+| Format | **PKCS12** — et non JKS. Conséquence capitale ci-dessous. |
+| Entrées | **une seule** |
+| Alias | **`chapci`** ✅ — la supposition des fiches depuis la v1.18 était juste, mais personne ne l'avait vérifiée |
+| Date | 12/08/2026 |
+| Empreinte SHA-256 | `19:CC:AF:06:A7:96:D4:51:D4:D5:0C:BF:1B:F5:76:BB:0F:CC:9F:F2:49:72:09:14:59:26:0D:02:BC:33:31:E7` |
+
+⚠️ **PKCS12 ne sait pas garder deux mots de passe différents** : `keyPassword` et
+`storePassword` doivent être **identiques** dans `android/key.properties`. Le modèle
+présente deux champs — hérité de l'ancien format JKS — et laisse croire à deux
+valeurs distinctes. C'est ce qui a coûté deux cycles de build le 12/09.
+
+**L'empreinte ci-dessus est notre repère** : le jour où un doute surgit sur le bon
+fichier de clés, `keytool -list` la redonne en dix secondes. C'est elle, et non le nom
+du fichier, qui identifie la clé.
+
+*(La ligne « SHA-1 `0E:C0:…:FE:33` » des fiches de version est une empreinte tronquée,
+jamais recopiée en entier. Elle n'a pas pu être confrontée à celle-ci — `keytool -list`
+sans `-v` ne donne que la SHA-256.)*
+
+---
+
 ### ✅ 12/09/2026 — LE CODE ANDROID DE LA v1.25 COMPILE, C'EST PROUVÉ
 
 Le Patron a lancé `flutter build appbundle --release` sur son Mac. **Gradle a tourné

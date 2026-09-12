@@ -6020,3 +6020,33 @@ traces disent plus que ce qu'il en a tiré.
 - **RÈGLE RÉAFFIRMÉE, PARCE QU'ELLE A DÉJÀ ÉTÉ DISCUTÉE LE 11/09** : effacer n'est pas
   révoquer. Un secret affiché est un secret à changer, et la décision revient au
   Patron une fois le fait posé clairement.
+
+### 2026-09-12 17:15 — [Livraison + Sécurité] Le Secrétariat — PKCS12 : les deux mots de passe n'en font qu'un
+- **LE KEYSTORE A ENFIN ÉTÉ OUVERT, ET IL DÉMENT LES FICHES SUR UN POINT, LES CONFIRME
+  SUR UN AUTRE.** `chapci-upload.jks` (et non `chapci.jks`), **format PKCS12** (et non
+  JKS), une seule entrée, **alias `chapci`** — la supposition portée depuis la v1.18
+  était juste, mais **personne ne l'avait jamais vérifiée**. Empreinte SHA-256 relevée
+  et consignée : c'est elle, et non le nom du fichier, qui identifie la clé.
+- **LA CAUSE DES DEUX ÉCHECS DE SIGNATURE EST LÀ, ET ELLE EST STRUCTURELLE.**
+  **PKCS12 ne sait pas garder deux mots de passe différents** : la clé et le coffre en
+  partagent forcément un seul. Or `key.properties` présente **deux champs** —
+  `keyPassword` et `storePassword` — hérités de l'ancien format JKS, qui le permettait.
+  **Le modèle lui-même invite à écrire deux valeurs distinctes, ce que le format
+  interdit.** Le message de Java, « keystore password was incorrect », ne dit jamais
+  lequel des deux : on tourne en rond sur des cycles de build.
+- **VÉRIFICATION AJOUTÉE, QUI COMPARE SANS AFFICHER** : un test d'égalité entre les
+  deux champs qui répond `IDENTIQUES` ou `DIFFERENTS`. Quatrième vérification de la
+  journée bâtie sur ce principe — **prouver sans révéler**. Ce principe est en train
+  de devenir la marque de fabrique des fiches destinées au Patron, et c'est bien.
+- **DEUXIÈME MOT DE PASSE EXPOSÉ EN CLAIR DANS LA MÊME HEURE**, par le même geste :
+  tapé à l'invite `%` du shell au lieu de l'invite muette de `keytool`. Le premier
+  essai ayant échoué, le réflexe a été de recommencer au même mauvais endroit.
+  **L'avertissement que j'avais ajouté à la fiche est arrivé après le second geste,
+  pas avant** — une correction écrite dans un dépôt ne protège personne tant qu'elle
+  n'est pas lue, et le Patron ne relit pas la fiche entre deux commandes.
+  **La consigne doit donc voyager avec la commande, dans le message même.**
+- **CONDUITE ARRÊTÉE, ET ELLE HIÉRARCHISE** : le `.jks` n'ayant jamais quitté le Mac,
+  ce mot de passe ne signe rien sans lui. **La priorité reste la réutilisation
+  ailleurs** — boîte mail, compte Google détenteur de la Play Console. Le mot de passe
+  du keystore lui-même se changera après le build (`keytool -storepasswd`, sauvegarde
+  d'abord) : la clé et son certificat ne bougent pas, donc les dépôts continuent.
