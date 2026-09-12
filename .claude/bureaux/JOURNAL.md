@@ -6154,3 +6154,30 @@ traces disent plus que ce qu'il en a tiré.
   passages : je lisais « ✅ 141 livraisons » comme une confirmation, alors que c'était
   un chiffre que je n'avais jamais confronté à rien. **Un bureau en lecture seule l'a
   vu du premier coup, parce qu'il a mesuré au lieu de lire.**
+
+### 2026-09-12 23:58 — [Livraison] Le Secrétariat — « Protégé avec Play » : quatre cartes, zéro action
+- **LE PATRON EXPLORE LA PLAY CONSOLE À MINUIT** et tombe sur **Protégé avec Play** :
+  deux compteurs à `0 sur 7` et `0 sur 4`, chacun avec un bouton bleu « Commencer ».
+  **Le verdict global de la page est pourtant « Bonne protection ».**
+- **RIEN À FAIRE SUR AUCUNE DES QUATRE**, et les raisons diffèrent :
+  - `Protection automatique` 1/1 et `Protection Play Store` 6/7 — en ordre ;
+  - **`API Play Integrity` 0/7 n'est pas un réglage, c'est du code** : bibliothèque
+    dans l'app + route serveur de vérification. Des jours de travail, du poids en plus
+    sur un AAB qui vient de grossir de 38 %, pour détecter des appareils trafiqués ;
+  - **`Protection Play Billing` 0/4 restera à zéro pour toujours** : elle protège les
+    **achats intégrés**, que Chap.ci n'a pas — gratuit, sans commission, dons par
+    Mobile Money **hors** Play Store. **Inapplicable, pas en retard.**
+- **AUCUNE N'A DE RAPPORT AVEC LE REFUS DU JOUR.** Google a refusé pour *engagement
+  insuffisant des testeurs* ; il n'a rien reproché à la sécurité. Activer quoi que ce
+  soit ici ne ferait pas avancer la demande d'une heure.
+- **LE PIÈGE EST ERGONOMIQUE, ET IL MÉRITE D'ÊTRE NOMMÉ** : un compteur à `0 sur 7`
+  avec un bouton d'action bleu **ressemble à une tâche en retard**. Ce n'en est pas
+  une. C'est le pendant exact de ce qu'on a vu toute la journée sur les fiches de
+  build — **un écran qui suggère un défaut là où il n'y en a pas coûte autant qu'un
+  écran qui cache un vrai défaut.** Consigné dans `APP-VERSIONS.md` pour qu'aucune
+  ronde future ne le remonte comme un problème.
+- **CE QUI RESTE VRAIMENT EN SUSPENS CE SOIR, ET QUI N'EST PAS SUR CET ÉCRAN** : le
+  bundle `26 (1.25.0)` est téléversé mais **son envoi à l'examen n'est pas confirmé**.
+  Tant que « Envoyer les modifications pour examen » n'a pas été franchi, les douze
+  testeurs ne reçoivent rien — et les quatorze jours tournent à vide. C'est le seul
+  point à traiter avant de fermer l'ordinateur.

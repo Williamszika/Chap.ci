@@ -459,6 +459,30 @@ fermée. Il manquait la moitié serveur ET la moitié Firebase.
   témoin dans ses **deux** états.
 - **Le plancher Android monte à 23** (voir le tableau en tête de section).
 
+### 🛡️ « Protégé avec Play » — les compteurs à 0 qui n'ont pas à être remplis
+
+Relevé le 12/09/2026 à 23 h 58. L'écran **Protégé avec Play** affiche quatre cartes,
+dont deux à zéro avec un bouton bleu « Commencer ». **Le verdict global de la page est
+pourtant « Bonne protection ».** Cette section existe pour qu'aucun bureau — et pas le
+Patron à minuit — ne prenne ces zéros pour un défaut.
+
+| Carte | État | Ce qu'il faut faire |
+|---|---|---|
+| **Protection automatique** | 1/1 ✅ | Rien. |
+| **Protection Play Store** | 6/7 | Rien d'urgent. Le septième service n'est pas nommé sur cette page ; à regarder un jour de calme, pas pendant une demande de production. |
+| **API Play Integrity** | **0/7** | **Rien, et c'est normal.** Ce n'est pas un réglage : c'est **du code à écrire** — une bibliothèque dans l'application, plus une route serveur qui vérifie le jeton. Elle sert à détecter les appareils trafiqués et les copies pirates de l'application. Chap.ci ne manipule aucun paiement dans l'app. Coût réel : des jours de travail et du poids en plus sur un AAB qui vient de grossir de 38 %. |
+| **Protection Play Billing** | **0/4** | **Rien, et ce sera toujours zéro.** Cette carte protège les **achats intégrés**. Chap.ci n'en a aucun : gratuit, sans commission, et les dons passent par Mobile Money **hors** du Play Store. Ce compteur est inapplicable, pas en retard. |
+
+⚠️ **Aucune de ces quatre cartes n'a le moindre rapport avec le refus d'accès à la
+production.** Google a refusé pour **engagement insuffisant des testeurs** — il n'a rien
+reproché à la sécurité de l'application. Activer quoi que ce soit ici ne ferait pas
+avancer la demande d'un jour.
+
+**Le piège de cet écran est son ergonomie** : un compteur à `0 sur 7` et un bouton bleu
+« Commencer » ressemblent à une tâche en retard. Ce n'en est pas une.
+
+---
+
 ### 🔑 Le keystore de signature — ce qu'on en sait enfin, relevé le 12/09/2026
 
 Quatre faits établis en ouvrant réellement le fichier, après des mois où la fiche les
