@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Jeudi 27 août 2026 au Samedi 12 septembre 2026 |
-| Livraisons | 126 |
+| Livraisons | 127 |
 | Jours travaillés | 17 |
-| Dernière mise à jour | Samedi 12 septembre 2026, 13:23 (Abidjan) |
+| Dernière mise à jour | Samedi 12 septembre 2026, 13:25 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,9 +42,10 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 12 septembre 2026
 
-**1 livraison(s)** · Abidjan 04:02 → 04:02 · chez le Patron 06:02 → 06:02 · amplitude —
+**2 livraison(s)** · Abidjan 04:02 → 13:23 · chez le Patron 06:02 → 15:23 · amplitude 9 h 21
 
 - `04:02` · La clé cron cesse de s’afficher treize fois sur notre propre écran d’admin  <sub>`80f6fa7`</sub>
+- `13:23` · Un correctif commité n’est pas un correctif livré — le Gardien nous l’a rappelé  <sub>`979b2b0`</sub>
 
 ### Vendredi 11 septembre 2026
 

@@ -5663,3 +5663,44 @@ traces disent plus que ce qu'il en a tiré.
   champ `status`). Il l'a signalé, a cessé d'insister, et a fait passer l'essentiel
   par le canal qui restait. C'est la bonne conduite : un bureau qui ne peut plus
   alerter doit le DIRE, pas se taire.
+
+### 2026-09-12 10:51 — [Confiance & Sécurité] 🛡️ Le Gardien — seconde ronde
+- **IL PROUVE CE QU'IL AVANÇAIT À 05:49, ET MIEUX.** Non content de constater que
+  `empreinteSite` servie (`a503f99fd904`) diffère de HEAD (`ee375bc5a229`), il a
+  **checkouté `cf15038` — le commit d'avant — et reconstruit** : il obtient
+  exactement `a503f99fd904`. Il ne dit donc plus « la production est en retard »,
+  il dit **de combien et depuis quel commit**. C'est la différence entre un
+  soupçon et une preuve. Zip n° 24 remis au Patron.
+
+### 2026-09-12 11:30 — [Direction] Le Secrétariat — RECTIFICATION : les 65 caractères, c'était le bureau lui-même
+- **JE ME SUIS TROMPÉ LE 11/09, ET LE PATRON A CHERCHÉ POUR RIEN.**
+  J'avais lu le couple `cron/stats · cle-differente(entete,65 car.)` +
+  `mtoken_fail unknown` comme « **deux secrets inversés dans une configuration** »,
+  je l'ai écrit dans la routine avec assurance, et j'ai demandé au Patron de
+  chercher l'outil fautif. **Cet outil n'existe pas.**
+- **CE QUI M'A MANQUÉ : LES CODES DE RETOUR.** Le test de cloisonnement du Gardien
+  a **deux formes**, selon l'en-tête dans lequel il glisse le mauvais secret :
+
+      forme A · le mauvais secret dans SON PROPRE en-tête
+                → la route ne voit rien   → « sans-cle » + « missing »  → 403/401
+      forme B · le mauvais secret dans l'en-tête DE L'AUTRE
+                → la route voit du faux   → « 65 car. »  + « unknown »  → 403/403
+
+  Le 11/09 au soir il annonçait **403/401**. Aujourd'hui il annonce **403/403** —
+  et signale dans la même ronde les deux événements de la forme B comme
+  « isolés, à surveiller ». **C'étaient les siens.** Il a changé de forme ; la
+  routine ne documentait que la forme A ; il a cessé de reconnaître ses propres
+  traces, et j'ai bâti tout un diagnostic dessus.
+- **LA MÉCANIQUE QUE J'AVAIS DÉCRITE ÉTAIT JUSTE** — 65 caractères, c'est bien le
+  jeton de modération envoyé là où va la clé cron ; la longueur ne mentait pas.
+  **C'est l'auteur que j'ai désigné à tort.** Un raisonnement correct sur une
+  mauvaise hypothèse de départ reste un raisonnement faux, et celui-là a coûté une
+  enquête au Patron dans ses tâches cPanel.
+- **CE QUI RESTE VRAI DE CETTE NUIT-LÀ, ET QU'IL NE FAUT PAS JETER** : la rotation
+  des deux secrets était de toute façon nécessaire — ils avaient été collés en
+  clair dans une conversation. Elle l'a été pour la bonne raison, à partir d'un
+  mauvais diagnostic. Les deux choses sont vraies en même temps.
+- **CORRIGÉ DANS LA ROUTINE** : les deux formes sont décrites, avec la règle qui
+  tranche en une seconde — **403/401 = forme A, 403/403 = forme B** — et la
+  consigne d'écrire les codes dans le rapport. Un compteur qu'on alimente soi-même
+  n'est pas un signal ; encore faut-il savoir sous quelle forme on l'alimente.

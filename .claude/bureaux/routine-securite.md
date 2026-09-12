@@ -432,8 +432,15 @@ for c in d[:4]: print(f\"  émis {c['not_before'][:10]} → expire {c['not_after
      ⚠️ LE CAS VU LE 10/09/2026, À RECONNAÎTRE D'UN COUP D'ŒIL :
          cron_fail   · cle-differente(entete,65 car.)   ← 65 = le JETON
          mtoken_fail · unknown                          ← ≥24, inconnu en base
-     dans la MÊME fenêtre. Les deux valeurs étaient **inversées** dans une
-     configuration : le jeton envoyé là où va la clé, la clé là où va le jeton.
+     dans la MÊME fenêtre : le jeton envoyé là où va la clé, la clé là où va le
+     jeton.
+
+     ⛔ **RECTIFIÉ LE 12/09/2026 — L'AUTEUR EST LE BUREAU LUI-MÊME.** Ce couple
+     est la signature de la **forme B** du test de cloisonnement (voir plus bas,
+     « TES PROPRES TESTS SONT DANS LES COMPTEURS »), pas d'une configuration
+     égarée. Avant de conclure quoi que ce soit sur ce couple, regarde les codes
+     de retour de TON test : 403/403 = c'est toi. Le texte ci-dessous décrit une
+     mécanique réelle, mais il a désigné le mauvais coupable pendant un jour.
      Deux mécanismes d'authentification, deux identifiants plausibles mais
      faux, et nos propres en-têtes (`X-Cron-Key`, `X-Service-Token`) — qu'un
      scanner d'Internet ne connaît pas. **Ce n'est pas une attaque.**
@@ -480,6 +487,40 @@ for c in d[:4]: print(f\"  émis {c['not_before'][:10]} → expire {c['not_after
                                               -> cron_fail « cron/stats · sans-cle »
      · clé cron sur `/mod/queue`              -> aucun jeton présenté
                                               -> mtoken_fail « missing »
+
+   ⚠️ MAIS CE TEST A DEUX FORMES, ET LA SECONDE FABRIQUE UNE AUTRE SIGNATURE.
+   Tout dépend de l'EN-TÊTE dans lequel tu mets le mauvais secret :
+
+     forme A — le mauvais secret dans SON PROPRE en-tête
+       (jeton dans `X-Service-Token` vers une route cron, clé dans
+        `X-Cron-Key` vers une route modération)
+       -> la route visée ne voit RIEN dans l'en-tête qu'elle lit
+       -> « sans-cle » et « missing »          -> réponses 403 et **401**
+
+     forme B — le mauvais secret dans l'en-tête DE L'AUTRE
+       (jeton dans `X-Cron-Key`, clé dans `X-Service-Token`)
+       -> chaque route voit bien quelque chose, mais faux
+       -> « cle-differente(entete,65 car.) » et « unknown » -> **403 et 403**
+
+   **LES DEUX CODES DE RETOUR TE DISENT QUELLE FORME TU VIENS DE JOUER.**
+   403/401 = forme A. 403/403 = forme B. Écris-le dans ton rapport : c'est ce
+   qui permet de déduire TES événements des compteurs.
+
+   Le 12/09/2026 à 10:51, le Gardien annonce « cloisonnement dans les deux sens,
+   403 des deux côtés » — donc forme B — puis signale dans la même ronde un
+   `cron/stats · cle-differente(entete,65 car.)` et un `mtoken_fail unknown`
+   comme « isolés, à surveiller ». **C'étaient les siens.** La veille il jouait
+   la forme A (403/401) et déduisait correctement ; il a changé de forme sans
+   que la routine suive, et s'est remis à signaler ses propres traces.
+
+   ⚠️ ET CETTE DÉCOUVERTE EN ANNULE UNE AUTRE. Le 11/09, le Secrétariat a lu ce
+   même couple (65 car. + unknown) comme « deux secrets inversés dans une
+   configuration quelque part », a fait chercher au Patron un outil fautif qui
+   n'existait pas, et l'a écrit dans ce fichier avec assurance. La mécanique
+   décrite était juste — c'est bien le jeton envoyé là où va la clé — mais
+   l'AUTEUR était le bureau lui-même, pas une configuration égarée. Un raisonnement
+   correct sur la mauvaise hypothèse de départ reste un raisonnement faux, et
+   celui-là a coûté une enquête au Patron.
    Le 15/08 tu l'as noté à 15:55, à moitié à 20:47, puis plus du tout à 22:10 et
    00:47 — où tu as écrit « sondes, aucune tâche en cause » pour des échecs dont
    tu étais l'auteur. Le chiffre monte (2 → 3) et finira par ressembler à une
