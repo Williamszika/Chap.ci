@@ -1332,6 +1332,10 @@ export async function phpAdminConversations<T>(): Promise<T> {
 export async function phpAdminReviews<T>(): Promise<T> {
   return req<T>('/admin/reviews')
 }
+/** Les avis sur L'APPLICATION (≠ /admin/reviews, qui note les vendeurs). */
+export async function phpAdminAvisApp<T>(): Promise<T> {
+  return req<T>('/admin/avis-app')
+}
 export async function phpAdminDeleteReview(id: string): Promise<void> {
   await req(`/admin/reviews/${id}`, { method: 'DELETE' })
 }

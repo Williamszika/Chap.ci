@@ -54,7 +54,39 @@ void main() {
   _etape('Écran de démarrage natif (flutter_native_splash)…');
   _executer('dart', ['run', 'flutter_native_splash:create']);
 
+  _ecrireVersion();
+
   _rappels();
+}
+
+/// Écrit `lib/version_generee.dart` à partir de `pubspec.yaml`.
+///
+/// POURQUOI UN FICHIER GÉNÉRÉ PLUTÔT QU'UNE CONSTANTE ÉCRITE À LA MAIN.
+/// `CLAUDE.md` est catégorique : « les numéros de version ne se figent que dans
+/// `store/APP-VERSIONS.md` ; toute autre copie devient fausse en une semaine ».
+/// L'application a pourtant besoin de dire sa version quand quelqu'un envoie un
+/// avis — un « ça plante » sans numéro de version ne se corrige pas.
+///
+/// La sortie de ce conflit est de ne jamais RECOPIER : ce fichier est réécrit à
+/// chaque passage de l'outil, et l'outil tourne avant chaque build. Il ne peut
+/// donc pas diverger de `pubspec.yaml` dans une application réellement
+/// construite. Il est commité pour que `flutter analyze` et `flutter test`
+/// fonctionnent sans avoir à lancer l'outil d'abord.
+void _ecrireVersion() {
+  final texte = File('pubspec.yaml').readAsStringSync();
+  final m = RegExp(r'^version:\s*(\S+)', multiLine: true).firstMatch(texte);
+  final version = m?.group(1) ?? '';
+  if (version.isEmpty) {
+    stderr.writeln('⚠️  version absente de pubspec.yaml — version_generee.dart inchangé.');
+    return;
+  }
+  _etape('Version de l’application : $version (lib/version_generee.dart)…');
+  File('lib/version_generee.dart').writeAsStringSync(
+    '// FICHIER GÉNÉRÉ — NE PAS MODIFIER À LA MAIN.\n'
+    '// Réécrit par `dart run tool/preparer_plateformes.dart` depuis pubspec.yaml.\n'
+    '// La seule source qui fasse foi pour les versions reste store/APP-VERSIONS.md.\n'
+    "const String versionApplication = '$version';\n",
+  );
 }
 
 // ───────────────────────────── Android ──────────────────────────────────────

@@ -13,7 +13,7 @@ publish_to: "none"
 #    la v1.25 (code 26) l'englobe et porte les quatre nouveautés du 03/09 :
 #    affiche WhatsApp, « Ça vaut combien ? », offres, annonce écrite depuis
 #    la photo. L'historique complet est dans store/APP-VERSIONS.md.
-version: 1.25.0+26
+version: 1.26.0+27
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

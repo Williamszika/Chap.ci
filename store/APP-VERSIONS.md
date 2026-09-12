@@ -184,6 +184,68 @@ Le dossier de la demande, son refus et ce qui reste inconnu :
 
 ---
 
+## v1.26 — versionCode 27
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | le dernier qui touche `flutter_app/` — à lire par `git log --oneline -1 -- flutter_app/`, **jamais à recopier depuis cette fiche** (trois rectifications du même champ en cinq jours, 07, 08 et 12/09). |
+| Date du build | **NON CONSTRUITE.** |
+| Poids de l'AAB | sans objet. |
+| minSdk **24 en vrai** · targetSdk 36 | mêmes remarques que la v1.25 : le 23 que nous déclarons est écrasé à 24 par une dépendance. |
+| État Play | **NON VÉRIFIÉ** — non construite. ⚠️ **Le code 26 est brûlé** : il a été reçu par Google le 12/09 et déployé sur le canal fermé. C'est bien 27 qu'il faut, et `pubspec.yaml` le porte déjà. |
+
+**Ce qu'elle apporte : l'avis sur l'application.** Demandé par le Patron le
+13/09/2026 — « permettre aux utilisateurs de l'app d'évaluer l'application et de
+laisser un commentaire, une fois par utilisateur ».
+
+- **Une carte sur l'accueil**, sous « Soutenir Chap.ci » : cinq étoiles, et une
+  croix pour la remettre à plus tard. Toucher une étoile ouvre la feuille, déjà
+  remplie de cette note, avec un champ de commentaire **facultatif**.
+- **Une seule fois par compte, et c'est la BASE qui le garantit** — l'index
+  unique `idx_avis_app_user`, pas une vérification en PHP. Deux envois partis en
+  même temps n'insèrent qu'une ligne.
+- **La réponse vit sur le serveur, pas dans le téléphone.** C'est ce qui fait que
+  la question ne revient pas sur un second appareil, après une réinstallation, ou
+  après un vidage de cache. Une mémoire locale aurait redemandé à chaque fois.
+- **Admin → « Avis appli »** : moyenne, répartition par étoile, nombre d'avis
+  avec texte, et la liste — plateforme et version comprises. Sans cet écran, les
+  avis recueillis n'iraient nulle part.
+- Textes dans les six langues (`textes.dart` : 14 clés de plus).
+
+⚠️ **DEUX POINTS DE LA DEMANDE N'ONT PAS ÉTÉ FAITS LITTÉRALEMENT, ET IL FAUT
+SAVOIR POURQUOI.**
+
+1. **« Si l'utilisateur a déjà évalué, ne plus afficher » — fait, mais avec NOTRE
+   avis, pas celui du magasin.** La fenêtre de notation de Google ne dit jamais
+   si la personne a noté : ni l'API Android ni celle d'Apple ne renvoient le
+   résultat. Bâtir la règle dessus aurait donné une règle inapplicable.
+2. **« À chaque utilisation, le rappeler » — non.** Une invitation à chaque
+   lancement se fait désinstaller, et **un testeur qui désinstalle remet à zéro
+   les quatorze jours de Google** : la demande insistante coûterait exactement ce
+   qu'elle cherche à obtenir. Retenu : **au 3ᵉ lancement, puis tous les 10** si
+   l'on a répondu « plus tard ». Les deux valeurs sont en tête de
+   `lib/api/avis_app.dart` et se changent en une ligne.
+
+⚠️ **Et une règle de Google qu'on ne contourne pas.** Ses consignes interdisent de
+poser une question avant d'ouvrir la fenêtre d'avis du magasin, y compris
+« aimez-vous l'application ? ». Le procédé courant — n'envoyer au magasin que les
+contents — est donc exclu : le bouton **« Noter sur le Play Store » est proposé à
+tout le monde**, quelle que soit la note donnée.
+
+**Pas de greffon natif de plus.** La fenêtre d'avis intégrée (`in_app_review`)
+aurait demandé une dépendance supplémentaire — or le 12/09 on a découvert qu'une
+bibliothèque avait relevé le plancher Android de 23 à 24 **en silence**. Le bouton
+ouvre donc la fiche du Play Store avec `url_launcher`, déjà présent. Sur iPhone il
+n'apparaît pas du tout : Chap.ci n'est pas sur l'App Store.
+
+**Nouveau fichier généré : `lib/version_generee.dart`.** Écrit par
+`dart run tool/preparer_plateformes.dart` depuis `pubspec.yaml`, pour que l'avis
+parte avec le numéro de version — un « ça plante » sans version ne se corrige pas.
+Il est **généré et non recopié**, donc il ne peut pas diverger : l'outil tourne
+avant chaque build. `store/APP-VERSIONS.md` reste la seule source qui fasse foi.
+
+---
+
 ## v1.25 — versionCode 26
 
 | Champ | Valeur |

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import '../api/avis_app.dart';
 import '../api/models.dart';
 import '../api/pub.dart';
 import '../ecran_demarrage.dart' show SigneChap;
 import '../i18n/textes.dart';
 import '../theme.dart';
 import '../widgets/banniere_don.dart';
+import '../widgets/carte_avis_app.dart';
 import '../widgets/cloche_notifs.dart';
 import '../widgets/ecran_pub.dart';
 import '../widgets/listing_card.dart';
@@ -42,8 +44,16 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _premierFait = false; // la première page est arrivée (ou a échoué)
 
   @override
+  /// La carte « Que pensez-vous de Chap.ci ? » doit-elle s'afficher ?
+  /// Deux conditions, et les deux doivent tomber juste : le bon tour de
+  /// lancement (mémoire du téléphone) ET un compte qui n'a pas encore répondu
+  /// (mémoire du serveur). Faux tant qu'on ne sait pas — on ne dérange personne
+  /// par défaut.
+  bool _montrerAvis = false;
+
   void initState() {
     super.initState();
+    _peutOnDemanderUnAvis();
     if (widget.apercuAnnonces != null) {
       // Mode aperçu (captures / tests) : liste fournie, pas de réseau.
       _annonces.addAll(widget.apercuAnnonces!);
@@ -52,6 +62,24 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       _scroll.addListener(_surDefilement);
       _chargerPlus();
+    }
+  }
+
+  /// Décide si l'on propose la carte d'avis. Volontairement silencieuse : toute
+  /// panne — hors ligne, pas connecté, serveur muet — laisse [_montrerAvis] à
+  /// faux. Une invitation qui surgit à cause d'une erreur réseau serait pire
+  /// que pas d'invitation du tout.
+  Future<void> _peutOnDemanderUnAvis() async {
+    // En mode aperçu (captures d'écran, tests), jamais : la carte polluerait
+    // les images de référence du banc.
+    if (widget.apercuAnnonces != null) return;
+    try {
+      if (!await AvisApp.tourDeDemander()) return;
+      final etat = await AvisApp.etat();
+      if (!mounted || etat.aEvalue) return;
+      setState(() => _montrerAvis = true);
+    } catch (_) {
+      // On ne demande rien.
     }
   }
 
@@ -257,6 +285,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return [
       _grille(debut: 0, fin: premiere),
       const SliverToBoxAdapter(child: BanniereDon()),
+      // L'avis sur l'application, juste sous « Soutenir Chap.ci » : même
+      // endroit de respiration dans la grille, et une seule interruption à la
+      // fois — la carte n'apparaît que quelques lancements par an.
+      if (_montrerAvis)
+        SliverToBoxAdapter(
+          child: CarteAvisApp(
+            onFini: () {
+              if (mounted) setState(() => _montrerAvis = false);
+            },
+          ),
+        ),
       if (premiere < _annonces.length) _grille(debut: premiere, fin: _annonces.length),
       SliverToBoxAdapter(child: _pied()),
     ];

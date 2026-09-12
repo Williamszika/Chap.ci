@@ -335,6 +335,34 @@ export async function fetchAdminConversations(): Promise<AdminConversation[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminConversations<AdminConversation[]>()
 }
+/**
+ * Un avis sur L'APPLICATION elle-même (Android / iOS / web), à ne pas confondre
+ * avec `AdminReview`, qui note un vendeur après une vente.
+ */
+export interface AvisApp {
+  id: string
+  note: number
+  commentaire?: string | null
+  nom?: string | null
+  email?: string | null
+  plateforme?: string | null
+  version?: string | null
+  createdAt: number
+}
+
+export interface AvisAppResume {
+  moyenne: number | null
+  total: number
+  avecTexte: number
+  repartition: Record<string, number>
+  avis: AvisApp[]
+}
+
+export async function fetchAvisApp(): Promise<AvisAppResume> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminAvisApp<AvisAppResume>()
+}
+
 export async function fetchAdminReviews(): Promise<AdminReview[]> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminReviews<AdminReview[]>()

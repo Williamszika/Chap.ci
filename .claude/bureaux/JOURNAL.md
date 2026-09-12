@@ -6205,3 +6205,51 @@ traces disent plus que ce qu'il en a tiré.
   C'est le seul champ de cette fiche qu'aucun bureau ne peut vérifier ; il portait
   « NON VÉRIFIÉ » depuis l'écriture de la v1.25. **Il est désormais confirmé par une
   capture, pas par une supposition** — exactement ce que la fiche exige d'elle-même.
+
+### 2026-09-13 01:00 — [Développement] Le Secrétariat — l'avis sur l'application, et deux refus assumés
+- **DEMANDE DU PATRON, à minuit passé, au lendemain du refus de Google** :
+  « permettre aux utilisateurs de l'app d'évaluer l'application et de laisser un
+  commentaire. Une fois par utilisateur. Si déjà évalué, ne plus afficher. Sinon, à
+  chaque utilisation le rappeler. » **La demande vise exactement le trou que Google
+  nous reproche** : nous n'avions aucun moyen de savoir ce que les gens pensent.
+- **LIVRÉ** : table `avis_app`, routes `GET /avis-app/mien`, `POST /avis-app`,
+  `GET /admin/avis-app` ; carte d'accueil + feuille d'étoiles dans l'application ;
+  onglet **Admin → Avis appli** (moyenne, répartition par étoile, avis avec texte,
+  plateforme et version) ; 14 clés × 6 langues. `npm run build`, `npm run lint`,
+  `php -l` et `verif-flutter.py` passent.
+- **L'UNICITÉ EST DANS LA BASE, PAS DANS LE PHP** : index unique
+  `idx_avis_app_user`. Un contrôle applicatif se contourne avec deux requêtes
+  simultanées — un double appui sur « Envoyer », un réseau lent. Le contrôle PHP ne
+  sert qu'à rendre un message aimable ; **c'est l'index qui rend la règle vraie**.
+- **LA MÉMOIRE EST CÔTÉ SERVEUR, ET C'EST TOUT L'INTÉRÊT.** « Ne plus afficher »
+  posé dans le téléphone redemanderait sur un second appareil, après une
+  réinstallation, après un vidage de cache. Attaché au compte, il tient partout.
+- **DEUX POINTS DE LA DEMANDE REFUSÉS, ET DITS AU PATRON PLUTÔT QUE CONTOURNÉS :**
+  1. **« ne plus afficher si déjà évalué » ne peut pas s'appuyer sur le magasin** :
+     la fenêtre de notation de Google ne dit **jamais** si la personne a noté — ni
+     l'API Android ni celle d'Apple ne renvoient le résultat. La règle est donc
+     bâtie sur NOTRE avis, que nous enregistrons et pouvons lire.
+  2. **« à chaque utilisation, le rappeler » : non.** Une invitation à chaque
+     lancement se fait désinstaller — **et un testeur qui désinstalle remet à zéro
+     les quatorze jours de Google**. La demande insistante coûterait précisément ce
+     qu'elle cherche à obtenir. Retenu : 3ᵉ lancement, puis tous les 10.
+- **UNE RÈGLE DE GOOGLE NON CONTOURNÉE** : ses consignes interdisent de poser une
+  question avant d'ouvrir la fenêtre d'avis du magasin, « aimez-vous
+  l'application ? » comprise. Le procédé courant — n'envoyer au magasin que ceux
+  qui ont mis cinq étoiles — est **exclu** : le bouton est proposé à tout le monde.
+  Se faire refuser une seconde fois pour du filtrage d'avis, la semaine où l'on
+  attend une décision, serait une faute évitable.
+- **AUCUN GREFFON NATIF AJOUTÉ, ET C'EST DÉLIBÉRÉ.** `in_app_review` aurait été
+  l'outil naturel — mais **on a découvert hier qu'une bibliothèque avait relevé le
+  plancher Android de 23 à 24 en silence**, visible seulement après dépôt. Ajouter
+  une dépendance la veille du jour où douze testeurs doivent enfin ouvrir
+  l'application n'en valait pas le risque. `url_launcher`, déjà présent, ouvre la
+  fiche du Play Store. Sur iPhone le bouton n'apparaît pas : pas de fiche App Store.
+- **VERSION MONTÉE À 1.26.0+27.** Le code 26 est **brûlé** — reçu par Google et
+  déployé hier soir. Un Monteur qui aurait reconstruit sans monter la version se
+  serait fait refuser le dépôt sans comprendre pourquoi.
+- **`lib/version_generee.dart`, généré et non recopié.** L'avis part avec le numéro
+  de version — un « ça plante » sans version ne se corrige pas. `CLAUDE.md` interdit
+  de figer un numéro ailleurs que dans `store/APP-VERSIONS.md` : le fichier est donc
+  **réécrit par l'outil de préparation depuis `pubspec.yaml`**, avant chaque build.
+  Il ne peut pas diverger d'une application réellement construite.

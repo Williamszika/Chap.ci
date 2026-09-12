@@ -19,12 +19,12 @@ import {
   campaignCount, campaignSend, digestInfo, digestSend, suggestionsTest,
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   fetchContactMessages, setContactHandled, deleteContactMessage, suggestContactReply, replyContactMessage,
-  fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchVisits, fetchResponseTime,
+  fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchAvisApp, fetchVisits, fetchResponseTime,
   listBackups, downloadBackup, resetData,
   modTokens, createModToken, revokeModToken, modAudit, type ServiceToken, type ModAuditEntry,
   adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
-  type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview,
+  type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview, type AvisAppResume,
   fetchInvites, envoyerInvitations, type ListeInvites,
   fetchGeo, type GeoStats, type GeoRange,
   fetchAdminPro, deciderPro, corrigerFichePro, type AdminProDemande,
@@ -53,7 +53,7 @@ import { AdTextControls } from '../components/AdTextControls'
 import { downscaleListingImage } from '../lib/image'
 import { ShieldCheck, UserPlus, Crown, MailCheck, Send, Save, CheckCircle2, Megaphone, CalendarClock, Copy, Database, KeyRound, Pencil, Inbox, Undo2, Sparkles, ChevronDown, Film, VideoOff } from 'lucide-react'
 
-type Tab = 'overview' | 'listings' | 'users' | 'pro' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'visitors' | 'pays' | 'backup' | 'automation'
+type Tab = 'overview' | 'listings' | 'users' | 'pro' | 'orders' | 'newsletter' | 'moderators' | 'emails' | 'campaigns' | 'reports' | 'contact' | 'ads' | 'comptabilite' | 'conversations' | 'reviews' | 'avisapp' | 'visitors' | 'pays' | 'backup' | 'automation'
 
 const STATUS_LABEL: Record<string, string> = {
   en_cours: 'En cours', finalise: 'Finalisé', annule: 'Annulé', pending: 'En attente',
@@ -156,7 +156,7 @@ export function AdminDashboard() {
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-2 pb-2">
           {/* « Pays » (07/09/2026) vit sous la permission « Visiteurs » : même
               question — d'où viennent les gens —, même modérateur. */}
-          {([['overview','Aperçu'],['visitors','Visiteurs'],['pays','Pays'],['listings','Annonces'],['users','Utilisateurs'],['pro','Demandes Pro'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['comptabilite','Comptabilité'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'comptabilite' ? role.owner : id === 'pro' ? canSee('users') : id === 'pays' ? canSee('visitors') : canSee(id))).map(([id,label]) => (
+          {([['overview','Aperçu'],['visitors','Visiteurs'],['pays','Pays'],['listings','Annonces'],['users','Utilisateurs'],['pro','Demandes Pro'],['reports','Signalements'],['contact','Contact'],['ads','Publicités'],['comptabilite','Comptabilité'],['orders','Commandes'],['conversations','Conversations'],['reviews','Avis'],['avisapp','Avis appli'],['newsletter','Abonnés'],['campaigns','Campagnes'],['moderators','Modérateurs'],['emails','Emails'],['backup','Sauvegarde'],['automation','Tâches auto']] as [Tab,string][]).filter(([id]) => (id === 'comptabilite' ? role.owner : id === 'pro' ? canSee('users') : id === 'pays' ? canSee('visitors') : canSee(id))).map(([id,label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -205,6 +205,7 @@ export function AdminDashboard() {
         {tab === 'orders' && <OrdersTab />}
         {tab === 'conversations' && <ConversationsTab />}
         {tab === 'reviews' && <ReviewsTab />}
+        {tab === 'avisapp' && <AvisAppTab />}
         {tab === 'newsletter' && <NewsletterTab />}
         {tab === 'campaigns' && <CampaignsTab />}
         {tab === 'moderators' && <ModeratorsTab />}
@@ -1658,6 +1659,115 @@ function ConversationsTab() {
  * deux étoiles. Un vendeur qui en accumule est un problème qui grandit, et il
  * se voit d'un coup d'œil quand on peut filtrer dessus.
  */
+/**
+ * LES AVIS SUR L'APPLICATION — ce que les gens pensent de Chap.ci lui-même.
+ *
+ * Écrit le 13/09/2026, au lendemain du refus d'accès à la production. Google
+ * reproche « un engagement insuffisant des testeurs » et demande, dans le
+ * formulaire, de RÉSUMER les retours reçus. Cet écran est l'endroit où ce résumé
+ * se lit — sans lui, la note recueillie dans l'application n'irait nulle part.
+ *
+ * ⚠️ À NE PAS CONFONDRE AVEC L'ONGLET « AVIS », juste à côté, qui note les
+ * VENDEURS après une vente. Les deux sont des étoiles, et ce sont deux sujets
+ * qui n'ont rien à voir.
+ */
+function AvisAppTab() {
+  const [data, setData] = useState<AvisAppResume | null>(null)
+  const [err, setErr] = useState('')
+  const [filtre, setFiltre] = useState<'tous' | 'texte' | 'mauvais'>('tous')
+  const load = () => { setData(null); setErr(''); fetchAvisApp().then(setData).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!data) return <Center><Loader2 className="animate-spin" size={20} /></Center>
+
+  let liste = data.avis
+  if (filtre === 'texte') liste = liste.filter((a) => (a.commentaire ?? '').trim() !== '')
+  if (filtre === 'mauvais') liste = liste.filter((a) => a.note <= 2)
+
+  const etoiles = (n: number) => '★'.repeat(n) + '☆'.repeat(5 - n)
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-cream-200 bg-white p-3">
+          <div className="text-2xl font-extrabold text-gray-900">
+            {data.moyenne != null ? String(data.moyenne).replace('.', ',') : '—'}
+          </div>
+          <div className="text-xs text-gray-500">Note moyenne de l’appli</div>
+        </div>
+        <div className="rounded-xl border border-cream-200 bg-white p-3">
+          <div className="text-2xl font-extrabold text-gray-900">{data.total}</div>
+          <div className="text-xs text-gray-500">Avis reçus</div>
+        </div>
+        <div className="rounded-xl border border-cream-200 bg-white p-3">
+          <div className="text-2xl font-extrabold text-gray-900">{data.avecTexte}</div>
+          <div className="text-xs text-gray-500">Avec un commentaire</div>
+        </div>
+        <div className="rounded-xl border border-cream-200 bg-white p-3">
+          <div className="text-2xl font-extrabold text-gray-900">
+            {(data.repartition['1'] ?? 0) + (data.repartition['2'] ?? 0)}
+          </div>
+          <div className="text-xs text-gray-500">1 ou 2 étoiles</div>
+        </div>
+      </div>
+
+      {/* La répartition, et pas seulement la moyenne : 3,5 ne dit pas si dix
+          personnes sont tièdes ou si cinq adorent et cinq détestent. */}
+      <div className="rounded-xl border border-cream-200 bg-white p-3 space-y-1">
+        {[5, 4, 3, 2, 1].map((n) => {
+          const c = data.repartition[String(n)] ?? 0
+          const pct = data.total ? Math.round((c / data.total) * 100) : 0
+          return (
+            <div key={n} className="flex items-center gap-2 text-sm">
+              <span className="w-14 text-gray-600">{n} étoile{n > 1 ? 's' : ''}</span>
+              <div className="flex-1 h-2 rounded bg-cream-100 overflow-hidden">
+                <div className="h-full bg-primary-500" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="w-10 text-right tabular-nums text-gray-500">{c}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {([['tous', 'Tous'], ['texte', 'Avec commentaire'], ['mauvais', '1–2 étoiles']] as const).map(([id, lib]) => (
+          <button
+            key={id}
+            onClick={() => setFiltre(id)}
+            className={`min-h-[44px] px-3 rounded-lg border text-sm ${filtre === id ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-700 border-cream-200'}`}
+          >
+            {lib}
+          </button>
+        ))}
+      </div>
+
+      {liste.length === 0 ? (
+        <div className="rounded-xl border border-cream-200 bg-white p-6 text-center text-sm text-gray-500">
+          Aucun avis pour l’instant. La carte n’apparaît dans l’application qu’au
+          troisième lancement, et une seule fois par personne.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {liste.map((a) => (
+            <div key={a.id} className="rounded-xl border border-cream-200 bg-white p-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-amber-500" aria-label={`${a.note} sur 5`}>{etoiles(a.note)}</span>
+                <span className="font-semibold text-gray-900">{a.nom || a.email || 'Compte sans nom'}</span>
+                {a.plateforme && <span className="chip-delta bg-cream-100 text-gray-500">{a.plateforme}</span>}
+                {a.version && <span className="chip-delta bg-cream-100 text-gray-500">v{a.version}</span>}
+                <span className="ml-auto text-xs text-gray-500">{new Date(a.createdAt).toLocaleString('fr-FR')}</span>
+              </div>
+              {a.commentaire && (
+                <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{a.commentaire}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ReviewsTab() {
   const [items, setItems] = useState<AdminReview[] | null>(null)
   const [err, setErr] = useState('')

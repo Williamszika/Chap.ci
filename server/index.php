@@ -2270,6 +2270,24 @@ function migrate(PDO $pdo): void {
     "CREATE TABLE IF NOT EXISTS listing_view_hours (
       listing_id $id, day VARCHAR(10), hour $intT, n $intT, PRIMARY KEY (listing_id, day, hour)
     )$eng",
+    // L'AVIS SUR L'APPLICATION ELLE-MÊME — à ne pas confondre avec `reviews`,
+    // qui porte sur un VENDEUR après une vente confirmée. Ici, l'utilisateur note
+    // Chap.ci : une note de 1 à 5 et, s'il le veut, un commentaire.
+    //
+    // UNE SEULE FOIS PAR COMPTE, et c'est `user_id` UNIQUE qui le garantit — pas
+    // une vérification applicative. Un contrôle en PHP se contourne avec deux
+    // requêtes simultanées ; une contrainte d'unicité, non. C'est aussi ce qui
+    // permet à l'application de poser la question sur un téléphone et de ne plus
+    // jamais la poser sur un autre : la réponse vit sur le serveur, pas dans la
+    // mémoire du téléphone.
+    //
+    // Demandé par le Patron le 13/09/2026, au lendemain du refus de Google —
+    // « engagement insuffisant des testeurs ». Lire ce que les gens pensent de
+    // l'application est précisément ce qui manquait pour répondre au formulaire.
+    "CREATE TABLE IF NOT EXISTS avis_app (
+      id $id PRIMARY KEY, user_id $id, note $intT, commentaire $txt,
+      plateforme $txt, version $txt, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -2295,6 +2313,14 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("CREATE UNIQUE INDEX idx_natif_token ON push_natifs (token)"); }
   catch (Throwable $e) { /* index déjà présent : on ignore */ }
   try { $pdo->exec("CREATE INDEX idx_natif_user ON push_natifs (user_id)"); }
+  catch (Throwable $e) { /* index déjà présent : on ignore */ }
+
+  // UN SEUL AVIS SUR L'APPLICATION PAR COMPTE — garanti ici, par la base.
+  // Le contrôle applicatif qui précède l'insertion sert à rendre un message
+  // aimable ; c'est CET index qui rend la règle vraie. Deux requêtes parties en
+  // même temps (double appui sur « Envoyer », réseau lent) passeraient toutes
+  // deux le contrôle PHP et n'insèreraient qu'une ligne grâce à lui.
+  try { $pdo->exec("CREATE UNIQUE INDEX idx_avis_app_user ON avis_app (user_id)"); }
   catch (Throwable $e) { /* index déjà présent : on ignore */ }
 
   // Colonnes ajoutées après coup : on les crée sur les bases déjà existantes.
@@ -9923,6 +9949,75 @@ try {
     jout($rt ?? ['count' => 0, 'medianSeconds' => null]);
   }
 
+  // ───────────────────────── L'AVIS SUR L'APPLICATION ──────────────────────────
+  //
+  // À NE PAS CONFONDRE AVEC `/reviews`, juste en dessous, qui note un VENDEUR
+  // après une vente confirmée. Ici on note **Chap.ci**, et la seule condition est
+  // d'avoir un compte.
+  //
+  // POURQUOI LA RÉPONSE VIT SUR LE SERVEUR ET NON DANS LE TÉLÉPHONE. Le Patron
+  // demande que la question ne revienne plus chez quelqu'un qui a déjà répondu.
+  // Une mémoire locale y suffirait sur UN téléphone — et redemanderait sur le
+  // second, après une réinstallation, ou après un simple vidage de cache. La
+  // seule mémoire qui suit la personne est celle du compte.
+
+  // A-T-IL DÉJÀ DONNÉ SON AVIS ? Appelée au lancement de l'application.
+  // Volontairement minuscule et sans donnée : elle ne renvoie qu'un booléen, donc
+  // elle peut être appelée souvent sans peser sur un forfait 3G.
+  if ($path === 'avis-app/mien' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT note, created_at FROM avis_app WHERE user_id = ? LIMIT 1');
+    $st->execute([$u['id']]);
+    $r = $st->fetch();
+    jout([
+      'aEvalue' => (bool) $r,
+      'note'    => $r ? (int) $r['note'] : null,
+      'le'      => $r ? (string) $r['created_at'] : null,
+    ]);
+  }
+
+  if ($path === 'avis-app' && $method === 'POST') {
+    $u = require_user($pdo, $secret); $b = body();
+
+    // La note est OBLIGATOIRE, le commentaire est FACULTATIF. C'est l'inverse qui
+    // serait tentant (« dites-nous ce qui ne va pas ») et qui ferait fuir : on
+    // obtient dix fois plus de notes que de textes, et une note seule vaut mieux
+    // qu'un silence.
+    $note = (int) ($b['note'] ?? 0);
+    if ($note < 1 || $note > 5) jerr('Choisissez une note de 1 à 5 étoiles.', 400);
+
+    // 2 000 caractères : assez pour un vrai retour, trop peu pour servir de dépôt.
+    $commentaire = trim((string) ($b['commentaire'] ?? ''));
+    if (mb_strlen($commentaire) > 2000) $commentaire = mb_substr($commentaire, 0, 2000);
+
+    // D'où vient l'avis, et avec quelle version. Sans ces deux champs, un avis
+    // « l'application plante » ne sert à rien : on ne sait ni sur quel appareil,
+    // ni sur quelle version corriger. Ils viennent du client, donc ils sont
+    // bornés — c'est une information, pas une autorisation.
+    $plateforme = (string) ($b['plateforme'] ?? '');
+    if (!in_array($plateforme, ['android', 'ios', 'web'], true)) $plateforme = 'web';
+    $version = mb_substr(trim((string) ($b['version'] ?? '')), 0, 20);
+
+    // Le contrôle aimable. L'unicité réelle est garantie par l'index
+    // `idx_avis_app_user` ; celui-ci ne sert qu'à rendre un message clair au lieu
+    // d'une erreur de base.
+    $st = $pdo->prepare('SELECT id FROM avis_app WHERE user_id = ? LIMIT 1');
+    $st->execute([$u['id']]);
+    if ($st->fetch()) jerr('Vous avez déjà donné votre avis sur l’application. Merci !', 409);
+
+    try {
+      $pdo->prepare('INSERT INTO avis_app (id, user_id, note, commentaire, plateforme, version, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)')
+        ->execute([uuid(), $u['id'], $note, $commentaire, $plateforme, $version, now_iso()]);
+    } catch (Throwable $e) {
+      // L'index unique a parlé : deux envois simultanés. Ce n'est pas une panne,
+      // c'est exactement ce qu'il doit faire.
+      jerr('Vous avez déjà donné votre avis sur l’application. Merci !', 409);
+    }
+
+    jout(['ok' => true, 'aEvalue' => true]);
+  }
+
   if ($path === 'reviews' && $method === 'GET') {
     $sellerId = $_GET['seller_id'] ?? null; $listingId = $_GET['listing_id'] ?? null;
     $targetId = $_GET['target_id'] ?? null;
@@ -13762,6 +13857,43 @@ try {
     }
 
     // Avis (modération) : note, commentaire, auteur, vendeur, annonce.
+    // LES AVIS SUR L'APPLICATION, pour le Patron. Renvoie la liste ET le compte
+    // par note : sans la répartition, une moyenne de 3,5 ne dit pas si elle vient
+    // de dix avis tièdes ou de cinq enthousiastes et cinq furieux — ce ne sont pas
+    // les mêmes applications, ni les mêmes décisions.
+    if ($path === 'admin/avis-app' && $method === 'GET') {
+      $rows = $pdo->query('SELECT a.*, u.email AS email, p.full_name AS nom
+        FROM avis_app a
+        LEFT JOIN users u ON u.id = a.user_id
+        LEFT JOIN profiles p ON p.id = a.user_id
+        ORDER BY a.created_at DESC LIMIT 300')->fetchAll();
+
+      $repartition = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+      $total = 0; $somme = 0; $avecTexte = 0;
+      foreach ($rows as $r) {
+        $n = (int) $r['note'];
+        if ($n >= 1 && $n <= 5) { $repartition[$n]++; $total++; $somme += $n; }
+        if (trim((string) $r['commentaire']) !== '') $avecTexte++;
+      }
+
+      jout([
+        'moyenne'     => $total ? round($somme / $total, 2) : null,
+        'total'       => $total,
+        'avecTexte'   => $avecTexte,
+        'repartition' => $repartition,
+        'avis' => array_map(fn($r) => [
+          'id'          => $r['id'],
+          'note'        => (int) $r['note'],
+          'commentaire' => trim((string) $r['commentaire']) !== '' ? $r['commentaire'] : null,
+          'nom'         => $r['nom'] ?: null,
+          'email'       => $r['email'] ?: null,
+          'plateforme'  => $r['plateforme'] ?: null,
+          'version'     => $r['version'] ?: null,
+          'createdAt'   => iso_to_ms($r['created_at']),
+        ], $rows),
+      ]);
+    }
+
     if ($path === 'admin/reviews' && $method === 'GET') {
       $rows = $pdo->query('SELECT r.*, ru.email AS reviewer_email, su.email AS seller_email,
           p.full_name AS reviewer_name, l.title AS listing_title
