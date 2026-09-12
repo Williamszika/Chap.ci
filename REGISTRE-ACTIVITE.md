@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Samedi 12 septembre 2026 |
-| Livraisons | 859 |
+| Livraisons | 860 |
 | Jours travaillés | 63 |
-| Dernière mise à jour | Samedi 12 septembre 2026, 22:25 (Abidjan) |
+| Dernière mise à jour | Samedi 12 septembre 2026, 22:32 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,7 +42,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 12 septembre 2026
 
-**20 livraison(s)** · Abidjan 04:02 → 22:03 · chez le Patron 06:02 → 00:03 · amplitude 18 h 01
+**21 livraison(s)** · Abidjan 04:02 → 22:25 · chez le Patron 06:02 → 00:25 · amplitude 18 h 23
 
 - `04:02` · La clé cron cesse de s’afficher treize fois sur notre propre écran d’admin  <sub>`80f6fa7`</sub>
 - `13:23` · Un correctif commité n’est pas un correctif livré — le Gardien nous l’a rappelé  <sub>`979b2b0`</sub>
@@ -64,6 +64,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `16:15` · Le registre d’activité annonçait 141 livraisons au lieu de 856 — il refuse maintenant d’écrire plutôt que de mentir  <sub>`9b11d3e`</sub>
 - `22:00` · « Protégé avec Play » : deux compteurs à zéro qui n’ont pas à être remplis  <sub>`6bc98e5`</sub>
 - `22:03` · La v1.25 est chez les douze testeurs — et le chiffre qui décidera du 26 septembre est à zéro  <sub>`13876de`</sub>
+- `22:25` · Les utilisateurs peuvent noter Chap.ci et laisser un mot — une seule fois, et le serveur s’en souvient  <sub>`5a37c0a`</sub>
 
 ### Vendredi 11 septembre 2026
 

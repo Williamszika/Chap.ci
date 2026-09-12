@@ -39,9 +39,14 @@ Douze personnes qui ont l'application sur leur téléphone et n'y touchent jamai
 remplissent le critère « 12 testeurs inscrits » — celui-là est barré depuis le
 26 août — **et échouent sur l'engagement**. C'est exactement notre situation :
 
-- l'application de vos testeurs est la **v1.20 du 15 août** ;
-- **37 chantiers** ont été livrés depuis, aucun n'est arrivé chez eux ;
-- ils n'ont donc eu, pendant quatre semaines, **aucune raison d'ouvrir l'application**.
+- l'application de vos testeurs datait du **26 août** — la v1.21, code 22
+  *(⚠️ rectifié le 13/09 : cette fiche a d'abord écrit « v1.20 du 15 août », en
+  reprenant un champ « État Play » resté à « NON VÉRIFIÉ » pendant dix-huit jours.
+  La fiche technique du premier retour de testeur donne la vraie valeur)* ;
+- **dix-sept jours** sans une seule mise à jour, et plus de vingt chantiers livrés
+  entre-temps sans qu'aucun ne leur parvienne ;
+- ils n'ont donc eu, pendant plus de deux semaines, **aucune raison d'ouvrir
+  l'application**.
 
 Google ne mesure pas la fraîcheur du build. Il mesure ce que font les testeurs.
 Déposer la v1.25 n'est donc pas le but : **c'est le moyen**. Le but est que douze
@@ -87,6 +92,48 @@ ce que nous savons faire.
   et le travail des quatorze jours est entièrement décrit ci-dessous.
 - **S'il y a des commentaires** : recopiez-les-moi. Ce sont eux qu'il faudra résumer
   dans le formulaire — et corriger avant, si ce sont des bugs.
+
+---
+
+## ✅ PREMIER RETOUR DE TESTEUR — 12/09/2026 à 11 h 57
+
+La page existe, elle n'était pas vide, et personne ne l'avait ouverte.
+
+> **Ange Goze** — 12 sept. 2026, 11:57 · ZTE A7020 · Android 10 (SDK 29) · français
+> · **version 22 (1.21.0)**
+>
+> « Ideal pour trouver des petites annonces près de chez toi »
+
+**Trois choses qu'il faut lire dans ce seul retour :**
+
+1. **Il est daté de 11 h 57 — l'examen de Google était à 09 h 48.** Ce retour est
+   arrivé **deux heures trop tard** pour peser sur la décision. C'est la
+   démonstration la plus nette de ce que « engagement » veut dire : il ne manquait
+   pas grand-chose, il manquait *avant*.
+2. **La fiche technique dit « version 22 · 1.21.0 ».** Toutes nos fiches
+   affirmaient que les testeurs avaient la **v1.20**. C'était faux depuis le 26 août
+   — et l'erreur venait de ce que personne n'avait ouvert cette page-ci.
+3. **Il est positif, et il est utilisable tel quel** dans la question 1.3 du
+   formulaire (« résumez les retours reçus »).
+
+### ⚠️ RÉPONDEZ-LUI. C'est un champ de saisie, pas un affichage.
+
+Sous le commentaire se trouve **« Répondre »** et un champ de 350 caractères.
+Google l'écrit dans sa propre documentation : *« répondez aux retours des testeurs
+[…] pour augmenter les chances d'une demande d'accès en production réussie »*.
+
+Répondre fait trois choses à la fois : la personne se sent écoutée et rouvre
+l'application, Google voit un canal de test vivant, et **vous aurez quelque chose
+de vrai à écrire** à la question « comment les retours ont-ils été recueillis ».
+
+Une réponse possible, à adapter — elle tient en 350 caractères :
+
+```
+Merci Ange 🙏 Une nouvelle version vient d’arriver : vidéo sur les annonces,
+affiche pour votre statut WhatsApp, « Faire une offre » au vendeur. Mettez à jour
+depuis le Play Store et dites-moi ce qui cloche — c’est exactement ce dont j’ai
+besoin. Zika
+```
 
 ---
 

@@ -6253,3 +6253,34 @@ traces disent plus que ce qu'il en a tiré.
   de figer un numéro ailleurs que dans `store/APP-VERSIONS.md` : le fichier est donc
   **réécrit par l'outil de préparation depuis `pubspec.yaml`**, avant chaque build.
   Il ne peut pas diverger d'une application réellement construite.
+
+### 2026-09-13 01:30 — [Direction] Le Secrétariat — la page des commentaires n'était PAS vide, et elle corrige nos fiches
+- **LE PATRON A OUVERT *COMMENTAIRES SUR LES TESTS*, CELLE QUE JE LUI AVAIS
+  DEMANDÉE — ET IL Y AVAIT UN RETOUR.** Ange Goze, **12/09 à 11 h 57**, ZTE A7020,
+  Android 10 : « Ideal pour trouver des petites annonces près de chez toi ».
+- **IL EST ARRIVÉ DEUX HEURES APRÈS L'EXAMEN DE GOOGLE (09 h 48).** C'est la
+  meilleure illustration possible de ce que « engagement insuffisant » veut dire :
+  il ne manquait pas grand-chose, il manquait **avant**.
+- **ET SA FICHE TECHNIQUE DÉMENT TROIS SEMAINES DE NOS ÉCRITS** : « Code de la
+  version : **22** · Nom : **1.21.0** ». **Les testeurs n'avaient pas la v1.20.**
+  Toutes nos fiches — `APP-VERSIONS.md`, `BUILD-v1.25.md`, `DEMANDE-PRODUCTION.md`,
+  le journal, et mes messages au Patron toute la journée d'hier — répétaient
+  « les douze testeurs ont la v1.20 du 15 août », et en tiraient « 37 chantiers de
+  retard » et « quatre semaines ». **Le vrai écart était de dix-sept jours.**
+- **LA RACINE : UN CHAMP LAISSÉ À « NON VÉRIFIÉ » PENDANT DIX-HUIT JOURS.** La fiche
+  v1.21 disait « envoyée à l'examen le 26/08 — verdict NON VÉRIFIÉ ». La règle du
+  fichier est pourtant explicite : *aucun bureau ne doit affirmer l'état d'une
+  version sur la foi de ce champ*. Elle a été respectée à la lettre — personne n'a
+  affirmé le verdict de la v1.21 — **et contournée dans les faits**, puisque tout le
+  monde a continué de dire « les testeurs ont la v1.20 », ce qui affirme exactement
+  la même chose par la bande. **Un « non vérifié » n'est pas neutre : en l'absence
+  de réponse, chacun garde la dernière valeur connue et la traite comme vraie.**
+- **LA PAGE QUI DONNAIT LA RÉPONSE EXISTAIT DEPUIS LE DÉBUT.** Elle porte la version
+  installée dans chaque retour. Nous avons passé la journée d'hier à déduire l'état
+  du canal de test ; il était écrit.
+- **CORRIGÉ** dans `APP-VERSIONS.md` (v1.21 : verdict établi, et la table des
+  boutiques porte le démenti) et dans `ENGAGEMENT-TESTEURS.md`, avec le retour lui-même.
+- **ACTION DONNÉE AU PATRON : RÉPONDRE.** Le champ « Répondre » (350 caractères) est
+  sous le commentaire. Google écrit noir sur blanc que répondre augmente les chances
+  d'une demande réussie — et cela lui donnera une vraie réponse à la question 1.3,
+  « comment les retours ont-ils été recueillis ». Modèle fourni.
