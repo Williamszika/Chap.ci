@@ -458,8 +458,33 @@ fermée. Il manquait la moitié serveur ET la moitié Firebase.
   témoin dans ses **deux** états.
 - **Le plancher Android monte à 23** (voir le tableau en tête de section).
 
-⚠️ **L'AAB Android n'est toujours pas prouvé depuis cet environnement** (Maven
-Central répond 429). En revanche, **le build iOS l'est** : le Patron a construit
+### ✅ 12/09/2026 — LE CODE ANDROID DE LA v1.25 COMPILE, C'EST PROUVÉ
+
+Le Patron a lancé `flutter build appbundle --release` sur son Mac. **Gradle a tourné
+2 min 56 s et est allé jusqu'au bout de la compilation** : dépendances résolues
+(pas de 429 chez lui), Kotlin et Java compilés, code Dart compilé en natif,
+`MaterialIcons-Regular.otf` réduit de 1 645 184 à 21 572 octets par le tree-shaking.
+**Firebase compris** — `firebase_core` apparaît dans les avertissements de plugins,
+donc il a bien été intégré.
+
+Le build s'est arrêté **après** tout cela, sur `:app:validateSigningRelease` :
+`android/key.properties` portait encore le chemin d'exemple. **C'est une panne de
+configuration locale, pas de code.**
+
+Ce qui est donc prouvé : résolution des dépendances, compilation Kotlin/Java/Dart,
+intégration du plugin Firebase, traitement des ressources. Ce qui ne l'est pas
+encore : l'empaquetage final et la signature de l'AAB.
+
+⚠️ Un avertissement à connaître, **qui n'est pas une erreur** : Flutter signale que
+`firebase_core` et `flutter_web_auth_2` appliquent encore le Kotlin Gradle Plugin, ce
+que les *futures* versions de Flutter refuseront. Rien à faire aujourd'hui ; c'est
+aux auteurs de ces bibliothèques de suivre. À reregarder à la prochaine montée de
+Flutter.
+
+⚠️ **L'AAB Android n'avait jamais été prouvé depuis cet environnement de développement**
+(Maven Central y répond 429) — la ligne ci-dessous reste vraie pour l'environnement,
+mais elle est désormais sans conséquence : la preuve a été faite sur le Mac du Patron.
+En revanche, **le build iOS l'est** : le Patron a construit
 et installé la v1.25 sur son iPhone le 08/09/2026 par `flutter run --release`
 (Xcode, 42 s), Firebase compilé dedans. C'est la première preuve de build de
 cette version — côté Gradle, la déduction reste une déduction.

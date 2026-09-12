@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Jeudi 27 août 2026 au Samedi 12 septembre 2026 |
-| Livraisons | 132 |
+| Livraisons | 133 |
 | Jours travaillés | 17 |
-| Dernière mise à jour | Samedi 12 septembre 2026, 15:09 (Abidjan) |
+| Dernière mise à jour | Samedi 12 septembre 2026, 15:18 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,7 +42,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 12 septembre 2026
 
-**7 livraison(s)** · Abidjan 04:02 → 15:04 · chez le Patron 06:02 → 17:04 · amplitude 11 h 03
+**8 livraison(s)** · Abidjan 04:02 → 15:09 · chez le Patron 06:02 → 17:09 · amplitude 11 h 08
 
 - `04:02` · La clé cron cesse de s’afficher treize fois sur notre propre écran d’admin  <sub>`80f6fa7`</sub>
 - `13:23` · Un correctif commité n’est pas un correctif livré — le Gardien nous l’a rappelé  <sub>`979b2b0`</sub>
@@ -51,6 +51,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `14:44` · Google nomme la cause du refus : l’engagement des testeurs, pas la fraîcheur du build  <sub>`adfdcdb`</sub>
 - `14:46` · Les huit questions du formulaire Google, en clair, quatorze jours avant l’échéance  <sub>`21d4413`</sub>
 - `15:04` · Le commit à construire était périmé — et sa vérification aurait bloqué le Patron  <sub>`6b20009`</sub>
+- `15:09` · L’étape qui se taisait quand tout allait bien dit maintenant qu’elle n’a rien à faire  <sub>`b165368`</sub>
 
 ### Vendredi 11 septembre 2026
 

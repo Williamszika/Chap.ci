@@ -5860,3 +5860,36 @@ traces disent plus que ce qu'il en a tiré.
   quelque chose qui vieillit (un numéro de commit ce matin, un message de programme
   maintenant). Le point commun : **je faisais comparer à ce que j'avais écrit, au lieu
   de faire lire l'état réel.** Les deux fiches font désormais lire l'état réel.
+
+### 2026-09-12 14:45 — [Livraison] Le Secrétariat — le code Android de la v1.25 compile : c'est prouvé
+- **UNE PREMIÈRE, ET ELLE COMPTE.** `flutter build appbundle --release` a tourné
+  **2 min 56 s** sur le Mac du Patron et est allé **jusqu'au bout de la compilation** :
+  dépendances résolues (aucun 429 chez lui), Kotlin et Java compilés, Dart compilé en
+  natif, `MaterialIcons-Regular.otf` ramené de 1 645 184 à 21 572 octets par le
+  tree-shaking — et **Firebase intégré** (`firebase_core` apparaît dans les
+  avertissements de plugins, ce qui prouve qu'il a été traité).
+  Depuis la v1.24, la fiche portait « l'étape Gradle qui assemble les plugins Android
+  n'est pas prouvée ». **Elle l'est maintenant**, sur la machine qui compte.
+- **L'ÉCHEC EST ENTIÈREMENT LOCAL** : `:app:validateSigningRelease` —
+  `Keystore file '/chemin/absolu/vers/chapci.jks' not found`. Ce chemin est **celui du
+  modèle** : `android/key.properties` n'a jamais été rempli.
+- **LA CAUSE EXACTE EST DANS SA PROPRE TRANSCRIPTION, ET ELLE EST DE MA FICHE.** Le
+  bloc `cp … && open -e …` a été collé **deux fois**. Le second `cp` recopie le modèle
+  **par-dessus le fichier rempli** et efface tout, sans un mot. Ma fiche donnait ces
+  deux commandes sans jamais avertir qu'on ne les rejoue pas.
+- **CORRIGÉ EN QUATRE TEMPS PLUTÔT QU'EN UN** : 3a retrouver le keystore
+  (`mdfind -name .jks`, Spotlight cherche sur tout le Mac), 3b créer le fichier **une
+  seule fois** avec l'interdit écrit en rouge, 3c remplir et **enregistrer** (un
+  fichier ouvert non enregistré donne la même panne qu'un fichier vide), 3d **vérifier
+  sur le disque** :
+  `ls -l "$(grep '^storeFile=' android/key.properties | cut -d= -f2-)"`.
+  Cette dernière lit le disque, peut échouer, et **n'affiche que le chemin** — aucun
+  mot de passe. Le Patron peut m'en montrer la sortie sans rien exposer.
+- **UN REPÈRE DONNÉ AU PATRON POUR LIRE SEUL UN ÉCHEC DE BUILD** : la ligne
+  `Font asset … was tree-shaken` marque la fin de la compilation. Une erreur **après**
+  elle ne vient jamais du code de l'application. Il saura la prochaine fois s'il doit
+  m'envoyer l'erreur ou regarder sa configuration.
+- **AVERTISSEMENT KGP, CLASSÉ SANS SUITE POUR AUJOURD'HUI** : `firebase_core` et
+  `flutter_web_auth_2` appliquent encore le Kotlin Gradle Plugin, que les *futures*
+  versions de Flutter refuseront. Rien à faire maintenant ; à reregarder à la
+  prochaine montée de Flutter. Noté dans `APP-VERSIONS.md` pour ne pas le redécouvrir.

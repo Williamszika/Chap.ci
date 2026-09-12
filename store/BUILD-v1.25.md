@@ -274,25 +274,65 @@ l'écran de démarrage. Elle finit par un récapitulatif ; c'est normal.
 
 ### 3. Poser votre signature (une seule fois par copie du projet)
 
+**3a. D'abord, retrouvez votre keystore.** Spotlight le cherche sur tout le Mac :
+
+```bash
+mdfind -name .jks
+```
+
+Une ou plusieurs lignes s'affichent, par exemple
+`/Users/biabrahamzika/chapci.jks`. **C'est ce chemin qu'il vous faut** —
+sélectionnez-le à la souris et copiez-le (Cmd+C).
+
+Si rien ne sort, essayez :
+
+```bash
+ls -l ~/*.jks ~/Documents/*.jks ~/Desktop/*.jks 2>/dev/null
+```
+
+**3b. Créez le fichier, UNE SEULE FOIS :**
+
 ```bash
 cp tool/key.properties.exemple android/key.properties
 open -e android/key.properties
 ```
 
-TextEdit s'ouvre. Remplissez les quatre valeurs :
+> ⛔ **NE RELANCEZ JAMAIS LA LIGNE `cp` APRÈS AVOIR REMPLI LE FICHIER.** Elle
+> recopie le modèle par-dessus et **efface tout ce que vous avez tapé**, sans
+> prévenir. Le 12/09/2026, ces deux lignes ont été collées deux fois de suite et
+> le build a échoué trois minutes plus tard sur le chemin d'exemple.
+
+**3c. TextEdit s'ouvre.** Remplacez les trois valeurs en majuscules — `keyAlias`
+est déjà bon :
 
 ```
 keyAlias=chapci
 keyPassword=le mot de passe de la clé
-storeFile=/Users/…/le chemin complet de votre fichier .jks
+storeFile=collez ici le chemin trouvé en 3a
 storePassword=le mot de passe du keystore
 ```
 
-Enregistrez (**Cmd+S**), fermez la fenêtre.
+**Enregistrez avec Cmd+S**, puis fermez la fenêtre. Un fichier ouvert mais non
+enregistré donne exactement la même panne qu'un fichier jamais rempli.
 
-> `android/key.properties` n'entre **jamais** dans Git — `.gitignore` l'écarte.
-> Si le fichier manque, le build se signe avec la clé de développement et le
-> Play Store **refusera** l'AAB.
+**3d. Vérifiez — et cette vérification-là lit le disque, pas vos intentions :**
+
+```bash
+ls -l "$(grep '^storeFile=' android/key.properties | cut -d= -f2-)"
+```
+
+- **Votre fichier `.jks` s'affiche avec sa taille** → c'est bon, passez à l'étape 4.
+- **`No such file or directory`** → le chemin est faux, ou l'enregistrement n'a pas
+  eu lieu. Reprenez en 3a.
+
+> Cette commande n'affiche **que le chemin du keystore**. Ni son mot de passe, ni
+> celui de la clé n'apparaissent : vous pouvez me montrer sa sortie sans rien
+> exposer. **Et personne — moi compris, aucun bureau, aucun prestataire — n'a à
+> vous demander ce fichier ni ses mots de passe.**
+
+> `android/key.properties` n'entre **jamais** dans Git — `.gitignore` écarte tout
+> le dossier `android/`. Si le fichier manque, le build se signe avec la clé de
+> développement et le Play Store **refusera** l'AAB.
 
 ### 4. Construire
 
@@ -360,7 +400,16 @@ Deux erreurs fréquentes qui ne viennent pas du code :
 | Message | Ce que c'est |
 |---|---|
 | `Received status code 429 … Too Many Requests` | Maven Central refuse temporairement. **Relancez la même commande** ; Gradle garde ce qu'il a déjà téléchargé. |
-| `Keystore file not found` | Le chemin dans `storeFile` est faux. Glissez le `.jks` dans le Terminal pour obtenir son chemin exact. |
+| `Keystore file '/chemin/absolu/vers/chapci.jks' not found` | **Ce chemin-là est le modèle, pas le vôtre** : `android/key.properties` n'a pas été rempli, ou l'a été puis écrasé par un second `cp`. Reprenez l'étape 3. |
+| `Keystore file '…' not found` (un autre chemin) | Le chemin dans `storeFile` est faux. `mdfind -name .jks` donne le vrai. |
+| `WARNING: … apply Kotlin Gradle Plugin (KGP)` | **Un avertissement, pas une erreur.** Il annonce une exigence des *futures* versions de Flutter, pour `firebase_core` et `flutter_web_auth_2`. Le build d'aujourd'hui n'en souffre pas ; ce sera aux auteurs de ces bibliothèques de suivre. |
+| `Quellwert 8 ist veraltet` / `source value 8 is obsolete` | Avertissement de compilation Java, sans effet. |
+
+> **Comment savoir jusqu'où le build est allé.** La ligne `Font asset
+> "MaterialIcons-Regular.otf" was tree-shaken` est un bon repère : quand elle
+> s'affiche, **tout le code a compilé** — Kotlin, Java, Dart, Firebase compris — et
+> il ne reste que l'empaquetage et la signature. Une erreur après cette ligne ne
+> vient jamais du code de l'application.
 
 ---
 
