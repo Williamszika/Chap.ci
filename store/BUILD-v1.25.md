@@ -296,19 +296,37 @@ Si rien ne sort, essayez :
 ls -l ~/*.jks ~/Documents/*.jks ~/Desktop/*.jks 2>/dev/null
 ```
 
-**3a bis. Quel est l'alias de la clé dans ce keystore ?**
+**3a bis. Quel est l'alias de la clé dans ce keystore ? — facultatif**
 
 La fiche suppose `chapci`, mais un keystore fabriqué pour le Play Store porte
-souvent `upload`. Un alias faux coûte un build entier pour le découvrir :
+souvent `upload`. L'outil qui répond s'appelle `keytool`.
+
+> ⚠️ **`keytool` n'existe pas tout seul sur un Mac.** Taper `keytool` rend
+> *« Unable to locate a Java Runtime »* — vu le 12/09/2026. Ce n'est pas une panne
+> et il ne faut **surtout pas installer Java depuis java.com** : le JDK est déjà là,
+> livré avec Android Studio. Il faut l'appeler par son chemin complet.
 
 ```bash
-keytool -list -keystore LE_CHEMIN_TROUVÉ
+/Applications/Android\ Studio.app/Contents/jbr/Contents/Home/bin/keytool -list -keystore LE_CHEMIN_TROUVÉ
 ```
 
 Le mot de passe du keystore vous est demandé — **tapez-le, il ne s'affiche pas et
-n'entre pas dans l'historique du Terminal**. La sortie liste les alias, un par
-ligne, sous la forme `nom_de_l_alias, date, PrivateKeyEntry`. C'est ce `nom_de_l_alias`
-qui va dans `keyAlias=`.
+n'entre pas dans l'historique du Terminal**. La sortie liste les alias, un par ligne,
+sous la forme `nom_de_l_alias, date, PrivateKeyEntry`. C'est ce `nom_de_l_alias` qui
+va dans `keyAlias=`.
+
+Si Android Studio est ailleurs, ce chemin-ci le trouve tout seul :
+
+```bash
+JAVA=$(flutter doctor -v 2>/dev/null | sed -n 's/.*Java binary at: //p'); echo "$JAVA"
+"${JAVA%java}keytool" -list -keystore LE_CHEMIN_TROUVÉ
+```
+
+> **Et si rien de tout cela ne marche, PASSEZ À LA SUITE.** Cette étape n'économise
+> qu'un aller-retour : avec un alias faux, le build s'arrête sur
+> `No key with alias '…' found in keystore` — un message clair, obtenu en moins d'une
+> minute puisque Gradle garde tout ce qu'il a déjà compilé. **Ne cherchez jamais un
+> outil pendant un quart d'heure quand la panne suivante vous donnerait la réponse.**
 
 **3b. Créez le fichier, UNE SEULE FOIS :**
 

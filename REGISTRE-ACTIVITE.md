@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Jeudi 27 août 2026 au Samedi 12 septembre 2026 |
-| Livraisons | 134 |
+| Livraisons | 135 |
 | Jours travaillés | 17 |
-| Dernière mise à jour | Samedi 12 septembre 2026, 15:23 (Abidjan) |
+| Dernière mise à jour | Samedi 12 septembre 2026, 15:25 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,7 +42,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 12 septembre 2026
 
-**9 livraison(s)** · Abidjan 04:02 → 15:19 · chez le Patron 06:02 → 17:19 · amplitude 11 h 17
+**10 livraison(s)** · Abidjan 04:02 → 15:23 · chez le Patron 06:02 → 17:23 · amplitude 11 h 21
 
 - `04:02` · La clé cron cesse de s’afficher treize fois sur notre propre écran d’admin  <sub>`80f6fa7`</sub>
 - `13:23` · Un correctif commité n’est pas un correctif livré — le Gardien nous l’a rappelé  <sub>`979b2b0`</sub>
@@ -53,6 +53,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `15:04` · Le commit à construire était périmé — et sa vérification aurait bloqué le Patron  <sub>`6b20009`</sub>
 - `15:09` · L’étape qui se taisait quand tout allait bien dit maintenant qu’elle n’a rien à faire  <sub>`b165368`</sub>
 - `15:19` · Le code Android de la v1.25 compile — l’échec ne tient qu’au fichier de signature  <sub>`d0c2228`</sub>
+- `15:23` · Le chemin du keystore s’écrit par une commande, et les mots de passe se comptent  <sub>`9954fdd`</sub>
 
 ### Vendredi 11 septembre 2026
 

@@ -5920,3 +5920,26 @@ traces disent plus que ce qu'il en a tiré.
   seul caractère. **Sa sortie est un chiffre : le Patron peut me l'envoyer sans
   risque.** C'est la forme que devrait prendre toute vérification portant sur un
   secret — prouver sans révéler, comme le témoin `fcm` de `/api/health`.
+
+### 2026-09-12 15:45 — [Livraison] Le Secrétariat — `keytool` n'existe pas sur un Mac, et une vérification facultative doit le dire
+- **`keytool -list` a rendu « Unable to locate a Java Runtime. Please visit
+  http://www.java.com ».** J'avais donné cette commande comme si elle allait de soi :
+  elle va de soi sur un poste de développeur, pas sur le Mac du Patron. **Le JDK est
+  pourtant là**, livré avec Android Studio — il faut l'appeler par son chemin complet
+  (`/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool`).
+- **LE VRAI DANGER N'ÉTAIT PAS L'ERREUR, C'ÉTAIT LE LIEN.** Le message invite à
+  installer Java depuis java.com. Suivre ce conseil, c'est installer un second JDK sur
+  une machine qui en a déjà un, et se fabriquer une panne durable pour une vérification
+  **facultative**. La fiche le dit maintenant en toutes lettres : *ne l'installez pas*.
+- **ET SURTOUT, J'AVAIS OUBLIÉ DE DIRE QUE CETTE ÉTAPE EST SAUTABLE.** Je l'avais
+  présentée comme « à vérifier avant de construire, pas après », ce qui la faisait
+  passer pour un préalable. Elle ne fait qu'économiser un aller-retour : un alias faux
+  donne `No key with alias '…' found in keystore`, message clair, en moins d'une minute
+  puisque Gradle garde ce qu'il a compilé. **La consigne ajoutée vaut au-delà de ce
+  cas : ne cherchez jamais un outil pendant un quart d'heure quand la panne suivante
+  vous donnerait la réponse.**
+- **TROISIÈME FOIS AUJOURD'HUI QUE JE DONNE UNE CONSIGNE DEPUIS MON PROPRE
+  ENVIRONNEMENT** — un commit figé, un message de programme inventé, et maintenant un
+  outil supposé présent. Le point commun n'est plus une étourderie : c'est que
+  **j'écris pour une machine que je ne vois pas**. Chaque commande donnée au Patron
+  doit porter sa condition d'existence, ou dire ce qu'on fait quand elle manque.
