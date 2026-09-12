@@ -6050,3 +6050,30 @@ traces disent plus que ce qu'il en a tiré.
   ailleurs** — boîte mail, compte Google détenteur de la Play Console. Le mot de passe
   du keystore lui-même se changera après le build (`keytool -storepasswd`, sauvegarde
   d'abord) : la clé et son certificat ne bougent pas, donc les dépôts continuent.
+
+### 2026-09-12 17:35 — [Livraison] Le Secrétariat — ✅ L'AAB v1.25 EXISTE
+- **`✓ Built build/app/outputs/bundle/release/app-release.aab (69.3MB)` — en 5,6 s.**
+  Premier AAB de la v1.25, et le premier depuis le **15 août**. Trois essais en tout :
+  compilation → signature absente → mot de passe refusé → passé. Les deux échecs
+  avaient la même racine, découverte en ouvrant enfin le keystore : **PKCS12 exige un
+  mot de passe unique**, et notre modèle `key.properties` en propose deux.
+- **69,3 Mo contre 50,3 Mo pour la v1.20 : +19 Mo, +38 %.** Le chiffre est consigné,
+  **et il est consigné sans être expliqué** : Firebase, `local_auth`, `video_player` et
+  la bibliothèque `image` sont les suspects évidents, mais **aucune mesure poste par
+  poste n'a été faite**. Une explication plausible n'est pas une mesure, et ce journal
+  ne doit pas laisser croire l'inverse.
+- **CE QUI MANQUE ENCORE, ET QUI MANQUE DEPUIS TOUJOURS : LA TAILLE RÉELLE DU
+  TÉLÉCHARGEMENT.** Un AAB porte toutes les architectures ; le Play Store n'en sert
+  qu'une. **Le seul chiffre qui compte pour un utilisateur ivoirien est celui que la
+  Play Console affiche après dépôt**, et il n'a jamais été relevé pour aucune version
+  du projet. Demandé au Patron, et la ligne l'attend dans `APP-VERSIONS.md`.
+- **NOTES DE VERSION ÉCRITES** (`store/notes-version-v1.25.md`), et **pensées pour la
+  situation, pas seulement pour le produit** : elles s'adressent à douze testeurs
+  muets depuis quatre semaines, à qui Google reproche précisément leur silence. Elles
+  se terminent donc par la seule phrase qui puisse changer le verdict du 26/09 —
+  *« Dites-nous ce qui cloche : dans le Play Store, Envoyer des commentaires. »*
+- **DEUX CHOSES QU'ELLES NE DISENT PAS, VOLONTAIREMENT** : aucune promesse de volume
+  (la leçon du 27/07, « des milliers d'annonces » pour trois annonces) ; et **rien sur
+  les notifications qui réveillent le téléphone** — le code est là, mais **personne
+  n'a jamais entendu un téléphone sonner**. Tant que ce n'est pas vu, ça ne s'écrit
+  pas dans une note de version.
