@@ -5704,3 +5704,27 @@ traces disent plus que ce qu'il en a tiré.
   tranche en une seconde — **403/401 = forme A, 403/403 = forme B** — et la
   consigne d'écrire les codes dans le rapport. Un compteur qu'on alimente soi-même
   n'est pas un signal ; encore faut-il savoir sous quelle forme on l'alimente.
+
+### 2026-09-12 12:10 — [Direction] Le Secrétariat — Google Play refuse l'accès en production
+- **REFUS REÇU, examiné à 09 h 48 ce matin.** « Votre appli nécessite plus de tests
+  pour l'accès en production sur Google Play ». Les deux premiers critères restent
+  barrés ; le troisième est **redevenu vide** et sa formulation a changé :
+  « 14 **AUTRES** jours **à partir de la date d'examen** ». Le bouton est regrisé.
+  Nouvelle échéance : **~26/09/2026**.
+- **CE QUE CE N'EST PAS, ET IL FAUT LE DIRE AU PATRON DANS CET ORDRE** : ni un rejet
+  de l'application, ni une sanction de règlement, ni un retrait du canal de test.
+  Google juge le TEST, pas le produit. La confusion entre les deux est ce qui fait
+  paniquer, et elle est facile à lever.
+- **L'ANOMALIE VISIBLE DU DOSSIER, SANS EN FAIRE UNE CERTITUDE** : les 12 testeurs
+  ont la **v1.20 du 15/08** — **37 chantiers de retard** au moment de l'examen.
+  Quatre semaines de canal fermé sans une seule mise à jour. Le critère exact de
+  Google nous est inconnu et on ne l'invente pas ; mais hypothèse ou non, la
+  conduite est la même : **la v1.25 passe de « chantier parallèle » à priorité des
+  quatorze jours**. Fiches corrigées en ce sens (`BUILD-v1.25.md`, `APP-VERSIONS.md`).
+- **UN LIEN NOUVEAU : « Prévisualiser les questions »**, visible AVANT l'envoi. Il ne
+  l'était pas la première fois. C'est exactement l'étape de relecture que la fiche du
+  10/09 demandait et qui a été sautée — elle est maintenant offerte par la console.
+- **CE QUE LE REFUS COÛTE, ÉCRIT UNE FOIS.** Quatorze jours, plus une inconnue : la
+  section « ce que vous avez répondu » est restée vide, donc **on ne sait pas si le
+  refus tient au rythme du test ou à une réponse**. Une demande partie sans relecture
+  ne laisse rien à relire après coup. C'est consigné dans la fiche, sans y revenir.

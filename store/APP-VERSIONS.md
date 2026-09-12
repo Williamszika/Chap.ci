@@ -145,6 +145,36 @@ sur le canal fermé ne le remet pas à zéro** : le décompte porte sur les insc
 sur les versions, et il a continué de tourner pendant l'examen de la v1.21 (téléversée
 le 26/08, le jour même du seuil).
 
+### ⛔ DEMANDE DE PRODUCTION REFUSÉE — 12/09/2026 à 09 h 48
+
+Relevé dans la Play Console par le Patron le **12/09/2026**. La demande envoyée le
+10/09 à 01 h 04 a été examinée et **refusée** : « Votre appli nécessite plus de tests
+pour l'accès en production sur Google Play ».
+
+| Critère | État au 12/09 |
+|---|---|
+| Publier une version de test fermé | ✅ barré |
+| Avoir au moins 12 testeurs inscrits | ✅ barré |
+| Tenir 14 jours avec ≥ 12 testeurs | ⏳ **« 14 AUTRES jours à partir de la date d'examen »** |
+
+**Ce n'est pas un rejet de l'application** : ni le code, ni la fiche, ni le compte ne
+sont mis en cause, et rien n'est retiré du canal de test. C'est le **test** qui est
+jugé insuffisant. Le bouton « Demander à publier en production » est **grisé** de
+nouveau ; échéance recalculée : **autour du 26/09/2026**, et toujours conditionnée
+au maintien des 12 testeurs sans interruption.
+
+Un lien **« Prévisualiser les questions »** est désormais visible **avant** l'envoi —
+il ne l'était pas la première fois.
+
+⚠️ **Fait à noter sans le lisser, parce qu'il oriente la conduite** : les 12 testeurs
+ont toujours la **v1.20 du 15/08** sur leur téléphone, soit **37 chantiers de retard**
+au moment de l'examen. On ne connaît pas le critère exact de Google et on ne l'invente
+pas — mais un canal de test sans une seule mise à jour depuis quatre semaines est la
+seule anomalie visible de ce dossier. **Déposer la v1.25 sur le canal fermé devient
+donc la priorité de ces quatorze jours**, pas un chantier parallèle.
+
+Détail complet, le calendrier et ce qui reste inconnu : `store/DEMANDE-PRODUCTION.md`.
+
 ---
 
 ## v1.25 — versionCode 26

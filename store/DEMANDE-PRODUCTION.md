@@ -162,6 +162,88 @@ un test fermé vivant est plutôt bon signe. Deux précautions quand même :
 
 ---
 
+## ⛔ REFUSÉE — 12/09/2026 à 09 h 48
+
+La Play Console affiche :
+
+> ⚠️ **Votre appli nécessite plus de tests pour l'accès en production sur Google Play**
+>
+> Après examen de votre demande, nous avons déterminé que votre appli nécessite plus
+> de tests avant un accès en production. Avant de refaire une demande, continuez à
+> tester votre appli en suivant nos conseils.
+>
+> *Examinée le aujourd'hui à 09:48*
+
+Les trois conditions se relisent ainsi :
+
+| Condition | État au 12/09 |
+|---|---|
+| Publier une version de test fermé | ✅ barré, acquis |
+| Avoir au moins 12 testeurs inscrits | ✅ barré, acquis |
+| Faire tourner le test **14 AUTRES jours à partir de la date d'examen** | ⏳ **recommencé à zéro** |
+
+Le bouton **« Demander à publier en production »** est **grisé** à nouveau. Un lien
+**« Prévisualiser les questions »** est apparu à côté.
+
+### Ce que ce refus est, et ce qu'il n'est pas
+
+**Ce n'est PAS un rejet de l'application.** Google n'a rien reproché au code, à la
+fiche, au contenu ni au compte. Aucune sanction, aucun avertissement de règlement.
+L'application reste en ligne sur le canal de test fermé, avec ses 12 testeurs.
+
+**C'est un jugement sur le TEST, pas sur le produit** : Google a estimé que le test
+fermé n'avait pas assez tourné pour prouver que l'application tient. C'est le même
+critère qu'avant, remis à zéro : quatorze jours, mais comptés **à partir du
+12/09/2026**.
+
+### La nouvelle date : ~26/09/2026
+
+Quatorze jours à partir du 12/09 → le bouton devrait se rallumer **autour du
+26 septembre 2026**.
+
+**La règle qui n'a pas changé** : les 12 testeurs doivent rester inscrits **sans
+interruption** pendant ces quatorze jours. Un seul départ, et le compteur repart de
+zéro une troisième fois.
+
+### L'hypothèse la plus probable — à traiter, sans certitude
+
+Je ne connais pas le critère exact de Google, et je ne vais pas l'inventer. Mais un
+fait est là : **vos 12 testeurs ont la v1.20 du 15 août sur leur téléphone.** Quatre
+semaines sans une seule mise à jour, alors que **37 chantiers** ont été livrés entre
+temps. Du point de vue de Google, qui regarde l'activité du canal de test, cela
+ressemble à un test endormi — douze personnes inscrites qui ne testent rien.
+
+C'est une hypothèse. Mais elle indique la même conduite que la certitude :
+**construire et déposer la v1.25 sur le canal fermé, vite.** Les quatorze jours
+tournent de toute façon ; autant qu'ils tournent sur une application vivante.
+
+### Ce qu'on fait des quatorze jours
+
+| Quand | Quoi | Pourquoi |
+|---|---|---|
+| Maintenant | **Ouvrir « Prévisualiser les questions » et me les recopier** | Le lien n'existait pas avant l'envoi. Cette fois, les réponses se préparent avant, pas à une heure du matin. |
+| Cette semaine | **Construire l'AAB v1.25** (`store/BUILD-v1.25.md`, vérification n° 0 : 20 Go libres) et le déposer **sur le canal de test fermé** | Donner enfin quelque chose à tester aux douze. |
+| Chaque jour | **Ne perdre aucun testeur** | C'est la seule chose qui peut faire perdre les quatorze jours. |
+| ~26/09 | Le bouton se rallume — **on relit les réponses ensemble avant d'envoyer** | |
+
+### Ce que ce refus a coûté, écrit une fois
+
+La fiche du 10/09 disait : « **Ne répondez pas tout de suite. Recopiez-moi les
+questions.** » et « une demande refusée coûte plus cher qu'une nuit de sommeil ».
+Le formulaire est parti la nuit même, sans relecture. **Le prix est maintenant
+connu : quatorze jours.**
+
+Ce n'est écrit ici ni pour accabler ni pour avoir raison — c'est écrit parce que le
+même bouton va se rallumer dans deux semaines, et que la fiche doit s'en souvenir à
+notre place.
+
+⚠️ **Et ce qui reste inconnu** : on ignore toujours ce qui a été répondu la première
+fois, la section ci-dessous étant restée vide. Si le refus tient à une réponse et
+non au rythme du test, on ne peut pas le savoir. C'est la deuxième chose que ce
+refus coûte.
+
+---
+
 ## ⚠️ À écrire pendant que c'est frais : ce que vous avez répondu
 
 **Aujourd'hui vous vous en souvenez. Dans sept jours, non.**

@@ -352,8 +352,13 @@ une heure à proposer une nouvelle version de test.
   déjà (`7b931b4`).
 - **Vos 12 testeurs, 14 jours consécutifs.** Déposer une nouvelle version **ne
   remet pas le compteur à zéro** ; seul un testeur qui se désinscrit ou désinstalle
-  le fait. La demande de passage en production est visée pour le **10/09** : ne
-  perdez aucun testeur d'ici là.
+  le fait. ⛔ **La demande envoyée le 10/09 a été REFUSÉE le 12/09** — « votre appli
+  nécessite plus de tests » — et les quatorze jours ont **recommencé à la date
+  d'examen** : nouvelle échéance **autour du 26/09**. Ne perdez aucun testeur d'ici
+  là, et **déposez cette version sur le canal fermé sans attendre** : les douze
+  testeurs sont encore sur la v1.20 du 15 août, et un canal de test sans mise à jour
+  depuis quatre semaines est la seule anomalie visible du dossier.
+  Voir `store/DEMANDE-PRODUCTION.md`.
 - **La connexion Google continue de marcher.** Play App Signing resigne chaque
   installation avec la clé d'application d'origine (`0E:C0:…:FE:33`), qui ne
   change pas. L'empreinte à déclarer dans Google Cloud se lit dans **Play Console
