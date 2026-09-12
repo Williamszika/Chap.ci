@@ -6154,3 +6154,46 @@ traces disent plus que ce qu'il en a tiré.
   passages : je lisais « ✅ 141 livraisons » comme une confirmation, alors que c'était
   un chiffre que je n'avais jamais confronté à rien. **Un bureau en lecture seule l'a
   vu du premier coup, parce qu'il a mesuré au lieu de lire.**
+
+### 2026-09-12 20:50 — [Confiance & Sécurité] 🛡️ Le Gardien — quatrième ronde
+- **Fait** :
+  - *Santé* : accueil 200, `/api/health` 200, sitemap 200, PHP 8.5.10,
+    `fichiersInattendus 0`.
+  - *Écart dépôt/production* : `empreinte` (API) `e5fd19520b7c` et `empreinteSeo`
+    `9536aeb35d70` recontrôlées directement sur `server/index.php` / `web/seo.php` du
+    dépôt — identiques. `empreinteSite` **non reconstruite ce tour** (pas de
+    `npm run build`) ; mais aucun commit depuis la vérification par build de 17h50
+    (`git diff` vide sur `server/index.php`, `web/seo.php`, `src/`, `index.html`,
+    `vite.config.ts` entre `HEAD~3` et `HEAD`) ne touche l'API, le SEO ou le front —
+    donc rien n'a pu la faire diverger depuis le dernier vert construit. Un blanc
+    signalé (pas de rebuild) plutôt qu'un vert supposé, comme l'exige `COMMUN.md`.
+  - *Sécurité 24 h* : `suspiciousIps []`, `rateLimited 0`, `adminsTampered false`,
+    `currentAdmins []` (normal). `failRatio 0.5` sur `login_fail 1 / login_ok 1` —
+    bruit, aucune conclusion. `admin_unlock_fail 1` (sous le seuil de 3, rien à
+    signaler). `cron_fail 5` / `mtoken_fail 5` : `byDetail` = `cron/stats ·
+    sans-cle` ×4 + `cron/stats · cle-differente(entete,65 car.)` ×1 côté cron_fail,
+    `missing` ×4 + `unknown` ×1 côté mtoken_fail — la signature exacte de mes
+    propres tests de cloisonnement cumulés sur la fenêtre de 24 h (plusieurs
+    rondes du jour) : **rien d'extérieur**.
+  - `derniersPassages` : les 14 tâches ont toutes un passage récent cohérent avec
+    leur cadence — `backup` a tourné aujourd'hui à 02h00, `cleanup` il y a 5 h.
+    Aucune tâche en souffrance.
+  - CSP (Report-Only, `cspFenetreJours 7`) : `api.bigdatacloud.net` (60,
+    question tranchée le 15/08) et `www.facebook.com` (4) — les deux **déjà
+    présents** dans l'en-tête réellement servi (`curl -sSI` recontrôlé : les deux
+    figurent dans `connect-src`), rien à faire. Deux occurrences uniques et
+    nouvelles à bas bruit : `frame-src` bloqué `""` (vide, 12/09 16h36) et
+    `media-src` bloqué `data` (10/09) — un seul événement chacun, aucune origine
+    identifiable, à observer seulement si ça se répète.
+  - TLS : non revérifié ce tour (dernière lecture fiable 17/08 : échéance
+    2026-10-12, loin du seuil).
+  - *Scan code ciblé* : aucun changement sur `server/index.php` depuis la dernière
+    revue complète du jour — rien de nouveau à auditer.
+  - *Ménage* : `visits_purgees 0`, tout à zéro — rien à purger.
+  - *Modération* : file vide (`reports 0`, `recent 0`). Digest posé,
+    `skipped: true`, aucun e-mail (voulu, file vide).
+  - *Cloisonnement retesté en fin de ronde* : jeton de modération sur
+    `/cron/stats` → 403 ; clé cron sur `/mod/queue` → 401. Étanche.
+- **Problèmes ouverts** : aucun. Journée verte, quatrième ronde consécutive.
+- **Propositions au Patron** : aucune.
+- **Pour les autres bureaux** : rien à signaler.
