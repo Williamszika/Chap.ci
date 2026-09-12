@@ -4973,6 +4973,26 @@ function AutomationTab() {
     `${info.site}/api/cron/${j.id}${j.query ? `${j.query}&` : '?'}key=${encodeURIComponent(key)}`
   const textFor = (j: typeof CRON_JOBS[number]) => (fmt === 'cmd' ? cmdFor(j) : urlFor(j))
 
+  // ── AFFICHÉ = MASQUÉ · COPIÉ = RÉEL (12/09/2026) ──────────────────────────
+  //
+  // Cet écran masquait déjà la clé en haut (`762b••••2f7d`, avec l'œil pour la
+  // révéler) — l'intention était bonne. Puis il l'imprimait EN CLAIR treize fois
+  // juste en dessous, dans les commandes « prêtes à copier ». Le masque ne
+  // protégeait donc rien du tout.
+  //
+  // Ce n'est pas une faute d'inattention isolée : c'est la même que celle de
+  // cPanel, qu'on venait de lui reprocher. Un écran qu'il faut consulter pour
+  // travailler et qui affiche un secret le donne à quiconque le regarde, le
+  // photographie ou le montre à son hébergeur. Le 11/09, la clé du Patron est
+  // sortie quatre fois en deux jours — deux fois par CET écran-ci.
+  //
+  // La règle qui règle le problème tient en trois mots : **affiché = masqué,
+  // copié = réel**. On ne peut pas lire la clé par-dessus une épaule, et le
+  // bouton « copier » met quand même la vraie commande dans le presse-papier.
+  // L'œil déjà présent en haut révèle tout d'un coup quand on en a vraiment
+  // besoin — c'est un geste délibéré, pas un affichage par défaut.
+  const masquerCle = (t: string) => (key ? t.split(key).join(masked) : t)
+
   // État réel de chaque tâche, d'après la trace serveur du dernier passage.
   // « jamais » et « en retard » sont les deux cas qu'il faut voir d'un coup d'œil :
   // le 26/07, la sauvegarde quotidienne était muette depuis douze jours sans que
@@ -5087,6 +5107,12 @@ function AutomationTab() {
           Fais-la toujours passer par l’en-tête, entre <b>apostrophes simples</b> :{' '}
           <code className="rounded bg-gray-100 px-1">-H 'X-Cron-Key: …'</code>. Ne la partage jamais publiquement.
         </p>
+        <p className="mt-1.5 text-xs text-gray-500">
+          🔒 <b>Les commandes ci-dessous affichent la clé masquée</b> — le bouton « copier »
+          met quand même la vraie dans le presse-papier. L’œil ci-dessus la révèle partout
+          d’un coup : ne l’ouvrez que si vous en avez besoin, et <b>jamais avant une capture
+          d’écran</b>.
+        </p>
       </div>
 
       {/* Les URLs cron prêtes à copier */}
@@ -5130,7 +5156,9 @@ function AutomationTab() {
               </div>
             </div>
             <div className="mt-2 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">{textFor(j)}</code>
+              <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-900 px-2 py-1.5 text-[11px] text-gray-100">
+                {reveal ? textFor(j) : masquerCle(textFor(j))}
+              </code>
               <button onClick={() => copy(j.id, textFor(j))} className="shrink-0 rounded-lg border border-line2 p-1.5 text-gray-600 hover:bg-gray-50" aria-label={fmt === 'cmd' ? 'Copier la commande' : 'Copier l’URL'}>
                 {copied === j.id ? <CheckCircle2 size={15} className="text-ivoire-green-dark" /> : <Copy size={15} />}
               </button>

@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Jeudi 27 août 2026 au Vendredi 11 septembre 2026 |
-| Livraisons | 124 |
+| Livraisons | 125 |
 | Jours travaillés | 16 |
-| Dernière mise à jour | Vendredi 11 septembre 2026, 21:37 (Abidjan) |
+| Dernière mise à jour | Samedi 12 septembre 2026, 04:02 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,7 +42,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Vendredi 11 septembre 2026
 
-**7 livraison(s)** · Abidjan 02:59 → 18:45 · chez le Patron 04:59 → 20:45 · amplitude 15 h 46
+**8 livraison(s)** · Abidjan 02:59 → 21:37 · chez le Patron 04:59 → 23:37 · amplitude 18 h 38
 
 - `02:59` · 65 caractères, ce n’était pas une clé de trop : c’était l’autre secret  <sub>`302269f`</sub>
 - `03:13` · Une vraie clé cron dormait dans le journal des bureaux — retirée  <sub>`f1dd8da`</sub>
@@ -51,6 +51,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `07:04` · Le certificat n’a pas été renouvelé — deux lectures fausses, en sens inverse  <sub>`0930faa`</sub>
 - `18:39` · Quatre jours sans une annonce nouvelle — et le dépôt ignore l’heure des crons  <sub>`c443699`</sub>
 - `18:45` · La clé cron sort des écrans, et les treize horaires entrent dans le dépôt  <sub>`4dcdd91`</sub>
+- `21:37` · Le certificat est renouvelé — la quatrième ligne est apparue, comme prévu  <sub>`cf15038`</sub>
 
 ### Jeudi 10 septembre 2026
 

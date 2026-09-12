@@ -5603,3 +5603,35 @@ traces disent plus que ce qu'il en a tiré.
 - **Reste ouvert, un seul point, et il tombe cette nuit** : `backup` à 02:00 (journal).
   C'est la dernière des treize tâches dont le passage avec la nouvelle clé n'est pas
   confirmé.
+
+### 2026-09-12 04:30 — [Direction] Le Secrétariat — la rotation est close, et l'écran qui fuyait est le nôtre
+- **✅ LA ROTATION DES CLÉS EST TERMINÉE.** `backup` a réussi il y a une heure, donc
+  **après** la rotation du 11/09 ~03:20. C'était la dernière des treize tâches en
+  attente. Onze autres ont un passage postérieur confirmé.
+  **Deux ne peuvent pas l'être avant leur tour, et ce n'est pas un problème** :
+  `report` ne passe que le **1ᵉʳ du mois** (prochain : 01/10) et `suggestions` les
+  **lundi et jeudi**. Qu'un bureau ne les voie pas « confirmées » pendant des semaines
+  est normal — c'est écrit dans `COMMUN.md` § 3 bis.
+- **Le jeton de modération exposé est bien mort** : la liste montre `cmst_a910d68…`
+  **révoqué** après 389 appels, et un `cmst_856cf90…` actif depuis cette nuit, 10 appels.
+
+- **⛔ ET LA QUATRIÈME FUITE DE LA CLÉ VIENT DE NOTRE PROPRE ÉCRAN.**
+  Le Patron a envoyé le contenu d'**Admin → Tâches auto**. La clé y était en clair
+  **treize fois**, dans les « commandes prêtes à copier ».
+  Le plus instructif : **cet écran masquait déjà la clé en haut** (`762b••••2f7d`, avec
+  un œil pour la révéler). L'intention était juste. Puis il l'imprimait en clair juste
+  en dessous — le masque ne protégeait donc rien. **C'est exactement le reproche qu'on
+  venait de faire à cPanel**, et on le faisait depuis un écran qui nous appartient.
+- **CORRIGÉ : affiché = masqué, copié = réel.** Les treize commandes montrent la clé
+  masquée ; le bouton « copier » met quand même la vraie dans le presse-papier. L'œil
+  déjà présent révèle tout d'un coup — geste délibéré, jamais l'état par défaut. Une
+  ligne ajoutée sous la clé prévient de ne pas l'ouvrir avant une capture d'écran.
+  Empreinte du site : `ee375bc5a229`.
+- **LA LEÇON, ET ELLE VAUT AU-DELÀ DE CET ÉCRAN.** Un masque qui coexiste avec la valeur
+  en clair sur la même page ne masque rien. Ce défaut ne se voit pas en relisant le code
+  du masque — il se voit en regardant la page entière, ce que le Patron a fait en la
+  collant. **La fuite par construction qu'on reprochait à cPanel, on l'avait écrite
+  nous-mêmes.**
+- **Reste `store/CLE-CRON.md`**, toujours valable et toujours utile : cPanel, lui, n'a
+  pas de masque et n'en aura jamais. Mais l'urgence baisse d'un cran — la source la plus
+  consultée des deux ne fuit plus.
