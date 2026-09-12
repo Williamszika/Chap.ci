@@ -166,14 +166,21 @@ au maintien des 12 testeurs sans interruption.
 Un lien **« Prévisualiser les questions »** est désormais visible **avant** l'envoi —
 il ne l'était pas la première fois.
 
-⚠️ **Fait à noter sans le lisser, parce qu'il oriente la conduite** : les 12 testeurs
-ont toujours la **v1.20 du 15/08** sur leur téléphone, soit **37 chantiers de retard**
-au moment de l'examen. On ne connaît pas le critère exact de Google et on ne l'invente
-pas — mais un canal de test sans une seule mise à jour depuis quatre semaines est la
-seule anomalie visible de ce dossier. **Déposer la v1.25 sur le canal fermé devient
-donc la priorité de ces quatorze jours**, pas un chantier parallèle.
+**LA CAUSE EST NOMMÉE PAR GOOGLE, et ce n'est plus une hypothèse.** L'article d'aide
+officiel (*App testing requirements for new personal developer accounts*), retrouvé
+par le Patron le 12/09, donne les deux seules causes d'un refus : « moins de
+12 testeurs inscrits » **ou** « **un engagement insuffisant des testeurs** ». La
+première est écartée par la console (critère barré). C'est donc la seconde.
 
-Détail complet, le calendrier et ce qui reste inconnu : `store/DEMANDE-PRODUCTION.md`.
+⚠️ **« Engagement » ne veut pas dire « installé ».** Les 12 testeurs ont toujours la
+**v1.20 du 15/08**, soit **37 chantiers de retard** au moment de l'examen : quatre
+semaines sans une raison d'ouvrir l'application. Déposer la v1.25 sur le canal fermé
+est donc **le moyen**, pas le but — Google mesure ce que les testeurs FONT et ce
+qu'ils ÉCRIVENT, et le formulaire exige d'ailleurs un « résumé des retours de test ».
+
+Le plan des quatorze jours : **`store/ENGAGEMENT-TESTEURS.md`**.
+Le dossier de la demande, son refus et ce qui reste inconnu :
+`store/DEMANDE-PRODUCTION.md`.
 
 ---
 

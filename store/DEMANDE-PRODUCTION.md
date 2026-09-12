@@ -205,26 +205,47 @@ Quatorze jours à partir du 12/09 → le bouton devrait se rallumer **autour du
 interruption** pendant ces quatorze jours. Un seul départ, et le compteur repart de
 zéro une troisième fois.
 
-### L'hypothèse la plus probable — à traiter, sans certitude
+### ✅ LA CAUSE EST NOMMÉE PAR GOOGLE — retrouvée le 12/09 par le Patron
 
-Je ne connais pas le critère exact de Google, et je ne vais pas l'inventer. Mais un
-fait est là : **vos 12 testeurs ont la v1.20 du 15 août sur leur téléphone.** Quatre
-semaines sans une seule mise à jour, alors que **37 chantiers** ont été livrés entre
-temps. Du point de vue de Google, qui regarde l'activité du canal de test, cela
-ressemble à un test endormi — douze personnes inscrites qui ne testent rien.
+**Ce paragraphe remplace l'hypothèse que j'avais écrite le matin même.** Le Patron a
+retrouvé l'article d'aide officiel (*App testing requirements for new personal
+developer accounts*), qui nomme lui-même les causes d'un refus :
 
-C'est une hypothèse. Mais elle indique la même conduite que la certitude :
-**construire et déposer la v1.25 sur le canal fermé, vite.** Les quatorze jours
-tournent de toute façon ; autant qu'ils tournent sur une application vivante.
+> *« Reasons for required continued testing include having **fewer than 12 opted-in
+> testers** or **insufficient tester engagement** during the testing period. »*
+
+Deux causes, pas trois. La première est écartée par la console elle-même — le critère
+« 12 testeurs inscrits » est **barré**, avant comme après le refus. Reste :
+
+> ## L'ENGAGEMENT DES TESTEURS EST JUGÉ INSUFFISANT.
+
+Et « engagement » ne veut pas dire « installé » : douze personnes qui ont
+l'application et n'y touchent jamais remplissent le premier critère et échouent sur
+celui-là. Nos douze ont la **v1.20 du 15 août**, **37 chantiers** en retard : depuis
+quatre semaines, ils n'ont eu aucune raison d'ouvrir l'application.
+
+**Correction de ma propre conclusion du matin.** J'avais écrit « construire la v1.25
+est LA chose à faire ». C'est le **moyen**, pas le but. Google ne mesure pas la
+fraîcheur du build : il mesure ce que font les testeurs, et **ce qu'ils écrivent**.
+Le formulaire le demande d'ailleurs noir sur blanc — *« You must summarize your
+testing feedback when applying for production access »*.
+
+👉 **Le plan des quatorze jours, le message à envoyer aux douze, la page où se lisent
+leurs retours, le rapport de pré-lancement et les identifiants de démonstration :
+`store/ENGAGEMENT-TESTEURS.md`.**
 
 ### Ce qu'on fait des quatorze jours
 
 | Quand | Quoi | Pourquoi |
 |---|---|---|
-| Maintenant | **Ouvrir « Prévisualiser les questions » et me les recopier** | Le lien n'existait pas avant l'envoi. Cette fois, les réponses se préparent avant, pas à une heure du matin. |
-| Cette semaine | **Construire l'AAB v1.25** (`store/BUILD-v1.25.md`, vérification n° 0 : 20 Go libres) et le déposer **sur le canal de test fermé** | Donner enfin quelque chose à tester aux douze. |
-| Chaque jour | **Ne perdre aucun testeur** | C'est la seule chose qui peut faire perdre les quatorze jours. |
-| ~26/09 | Le bouton se rallume — **on relit les réponses ensemble avant d'envoyer** | |
+| Aujourd'hui | **Ouvrir *Commentaires sur les tests*** (Play Console → Suivre et améliorer → Notes et avis) et me dire ce qu'elle contient | C'est la console qui dit si nos testeurs ont écrit quelque chose. Vide = cause confirmée. |
+| Aujourd'hui | **Vérifier les identifiants de démonstration** (Contenu de l'application → Accès à l'application) | Chap.ci demande un compte pour presque tout ; sans identifiants, un examinateur ne voit que le catalogue. |
+| Aujourd'hui | **Déplier les trois parties du formulaire** dans l'article d'aide et me les recopier | La liste exacte des questions, écrite par Google, quatorze jours à l'avance. |
+| Cette semaine | **Construire l'AAB v1.25** (`store/BUILD-v1.25.md`, vérification n° 0 : 20 Go libres) et le déposer **sur le canal de test fermé** | Donner enfin aux douze une raison d'ouvrir l'application. |
+| Après le dépôt | **Écrire aux douze** — message prêt dans `ENGAGEMENT-TESTEURS.md` | Leur demander d'utiliser l'app **et de laisser un avis dans le Play Store**. C'est le critère. |
+| 2 jours après | **Lire le rapport de pré-lancement** (Test and release → Pre-launch report) | Google teste l'app sur de vrais appareils, gratuitement. Le seul avis extérieur qu'on aura. |
+| Chaque jour | **Ne perdre aucun testeur** | C'est la seule chose qui peut faire repartir les quatorze jours de zéro. |
+| ~26/09 | Le bouton se rallume — **on relit les réponses ensemble avant d'envoyer** | Cette fois il y aura quelque chose de vrai à écrire dans « résumez vos retours ». |
 
 ### Ce que ce refus a coûté, écrit une fois
 

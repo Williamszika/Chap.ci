@@ -5728,3 +5728,41 @@ traces disent plus que ce qu'il en a tiré.
   section « ce que vous avez répondu » est restée vide, donc **on ne sait pas si le
   refus tient au rythme du test ou à une réponse**. Une demande partie sans relecture
   ne laisse rien à relire après coup. C'est consigné dans la fiche, sans y revenir.
+
+### 2026-09-12 12:40 — [Direction] Le Secrétariat — LE PATRON TROUVE LA CAUSE QUE JE N'AVAIS QU'EN HYPOTHÈSE
+- **IL A RETROUVÉ LA DOCUMENTATION OFFICIELLE, ET ELLE NOMME LA CAUSE.** Trente
+  minutes après mon compte-rendu du refus, le Patron a envoyé l'article d'aide de la
+  Play Console, *App testing requirements for new personal developer accounts*. Une
+  phrase y règle la question : *« Reasons for required continued testing include
+  having fewer than 12 opted-in testers or **insufficient tester engagement** during
+  the testing period. »* **Deux causes, pas trois.** La première est écartée par la
+  console (« 12 testeurs inscrits » reste barré). Reste **l'engagement des testeurs**.
+- **CE QUE ÇA CORRIGE DE MA PROPRE CONCLUSION, ÉCRITE UNE HEURE PLUS TÔT.** J'avais
+  écrit « construire la v1.25 est LA chose à faire des quatorze jours ». C'est le
+  **moyen**, pas le but. Google ne mesure pas la fraîcheur du build : il mesure ce que
+  les testeurs **font** et ce qu'ils **écrivent**. Douze personnes qui ont l'app et n'y
+  touchent jamais cochent le premier critère et échouent sur le second. Ma phrase
+  n'était pas fausse, elle visait à côté de la cible — et la nuance change tout le
+  travail des deux semaines.
+- **TROIS CHOSES QUE LA DOCUMENTATION NOUS APPREND ET QUE PERSONNE ICI NE SAVAIT :**
+  1. le formulaire **exige un résumé des retours de test** (« You must summarize your
+     testing feedback ») — sans retours, il n'y a rien à écrire, et c'est probablement
+     ce qui s'est passé le 10/09 à 1 h du matin ;
+  2. il existe une page **Commentaires sur les tests** (Suivre et améliorer → Notes et
+     avis) où se lisent les avis privés des testeurs — jamais ouverte à ce jour ;
+  3. il existe un **rapport de pré-lancement** gratuit, qui installe l'app sur de vrais
+     appareils et rend plantages et alertes — jamais utilisé en quatorze mois de projet.
+- **UN RISQUE DÉCOUVERT AU PASSAGE, ET QUI N'A RIEN À VOIR AVEC LE REFUS** : Google
+  demande des **identifiants de démonstration** quand l'app exige un compte. Chap.ci en
+  exige un pour publier, écrire à un vendeur, mettre en favori. Si la déclaration
+  « Accès à l'application » dit « aucune restriction », elle est inexacte — et un
+  examinateur ne voit que le catalogue. À vérifier par le Patron, je n'ai pas cet écran.
+- **FICHE NEUVE : `store/ENGAGEMENT-TESTEURS.md`** — le plan des quatorze jours, le
+  message prêt à copier pour les douze (qui leur demande explicitement de laisser un
+  avis *dans le Play Store*, puisque c'est le critère), la page des commentaires, le
+  rapport de pré-lancement, les identifiants de démonstration.
+- **LA LEÇON, ET ELLE EST POUR NOUS.** La réponse était dans une page d'aide publique,
+  lisible en dix minutes, depuis le premier jour. Personne ne l'avait ouverte — ni moi,
+  ni aucun bureau. Nous avons préféré déduire. **Avant de raisonner sur les règles d'une
+  plateforme, on lit sa documentation.** C'est le pendant exact de la règle de
+  `CLAUDE.md` sur les boucles rouge/vert : chercher le signal avant l'hypothèse.
