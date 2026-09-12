@@ -9,9 +9,9 @@ dont la version n'a jamais été construite.
 | versionCode · versionName | **26** · **1.25.0** (déjà figés dans `flutter_app/pubspec.yaml` — **n'y touchez pas**) |
 | Identifiant | `ci.chap.app` — **mise à jour** de l'app existante, pas une nouvelle app |
 | minSdk · targetSdk | **23 (Android 6.0)** · **36** (Android 16) — était 22, voir l'encadré ci-dessous |
-| Commit à construire | **`7b931b4`** — le dernier qui touche `flutter_app/` |
+| Commit à construire | **le dernier qui touche `flutter_app/`** — `0a8440f` au 12/09/2026. ⚠️ Ce champ vieillit : l'étape 1 dit comment le lire vous-même plutôt que de le croire. |
 | Ce que les testeurs ont aujourd'hui | **v1.20, code 21** — construite le 15/08/2026 |
-| Écart | **37 commits** de l'application depuis cette date |
+| Écart | **38 commits** de l'application depuis cette date |
 
 ---
 
@@ -50,6 +50,11 @@ Depuis la v1.20 qu'ils ont sur leur téléphone, **tout ce qui a été écrit en
 - **Les notifications qui réveillent le téléphone** — la nouveauté du 8 septembre,
   et la seule qui demande quelque chose de vous avant le build (lisez l'encadré
   juste en dessous).
+- **Huit boutons d'action redeviennent orange** (10/09) — ils sortaient **verts**
+  depuis le 30 août, jour où la constante `ChapColors.orange` est passée au vert
+  sans que les boutons qui la recopiaient ne suivent. Vos testeurs ont donc une
+  application dont les boutons principaux ne sont pas de la bonne couleur. Un
+  « Répondre » enfermé dans une boîte de 40 px repasse aussi à 48.
 
 État du code au 8 septembre : **260 tests passent**, 12 échouent (les mêmes douze
 qu'avant tout ce travail) ; `flutter analyze` ne signale que l'avertissement connu.
@@ -194,14 +199,33 @@ Si `chapci-app` existe déjà, remplacez les quatre lignes par :
 cd ~/chapci-app && git checkout claude/ci-marketplace-mobile-app-bnllro && git pull
 ```
 
-Vérifiez que vous avez bien le bon code :
+Vérifiez que vous avez bien le bon code. **Deux commandes, et la première est celle
+qui compte :**
+
+```bash
+git fetch origin claude/ci-marketplace-mobile-app-bnllro
+git rev-parse HEAD
+git rev-parse origin/claude/ci-marketplace-mobile-app-bnllro
+```
+
+**Les deux dernières lignes doivent être identiques** — c'est la preuve que votre
+copie est à jour. Si elles diffèrent, le `git pull` n'a pas abouti : refaites-le.
+
+> **Cette vérification-là ne vieillit jamais**, et c'est exprès. Celle d'avant
+> comparait à un numéro de commit écrit dans cette fiche — elle a donné une fausse
+> alerte le 12/09, parce que le numéro datait du 8 et que du travail était arrivé
+> depuis. **Une vérification qui vieillit finit par accuser à tort.**
+
+Puis, pour savoir ce que vous construisez :
 
 ```bash
 git log --oneline -1 -- flutter_app/
 ```
 
-La réponse doit commencer par **`7b931b4`**. Si ce n'est pas le cas, le `git pull`
-n'a pas abouti — refaites-le avant de continuer.
+Au **12/09/2026**, cette ligne commence par **`0a8440f`** (« Les boutons d'action
+redeviennent orange »). Si elle commence par autre chose, **ce n'est pas une
+erreur** : c'est qu'un chantier plus récent est arrivé. Envoyez-moi la ligne et
+construisez quand même.
 
 ### 2. Préparer
 

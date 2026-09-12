@@ -5804,3 +5804,31 @@ traces disent plus que ce qu'il en a tiré.
   l'application** — je n'y ai pas accès.
 - **FICHE NEUVE : `store/FORMULAIRE-PRODUCTION.md`**, les huit questions avec, pour
   chacune, qui répond et ce qui est déjà écrit.
+
+### 2026-09-12 13:35 — [Livraison] Le Secrétariat — le commit à construire était périmé, pour la TROISIÈME fois
+- **LE PATRON A CHOISI DE CONSTRUIRE L'AAB v1.25. J'AI VÉRIFIÉ LA FICHE AVANT DE LE
+  LAISSER PARTIR, ET ELLE ÉTAIT FAUSSE.** `BUILD-v1.25.md` et `APP-VERSIONS.md`
+  annonçaient `7b931b4` (08/09). Le dernier commit qui touche `flutter_app/` est
+  **`0a8440f`** (10/09).
+- **CE QUE `0a8440f` CORRIGE, ET POURQUOI C'ÉTAIT GRAVE DE LE MANQUER** : huit boutons
+  d'action sortaient **verts** au lieu d'orange depuis le 30/08 — `ChapColors.orange`
+  était passée au vert et les boutons qui la recopiaient n'avaient pas suivi — plus un
+  « Répondre » enfermé dans 40 px. Construire `7b931b4` aurait livré aux douze
+  testeurs une application aux boutons de la mauvaise couleur, **le jour même où
+  Google nous reproche leur manque d'engagement**. La pire version possible à leur
+  envoyer.
+- **PIRE QUE L'ERREUR : LA VÉRIFICATION ELLE-MÊME AURAIT BLOQUÉ LE PATRON.** L'étape 1
+  lui faisait comparer `git log -1 -- flutter_app/` à `7b931b4` et conclure, en cas
+  d'écart, que « le `git pull` n'a pas abouti ». Il aurait donc refait son pull en
+  boucle sur un dépôt parfaitement à jour. **Une vérification qui vieillit finit par
+  accuser à tort**, et celle-ci accusait l'outil qui avait raison.
+- **CORRIGÉ AUTREMENT QUE PAR UNE TROISIÈME RECTIFICATION.** Trois fois le même champ
+  en cinq jours (07/09, 08/09, 12/09) : le problème n'est plus le chiffre, c'est qu'on
+  fige un chiffre. La fiche fait désormais comparer **`git rev-parse HEAD` à
+  `git rev-parse origin/<branche>`** — égalité vraie quel que soit le jour. Le numéro
+  de commit reste écrit, mais daté et explicitement non contraignant : « si elle
+  commence par autre chose, ce n'est pas une erreur, c'est qu'un chantier plus récent
+  est arrivé ».
+- **C'EST LA RÈGLE N° 1 DE `COMMUN.md` APPLIQUÉE AILLEURS QU'AU CATALOGUE** : « aucun
+  chiffre ne se fige dans un prompt ». Un numéro de commit dans une fiche de build est
+  exactement le même piège qu'un compte d'annonces dans une routine.
