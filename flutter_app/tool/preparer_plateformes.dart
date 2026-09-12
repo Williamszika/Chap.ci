@@ -233,7 +233,16 @@ void _declarerPluginGoogle(bool avecFirebase) {
     }
     return;
   }
-  if (deja) return;
+  if (deja) {
+    // Le 12/09/2026, ce `return` était muet. Le Patron, qui suivait une fiche
+    // disant « vous devez voir deux lignes ✓ », n'en a vu qu'une et s'est arrêté
+    // avant de construire — alors que tout allait bien : la ligne était là
+    // depuis le passage du 8 septembre. Un silence qui veut dire « c'est bon »
+    // se lit exactement comme un silence qui veut dire « ça a échoué ».
+    // Une étape muette n'est pas une étape rassurante : c'est une étape illisible.
+    _etape('Android : plugin Google déjà déclaré (settings.gradle.kts) — rien à faire…');
+    return;
+  }
 
   // On s'accroche au plugin Android, qui est toujours déclaré là.
   final ancre = RegExp(r'(\n\s*id\("com\.android\.application"\)[^\n]*)');

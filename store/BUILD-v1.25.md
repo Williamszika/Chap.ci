@@ -86,14 +86,43 @@ ls -l tool/secrets/google-services.json
 Un fichier d'environ 650 octets doit s'afficher. « No such file or directory »
 veut dire qu'il n'y est pas : reprenez-le dans vos téléchargements et déplacez-le.
 
-À l'étape 2, `dart run tool/preparer_plateformes.dart` écrira alors :
+À l'étape 2, `dart run tool/preparer_plateformes.dart` écrira :
 
 ```
-   ✓ google-services.json posé dans android/app/ (ci.chap.app)
-   ✓ plugin Google déclaré (com.google.gms.google-services 4.5.0)
+• Android : google-services.json (notifications Firebase)…
+   ✓ posé dans android/app/ (ci.chap.app)
 ```
 
-Si vous ne voyez **pas** ces deux lignes, arrêtez-vous là et dites-le-moi.
+**Puis une ligne sur le plugin Google — l'une OU l'autre, les deux sont bonnes :**
+
+```
+• Android : plugin Google déclaré (settings.gradle.kts)…          ← première fois
+• Android : plugin Google déjà déclaré (settings.gradle.kts)…     ← les fois suivantes
+```
+
+> ⚠️ **Cette fiche a menti une fois, le 12/09/2026.** Elle annonçait deux lignes `✓`
+> et disait « si vous ne les voyez pas, arrêtez-vous ». Or le programme ne disait
+> **rien du tout** quand le plugin était déjà en place — ce qui est le cas normal dès
+> le deuxième passage. Le Patron s'est donc arrêté alors que tout allait bien.
+> Le programme parle maintenant dans les deux cas. **Une étape muette n'est pas une
+> étape rassurante : c'est une étape illisible.**
+
+### La vraie vérification, celle qui peut échouer
+
+Ne vous fiez pas au récit du programme : **lisez le fichier**.
+
+```bash
+grep google-services android/settings.gradle.kts
+```
+
+Une ligne doit s'afficher :
+
+```
+    id("com.google.gms.google-services") version "4.5.0" apply false
+```
+
+**Rien du tout = le plugin n'est pas déclaré** : arrêtez-vous et dites-le-moi. C'est
+la seule des trois vérifications qui lise l'état réel plutôt qu'un message.
 
 ### 2. Android 6.0 minimum, au lieu de 5.1
 

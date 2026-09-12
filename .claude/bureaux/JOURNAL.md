@@ -5832,3 +5832,31 @@ traces disent plus que ce qu'il en a tiré.
 - **C'EST LA RÈGLE N° 1 DE `COMMUN.md` APPLIQUÉE AILLEURS QU'AU CATALOGUE** : « aucun
   chiffre ne se fige dans un prompt ». Un numéro de commit dans une fiche de build est
   exactement le même piège qu'un compte d'annonces dans une routine.
+
+### 2026-09-12 14:10 — [Livraison] Le Secrétariat — une étape muette a arrêté le Patron alors que tout allait bien
+- **DEUXIÈME FAUSSE ALERTE DE LA JOURNÉE, MÊME FORME QUE LA PREMIÈRE.** Le Patron a
+  déroulé la préparation du build sans une erreur : disque à 21 Go, `HEAD` égal à
+  `origin`, `google-services.json` à 655 octets, `android/` et `ios/` régénérés. Il
+  s'est arrêté sur **une ligne manquante dans la sortie** — parce que la fiche disait
+  « si vous ne voyez pas ces deux lignes, arrêtez-vous ».
+- **LA LIGNE MANQUAIT PARCE QUE TOUT ALLAIT BIEN.** `_declarerPluginGoogle()` faisait
+  `if (deja) return;` — un `return` **muet** quand le plugin Gradle est déjà déclaré,
+  c'est-à-dire à tous les passages après le premier. Son `android/` datait du 8/09 :
+  la ligne y était déjà. **Un silence qui veut dire « c'est bon » se lit exactement
+  comme un silence qui veut dire « ça a échoué ».**
+- **ET LA FICHE CITAIT UN MESSAGE QUI N'EXISTE PAS.** Elle annonçait
+  `✓ plugin Google déclaré (com.google.gms.google-services 4.5.0)` ; le programme
+  écrit `• Android : plugin Google déclaré (settings.gradle.kts)…`. J'avais **inventé
+  la sortie attendue au lieu de la lire dans le code**. Une consigne d'arrêt adossée à
+  un texte imaginaire ne peut produire que des arrêts injustifiés.
+- **CORRIGÉ AUX DEUX ENDROITS** : le programme écrit désormais « plugin Google **déjà**
+  déclaré — rien à faire » au lieu de se taire, et la fiche montre les deux sorties
+  possibles en disant que **les deux sont bonnes**.
+- **ET UNE VRAIE VÉRIFICATION AJOUTÉE, QUI PEUT ÉCHOUER** :
+  `grep google-services android/settings.gradle.kts`. Elle lit **le fichier**, pas le
+  récit du programme. C'est la règle n° 5 de `COMMUN.md` — « une vérification doit
+  pouvoir échouer » — appliquée à une fiche du Patron et non à une ronde de bureau.
+- **DEUX FOIS EN UNE HEURE, LE MÊME DÉFAUT DE FORME** : une consigne d'arrêt adossée à
+  quelque chose qui vieillit (un numéro de commit ce matin, un message de programme
+  maintenant). Le point commun : **je faisais comparer à ce que j'avais écrit, au lieu
+  de faire lire l'état réel.** Les deux fiches font désormais lire l'état réel.
