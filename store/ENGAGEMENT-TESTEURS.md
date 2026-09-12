@@ -160,23 +160,19 @@ retirez-le plutôt que de l'arrondir.
 
 ---
 
-## Les trois parties du formulaire, à préparer
+## Les huit questions du formulaire — nous les avons
 
-L'article officiel donne leurs titres. Ce sont les trois sections du formulaire que
-vous avez rempli dans la nuit du 10 :
+Le Patron a renvoyé l'article **les trois parties dépliées**, le 12/09 dans la foulée.
+La liste exacte des questions, les brouillons de réponse que je peux préparer, et les
+**trois questions qui n'ont aujourd'hui aucune réponse honnête possible** sont dans
+une fiche à part :
 
-| Partie | Titre | Ce qu'on sait qu'elle demande |
-|---|---|---|
-| 1 | *About your closed test* — votre test fermé | Comment vous avez recruté les testeurs, comment vous les avez guidés, **et un résumé de leurs retours**. |
-| 2 | *About your app/game* — votre application | Ce qu'elle fait, pour qui. |
-| 3 | *About your production readiness* — votre préparation | Si elle est prête pour le grand public. |
+👉 **`store/FORMULAIRE-PRODUCTION.md`**
 
-Le contenu détaillé de chaque partie est **replié** dans l'article que vous m'avez
-envoyé (les titres « Part 1 / Part 2 / Part 3 » sans texte dessous).
-
-👉 **Rouvrez l'article, cliquez sur ces trois titres pour les déplier, et
-copiez-les-moi.** Nous aurons alors la liste exacte des questions, écrite par Google,
-quatorze jours avant d'avoir à y répondre. C'est tout ce qui a manqué la première fois.
+Retenez-en une chose ici : **trois questions sur huit portent sur ce que vos testeurs
+ont fait et dit** (1.2, 1.3 et 3.1). Aucune ne peut être remplie aujourd'hui. C'est
+très probablement là que la demande du 10 septembre est tombée — et c'est
+exactement ce que les quatorze jours décrits dans cette fiche-ci doivent produire.
 
 ---
 

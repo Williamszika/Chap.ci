@@ -5766,3 +5766,41 @@ traces disent plus que ce qu'il en a tiré.
   ni aucun bureau. Nous avons préféré déduire. **Avant de raisonner sur les règles d'une
   plateforme, on lit sa documentation.** C'est le pendant exact de la règle de
   `CLAUDE.md` sur les boucles rouge/vert : chercher le signal avant l'hypothèse.
+
+### 2026-09-12 13:05 — [Direction] Le Secrétariat — les huit questions, quatorze jours avant
+- **LE PATRON A RENVOYÉ L'ARTICLE AVEC LES TROIS PARTIES DÉPLIÉES.** Trente minutes
+  après le premier envoi, sans qu'on ait eu à insister. Nous avons donc **la liste
+  exacte des huit questions du formulaire, écrite par Google, quatorze jours avant
+  d'avoir à y répondre** — précisément ce qui manquait dans la nuit du 10.
+- **TROIS QUESTIONS SUR HUIT N'ONT AUCUNE RÉPONSE HONNÊTE POSSIBLE AUJOURD'HUI**, et
+  ce sont les trois qui portent sur les testeurs :
+  - **1.2** « détaillez l'**engagement** des testeurs — ont-ils utilisé TOUTES les
+    fonctionnalités, leur usage correspondait-il à celui attendu en production » ;
+  - **1.3** « résumez les retours reçus et décrivez comment ils ont été recueillis » ;
+  - **3.1** « décrivez les changements apportés **à partir de ce que vous a appris le
+    test fermé** ».
+  Le mot *engagement* de la question 1.2 est **le même** que celui de la phrase qui
+  explique les refus. La boucle est fermée : on sait où la demande est tombée.
+- **LA 3.1 EST LA PLUS INSTRUCTIVE POUR NOUS.** Nous avons 37 chantiers depuis la
+  v1.20 — **aucun ne vient d'un retour de testeur**. Ils viennent du Patron, des
+  bureaux, des bancs. Répondre « 37 améliorations » à cette question, c'est répondre
+  à côté : un examinateur qui attend une boucle de retour et lit une liste de
+  fonctionnalités voit exactement ce qu'il cherche à détecter. **Il faut qu'UN
+  changement, d'ici au 26/09, vienne d'un testeur.** Un seul rend la réponse honnête.
+- **CE QUE JE PEUX PRÉPARER, ET CE QUE JE NE PRÉPARERAI PAS.** Brouillons écrits pour
+  2.1 (public visé), 2.2 (ce que l'app apporte) et 3.2 (comment on sait qu'elle est
+  prête — les bancs, les 260 tests, la surveillance quotidienne : celui-là, notre
+  façon de travailler le documente solidement). **Rien pour 1.1, 1.2, 1.3 et 3.1** :
+  ce sont les testeurs du Patron, pas les miens. Pour 2.3 (fourchette
+  d'installations) je conseille la plus basse proposée, et je rappelle le 27/07 —
+  « des milliers d'annonces » pour un catalogue qui en comptait trois.
+- **DEUX PIÈGES DU FORMULAIRE, ÉCRITS PAR GOOGLE ET RÉPÉTÉS À CHAQUE PARTIE** :
+  quitter la page ou cliquer « Discard » **efface tout**, et la partie 3 se termine
+  par **Apply**, pas Next. Le formulaire ne s'ouvre donc que réponses prêtes, et se
+  remplit d'une traite.
+- **UN RISQUE HORS FORMULAIRE, À VÉRIFIER PAR LE PATRON** : Google exige des
+  identifiants de test valides quand l'app demande un compte. Chap.ci en demande un
+  pour publier, écrire, mettre en favori. Écran **Contenu de l'application → Accès à
+  l'application** — je n'y ai pas accès.
+- **FICHE NEUVE : `store/FORMULAIRE-PRODUCTION.md`**, les huit questions avec, pour
+  chacune, qui répond et ce qui est déjà écrit.
