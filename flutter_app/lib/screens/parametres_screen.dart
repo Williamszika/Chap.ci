@@ -213,6 +213,10 @@ class _ParametresScreenState extends State<ParametresScreen> {
       }
       return;
     }
+    // Le même geste que la carte d'accueil : on éteint le rappel avant de
+    // partir. Quelqu'un qui vient noter depuis les Paramètres n'a aucune raison
+    // de voir l'invitation au prochain lancement.
+    await marquerEnvoyeAuMagasin();
     await ouvrirNoteMagasin();
   }
 

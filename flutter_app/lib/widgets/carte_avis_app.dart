@@ -58,22 +58,40 @@ class CarteAvisApp extends StatelessWidget {
                           fontSize: 12, color: ChapColors.gray600),
                     ),
                     const SizedBox(height: 10),
-                    // Les cinq étoiles sont le bouton : on note en un geste, sans
-                    // écran intermédiaire. La feuille s'ouvre ensuite, déjà
-                    // remplie de l'étoile touchée, pour le commentaire.
-                    Row(
-                      children: List.generate(5, (i) {
-                        return InkWell(
-                          onTap: () => _ouvrir(context, note: i + 1),
-                          borderRadius: BorderRadius.circular(24),
-                          child: const SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: Icon(Icons.star_border,
-                                size: 28, color: ChapColors.attentionClair),
-                          ),
-                        );
-                      }),
+                    // L'ACTION PRINCIPALE EST LE PLAY STORE — décision du Patron
+                    // du 13/09 : c'est le seul avis que Google lit, et c'est lui
+                    // qui pèse sur la demande d'accès à la production.
+                    if (magasinDisponible)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            // On marque AVANT d'ouvrir : l'application part en
+                            // arrière-plan dès que le magasin s'affiche, et un
+                            // appel lancé après ne partirait pas toujours.
+                            await marquerEnvoyeAuMagasin();
+                            onFini();
+                            await ouvrirNoteMagasin();
+                          },
+                          icon: const Icon(Icons.star, size: 18),
+                          label: Text(tr(context, 'avis.noterMagasin')),
+                        ),
+                      ),
+                    const SizedBox(height: 4),
+                    // Le chemin secondaire : nous dire les choses directement.
+                    // Sur iPhone, où il n'y a pas de fiche de magasin, il devient
+                    // le seul — et c'est la raison pour laquelle il reste.
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton(
+                        onPressed: () => _ouvrir(context, note: 0),
+                        child: Text(
+                          tr(context, magasinDisponible
+                              ? 'avis.plutotIci'
+                              : 'avis.direIci'),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -134,6 +152,7 @@ class _FeuilleAvisState extends State<_FeuilleAvis> {
   }
 
   Future<void> _envoyer() async {
+    if (_note < 1) return; // le bouton est désactivé, ceinture et bretelles
     setState(() {
       _envoi = true;
       _erreur = null;
@@ -252,7 +271,7 @@ class _FeuilleAvisState extends State<_FeuilleAvis> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _envoi ? null : _envoyer,
+            onPressed: (_envoi || _note < 1) ? null : _envoyer,
             child: Text(_envoi
                 ? tr(context, 'avis.envoiEnCours')
                 : tr(context, 'avis.envoyer')),
@@ -313,6 +332,7 @@ class _FeuilleAvisState extends State<_FeuilleAvis> {
             width: double.infinity,
             child: FilledButton(
               onPressed: () async {
+                await marquerEnvoyeAuMagasin();
                 await ouvrirNoteMagasin();
                 if (context.mounted) Navigator.of(context).pop();
               },

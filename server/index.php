@@ -2315,6 +2315,13 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("CREATE INDEX idx_natif_user ON push_natifs (user_id)"); }
   catch (Throwable $e) { /* index déjà présent : on ignore */ }
 
+  // « Cette personne a-t-elle été envoyée sur la fiche du Play Store ? » Date du
+  // passage, ou NULL. ⚠️ CE N'EST PAS « elle a noté » : Google ne le dit JAMAIS,
+  // ni son API ni celle d'Apple. C'est le seul fait que nous puissions constater,
+  // et c'est donc lui qui éteint le rappel.
+  try { $pdo->exec("ALTER TABLE profiles ADD COLUMN avis_magasin_at $ts"); }
+  catch (Throwable $e) { /* colonne déjà présente : on ignore */ }
+
   // UN SEUL AVIS SUR L'APPLICATION PAR COMPTE — garanti ici, par la base.
   // Le contrôle applicatif qui précède l'insertion sert à rendre un message
   // aimable ; c'est CET index qui rend la règle vraie. Deux requêtes parties en
@@ -9969,11 +9976,46 @@ try {
     $st = $pdo->prepare('SELECT note, created_at FROM avis_app WHERE user_id = ? LIMIT 1');
     $st->execute([$u['id']]);
     $r = $st->fetch();
+
+    // Deux façons d'en avoir fini, et une seule conséquence : on ne redemande
+    // plus. Soit la personne a donné son avis ICI, soit elle a été envoyée sur
+    // la fiche du Play Store.
+    $magasin = null;
+    try {
+      $q = $pdo->prepare('SELECT avis_magasin_at FROM profiles WHERE id = ? LIMIT 1');
+      $q->execute([$u['id']]);
+      $p = $q->fetch();
+      $magasin = $p && $p['avis_magasin_at'] ? (string) $p['avis_magasin_at'] : null;
+    } catch (Throwable $e) { /* colonne absente sur une base ancienne */ }
+
     jout([
-      'aEvalue' => (bool) $r,
-      'note'    => $r ? (int) $r['note'] : null,
-      'le'      => $r ? (string) $r['created_at'] : null,
+      'aEvalue'     => (bool) $r || $magasin !== null,
+      'note'        => $r ? (int) $r['note'] : null,
+      'le'          => $r ? (string) $r['created_at'] : null,
+      'alleAuMagasin' => $magasin !== null,
     ]);
+  }
+
+  // « JE L'AI ENVOYÉE SUR LA FICHE DU PLAY STORE. » Appelée par l'application au
+  // moment où elle ouvre le magasin.
+  //
+  // ⚠️ CE QUE CETTE ROUTE ENREGISTRE, ET CE QU'ELLE N'ENREGISTRE PAS.
+  // Elle note un DÉPART vers le magasin, pas une note déposée. Personne ne peut
+  // enregistrer la seconde : ni l'API d'avis de Google ni celle d'Apple ne
+  // renvoient le résultat, c'est écrit dans leur documentation. Le Patron demande
+  // « si l'utilisateur a déjà évalué, ne plus afficher » ; la seule version
+  // honnête de cette règle est « s'il a été envoyé noter, ne plus afficher ».
+  // Le nom de la colonne le dit — `avis_magasin_at`, pas `a_note`.
+  if ($path === 'avis-app/magasin' && $method === 'POST') {
+    $u = require_user($pdo, $secret);
+    try {
+      $pdo->prepare('UPDATE profiles SET avis_magasin_at = ? WHERE id = ?')
+        ->execute([now_iso(), $u['id']]);
+    } catch (Throwable $e) {
+      // Une base qui n'a pas encore la colonne ne doit pas faire échouer
+      // l'ouverture du magasin : le geste utile a déjà eu lieu.
+    }
+    jout(['ok' => true, 'aEvalue' => true]);
   }
 
   if ($path === 'avis-app' && $method === 'POST') {

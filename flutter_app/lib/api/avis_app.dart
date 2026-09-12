@@ -5,28 +5,39 @@
 //  production : Google reproche « un engagement insuffisant des testeurs », et
 //  nous n'avions aucun moyen de savoir ce que les gens pensent de l'application.
 //
-//  ─────────────────────────────────────────────────────────────────────────────
-//  DEUX CHOSES DE LA DEMANDE INITIALE NE SE FONT PAS, ET IL FAUT SAVOIR POURQUOI
-//  ─────────────────────────────────────────────────────────────────────────────
+//  Précisé par le Patron le 13/09 : **le rappel doit envoyer sur le Play Store**,
+//  et revenir **à chaque utilisation** tant que la personne n'a rien fait.
+//  C'est ce qui est écrit ici. Deux remarques accompagnent cette règle, parce
+//  qu'elles ne disparaîtront pas en étant tues.
 //
-//  1. « SI L'UTILISATEUR A DÉJÀ ÉVALUÉ, NE PLUS AFFICHER » — fait, mais pas avec
-//     le magasin. La fenêtre de notation de Google (`in_app_review`) ne dit JAMAIS
-//     si la personne a noté : ni l'API Android ni celle d'Apple ne renvoient le
-//     résultat, c'est écrit dans leur documentation. Bâtir « ne plus afficher »
-//     sur elle donnerait une règle qu'on ne peut pas appliquer.
-//     Notre avis à nous, lui, est enregistré sur NOTRE serveur : on sait
-//     exactement qui a répondu, et la réponse suit le compte — donc elle vaut
-//     aussi sur un second téléphone et après une réinstallation, ce qu'une
-//     mémoire locale ne saurait pas faire.
+//  ─────────────────────────────────────────────────────────────────────────────
+//  1. « S'IL A DÉJÀ ÉVALUÉ, NE PLUS AFFICHER » — LA LIMITE EST CHEZ GOOGLE
+//  ─────────────────────────────────────────────────────────────────────────────
+//     **Aucune application au monde ne sait si vous l'avez notée.** Ni l'API
+//     d'avis de Google ni celle d'Apple ne renvoient le résultat ; c'est écrit
+//     dans leur documentation, et c'est délibéré de leur part.
 //
-//  2. « À CHAQUE UTILISATION LE RAPPELER » — non, et c'est un service à rendre.
-//     Une invitation qui revient à chaque lancement se fait désinstaller. Or un
-//     testeur qui désinstalle REMET À ZÉRO les quatorze jours de Google : la
-//     demande insistante coûterait précisément ce qu'elle cherche à obtenir.
-//     Règle retenue : la carte apparaît au 3ᵉ lancement, puis, si l'on a répondu
-//     « plus tard », réapparaît tous les 10 lancements. Jamais avant d'avoir vu
-//     l'application fonctionner — on ne demande pas son avis à quelqu'un qui
-//     vient d'ouvrir la porte.
+//     La seule version applicable de la règle est donc : **« s'il a été ENVOYÉ
+//     noter, ne plus afficher »**. Le serveur enregistre le départ vers la fiche
+//     (`profiles.avis_magasin_at`) — le nom de la colonne dit ce qu'elle sait, et
+//     ce qu'elle ne sait pas. Une personne qui part vers le Play Store et ferme
+//     la page sans rien écrire ne sera plus relancée : c'est le prix à payer, et
+//     il n'existe pas d'autre implémentation honnête.
+//
+//     La mémoire vit sur le SERVEUR, pas dans le téléphone : elle vaut donc aussi
+//     sur un second appareil, après une réinstallation, après un vidage de cache.
+//
+//  ─────────────────────────────────────────────────────────────────────────────
+//  2. « À CHAQUE UTILISATION » — APPLIQUÉ, ET LE RISQUE EST ÉCRIT
+//  ─────────────────────────────────────────────────────────────────────────────
+//     J'avais proposé « tous les dix lancements » ; le Patron a redemandé « à
+//     chaque utilisation ». C'est sa décision et elle est appliquée
+//     (`_tousLes = 1`, à partir du 2ᵉ lancement).
+//
+//     Ce qu'il faut surveiller : **un testeur agacé qui désinstalle remet à zéro
+//     les quatorze jours de Google**. Si le compteur d'installations actives
+//     baisse dans la console avant le 26/09, c'est la première chose à regarder —
+//     et la cadence se change en un caractère, ci-dessous.
 //
 //  ⚠️ ET UNE RÈGLE DE GOOGLE QU'ON NE CONTOURNE PAS. Les consignes de l'API
 //  d'avis interdisent de poser une question avant d'ouvrir la fenêtre du magasin
@@ -67,6 +78,23 @@ String plateformeCourante() {
 /// inexistante est pire que de ne rien proposer.
 bool get magasinDisponible =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+/// Enregistre, sur le serveur, que cette personne a été envoyée noter.
+///
+/// ⚠️ CE N'EST PAS « elle a noté ». **Personne ne peut savoir ça** : ni l'API
+/// d'avis de Google ni celle d'Apple ne renvoient le résultat. C'est la limite
+/// que la demande du Patron — « si l'utilisateur a déjà évalué, ne plus
+/// afficher » — rencontre, et la seule version honnête de cette règle est
+/// « s'il a été envoyé noter, ne plus afficher ».
+///
+/// L'échec est volontairement silencieux : quelqu'un qui part vers le Play Store
+/// ne doit pas être arrêté par un serveur lent. Au pire la carte reparaît une
+/// fois, ce qui est moins grave que de bloquer le geste qu'on lui demande.
+Future<void> marquerEnvoyeAuMagasin() async {
+  try {
+    await ApiClient.instance.post('/avis-app/magasin', const {});
+  } catch (_) {}
+}
 
 /// Ouvre la fiche Chap.ci du Play Store, à l'endroit où l'on note.
 ///
@@ -125,13 +153,19 @@ class AvisApp {
   static const _cleLancements = 'chapci.avis.lancements';
   static const _clePlusTard = 'chapci.avis.plusTard';
 
-  /// Premier lancement où l'on ose demander. Trois ouvertures, c'est le moment
-  /// où quelqu'un a vu assez de l'application pour en penser quelque chose.
-  static const int _seuilPremier = 3;
+  /// Premier lancement où l'on propose. **2**, et non 1 : demander son avis à
+  /// quelqu'un qui vient d'ouvrir l'application pour la première fois, c'est
+  /// récolter une étoile sur une application qu'il n'a pas vue.
+  static const int _seuilPremier = 2;
 
-  /// Et ensuite, tous les dix lancements. Assez rare pour ne pas peser, assez
-  /// régulier pour que la question revienne un jour où la personne a le temps.
-  static const int _tousLes = 10;
+  /// Ensuite, **à chaque lancement** — décision du Patron, redemandée le
+  /// 13/09/2026 après que j'aie proposé « tous les dix ».
+  ///
+  /// ⚠️ LE RISQUE EST CONNU ET IL EST ÉCRIT ICI, PAS ESCAMOTÉ : une invitation
+  /// qui revient à chaque ouverture agace, et un testeur agacé qui désinstalle
+  /// **remet à zéro les quatorze jours de Google**. La croix « Plus tard » reste
+  /// donc à portée de pouce, et cette valeur se change en un caractère.
+  static const int _tousLes = 1;
 
   /// Demande au serveur si la personne a déjà donné son avis.
   ///

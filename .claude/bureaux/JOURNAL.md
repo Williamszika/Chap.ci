@@ -6311,3 +6311,33 @@ traces disent plus que ce qu'il en a tiré.
   c'est le seul endroit que Google lit. » Envoyer quelqu'un sur une fiche sans lui
   dire où appuyer, c'est l'y envoyer pour rien : le retour d'Ange Goze est passé par
   ce chemin-là, et c'est le seul de tout le canal.
+
+### 2026-09-13 02:40 — [Développement] Le Secrétariat — le rappel envoie au Play Store, et revient à chaque lancement
+- **LE PATRON A TRANCHÉ SUR LES DEUX POINTS QUE J'AVAIS DISCUTÉS**, en les
+  redemandant : le rappel **envoie sur le Play Store**, et revient **à chaque
+  utilisation**. Les deux sont appliqués. Le bouton principal de la carte est
+  désormais « Noter sur le Play Store » ; nos étoiles passent en second
+  (« Ou dites-le-moi directement ») et restent **le seul chemin sur iPhone**, où il
+  n'y a pas de fiche de magasin.
+- **« NE PLUS AFFICHER S'IL A DÉJÀ ÉVALUÉ » N'A QU'UNE TRADUCTION HONNÊTE, ET ELLE
+  EST EN PLACE.** Personne ne sait si quelqu'un a noté une application — ni l'API
+  de Google ni celle d'Apple ne le disent, et c'est voulu de leur part. On
+  enregistre donc **le départ vers la fiche**, pas la note : colonne
+  `profiles.avis_magasin_at`, **dont le nom dit ce qu'elle sait et ce qu'elle
+  ignore**. Une personne qui ouvre le magasin et ferme sans écrire ne sera plus
+  relancée : c'est le prix, il est assumé, il est écrit.
+- **UN DÉTAIL D'ORDRE QUI AURAIT COÛTÉ DES RAPPELS FANTÔMES** : on marque le départ
+  **AVANT** d'ouvrir le magasin. L'application passe en arrière-plan dès que le
+  Play Store s'affiche, et un appel réseau lancé après ne part pas toujours — la
+  carte serait revenue chez quelqu'un qui avait fait ce qu'on lui demandait.
+- **LES TROIS PORTES ÉTEIGNENT LE MÊME RAPPEL** : la carte d'accueil, l'écran de
+  remerciement après notre formulaire, et Paramètres → « Noter l'application ».
+  Une seule d'entre elles oubliée, et le Patron aurait vu la carte revenir sans
+  comprendre pourquoi.
+- **CADENCE : `_tousLes = 1`, à partir du 2ᵉ lancement** — pas du premier : on ne
+  demande pas son avis à quelqu'un qui vient d'ouvrir la porte. **Le risque reste
+  celui que j'ai signalé et qu'il a écarté** : un testeur agacé qui désinstalle
+  remet à zéro les quatorze jours. Consigne donnée : **si les installations actives
+  baissent dans la console avant le 26/09, regarder ça en premier** ; la valeur se
+  change en un caractère. **Ma réserve est notée, la décision est la sienne, et
+  elle est appliquée en entier — pas à moitié.**

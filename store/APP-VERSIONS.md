@@ -212,19 +212,29 @@ laisser un commentaire, une fois par utilisateur ».
   avis recueillis n'iraient nulle part.
 - Textes dans les six langues (`textes.dart` : 14 clés de plus).
 
-⚠️ **DEUX POINTS DE LA DEMANDE N'ONT PAS ÉTÉ FAITS LITTÉRALEMENT, ET IL FAUT
-SAVOIR POURQUOI.**
+**PRÉCISÉ PAR LE PATRON LE 13/09 : le rappel envoie sur le PLAY STORE, et revient
+à CHAQUE utilisation.** Les deux points sont appliqués. Le bouton principal de la
+carte est « Noter sur le Play Store » ; nos étoiles deviennent le chemin
+secondaire (« Ou dites-le-moi directement »), et le seul sur iPhone, où il n'y a
+pas de fiche de magasin.
 
-1. **« Si l'utilisateur a déjà évalué, ne plus afficher » — fait, mais avec NOTRE
-   avis, pas celui du magasin.** La fenêtre de notation de Google ne dit jamais
-   si la personne a noté : ni l'API Android ni celle d'Apple ne renvoient le
-   résultat. Bâtir la règle dessus aurait donné une règle inapplicable.
-2. **« À chaque utilisation, le rappeler » — non.** Une invitation à chaque
-   lancement se fait désinstaller, et **un testeur qui désinstalle remet à zéro
-   les quatorze jours de Google** : la demande insistante coûterait exactement ce
-   qu'elle cherche à obtenir. Retenu : **au 3ᵉ lancement, puis tous les 10** si
-   l'on a répondu « plus tard ». Les deux valeurs sont en tête de
-   `lib/api/avis_app.dart` et se changent en une ligne.
+⚠️ **UNE LIMITE QUI N'EST PAS LA NÔTRE, ET QU'AUCUN CONTOURNEMENT NE LÈVE.**
+**Personne ne sait si vous avez noté une application** : ni l'API d'avis de
+Google ni celle d'Apple ne renvoient le résultat, et c'est délibéré de leur part.
+« S'il a déjà évalué, ne plus afficher » n'a donc qu'une seule traduction
+honnête : **« s'il a été ENVOYÉ noter, ne plus afficher »**. Le serveur enregistre
+le départ vers la fiche — `profiles.avis_magasin_at`, un nom qui dit ce qu'il sait
+et ce qu'il ignore. Quelqu'un qui part vers le Play Store et ferme la page sans
+rien écrire ne sera plus relancé : c'est le prix, et il n'y a pas d'alternative.
+
+⚠️ **« À CHAQUE UTILISATION » EST APPLIQUÉ, ET LE RISQUE EST ÉCRIT.** J'avais
+proposé « tous les dix lancements » ; le Patron a redemandé « à chaque
+utilisation », et c'est sa décision. Elle est en place (`_tousLes = 1`, à partir
+du 2ᵉ lancement — pas du 1ᵉʳ : on ne demande pas son avis à quelqu'un qui vient
+d'ouvrir la porte). **Ce qu'il faut surveiller : un testeur agacé qui désinstalle
+remet à zéro les quatorze jours de Google.** Si le nombre d'installations actives
+baisse dans la console avant le 26/09, c'est la première chose à regarder — et la
+cadence se change en un caractère, en tête de `lib/api/avis_app.dart`.
 
 ⚠️ **Et une règle de Google qu'on ne contourne pas.** Ses consignes interdisent de
 poser une question avant d'ouvrir la fenêtre d'avis du magasin, y compris

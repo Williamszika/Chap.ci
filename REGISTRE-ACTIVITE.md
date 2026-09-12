@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Samedi 12 septembre 2026 |
-| Livraisons | 861 |
+| Livraisons | 862 |
 | Jours travaillés | 63 |
-| Dernière mise à jour | Samedi 12 septembre 2026, 22:36 (Abidjan) |
+| Dernière mise à jour | Samedi 12 septembre 2026, 22:43 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -42,7 +42,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 12 septembre 2026
 
-**22 livraison(s)** · Abidjan 04:02 → 22:32 · chez le Patron 06:02 → 00:32 · amplitude 18 h 30
+**23 livraison(s)** · Abidjan 04:02 → 22:36 · chez le Patron 06:02 → 00:36 · amplitude 18 h 34
 
 - `04:02` · La clé cron cesse de s’afficher treize fois sur notre propre écran d’admin  <sub>`80f6fa7`</sub>
 - `13:23` · Un correctif commité n’est pas un correctif livré — le Gardien nous l’a rappelé  <sub>`979b2b0`</sub>
@@ -66,6 +66,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `22:03` · La v1.25 est chez les douze testeurs — et le chiffre qui décidera du 26 septembre est à zéro  <sub>`13876de`</sub>
 - `22:25` · Les utilisateurs peuvent noter Chap.ci et laisser un mot — une seule fois, et le serveur s’en souvient  <sub>`5a37c0a`</sub>
 - `22:32` · Un testeur avait écrit, et sa fiche technique dément trois semaines de nos écrits  <sub>`3141f49`</sub>
+- `22:36` · « Noter sur le Play Store » existait déjà — et renvoyait les iPhone vers une fiche inutilisable  <sub>`0523f8c`</sub>
 
 ### Vendredi 11 septembre 2026
 
