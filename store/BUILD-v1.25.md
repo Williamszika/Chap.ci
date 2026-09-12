@@ -209,6 +209,27 @@ Vous aurez besoin de : son **chemin complet**, son **mot de passe**, l'alias
 Ouvrez le **Terminal** (Applications → Utilitaires → Terminal) et tapez ceci
 ligne par ligne.
 
+> ## ⚠️ CHAQUE NOUVELLE FENÊTRE DE TERMINAL VOUS RAMÈNE À LA CASE DÉPART
+>
+> Une fenêtre neuve s'ouvre toujours dans votre **dossier de départ**, jamais là où
+> vous étiez hier. L'invite le dit : `biabrahamzika@Mac ~ %` — ce `~` **est** le
+> dossier de départ, et `biabrahamzika@Mac flutter_app %` veut dire que vous êtes
+> au bon endroit.
+>
+> Le 12/09/2026, trois commandes ont répondu `No such file or directory` pour cette
+> seule raison : la fenêtre avait été fermée entre-temps. **Le fichier existait
+> bien ; c'est le Terminal qui regardait ailleurs.**
+>
+> **Donc : dès qu'une commande répond `No such file or directory`, regardez d'abord
+> votre invite. Si elle finit par `~`, tapez ceci et recommencez :**
+>
+> ```bash
+> cd ~/chapci-app/flutter_app
+> ```
+>
+> C'est aussi la première ligne à taper après chaque pause, chaque redémarrage du
+> Mac, chaque nouvelle fenêtre.
+
 ### 1. Récupérer le projet
 
 **Vous n'avez pas besoin de retrouver l'ancien dossier.** Tout est dans le dépôt,
@@ -341,11 +362,15 @@ open -e android/key.properties
 > le build a échoué trois minutes plus tard sur le chemin d'exemple.
 
 **3c. Le chemin, écrit par une commande plutôt qu'à la main.** Remplacez
-`LE_CHEMIN_TROUVÉ` par celui de l'étape 3a, et exécutez :
+`LE_CHEMIN_TROUVÉ` par celui de l'étape 3a, et exécutez **les deux lignes** :
 
 ```bash
+cd ~/chapci-app/flutter_app
 sed -i '' 's|^storeFile=.*|storeFile=LE_CHEMIN_TROUVÉ|' android/key.properties
 ```
+
+La première ligne ne coûte rien si vous y êtes déjà, et sauve la seconde si vous
+n'y êtes pas.
 
 Une faute de frappe dans un chemin ne se voit pas à l'œil ; une commande, elle, ne
 se trompe pas de caractère. Vérifiez tout de suite que le chemin mène à un vrai

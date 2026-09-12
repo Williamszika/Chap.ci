@@ -5943,3 +5943,26 @@ traces disent plus que ce qu'il en a tiré.
   outil supposé présent. Le point commun n'est plus une étourderie : c'est que
   **j'écris pour une machine que je ne vois pas**. Chaque commande donnée au Patron
   doit porter sa condition d'existence, ou dire ce qu'on fait quand elle manque.
+
+### 2026-09-12 16:05 — [Livraison] Le Secrétariat — `No such file or directory` : le fichier était là, le Terminal regardait ailleurs
+- **QUATRIÈME REPRISE DU JOUR, ET LA PLUS BÊTE.** Trois commandes ont rendu
+  `No such file or directory`. Le fichier existe. **La fenêtre de Terminal avait été
+  fermée entre-temps** : `Last login: Sat Sep 12 17:06:27`, invite `…@Mac ~ %`. Une
+  fenêtre neuve rouvre toujours dans le dossier de départ, et mes commandes
+  supposaient `~/chapci-app/flutter_app`.
+- **CE QUE ÇA AURAIT PU COÛTER** : le message accuse le *fichier*. Un non-développeur
+  conclut que `key.properties` a disparu, le recrée avec `cp` — et efface une fois de
+  plus ce qu'il avait rempli. La boucle était prête à se refermer une deuxième fois
+  dans la même journée, et cette fois elle aurait eu l'air de confirmer la première.
+- **CORRIGÉ DE DEUX FAÇONS, PARCE QU'UNE SEULE NE SUFFIT PAS** :
+  1. un encadré en tête des commandes explique **comment lire l'invite** — `~` = case
+     départ, `flutter_app` = bon endroit — et donne la règle : *un
+     `No such file or directory` se lit d'abord sur l'invite, pas sur le fichier* ;
+  2. l'étape 3 commence désormais par son propre `cd`. **Une ligne qui ne coûte rien
+     quand on y est déjà, et qui sauve la suivante quand on n'y est pas.**
+- **LE MOTIF DE LA JOURNÉE, MAINTENANT CLAIR.** Commit figé, message de programme
+  inventé, outil supposé présent, dossier courant supposé — **quatre fois la même
+  faute : j'ai écrit des consignes valables dans MON contexte, pas dans le sien.**
+  Une consigne donnée au Patron doit être vraie dans une fenêtre neuve, sur une
+  machine qui n'est pas la mienne, après une nuit de sommeil. Les blocs de commandes
+  de cette fiche portent désormais leur `cd`.
