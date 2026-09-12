@@ -5603,3 +5603,67 @@ traces disent plus que ce qu'il en a tiré.
 - **Reste ouvert, un seul point, et il tombe cette nuit** : `backup` à 02:00 (journal).
   C'est la dernière des treize tâches dont le passage avec la nouvelle clé n'est pas
   confirmé.
+
+### 2026-09-12 00:46 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde de nuit
+- **Vert partout.** Accueil 200, `/api/health` 200, sitemap 200, PHP 8.5.10,
+  `fichiersInattendus: 0`.
+- **Les trois empreintes vérifiées avec un vrai `npm run build`**, pas seulement
+  comparées à la production : `empreinte` `e5fd19520b7c` ↔ commit `fd74e61`
+  (server/index.php, 08/09) — identique ; `empreinteSeo` `9536aeb35d70` ↔ commit
+  `4b1ec4ee` (web/seo.php, 07/09) — identique ; `empreinteSite` `a503f99fd904` ↔
+  `dist/index.html` construit sur HEAD (`cf15038`) — identique. `deposeSite`
+  (2026-09-10T20:59) cohérent : aucun commit ne touche `src/` depuis cette date.
+- **Sécurité (24 h) : rien à signaler.** `failRatio 0`, `suspiciousIps` vide,
+  `rateLimited 0`, `adminsTampered false`, `currentAdmins []` (normal, vide tant
+  qu'aucune falsification n'est détectée).
+  `cron_fail 5` : 3× `cron/stats · sans-cle` = mes propres tests de cloisonnement
+  des trois rondes précédentes dans cette fenêtre de 24 h (dont je ne suis pas
+  l'auteur cette fois, la fenêtre les rejoue). 1× `cron/alerts ·
+  cle-differente(entete,64 car.) · local` et 1× `cron/security ·
+  cle-differente(entete,64 car.)` : même famille résiduelle que celle déjà
+  identifiée hier (une ancienne clé de 64 caractères qui traîne encore quelque
+  part), une seule occurrence chacune, `alerts` cumule des centaines de passages
+  réussis depuis la rotation — à laisser vivre, pas d'IP suspecte derrière.
+  `mtoken_fail 4` : 3× `missing` (mêmes tests de cloisonnement des rondes
+  précédentes) + 1× `revoked`, bruit de transition déjà noté après la révocation
+  du jeton. **Après avoir refait moi-même le test de cloisonnement ce soir**
+  (jeton de modération sur `/cron/stats` → 403, clé cron sur `/mod/queue` → 401,
+  les deux comme attendu), rien de plus à en tirer : aucun échec réellement
+  extérieur cette nuit.
+- **TLS** : CertSpotter, toujours 4 certificats connus, dernière émission
+  inchangée (2026-09-11), expire 2026-12-10 (89 jours restants). Rien de neuf
+  depuis le rapport d'hier 21:12, pas de nouvelle ligne à signaler.
+- **CSP (Report-Only, ne bloque rien), fenêtre 7 j, 3 origines** : `api.bigdatacloud.net`
+  (60, notre code `geo.ts`, déjà autorisée — question tranchée le 15/08, stock en
+  extinction) ; `www.facebook.com` (4, dernier le 07/09) — **déjà présente dans
+  l'en-tête réellement servi** (`connect-src`, vérifié par `curl -I`), rien à
+  faire ; `media-src` → `data` (1 seule occurrence, le 10/09) — probablement
+  l'aperçu vidéo à la publication (`PostAd.tsx` / `ListingDetail.tsx` utilisent
+  `<video>`), une occurrence unique ne justifie pas d'ouvrir un chantier, à
+  surveiller si elle se répète.
+- **Ménage : tout à zéro** (visites, événements sécurité, annonces expirées ou
+  sans photo, vignettes) — cohérent avec l'absence de mouvement du catalogue
+  signalée par le Crieur (aucune annonce nouvelle depuis quatre jours).
+- **Scan code serveur** : aucun commit sur `server/index.php` depuis le 08/09
+  (`fd74e61`), déjà passé en revue en profondeur hier soir (13 commits,
+  `follows`/`offres`/`candidatures` vérifiés comme scopés par propriétaire,
+  `trim()` sur la clé cron vérifié comme n'affaiblissant pas `hash_equals`).
+  Rien de nouveau à revoir cette nuit.
+- **Scan code application (Flutter)** : un commit depuis la dernière ronde
+  (`0a8440f`, 10/09, couleur des boutons d'action — UI seule, sans surface de
+  sécurité). `api_client.dart` : base toujours `https://chap.ci/api`.
+  `pubspec.yaml` : `firebase_core`/`firebase_messaging` (ajoutés le 08/09 pour
+  les notifications FCM, cohérent avec `"fcm":true` de `/api/health` — aucune
+  dépendance de traçage ou de publicité tierce nouvelle). `preparer_plateformes.dart` :
+  identifiant `ci.chap.app` inchangé, permissions inchangées (Internet, caméra,
+  position). Aucun secret dans le dépôt.
+- **Modération : file vide** — 0 signalement, 0 annonce récente à revoir. Digest
+  envoyé sans notes (rien à dire) : `emailed:0, skipped:true`, comme attendu.
+- Problèmes ouverts : **aucun**, gravité nulle.
+- Reste en attente, sans changement depuis hier soir : `backup` (dernier passage
+  confirmé `2026-09-11T02:00`, **avant** la rotation) — le prochain passage tombe
+  à 02:00 UTC cette nuit, dans un peu plus d'une heure ; ce n'est donc toujours
+  pas confirmé avec la nouvelle clé, mais l'échéance n'est simplement pas encore
+  passée.
+- Propositions au Patron : aucune action requise ce soir.
+- Pour les autres bureaux : rien de neuf à leur signaler.
