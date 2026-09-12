@@ -6077,3 +6077,31 @@ traces disent plus que ce qu'il en a tiré.
   les notifications qui réveillent le téléphone** — le code est là, mais **personne
   n'a jamais entendu un téléphone sonner**. Tant que ce n'est pas vu, ça ne s'écrit
   pas dans une note de version.
+
+### 2026-09-12 18:00 — [Livraison] Le Secrétariat — la Play Console dément notre minSdk
+- **LE BUNDLE EST ACCEPTÉ** : `26 (1.25.0)`, SDK cible `36`. Le code 26 était bien
+  libre, comme le journal l'annonçait — et cette fois c'est la console qui le dit.
+- **MAIS ELLE AFFICHE « API 24 OU VERSION ULTÉRIEURE ».** Nous déclarons **23**.
+  `preparer_plateformes.dart` écrit `minSdk 23` et l'annonce à chaque exécution
+  (« minSdk 23, targetSdk 36 ») ; `BUILD-v1.25.md` fait un encadré entier sur le
+  passage de 22 à 23 et fait vérifier au Patron la part d'Android 5.x avant de
+  construire. **Tout cela porte sur un chiffre qui n'est pas celui qui s'applique.**
+- **CE QUE ÇA COÛTE VRAIMENT** : Android 6.0 est exclu **en plus** d'Android 5.1 —
+  une bande d'appareils de plus que ce qu'on avait dit, sur un marché où les
+  téléphones sont vieux. Le Patron a vérifié la répartition Android **avec la
+  mauvaise borne** : il a pu conclure « personne sur 5.x, allons-y » sans savoir que
+  la vraie question était 6.0.
+- **LA MÉCANIQUE, ET POURQUOI ELLE EST INVISIBLE** : le fusionneur de manifestes
+  Android retient **le maximum** des `minSdk` de toutes les bibliothèques. Une
+  dépendance en exige 24 ; notre 23 est écrasé **sans un mot dans la sortie du
+  build**. On ne peut donc pas l'apprendre en construisant — **seul le dépôt le
+  révèle**. C'est exactement la règle n° 5 de `COMMUN.md` : notre vérification ne
+  pouvait pas échouer, puisqu'elle relisait ce que nous avions nous-mêmes écrit.
+- **NON CORRIGÉ EN DOUCE, ET C'EST DÉLIBÉRÉ.** Changer `23` en `24` dans l'outil
+  rendrait la déclaration honnête sans rien changer aux appareils perdus. La vraie
+  question — **garder Firebase et perdre Android 6.0, ou rendre Firebase optionnel
+  pour les récupérer** — est une décision du Patron, pas une ligne à retoucher. Elle
+  est posée dans `APP-VERSIONS.md`, avec le fait qui la motive.
+- **À FAIRE AVANT DE TRANCHER** : relever dans Play Console → Statistiques la part
+  réelle d'Android 6.0 **et** 7.0 chez les utilisateurs de Chap.ci, et identifier la
+  bibliothèque qui impose 24. Sans ces deux chiffres, la décision serait une opinion.
