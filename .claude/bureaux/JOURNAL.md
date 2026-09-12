@@ -6181,3 +6181,27 @@ traces disent plus que ce qu'il en a tiré.
   Tant que « Envoyer les modifications pour examen » n'a pas été franchi, les douze
   testeurs ne reçoivent rien — et les quatorze jours tournent à vide. C'est le seul
   point à traiter avant de fermer l'ordinateur.
+
+### 2026-09-13 00:05 — [Livraison] Le Secrétariat — ✅ LA v1.25 EST CHEZ LES DOUZE TESTEURS
+- **LA DERNIÈRE PORTE A ÉTÉ FRANCHIE.** Capture de la console par le Patron :
+  `26 (1.25.0)` · canal **Tests fermés – Test fermé Chap.ci** · **« Disponible pour les
+  testeurs sur Google Play »** · **Déploiement complet** · **12 sept. 2026 23:36** ·
+  **177 pays sur 177**. Contrairement aux v1.1 et v1.16, restées en brouillon parce que
+  *Envoyer les modifications pour examen* n'avait pas été cliqué, celle-ci est partie.
+- **PREMIÈRE MISE À JOUR REÇUE PAR LES TESTEURS DEPUIS LE 15 AOÛT.** Vingt-huit jours,
+  trente-huit chantiers d'application.
+- **LE CHIFFRE QUI DÉCIDE DU 26 SEPTEMBRE EST DANS LA MÊME LIGNE, ET IL EST À ZÉRO** :
+  « Nombre d'installations (par utilisateur actif) : **0,00 %** ». Normal vingt minutes
+  après un déploiement — **et c'est exactement la mesure sur laquelle Google a refusé
+  l'accès en production ce matin**. La ligne du test interne de juillet affiche 33,33 %,
+  ce qui donne l'ordre de grandeur d'un canal vivant.
+  **À relever chaque jour jusqu'au 26/09. S'il reste à 0, la seconde demande sera
+  refusée comme la première, et pour la même raison.**
+- **CE QUI FAIT MONTER CE CHIFFRE N'EST PAS TECHNIQUE** : c'est le message aux douze,
+  prêt dans `store/ENGAGEMENT-TESTEURS.md`, qui leur demande de mettre à jour, d'ouvrir
+  l'application **et de laisser un avis dans le Play Store**. Rien de ce que nous
+  écrivons dans ce dépôt ne peut le faire bouger à leur place.
+- **CHAMP « ÉTAT PLAY » DE `APP-VERSIONS.md` ENFIN RENSEIGNÉ PAR LA CONSOLE ELLE-MÊME.**
+  C'est le seul champ de cette fiche qu'aucun bureau ne peut vérifier ; il portait
+  « NON VÉRIFIÉ » depuis l'écriture de la v1.25. **Il est désormais confirmé par une
+  capture, pas par une supposition** — exactement ce que la fiche exige d'elle-même.
