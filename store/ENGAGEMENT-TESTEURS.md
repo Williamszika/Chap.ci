@@ -191,10 +191,14 @@ besoin. Zika
 > 3. Écrivez-moi ce qui ne va pas : ce qui est lent, ce qu'on ne comprend pas, ce qui
 >    plante.
 >
-> **Et le plus important :** Google regarde si vous donnez votre avis *dans le Play
-> Store*. Dans le Play Store, sur la page de Chap.ci, descendez jusqu'à la section du
-> programme de test : il y a **« Envoyer des commentaires »**. Deux phrases suffisent,
-> même « ça marche bien chez moi ». Personne d'autre que moi ne les voit.
+> **Et le plus important, en trois gestes :**
+> 1. Ouvrez le **Play Store** et cherchez **Chap.ci**.
+> 2. Sur sa page, descendez jusqu'à la section du **programme de test**.
+> 3. Appuyez sur **« Envoyer des commentaires »** et écrivez deux phrases — même
+>    « ça marche bien chez moi ».
+>
+> C'est le seul endroit que Google regarde, et personne d'autre que moi ne lit ce
+> que vous écrivez.
 >
 > ⚠️ **Surtout, ne désinstallez pas l'application et ne quittez pas le test** avant
 > le 26 septembre. Un seul départ et nous repartons pour quatorze jours.

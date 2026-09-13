@@ -6459,3 +6459,22 @@ traces disent plus que ce qu'il en a tiré.
   le déploiement est bon et il ne reste qu'un cache. **C'est une boucle rouge/vert de
   trente secondes que personne n'avait écrite**, alors que le cas se reproduit à
   chaque zip.
+
+### 2026-09-13 04:45 — [Développement] Le Secrétariat — un seul chemin dans la carte, et il dit où appuyer
+- **DEUX PRÉCISIONS DU PATRON, DANS LE MÊME SENS** : « je veux ce tuyau » (le Play
+  Store, celui que Google lit) puis « le mettre à la place de l'autre ».
+- **LA CARTE N'A PLUS QU'UN BOUTON LÀ OÙ IL Y A UN MAGASIN.** « Ou dites-le-moi
+  directement → » disparaît sur Android. **Deux propositions dans une même carte
+  diluent celle qui compte**, et une seule pèse sur la décision du 26 septembre.
+  Nos étoiles ne disparaissent pas pour autant : **sur iPhone elles deviennent le
+  seul chemin**, faute de fiche App Store — sans elles la carte n'aurait aucun
+  bouton du tout.
+- **ET LE MAILLON FAIBLE DU TUYAU EST RÉPARÉ.** Ouvrir la fiche du Play Store ne
+  suffisait pas : le testeur y arrive et **ne sait pas où appuyer**. Une ligne sous
+  le bouton le dit maintenant — *« Sur la page qui s'ouvre : Envoyer des
+  commentaires »*. C'est le seul geste dont on ait la preuve qu'il atterrit dans la
+  console : le retour d'Ange Goze, unique en trois semaines, est passé par là.
+- **LE MESSAGE AUX DOUZE TESTEURS PASSE EN TROIS GESTES NUMÉROTÉS** au lieu d'un
+  paragraphe. Play Store → page de Chap.ci → section du programme de test →
+  « Envoyer des commentaires ». **Une consigne qu'on doit relire deux fois ne
+  s'exécute pas**, et celle-là est la seule qui puisse changer le verdict.

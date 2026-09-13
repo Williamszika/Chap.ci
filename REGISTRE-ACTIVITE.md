@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Dimanche 13 septembre 2026 |
-| Livraisons | 867 |
+| Livraisons | 868 |
 | Jours travaillés | 64 |
-| Dernière mise à jour | Dimanche 13 septembre 2026, 02:16 (Abidjan) |
+| Dernière mise à jour | Dimanche 13 septembre 2026, 02:44 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -46,10 +46,11 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Dimanche 13 septembre 2026
 
-**2 livraison(s)** · Abidjan 02:05 → 02:09 · chez le Patron 04:05 → 04:09 · amplitude 4 min
+**3 livraison(s)** · Abidjan 02:05 → 02:16 · chez le Patron 04:05 → 04:16 · amplitude 11 min
 
 - `02:05` · L’AAB v1.26 est construit — 69,3 Mo, exactement le poids de la v1.25  <sub>`dde7e1a`</sub>
 - `02:09` · Le zip n° 25 est en production — les routes de l’avis répondent enfin  <sub>`320fe1b`</sub>
+- `02:16` · Un onglet déployé et invisible : le site est une PWA, il faut recharger deux fois  <sub>`09bac3a`</sub>
 
 ### Samedi 12 septembre 2026
 

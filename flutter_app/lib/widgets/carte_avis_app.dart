@@ -77,22 +77,45 @@ class CarteAvisApp extends StatelessWidget {
                           label: Text(tr(context, 'avis.noterMagasin')),
                         ),
                       ),
-                    const SizedBox(height: 4),
-                    // Le chemin secondaire : nous dire les choses directement.
-                    // Sur iPhone, où il n'y a pas de fiche de magasin, il devient
-                    // le seul — et c'est la raison pour laquelle il reste.
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: TextButton(
-                        onPressed: () => _ouvrir(context, note: 0),
+                    // LE MODE D'EMPLOI DE LA PAGE SUIVANTE. Ouvrir la fiche du
+                    // Play Store ne suffit pas : le testeur y arrive et ne sait
+                    // pas où appuyer. « Envoyer des commentaires » est le seul
+                    // geste qui atterrisse dans la console — c'est par là
+                    // qu'est passé l'unique retour reçu en trois semaines.
+                    if (magasinDisponible)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
                         child: Text(
-                          tr(context, magasinDisponible
-                              ? 'avis.plutotIci'
-                              : 'avis.direIci'),
-                          style: const TextStyle(fontSize: 13),
+                          tr(context, 'avis.carteAstuce'),
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              height: 1.3,
+                              color: ChapColors.gray600),
                         ),
                       ),
-                    ),
+                    // UN SEUL CHEMIN À LA FOIS — décision du Patron du 13/09 :
+                    // « le mettre à la place de l'autre ». Là où il y a un Play
+                    // Store, c'est LUI et rien d'autre : deux propositions dans
+                    // une même carte diluent celle qui compte, et la seule qui
+                    // pèse sur la décision du 26 septembre est le magasin.
+                    //
+                    // Nos étoiles ne disparaissent pas pour autant : sur iPhone,
+                    // où il n'existe aucune fiche où envoyer les gens, elles
+                    // deviennent le seul chemin — sans quoi la carte n'aurait
+                    // aucun bouton du tout.
+                    if (!magasinDisponible) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TextButton(
+                          onPressed: () => _ouvrir(context, note: 0),
+                          child: Text(
+                            tr(context, 'avis.direIci'),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
