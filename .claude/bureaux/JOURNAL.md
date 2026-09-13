@@ -6503,3 +6503,62 @@ traces disent plus que ce qu'il en a tiré.
   version » est **obligatoire et vide** (0/50). Ma marche à suivre disait « il se
   remplit tout seul, n'y touchez pas » — faux quand le dépôt a été repris après une
   erreur. Il faut y écrire `28 (1.26.1)`.
+
+### 2026-09-13 00:50 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde
+- **TOUT VERT.** Accueil, sitemap et `/api/health` en 200, PHP 8.5.10,
+  `fichiersInattendus 0`. Sécurité 24 h : aucune adresse suspecte, aucun blocage de
+  débit, aucun échec 2FA, administrateurs intacts. Ménage à zéro, file de modération
+  vide, digest posé sans e-mail.
+- **L'ÉCART D'EMPREINTE QU'IL SIGNALE EST DÉJÀ RÉGLÉ — ET SA RONDE LE DIT
+  ELLE-MÊME.** Il lit `e5fd19520b7c` en production contre `bbbcd782352d` au dépôt, et
+  **cite la note du Secrétariat de 03:30** en concluant « rien de neuf ». Il avait
+  raison à 00:50 ; le zip n° 25 a été extrait à **02:07**, une heure après sa ronde.
+  **Un bureau qui reconnaît un écart déjà documenté au lieu de le signaler comme
+  neuf, c'est exactement ce qu'on lui demande.**
+- **IL REJOUE SON TEST DE CLOISONNEMENT ET SOUSTRAIT SES PROPRES TRACES** des
+  `cron_fail 5` / `mtoken_fail 5` avant de conclure. C'est la troisième ronde de suite
+  où il le fait — la rectification du 11/09 a tenu.
+- **SON SCAN DE MA FONCTIONNALITÉ EST PROPRE ET PRÉCIS** : index unique sur
+  `avis_app`, routes authentifiées, entrées bornées, requêtes préparées, JSX sans
+  risque XSS, aucune dépendance ni autorisation nouvelle côté Flutter. **Et il relève
+  ce que je n'avais pas vu** : `admin/avis-app` n'est pas listée dans
+  `admin_feature_for_path()`, donc elle tombe dans le fail-closed général et **reste
+  réservée au propriétaire**. Ce n'est pas une faille ; c'est une limite à trancher le
+  jour où un modérateur devra lire ces avis. Rien à faire aujourd'hui : le Patron est
+  propriétaire.
+- ⚠️ **TROISIÈME LECTURE TLS CONTRADICTOIRE EN TROIS JOURS.** `crt.sh` ne montre
+  aucun certificat au 2026-12-10, que la ronde du 11/09 avait pourtant donné pour
+  confirmé ; CertSpotter a répondu `rate_limited`. **Il ne tranche pas, et c'est la
+  bonne conduite** — plus de 21 jours restent dans les deux lectures. Mais le motif
+  est maintenant établi : **nos deux sources de vérité sur le certificat se
+  contredisent régulièrement**, et le sujet a déjà produit deux erreurs opposées
+  (la mienne le 10/09, la sienne le 11/09 au matin). À revérifier au prochain tour.
+
+### 2026-09-13 08:06 — [Croissance] 📣 Le Crieur — ronde
+- **LE CATALOGUE EST FIGÉ DEPUIS SIX JOURS.** 45 annonces / 7 vendeurs / 6 communes /
+  6 catégories — **rigoureusement identiques au 11/09**. Dernière publication le
+  07/09. Hors DENE SALIF (34 fiches de formations à Treichville) : **11 fiches chez
+  6 vendeurs**, inchangé aussi.
+- **LE TRAFIC, LUI, NE S'ARRÊTE PAS** : 1 284 visites pour 126 visiteurs sur 30 jours
+  (contre 1 280 / 108 le 11/09). **28,5 visites par annonce publiée.** Les gens
+  viennent, ils ne publient pas.
+- **ENTONNOIR `/publier` : 13 → 8 → 6 → 2 → 2 → 2, identique au 09/09 ET au 11/09.**
+  J'ai soupçonné un compteur bloqué et **je suis allé lire le code avant de le dire au
+  Patron** : la requête est bien fenêtrée (`WHERE created_at >= ?` sur 30 jours,
+  `COUNT(DISTINCT visitor_id)`). **Le compteur glisse ; le Crieur a raison et ma
+  suspicion ne tenait pas.** Sur 126 visiteurs, **13 seulement ont atteint
+  `/publier`** — 10 %. Et aucun nouveau depuis quatre jours.
+- ⚠️ **UNE PRÉVISION À ÉCRIRE AVANT QU'ELLE NE SURPRENNE QUELQU'UN** : ces 13 arrivées
+  sont anciennes et **vont sortir de la fenêtre de 30 jours**. L'entonnoir
+  s'effondrera alors d'un coup, sans que rien ne se soit cassé. **Ce sera un artefact
+  de fenêtre, pas une panne** — qu'aucun bureau ne le remonte comme telle.
+- **TECHNIQUE : tout vert.** JSON-LD `Product` avec `priceCurrency XOF`, canonical,
+  `index, follow`, `og:image` absolue, robots.txt correct, 415 URLs au sitemap, les
+  trois pixels dans le paquet servi, manifeste PWA complet. **Il signale honnêtement
+  qu'une adresse de son propre prompt était obsolète** (`/vendre/telephones/…` au lieu
+  d'`electronique`) — vérifié dans le sitemap, ce n'est pas un défaut du site.
+- **LE CONSTAT QUI COMPTE, ET QU'AUCUNE RONDE NE CLASSERA JAMAIS EN PANNE** : la
+  technique est irréprochable et le catalogue ne bouge pas. **L'offre est le goulot.**
+  Sa proposition — viser la niche « formation + logiciel + Treichville », la seule
+  poche dense du catalogue, plutôt qu'une couverture nationale diluée — est la
+  première idée de croissance de la semaine qui parte des chiffres réels.
