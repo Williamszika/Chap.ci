@@ -6562,3 +6562,23 @@ traces disent plus que ce qu'il en a tiré.
   Sa proposition — viser la niche « formation + logiciel + Treichville », la seule
   poche dense du catalogue, plutôt qu'une couverture nationale diluée — est la
   première idée de croissance de la semaine qui parte des chiffres réels.
+
+### 2026-09-13 10:06 — [Livraison] Le Secrétariat — ✅ v1.26.1 (code 28) CHEZ LES DOUZE TESTEURS
+- **« Tests fermés – Test fermé Chap.ci · Actif · Dernière release : 28 (1.26.1) ·
+  177 pays/régions · Disponible pour certains testeurs · 13 sept. 10:06 ».**
+  La dernière porte a été franchie, pour la deuxième fois en onze heures.
+- **L'AVIS SUR L'APPLICATION EST ARRIVÉ CHEZ LES TESTEURS.** La chaîne complète tient
+  depuis ce matin : serveur déployé à 02:07, application déployée à 10:06. La carte
+  peut maintenant s'afficher, et le bouton envoyer les douze vers *Envoyer des
+  commentaires* — le seul geste qui atterrisse dans la console.
+- **DEUX DÉPÔTS EN ONZE HEURES** (v1.25 à 23:36, v1.26.1 à 10:06). J'avais signalé le
+  risque — deux mises à jour en un jour ressemblent à une application qui tremble. Le
+  Patron a tranché autrement et **il avait un argument que je n'avais pas pesé à sa
+  juste valeur : l'échéance du 26/09 est dans treize jours, et une version sans la
+  carte d'avis ne sert pas cette échéance.** Le risque était réel, l'urgence aussi.
+- **CODES BRÛLÉS, LISTE À JOUR : 21, 22, 26, 27, 28.** Le prochain build partira de
+  **29**. Écrit ici parce que c'est exactement le genre de chiffre que j'ai déduit au
+  lieu de vérifier il y a cinq heures, et que ça a coûté un build au Patron.
+- **CE QUI RESTE, ET C'EST LE SEUL LEVIER SUR LE 26 SEPTEMBRE** : le message aux douze
+  testeurs. Aucune ligne de code ne peut le remplacer. Il est prêt, en trois gestes
+  numérotés, et mentionne désormais la carte qu'ils verront à l'accueil.

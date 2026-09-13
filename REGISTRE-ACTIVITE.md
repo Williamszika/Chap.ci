@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Dimanche 13 septembre 2026 |
-| Livraisons | 870 |
+| Livraisons | 871 |
 | Jours travaillés | 64 |
-| Dernière mise à jour | Dimanche 13 septembre 2026, 08:09 (Abidjan) |
+| Dernière mise à jour | Dimanche 13 septembre 2026, 08:13 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -37,6 +37,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 | 12/09/2026 | AAB v1.25 (code 26) construit, déposé et **déployé sur le canal de test fermé à 23 h 36** — 177 pays |
 | 13/09/2026 | AAB v1.26 (code 27) construit (69,3 Mo) ; application mise à jour sur son iPhone |
 | 13/09/2026 | Zip n° 25 extrait à **02 h 07** — les routes de l’avis sur l’application sont en ligne |
+| 13/09/2026 | AAB **v1.26.1 (code 28)** construit et **déployé sur le canal de test fermé à 10 h 06** — l’avis sur l’application arrive chez les douze testeurs |
 
 ---
 
@@ -46,13 +47,14 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Dimanche 13 septembre 2026
 
-**5 livraison(s)** · Abidjan 02:05 → 03:02 · chez le Patron 04:05 → 05:02 · amplitude 57 min
+**6 livraison(s)** · Abidjan 02:05 → 08:09 · chez le Patron 04:05 → 10:09 · amplitude 6 h 05
 
 - `02:05` · L’AAB v1.26 est construit — 69,3 Mo, exactement le poids de la v1.25  <sub>`dde7e1a`</sub>
 - `02:09` · Le zip n° 25 est en production — les routes de l’avis répondent enfin  <sub>`320fe1b`</sub>
 - `02:16` · Un onglet déployé et invisible : le site est une PWA, il faut recharger deux fois  <sub>`09bac3a`</sub>
 - `02:44` · Un seul bouton dans la carte d’avis, et il dit où appuyer une fois sur le Play Store  <sub>`8fda19c`</sub>
 - `03:02` · Le code 27 était brûlé — passage en 1.26.1+28  <sub>`0b192d9`</sub>
+- `08:09` · Deux rondes vertes, et le seul chiffre qui n’avance pas est celui du catalogue  <sub>`97996e0`</sub>
 
 ### Samedi 12 septembre 2026
 

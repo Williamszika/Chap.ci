@@ -185,6 +185,10 @@ besoin. Zika
 > affiche pour le statut WhatsApp, faire une offre au vendeur, offres d'emploi,
 > empreinte digitale.
 >
+> Vous verrez aussi, sur l'accueil, **« Que pensez-vous de Chap.ci ? »**. C'est le
+> bouton dont je vous parle juste en dessous — il vous emmène directement au bon
+> endroit.
+>
 > **Trois choses à faire, cinq minutes en tout :**
 > 1. Ouvrez l'application et cherchez quelque chose.
 > 2. Publiez une annonce, même pour essayer — vous pourrez la supprimer.

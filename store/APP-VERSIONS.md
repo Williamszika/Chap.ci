@@ -189,7 +189,8 @@ Le dossier de la demande, son refus et ce qui reste inconnu :
 | Champ | Valeur |
 |---|---|
 | **Commit** | le dernier qui touche `flutter_app/` — **à lire**, jamais à recopier d'ici. |
-| Date du build | **NON CONSTRUITE.** |
+| Date du build | ✅ **CONSTRUITE ET DÉPLOYÉE le 13/09/2026.** |
+| État Play | ✅ **EN LIGNE SUR LE CANAL DE TEST FERMÉ — confirmé par le Patron dans la console.** « Tests fermés – Test fermé Chap.ci · **Actif** · Dernière release : **28 (1.26.1)** · 177 pays/régions · **Disponible pour certains testeurs** · Date de sortie : **13 sept. 10:06** ». Seconde mise à jour reçue par les douze en onze heures — la v1.25 était partie la veille à 23:36. |
 | Pourquoi 28 | ⛔ **LE CODE 27 EST BRÛLÉ.** La Play Console a refusé le dépôt le 13/09 vers 05 h : « Le code de version 27 a déjà été utilisé. Choisissez-en un autre. » Un AAB en 27 avait été reçu lors d'un dépôt précédent — **et un code reçu l'est définitivement, même sans release publiée**. |
 | Contenu | identique à la v1.26 **plus** la carte à un seul bouton : le Play Store seul là où il y a un magasin, et la ligne « Sur la page qui s'ouvre : Envoyer des commentaires ». |
 
@@ -204,7 +205,7 @@ Google est brûlé définitivement, même resté en brouillon […] seule cette 
 foi — le journal est tenu à la main. »* **J'ai écrit la règle et je ne l'ai pas
 appliquée.**
 
-**Codes désormais connus comme brûlés : 21, 22, 27.** Les 23, 24, 25 ont été
+**Codes désormais connus comme brûlés : 21, 22, 26, 27 et 28.** Les 23, 24, 25 ont été
 construits ou sautés sans jamais atteindre la console ; 26 est déployé sur le canal
 fermé depuis le 12/09.
 
