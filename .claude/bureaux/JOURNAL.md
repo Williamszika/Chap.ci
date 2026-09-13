@@ -6435,3 +6435,27 @@ traces disent plus que ce qu'il en a tiré.
   bon fichier, **elle ne prouve pas qu'un onglet s'affiche** — c'est la leçon des
   trois empreintes, chacune ne répond que de son fichier. Seul le Patron peut ouvrir
   cet écran.
+
+### 2026-09-13 02:20 — [Livraison] Le Secrétariat — l'onglet était déployé ; c'est le service worker qui servait l'ancien site
+- **LE PATRON NE VOIT PAS L'ONGLET « AVIS APPLI ». LE DÉPLOIEMENT EST POURTANT BON**,
+  et je l'ai prouvé au lieu de le supposer, en trois mesures :
+  1. `grep "Avis appli" dist/assets/*.js` → présent dans `AdminDashboard-1eS1raee.js` ;
+  2. `curl` sur `https://chap.ci/assets/AdminDashboard-1eS1raee.js` → **HTTP 200,
+     238 596 octets** — le fichier neuf est bien servi par la production ;
+  3. les trois empreintes de `/api/health` égalent HEAD depuis 02 h 07.
+  **Le code est bon, le serveur est bon, le navigateur sert l'ancien.**
+- **LA CAUSE : LE SITE EST UNE PWA.** `registerType: 'autoUpdate'` fait bien son
+  travail — mais il lui faut **un cycle de chargement pour prendre la main** : le
+  premier rechargement installe la nouvelle version, le second la sert. Entre les
+  deux, l'ancien service worker continue de répondre depuis son cache.
+- **CE QUI M'A EMPÊCHÉ DE PARTIR SUR UNE FAUSSE PISTE** : j'ai d'abord soupçonné le
+  filtre de permissions, puisque j'avais ajouté un onglet `avisapp` sans le déclarer
+  nulle part côté serveur. Vérification faite, `canSee()` rend `true` d'office pour
+  le propriétaire — la piste était plausible et fausse. **Mesurer avant d'expliquer
+  a évité de corriger un code qui n'avait rien.**
+- **`CLAUDE.md` PORTE MAINTENANT LA CONSIGNE, dans la section Déploiement** : après
+  extraction, **recharger deux fois** — et, avant de chercher ailleurs, **ouvrir le
+  site en navigation privée**, qui n'a pas de service worker. Si la nouveauté y est,
+  le déploiement est bon et il ne reste qu'un cache. **C'est une boucle rouge/vert de
+  trente secondes que personne n'avait écrite**, alors que le cas se reproduit à
+  chaque zip.

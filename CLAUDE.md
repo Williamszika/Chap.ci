@@ -75,6 +75,15 @@ seul est un zip à refaire.
 (`md5sum server/index.php web/seo.php dist/index.html`, 12 premiers caractères), et
 rappelez-vous que chacune ne prouve que son propre fichier.
 
+⚠️ **ET RECHARGEZ DEUX FOIS. Le site est une PWA : le premier rechargement installe
+la nouvelle version, le second la sert.** Le 13/09/2026, le Patron ne voyait pas un
+onglet d'administration pourtant déployé — empreintes vertes, fichier servi en
+HTTP 200, et son navigateur affichait l'ancien. `registerType: 'autoUpdate'` fait
+bien son travail, mais il lui faut **un cycle de chargement pour prendre la main**.
+La preuve en trente secondes, avant de chercher ailleurs : **ouvrez le site dans une
+fenêtre de navigation privée** — elle n'a pas de service worker. Si la nouveauté y
+est, le déploiement est bon et il ne reste qu'un cache à vider.
+
 Le `A-LIRE-DABORD.txt` qui accompagne un zip dit, dans cet ordre : **où extraire**, ce que
 le zip contient, ce qu'il ne touche pas, et l'empreinte attendue.
 
