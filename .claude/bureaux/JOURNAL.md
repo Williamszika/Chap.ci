@@ -6388,3 +6388,27 @@ traces disent plus que ce qu'il en a tiré.
   seulement une préférence** : deux bandeaux entre la première et la deuxième ligne
   d'annonces, ce n'est plus une respiration, c'est un mur — et demander de l'argent
   et un avis dans le même souffle n'obtient ni l'un ni l'autre.
+
+### 2026-09-13 08:20 — [Livraison] Le Secrétariat — v1.26 construite du premier coup, et deux correctifs d'hier se voient
+- **AAB v1.26 (code 27) CONSTRUIT EN 63,9 s, DU PREMIER COUP.** Aucun des trois
+  échecs de la veille ne s'est reproduit : `android/key.properties` a bien survécu
+  au passage de `preparer_plateformes.dart`, comme la fiche l'annonçait.
+  **iPhone mis à jour** dans la foulée (Xcode 35,8 s, installation 6,1 s).
+- **69,3 Mo — EXACTEMENT LE MÊME POIDS QUE LA v1.25.** La prédiction écrite hier
+  tenait : refuser le greffon natif `in_app_review` au profit d'`url_launcher`,
+  déjà présent, a coûté **zéro octet**. C'est la deuxième fois en deux jours qu'un
+  refus d'ajouter une dépendance se paie en tranquillité.
+- **DEUX CORRECTIFS D'HIER SE LISENT DANS SA SORTIE, ET C'EST LA PREUVE QU'ILS
+  SERVENT :**
+  1. `• Android : plugin Google **déjà déclaré** (settings.gradle.kts) — rien à
+     faire…` — la ligne qui n'existait pas et dont **le silence l'avait arrêté**
+     hier, alors que tout allait bien.
+  2. `• Version de l'application : 1.26.0+27 (lib/version_generee.dart)…` — le
+     fichier généré depuis `pubspec.yaml`, qui fera partir le numéro de version
+     avec chaque avis reçu.
+- **CE QUI RESTE À FAIRE, ET L'ORDRE COMPTE ENCORE.** Le zip n° 25 **n'est pas
+  confirmé extrait**. Tant qu'il ne l'est pas, la carte d'avis **ne s'affichera pas
+  sur son iPhone non plus** — l'application demandera `/avis-app/mien`, recevra une
+  page inconnue, et se taira. **S'il essaie maintenant et ne voit rien, il
+  conclura que la fonctionnalité est cassée alors qu'elle attend le serveur.**
+  À lui dire avant qu'il regarde, pas après.
