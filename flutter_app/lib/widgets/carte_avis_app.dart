@@ -16,7 +16,8 @@ import '../theme.dart';
 /// ⚠️ LA CROIX EST AUSSI IMPORTANTE QUE LE BOUTON. Une invitation dont on ne
 /// peut pas se débarrasser devient une raison de désinstaller — et un testeur
 /// qui désinstalle remet à zéro les quatorze jours de Google. La cible de la
-/// croix fait 44 px, comme tout ce qui se touche ici.
+/// croix fait **48 px** — le plancher de cette application, relevé de 44 le
+/// 13/09 sur signalement de 🎨 L'Atelier.
 class CarteAvisApp extends StatelessWidget {
   /// Appelé quand la personne a donné son avis, ou l'a repoussé : dans les deux
   /// cas l'accueil retire la carte.
@@ -126,8 +127,13 @@ class CarteAvisApp extends StatelessWidget {
                   onFini();
                 },
                 iconSize: 20,
+                // 48 et non 44 : c'est le plancher que l'application applique
+                // partout ailleurs (`espace_pro_panel.dart:689`, le thème). Et
+                // c'est LE geste qui écarte l'invitation sans y répondre — le
+                // rendre dur à toucher, c'est pousser à désinstaller, ce qui
+                // remettrait à zéro les quatorze jours de Google.
                 constraints:
-                    const BoxConstraints(minWidth: 44, minHeight: 44),
+                    const BoxConstraints(minWidth: 48, minHeight: 48),
                 tooltip: tr(context, 'avis.plusTard'),
                 icon: const Icon(Icons.close, color: ChapColors.gray500),
               ),

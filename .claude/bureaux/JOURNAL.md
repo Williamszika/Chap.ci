@@ -6582,3 +6582,47 @@ traces disent plus que ce qu'il en a tiré.
 - **CE QUI RESTE, ET C'EST LE SEUL LEVIER SUR LE 26 SEPTEMBRE** : le message aux douze
   testeurs. Aucune ligne de code ne peut le remplacer. Il est prêt, en trois gestes
   numérotés, et mentionne désormais la carte qu'ils verront à l'accueil.
+
+### 2026-09-13 11:00 — [Design & Typographie] 🎨 L'Atelier — ronde
+- **TROIS CONSTATS, TOUS VRAIS, TOUS APPLIQUÉS.** Vérifiés ligne par ligne avant
+  d'y toucher :
+  1. `avis_screen.dart:229` — les étoiles de l'écran admin peintes en
+     `ChapColors.orange`, **qui vaut #009E60, du vert, depuis le 30/08** ;
+  2. `avis_screen.dart:173` — la bordure d'alerte des avis ≤ 2 ★ en
+     `orangeLight` = #55CB98, **un vert clair : une alerte de la couleur de la
+     marque n'alerte plus personne** ;
+  3. la croix « plus tard » de ma carte d'avis à **44 px**, sous le plancher de
+     48 que l'application applique partout ailleurs (`espace_pro_panel.dart:689`).
+  Les deux premiers passent à `attentionClair`, la troisième à 48. Et **les deux
+  textes français neufs gagnent leurs espaces insécables** avant `?` et `:` — la
+  FAQ du site en compte 28, la convention existait, je ne l'avais pas suivie.
+- ⚠️ **MAIS SON RÉCIT EST FAUX SUR DEUX POINTS, ET JE LE CORRIGE ICI.** Il écrit
+  que les deux fichiers « sont nés le même jour (12/09), pour la même
+  fonctionnalité ». **`avis_screen.dart` date du 11 août** (`e895039`, « Modérer
+  les avis des vendeurs depuis l'app ») et **ne montre pas les avis sur
+  l'application** : il montre les avis laissés sur les **vendeurs**. Mon écran à
+  moi est sur le site, en React. **Il a confondu deux fonctionnalités qui portent
+  le même mot.**
+- **CE QUE LA VRAIE HISTOIRE APPREND, ET QUI VAUT MIEUX QUE LA SIENNE** : ce
+  fichier est **antérieur** au 30/08, jour où `ChapColors.orange` est passée au
+  vert. Ses étoiles ont donc verdi **toutes seules**, en silence, comme les huit
+  boutons d'action corrigés le 10/09. **Ce n'est pas une faute neuve : c'est un
+  survivant de ce balayage-là** — qui ne visait que les *boutons*, pas les
+  *icônes*. Un balayage cadré sur une forme laisse passer tout ce qui a une autre
+  forme.
+- **SA PROPOSITION DE FOND — renommer ou retirer `ChapColors.orange` — EST JUSTE
+  DANS L'INTENTION ET SOUS-ÉVALUÉE DANS LA TAILLE.** Mesuré : **≈ 200 usages dans
+  une quarantaine de fichiers**. Et **la plupart sont légitimes** : un
+  `CircularProgressIndicator(color: ChapColors.orange)` rend du vert, qui est la
+  couleur de la marque — c'est juste. Le piège ne mord que là où la chose **doit**
+  être orange (une action) ou là où le vert est **sémantiquement faux** (une
+  alerte). **Un remplacement mécanique repeindrait deux cents éléments** dont la
+  plupart n'ont rien à se reprocher. Ce n'est donc pas un correctif, c'est un
+  chantier — à instruire à froid, pas un matin où l'application vient de partir
+  chez douze testeurs.
+- **CE QU'IL FAIT BIEN, ET QUI MÉRITE D'ÊTRE DIT** : il déclare sa limite d'entrée
+  (« aucun outil de rendu — audit sur le code, jamais présenté comme un audit
+  d'écran »), il ouvre les 193 occurrences de `text-gray-400` **une à une** avant
+  de conclure « du décor pur, aucune proposition », et il n'envoie pas de
+  notification pour un écart d'admin interne. **Un bureau qui sait ne rien
+  proposer est aussi utile qu'un bureau qui propose.**

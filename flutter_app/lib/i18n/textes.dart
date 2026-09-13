@@ -554,13 +554,13 @@ const Map<String, Map<String, String>> _t = {
   'verrou.motDePasse': {'fr': "Utiliser mon mot de passe", 'en': "Use my password", 'es': "Usar mi contraseña", 'pt': "Usar a minha palavra-passe", 'ar': "استخدام كلمة المرور", 'zh': "使用我的密码"},
   // Soutenir Chap.ci — le don par Mobile Money (07/09/2026).
   // L'avis sur l'application (13/09/2026) — carte de l'accueil et feuille d'étoiles.
-  'avis.carteTitre': {'fr': "Que pensez-vous de Chap.ci ?", 'en': "What do you think of Chap.ci?", 'es': "¿Qué opinas de Chap.ci?", 'pt': "O que acha do Chap.ci?", 'ar': "ما رأيك في Chap.ci؟", 'zh': "您觉得 Chap.ci 怎么样？"},
+  'avis.carteTitre': {'fr': "Que pensez-vous de Chap.ci ?", 'en': "What do you think of Chap.ci?", 'es': "¿Qué opinas de Chap.ci?", 'pt': "O que acha do Chap.ci?", 'ar': "ما رأيك في Chap.ci؟", 'zh': "您觉得 Chap.ci 怎么样？"},
   'avis.carteSous': {'fr': "Deux phrases sur le Play Store nous aident vraiment. On ne vous le demandera qu’une fois.", 'en': "Two lines on the Play Store really help. We’ll only ask once.", 'es': "Dos frases en Play Store nos ayudan de verdad. Solo te lo pediremos una vez.", 'pt': "Duas frases na Play Store ajudam mesmo. Só perguntaremos uma vez.", 'ar': "جملتان على Play Store تساعداننا حقًا. لن نسألك سوى مرة واحدة.", 'zh': "在 Play Store 上写两句就帮了大忙。我们只问这一次。"},
   // ⚠️ LA LIGNE QUI FAIT MARCHER LE TUYAU. Sans elle, le testeur arrive sur la
   // fiche du Play Store et ne sait pas où appuyer : « Envoyer des commentaires »
   // est le SEUL geste qui atterrisse dans la console du Patron (prouvé le 12/09
   // par le retour d'Ange Goze, le seul de tout le canal en trois semaines).
-  'avis.carteAstuce': {'fr': "Sur la page qui s’ouvre : « Envoyer des commentaires ».", 'en': "On the page that opens: “Send feedback”.", 'es': "En la página que se abre: «Enviar comentarios».", 'pt': "Na página que abre: «Enviar comentários».", 'ar': "في الصفحة التي تُفتح: «إرسال ملاحظات».", 'zh': "在打开的页面上：“发送反馈”。"},
+  'avis.carteAstuce': {'fr': "Sur la page qui s’ouvre : « Envoyer des commentaires ».", 'en': "On the page that opens: “Send feedback”.", 'es': "En la página que se abre: «Enviar comentarios».", 'pt': "Na página que abre: «Enviar comentários».", 'ar': "في الصفحة التي تُفتح: «إرسال ملاحظات».", 'zh': "在打开的页面上：“发送反馈”。"},
   'avis.titre': {'fr': "Votre avis sur Chap.ci", 'en': "Your feedback on Chap.ci", 'es': "Tu opinión sobre Chap.ci", 'pt': "A sua opinião sobre o Chap.ci", 'ar': "رأيك في Chap.ci", 'zh': "您对 Chap.ci 的评价"},
   'avis.sousTitre': {'fr': "Il va droit au créateur de l’application, et il sert à la corriger.", 'en': "It goes straight to the app’s creator, and it’s used to fix things.", 'es': "Llega directamente al creador de la aplicación y sirve para corregirla.", 'pt': "Vai diretamente para o criador da aplicação e serve para a corrigir.", 'ar': "يصل مباشرة إلى صانع التطبيق، ويُستخدم لتحسينه.", 'zh': "直接发送给应用的开发者，用于改进产品。"},
   'avis.commentairePlaceholder': {'fr': "Ce qui marche, ce qui ne marche pas…", 'en': "What works, what doesn’t…", 'es': "Lo que funciona, lo que no…", 'pt': "O que funciona, o que não funciona…", 'ar': "ما الذي يعمل وما الذي لا يعمل…", 'zh': "哪里好用，哪里不好用……"},

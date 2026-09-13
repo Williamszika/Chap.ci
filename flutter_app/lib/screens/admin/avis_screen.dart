@@ -170,7 +170,10 @@ class _AvisScreenState extends State<AvisScreen> {
       decoration: BoxDecoration(
         color: ChapColors.cream,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: bas ? ChapColors.orangeLight : ChapColors.line2),
+        // ⚠️ `orangeLight` vaut #55CB98 — un VERT CLAIR depuis le 30/08. Une
+        // bordure d'alerte peinte de la couleur de la marque n'alerte plus
+        // personne. Trouvé par 🎨 L'Atelier le 13/09.
+        border: Border.all(color: bas ? ChapColors.attentionClair : ChapColors.line2),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +229,10 @@ class _AvisScreenState extends State<AvisScreen> {
         for (var i = 1; i <= 5; i++)
           Icon(i <= note ? Icons.star : Icons.star_border,
               size: 18,
-              color: i <= note ? ChapColors.orange : ChapColors.line2),
+              // ⚠️ `orange` vaut #009E60 — du VERT depuis le 30/08. Ces étoiles
+              // sortaient vertes ici et or dans l'application côté client :
+              // la même étoile, deux couleurs selon l'écran.
+              color: i <= note ? ChapColors.attentionClair : ChapColors.line2),
         const SizedBox(width: 6),
         Text('$note/5',
             style: const TextStyle(
