@@ -184,6 +184,32 @@ Le dossier de la demande, son refus et ce qui reste inconnu :
 
 ---
 
+## v1.26.1 — versionCode 28
+
+| Champ | Valeur |
+|---|---|
+| **Commit** | le dernier qui touche `flutter_app/` — **à lire**, jamais à recopier d'ici. |
+| Date du build | **NON CONSTRUITE.** |
+| Pourquoi 28 | ⛔ **LE CODE 27 EST BRÛLÉ.** La Play Console a refusé le dépôt le 13/09 vers 05 h : « Le code de version 27 a déjà été utilisé. Choisissez-en un autre. » Un AAB en 27 avait été reçu lors d'un dépôt précédent — **et un code reçu l'est définitivement, même sans release publiée**. |
+| Contenu | identique à la v1.26 **plus** la carte à un seul bouton : le Play Store seul là où il y a un magasin, et la ligne « Sur la page qui s'ouvre : Envoyer des commentaires ». |
+
+⚠️ **LA LEÇON, ET ELLE EST DE MOI.** J'ai écrit deux fois au Patron que « 27 n'a
+jamais été reçu par Google, donc il n'est pas brûlé ». **C'était une déduction, pas
+une vérification** — je raisonnais sur ce que je croyais savoir de ses dépôts, alors
+que la seule source qui fasse foi est **Play Console → Versions et bundles les plus
+récents**, qui liste tous les codes réellement reçus, tous canaux confondus.
+
+`BUILD-v1.25.md` le dit pourtant noir sur blanc : *« Un versionCode déjà reçu par
+Google est brûlé définitivement, même resté en brouillon […] seule cette page fait
+foi — le journal est tenu à la main. »* **J'ai écrit la règle et je ne l'ai pas
+appliquée.**
+
+**Codes désormais connus comme brûlés : 21, 22, 27.** Les 23, 24, 25 ont été
+construits ou sautés sans jamais atteindre la console ; 26 est déployé sur le canal
+fermé depuis le 12/09.
+
+---
+
 ## v1.26 — versionCode 27
 
 | Champ | Valeur |

@@ -6478,3 +6478,28 @@ traces disent plus que ce qu'il en a tiré.
   paragraphe. Play Store → page de Chap.ci → section du programme de test →
   « Envoyer des commentaires ». **Une consigne qu'on doit relire deux fois ne
   s'exécute pas**, et celle-là est la seule qui puisse changer le verdict.
+
+### 2026-09-13 05:05 — [Livraison] Le Secrétariat — le code 27 était brûlé, et j'avais affirmé le contraire
+- **LA PLAY CONSOLE A REFUSÉ LE DÉPÔT** : « Le code de version 27 a déjà été utilisé.
+  Choisissez-en un autre. » Un AAB en 27 avait été reçu lors d'un dépôt antérieur.
+- **J'AVAIS ÉCRIT DEUX FOIS AU PATRON QUE 27 N'ÉTAIT PAS BRÛLÉ**, et c'était faux.
+  Ce n'était pas une mesure, **c'était une déduction sur ce que je croyais savoir de
+  ses dépôts**. La seule source qui fasse foi est *Versions et bundles les plus
+  récents*, qui liste les codes réellement reçus, tous canaux confondus.
+- **ET LA RÈGLE EST ÉCRITE DANS NOTRE PROPRE FICHE**, `BUILD-v1.25.md` : « un
+  versionCode déjà reçu est brûlé définitivement, même resté en brouillon […] seule
+  cette page fait foi — le journal est tenu à la main ». **Je l'ai écrite le 12/09 et
+  je ne l'ai pas appliquée le 13.** C'est la même faute que celles de la veille — je
+  raisonne sur ce que j'ai écrit au lieu de faire lire l'état réel — et cette fois
+  elle s'est produite **sur la règle elle-même**.
+- **COÛT RÉEL : un build de plus, et le Patron devant un écran rouge à 5 h du matin.**
+  Modeste, mais entièrement évitable : une ligne dans mon message — « vérifiez
+  d'abord que 27 n'est pas dans *Versions et bundles les plus récents* » — l'aurait
+  supprimé.
+- **VERSION PASSÉE À 1.26.1+28.** Codes connus comme brûlés : **21, 22, 27**. Consigné
+  dans `APP-VERSIONS.md` avec la manière de le vérifier, pour que la prochaine session
+  n'ait pas à me croire sur parole.
+- **UN SECOND POINT, PLUS PETIT, RELEVÉ SUR SA CAPTURE** : le champ « Nom de la
+  version » est **obligatoire et vide** (0/50). Ma marche à suivre disait « il se
+  remplit tout seul, n'y touchez pas » — faux quand le dépôt a été repris après une
+  erreur. Il faut y écrire `28 (1.26.1)`.
