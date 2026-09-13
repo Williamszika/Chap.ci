@@ -6412,3 +6412,26 @@ traces disent plus que ce qu'il en a tiré.
   page inconnue, et se taira. **S'il essaie maintenant et ne voit rien, il
   conclura que la fonctionnalité est cassée alors qu'elle attend le serveur.**
   À lui dire avant qu'il regarde, pas après.
+
+### 2026-09-13 02:10 — [Livraison] Le Secrétariat — zip n° 25 en production, les trois empreintes vertes
+- **DÉPLOYÉ À 02 h 07 min 40 s**, vérifié par **une seule** requête sur `/api/health`,
+  comme la règle anti-robot l'exige. Les trois empreintes sont celles de HEAD :
+  `empreinte bbbcd782352d`, `empreinteSite fff630f7ff95`, `empreinteSeo 9536aeb35d70`.
+  `fichiersInattendus 0`, `fcm true`, PHP 8.5.10.
+- **LES ROUTES DE L'AVIS SONT EN LIGNE.** La chaîne est désormais complète côté
+  serveur : la table `avis_app` et son index unique, les trois routes, et l'onglet
+  d'administration. **L'application du Patron peut enfin poser sa question et
+  recevoir une réponse** — jusqu'à 02 h 07, elle recevait une page inconnue et se
+  taisait, ce qui expliquait le « je ne vois pas sur la page d'accueil ».
+- **SECTION MANUELLE DU REGISTRE COMPLÉTÉE**, et c'était en retard. `CLAUDE.md`
+  demande d'y consigner ce que le Patron fait lui-même — un zip extrait, un AAB
+  construit — parce que **rien de tout cela ne laisse de trace dans git**. Quatre
+  lignes manquaient : le zip n° 24, le déploiement de la v1.25 sur le canal fermé
+  hier à 23 h 36, le build de la v1.26 ce matin, et ce zip-ci. **Écrites d'après ce
+  que j'ai vu se produire — la sortie de ses commandes et la capture de sa console —
+  jamais d'après ce que je suppose**, comme le fichier l'exige de lui-même.
+- **IL RESTE UNE VÉRIFICATION QUE JE NE PEUX PAS FAIRE** : l'onglet « Avis appli »
+  dans l'écran d'administration. L'empreinte du site prouve que `index.html` est le
+  bon fichier, **elle ne prouve pas qu'un onglet s'affiche** — c'est la leçon des
+  trois empreintes, chacune ne répond que de son fichier. Seul le Patron peut ouvrir
+  cet écran.

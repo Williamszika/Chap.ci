@@ -4,10 +4,10 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 
 | | |
 |---|---|
-| Période couverte | du Samedi 11 juillet 2026 au Samedi 12 septembre 2026 |
-| Livraisons | 865 |
-| Jours travaillés | 63 |
-| Dernière mise à jour | Dimanche 13 septembre 2026, 02:05 (Abidjan) |
+| Période couverte | du Samedi 11 juillet 2026 au Dimanche 13 septembre 2026 |
+| Livraisons | 866 |
+| Jours travaillés | 64 |
+| Dernière mise à jour | Dimanche 13 septembre 2026, 02:09 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -33,12 +33,22 @@ ici même — `npm run registre` ne touche jamais cette section.
 | 10/09/2026 | Demande d’accès en production déposée à la Play Console (01 h 04) |
 | 10/09/2026 | Clé Firebase `fcm.json` déposée, puis zips n° 21, 22 et 23 extraits |
 | 11/09/2026 | Clé cron et jeton de modération changés ; clés reportées dans les tâches cPanel |
+| 12/09/2026 | Zip n° 24 extrait (la clé cron cesse de s’afficher sur l’écran d’admin) |
+| 12/09/2026 | AAB v1.25 (code 26) construit, déposé et **déployé sur le canal de test fermé à 23 h 36** — 177 pays |
+| 13/09/2026 | AAB v1.26 (code 27) construit (69,3 Mo) ; application mise à jour sur son iPhone |
+| 13/09/2026 | Zip n° 25 extrait à **02 h 07** — les routes de l’avis sur l’application sont en ligne |
 
 ---
 
 ## Les livraisons, lues dans git
 
 <!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->
+
+### Dimanche 13 septembre 2026
+
+**1 livraison(s)** · Abidjan 02:05 → 02:05 · chez le Patron 04:05 → 04:05 · amplitude —
+
+- `02:05` · L’AAB v1.26 est construit — 69,3 Mo, exactement le poids de la v1.25  <sub>`dde7e1a`</sub>
 
 ### Samedi 12 septembre 2026
 
