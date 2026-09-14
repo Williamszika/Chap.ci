@@ -6701,3 +6701,31 @@ fois : le compteur marche, et la stagnation n'était pas là où je la cherchais
   sur 15 : **« échantillon trop petit pour juger, à suivre sur une fenêtre plus
   longue avant toute action »**. Deux fois, il s'arrête avant la conclusion que les
   chiffres ne portent pas.
+
+### 2026-09-14 20:50 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde du soir
+- **TOUT VERT.** Accueil 200 (0,83 s), `/api/health` 200, sitemap 200, PHP 8.5.10,
+  `fichiersInattendus 0`. Sécurité 24 h : **tous les compteurs à zéro** — aucune IP
+  suspecte, aucun échec de connexion, aucun blocage, administrateurs intacts. Douze
+  tâches cron à l'heure, `backup` passé à 02:00. Ménage vide, modération vide.
+  Certificat confirmé au **12/10**, 28 jours.
+- **IL PRÉDIT UNE EMPREINTE, ET ELLE TOMBE JUSTE.** Il annonce que le dépôt donne
+  `empreinteSite a0b74643f08b` contre `fff630f7ff95` servi, **et explique l'écart au
+  lieu de crier** : le commit du 14/09 n'a touché que `src/`, `deposeSite` n'a pas
+  bougé, c'est au prochain zip de l'emporter. **J'ai reconstruit de mon côté :
+  `a0b74643f08b`, au caractère près.** Deux constructions indépendantes qui
+  concordent valent mieux qu'une seule.
+- **ET IL A VÉRIFIÉ CE QUE JE N'AVAIS PAS PENSÉ À LUI DEMANDER** : que le
+  déplacement du mur e-mail ne crée aucun contournement. `POST /listings`
+  (`server/index.php:7648`) exige toujours `email_verifie()` **côté serveur**,
+  indépendamment de ce que montre l'écran. **On a déplacé le moment, pas la règle** —
+  c'est exactement ce qu'il fallait démontrer, et c'est lui qui y a pensé.
+- ⚠️ **UN POINT OUVERT QU'IL NE PEUT PAS TRANCHER SEUL : `security_alert 1`.** Un
+  e-mail d'alerte est parti dans les 24 h (le throttle n'en autorise qu'un), mais
+  **aucun signal corroborant** — pas d'IP suspecte, pas de blocage, admins intacts,
+  file d'alertes vide maintenant. **Il dit ne pas pouvoir savoir d'ici ce qui l'a
+  déclenché, et le renvoie au Patron plutôt que d'inventer une cause.** Seul le
+  Patron a la boîte mail.
+- **ZIP N° 26 FABRIQUÉ** sur sa recommandation : le mur e-mail part en production.
+  `empreinteSite` attendue `a0b74643f08b`. Le `A-LIRE` porte pour la première fois
+  **la consigne du double rechargement PWA**, écrite hier dans `CLAUDE.md` après que
+  le Patron eut cherché un onglet pourtant déployé.

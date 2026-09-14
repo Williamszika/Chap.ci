@@ -4,10 +4,10 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 
 | | |
 |---|---|
-| Période couverte | du Samedi 11 juillet 2026 au Dimanche 13 septembre 2026 |
-| Livraisons | 873 |
-| Jours travaillés | 64 |
-| Dernière mise à jour | Lundi 14 septembre 2026, 14:24 (Abidjan) |
+| Période couverte | du Samedi 11 juillet 2026 au Lundi 14 septembre 2026 |
+| Livraisons | 874 |
+| Jours travaillés | 65 |
+| Dernière mise à jour | Lundi 14 septembre 2026, 21:26 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -44,6 +44,12 @@ ici même — `npm run registre` ne touche jamais cette section.
 ## Les livraisons, lues dans git
 
 <!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->
+
+### Lundi 14 septembre 2026
+
+**1 livraison(s)** · Abidjan 14:24 → 14:24 · chez le Patron 16:24 → 16:24 · amplitude —
+
+- `14:24` · Le mur de l’adresse e-mail s’ouvre au moment de publier, plus à l’ouverture de la page  <sub>`e108290`</sub>
 
 ### Dimanche 13 septembre 2026
 
