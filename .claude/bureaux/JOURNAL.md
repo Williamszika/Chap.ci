@@ -3496,3 +3496,62 @@ flutter build appbundle --release
   ajoutée dans `moderateurs_screen.dart` — aujourd'hui c'est owner-only partout,
   cohérent, mais pas ajustable sans ce commit. **Monteur** — rien à inclure
   spécifiquement pour la sécurité ce lot-ci.
+
+---
+
+### 2026-09-14 06:10 — [Livraison] 🔨 Le Monteur
+- **REPÈRE COHÉRENT.** `store/APP-VERSIONS.md` et `flutter_app/pubspec.yaml`
+  s'accordent : **v1.26.1, versionCode 28**. Rien à corriger avant de
+  raisonner.
+- **ÉTAT DES BOUTIQUES.** Google Play : v1.26.1 (code 28) — d'après le
+  journal, non revérifié par moi aujourd'hui — en ligne sur le canal de test
+  fermé depuis le **13/09/2026 10:06** (177 pays, disponible pour certains
+  testeurs). La demande d'accès à la production reste bloquée jusqu'à
+  l'échéance du **26/09/2026** (14 jours d'engagement des testeurs, après le
+  refus du 12/09) : rien que ce bureau puisse accélérer. App Store : **aucune
+  version publiée**, et le volet iOS reste **BLOQUÉ** — la table dit le Mac +
+  Xcode indisponible. Il faudrait un Mac avec Xcode et un compte Apple
+  Developer (99 $/an) ; pas d'instructions Xcode cette semaine.
+- **CE QUI A CHANGÉ DANS `flutter_app/` DEPUIS LE DERNIER BUILD**
+  (`0b192d9`, la montée en 1.26.1+28, vérifié `git cat-file -t` → `commit`) :
+  **un seul commit**, `145d2fa` (13/09 09h35, donc **après** le dépôt de
+  10h06 — pas encore construit). CORRECTION D'INTERFACE : les étoiles et la
+  bordure d'alerte de l'écran admin « Avis vendeurs » rendaient en vert
+  (`ChapColors.orange` a viré au vert le 30/08, un survivant du balayage du
+  10/09 qui ne visait que les boutons) au lieu de l'or d'attention prévu ;
+  la croix « plus tard » de la carte d'avis de l'accueil remonte de 44 à
+  48 px, le plancher tactile de l'application ; deux espaces insécables
+  ajoutés. **Rien côté `server/`** depuis ce même commit (`git log
+  0b192d9..HEAD -- server/` : vide) — aucun décalage serveur ↔ app à
+  signaler cette semaine.
+- **CE QUE LES TESTEURS NE VOIENT PAS ENCORE :** uniquement ce correctif de
+  contraste et de cible tactile — un jour de retard, rien d'accumulé. La
+  partie « étoiles admin » ne les concerne même pas : c'est un écran réservé
+  au Patron.
+- **VERDICT : ATTENDRE.** Aucune des quatre conditions n'est réunie — pas de
+  correction de sécurité ou de confidentialité, pas d'exigence de boutique,
+  un seul commit d'interface accumulé (il en faut trois), et un seul jour
+  écoulé depuis le dernier build. Construire aujourd'hui pour un correctif
+  de couleur sur un écran d'administration coûterait une soumission et de la
+  patience des testeurs, pour un gain que la quasi-totalité d'entre eux ne
+  verra jamais.
+- **NUMÉROS DE VERSION :** aucun changement proposé. `pubspec.yaml` reste à
+  `1.26.1+28` tant qu'on attend.
+- **NOTES DE VERSION :** sans objet — pas de build recommandé cette semaine.
+- **CAPTURES À REFAIRE :** aucune. Le seul changement visible (la croix de
+  la carte d'avis) ne modifie rien à l'écran, seulement la taille de sa
+  zone tactile ; l'autre est un écran d'administration invisible aux
+  testeurs.
+- **VÉRIFICATIONS AVANT BUILD :** Flutter n'est pas installé dans cette
+  session — vérifié par lecture de code, pas par exécution.
+  `flutter_app/pubspec.yaml` : `version: 1.26.1+28`, cohérent avec
+  `store/APP-VERSIONS.md`. Aucune dépendance nouvelle (aucun commit ne
+  touche `pubspec.yaml` depuis le dernier build).
+  `flutter_app/lib/api/api_client.dart` : la base par défaut reste
+  `https://chap.ci/api` — correcte. `tool/preparer_plateformes.dart`
+  inchangé depuis le dernier build : rien de neuf côté autorisations ou
+  identifiant d'application.
+- **MARCHE À SUIVRE ANDROID :** aucune cette semaine — verdict ATTENDRE.
+- **MARCHE À SUIVRE iOS :** bloquée — Mac + Xcode indisponible ; il
+  faudrait un Mac avec Xcode et un compte Apple Developer (99 $/an) pour
+  débloquer ce volet.
