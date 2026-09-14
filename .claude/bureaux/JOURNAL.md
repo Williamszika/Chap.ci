@@ -3376,3 +3376,123 @@ flutter build appbundle --release
   iPhone et iPad. En attendant, l'installation sur l'iPhone du Patron
   reste possible sans compte payant : les six commandes en tête de
   `store/GUIDE-IPHONE.md`.
+
+---
+
+### 2026-09-14 05:20 — [Sécurité du code] 🔒 Le Serrurier
+
+- **Fait** : diff complet de la semaine relu (`b917076` → `145d2fa`, 50 commits
+  sur 7 jours — dépôt cloné superficiel une nouvelle fois, `git fetch
+  --unshallow` refait avant tout). Sous-système fouillé (rotation semaine ISO
+  38 % 6 = 2) : **argent** — `POST /orders`, le flux « deal » (bought / received
+  / sold / cancel), les avis vendeur (`seller_confirmed`), les publicités
+  payantes. CI et dépendances vérifiées. Déploiement du serveur confirmé par
+  les empreintes.
+- **Sous-système de la semaine — argent** (aucun de ces fichiers n'a changé
+  cette semaine ; relecture de fond, pas de diff) :
+  - **`POST /orders`** (`server/index.php:9724`) : prix et titre de chaque
+    article RELUS depuis `listings` (jamais ceux envoyés par le client) ;
+    vendeur vérifié propriétaire de l'annonce ; commande vide refusée ; une
+    vraie conversation acheteur→vendeur est exigée avant de commander (anti
+    faux-avis / harcèlement) ; `conversationId` revérifié appartenir au bon
+    couple. Aucun défaut trouvé.
+  - **Le flux « deal »** (`:9887`) : `bought`/`received` réservés à l'acheteur,
+    `sold` réservé au vendeur (`$isSeller`) — c'est cette dernière ligne qui
+    pose `seller_confirmed = 1`, et un acheteur ne peut pas l'atteindre. Le
+    stock professionnel se décrémente/se rend correctement selon l'action.
+    Aucun défaut trouvé.
+  - **`POST /reviews`** (`:10092`) : le correctif du 30/08 (Gardien) tient
+    toujours — le vendeur de l'avis est LU dans la vente confirmée
+    (`o.seller_confirmed = 1` sur le bon couple acheteur/vendeur, et sur la
+    bonne annonce quand `listingId` est fourni), plus rien n'est déclaré par le
+    client. Vérifié qu'aucun commit de la semaine n'y touche. Aucun défaut
+    trouvé.
+  - **`POST /ads`** (`:11524`) : prix TOUJOURS recalculé serveur
+    (`ad_tariff()` × formule × quantité, jamais un montant reçu du client) ;
+    lien restreint à `https://` ; visuels réencodés par `save_data_uri` ;
+    statut `pending` jusqu'à validation manuelle du paiement Mobile Money par
+    un admin ; prolongation (`extends`) vérifiée appartenir au même compte OU
+    au même e-mail avant de rallonger une campagne. Aucun défaut trouvé.
+  - Le seul ajout touchant de l'argent cette semaine est en fait hors
+    rotation : **l'avis sur l'application** (`avis_app`, `5a37c0a`), qui ne
+    déplace aucun FCFA — voir plus bas.
+- **Ce qui a changé cette semaine — l'avis sur l'application** (`avis_app`,
+  demandé par le Patron le 13/09 après le refus de Google) :
+  - Une note par compte garantie par un **index UNIQUE en base**
+    (`idx_avis_app_user`), pas seulement par un contrôle PHP — un double envoi
+    simultané (double appui, réseau lent) échoue proprement en 409 sur
+    l'insertion, il n'insère jamais deux lignes. `require_user` sur les trois
+    routes. Commentaire tronqué à 2 000 caractères, plateforme restreinte à
+    `android|ios|web`. Aucun défaut trouvé.
+  - **`GET /admin/avis-app`** (`:13906`) n'est pas répertorié dans
+    `admin_feature_for_path()` : il tombe donc sur `'unknown'`, qui est le
+    comportement fail-closed déjà en place dans ce fichier (seul le
+    propriétaire y accède, aucun modérateur ne peut le voir — vérifié en lisant
+    `admin_can()`, ligne 2897 : un modérateur n'a jamais la permission
+    littérale `'unknown'`). Ce n'est pas une brèche — c'est plus restrictif que
+    prévu, pas moins — mais c'est fonctionnel : côté application,
+    `moderateurs_screen.dart` n'a pas non plus de case à cocher pour cette
+    fonctionnalité, et côté site `AdminDashboard.tsx` teste
+    `role.permissions.includes('avisapp')`, une clé qu'aucun modérateur ne
+    pourra jamais recevoir aujourd'hui. Les trois bouts sont cohérents entre
+    eux (propriétaire seul, partout), donc rien à corriger dans l'urgence — à
+    noter pour le Dev si le Patron veut un jour déléguer cette lecture.
+  - Le commentaire d'avis est affiché tel quel dans `AdminDashboard.tsx`
+    (`{a.commentaire}`, JSX — échappé automatiquement, pas de
+    `dangerouslySetInnerHTML`) : pas de XSS stockée par ce chemin.
+- **Vérifications transverses (checklist habituelle)** :
+  - SQL : aucune concaténation d'entrée utilisateur cette semaine.
+  - Secrets : `git grep` sur secret/password/token/clé dans `server/config.php`
+    et `src/` ne remonte que du code de gestion de mot de passe légitime et un
+    texte d'aide au don Orange Money (« ne demande jamais votre code secret »).
+    Rien de committé.
+  - Flutter : trois nouveaux fichiers (`avis_app.dart`, `carte_avis_app.dart`,
+    et le générateur `version_generee.dart`) — aucune nouvelle dépendance dans
+    `pubspec.yaml` (seul le numéro de version change, `1.25.0+26` →
+    `1.26.1+28`). `avis_app.dart` n'ouvre que `market://` et l'URL `https`
+    officielle du Play Store, jamais de navigateur intégré. Le générateur de
+    version lit `pubspec.yaml` (fichier du dépôt, pas une entrée réseau) et
+    écrit un fichier Dart commité — ce n'est pas le serveur PHP, la règle « pas
+    de fichier exécutable écrit par une requête web » ne s'applique pas ici.
+  - Admin : aucune route `/admin/*` en dehors du bloc gardé (`:11890`,
+    `if (($seg[0] ?? '') === 'admin')`) ; `admin/avis-app` est bien DEDANS,
+    après le contrôle `admin_can()` de la ligne 11973.
+  - CI (`security-scan.yml`) : déclenchement inchangé (`push: [main]` +
+    `pull_request`).
+  - `npm audit --omit=dev --audit-level=high` : les deux mêmes vulnérabilités
+    **modérées** react-router que les semaines précédentes (sous le seuil).
+  - `php -l server/index.php web/seo.php` : aucune erreur (PHP 8.4.19 dans cet
+    environnement — `php8.5` absent, comme les semaines passées).
+- **Déploiement** : `curl https://chap.ci/api/health` → `empreinte` =
+  `bbbcd782352d`, `empreinteSeo` = `9536aeb35d70`, identiques à `md5sum
+  server/index.php web/seo.php` sur `HEAD` (`145d2fa`) — le serveur exécute
+  exactement le code d'aujourd'hui, avis sur l'application compris. Les deux
+  derniers commits du dépôt (docs et front) sont bien postérieurs à
+  `deposeSite` (13/09 02:07:40Z) mais ne touchent ni `server/index.php` ni
+  `web/seo.php` : pas un correctif en attente.
+- **Problèmes ouverts** :
+  - **Moyenne, défaut de robustesse — REPORTÉ du 07/09, toujours ouvert** :
+    `server/index.php:7412` et `:7489` (`photos/controle`, `annonce/deviner`)
+    n'ont reçu aucun commit cette semaine ; la course entre lecture et écriture
+    de `rate_limit()` décrite le 07/09 est donc toujours présente, avec le même
+    correctif proposé alors (verrou par utilisateur avant l'appel externe de
+    60 s). Pas une faille exploitable — un risque de lenteur ponctuelle, borné
+    à un compte + une clé de moteur de vision active.
+  - Aucune faille exploitable trouvée cette semaine.
+- **Propositions au Patron** :
+  - Reprise de la proposition du 07/09 (`server/index.php:7412`/`:7489`) : un
+    verrou léger par utilisateur (APCu, ou ligne « en cours » à contrainte
+    d'unicité) posé avant l'appel externe et retiré après, pour qu'une seule
+    requête `deviner`/`controle_photos` par compte soit en vol à la fois.
+    Toujours un chantier de fond, pas une urgence.
+  - Rien de nouveau côté argent cette semaine — les quatre points du
+    sous-système de rotation tiennent tels quels.
+- **Pour les autres bureaux** : **Gardien** — rien de vivant à signaler cette
+  semaine. **Dev/Atelier** — le verrou de concurrence sur `deviner`/
+  `controle_photos` (reporté du 07/09) reste à caser quand ça arrange ; si le
+  Patron veut un jour qu'un modérateur consulte les avis sur l'application,
+  `admin/avis-app` doit d'abord entrer dans `admin_feature_for_path()`
+  (mapper vers une nouvelle permission, ex. `'avisapp'`) et une case à cocher
+  ajoutée dans `moderateurs_screen.dart` — aujourd'hui c'est owner-only partout,
+  cohérent, mais pas ajustable sans ce commit. **Monteur** — rien à inclure
+  spécifiquement pour la sécurité ce lot-ci.
