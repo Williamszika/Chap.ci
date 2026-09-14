@@ -6626,3 +6626,78 @@ traces disent plus que ce qu'il en a tiré.
   de conclure « du décor pur, aucune proposition », et il n'envoie pas de
   notification pour un écart d'admin interne. **Un bureau qui sait ne rien
   proposer est aussi utile qu'un bureau qui propose.**
+
+### 2026-09-14 — Quatre rondes versées, une seule proposition ferme appliquée
+
+**🛡️ Le Gardien (10:48)** — tout vert. Les trois empreintes concordent avec HEAD
+(`145d2fa`), construites et non supposées. **Et la contradiction TLS des 11-13/09
+est RÉSOLUE** : `crt.sh` a répondu et confirme l'expiration au **2026-10-12**,
+28 jours restants. Le point ouvert depuis trois jours se referme sur une mesure,
+pas sur une lassitude. Douze tâches cron toutes à l'heure. Il note aussi que
+`php8.5` n'existe pas dans son environnement et le dit comme une limite, pas une
+panne — `php -l` en 8.4 suffit à la syntaxe.
+
+**⚡ Le Mécanicien (07:15)** — vert. `/` à 0,738 s, `/api/health` à 0,494 s,
+compression `br`, cache immuable sur les fichiers à empreinte. **Il a vérifié que
+son `dist/` local reproduit exactement les noms servis en production** avant de
+mesurer — la seule façon d'être sûr qu'on mesure ce qui tourne. JS+CSS initial :
+**142,3 → 162,6 Kio en trois semaines (+14 %)**, sous le budget de 300 Ko, sans
+point de rupture identifiable. À surveiller, rien à corriger. Il dit n'avoir lancé
+ni Lighthouse ni mesure de démarrage à froid, faute d'outil — **plutôt que
+d'inventer un chiffre**.
+
+**📊 Le Comptable (08:13)** — **le catalogue est figé depuis sept jours, et 76 %
+des annonces viennent d'un seul vendeur.** Hors DENE SALIF : **+1 annonce en trois
+semaines**. Dix catégories sur seize sont vides, dont l'électronique — *la*
+catégorie reine d'une place de marché ivoirienne. **Sa lecture la plus utile :
+faire publier les douze testeurs n'est plus un geste de catalogue, c'est LE MÊME
+GESTE qui répond à l'exigence de Google.** Les deux urgences convergent sur une
+seule action. Il refuse de fabriquer un « nouveaux comptes cette semaine » par
+soustraction d'une fenêtre glissante — un chiffre estimé présenté comme mesuré est
+pire que pas de chiffre.
+
+**🔍 L'Audit hebdomadaire** — 50 commits relus, sous-système « argent » fouillé,
+aucune faille. Il confirme que `avis_app` tient (index unique, `require_user`,
+fail-closed admin) et que les empreintes de déploiement concordent. Un point
+reporté sans gravité : course de compteur sur `rate_limit()`.
+
+**ET L'ENTONNOIR A BOUGÉ — ma crainte d'hier ne tenait pas.** Le 13/09 il donnait
+13 → 8 → 6 → 2 → 2 → 2 ; aujourd'hui **15 → 10 → 7 → 3 → 2 → 2**. Il glisse bien,
+il monte même. **J'avais soupçonné un compteur bloqué, j'étais allé lire le code
+plutôt que l'écrire au Patron, et les chiffres du lendemain me donnent tort deux
+fois : le compteur marche, et la stagnation n'était pas là où je la cherchais.**
+
+### 2026-09-14 — [Support & Expérience] 🤝 Le Concierge — LE MUR E-MAIL PASSE DU RENDU AU SUBMIT
+- **SA PROPOSITION EST LA MEILLEURE DE LA SEMAINE, ET ELLE EST APPLIQUÉE.**
+  `PostAd.tsx:955` dressait le mur de l'adresse non confirmée **au rendu** de
+  `/publier` : quelqu'un qui venait de s'inscrire et cliquait « Publier ma première
+  annonce » depuis `/bienvenue` tombait sur un champ de code à six chiffres
+  **sans avoir tapé un mot de son annonce**.
+- **CE QUI REND LE CONSTAT IRRÉFUTABLE, ET C'EST LUI QUI L'A TROUVÉ** : le même
+  fichier a réglé exactement ce problème pour le **mur du compte** le 29/08, avec
+  son chiffre à l'appui — *« cinq personnes sur huit s'arrêtaient au mur, contre
+  une sur huit dans le formulaire »*. Le mur e-mail n'avait jamais reçu ce
+  traitement. **Le site était en retard sur son propre principe, posé quinze jours
+  plus tôt dans le même fichier — et sur sa propre application Flutter**, qui ne
+  vérifie l'adresse qu'au moment d'appuyer sur Publier.
+- **APPLIQUÉ EN REPRENANT LE PATRON EXISTANT** : `demanderLEmail()` jumelle
+  `demanderLeCompte()` — brouillon écrit, relais de photos posé, état levé au
+  `submit()`. « Annuler » revient au formulaire, qui n'a jamais été démonté.
+- ⚠️ **ET J'AI FAILLI CASSER LA MESURE QUI A SERVI À TROUVER LE DÉFAUT.** Le
+  calcul de `marche` émettait `mur_email` **au rendu**. Laissé tel quel, il aurait
+  compté **tous ceux qui ouvrent la page sans avoir confirmé** — c'est-à-dire
+  précisément les gens à qui l'on montre désormais le formulaire. **Le mur aurait
+  gonflé dans les chiffres au moment même où on le supprimait.** Corrigé : la
+  marche part de `demanderLEmail()`, comme `mur_connexion` depuis le 29/08. Même
+  rupture de série, écrite dans le code : ne comparez pas `mur_email` avant et
+  après le 14/09.
+- **`formulaireVu` aussi** : il exigeait `emailVerified`, donc le relais de photos
+  restait posé chez des gens qui voient pourtant le formulaire. Aligné.
+- **CE QU'IL A REFUSÉ DE PROPOSER, ET QUI VAUT SA PROPOSITION** : les champs
+  anti-arnaque de la catégorie Services (expérience, références, garantie,
+  facturation) concentrent l'essentiel des échecs de saisie. **Il les signale pour
+  information et ne propose rien** — « ces champs protègent l'acheteur, ce n'est
+  pas un défaut à corriger sans arbitrage ». Et sur le mur du compte, 7 arrivées
+  sur 15 : **« échantillon trop petit pour juger, à suivre sur une fenêtre plus
+  longue avant toute action »**. Deux fois, il s'arrête avant la conclusion que les
+  chiffres ne portent pas.

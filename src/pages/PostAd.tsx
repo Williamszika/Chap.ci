@@ -214,6 +214,13 @@ export function PostAd() {
    * « Revenir » ne coûte rien), et celui qui dit ce qu'il advient des photos.
    */
   const [demandeCompte, setDemandeCompte] = useState(false)
+  // Même mécanique que `demandeCompte`, pour l'adresse e-mail non confirmée.
+  // Trouvé par 🤝 Le Concierge le 14/09/2026 : le mur e-mail était resté au
+  // RENDU de la page alors que le mur du compte avait été déplacé au SUBMIT le
+  // 29/08. Le site était donc en retard sur son propre principe, posé quinze
+  // jours plus tôt dans ce même fichier — et sur sa propre application Flutter,
+  // qui ne vérifie l'e-mail qu'au moment d'appuyer sur Publier.
+  const [demandeEmail, setDemandeEmail] = useState(false)
   const [sortPhotos, setSortPhotos] = useState<EtatPhotos>('aucune')
   // Retour d'inscription : ce qui a été remis en place, pour le dire à l'écran.
   const [retour, setRetour] = useState<EtatPhotos | null>(null)
@@ -260,7 +267,12 @@ export function PostAd() {
    *
    * Le relais tient donc jusqu'à ce que le formulaire soit vraiment dessiné.
    * Il meurt de toute façon avec l'onglet. */
-  const formulaireVu = !editing && !!user && !!verifStatus && verifStatus.emailVerified && !demandeCompte
+  // Le relais de photos se retire dès que le formulaire est réellement à l'écran.
+  // ⚠️ `emailVerified` retiré le 14/09 : le formulaire s'affiche désormais aussi
+  // à qui n'a pas confirmé son adresse — le garder ici laissait le relais en
+  // place chez ces gens-là, sur un écran qu'ils voient pourtant bel et bien.
+  const formulaireVu =
+      !editing && !!user && !!verifStatus && !demandeCompte && !demandeEmail
   useEffect(() => { if (formulaireVu) retirerRelais() }, [formulaireVu])
 
   // Sauvegarde automatique de la saisie, une seconde après la dernière frappe.
@@ -359,15 +371,21 @@ export function PostAd() {
   // au moment où l'on appuie sur « Publier ». Le nom est le même, l'instant a
   // changé : « mur_connexion » ne mesure plus une porte fermée mais une annonce
   // écrite qui attend un compte. Le comparer aux chiffres d'avant n'a pas de sens.
+  //
+  // ⚠️ ET `mur_email` NON PLUS, DEPUIS LE 14/09. Même déplacement, même raison :
+  // une adresse non confirmée ne ferme plus le formulaire, elle arrête l'envoi.
+  // La marche part donc de `demanderLEmail()`. **Si on l'avait laissée ici, elle
+  // aurait compté tous ceux qui OUVRENT la page sans avoir confirmé — c'est-à-dire
+  // précisément les gens à qui l'on montre désormais le formulaire.** La mesure
+  // aurait gonflé le mur au moment même où on le supprimait, et le chiffre qui a
+  // servi à trouver le défaut serait devenu illisible.
+  // Même rupture de série que le 29/08 : ne comparez pas `mur_email` d'avant et
+  // d'après cette date.
   const marche: EtapePublier | null = authLoading
     ? null
-    : !user
-      ? 'formulaire'
-      : !verifStatus
-        ? null
-        : !verifStatus.emailVerified
-          ? 'mur_email'
-          : 'formulaire'
+    : !user || !verifStatus
+      ? (user ? null : 'formulaire')
+      : 'formulaire'
   const arriveeVue = useRef(false)
   const marcheVue = useRef<EtapePublier | null>(null)
   useEffect(() => {
@@ -760,12 +778,40 @@ export function PostAd() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  /* LE MUR DE L'ADRESSE E-MAIL, AU MÊME INSTANT QUE CELUI DU COMPTE.
+   *
+   * Il se dressait au rendu de /publier : quelqu'un qui venait de s'inscrire et
+   * cliquait « Publier ma première annonce » depuis /bienvenue tombait sur un
+   * champ de code à six chiffres SANS AVOIR TAPÉ UN MOT de son annonce. Le
+   * raisonnement qui a déplacé le mur du compte le 29/08 vaut mot pour mot ici :
+   * on ne dresse pas un obstacle devant quelqu'un qui n'a encore rien investi.
+   *
+   * La RAISON du mur ne bouge pas d'un pouce : aucune annonce ne part sans
+   * adresse confirmée, et une adresse jetable reste ce qui permet de recommencer
+   * après un bannissement. On ne retire pas l'exigence, on la met à l'instant où
+   * elle se comprend toute seule — l'annonce est écrite, il ne manque que la
+   * confirmation.
+   *
+   * Le brouillon et les photos sont sauvés AVANT, comme pour le compte : la
+   * validation du code remonte l'utilisateur sur son formulaire intact.
+   */
+  function demanderLEmail() {
+    trackEtapePublier('mur_email')
+    ecrireBrouillon({ title, categoryId, subcategory, attrs, condition, price,
+                      negotiable, delivery, description, loc })
+    setSortPhotos(poserRelais(images))
+    setDemandeEmail(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setModeration(null)
     // Pas de compte : on s'arrête ici, avant toute validation. Voir ci-dessus.
     if (!user) return demanderLeCompte()
+    // Adresse non confirmée : même instant, même raison. Voir `demanderLEmail()`.
+    if (verifStatus && !verifStatus.emailVerified) return demanderLEmail()
     // Le message d'erreur s'affiche tout en bas d'un formulaire long : seul, il
     // dit CE QUI manque, jamais OÙ. On emmène donc l'utilisateur au champ fautif
     // et on y place le curseur — sur un téléphone, c'est la différence entre
@@ -952,8 +998,19 @@ export function PostAd() {
   // Et il ne dit PAS « accès refusé » : il propose le code, le reçoit et le
   // valide sur place. Renvoyer quelqu'un vers ses réglages au moment précis où
   // il allait publier, c'est le perdre.
-  if (user && verifStatus && !verifStatus.emailVerified) {
-    return <EmailGate email={user.email} onDone={refreshUser} onCancel={() => navigate(-1)} />
+  //
+  // ⚠️ `demandeEmail` — et non plus `!verifStatus.emailVerified` seul. Le mur
+  // s'ouvre quand on APPUIE sur Publier, pas quand la page s'affiche.
+  // « Annuler » ramène au formulaire, qui n'a jamais été démonté : l'annonce
+  // écrite est toujours là.
+  if (user && demandeEmail && verifStatus && !verifStatus.emailVerified) {
+    return (
+      <EmailGate
+        email={user.email}
+        onDone={async () => { await refreshUser(); setDemandeEmail(false) }}
+        onCancel={() => setDemandeEmail(false)}
+      />
+    )
   }
 
   // Modification ouverte par un lien direct : on attend l'annonce avant de
