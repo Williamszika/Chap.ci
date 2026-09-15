@@ -4,10 +4,10 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 
 | | |
 |---|---|
-| Période couverte | du Samedi 11 juillet 2026 au Lundi 14 septembre 2026 |
-| Livraisons | 875 |
-| Jours travaillés | 65 |
-| Dernière mise à jour | Mardi 15 septembre 2026, 11:52 (Abidjan) |
+| Période couverte | du Samedi 11 juillet 2026 au Mardi 15 septembre 2026 |
+| Livraisons | 877 |
+| Jours travaillés | 66 |
+| Dernière mise à jour | Mardi 15 septembre 2026, 15:06 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -44,6 +44,13 @@ ici même — `npm run registre` ne touche jamais cette section.
 ## Les livraisons, lues dans git
 
 <!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->
+
+### Mardi 15 septembre 2026
+
+**2 livraison(s)** · Abidjan 11:55 → 15:06 · chez le Patron 13:55 → 17:06 · amplitude 3 h 11
+
+- `11:55` · robots.txt part enfin dans le zip, et déclare les robots d'OpenAI  <sub>`8f86096`</sub>
+- `15:06` · La vidéo d'annonce était refusée par notre propre site depuis onze jours  <sub>`91e279e`</sub>
 
 ### Lundi 14 septembre 2026
 
