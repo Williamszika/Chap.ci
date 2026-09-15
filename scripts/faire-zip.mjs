@@ -42,6 +42,17 @@ cpSync(DEPOT + 'server/index.php', ETAGE + 'api/index.php')
 cpSync(DEPOT + 'server/watermark.png', ETAGE + 'api/watermark.png')
 // 3. Le SEO — il vit à la RACINE de public_html, un étage au-dessus d'api/.
 cpSync(DEPOT + 'web/seo.php', ETAGE + 'seo.php')
+// 4. robots.txt — AJOUTÉ LE 15/09/2026, et il n'y était jamais.
+//
+//    Il vivait dans `web/` mais aucun zip ne l'emportait : le fichier en ligne
+//    avait été déposé à la main, une fois, et le dépôt pouvait diverger de la
+//    production sans que rien ne le signale. Une modification de `web/robots.txt`
+//    n'avait donc AUCUN effet, silencieusement — la pire forme de panne.
+//    Découvert en voulant y déclarer les robots d'OpenAI.
+//
+//    ⚠️ Ce n'est PAS un `.htaccess` : robots.txt n'a aucun pouvoir sur le serveur,
+//    il ne fait que demander poliment aux robots. L'interdit du zip ne le vise pas.
+cpSync(DEPOT + 'web/robots.txt', ETAGE + 'robots.txt')
 
 // ── LE ZIP ALLÉGÉ (10/09/2026) ─────────────────────────────────────────────
 //

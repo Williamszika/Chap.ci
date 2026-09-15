@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Lundi 14 septembre 2026 |
-| Livraisons | 874 |
+| Livraisons | 875 |
 | Jours travaillés | 65 |
-| Dernière mise à jour | Lundi 14 septembre 2026, 21:26 (Abidjan) |
+| Dernière mise à jour | Mardi 15 septembre 2026, 11:52 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -47,9 +47,10 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Lundi 14 septembre 2026
 
-**1 livraison(s)** · Abidjan 14:24 → 14:24 · chez le Patron 16:24 → 16:24 · amplitude —
+**2 livraison(s)** · Abidjan 14:24 → 21:26 · chez le Patron 16:24 → 23:26 · amplitude 7 h 02
 
 - `14:24` · Le mur de l’adresse e-mail s’ouvre au moment de publier, plus à l’ouverture de la page  <sub>`e108290`</sub>
+- `21:26` · Zip n° 26 — le mur e-mail part en production, et le Gardien avait prédit l’empreinte  <sub>`efab0de`</sub>
 
 ### Dimanche 13 septembre 2026
 

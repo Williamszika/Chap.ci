@@ -6729,3 +6729,37 @@ fois : le compteur marche, et la stagnation n'était pas là où je la cherchais
   `empreinteSite` attendue `a0b74643f08b`. Le `A-LIRE` porte pour la première fois
   **la consigne du double rechargement PWA**, écrite hier dans `CLAUDE.md` après que
   le Patron eut cherché un onglet pourtant déployé.
+
+### 2026-09-15 — [Croissance] Le Secrétariat — robots.txt n'était dans aucun zip, et personne ne l'avait vu
+- **LE PATRON APPORTE UN PLAN SEO « POUR ÊTRE RECOMMANDÉ DANS CHATGPT ».** Vérifié
+  point par point avant de répondre : **la quasi-totalité décrit un site qu'il a
+  déjà.** `sitemap.xml` (415 URLs), URLs réelles par annonce (`/annonce/{uuid}`),
+  pages catégorie × commune (`/vendre/electronique/cocody`), JSON-LD `Product` avec
+  `priceCurrency XOF`, canonical, `index, follow` — **tout cela a été mesuré vert
+  par 📣 Le Crieur le 13/09**, deux jours avant le conseil.
+- **MAIS LA VÉRIFICATION A TROUVÉ AUTRE CHOSE, ET C'EST UNE VRAIE PANNE MUETTE :**
+  **`web/robots.txt` n'était emporté par AUCUN zip.** `faire-zip.mjs` ne copiait que
+  `web/seo.php`. Le fichier en ligne avait été déposé à la main, une fois, et le
+  dépôt pouvait diverger de la production **sans qu'aucun signal n'existe** —
+  modifier `robots.txt` dans le dépôt n'avait littéralement aucun effet. **Corrigé :
+  il entre dans le zip.** Ce n'est pas un `.htaccess` — robots.txt n'a aucun pouvoir
+  sur le serveur, il demande poliment aux robots ; l'interdit du zip ne le vise pas.
+- **CE QUE LE CONSEIL A D'UTILE, ET C'EST UNE SEULE CHOSE : LES ROBOTS D'OPENAI.**
+  Ils étaient déjà autorisés par `User-agent: *`. Les nommer ne change rien au
+  comportement — **mais rend la décision possible.** Et il y a une décision, que
+  le conseil ne mentionnait pas : **`GPTBot` collecte pour ENTRAÎNER les modèles,
+  `OAI-SearchBot` fait apparaître le site dans les réponses.** Les deux sont
+  indépendants : refuser l'entraînement ne retire rien à la visibilité. Écrit dans
+  le fichier, avec la ligne exacte à changer — **c'est au Patron de trancher, pas
+  à moi.**
+- ⚠️ **ET CE QUE LE CONSEIL RATE COMPLÈTEMENT.** Son exemple est *« Trouve-moi une
+  Toyota Corolla 2020 à Abidjan »*. **Chap.ci n'a AUCUNE annonce de véhicule.** Dix
+  catégories sur seize sont vides, dont l'électronique ; 45 annonces dont 34 d'un
+  seul vendeur ; rien de neuf depuis le 07/09. **Aucun `robots.txt` ne fera
+  recommander une page qui n'existe pas.** Quatre bureaux sont arrivés à cette
+  conclusion cette semaine par quatre chemins différents — le Crieur, le Comptable,
+  le Concierge et moi. Le goulot n'a jamais été technique.
+- **SUR LA PUBLICITÉ PAYANTE DANS CHATGPT : je ne sais pas.** Je n'ai pas de
+  connaissance fiable de l'état de ce produit, et je ne vais pas l'inventer pour
+  faire bonne figure. Ce qui est sûr et indépendant du produit : **on n'achète pas
+  de visibilité pour un catalogue vide.**

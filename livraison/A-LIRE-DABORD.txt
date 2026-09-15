@@ -1,4 +1,4 @@
-CHAP.CI — ZIP DU 14 SEPTEMBRE 2026, n° 26
+CHAP.CI — ZIP DU 15 SEPTEMBRE 2026, n° 26
 ===============================================================================
 
 UN SEUL CHANGEMENT : ON NE DEMANDE PLUS LE CODE E-MAIL AVANT D'AVOIR ÉCRIT
@@ -31,11 +31,26 @@ Téléversez chapci-logo.zip DANS public_html, puis clic droit dessus ->
 PAS dans api/. Supprimez le zip après extraction.
 
 
+DEUXIÈME CHANGEMENT : robots.txt ENTRE ENFIN DANS LE ZIP.
+
+Il vivait dans le dépôt mais AUCUN zip ne l'emportait — le fichier en ligne avait
+été déposé à la main, une fois. Le dépôt pouvait donc diverger de la production
+sans que rien ne le signale : modifier robots.txt n'avait aucun effet, en silence.
+Découvert en voulant y déclarer les robots d'OpenAI.
+
+Il déclare maintenant, nommément : Googlebot, Bingbot, OAI-SearchBot (la recherche
+dans ChatGPT), OAI-AdsBot, ChatGPT-User et GPTBot. TOUS AUTORISÉS — c'était déjà
+le cas par la règle générale, rien ne change pour personne. Les nommer sert à
+pouvoir décider robot par robot le jour venu (voir la note sur GPTBot dans le
+fichier lui-même).
+
+
 CE QUE LE ZIP CONTIENT
 ----------------------
   index.html + assets/  le site (CHANGE — le mur e-mail)
   api/index.php         l'API (IDENTIQUE au n° 25)
   seo.php               les pages pour les robots (inchangé)
+  robots.txt            NOUVEAU dans le zip (les robots d'OpenAI déclarés)
   api/watermark.png     identique
 
 
@@ -58,6 +73,9 @@ Ouvrez :  https://chap.ci/api/health   (UNE fois)
   empreinteSeo   doit rester           9536aeb35d70   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
+
+Et ouvrez une fois :  https://chap.ci/robots.txt
+Vous devez y voir les lignes « OAI-SearchBot » et « GPTBot ».
 
 ⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
 
