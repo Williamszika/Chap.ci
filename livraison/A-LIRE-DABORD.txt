@@ -1,24 +1,43 @@
-CHAP.CI — ZIP DU 15 SEPTEMBRE 2026, n° 26
+CHAP.CI — ZIP DU 15 SEPTEMBRE 2026, n° 27
 ===============================================================================
 
-UN SEUL CHANGEMENT : ON NE DEMANDE PLUS LE CODE E-MAIL AVANT D'AVOIR ÉCRIT
-SON ANNONCE.
+⚠️ CE ZIP REMPLACE LE n° 26 QUE JE VOUS AI ENVOYÉ CE MATIN. Ne l'extrayez pas.
+Si vous l'avez déjà téléchargé, supprimez-le : le n° 27 contient tout ce qu'il
+contenait, PLUS la correction de la vidéo ci-dessous.
 
-Quelqu'un qui venait de s'inscrire et cliquait « Publier ma première annonce »
-tombait sur un champ de code à six chiffres — SANS AVOIR TAPÉ UN MOT de son
-annonce. Le mur arrive maintenant au moment d'appuyer sur « Publier ».
 
-C'est 🤝 Le Concierge qui l'a relevé, et son argument est imparable : la même
-page avait déjà réglé ce problème pour le mur du COMPTE le 29 août, avec son
-chiffre écrit dans le code — « cinq personnes sur huit s'arrêtaient au mur,
-contre une sur huit dans le formulaire ». Le mur e-mail n'avait jamais reçu ce
-traitement. Votre application Android, elle, faisait déjà bien les choses : le
-site était en retard sur sa propre application.
+LE CHANGEMENT PRINCIPAL : LA VIDÉO D'ANNONCE N'A JAMAIS MARCHÉ SUR LE SITE.
+---------------------------------------------------------------------------
+Depuis sa livraison le 4 septembre, un vendeur qui choisissait une vidéo dans
+« Publier » lisait ceci, quelle que soit sa vidéo :
 
-RIEN N'EST ASSOUPLI. Aucune annonce ne part sans adresse confirmée : le serveur
-le refuse, et il le refusait déjà avant ce zip (vérifié par 🛡️ Le Gardien —
-« le changement est purement une réorganisation de l'écran, le serveur exige
-toujours l'e-mail confirmé »). On a déplacé le moment, pas la règle.
+    « Ce fichier n'est pas une vidéo lisible.
+      Un MP4 ou un MOV pris avec votre téléphone convient. »
+
+Sa vidéo n'avait rien. C'est NOUS qui la refusions. Le site porte une règle de
+sécurité qui dit au navigateur quels contenus il a le droit de charger ; cette
+règle avait une case vide, et la case vide veut dire « rien ». Le navigateur
+refusait donc la vidéo avant qu'un seul octet ne parte vers le serveur — et le
+message d'erreur accusait le fichier du vendeur.
+
+Onze jours. Le message était le pire possible : il faisait croire au vendeur
+que son téléphone filmait mal.
+
+VOTRE APPLICATION ANDROID, ELLE, N'A JAMAIS EU CE PROBLÈME : elle ne passe pas
+par un navigateur, donc pas par cette règle. Encore une fois, le site était en
+retard sur sa propre application.
+
+
+CE QUI CONTIENT AUSSI LE n° 26 (rappel)
+---------------------------------------
+  · On ne demande plus le code e-mail avant d'avoir écrit son annonce. Le mur
+    arrive au moment d'appuyer sur « Publier ». Rien n'est assoupli : aucune
+    annonce ne part sans adresse confirmée, le serveur le refuse toujours.
+  · robots.txt entre enfin dans le zip. Il vivait dans le dépôt mais AUCUN zip
+    ne l'emportait — le fichier en ligne avait été déposé à la main, une fois.
+    Il déclare maintenant Googlebot, Bingbot, OAI-SearchBot (la recherche dans
+    ChatGPT), OAI-AdsBot, ChatGPT-User et GPTBot. Tous autorisés — c'était déjà
+    le cas, rien ne change pour personne.
 
 
 OÙ EXTRAIRE
@@ -31,27 +50,15 @@ Téléversez chapci-logo.zip DANS public_html, puis clic droit dessus ->
 PAS dans api/. Supprimez le zip après extraction.
 
 
-DEUXIÈME CHANGEMENT : robots.txt ENTRE ENFIN DANS LE ZIP.
-
-Il vivait dans le dépôt mais AUCUN zip ne l'emportait — le fichier en ligne avait
-été déposé à la main, une fois. Le dépôt pouvait donc diverger de la production
-sans que rien ne le signale : modifier robots.txt n'avait aucun effet, en silence.
-Découvert en voulant y déclarer les robots d'OpenAI.
-
-Il déclare maintenant, nommément : Googlebot, Bingbot, OAI-SearchBot (la recherche
-dans ChatGPT), OAI-AdsBot, ChatGPT-User et GPTBot. TOUS AUTORISÉS — c'était déjà
-le cas par la règle générale, rien ne change pour personne. Les nommer sert à
-pouvoir décider robot par robot le jour venu (voir la note sur GPTBot dans le
-fichier lui-même).
-
-
 CE QUE LE ZIP CONTIENT
 ----------------------
-  index.html + assets/  le site (CHANGE — le mur e-mail)
-  api/index.php         l'API (IDENTIQUE au n° 25)
+  index.html + assets/  le site (CHANGE — la vidéo et le mur e-mail)
+  api/index.php         l'API (IDENTIQUE au n° 25 et au n° 26)
   seo.php               les pages pour les robots (inchangé)
-  robots.txt            NOUVEAU dans le zip (les robots d'OpenAI déclarés)
+  robots.txt            comme au n° 26 (les robots d'OpenAI déclarés)
   api/watermark.png     identique
+
+144 entrées, vérifiées une par une sur le zip fini.
 
 
 CE QU'IL NE TOUCHE PAS
@@ -61,18 +68,19 @@ CE QU'IL NE TOUCHE PAS
   uploads/             TOUTES les photos des annonces (et les vidéos)
   api/data/            vos secrets — push.json ET votre fcm.json
 
-Vérifié sur le zip fini, entrée par entrée.
-
 
 APRÈS L'EXTRACTION — LA VÉRIFICATION
 ------------------------------------
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit rester           bbbcd782352d   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          a0b74643f08b   <- le site, CHANGE
+  empreinteSite  doit devenir          4619a141ccab   <- le site, CHANGE
   empreinteSeo   doit rester           9536aeb35d70   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
+
+⚠️ ATTENTION : l'empreinte attendue N'EST PLUS a0b74643f08b (c'était celle du
+n° 26). Si vous voyez a0b74643f08b, vous avez extrait l'ancien zip.
 
 Et ouvrez une fois :  https://chap.ci/robots.txt
 Vous devez y voir les lignes « OAI-SearchBot » et « GPTBot ».
@@ -80,14 +88,12 @@ Vous devez y voir les lignes « OAI-SearchBot » et « GPTBot ».
 ⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
 
 
-⚠️⚠️ ET RECHARGEZ DEUX FOIS — C'EST NOUVEAU, ET ÇA VOUS A DÉJÀ PIÉGÉ
----------------------------------------------------------------------
-Le 13 septembre, vous ne voyiez pas un onglet d'administration pourtant
-déployé : empreintes vertes, fichier servi, et votre navigateur affichait
-l'ancien. Chap.ci est une application installable (PWA) : LE PREMIER
-RECHARGEMENT INSTALLE LA NOUVELLE VERSION, LE SECOND LA SERT.
+⚠️⚠️ ET RECHARGEZ DEUX FOIS
+---------------------------
+Chap.ci est une application installable (PWA) : LE PREMIER RECHARGEMENT
+INSTALLE LA NOUVELLE VERSION, LE SECOND LA SERT. Le 13 septembre, vous ne
+voyiez pas un onglet d'administration pourtant déployé, pour cette raison.
 
-Donc, après extraction :
   1. Fermez TOUS les onglets chap.ci
   2. Rouvrez chap.ci
   3. Rechargez une seconde fois (Cmd+R)
@@ -99,14 +105,14 @@ d'application. Si la nouveauté y est, tout est en ordre.
 
 LA VÉRIFICATION QUI SE VOIT À L'ŒIL NU
 --------------------------------------
-Avec un compte dont l'adresse n'est PAS confirmée, ouvrez chap.ci -> Publier.
+Prenez une petite vidéo sur votre téléphone, ouvrez chap.ci -> Publier, et
+ajoutez-la à une annonce.
 
-  AVANT : le champ de code à six chiffres, tout de suite.
-  APRÈS : le formulaire d'annonce. Le code n'est demandé qu'en appuyant
-          sur « Publier », et votre annonce est gardée pendant ce temps.
+  AVANT : « Ce fichier n'est pas une vidéo lisible », à chaque fois.
+  APRÈS : la vidéo s'affiche, avec ses commandes de lecture.
 
-Si vous n'avez pas de compte non confirmé sous la main, ce n'est pas grave :
-l'empreinte suffit.
+C'est la vérification qui compte le plus dans ce zip. Si elle échoue, dites-le
+moi tout de suite.
 
 
 CE QUI N'EST PAS DANS CE ZIP

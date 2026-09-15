@@ -61,6 +61,26 @@ const CSP = [
   "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' blob: https://accounts.google.com https://www.gstatic.com https://connect.facebook.net https://analytics.tiktok.com https://www.googletagmanager.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
+  // media-src — AJOUTÉ LE 15/09/2026, et il n'y avait JAMAIS été.
+  //
+  //   Sans cette ligne, `media-src` retombe sur `default-src 'self'`, qui
+  //   n'autorise pas `blob:`. Or « Publier » lit la durée de la vidéo choisie
+  //   avec un <video src="blob:…"> (dureeVideo(), PostAd.tsx). Le navigateur
+  //   refusait le chargement, `onerror` partait, dureeVideo() renvoyait -1, et
+  //   le vendeur lisait « Ce fichier n'est pas une vidéo lisible » — un message
+  //   qui accusait SON fichier alors que la faute était notre propre CSP.
+  //   La vidéo était donc impossible à publier depuis le site depuis sa
+  //   livraison du 04/09/2026. L'application Flutter, elle, n'a pas de CSP :
+  //   elle marchait. Le site était encore en retard sur sa propre application.
+  //
+  //   Mesuré, pas déduit : deux bras, même vidéo témoin (2 917 octets) —
+  //   CSP réelle => dureeVideo() = -1 et « Refused to load media from blob: » ;
+  //   CSP + media-src => 0,93 s. Le banc `npm run banc:csp` rejoue les deux.
+  //
+  //   `data:` n'y est PAS : aucun de nos médias n'en utilise. La violation
+  //   `media-src data` vue une seule fois le 10/09 ne vient pas de notre code,
+  //   et la refuser est exactement le travail de la CSP.
+  "media-src 'self' blob:",
   "font-src 'self' data:",
   "connect-src 'self' blob: data: https://accounts.google.com https://www.googleapis.com https://graph.facebook.com https://www.facebook.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org https://ipwho.is https://ipapi.co https://analytics.tiktok.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://www.google.com https://tfhub.dev https://storage.googleapis.com https://www.kaggle.com",
   "worker-src 'self' blob:",

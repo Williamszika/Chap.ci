@@ -40,7 +40,8 @@
     "banc:front": "node scripts/banc-front.mjs",
     "synonymes": "node scripts/synonymes.mjs",
     "prebuild": "node scripts/synonymes.mjs",
-    "banc:deviner": "node scripts/banc-deviner.mjs"
+    "banc:deviner": "node scripts/banc-deviner.mjs",
+    "banc:csp": "node scripts/banc-csp.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

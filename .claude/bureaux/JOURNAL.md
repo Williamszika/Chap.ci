@@ -6763,3 +6763,97 @@ fois : le compteur marche, et la stagnation n'était pas là où je la cherchais
   connaissance fiable de l'état de ce produit, et je ne vais pas l'inventer pour
   faire bonne figure. Ce qui est sûr et indépendant du produit : **on n'achète pas
   de visibilité pour un catalogue vide.**
+
+---
+
+## 2026-09-15 10:50 — 🛡️ Le Gardien, ronde — classée par 🗂️ Le Secrétariat
+
+**Vérifié avant classement, en local uniquement** (aucune requête serveur : la
+ronde venait d'en faire une, et l'anti-robot se déclenche sur nos propres sondes).
+
+- ✅ `empreinte` `bbbcd782352d` et `empreinteSeo` `9536aeb35d70` : recalculées sur
+  `server/index.php` et `web/seo.php` de HEAD, identiques au caractère près.
+- ✅ « `server/index.php` n'a pas bougé depuis le 12/09 » : dernier commit
+  `5e37196`, 12/09 22:44. « `flutter_app/` inchangé depuis le 13/09 » : `145d2fa`,
+  13/09 09:35. Les deux exactes.
+- ✅ Certificat au 12/10 : 27 jours depuis aujourd'hui. Exact.
+- ✅ `api.bigdatacloud.net` est bien autorisé — dans `connect-src`. Une précision :
+  ce n'est pas « l'en-tête servi » mais un `<meta http-equiv>` injecté au build par
+  `vite.config.ts`. Même effet, mais l'endroit compte le jour où il faudra la changer.
+- ✅ **Le digest de modération ne viole pas l'interdit des routes cron.** `/mod/digest`
+  et `/cron/digest` sont deux routes distinctes ; la ronde a appelé `/mod/digest`,
+  couvert par l'exception écrite « Le Gardien pour `cleanup` et la modération ».
+  Nuance de vocabulaire à corriger : sur file vide, la route part dans la branche
+  `skipped: true` et **n'envoie aucun e-mail**. « Digest envoyé, `emailed:0` » se
+  lit comme un envoi vide ; il n'y a pas eu d'envoi du tout.
+
+### ⛔ ET CE QUE LA RONDE A CLASSÉ « TROP RARE » ÉTAIT UNE FONCTION MORTE
+
+La ronde range trois violations CSP vues sur 7 jours en « déjà autorisées ou trop
+rares pour être un chantier ». L'une des trois était `media-src data`, **une seule
+occurrence, le 10/09**. Je suis allé voir ce qu'elle voulait dire.
+
+**La CSP servie n'avait AUCUNE directive `media-src`.** Elle retombait donc sur
+`default-src 'self'`, qui n'autorise pas `blob:`. Or « Publier » lit la durée de la
+vidéo choisie avec un `<video src="blob:…">` (`dureeVideo()`, `PostAd.tsx:543`). Le
+navigateur refusait le chargement, `onerror` partait, `dureeVideo()` renvoyait `-1`,
+et `PostAd.tsx:571` traduisait ce `-1` par :
+
+> « Ce fichier n'est pas une vidéo lisible. Un MP4 ou un MOV pris avec votre
+> téléphone convient. »
+
+**Un message qui accuse le fichier du vendeur quand la faute est notre CSP.**
+
+**Mesuré, pas déduit.** Boucle rouge/vert à deux bras, même vidéo témoin de
+2 917 octets enregistrée par le navigateur lui-même :
+
+| bras | `dureeVideo()` | console |
+|---|---|---|
+| CSP réelle du 04/09 | **-1** | `Refused to load media from 'blob:…'` |
+| la même + `media-src 'self' blob:` | **0,93 s** | rien |
+
+Même fichier, deux résultats : la cause est la CSP, pas la vidéo.
+
+- **Étendue bornée, vérifiée et non supposée** : `git log -S"media-src"` sur
+  `vite.config.ts` ne rend **rien** — la directive n'y a jamais figuré. La vidéo est
+  donc morte sur le site **depuis sa livraison du 04/09/2026, soit onze jours**.
+  *Regarder* une vidéo marchait (`mediaUrl()` rend un chemin relatif hors natif,
+  donc `'self'`) ; seule la *publication* était cassée. L'enveloppe Capacitor ne
+  rouvre pas le sujet : `isNative` vaut `false` en dur, l'application est Flutter —
+  et Flutter n'a pas de CSP, donc **l'application, elle, marchait**. Le site était
+  encore une fois en retard sur sa propre application.
+- **Corrigé** : `media-src 'self' blob:` dans `vite.config.ts`. `data:` n'y est
+  **pas** — aucun de nos médias n'en utilise (vérifié), donc la violation du 10/09
+  ne vient pas de notre code, et la refuser est exactement le travail de la CSP.
+
+### ⚠️ LA LEÇON, ET ELLE VAUT PLUS QUE LE CORRECTIF
+
+**La rareté d'un RAPPORT n'est pas la rareté d'un IMPACT.** Cette fonction était
+cassée à 100 % et n'a produit qu'une violation en sept jours — parce qu'**une seule
+personne a essayé, une fois, et a cru que sa vidéo était mauvaise.** Un compteur de
+rapports bas mesure le nombre de gens qui ont essayé, jamais le taux d'échec.
+« Trop rare pour être un chantier » est un jugement qu'on ne peut pas porter sur ce
+compteur seul. À ajouter à la routine du Gardien.
+
+**Et pourquoi `banc:video` était vert tout ce temps :** il teste le **serveur** —
+envoi, remplacement, plafond à 4 Mo, 413, suppression. Tout y est juste, et tout y
+était vert (rejoué aujourd'hui : vert). Mais **le vendeur n'atteignait jamais le
+serveur.** Le banc couvrait la moitié de la route qui marchait. C'est la règle
+« une vérification doit pouvoir échouer » sous un angle nouveau : un banc peut être
+honnête, complet sur son périmètre, et rester aveugle à une panne totale située
+juste avant son point d'entrée.
+
+**Nouveau banc `npm run banc:csp`**, à deux bras par construction : la CSP réelle
+doit passer, **et** la même CSP amputée de `media-src` doit échouer. Si le second
+bras passe au vert, c'est le banc qui est cassé et il le dit — il refuse alors de
+valider le premier.
+
+### Reste ouvert
+
+- **Zip n° 27** (`empreinteSite 4619a141ccab`) — il **remplace le n° 26** envoyé ce
+  matin, que le Patron n'a pas encore extrait (`deposeSite` toujours au 13/09 02:07,
+  confirmé par la ronde). Le n° 26 est à supprimer sans l'extraire.
+- **`security_alert 1` du 14/09** : sorti de la fenêtre 24 h. Seul le Patron peut
+  dire s'il a reçu l'e-mail — question à lui poser, une fois, sans insister.
+- **Le catalogue reste le goulot** : 45 annonces, 34 d'un seul vendeur, rien depuis
+  le 07/09. Aucun correctif technique ne le déplace.
