@@ -6626,3 +6626,54 @@ traces disent plus que ce qu'il en a tiré.
   de conclure « du décor pur, aucune proposition », et il n'envoie pas de
   notification pour un écart d'admin interne. **Un bureau qui sait ne rien
   proposer est aussi utile qu'un bureau qui propose.**
+
+### 2026-09-14 05:51 — [Confiance & Sécurité] 🛡️ Le Gardien — ronde
+- **TOUT VERT, ET LES TROIS EMPREINTES SONT CONSTRUITES, PAS SUPPOSÉES.** Accueil,
+  sitemap et `/api/health` en 200, PHP 8.5.10, `fichiersInattendus 0`. `npm ci &&
+  npm run build` exécuté avant de conclure : `empreinte bbbcd782352d`,
+  `empreinteSeo 9536aeb35d70`, `empreinteSite fff630f7ff95` — les trois égalent
+  celles servies en production. Aucun commit touchant `server/`, `web/seo.php` ou
+  `src/` depuis le dépôt du zip n° 25 (13/09 02:07) : rien n'attend d'être livré.
+- **SÉCURITÉ 24 H : `cron_fail 5` et `mtoken_fail 5`, ET LES DEUX PORTENT
+  EXACTEMENT LA SIGNATURE DU TEST DE CLOISONNEMENT** — `byDetail.cron_fail` = 100 %
+  « cron/stats · sans-cle », `mtoken_fail` = 100 % « missing », aucune IP associée
+  dans `suspiciousIps` (vide). Aucune tâche cPanel en cause. `failRatio 0,6` sur
+  3 `login_fail` : bruit sous le seuil de signification, chiffres bruts donnés sans
+  conclusion. `admin_unlock_fail 2`, sous le seuil de 3 — normal, pas remonté.
+  `rateLimited 0`. `derniersPassages` : toutes les tâches cron sont à l'heure
+  attendue (`backup` 02h, `cleanup` avant mon ménage, `alerts`/`rappels-pro` 05h,
+  `report` toujours au 01/09 — normal avant le 5/10).
+- **CSP (Report-Only, 7 jours) : les deux origines qui comptent sont déjà
+  autorisées.** Vérifié à la source avant de rien proposer :
+  `curl -sSI https://chap.ci/ | grep -i content-security-policy` montre
+  `https://api.bigdatacloud.net` et `https://www.facebook.com` déjà dans l'en-tête
+  servi — questions tranchées le 01/08 et le 15/08, rien à rouvrir. Les deux
+  dernières entrées (`frame-src` vide, `media-src data`) sont à `n=1`, négligeables.
+- ⚠️ **LA LECTURE TLS PAR `crt.sh` A D'ABORD ÉCHOUÉ (réponse vide), PUIS RÉUSSI AU
+  SECOND ESSAI** — je le note tel quel plutôt que de garder la première panne en
+  silence. Résultat propre : expiration **2026-10-12**, émetteurs Let's Encrypt et
+  Google Trust Services, cohérent sur trois certificats distincts. **28 jours
+  restants, largement au-dessus du seuil de 21** — rien à signaler. Ceci clôt la
+  série de lectures contradictoires notée les 11, 12 et 13/09 : la source répond,
+  il fallait retenter une fois avant de conclure à une panne.
+- **MÉNAGE : tous les compteurs à zéro.** Rien à purger.
+- **SCAN SERVEUR (`server/index.php`) : rien de nouveau, tout ce qui était corrigé
+  reste en place** (JWT, bcrypt, prix relu sur `/orders`, portée des `/reviews`,
+  uploads, jeton de modération, clé cron, requêtes préparées, pas d'écriture de
+  `.php`). La fonctionnalité `avis_app` (12/09) est propre : authentification
+  obligatoire sur les trois routes, note bornée 1-5, commentaire tronqué à
+  2000 caractères, unicité garantie par un **index UNIQUE en base** (pas seulement
+  applicatif), requêtes préparées. Le défaut de cohérence déjà connu depuis le
+  13/09 (`admin_feature_for_path()` ne liste pas `admin/avis-app`, fail-closed donc
+  sans risque, réservé de fait au propriétaire) est **inchangé** : je ne le
+  re-signale pas comme une nouveauté.
+- **SCAN APPLICATION (Flutter) : rien à signaler.** Base d'URL toujours
+  `https://chap.ci/api`, identifiant `ci.chap.app` sur les deux plateformes,
+  permissions et schéma `chapci` inchangés, aucune dépendance nouvelle dans
+  `pubspec.yaml` (les 15 derniers commits ne touchent que la fonctionnalité
+  d'avis, des textes et des couleurs), aucun secret réel dans le dépôt.
+- **MODÉRATION : file vide** — 0 signalement, 0 annonce récente non vue. Digest
+  posé (`emailed:0, skipped:true`), aucune note jointe : RAS, comme il se doit.
+- **Problèmes ouverts : aucun.** Le seul point resté ouvert (l'oubli fonctionnel
+  `admin/avis-app` dans `admin_feature_for_path()`) est mineur, déjà connu depuis
+  le 13/09, sans risque de sécurité — pas de notification, le rapport suffit.
