@@ -6857,3 +6857,89 @@ valider le premier.
   dire s'il a reçu l'e-mail — question à lui poser, une fois, sans insister.
 - **Le catalogue reste le goulot** : 45 annonces, 34 d'un seul vendeur, rien depuis
   le 07/09. Aucun correctif technique ne le déplace.
+
+---
+
+## 2026-09-15 20:52 — 🛡️ Le Gardien, ronde du soir — classée par 🗂️ Le Secrétariat
+
+**Le gros du rapport tient**, et le déploiement est confirmé de deux côtés
+indépendamment : la ronde a reconstruit le dépôt (`npm ci && npm run build`) et
+comparé les trois empreintes ; j'avais de mon côté interrogé la production
+(`empreinte bbbcd782352d`, `empreinteSite 4619a141ccab`, `empreinteSeo 9536aeb35d70`,
+`deposeSite 15:02:06`, `fichiersInattendus 0`). Deux chemins, même résultat. Le zip
+n° 27 est en production et l'écart signalé le matin est résolu. Cloisonnement
+rejoué et étanche, ménage à zéro, certificat au 12/10, scans serveur et Flutter
+conformes, file de modération vide.
+
+**Deux points sont faux. Le second demande un correctif qu'il ne faut pas faire.**
+
+### 1. Le `media-src data` du 10/09 n'est PAS corrigé
+
+La ronde écrit : « `media-src data` (1 occurrence, 10/09) déjà corrigée le 15/09
+(`91e279e`, résiduel du cache PWA) ». Deux erreurs dans une phrase.
+
+- **Ce n'est pas ce qui a été corrigé.** `91e279e` ajoute `media-src 'self' blob:`.
+  Vérifié sur la production : la CSP servie est `media-src 'self' blob:`. **`data:`
+  y est toujours refusé aujourd'hui.** J'avais délibérément écarté `data:` —
+  aucun de nos médias n'en utilise, c'est écrit dans le commentaire du commit.
+- **« Résiduel du cache PWA » est impossible dans ce sens.** La violation date du
+  10/09, **cinq jours avant** que le correctif existe. Un cache sert de l'ANCIEN,
+  jamais du futur. Le 10/09, la CSP n'avait aucune directive `media-src` du tout :
+  cette violation est simplement l'état d'avant, pas le résidu d'un correctif.
+
+**La question reste donc ouverte, et c'est bien ainsi.** Rien dans notre code ne
+charge de média en `data:` (vérifié). L'origine la plus probable est une extension
+de navigateur ou un script injecté chez un visiteur — auquel cas **la refuser est
+exactement le travail de la CSP**, et il n'y a rien à corriger. Mais cela se dit
+« inexpliqué, probablement pas de nous », pas « corrigé ».
+
+### 2. ⛔ Le correctif proposé ÉLARGIT un accès au lieu de le documenter
+
+La ronde propose, pour `/admin/avis-app`, d'ajouter dans `admin_feature_for_path()` :
+
+```php
+if ($path === 'admin/avis-app') return 'overview';   // ← NE PAS FAIRE
+```
+
+en la qualifiant de « risque du correctif : faible ». Elle ne l'est pas. Dans
+`admin_can()`, quatre lignes plus bas :
+
+```php
+if ($feature === '' || $feature === 'overview') return true;   // aperçu : toujours permis
+```
+
+**`'overview'` n'est pas une permission : c'est un laissez-passer.** Il rend `true`
+sans jamais consulter les permissions du modérateur. La route passerait donc de
+**« propriétaire uniquement »** (l'état actuel, via le repli fail-closed `'unknown'`)
+à **« tout modérateur, sans aucun droit à cocher »** — et `/admin/avis-app` expose
+les avis sur l'application avec leur texte libre et leur `user_id`.
+
+La ronde a raison sur le constat (la route compte sur un repli plutôt que sur une
+ligne explicite) et se trompe sur le remède : elle propose d'ouvrir ce qu'elle
+vient de féliciter d'être fermé.
+
+**Rien n'est fait.** L'état actuel est correct et sûr ; il n'y a aucune panne à
+réparer, et une permission ne se change pas sans décision du Patron. **Si** il veut
+un jour qu'un modérateur délégué voie ces avis, la ligne juste est :
+
+```php
+if ($path === 'admin/avis-app') return 'reviews';
+```
+
+`'reviews'` existe déjà, s'intitule « Avis » dans les cases à cocher, n'est pas
+réservé au propriétaire — donc il se **donne** explicitement, il ne se contourne
+pas. Et c'est sémantiquement le bon tiroir.
+
+### La leçon du jour se répète, à l'envers
+
+Ce matin, la ronde a classé « trop rare » une panne totale. Ce soir, elle classe
+« corrigé » une question ouverte et « risque faible » un élargissement de droits.
+Dans les deux cas le mécanisme est le même : **une explication plausible tenue
+pour une vérification.** Le rapport reste précieux — il a trouvé la bonne route et
+la bonne ligne. C'est la conclusion qu'il faut relire, jamais le constat.
+
+### Reste ouvert
+
+- **`security_alert` du 14/09** — hors fenêtre 24 h. Question posée au Patron, une
+  fois, sans insister.
+- **Le catalogue** : toujours le goulot, et toujours hors de portée d'un correctif.
