@@ -1,70 +1,71 @@
-CHAP.CI — ZIP DU 16 SEPTEMBRE 2026, n° 30
+CHAP.CI — ZIP DU 16 SEPTEMBRE 2026, n° 31
 ===============================================================================
 
-LA TAILLE D'UN VÊTEMENT SE VOIT ENFIN, AU LIEU DE SE LIRE.
-
-Vous m'avez envoyé cinq planches d'applications de mode. Voici ce que j'en ai
-tiré, et surtout ce que je n'en ai PAS tiré.
+LES COULEURS D'UNE ANNONCE SE VOIENT MAINTENANT DANS LA GRILLE.
 
 
 CE QUI CHANGE
 -------------
-Sur la fiche d'un vêtement ou d'une paire de chaussures, les tailles
-s'affichaient dans le tableau des caractéristiques :
+Sur votre deuxième série de planches, chaque carte de chemise porte sous son
+prix trois pastilles de couleur et un « +2 ». C'est la seule idée vraiment
+neuve de la série, et elle est excellente :
 
-  AVANT :   Tailles disponibles · S, M, L, XL
-            (une ligne, au même rang que « Matière · Coton »)
+  « Est-ce que ça existe en noir ? »
+  se répond maintenant SANS OUVRIR L'ANNONCE.
 
-  APRÈS :   Tailles disponibles
-            ( S ) ( M ) ( L ) ( XL ) ( 2XL )
-            en pastilles rondes, au-dessus du tableau
+Sur une grille à deux colonnes, et avec un forfait internet qui se compte,
+c'est beaucoup — chaque annonce ouverte pour rien coûte des mégaoctets au
+visiteur.
 
-Pour un vêtement, la taille n'est pas un détail parmi d'autres. C'est LA
-question — celle qui décide si l'acheteur continue de lire ou s'en va. Elle
-méritait d'être vue d'un coup d'œil, pas cherchée dans une liste.
+Rien n'a été demandé à personne : les couleurs étaient déjà saisies au
+formulaire, déjà peintes sur la fiche, et le serveur les envoyait déjà avec
+chaque annonce de la liste. Il manquait seulement de les montrer un cran plus
+tôt. AUCUN changement de l'API n'a été nécessaire.
 
-Les pastilles se rangent aussi dans le bon ordre. Un vendeur qui coche
-« XL, S, M » verra ses tailles affichées « S, M, XL » : deux annonces voisines
-se comparent enfin sans effort.
+Trois règles, visibles sur l'image apercu-cartes.png jointe :
 
-Une image de rendu accompagne ce zip : apercu-tailles.png.
+  · Quatre pastilles au plus, puis « +n ». Une carte fait la moitié d'un écran
+    de téléphone ; au-delà, la grille perd son alignement.
+  · Les teintes claires portent un liseré — sans lui, « Blanc » disparaîtrait
+    sur la carte blanche, et on afficherait une couleur invisible.
+  · Rien ne s'affiche en dessous de deux couleurs : une seule ne dit rien que
+    la photo ne montre déjà, et la carte ne s'allonge pas pour rien.
+
+VÉRIFIÉ, PAS SUPPOSÉ : je craignais que cette ligne rende les cartes inégales,
+puisqu'elle n'existe que sur certaines annonces. Mesuré dans un navigateur sur
+une grille mélangée : écart de 0 pixel entre les deux cartes d'une même rangée.
+La grille les égalise toute seule.
 
 
-⚠️ CE QUE J'AI VOLONTAIREMENT REFUSÉ DE COPIER
-----------------------------------------------
-Dans vos planches, les tailles sont des BOUTONS : on tape « L », l'article part
-au panier dans cette taille.
+⚠️ CE QUE J'AI REFUSÉ, ET POURQUOI
+-----------------------------------
+Votre troisième et quatrième image sont une fiche de conseils en sept points
+pour une page d'accueil de commerce en ligne. Le point 4 s'appelle « Sale
+Banner » et recommande explicitement un « message d'urgence » avec un compte à
+rebours : « Plus que 02 jours 15 heures 47 secondes ».
 
-Chap.ci n'est pas une boutique en ligne. Ce sont des petites annonces : ces
-tailles sont celles que LE VENDEUR A EN STOCK, et la suite se règle avec lui.
+Je ne l'ai pas fait, et je ne le ferai pas sans que vous me le demandiez en
+sachant ceci : sur Chap.ci, la vente se fait entre deux personnes. Un compte à
+rebours que nous fabriquerions nous-mêmes serait faux — rien ne s'arrête
+vraiment dans 15 heures. C'est une technique pour faire acheter vite quelqu'un
+qui hésite, pas pour l'aider à choisir. Sur un site où la confiance est votre
+seul capital face aux arnaques du marché, je pense que c'est un mauvais calcul.
 
-J'ai donc fait des pastilles qui ne se cliquent pas. Copier le bouton aurait été
-un mensonge d'un pixel : quelqu'un aurait tapé « L » en croyant réserver sa
-taille, et rien ne se serait produit. Un bouton qui ne fait rien use la
-confiance bien plus vite qu'une ligne de texte terne.
-
-Pour la même raison, je n'ai repris NI le panier, NI « Ajouter au panier »,
-NI le paiement en ligne, NI les bandeaux « Livraison rapide / Retours faciles /
-Paiement sécurisé » de la cinquième image. Sur Chap.ci on se rencontre, on
-regarde l'article, on paie en main propre ou par Mobile Money. Promettre des
-retours faciles quand il n'y a pas de retours, c'est préparer une déception.
+Pour les mêmes raisons, je n'ai repris ni « Add to Cart », ni « Buy Now », ni
+le bandeau « GET 10 % OFF YOUR ORDER » de la cinquième image : il n'y a ni
+panier, ni code promo, ni commande sur Chap.ci.
 
 
 CE QUE VOS PLANCHES DEMANDAIENT ET QUE VOUS AVIEZ DÉJÀ
 -------------------------------------------------------
-J'ai vérifié chaque idée avant de l'annoncer :
+Vérifié dans le code avant de l'écrire :
 
-  · Les pastilles de couleur — déjà là, formulaire ET fiche, avec la photo,
-    le prix et le stock par couleur. Vos planches n'en montrent pas autant.
-  · Les puces de catégorie (« All / Tops / Dresses ») — déjà là dans Explorer,
-    et la puce active se recentre toute seule.
-  · Les cœurs de favori, la grille à deux colonnes, le prix dominant — déjà là.
-  · Les tailles, pointures, matières (coton, wax, bazin), marques de pagne —
-    déjà dans vos formulaires depuis longtemps. C'est bien pour ça que
-    l'affichage pouvait être amélioré sans rien redemander aux vendeurs.
-
-Autrement dit : votre boutique de vêtements était mieux équipée que les
-planches. Ce qui lui manquait, c'était de MONTRER ce qu'elle savait déjà.
+  · La pastille « −29 % » et le prix barré — déjà sur vos cartes.
+  · Les puces de filtre (All / Formal / Casual…) — déjà dans Explorer.
+  · Le cœur de favori, la grille à deux colonnes, le prix dominant — déjà là.
+  · « In stock now ! » — vous avez mieux : le stock réel des comptes Pro, avec
+    « Plus que 2 » et « Rupture ».
+  · Les tailles en pastilles — livrées ce matin, zip n° 30.
 
 
 OÙ EXTRAIRE
@@ -82,7 +83,7 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          35182c098c3c   <- le site, CHANGE
+  empreinteSite  doit devenir          1d836a7ec1f9   <- le site, CHANGE
   empreinteSeo   doit RESTER           5002d50549e9   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
@@ -99,21 +100,22 @@ Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
 LA VÉRIFICATION À L'ŒIL NU
 --------------------------
-Ouvrez une annonce de la catégorie Mode & Beauté — sous-catégorie Vêtements
-Femme, Vêtements Homme ou Chaussures.
+Ouvrez Explorer -> Mode & Beauté.
 
-Sous le prix, avant le tableau des caractéristiques, vous devez voir les
-tailles en pastilles rondes crème, avec le texte en vert foncé.
+Les annonces dont le vendeur a coché DEUX couleurs ou plus portent maintenant
+leurs pastilles en bas de la carte, sous la commune.
 
-Si l'annonce que vous ouvrez n'a pas de tailles renseignées, rien ne s'affiche —
-c'est normal, et c'est voulu : une section vide ne dit rien à personne.
+Si vos annonces de mode n'ont qu'une couleur, ou aucune, rien ne s'affiche —
+c'est normal et voulu. Cela deviendra visible à mesure que les vendeurs
+remplissent ce champ.
 
 
 CE QUI N'EST PAS DANS CE ZIP
 ----------------------------
+· La ligne « Slim Fit · Coton » sous le titre, visible sur votre première
+  image. Elle est faisable — ce serait « Wax · Uniwax » chez vous — mais elle
+  ajoute une ligne à chaque carte de mode et demande de choisir quel attribut
+  montrer par catégorie. Dites-moi si vous la voulez, je la ferai à part.
 · Les corrections de 🎨 L'Atelier pour l'APPLICATION (prochain AAB, code 29).
-  Cette nouveauté-ci est sur le SITE ; elle partira aussi dans l'application
-  quand vous le voudrez — dites-le-moi.
-· Le déblocage du robot de ChatGPT : c'est chez votre hébergeur, aucun zip ne
-  peut le faire (fiche envoyée séparément).
-· La ligne du .htaccess à corriger à la main. Toujours pas urgent.
+· Le déblocage du robot de ChatGPT : chez votre hébergeur, aucun zip ne peut
+  le faire.

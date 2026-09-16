@@ -11,6 +11,7 @@ import { useApp } from '../store/AppContext'
 import { useGeo } from '../store/GeoContext'
 import { haversineKm, formatDistance } from '../lib/geo'
 import { activePromo } from '../lib/promo'
+import { PastillesCouleurs } from './PastillesCouleurs'
 import { PromoTag } from './PromoTag'
 
 /**
@@ -208,6 +209,11 @@ export function ListingCard({ listing, rang = 99, dansBoutique = false }: {
             <span className="shrink-0 font-semibold text-primary-600">· {formatDistance(distance!)}</span>
           )}
         </div>
+        {/* Les couleurs, en dernier — « est-ce que ça existe en noir ? » se
+            répond sans ouvrir l'annonce. Elles ne s'affichent qu'à partir de
+            deux : une seule ne dit rien que la photo ne montre déjà, et la
+            carte ne s'allonge pas pour rien. */}
+        <PastillesCouleurs valeur={listing.attributes?.couleurs} />
       </div>
     </Link>
   )

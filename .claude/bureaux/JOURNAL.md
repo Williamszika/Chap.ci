@@ -7409,3 +7409,74 @@ se cliquent pas. La règle des 44 px vise ce qu'on touche.
 
 C'est exactement la vérification qui manquait ce matin aux boutons « Encaisser ».
 `npm run banc:classes` est passé aussi — aucune classe inventée.
+
+---
+
+## 2026-09-16 — Deuxième série de planches : les couleurs entrent dans la grille
+
+Cinq nouvelles maquettes (Omarko, Haus de Milano, et une fiche de conseils
+« Mobile-First E-Commerce Homepage Structure » d'un designer LinkedIn).
+
+### L'idée neuve, et il n'y en avait qu'une
+
+Sur la grille de chemises, chaque carte porte sous son prix **trois pastilles de
+couleur et un « +2 »**. C'est bon : *« est-ce que ça existe en noir ? »* se
+répond **sans ouvrir l'annonce** — sur une grille à deux colonnes et un forfait
+qui se compte, chaque annonce ouverte pour rien coûte des mégaoctets au visiteur.
+
+**Rien à demander à personne.** Le champ `couleurs` (type `colors`) est saisi au
+formulaire, peint sur la fiche, et le sérialiseur d'annonces envoie déjà
+`attributes` avec chaque ligne de la liste — vérifié dans `server/index.php:6734`.
+**Aucun changement d'API.** Il manquait seulement de les montrer un cran plus tôt.
+
+`src/components/PastillesCouleurs.tsx`, branché en bas de `ListingCard`.
+
+Trois choix écrits dans le fichier : quatre pastilles au plus puis « +n » ; les
+teintes claires portent leur liseré (sans quoi « Blanc » disparaît sur la carte
+blanche, et on afficherait une couleur invisible — pire que rien) ; et rien en
+dessous de deux couleurs, une seule ne disant rien que la photo ne montre déjà.
+
+### La crainte que j'avais, et qui était fausse
+
+Le guide `marketplace-design` exige des **hauteurs de cartes égalisées**, et
+j'ajoutais une ligne qui n'existe que sur certaines annonces. Mesuré dans
+Chromium sur une grille mélangée — deux cartes avec couleurs, deux sans :
+
+```
+hauteurs : 282 · 282 · 258 · 258 px
+écart dans la rangée 1 : 0 px ✅
+écart dans la rangée 2 : 0 px ✅
+```
+
+La grille CSS égalise la rangée toute seule. **Mesuré, pas supposé** — et c'est
+ce qui a permis de livrer au lieu de renoncer par prudence mal placée.
+
+### ⛔ CE QUE J'AI REFUSÉ, ET C'EST LE POINT LE PLUS IMPORTANT
+
+La fiche de conseils compte sept points. Le **point 4, « Sale Banner »**,
+recommande explicitement un **« urgency messaging »** avec compte à rebours
+(« 02 jours 15 h 47 s »).
+
+**Non, et pas sans une demande explicite du Patron en connaissance de cause.**
+Sur Chap.ci la vente se fait entre deux personnes : un compte à rebours que
+nous fabriquerions serait **faux** — rien ne s'arrête vraiment dans 15 heures.
+C'est un procédé pour faire acheter vite quelqu'un qui hésite, pas pour l'aider
+à choisir. Sur un site dont le seul capital face aux arnaques du marché est la
+confiance, c'est un mauvais calcul, et je l'ai écrit tel quel dans la fiche.
+
+Même refus pour « Add to Cart », « Buy Now » et le bandeau « GET 10 % OFF YOUR
+ORDER » : il n'y a ni panier, ni code promo, ni commande ici.
+
+### Déjà en place, vérifié avant d'être annoncé
+
+Pastille « −29 % » et prix barré (`PromoTag`, `ListingCard:98`) ; puces de
+filtre ; cœur de favori ; grille deux colonnes ; prix dominant. Et « In stock
+now ! » : Chap.ci fait mieux — le stock réel des comptes Pro, « Plus que 2 » et
+« Rupture ».
+
+### Laissé de côté, et proposé
+
+La ligne secondaire « Slim Fit · Cotton » sous le titre (ce serait
+« Wax · Uniwax » ici). Faisable, mais elle ajoute une ligne à chaque carte de
+mode et demande de choisir **quel attribut montrer par catégorie** — c'est une
+décision, pas un réglage. Proposée au Patron, pas faite.
