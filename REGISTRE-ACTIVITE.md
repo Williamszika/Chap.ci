@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Mercredi 16 septembre 2026 |
-| Livraisons | 887 |
+| Livraisons | 889 |
 | Jours travaillés | 67 |
-| Dernière mise à jour | Mercredi 16 septembre 2026, 09:40 (Abidjan) |
+| Dernière mise à jour | Mercredi 16 septembre 2026, 10:48 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -47,7 +47,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Mercredi 16 septembre 2026
 
-**7 livraison(s)** · Abidjan 03:48 → 09:40 · chez le Patron 05:48 → 11:40 · amplitude 5 h 51
+**9 livraison(s)** · Abidjan 03:48 → 10:48 · chez le Patron 05:48 → 12:48 · amplitude 7 h 00
 
 - `03:48` · Le brouillon de la règle de sécurité ignorait la vidéo — la bascule l'aurait recassée  <sub>`06d0f08`</sub>
 - `03:49` · Registre d'activité régénéré — 881 livraisons sur 67 jours  <sub>`cca0c0a`</sub>
@@ -56,6 +56,8 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `06:27` · Le compte Pro peut être facturé, et les pages « Vendez à… » ne sont plus 368 jumelles  <sub>`98d769d`</sub>
 - `06:27` · Registre d'activité régénéré — 885 livraisons sur 67 jours  <sub>`9224488`</sub>
 - `09:40` · Les deux boutons « Encaisser » étaient blancs sur blanc — livrés ce matin, invisibles  <sub>`c72b999`</sub>
+- `09:40` · Registre d'activité régénéré — 887 livraisons sur 67 jours  <sub>`45959a3`</sub>
+- `10:48` · Le serveur refuse le robot de ChatGPT : 520 pour lui, 200 pour Googlebot  <sub>`69844cc`</sub>
 
 ### Mardi 15 septembre 2026
 
