@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Mercredi 16 septembre 2026 |
-| Livraisons | 885 |
+| Livraisons | 887 |
 | Jours travaillés | 67 |
-| Dernière mise à jour | Mercredi 16 septembre 2026, 06:27 (Abidjan) |
+| Dernière mise à jour | Mercredi 16 septembre 2026, 09:40 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -47,13 +47,15 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Mercredi 16 septembre 2026
 
-**5 livraison(s)** · Abidjan 03:48 → 06:27 · chez le Patron 05:48 → 08:27 · amplitude 2 h 39
+**7 livraison(s)** · Abidjan 03:48 → 09:40 · chez le Patron 05:48 → 11:40 · amplitude 5 h 51
 
 - `03:48` · Le brouillon de la règle de sécurité ignorait la vidéo — la bascule l'aurait recassée  <sub>`06d0f08`</sub>
 - `03:49` · Registre d'activité régénéré — 881 livraisons sur 67 jours  <sub>`cca0c0a`</sub>
 - `05:56` · Les 368 pages SEO sont bien réelles, mais la ville n'y sert à rien  <sub>`9fadf6c`</sub>
 - `06:18` · La ville d'une page « Vendez à… » ne servait à rien : 368 pages pour 46 annonces  <sub>`16477c8`</sub>
 - `06:27` · Le compte Pro peut être facturé, et les pages « Vendez à… » ne sont plus 368 jumelles  <sub>`98d769d`</sub>
+- `06:27` · Registre d'activité régénéré — 885 livraisons sur 67 jours  <sub>`9224488`</sub>
+- `09:40` · Les deux boutons « Encaisser » étaient blancs sur blanc — livrés ce matin, invisibles  <sub>`c72b999`</sub>
 
 ### Mardi 15 septembre 2026
 
