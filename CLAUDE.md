@@ -277,6 +277,13 @@ Deux choses à ne pas confondre, écrites dans le fichier lui-même :
 - **Heures d'Abidjan** (UTC+0), parce que c'est le calendrier du site. L'heure du Patron
   est calculée à côté par `Intl`, donc elle suit l'heure d'été toute seule.
 
+  ⚠️ **Le Patron vit à Aix-la-Chapelle (Aachen, Allemagne)** — `Europe/Berlin`, donc
+  **UTC+2 l'été et UTC+1 l'hiver**. Il est DEVANT le calendrier du site, jamais
+  derrière. Le 16/09/2026, une horloge serveur à 21:59 UTC a été annoncée comme
+  « bientôt 22 h chez vous » : il était minuit moins une. Une heure lue dans
+  `/api/health`, dans un journal ou dans le registre est une heure d'ABIDJAN ;
+  la convertir avant de la lui dire, ou ne pas la lui dire du tout.
+
 **La section « Ce que le Patron a fait lui-même » est hors du bloc automatique** et le
 générateur ne la touche jamais : un zip extrait, une clé changée dans cPanel, une
 application construite ne laissent aucune trace dans git. Complétez-la avec ce que vous
