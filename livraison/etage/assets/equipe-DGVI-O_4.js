@@ -1,1 +1,0 @@
-import{dM as s,dN as t,dO as c,dP as p,dQ as u}from"./index-CpKgdIJ9.js";async function h(){return t()}async function d(a,r,n="user",e=""){return(await s(a,r,n,e)).id}async function T(a){return c(a)}async function m(a,r){return u(a,r)}async function f(a,r){return p(a,r)}export{T as a,f as b,h as c,d as o,m as r};

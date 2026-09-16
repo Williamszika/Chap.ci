@@ -1,55 +1,70 @@
-CHAP.CI — ZIP DU 16 SEPTEMBRE 2026, n° 29 — CORRECTIF
+CHAP.CI — ZIP DU 16 SEPTEMBRE 2026, n° 30
 ===============================================================================
 
-⚠️ CE ZIP CORRIGE UNE FAUTE DE MA PART, DANS LE ZIP n° 28 QUE VOUS VENEZ
-D'EXTRAIRE. Rien n'est cassé côté serveur — c'est un problème d'affichage, mais
-il rend inutilisable l'écran que je vous ai livré ce matin.
+LA TAILLE D'UN VÊTEMENT SE VOIT ENFIN, AU LIEU DE SE LIRE.
+
+Vous m'avez envoyé cinq planches d'applications de mode. Voici ce que j'en ai
+tiré, et surtout ce que je n'en ai PAS tiré.
 
 
-CE QUI S'EST PASSÉ
-------------------
-Dans le nouvel écran des abonnements Pro, les DEUX boutons — « Encaisser » et
-« Enregistrer l'encaissement » — sont écrits en blanc sur un fond qui n'existe
-pas. J'ai employé un nom de couleur qui n'est pas dans le site : le fond n'a
-donc jamais été fabriqué, et il reste du texte blanc sur du blanc.
+CE QUI CHANGE
+-------------
+Sur la fiche d'un vêtement ou d'une paire de chaussures, les tailles
+s'affichaient dans le tableau des caractéristiques :
 
-Autrement dit : les boutons SONT là, ils fonctionnent si on tombe dessus, mais
-ON NE LES VOIT PAS.
+  AVANT :   Tailles disponibles · S, M, L, XL
+            (une ligne, au même rang que « Matière · Coton »)
 
-C'est 🎨 L'Atelier qui l'a trouvé ce matin, et il avait raison sur toute la
-ligne. J'ai vérifié moi-même avant de corriger : le nom employé ne produit
-aucune règle dans le fichier de style du site.
+  APRÈS :   Tailles disponibles
+            ( S ) ( M ) ( L ) ( XL ) ( 2XL )
+            en pastilles rondes, au-dessus du tableau
 
-Corrigé avec la couleur prévue pour ce rôle exact — l'orange foncé (#B35700)
-déjà utilisé ailleurs sur le site pour un bouton plein à texte blanc, et
-documenté comme le minimum lisible sous du texte blanc.
+Pour un vêtement, la taille n'est pas un détail parmi d'autres. C'est LA
+question — celle qui décide si l'acheteur continue de lire ou s'en va. Elle
+méritait d'être vue d'un coup d'œil, pas cherchée dans une liste.
 
-Deuxième correction, plus petite, au même endroit : les montants en FCFA
-étaient collés à leur unité avec une espace ordinaire ; ils passent maintenant
-par l'espace insécable du site, pour que « 12 000 FCFA » ne se coupe pas en fin
-de ligne sur un téléphone.
+Les pastilles se rangent aussi dans le bon ordre. Un vendeur qui coche
+« XL, S, M » verra ses tailles affichées « S, M, XL » : deux annonces voisines
+se comparent enfin sans effort.
+
+Une image de rendu accompagne ce zip : apercu-tailles.png.
 
 
-POURQUOI JE NE L'AVAIS PAS VU — ET CE QUE J'AI FAIT POUR QUE ÇA N'ARRIVE PLUS
------------------------------------------------------------------------------
-Mes 22 vérifications automatiques de ce matin portaient sur le SERVEUR :
-l'encaissement, le registre, les refus, les calculs de date. Toutes justes,
-toutes vertes. Aucune ne regardait l'écran.
+⚠️ CE QUE J'AI VOLONTAIREMENT REFUSÉ DE COPIER
+----------------------------------------------
+Dans vos planches, les tailles sont des BOUTONS : on tape « L », l'article part
+au panier dans cette taille.
 
-C'est exactement la même erreur que pour la vidéo la semaine dernière : j'avais
-vérifié la moitié de la route qui marchait.
+Chap.ci n'est pas une boutique en ligne. Ce sont des petites annonces : ces
+tailles sont celles que LE VENDEUR A EN STOCK, et la suite se règle avec lui.
 
-Un nom de couleur inexistant ne provoque AUCUNE erreur — ni à la compilation,
-ni au démarrage, ni dans les tests. Il ne fabrique simplement rien.
+J'ai donc fait des pastilles qui ne se cliquent pas. Copier le bouton aurait été
+un mensonge d'un pixel : quelqu'un aurait tapé « L » en croyant réserver sa
+taille, et rien ne se serait produit. Un bouton qui ne fait rien use la
+confiance bien plus vite qu'une ligne de texte terne.
 
-J'ai donc écrit une vérification qui compare chaque couleur écrite dans le code
-au fichier de style réellement produit. Elle aurait arrêté ma faute en une
-seconde. Elle tourne désormais avant chaque livraison.
+Pour la même raison, je n'ai repris NI le panier, NI « Ajouter au panier »,
+NI le paiement en ligne, NI les bandeaux « Livraison rapide / Retours faciles /
+Paiement sécurisé » de la cinquième image. Sur Chap.ci on se rencontre, on
+regarde l'article, on paie en main propre ou par Mobile Money. Promettre des
+retours faciles quand il n'y a pas de retours, c'est préparer une déception.
 
-Elle a aussi trouvé 7 autres endroits, plus anciens et sans gravité, où une
-couleur ou une ombre ne se produit pas (trois survols de bouton, trois ombres de
-texte). Ils sont notés pour 🎨 L'Atelier : le bon remède est une décision de
-design, pas une supposition de ma part.
+
+CE QUE VOS PLANCHES DEMANDAIENT ET QUE VOUS AVIEZ DÉJÀ
+-------------------------------------------------------
+J'ai vérifié chaque idée avant de l'annoncer :
+
+  · Les pastilles de couleur — déjà là, formulaire ET fiche, avec la photo,
+    le prix et le stock par couleur. Vos planches n'en montrent pas autant.
+  · Les puces de catégorie (« All / Tops / Dresses ») — déjà là dans Explorer,
+    et la puce active se recentre toute seule.
+  · Les cœurs de favori, la grille à deux colonnes, le prix dominant — déjà là.
+  · Les tailles, pointures, matières (coton, wax, bazin), marques de pagne —
+    déjà dans vos formulaires depuis longtemps. C'est bien pour ça que
+    l'affichage pouvait être amélioré sans rien redemander aux vendeurs.
+
+Autrement dit : votre boutique de vêtements était mieux équipée que les
+planches. Ce qui lui manquait, c'était de MONTRER ce qu'elle savait déjà.
 
 
 OÙ EXTRAIRE
@@ -67,12 +82,10 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          1829a502624a   <- le site, CHANGE
+  empreinteSite  doit devenir          35182c098c3c   <- le site, CHANGE
   empreinteSeo   doit RESTER           5002d50549e9   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
-
-Seul le site change : le serveur livré ce matin était juste, je n'y touche pas.
 
 ⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
 
@@ -84,29 +97,23 @@ Seul le site change : le serveur livré ce matin était juste, je n'y touche pas
   3. Rechargez une seconde fois (Cmd+R)
 
 
-LA VÉRIFICATION À L'ŒIL NU — C'EST TOUT L'OBJET DE CE ZIP
----------------------------------------------------------
-Tableau de bord -> « Demandes Pro ».
+LA VÉRIFICATION À L'ŒIL NU
+--------------------------
+Ouvrez une annonce de la catégorie Mode & Beauté — sous-catégorie Vêtements
+Femme, Vêtements Homme ou Chaussures.
 
-  AVANT : à droite de chaque professionnel, rien de visible (le bouton était là,
-          en blanc sur blanc).
-  APRÈS : un bouton ORANGE FONCÉ « Encaisser », bien lisible.
+Sous le prix, avant le tableau des caractéristiques, vous devez voir les
+tailles en pastilles rondes crème, avec le texte en vert foncé.
 
-Cliquez dessus : le formulaire s'ouvre, et son bouton du bas
-« Enregistrer l'encaissement » doit lui aussi être orange foncé, sur toute la
-largeur.
-
-Si vous ne voyez toujours rien d'orange après le double rechargement,
-dites-le-moi tout de suite.
+Si l'annonce que vous ouvrez n'a pas de tailles renseignées, rien ne s'affiche —
+c'est normal, et c'est voulu : une section vide ne dit rien à personne.
 
 
 CE QUI N'EST PAS DANS CE ZIP
 ----------------------------
 · Les corrections de 🎨 L'Atelier pour l'APPLICATION (prochain AAB, code 29).
-· Sa proposition sur les bordures grises de la barre du bas et du menu des
-  notifications : volontairement laissée de côté. Elle touche toutes les pages,
-  et je ne veux pas la mélanger à un correctif urgent — si quelque chose
-  clochait, on ne saurait pas laquelle des deux en est la cause. Elle partira
-  dans le prochain zip ordinaire.
-· La ligne à corriger à la main dans le .htaccess (fiche d'hier soir). Toujours
-  pas urgent.
+  Cette nouveauté-ci est sur le SITE ; elle partira aussi dans l'application
+  quand vous le voudrez — dites-le-moi.
+· Le déblocage du robot de ChatGPT : c'est chez votre hébergeur, aucun zip ne
+  peut le faire (fiche envoyée séparément).
+· La ligne du .htaccess à corriger à la main. Toujours pas urgent.

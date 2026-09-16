@@ -7340,3 +7340,72 @@ compte 68 — vérifié ce matin même. Sa « priorité 3 » (prix, ville, photo
 canonique, données structurées sur chaque annonce) est en place et mesurée verte
 par 📣 Le Crieur le 13/09. Il conseille à l'aveugle, faute d'avoir pu charger le
 site — ce qui est précisément le symptôme, pas la cause.
+
+---
+
+## 2026-09-16 — La boutique de vêtements, d'après cinq planches d'applications de mode
+
+Le Patron a envoyé cinq maquettes (Fashly, Omarko) en demandant d'améliorer la
+boutique en vêtement. **J'ai d'abord cherché ce qui existait**, plutôt que de
+dessiner par-dessus.
+
+### Ce que le dépôt savait déjà faire, et qui m'a surpris
+
+`src/data/sous/mode.ts` porte six sous-catégories, quatre grilles de tailles
+(lettres, femme, homme, pointures), les matières du marché ivoirien — coton,
+**wax, bazin** —, la hiérarchie du pagne (Vlisco / Uniwax / Woodin) et le refus
+des produits éclaircissants interdits depuis le décret de 2015. `couleurs.ts`
+donne à chaque teinte sa valeur CSS et un liseré pour les claires.
+
+**Les planches ne demandaient donc presque rien que le modèle de données n'ait
+déjà.** Les pastilles de couleur existent sur le formulaire ET sur la fiche,
+avec photo, prix et stock par couleur — plus riche que la maquette. Les puces
+de sous-catégorie existent dans `Browse.tsx:342`, et la puce active se recentre
+seule (`:78`). La carte, la grille à deux colonnes, le cœur : conformes au guide
+`marketplace-design`.
+
+### Le seul vrai manque, et il était net
+
+`CouleursVariantes` n'est importé **que par `PostAd.tsx`**. Et surtout : les
+tailles tombaient dans la grille générique d'attributs, rendues comme
+« Tailles disponibles · S, M, L » — **au même rang que « Matière · Coton »**.
+
+Or `tailles` et `pointures` sont `req: true` dans le schéma : toute annonce de
+vêtement ou de chaussure en a. Et pour un vêtement, la taille n'est pas un
+attribut parmi d'autres, c'est **la** question.
+
+Fait : `src/components/TaillesDisponibles.tsx`, une rangée de pastilles rondes
+au-dessus du tableau. Les tailles sont triées selon `f.options`, l'ordre du
+formulaire — sans quoi un vendeur qui coche « XL, S, M » produit un affichage
+que la fiche voisine ne permet plus de comparer.
+
+### ⚠️ CE QUE J'AI REFUSÉ DE COPIER, ET C'EST LE CŒUR DU TRAVAIL
+
+Dans les planches, les tailles sont des **boutons** : on tape « L », l'article
+part au panier. Chap.ci est un site de petites annonces — ces tailles sont
+celles que le vendeur a en stock, et la suite se règle avec lui.
+
+Les pastilles sont donc des `<span>`, pas des `<button>` : pas d'état
+sélectionné, pas de survol, pas de curseur en main. **Copier le bouton aurait
+été un mensonge d'un pixel** — quelqu'un aurait tapé « L » en croyant réserver
+sa taille, et rien ne se serait produit. Un bouton qui ne fait rien use la
+confiance plus vite qu'une ligne de texte terne. Le titre le dit aussi :
+« disponibles », pas « choisissez ».
+
+Même raison pour le panier, « Ajouter au panier », le paiement en ligne et les
+bandeaux « Livraison rapide / Retours faciles » de la cinquième planche. Sur
+Chap.ci on se rencontre et on paie en main propre. **Promettre des retours
+faciles quand il n'y a pas de retours, c'est préparer une déception.**
+
+### Et cette fois, j'ai regardé l'écran
+
+Rendu dans Chromium avec le CSS réellement compilé, mesuré et photographié
+(`livraison/apercu-tailles.png`) : pastille 40×40 px, fond `rgb(255,243,228)`,
+texte `rgb(0,92,59)`, aucun débordement horizontal à 390 px. Quatre cas joués —
+lettres, tailles femme, pointures, « Taille unique ».
+
+40 px et non 44 : ces pastilles **ne sont pas des cibles tactiles**, elles ne
+se cliquent pas. La règle des 44 px vise ce qu'on touche.
+
+C'est exactement la vérification qui manquait ce matin aux boutons « Encaisser ».
+`npm run banc:classes` est passé aussi — aucune classe inventée.

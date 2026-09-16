@@ -52,6 +52,7 @@ import { useFormSous } from '../data/sous'
 import { DOC_PAR_ID, cleNumero, estVenteFonciere, lireDocs } from '../data/foncier'
 import { lireCouleurs, lireVariantes, type Couleur } from '../data/couleurs'
 import { FoncierDossier } from '../components/FoncierDossier'
+import { TaillesDisponibles } from '../components/TaillesDisponibles'
 
 /**
  * Quelques champs sont libellés pour celui qui REMPLIT le formulaire (« Vous
@@ -295,11 +296,22 @@ export function ListingDetail() {
   // les champs conditionnels (Téléphones, Immobilier) s'affichent — ou non —
   // exactement comme ils ont été saisis.
   const ctxAttrs: Record<string, string> = { ...attributs, _sub: listing.subcategory ?? '' }
+  let tailles: { label: string; valeur: string; ordre?: string[] } | null = null
   for (const f of form.fields) {
     if (f.type === 'docs') continue
     if (f.when && !f.when(ctxAttrs)) continue
     const v = attributs[f.key]
     if (!v) continue
+    /* LES TAILLES QUITTENT LA GRILLE (16/09/2026).
+     * « Tailles disponibles · S, M, L » se lisait au même rang que
+     * « Matière · Coton ». Pour un vêtement, c'est LA question — celle qui
+     * décide si l'acheteur continue ou s'en va. Elle monte donc au-dessus,
+     * en pastilles. `f.options` porte l'ordre du formulaire : sans lui, on
+     * afficherait « XL, S, M », l'ordre où le vendeur a coché. */
+    if (f.key === 'tailles' || f.key === 'pointures') {
+      tailles = { label: f.label, valeur: v, ordre: f.options }
+      continue
+    }
     if (f.type === 'colors') {
       // Les couleurs se montrent : une pastille peinte à côté de chaque nom.
       // Quand le vendeur a détaillé ses variantes (photo, prix, détails par
@@ -865,6 +877,12 @@ export function ListingDetail() {
               </p>
             </div>
           ))}
+
+          {/* Les tailles d'abord — pour un vêtement, c'est la question qui décide.
+              Au-dessus de la grille, donc, et en pastilles plutôt qu'en ligne. */}
+          {tailles && (
+            <TaillesDisponibles label={tailles.label} valeur={tailles.valeur} ordre={tailles.ordre} />
+          )}
 
           {/* Attributs — cartes façon mockup */}
           {attrItems.length > 0 && (
