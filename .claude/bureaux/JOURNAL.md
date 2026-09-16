@@ -7024,3 +7024,72 @@ Comme rien ne bloque aujourd'hui, ce n'est pas urgent : fiche remise au Patron,
 - **`security_alert` du 14/09** — question posée deux fois au Patron, sans réponse.
   Je n'y reviens plus ; elle est ici pour mémoire.
 - **Le catalogue** — inchangé, et toujours le seul vrai goulot.
+
+---
+
+## 2026-09-16 — Deuxième conseil SEO extérieur, vérifié point par point
+
+**Le chiffre central est exact, et je l'ai recalculé.** `web/seo.php` émet, sans
+aucune condition, `/vendre/{cat}` et `/vendre/{cat}/{ville}` pour chaque couple :
+**16 catégories × (1 + 22 villes) = 368 pages**. Le conseil dit 368. Juste.
+
+### ⛔ Mais la cause est ailleurs, et son correctif ne marcherait pas
+
+Le conseil propose de ne mettre dans le sitemap que les couples ayant du stock
+(`GROUP BY categorie, commune HAVING n >= 3`). Or la requête qui remplit ces
+pages, `web/seo.php:433`, est :
+
+```sql
+SELECT … FROM listings
+ WHERE category_id = ? AND (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)
+ ORDER BY created_at DESC LIMIT 12
+```
+
+**Aucun filtre sur la commune.** Les 22 pages ville d'une même catégorie affichent
+donc **exactement les mêmes 12 annonces** ; seule la ville change dans le texte.
+La ville de l'URL est **décorative**. Détail révélateur : `commune` est bien dans
+le `SELECT`… et n'est utilisée nulle part ensuite. Quelqu'un a voulu filtrer et
+ne l'a pas fait.
+
+Conséquence directe sur le remède : **filtrer le sitemap sur un stock par
+(catégorie, commune) pendant que la page ignore la commune ferait mentir la porte
+et la pièce.** L'ordre est imposé : d'abord filtrer la page par commune, ensuite
+seulement garder le sitemap. L'inverse laisse la duplication intacte entre les
+villes survivantes.
+
+Et la duplication n'est pas limitée aux catégories vides, comme le dit le conseil :
+elle touche **les seize**, y compris celles qui ont du stock — où elle est plus
+trompeuse encore, puisque les pages paraissent pleines.
+
+### Deux erreurs de fait, mineures mais qui situent le conseil
+
+- **Son SQL ne tournerait pas sur notre base.** `statut`, `deleted_at`, `categorie` :
+  aucune des trois colonnes n'existe. Les nôtres sont `hidden`, `sold`,
+  `category_id`, `commune`. C'est un conseil générique, pas écrit contre notre schéma.
+- **Son point 3 critique sa propre invention.** « Le modèle de boost que je t'ai
+  construit » n'existe pas ici. Notre écran publicitaire est tarifé
+  `ad_tariff()` : **400 F le jour, 2 000 F la semaine, 6 000 F le mois**, moitié
+  prix pour un membre actif. Le raisonnement « 500 F = 25 % d'un bidon d'huile à
+  2 000 F » porte donc sur un prix que nous ne pratiquons pas.
+
+### ✅ Et sa recommandation principale est, pour l'essentiel, DÉJÀ CONSTRUITE
+
+Il propose de bâtir un « Abonnement Pro » avec badge, page vendeur et placement.
+Le compte Pro existe depuis longtemps : `pro_status` avec sa demande et sa
+décision (`pro_demande`, `pro_decide_at`), et toute la page vendeur —
+`pro_nom`, `pro_type`, `pro_secteur`, `pro_logo`, `pro_banniere`,
+`pro_description`, `pro_horaires`, `pro_reseaux` — plus la console Pro, le stock
+et les réponses automatiques.
+
+**Il n'est pas payant. C'est tout ce qui manque.** Le chantier n'est donc pas
+« construire un abonnement » mais « mettre un prix sur ce qui existe » — beaucoup
+plus petit, et sans code de paiement nouveau puisque l'écran publicitaire en a
+déjà un.
+
+### Ce qui vaut mieux que tout le reste du document
+
+**Son action n° 1 : appeler le vendeur de Treichville.** Elle ne demande aucune
+ligne de code, elle vise la seule personne qui ait déjà prouvé qu'elle veut de la
+visibilité sur Chap.ci, et elle est cohérente avec ce que quatre bureaux répètent
+depuis une semaine : **le goulot n'est pas technique.** Je la soutiens sans
+réserve, et avant toute correction de sitemap.
