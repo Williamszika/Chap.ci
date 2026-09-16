@@ -4,10 +4,10 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 
 | | |
 |---|---|
-| Période couverte | du Samedi 11 juillet 2026 au Mardi 15 septembre 2026 |
-| Livraisons | 879 |
-| Jours travaillés | 66 |
-| Dernière mise à jour | Mardi 15 septembre 2026, 21:45 (Abidjan) |
+| Période couverte | du Samedi 11 juillet 2026 au Mercredi 16 septembre 2026 |
+| Livraisons | 881 |
+| Jours travaillés | 67 |
+| Dernière mise à jour | Mercredi 16 septembre 2026, 03:49 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -45,14 +45,21 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 <!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->
 
+### Mercredi 16 septembre 2026
+
+**1 livraison(s)** · Abidjan 03:48 → 03:48 · chez le Patron 05:48 → 05:48 · amplitude —
+
+- `03:48` · Le brouillon de la règle de sécurité ignorait la vidéo — la bascule l'aurait recassée  <sub>`06d0f08`</sub>
+
 ### Mardi 15 septembre 2026
 
-**4 livraison(s)** · Abidjan 11:55 → 21:45 · chez le Patron 13:55 → 23:45 · amplitude 9 h 50
+**5 livraison(s)** · Abidjan 11:55 → 21:45 · chez le Patron 13:55 → 23:45 · amplitude 9 h 51
 
 - `11:55` · robots.txt part enfin dans le zip, et déclare les robots d'OpenAI  <sub>`8f86096`</sub>
 - `15:06` · La vidéo d'annonce était refusée par notre propre site depuis onze jours  <sub>`91e279e`</sub>
 - `15:06` · Registre d'activité régénéré — 877 livraisons sur 66 jours  <sub>`9e25560`</sub>
 - `21:45` · Le correctif proposé pour les avis de l'application ouvrait une porte au lieu de la nommer  <sub>`962eb56`</sub>
+- `21:45` · Registre d'activité régénéré — 879 livraisons sur 66 jours  <sub>`f8d61de`</sub>
 
 ### Lundi 14 septembre 2026
 
