@@ -7093,3 +7093,81 @@ ligne de code, elle vise la seule personne qui ait déjà prouvé qu'elle veut d
 visibilité sur Chap.ci, et elle est cohérente avec ce que quatre bureaux répètent
 depuis une semaine : **le goulot n'est pas technique.** Je la soutiens sans
 réserve, et avant toute correction de sitemap.
+
+---
+
+## 2026-09-16 — Chantiers 1 et 2 demandés par le Patron, après le conseil SEO
+
+### Chantier 1 — la ville d'une page « Vendez à… » ne servait à rien
+
+Le conseil extérieur avait le bon chiffre (368) et le mauvais remède. La cause
+réelle : `web/seo.php` remplissait ces pages avec `WHERE category_id = ?` et
+**rien sur la commune**. Les 22 pages ville d'une catégorie affichaient donc les
+mêmes annonces. Filtrer le sitemap sans corriger la page aurait réduit le nombre
+de pages **sans supprimer la duplication** entre les villes survivantes.
+
+Fait, dans l'ordre imposé : la page filtre par commune ; « abidjan » regroupe ses
+communes ; sous trois annonces la page ville sort du sitemap **et** passe en
+`noindex, follow`. Les seize pages catégorie restent indexées — uniques entre
+elles, ce n'est pas leur nombre qui posait problème.
+
+`npm run banc:vendre`, 18 vérifications. Celle qui compte : **deux pages ville de
+la même catégorie ne doivent pas afficher la même liste** — la panne d'origine,
+et la seule qu'un compteur de pages n'aurait jamais vue.
+
+⚠️ **Le banc a servi avant d'être fini.** La constante du seuil, déclarée sous le
+routage, donnait « Undefined constant » et une **erreur 500 sur chaque page
+/vendre/** : en PHP un `const` de fichier n'est pas remonté en haut comme une
+fonction. Sans le banc, ça partait en production.
+
+### Chantier 2 — le compte Pro peut être facturé
+
+Les trois quarts existaient : dossier, validation, badge, page vendeur, console,
+stock, réponses automatiques. **Il ne manquait qu'un prix.**
+
+L'argent arrive par Mobile Money **hors du site**, comme pour l'écran
+publicitaire — on réutilise ce modèle plutôt que d'inventer une passerelle.
+Ajoutés : `pro_paye_jusqu_au`, `pro_montant`, la table `pro_paiements` (registre
+signé par l'admin qui saisit), `GET /pro/abonnement`, `POST /admin/pro/paiement`,
+`GET /admin/pro/abonnements`, et l'écran dans l'onglet « Demandes Pro ».
+
+**Pas de tarif dans le code** : il se négocie client par client, et un tarif en
+dur deviendrait faux au deuxième client. Le Patron saisit ce qu'il a encaissé.
+
+Deux règles qui se trompent facilement, et que le banc garde :
+
+- **Un renouvellement anticipé n'efface pas les jours restants.** Les mois
+  achetés s'ajoutent à l'échéance en cours. L'erreur inverse volerait du temps à
+  celui qui paie en avance — c'est-à-dire au meilleur client.
+- **Aucune révocation automatique.** Le site compte UN vendeur professionnel
+  réel : brancher la coupure avant d'avoir un client qui paie reviendrait à
+  risquer de dégrader le seul compte qui fasse vivre le catalogue. Le banc
+  l'**exige** — il passera au rouge le jour où quelqu'un branchera la coupure
+  sans le décider.
+
+`npm run banc:pro-abonnement`, 22 vérifications.
+
+Les routes tombent sous la permission « Utilisateurs » (`admin/pro*` → `users`),
+un droit qui se coche — **pas le laissez-passer `overview`** que la ronde de la
+veille proposait par erreur pour `admin/avis-app`.
+
+### Une erreur de banc, notée parce qu'elle se reproduira
+
+Le banc refusait de démarrer : « Adresse email invalide ». La faute était au
+banc — il fabriquait l'adresse depuis le nom, et « Kouamé Formation » donnait une
+adresse **avec une espace**. Le serveur avait raison. Réflexe utile : avant
+d'accuser le serveur, j'ai rejoué `banc:pays`, qui est passé — ce qui désignait
+mon banc en trois secondes.
+
+### Zip n° 28 — les trois empreintes changent
+
+`951188b3cbcf` (API) · `847a8983fe65` (site) · `5002d50549e9` (SEO).
+
+⚠️ **Le sitemap va beaucoup maigrir, et c'est le but.** Avec 46 annonces dont la
+plupart chez un vendeur, très peu de pages ville passeront le seuil. Ces pages
+n'apportaient rien et coûtaient au reste du domaine ; elles reviendront seules
+quand les annonces arriveront.
+
+**Et l'action qui vaut mieux que ces deux chantiers reste le coup de fil au
+vendeur de Treichville.** Il apparaîtra maintenant dans le nouveau tableau, avec
+la mention « jamais payé » — c'est-à-dire : prospect n° 1, déjà chez nous.

@@ -20,11 +20,13 @@ import {
   setAdminListingHidden, fetchAdminUserDetail, setUserStatus, deleteUser, fetchReports, resolveReport,
   fetchContactMessages, setContactHandled, deleteContactMessage, suggestContactReply, replyContactMessage,
   fetchAdminConversations, fetchAdminReviews, deleteAdminReview, fetchAvisApp, fetchVisits, fetchResponseTime,
+  fetchProAbonnements, enregistrerProPaiement,
   listBackups, downloadBackup, resetData,
   modTokens, createModToken, revokeModToken, modAudit, type ServiceToken, type ModAuditEntry,
   adminUnlock, adminUnlockEmail, adminLock,
   type AdminStats, type AdminUser, type AdminListing, type AdminOrder, type Moderators, type SmtpSettings,
   type AdminUserDetail, type Report, type ReportAction, type UserStatus, type AdminConversation, type AdminReview, type AvisAppResume,
+  type ProAbonnement, type ProAbonnementsResume,
   fetchInvites, envoyerInvitations, type ListeInvites,
   fetchGeo, type GeoStats, type GeoRange,
   fetchAdminPro, deciderPro, corrigerFichePro, type AdminProDemande,
@@ -2093,6 +2095,184 @@ const PRO_TYPES: Record<string, string> = {
   media: '📣 Média & communication',
 }
 
+/**
+ * LES ABONNEMENTS PRO — qui paie, qui arrive à échéance (16/09/2026).
+ *
+ * Le compte Pro existait depuis longtemps et il était GRATUIT : dossier,
+ * validation, badge, page vendeur, console, stock, réponses automatiques. Il ne
+ * manquait qu'un prix.
+ *
+ * L'argent arrive par Mobile Money, HORS du site — comme pour l'écran
+ * publicitaire. Le Patron saisit donc ce qu'il a RÉELLEMENT encaissé : le
+ * montant se négocie au téléphone, client par client, et un tarif figé dans le
+ * code deviendrait faux au deuxième client.
+ *
+ * ⚠️ Rien n'est coupé automatiquement à l'échéance. Voir le commentaire de
+ *    `pro_paye_jusqu_au` dans api/index.php : au 16/09/2026 le site compte UN
+ *    vendeur professionnel réel, et brancher la coupure avant d'avoir un client
+ *    qui paie reviendrait à dégrader le seul compte qui fasse vivre le catalogue.
+ */
+function AbonnementsPro() {
+  const [d, setD] = useState<ProAbonnementsResume | null>(null)
+  const [err, setErr] = useState('')
+  const [saisie, setSaisie] = useState<ProAbonnement | null>(null)
+  const load = () => { setErr(''); fetchProAbonnements().then(setD).catch((e) => setErr((e as Error).message)) }
+  useEffect(load, [])
+
+  if (err) return <ErrRetry msg={err} onRetry={load} />
+  if (!d) return null
+  if (saisie) return <SaisirPaiementPro pro={saisie} onFini={() => { setSaisie(null); load() }} />
+
+  // Ceux qui expirent dans moins de dix jours : c'est le seul motif de venir ici.
+  const bientot = d.liste.filter((p) => p.actif && p.joursRestants <= 10)
+  const jamais = d.liste.filter((p) => !p.jusquAu)
+
+  return (
+    <div className="space-y-2">
+      <KpisCrm>
+        <KpiCrm valeur={formatPrice(d.abonnesActifs)} libelle="abonnés Pro payants"
+          sous={`sur ${d.pros} compte${d.pros > 1 ? 's' : ''} Pro`} ton={d.abonnesActifs > 0 ? 'bon' : 'neutre'} />
+        <KpiCrm valeur={`${formatPrice(d.totalEncaisse)} FCFA`} libelle="encaissé depuis le début" ton="bon" />
+        <KpiCrm valeur={formatPrice(bientot.length)} libelle="expirent sous 10 jours"
+          ton={bientot.length > 0 ? 'alerte' : 'neutre'} />
+        <KpiCrm valeur={formatPrice(jamais.length)} libelle="Pro sans abonnement"
+          sous="à appeler" ton={jamais.length > 0 ? 'alerte' : 'neutre'} />
+      </KpisCrm>
+
+      {d.liste.length === 0 ? (
+        <div className="rounded-2xl bg-white p-6 text-center text-sm text-gray-500 shadow-card">
+          Aucun compte professionnel approuvé pour l’instant.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3">Professionnel</th>
+                <th className="px-4 py-3">Abonnement</th>
+                <th className="px-4 py-3 text-right">Dernier montant</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {d.liste.map((p) => (
+                <tr key={p.id} className="border-b border-gray-50 last:border-0">
+                  <td className="px-4 py-3">
+                    <div className="font-semibold text-gray-900">{p.nom || '(sans nom)'}</div>
+                    <div className="text-xs text-gray-500">{p.email}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {!p.jusquAu ? (
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">jamais payé</span>
+                    ) : p.actif ? (
+                      <span className={`rounded-full px-2 py-1 text-xs ${p.joursRestants <= 10 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        jusqu’au {new Date(p.jusquAu).toLocaleDateString('fr-FR')} · {p.joursRestants} j
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">
+                        expiré le {new Date(p.jusquAu).toLocaleDateString('fr-FR')}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-700">
+                    {p.montant ? `${formatPrice(p.montant)} FCFA` : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => setSaisie(p)}
+                      className="min-h-[44px] rounded-xl bg-chap-orange px-4 text-sm font-semibold text-white">
+                      Encaisser
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Le formulaire d'encaissement : ce que le Patron a REÇU, pas un tarif. */
+function SaisirPaiementPro({ pro, onFini }: { pro: ProAbonnement; onFini: () => void }) {
+  const [montant, setMontant] = useState('')
+  const [mois, setMois] = useState('1')
+  const [methode, setMethode] = useState('Wave')
+  const [numero, setNumero] = useState('')
+  const [note, setNote] = useState('')
+  const [envoi, setEnvoi] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function valider() {
+    const m = parseInt(montant, 10)
+    if (!m || m <= 0) { setErr('Indiquez le montant que vous avez reçu.'); return }
+    setEnvoi(true); setErr('')
+    try {
+      const r = await enregistrerProPaiement({
+        userId: pro.id, montant: m, mois: parseInt(mois, 10), methode, numero, note,
+      })
+      // Même convention que le reste de cet écran : on annonce le résultat et
+      // on revient à la liste, qui montre déjà la nouvelle échéance.
+      alert(`Abonnement enregistré jusqu’au ${new Date(r.jusquAu).toLocaleDateString('fr-FR')}.`)
+      onFini()
+    } catch (e) { setErr((e as Error).message); setEnvoi(false) }
+  }
+
+  return (
+    <div className="rounded-2xl bg-white p-5 shadow-card">
+      <button onClick={onFini} className="mb-3 min-h-[44px] text-sm text-gray-600">← Retour</button>
+      <h3 className="text-lg font-bold text-gray-900">Encaisser — {pro.nom || pro.email}</h3>
+      <p className="mt-1 text-sm text-gray-600">
+        Saisissez ce que vous avez <strong>réellement reçu</strong> par Mobile Money.
+        {pro.actif && pro.jusquAu && (
+          <> Son abonnement court jusqu’au {new Date(pro.jusquAu).toLocaleDateString('fr-FR')} :
+          les mois achetés s’ajouteront à cette date, il ne perd rien.</>
+        )}
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm">
+          <span className="text-gray-700">Montant reçu (FCFA)</span>
+          <input type="number" inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value)}
+            placeholder="12000" className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-200 px-3" />
+        </label>
+        <label className="block text-sm">
+          <span className="text-gray-700">Durée</span>
+          <select value={mois} onChange={(e) => setMois(e.target.value)}
+            className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-200 px-3">
+            {[1, 2, 3, 6, 12].map((n) => <option key={n} value={n}>{n} mois</option>)}
+          </select>
+        </label>
+        <label className="block text-sm">
+          <span className="text-gray-700">Moyen de paiement</span>
+          <select value={methode} onChange={(e) => setMethode(e.target.value)}
+            className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-200 px-3">
+            {['Wave', 'Orange Money', 'MTN MoMo', 'Moov Money', 'Espèces', 'Virement'].map((m) => <option key={m}>{m}</option>)}
+          </select>
+        </label>
+        <label className="block text-sm">
+          <span className="text-gray-700">Numéro (facultatif)</span>
+          <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="07 00 00 00 00"
+            className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-200 px-3" />
+        </label>
+      </div>
+      <label className="mt-3 block text-sm">
+        <span className="text-gray-700">Note (facultatif)</span>
+        <input value={note} onChange={(e) => setNote(e.target.value)}
+          placeholder="Ce dont vous vous souviendrez dans six mois"
+          className="mt-1 min-h-[44px] w-full rounded-xl border border-gray-200 px-3" />
+      </label>
+      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
+      <button onClick={valider} disabled={envoi}
+        className="mt-4 min-h-[44px] w-full rounded-xl bg-chap-orange px-4 font-semibold text-white disabled:opacity-60">
+        {envoi ? 'Enregistrement…' : 'Enregistrer l’encaissement'}
+      </button>
+      <p className="mt-2 text-xs text-gray-500">
+        Le professionnel reçoit un e-mail de confirmation avec sa date de fin.
+      </p>
+    </div>
+  )
+}
+
 function ProTab() {
   const [items, setItems] = useState<AdminProDemande[] | null>(null)
   const [err, setErr] = useState('')
@@ -2146,6 +2326,7 @@ function ProTab() {
 
   return (
     <div className="space-y-2">
+      <AbonnementsPro />
       <KpisCrm>
         <KpiCrm valeur={formatPrice(enAttente)} libelle="en attente"
           ton={enAttente > 0 ? 'alerte' : 'bon'} />

@@ -10,6 +10,29 @@ $cfg  = require __DIR__ . '/api/config.php';
 $site = rtrim($cfg['site_url'] ?? 'https://chap.ci', '/');
 $upub = rtrim($cfg['uploads_path'] ?? '/uploads', '/');
 
+// ⚠️ DÉCLARÉE ICI, ET PAS PLUS BAS : en PHP, un `const` de fichier n'est pas
+//    remonté en haut comme une fonction — il s'exécute à sa ligne. Placé après
+//    le routage, il donnait « Undefined constant » et une erreur 500 sur CHAQUE
+//    page /vendre/. Trouvé par `npm run banc:vendre` avant livraison.
+/**
+ * SEUIL D'INDEXATION D'UNE PAGE VILLE (16/09/2026).
+ *
+ * En dessous de ce nombre d'annonces, une page `/vendre/{cat}/{ville}` n'a rien
+ * qui lui soit propre : il ne reste que le texte d'accueil, identique aux
+ * 21 autres villes de la même catégorie, à un nom de ville près. C'est du
+ * contenu dupliqué, et Google le fait payer AU DOMAINE ENTIER, pas seulement à
+ * ces pages-là. Elles sortent donc du sitemap ET passent en `noindex`.
+ *
+ * Trois, et pas un : avec une ou deux annonces, la page reste à 95 % du texte
+ * commun. À trois vignettes — titres, prix, photos —, elle porte enfin quelque
+ * chose que la page voisine n'a pas.
+ *
+ * ⚠️ Les pages CATÉGORIE (sans ville) ne sont pas concernées : il y en a seize,
+ * une par catégorie, et elles diffèrent entre elles par construction. Le problème
+ * n'a jamais été leur nombre, mais les 22 copies par ville de chacune.
+ */
+const SEO_MIN_ANNONCES_VILLE = 3;
+
 // --- Connexion à la base (mysql / pgsql / sqlite) ----------------------------
 function seo_pdo(array $cfg): ?PDO {
   $db = $cfg['db'] ?? [];
@@ -148,9 +171,25 @@ if (preg_match('#/sitemap\.xml$#', $uri)) {
   // Page d'accueil (les vues internes utilisent #/, non indexables : on les omet).
   echo '  <url><loc>' . h($site . '/') . "</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
   // Pages d'atterrissage SEO « Vendez votre {catégorie} à {ville} » (capte les vendeurs).
+  //
+  // ⚠️ LE SITEMAP NE PROPOSE PLUS QUE LES PAGES VILLE QUI ONT DU STOCK (16/09/2026).
+  //
+  //    Avant ce jour, il annonçait 16 catégories × (1 + 22 villes) = 368 pages,
+  //    SANS AUCUNE CONDITION. Pour 46 annonces. Les 22 pages ville d'une même
+  //    catégorie affichaient alors les mêmes annonces — la requête ne filtrait
+  //    pas sur la commune —, si bien qu'elles ne différaient que par un nom de
+  //    ville. 368 pages quasi jumelles, c'est du contenu dupliqué, et Google le
+  //    fait payer au domaine entier.
+  //
+  //    Les seize pages CATÉGORIE restent toutes proposées : elles diffèrent
+  //    entre elles par construction, et ce n'est pas leur nombre qui posait
+  //    problème. Seules les 352 copies par ville sont filtrées.
+  $stock = chapci_seo_stock($pdo);
+  $villes = chapci_seo_cities();
   foreach (chapci_seo_cats() as $cSlug => $c) {
     echo '  <url><loc>' . h($site . '/vendre/' . $cSlug) . "</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n";
-    foreach (chapci_seo_cities() as $vSlug => $vName) {
+    foreach ($villes as $vSlug => $vName) {
+      if (chapci_seo_compte($stock, $cSlug, $vSlug, $villes) < SEO_MIN_ANNONCES_VILLE) continue;
       echo '  <url><loc>' . h($site . '/vendre/' . $cSlug . '/' . $vSlug) . "</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>\n";
     }
   }
@@ -398,6 +437,55 @@ function chapci_seo_cities(): array {
 }
 
 /**
+ * Communes couvertes par un slug de ville.
+ *
+ * `listings.commune` stocke le NOM affiché (« Cocody », « Treichville ») —
+ * comparaison exacte, comme le fait déjà le serveur. Un slug rend donc son nom.
+ *
+ * Sauf « abidjan » : une annonce à Cocody EST à Abidjan, et personne ne range
+ * son annonce sous « Abidjan » quand il peut écrire sa commune. Sans ce
+ * regroupement, la page la plus recherchée du site serait vide et sortirait de
+ * l'index alors que le stock existe — juste rangé sous un autre nom.
+ */
+function chapci_seo_communes(string $citySlug, array $cities): array {
+  if ($citySlug === 'abidjan') {
+    return ['Abidjan', 'Cocody', 'Yopougon', 'Abobo', 'Marcory', 'Treichville', 'Plateau',
+            'Adjamé', 'Koumassi', 'Port-Bouët', 'Anyama', 'Bingerville'];
+  }
+  return isset($cities[$citySlug]) ? [$cities[$citySlug]] : [];
+}
+
+/**
+ * Stock par (catégorie, commune), en UNE requête.
+ *
+ * Le sitemap doit trancher 352 pages ville : les compter une par une ferait
+ * 352 requêtes à chaque passage de robot. Un seul GROUP BY suffit, et le reste
+ * se calcule en PHP.
+ */
+function chapci_seo_stock(?PDO $pdo): array {
+  if (!$pdo) return [];
+  try {
+    $rows = $pdo->query('SELECT category_id, commune, COUNT(*) AS n FROM listings
+      WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)
+      GROUP BY category_id, commune')->fetchAll(PDO::FETCH_ASSOC);
+  } catch (Throwable $e) { return []; }
+  $par = [];
+  foreach ($rows as $r) {
+    $par[(string) $r['category_id']][(string) ($r['commune'] ?? '')] = (int) $r['n'];
+  }
+  return $par;
+}
+
+/** Annonces d'une catégorie dans les communes d'un slug de ville. */
+function chapci_seo_compte(array $stock, string $catSlug, string $citySlug, array $cities): int {
+  $dansLaCat = $stock[$catSlug] ?? [];
+  if ($citySlug === '') return array_sum($dansLaCat);
+  $n = 0;
+  foreach (chapci_seo_communes($citySlug, $cities) as $nom) $n += $dansLaCat[$nom] ?? 0;
+  return $n;
+}
+
+/**
  * Page d'atterrissage « Vendez votre {catégorie} à {ville} » — HTML crawlable,
  * identique pour robots et humains (pas de cloaking). CTA direct vers /#/publier,
  * annonces récentes de la catégorie (maillage interne) et liens vers d'autres villes.
@@ -430,18 +518,42 @@ function render_sell_page(string $site, string $upub, ?PDO $pdo, string $catSlug
     try {
       // `promo_until` EST INDISPENSABLE : sans elle, seo_prix() ne peut pas
       // savoir qu'une promotion est finie et la carte afficherait un prix faux.
+      // ⚠️ LE FILTRE PAR COMMUNE A ÉTÉ AJOUTÉ LE 16/09/2026, ET IL MANQUAIT DEPUIS
+      //    TOUJOURS. La requête ne connaissait que `category_id` : les 22 pages
+      //    ville d'une même catégorie affichaient donc LES MÊMES annonces, et ne
+      //    différaient que par le nom de la ville dans le texte. La ville de
+      //    l'URL était décorative. Signe qui ne trompe pas : `commune` était déjà
+      //    dans le SELECT ci-dessous… et n'était utilisée nulle part.
+      $communes = $citySlug !== '' ? chapci_seo_communes($citySlug, $cities) : [];
+      $ou = $communes ? ' AND commune IN (' . implode(',', array_fill(0, count($communes), '?')) . ')' : '';
       $st = $pdo->prepare('SELECT id,title,price,promo_price,promo_until,images,commune FROM listings
-        WHERE category_id = ? AND (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)
+        WHERE category_id = ? AND (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)' . $ou . '
         ORDER BY created_at DESC LIMIT 12');
-      $st->execute([$catSlug]);
+      $st->execute(array_merge([$catSlug], $communes));
       $items = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable $e) { $items = []; }
   }
 
+  /* Indexable ou non — la décision se prend ICI, sur le stock réel.
+   *
+   * Une page ville sous le seuil n'a rien qui lui soit propre : le texte est
+   * celui des 21 autres villes de la catégorie, à un nom près. La laisser dans
+   * l'index, c'est offrir à Google des centaines de quasi-jumelles, et il le
+   * fait payer au domaine entier.
+   *
+   * `noindex, follow` et non `noindex, nofollow` : la page sort de l'index, mais
+   * ses liens continuent de mener aux annonces et aux autres villes. On retire
+   * la page du catalogue, on ne coupe pas les couloirs.
+   *
+   * Le `canonical` reste sur elle-même : `noindex` + un canonical qui désigne
+   * une AUTRE page sont deux ordres contradictoires, et Google en ignore un —
+   * on ne sait jamais lequel. Un seul signal, net. */
+  $indexable = $citySlug === '' || count($items) >= SEO_MIN_ANNONCES_VILLE;
+
   echo "<!doctype html>\n<html lang=\"fr\">\n<head>\n";
   echo "<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
   echo "<title>$t</title>\n<meta name=\"description\" content=\"$d\">\n<link rel=\"canonical\" href=\"$c\">\n";
-  echo "<meta name=\"robots\" content=\"index, follow\">\n";
+  echo '<meta name="robots" content="' . ($indexable ? 'index, follow' : 'noindex, follow') . "\">\n";
   echo "<meta property=\"og:type\" content=\"website\">\n<meta property=\"og:title\" content=\"$t\">\n";
   echo "<meta property=\"og:description\" content=\"$d\">\n<meta property=\"og:url\" content=\"$c\">\n";
   echo "<meta property=\"og:site_name\" content=\"Chap.ci\">\n";

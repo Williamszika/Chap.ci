@@ -1336,6 +1336,16 @@ export async function phpAdminReviews<T>(): Promise<T> {
 export async function phpAdminAvisApp<T>(): Promise<T> {
   return req<T>('/admin/avis-app')
 }
+/** Les abonnements Pro payants : qui paie, qui arrive à échéance. */
+export async function phpAdminProAbonnements<T>(): Promise<T> {
+  return req<T>('/admin/pro/abonnements')
+}
+/** Enregistrer un encaissement Mobile Money reçu HORS du site. */
+export async function phpAdminProPaiement<T>(corps: {
+  userId: string; montant: number; mois: number; methode: string; numero?: string; note?: string
+}): Promise<T> {
+  return req<T>('/admin/pro/paiement', { method: 'POST', body: JSON.stringify(corps) })
+}
 export async function phpAdminDeleteReview(id: string): Promise<void> {
   await req(`/admin/reviews/${id}`, { method: 'DELETE' })
 }

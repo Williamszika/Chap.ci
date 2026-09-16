@@ -358,6 +358,33 @@ export interface AvisAppResume {
   avis: AvisApp[]
 }
 
+export interface ProAbonnement {
+  id: string
+  email: string
+  nom: string | null
+  type: string | null
+  jusquAu: string | null
+  actif: boolean
+  montant: number | null
+  joursRestants: number
+}
+export interface ProAbonnementsResume {
+  pros: number
+  abonnesActifs: number
+  totalEncaisse: number
+  liste: ProAbonnement[]
+}
+export async function fetchProAbonnements(): Promise<ProAbonnementsResume> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminProAbonnements<ProAbonnementsResume>()
+}
+export async function enregistrerProPaiement(corps: {
+  userId: string; montant: number; mois: number; methode: string; numero?: string; note?: string
+}): Promise<{ jusquAu: string; montant: number }> {
+  if (!isPhp) throw new Error(NOT_SUPPORTED)
+  return php.phpAdminProPaiement<{ jusquAu: string; montant: number }>(corps)
+}
+
 export async function fetchAvisApp(): Promise<AvisAppResume> {
   if (!isPhp) throw new Error(NOT_SUPPORTED)
   return php.phpAdminAvisApp<AvisAppResume>()

@@ -2288,6 +2288,21 @@ function migrate(PDO $pdo): void {
       id $id PRIMARY KEY, user_id $id, note $intT, commentaire $txt,
       plateforme $txt, version $txt, created_at $ts
     )$eng",
+    /* REGISTRE DES ABONNEMENTS PRO (16/09/2026).
+     *
+     * Une ligne par encaissement, jamais modifiée ni supprimée. On pourrait se
+     * contenter de `users.pro_paye_jusqu_au`, mais une date seule ne dit ni
+     * combien a été payé, ni quand, ni par quel moyen, ni qui l'a enregistré —
+     * et c'est précisément ce qu'il faut pouvoir montrer le jour où un client
+     * conteste, ou le jour où l'on regarde ce que le site rapporte vraiment.
+     *
+     * `enregistre_par` porte l'e-mail de l'administrateur qui a saisi la ligne :
+     * l'encaissement Mobile Money se fait hors du site, c'est donc une PAROLE
+     * HUMAINE qui entre en base, et elle doit être signée. */
+    "CREATE TABLE IF NOT EXISTS pro_paiements (
+      id $id PRIMARY KEY, user_id $id, montant $intT, methode $txt, numero $txt,
+      debut $ts, fin $ts, note $txt, enregistre_par $txt, created_at $ts
+    )$eng",
   ];
   foreach ($stmts as $s) $pdo->exec($s);
 
@@ -2554,6 +2569,27 @@ function migrate(PDO $pdo): void {
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_secteur $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_tel $txt"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_demande_at $ts"); } catch (Throwable $e) {}
+  // ---- ABONNEMENT PRO PAYANT (16/09/2026) -----------------------------------
+  // Le compte Pro existait depuis longtemps — dossier, validation, badge, page
+  // vendeur, console, stock, réponses automatiques — mais il était GRATUIT.
+  // Il ne manquait qu'un prix. Ces deux colonnes le donnent :
+  //   `pro_paye_jusqu_au`  la date de fin de l'abonnement en cours ;
+  //   `pro_montant`        le dernier montant encaissé, en FCFA.
+  //
+  // ⚠️ AUCUNE RÉVOCATION AUTOMATIQUE. Une échéance dépassée n'enlève RIEN
+  //    aujourd'hui : ni le badge, ni la page vendiaire, ni la console. Le
+  //    compte Pro reste ce qu'il est. Ces colonnes servent à ENCAISSER et à
+  //    SUIVRE, pas encore à couper.
+  //
+  //    C'est délibéré, et c'est la seule décision prudente : au 16/09/2026 le
+  //    site compte UN vendeur professionnel réel. Brancher la coupure avant
+  //    d'avoir un client qui paie, c'est risquer de dégrader le seul compte qui
+  //    fasse vivre le catalogue, pour une règle dont personne n'a encore besoin.
+  //    Le jour où un abonnement est encaissé, la coupure se décide — et elle
+  //    passera par `pro_status`, qui est déjà lu partout, plutôt que par une
+  //    nouvelle condition semée dans six endroits.
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_paye_jusqu_au $ts"); } catch (Throwable $e) {}
+  try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_montant $intT"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_decide_at $ts"); } catch (Throwable $e) {}
   try { $pdo->exec("ALTER TABLE users ADD COLUMN pro_motif $txt"); } catch (Throwable $e) {}
   // La vitrine d'un professionnel : sa bannière (image large en tête de son
@@ -9971,6 +10007,36 @@ try {
   // A-T-IL DÉJÀ DONNÉ SON AVIS ? Appelée au lancement de l'application.
   // Volontairement minuscule et sans donnée : elle ne renvoie qu'un booléen, donc
   // elle peut être appelée souvent sans peser sur un forfait 3G.
+  /* ---- MON ABONNEMENT PRO (16/09/2026) -------------------------------------
+   * Ce que le professionnel voit de son propre abonnement. Répond aussi quand
+   * il n'a jamais rien payé (`actif: false`, `jusquAu: null`) : un écran qui ne
+   * sait pas dire « vous n'avez pas encore d'abonnement » oblige le client à
+   * appeler pour une question à laquelle la page devrait répondre seule. */
+  if ($path === 'pro/abonnement' && $method === 'GET') {
+    $u = require_user($pdo, $secret);
+    $st = $pdo->prepare('SELECT pro_status, pro_nom, pro_paye_jusqu_au, pro_montant FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $r = $st->fetch() ?: [];
+    $fin = trim((string) ($r['pro_paye_jusqu_au'] ?? ''));
+    $actif = $fin !== '' && $fin > now_iso();
+    // Jours restants : arrondi au jour ENTAMÉ, jamais vers le bas. Annoncer
+    // « 0 jour » à quelqu'un dont l'abonnement court encore jusqu'à ce soir
+    // serait faux, et il appellerait pour rien.
+    $jours = $actif ? (int) ceil((strtotime($fin) - time()) / 86400) : 0;
+    $hist = $pdo->prepare('SELECT montant, methode, debut, fin, created_at FROM pro_paiements
+                           WHERE user_id = ? ORDER BY created_at DESC LIMIT 24');
+    $hist->execute([$u['id']]);
+    jout([
+      'pro'           => (string) ($r['pro_status'] ?? '') === 'approuve',
+      'nom'           => $r['pro_nom'] ?: null,
+      'actif'         => $actif,
+      'jusquAu'       => $fin !== '' ? $fin : null,
+      'joursRestants' => $jours,
+      'montant'       => (int) ($r['pro_montant'] ?? 0) ?: null,
+      'paiements'     => $hist->fetchAll(),
+    ]);
+  }
+
   if ($path === 'avis-app/mien' && $method === 'GET') {
     $u = require_user($pdo, $secret);
     $st = $pdo->prepare('SELECT note, created_at FROM avis_app WHERE user_id = ? LIMIT 1');
@@ -12612,6 +12678,96 @@ try {
                '#/compte?onglet=fiche');
       } catch (Throwable $e) { /* la modification est enregistrée quoi qu'il arrive */ }
       jout(['ok' => true, 'change' => count($change)]);
+    }
+
+    /* ---- ENCAISSER UN ABONNEMENT PRO (16/09/2026) --------------------------
+     * L'argent arrive par Mobile Money, HORS du site — exactement comme pour
+     * l'écran publicitaire, où l'annonceur déclare son paiement et où l'admin
+     * valide après réception. On réutilise ce modèle plutôt que d'inventer une
+     * passerelle de paiement : c'est ainsi que le Patron travaille déjà.
+     *
+     * Le montant n'est PAS un tarif figé dans le code. Il se négocie au
+     * téléphone, client par client — un centre de formation et un garage ne
+     * paient pas la même chose. Le Patron saisit donc ce qu'il a réellement
+     * encaissé. Un tarif en dur deviendrait faux au deuxième client.
+     *
+     * L'abonnement PROLONGE : si l'échéance en cours est dans le futur, les
+     * mois achetés s'ajoutent à cette date, pas à aujourd'hui. Quelqu'un qui
+     * renouvelle avec deux semaines d'avance ne doit pas les perdre. */
+    if ($path === 'admin/pro/paiement' && $method === 'POST') {
+      $b = body();
+      $userId = (string) ($b['userId'] ?? '');
+      $montant = (int) ($b['montant'] ?? 0);
+      $mois = (int) ($b['mois'] ?? 1);
+      $methode = trim(mb_substr((string) ($b['methode'] ?? ''), 0, 40));
+      $numero = trim(mb_substr((string) ($b['numero'] ?? ''), 0, 40));
+      $note = trim(mb_substr((string) ($b['note'] ?? ''), 0, 500));
+      if ($montant <= 0) jerr('Le montant encaissé est obligatoire.');
+      // Douze mois au plus : au-delà, c'est une faute de frappe bien plus
+      // souvent qu'une vente. Une erreur ici s'inscrit dans une date lointaine
+      // que personne ne relit.
+      if ($mois < 1 || $mois > 12) jerr('La durée doit être comprise entre 1 et 12 mois.');
+      if ($methode === '') jerr('Le moyen de paiement est obligatoire (Wave, Orange Money…).');
+      $st = $pdo->prepare('SELECT email, pro_nom, pro_status, pro_paye_jusqu_au FROM users WHERE id = ?');
+      $st->execute([$userId]);
+      $cible = $st->fetch();
+      if (!$cible) jerr('Compte introuvable.', 404);
+      if ((string) ($cible['pro_status'] ?? '') !== 'approuve') {
+        jerr('Ce compte n’est pas un compte Pro approuvé : approuvez le dossier avant d’encaisser.', 409);
+      }
+      $encours = trim((string) ($cible['pro_paye_jusqu_au'] ?? ''));
+      $depart = ($encours !== '' && $encours > now_iso()) ? strtotime($encours) : time();
+      $fin = gmdate('Y-m-d\TH:i:s\Z', strtotime("+$mois month", $depart));
+      $debut = gmdate('Y-m-d\TH:i:s\Z', $depart);
+      $pdo->prepare('INSERT INTO pro_paiements (id,user_id,montant,methode,numero,debut,fin,note,enregistre_par,created_at)
+                     VALUES (?,?,?,?,?,?,?,?,?,?)')
+          ->execute([uuid(), $userId, $montant, $methode, $numero, $debut, $fin, $note,
+                     (string) ($u['email'] ?? ''), now_iso()]);
+      $pdo->prepare('UPDATE users SET pro_paye_jusqu_au = ?, pro_montant = ? WHERE id = ?')
+          ->execute([$fin, $montant, $userId]);
+      log_security_event($pdo, 'pro_paiement', $cible['email'] ?? null, $montant . ' FCFA · ' . $mois . ' mois');
+      try {
+        $nomB = htmlspecialchars((string) ($cible['pro_nom'] ?? ''));
+        $finFr = date('d/m/Y', strtotime($fin));
+        $inner = '<h2 style="margin-top:0">Votre abonnement Pro est enregistré ✅</h2>'
+          . "<p>Nous avons bien reçu votre paiement de <b>" . number_format($montant, 0, ',', ' ')
+          . ' FCFA</b> pour <b>' . $nomB . '</b>.</p>'
+          . "<p>Votre abonnement professionnel court jusqu’au <b>$finFr</b>.</p>"
+          . '<p>Merci de faire vivre le marché ivoirien avec nous.</p>';
+        send_mail($config, (string) $cible['email'], 'Chap.ci — votre abonnement Pro jusqu’au ' . $finFr,
+                  email_layout($config, $inner, 'Abonnement Pro Chap.ci'));
+      } catch (Throwable $e) { /* l'e-mail est un confort : l'encaissement est enregistré */ }
+      jout(['ok' => true, 'jusquAu' => $fin, 'montant' => $montant]);
+    }
+
+    /* ---- QUI PAIE, ET QUI ARRIVE À ÉCHÉANCE -------------------------------
+     * Trié par échéance croissante : ceux qui expirent bientôt en haut, parce
+     * que c'est la seule chose qu'on vient regarder ici. Les comptes Pro qui
+     * n'ont jamais payé ferment la liste — ce sont les prospects. */
+    if ($path === 'admin/pro/abonnements' && $method === 'GET') {
+      $rows = $pdo->query("SELECT id, email, pro_nom, pro_type, pro_paye_jusqu_au, pro_montant
+                           FROM users WHERE pro_status = 'approuve'")->fetchAll();
+      $maintenant = now_iso();
+      $liste = [];
+      $encaisse = 0;
+      foreach ($rows as $r) {
+        $fin = trim((string) ($r['pro_paye_jusqu_au'] ?? ''));
+        $actif = $fin !== '' && $fin > $maintenant;
+        $liste[] = [
+          'id' => $r['id'], 'email' => $r['email'], 'nom' => $r['pro_nom'] ?: null,
+          'type' => $r['pro_type'] ?: null, 'jusquAu' => $fin !== '' ? $fin : null,
+          'actif' => $actif, 'montant' => (int) ($r['pro_montant'] ?? 0) ?: null,
+          'joursRestants' => $actif ? (int) ceil((strtotime($fin) - time()) / 86400) : 0,
+        ];
+        if ($actif) $encaisse++;
+      }
+      // Jamais payé en dernier ; sinon échéance croissante.
+      usort($liste, function ($a, $b) {
+        if (($a['jusquAu'] === null) !== ($b['jusquAu'] === null)) return $a['jusquAu'] === null ? 1 : -1;
+        return strcmp((string) $a['jusquAu'], (string) $b['jusquAu']);
+      });
+      $total = (int) $pdo->query('SELECT COALESCE(SUM(montant),0) FROM pro_paiements')->fetchColumn();
+      jout(['pros' => count($liste), 'abonnesActifs' => $encaisse, 'totalEncaisse' => $total, 'liste' => $liste]);
     }
 
     if ($path === 'admin/pro/decider' && $method === 'POST') {
