@@ -154,7 +154,56 @@ const temoin = await bras('BRAS TÉMOIN — la même CSP sans media-src (l’ét
 await nav.close()
 serveur.close()
 
+/* ── DEUXIÈME MOITIÉ DU BANC : LE BROUILLON NE DOIT PAS DÉRIVER ──────────────
+ *
+ * Deux politiques coexistent, et c'est voulu :
+ *   · la balise <meta> de vite.config.ts — celle qui BLOQUE réellement ;
+ *   · l'en-tête Content-Security-Policy-Report-Only de web/htaccess-root —
+ *     qui ne bloque rien et sert de RÉPÉTITION avant de durcir un jour.
+ *
+ * Le 15/09, `media-src` a été ajouté à la première et oublié dans la seconde.
+ * Sans danger sur le moment — mais le jour de la bascule, la vidéo recassait.
+ * C'est la classe de panne à garder : une directive que la politique réelle
+ * autorise et que le brouillon ignore.
+ *
+ * ⚠️ `web/htaccess-root` N'ENTRE JAMAIS DANS UN ZIP (aucun .htaccess n'y entre,
+ * cf. le 2 août 2026). Ce banc compare donc le MODÈLE DU DÉPÔT, pas ce qui est
+ * en ligne. Pour la production, seule la lecture des en-têtes servis fait foi :
+ *   curl -sSI https://chap.ci/ | grep -i content-security-policy-report-only
+ */
+const decoupe = (s) => Object.fromEntries(
+  s.split(';').map((d) => d.trim()).filter(Boolean)
+    .map((d) => { const [k, ...v] = d.split(/\s+/); return [k, v.join(' ')] }),
+)
+let derive = null
+try {
+  const brouillon = readFileSync(DEPOT + 'web/htaccess-root', 'utf8')
+    .match(/Content-Security-Policy-Report-Only "([^"]+)"/)[1]
+  const R = decoupe(CSP_REELLE), B = decoupe(brouillon)
+  const manquantes = Object.keys(R).filter((k) => !(k in B))
+  const ecarts = Object.keys(R).filter((k) => k in B && R[k] !== B[k])
+  console.log('── DÉRIVE — le brouillon Report-Only face à la politique réelle')
+  console.log(`   directives de la politique réelle absentes du brouillon : ${manquantes.length ? manquantes.join(', ') : 'aucune'}`)
+  if (ecarts.length) {
+    console.log(`   valeurs différentes (sans gravité tant que le brouillon est plus permissif) :`)
+    ecarts.forEach((k) => console.log(`     · ${k}`))
+  }
+  console.log()
+  derive = manquantes
+} catch {
+  console.log('── DÉRIVE : web/htaccess-root illisible ou sans Report-Only — comparaison non faite.')
+  console.log()
+}
+
 console.log('═'.repeat(72))
+if (derive && derive.length) {
+  console.log('⛔ ROUGE. Le brouillon Report-Only ignore une directive que la politique')
+  console.log(`   réelle autorise : ${derive.join(', ')}.`)
+  console.log('   Aujourd’hui il ne bloque rien — mais le jour où on le passe en mode')
+  console.log('   bloquant, ce parcours casse. Ajoutez la directive dans web/htaccess-root,')
+  console.log('   puis reportez-la À LA MAIN dans le .htaccess en ligne : aucun zip ne le fait.')
+  process.exit(1)
+}
 if (reel === true && temoin === false) {
   console.log('✅ VERT. La CSP servie laisse passer la vidéo, et le banc sait voir la panne')
   console.log('   quand on retire media-src. Les deux moitiés du contrat sont tenues.')

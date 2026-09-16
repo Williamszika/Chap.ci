@@ -6943,3 +6943,84 @@ la bonne ligne. C'est la conclusion qu'il faut relire, jamais le constat.
 - **`security_alert` du 14/09** — hors fenêtre 24 h. Question posée au Patron, une
   fois, sans insister.
 - **Le catalogue** : toujours le goulot, et toujours hors de portée d'un correctif.
+
+---
+
+## 2026-09-16 00:49 — 🛡️ Le Gardien, ronde de nuit — classée par 🗂️ Le Secrétariat
+
+**La meilleure ronde des trois.** Elle trouve un vrai écart, donne la ligne exacte
+(`web/htaccess-root:164`), fournit la commande qui le reproduit, et — c'est nouveau —
+**ne re-vérifie pas ce qui n'a pas bougé** : aucun commit sur `server/`, `web/seo.php`
+ni `src/` depuis la veille, donc pas de reconstruction. C'est de la bonne économie.
+
+**Vérifié avant classement.** Les en-têtes réellement servis :
+
+```
+content-security-policy-report-only: default-src 'self'; …    ← le SEUL en-tête CSP
+media-src dans cet en-tête : ABSENT
+```
+
+- ✅ **Aucun en-tête bloquant en production.** J'ai cherché un
+  `Content-Security-Policy` tout court : il n'y en a pas, ni dans `htaccess-root`
+  (une seule ligne CSP, en Report-Only) ni dans la réponse servie. La politique qui
+  bloque est donc bien la balise `<meta>` seule, et elle porte `media-src 'self' blob:`.
+  **La conclusion « sans impact » de la ronde est juste — la vidéo est bien réparée.**
+  Ce point méritait d'être vérifié et non déduit : deux politiques bloquantes se
+  combinent par INTERSECTION, et un en-tête sans `media-src` aurait annulé le
+  correctif du 15/09 sans rien changer à l'empreinte du site.
+- ✅ `media-src` bien absent du brouillon, côté dépôt comme côté production.
+
+### ⚠️ Mais le cadrage est à l'envers, et c'est important
+
+La ronde veut que le monitoring « **cesse de signaler un cas déjà corrigé** » et
+classe le risque à « nul ». Or le commentaire du fichier, écrit plus haut, dit
+exactement le contraire :
+
+> « C'est ce relevé qui dira quand on peut passer en mode bloquant sans casser un
+> parcours : **tant qu'une origine légitime y figure, la durcir couperait quelque
+> chose.** »
+
+**La violation `media-src blob` du 15/09 à 21:57:46 n'était pas du bruit : elle
+était vraie, et utile.** Elle disait précisément « ne durcissez pas aujourd'hui,
+vous recasseriez la vidéo ». Le brouillon Report-Only n'est pas un journal à
+nettoyer, c'est **la répétition générale de la politique bloquante**. On corrige le
+brouillon ; **on ne débranche pas le témoin.**
+
+Le risque n'est donc pas « nul », il est **différé** : nul aujourd'hui, réel le jour
+de la bascule — et ce jour-là, c'est la panne du 04-15/09 qui revient.
+
+### Fait
+
+- `media-src 'self' blob:` ajouté à `web/htaccess-root`, avec le raisonnement écrit
+  au-dessus de la ligne pour que le prochain lecteur n'ait pas à le redécouvrir.
+- **Recherche de dérive, parce que c'était la classe du bug et pas le bug seul** :
+  les deux politiques comparées directive par directive. **Aucune autre directive de
+  la politique réelle ne manque au brouillon.** Trois valeurs diffèrent — `script-src`,
+  `style-src`, `connect-src` — et toutes dans le sens « le brouillon est plus
+  permissif », donc sans danger pour la bascule.
+  - À noter tout de même : le brouillon porte `'unsafe-inline'` dans `script-src`, que
+    la politique réelle refuse volontairement (« le point clé », dit le commentaire de
+    `vite.config.ts`). Le brouillon est donc **plus faible que le réel sur la directive
+    qui compte le plus**. Sans conséquence — les politiques s'intersectent, la stricte
+    gagne — mais un lecteur pressé pourrait croire protégé ce qui ne l'est que par
+    l'autre politique. À corriger le jour de la bascule, pas avant.
+- **`npm run banc:csp` gagne une troisième moitié** : il compare le brouillon à la
+  politique réelle et **échoue** si une directive du réel manque au brouillon. C'est
+  exactement ce qui s'est produit le 15/09, et ce ne sera plus silencieux.
+
+### ⚠️ Et la limite que ce correctif ne franchit pas
+
+`web/htaccess-root` **n'entre dans aucun zip** — aucun `.htaccess` n'y entre, jamais,
+depuis le 2 août 2026. Le dépôt est donc corrigé, **la production ne l'est pas** et ne
+le sera pas par une extraction. C'est la même divergence silencieuse que `robots.txt`
+la semaine dernière, à une différence près : **celle-ci ne peut pas être réglée en
+mettant le fichier dans le zip.** Elle se règle à la main, ou pas du tout.
+
+Comme rien ne bloque aujourd'hui, ce n'est pas urgent : fiche remise au Patron,
+à faire quand il veut, jamais dans l'urgence et jamais la nuit.
+
+### Reste ouvert
+
+- **`security_alert` du 14/09** — question posée deux fois au Patron, sans réponse.
+  Je n'y reviens plus ; elle est ici pour mémoire.
+- **Le catalogue** — inchangé, et toujours le seul vrai goulot.

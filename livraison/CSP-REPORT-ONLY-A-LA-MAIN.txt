@@ -1,0 +1,77 @@
+CHAP.CI — UNE LIGNE À CORRIGER À LA MAIN (PAS URGENT)
+===============================================================================
+
+⚠️ RIEN N'EST CASSÉ. Votre site marche, la vidéo marche. Ceci se fait quand vous
+avez cinq minutes tranquilles — surtout pas dans l'urgence, et surtout pas la nuit.
+
+Vous pouvez aussi ne rien faire du tout : la seule conséquence est qu'un relevé
+de surveillance continuera de signaler un cas déjà réglé.
+
+
+CE DONT IL S'AGIT, EN DEUX PHRASES
+----------------------------------
+Le site porte DEUX règles de sécurité. L'une bloque pour de vrai — elle est dans
+le zip, elle est à jour depuis hier, c'est elle qui a réparé la vidéo. L'autre ne
+bloque rien : c'est un BROUILLON, une répétition de ce qu'on activera peut-être
+un jour.
+
+Hier j'ai corrigé la vraie et pas le brouillon. Sans conséquence aujourd'hui.
+Mais le jour où l'on activerait le brouillon tel quel, la vidéo recasserait —
+exactement la panne du 4 au 15 septembre.
+
+Le brouillon vit dans le fichier `.htaccess`, et AUCUN zip ne contient jamais de
+`.htaccess` — c'est la règle depuis le 2 août, le jour où un `.htaccess` de zip
+a coupé l'API onze heures. Ce fichier ne peut donc se corriger qu'à la main.
+
+
+LES ÉTAPES
+----------
+1. cPanel -> Gestionnaire de fichiers -> public_html
+
+2. En haut à droite : « Paramètres » (Settings) -> cochez
+   « Afficher les fichiers cachés (dotfiles) » -> Enregistrer.
+   Sans ça, le fichier `.htaccess` ne s'affiche pas.
+
+3. Clic droit sur `.htaccess` (celui DANS public_html, pas celui dans api/)
+   -> « Télécharger ». GARDEZ CETTE COPIE. C'est votre retour en arrière.
+
+4. Clic droit sur `.htaccess` -> « Edit » -> « Edit » pour confirmer.
+
+5. Faites Cmd+F (ou Ctrl+F) et cherchez :
+
+       img-src 'self' data: blob: https:;
+
+   Vous le trouverez UNE seule fois, dans une très longue ligne qui commence par
+   `Header always set Content-Security-Policy-Report-Only`.
+
+6. Juste APRÈS le point-virgule de `https:;`, ajoutez ceci, espace compris :
+
+       media-src 'self' blob:;
+
+   AVANT :   … img-src 'self' data: blob: https:; font-src 'self' data:; …
+   APRÈS :   … img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self' data:; …
+
+   ⚠️ NE TOUCHEZ À RIEN D'AUTRE dans cette ligne, et ne coupez pas la ligne en
+   deux : elle doit rester d'un seul tenant.
+
+7. « Save Changes ».
+
+
+LA VÉRIFICATION
+---------------
+Ouvrez https://chap.ci — la page doit s'afficher normalement.
+
+⚠️ C'EST LE SEUL POINT QUI COMPTE. Une erreur dans un `.htaccess` ne donne pas un
+petit défaut : elle donne une erreur 500 sur TOUT le site, tout de suite. Si la
+page ne s'affiche plus, remettez la copie de l'étape 3 (clic droit dans
+public_html -> « Upload » -> choisissez le fichier téléchargé -> il écrase
+l'ancien) et le site revient. Puis dites-le-moi.
+
+Si la page s'affiche : c'est fait, il n'y a rien d'autre à regarder.
+
+
+POURQUOI JE NE PEUX PAS LE FAIRE POUR VOUS
+------------------------------------------
+Le zip ne peut pas emporter ce fichier — c'est précisément l'interdit qui nous
+protège depuis le 2 août. Le dépôt est corrigé de mon côté ; la production ne le
+sera que par vos mains. C'est la seule chose de ce genre en ce moment.
