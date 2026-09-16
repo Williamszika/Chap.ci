@@ -7258,3 +7258,85 @@ moindre problème. Prochain zip ordinaire.
 
 Seule `empreinteSite` bouge : `1829a502624a`. L'API et le SEO de ce matin étaient
 justes, je n'y touche pas.
+
+---
+
+## 2026-09-16 — ⛔ LE SERVEUR REFUSE LE ROBOT DE CHATGPT. Mesuré.
+
+Le Patron veut que Chap.ci soit reconnu et proposé dans ChatGPT. Un conseil
+extérieur signalait une **erreur 520** en essayant de charger le site, et
+conseillait un « audit technique ». Le 520 est, mot pour mot, la signature
+documentée de notre anti-robot — j'ai donc mesuré au lieu de choisir entre
+« vraie panne » et « fausse alerte ».
+
+### La mesure, et elle est sans ambiguïté
+
+Depuis **une même machine**, à quelques secondes d'intervalle, sur `https://chap.ci/` :
+
+| se présente comme | réponse |
+|---|---|
+| un navigateur ordinaire | **200** |
+| **Googlebot** | **200** |
+| **OAI-SearchBot** (ChatGPT) | **520** |
+| un robot inventé pour le test | **403**, page LiteSpeed |
+
+**Seul le NOM change.** Même adresse, même seconde, même page. Ce n'est donc pas
+la cadence, et ce n'est pas l'adresse.
+
+**Corroboration indépendante, et elle vaut mieux qu'une répétition de mon propre
+test :** le conseil extérieur avait vu ce 520 depuis SA machine avant que je
+teste depuis la mienne. Deux adresses différentes, même nom de robot, même
+refus — pendant que Googlebot passe depuis la mienne. L'hypothèse « c'est leur
+adresse qui est punie » est éliminée.
+
+### D'où vient le refus
+
+`x-turbo-charged-by: LiteSpeed` sur la page de 403 : **l'origine répond**, ce
+n'est pas Cloudflare qui tranche. Et `grep -niE "user.agent|BrowserMatch|deny
+from"` sur `web/htaccess-root` ne rend **rien** : le blocage n'est pas chez nous.
+
+C'est l'anti-robot LiteSpeed déjà connu des 5, 7 et 11 septembre — mais sous une
+facette que nous ignorions. **Nous le croyions déclenché par la CADENCE. Il
+refuse aussi, d'emblée, tout robot absent de sa liste de robots connus.**
+
+### ⚠️ Ce que cela révèle sur le travail d'hier
+
+`robots.txt` autorise explicitement `OAI-SearchBot` depuis le 15/09. Cette
+autorisation est correcte, elle est en ligne, je l'ai vérifiée. **Et elle ne
+sert à rien** : le robot est refusé avant d'avoir pu lire le fichier qui
+l'autorise. Une invitation affichée derrière une porte fermée à clé.
+
+**Règle qui en découle, ajoutée à `CLAUDE.md` :** une autorisation dans
+`robots.txt` ne prouve RIEN sur l'accès réel. La seule preuve est une requête
+portant le User-Agent en question. Un `curl -A` suffit, et il aurait dû être
+fait le 15/09 — j'ai vérifié que le fichier était servi, pas que le robot
+pouvait l'atteindre. **Encore la moitié de la route qui marchait.**
+
+### Ce qui est remis au Patron
+
+Fiche `livraison/CHATGPT-BLOQUE-PAR-LE-SERVEUR.txt`, avec le tableau de mesures
+et un message prêt à copier pour son hébergeur — sur un mutualisé, ce réglage
+est presque toujours de leur côté. Deux endroits à regarder lui-même (LiteSpeed
+dans cPanel, cPGuard), **présentés comme « à regarder » et non comme un chemin
+exact** : je ne vois pas ses tableaux de bord, et inventer un menu serait pire
+que de l'avouer.
+
+Vérification du déblocage, en une requête : OAI-SearchBot doit passer de 520
+à 200.
+
+### Et ce que le déblocage ne fera pas
+
+Il rend le site LISIBLE par ChatGPT. Il ne le rend pas RECOMMANDABLE. 46
+annonces, une trentaine chez un seul vendeur, dix catégories vides sur seize —
+dont les véhicules et l'électronique, c'est-à-dire ce que les gens demandent.
+**Nécessaire, pas suffisant.**
+
+### Au passage : les autres priorités du conseil étaient déjà faites
+
+Sa « priorité 2 » demande de supprimer les URL en `#/` et d'avoir des adresses
+indexables. **Elles existent depuis longtemps** : `web/seo.php` sert du vrai HTML
+sur `/annonce/{id}`, `/vendeur/{id}` et `/vendre/{cat}/{ville}`, et le sitemap en
+compte 68 — vérifié ce matin même. Sa « priorité 3 » (prix, ville, photos,
+canonique, données structurées sur chaque annonce) est en place et mesurée verte
+par 📣 Le Crieur le 13/09. Il conseille à l'aveugle, faute d'avoir pu charger le
+site — ce qui est précisément le symptôme, pas la cause.

@@ -167,6 +167,29 @@ d'un site cassé. Un `config.php` fautif donnerait une erreur 500 de PHP, pas la
 LiteSpeed. Vérifiez `/` avant de conclure quoi que ce soit, et souvenez-vous que le
 Patron, lui, continue de travailler normalement depuis SON adresse.
 
+⚠️ **ET IL NE PUNIT PAS QUE LA VITESSE : IL REFUSE LES ROBOTS QU'IL NE CONNAÎT
+PAS.** Découvert le 16/09/2026, en cherchant pourquoi ChatGPT ne voyait pas le
+site. Depuis une même machine, à quelques secondes d'intervalle, sur `/` :
+
+| se présente comme | réponse |
+|---|---|
+| un navigateur | **200** |
+| `Googlebot` | **200** |
+| `OAI-SearchBot` (ChatGPT) | **520** |
+| un robot inventé | **403**, page LiteSpeed |
+
+Seul le **nom** change. LiteSpeed tient une liste de robots connus — Googlebot y
+est, celui d'OpenAI non — et refuse les autres d'emblée, sans rapport avec la
+cadence. L'en-tête `x-turbo-charged-by: LiteSpeed` sur le 403 désigne l'origine,
+pas Cloudflare ; `web/htaccess-root` ne contient aucune règle sur les
+User-Agent. **Le réglage est donc chez l'hébergeur, et AUCUN ZIP NE PEUT LE
+CORRIGER.**
+
+**Conséquence à retenir avant d'écrire une ligne de SEO :** `robots.txt` peut
+autoriser un robot que le serveur refuse avant qu'il ait pu le lire. Une
+autorisation dans `robots.txt` ne prouve donc RIEN sur l'accès réel. La seule
+preuve est une requête avec le User-Agent en question — un `curl -A` suffit.
+
 Règle :
 **cinq requêtes au plus d'affilée, trois secondes entre deux, et jamais de boucle de
 « re-essais » rapprochés** ; après un refus, cinq minutes sans rien envoyer, puis une

@@ -1,0 +1,127 @@
+CHAP.CI — POURQUOI CHATGPT NE VOIT PAS VOTRE SITE, ET COMMENT LE DÉBLOQUER
+===============================================================================
+16 septembre 2026
+
+CE QUI A ÉTÉ MESURÉ
+-------------------
+Depuis une même machine, à quelques secondes d'intervalle, sur la même adresse
+https://chap.ci/ :
+
+   un navigateur ordinaire ................ 200  (la page s'affiche)
+   Googlebot (Google) ..................... 200  (la page s'affiche)
+   OAI-SearchBot (ChatGPT) ................ 520  REFUSÉ
+   un robot inventé pour le test .......... 403  REFUSÉ
+
+La seule chose qui change entre ces quatre essais, c'est LE NOM que le visiteur
+donne de lui-même. Même adresse, même seconde, même page.
+
+Votre serveur laisse donc entrer Google et refuse ChatGPT.
+
+CORROBORATION INDÉPENDANTE : ChatGPT lui-même a signalé cette erreur 520 depuis
+SA propre adresse, avant que je fasse ce test depuis la mienne. Deux machines
+différentes, même nom de robot, même refus. Ce n'est donc ni un hasard, ni un
+problème d'adresse : c'est bien le nom qui est refusé.
+
+
+D'OÙ VIENT LE REFUS
+-------------------
+La page de refus porte l'en-tête « x-turbo-charged-by: LiteSpeed ».
+LiteSpeed, c'est LE LOGICIEL DE VOTRE SERVEUR, chez votre hébergeur — pas
+Cloudflare, et pas notre code.
+
+J'ai vérifié : notre fichier de configuration ne contient AUCUNE règle sur le
+nom des robots. Le blocage n'est pas chez nous.
+
+C'est le même dispositif anti-robot qui nous a déjà donné du fil à retordre les
+5, 7 et 11 septembre. Nous savions qu'il punissait les visiteurs TROP RAPIDES.
+Nous découvrons aujourd'hui qu'il refuse aussi, d'emblée, les robots QU'IL NE
+CONNAÎT PAS — et il ne connaît pas celui de ChatGPT.
+
+
+CE QUE ÇA SIGNIFIE POUR VOUS
+----------------------------
+Le robots.txt installé hier autorise explicitement OAI-SearchBot. Cette
+autorisation est correcte, et elle est en ligne. Mais elle ne sert à rien :
+le robot est refusé AVANT d'avoir pu lire le fichier qui l'autorise.
+
+C'est comme une invitation affichée à l'intérieur d'une porte fermée à clé.
+
+⚠️ AUCUN ZIP NE PEUT CORRIGER CELA. Le réglage est chez votre hébergeur.
+
+
+CE QU'IL FAUT FAIRE — UN MESSAGE À VOTRE HÉBERGEUR
+---------------------------------------------------
+Sur un hébergement mutualisé, ce réglage est presque toujours contrôlé par
+l'hébergeur et non par vous. Le plus rapide est de leur écrire.
+
+Ouvrez un ticket de support chez votre hébergeur et copiez-collez ceci :
+
+-------------------------------------------------------------------------------
+Bonjour,
+
+Mon site https://chap.ci refuse certains robots d'indexation légitimes, et je
+souhaiterais qu'ils soient autorisés.
+
+Constat, reproductible depuis une même machine, sur https://chap.ci/ :
+
+  - User-Agent navigateur         -> HTTP 200
+  - User-Agent Googlebot          -> HTTP 200
+  - User-Agent OAI-SearchBot      -> HTTP 520
+  - User-Agent inconnu quelconque -> HTTP 403
+
+La page de refus porte l'en-tête « x-turbo-charged-by: LiteSpeed », ce qui
+indique que le refus vient du serveur d'origine et non de Cloudflare.
+
+Il s'agit à mon avis de la protection anti-robot de LiteSpeed, qui autorise une
+liste de robots connus (dont Googlebot) et refuse les autres.
+
+Pourriez-vous autoriser les robots suivants, qui sont des robots d'indexation
+publics et documentés ?
+
+  OAI-SearchBot    (recherche ChatGPT — https://openai.com/searchbot)
+  ChatGPT-User     (consultation de page pendant une conversation)
+  Bingbot          (Microsoft Bing)
+
+Mon fichier https://chap.ci/robots.txt les autorise déjà explicitement ; c'est
+le serveur qui les bloque en amont.
+
+Merci d'avance.
+-------------------------------------------------------------------------------
+
+
+CE QUE VOUS POUVEZ REGARDER VOUS-MÊME EN ATTENDANT
+---------------------------------------------------
+Deux endroits À REGARDER — je ne peux pas voir vos tableaux de bord, donc je ne
+peux pas vous donner un chemin exact ici, et je préfère vous le dire plutôt que
+d'inventer un menu qui n'existe pas :
+
+  1. cPanel -> cherchez « LiteSpeed » dans la barre de recherche en haut.
+     S'il existe une page de protection anti-robot avec une liste de robots
+     autorisés, OAI-SearchBot doit y être ajouté.
+
+  2. Si vous avez cPGuard (l'outil de sécurité qui avait mis api/index.php en
+     quarantaine le 3 août), regardez s'il a une section « bots » ou « WAF »
+     avec une liste blanche.
+
+Si vous ne trouvez rien de tel, c'est que le réglage est du côté de
+l'hébergeur : le message ci-dessus reste la bonne voie.
+
+
+COMMENT SAVOIR QUE C'EST RÉGLÉ
+------------------------------
+Écrivez-moi quand l'hébergeur a répondu. Je referai exactement la même mesure :
+OAI-SearchBot doit passer de 520 à 200. C'est tout, et ça se vérifie en une
+requête.
+
+
+⚠️ ET CE QUE ÇA NE FERA PAS
+---------------------------
+Débloquer le robot rend votre site LISIBLE par ChatGPT. Ça ne garantit pas
+qu'il sera PROPOSÉ dans une réponse. Pour être proposé, il faut aussi avoir
+quelque chose à proposer.
+
+Au 16 septembre, Chap.ci compte 46 annonces, dont une trentaine chez un seul
+vendeur, et dix catégories sur seize sont vides — dont les véhicules et
+l'électronique, c'est-à-dire précisément ce que les gens demandent.
+
+Le déblocage est nécessaire. Il n'est pas suffisant.
