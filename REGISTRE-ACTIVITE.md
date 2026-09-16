@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Mercredi 16 septembre 2026 |
-| Livraisons | 891 |
+| Livraisons | 893 |
 | Jours travaillés | 67 |
-| Dernière mise à jour | Mercredi 16 septembre 2026, 21:45 (Abidjan) |
+| Dernière mise à jour | Mercredi 16 septembre 2026, 21:51 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -47,7 +47,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Mercredi 16 septembre 2026
 
-**11 livraison(s)** · Abidjan 03:48 → 21:45 · chez le Patron 05:48 → 23:45 · amplitude 17 h 57
+**13 livraison(s)** · Abidjan 03:48 → 21:51 · chez le Patron 05:48 → 23:51 · amplitude 18 h 02
 
 - `03:48` · Le brouillon de la règle de sécurité ignorait la vidéo — la bascule l'aurait recassée  <sub>`06d0f08`</sub>
 - `03:49` · Registre d'activité régénéré — 881 livraisons sur 67 jours  <sub>`cca0c0a`</sub>
@@ -60,6 +60,8 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `10:48` · Le serveur refuse le robot de ChatGPT : 520 pour lui, 200 pour Googlebot  <sub>`69844cc`</sub>
 - `10:48` · Registre d'activité régénéré — 889 livraisons sur 67 jours  <sub>`64249d8`</sub>
 - `21:45` · La taille d'un vêtement se voit enfin, au lieu de se lire  <sub>`1f1833d`</sub>
+- `21:46` · Registre d'activité régénéré — 891 livraisons sur 67 jours  <sub>`83be3dd`</sub>
+- `21:51` · « Est-ce que ça existe en noir ? » se répond sans ouvrir l'annonce  <sub>`dab2797`</sub>
 
 ### Mardi 15 septembre 2026
 
