@@ -7171,3 +7171,90 @@ quand les annonces arriveront.
 **Et l'action qui vaut mieux que ces deux chantiers reste le coup de fil au
 vendeur de Treichville.** Il apparaîtra maintenant dans le nouveau tableau, avec
 la mention « jamais payé » — c'est-à-dire : prospect n° 1, déjà chez nous.
+
+---
+
+## 2026-09-16 09:06 — 🎨 L'Atelier — ronde classée, et P1 ÉTAIT UN VRAI BUG DE MA PART
+
+**Le rapport est juste sur toute la ligne, et il porte sur mon code de ce matin,
+déjà extrait en production.**
+
+### P1 — les deux boutons de l'écran Pro n'avaient aucun fond. Confirmé.
+
+`bg-chap-orange` n'existe nulle part : `grep -c chap tailwind.config.js` rend
+**0**, la palette s'appelle `action`. Et `grep -c chap-orange dist/assets/*.css`
+rend **0** : Tailwind n'a généré aucune règle. Les deux boutons — dont
+« Encaisser », **la seule raison d'être de l'écran** — étaient du texte blanc sur
+du blanc.
+
+La classe n'apparaissait qu'à deux endroits du dépôt : les deux miens, de ce
+matin. L'Atelier a fait exactement ce qu'il fallait — il a **reconstruit** pour
+transformer une suspicion en preuve, au lieu de la rapporter comme une intuition.
+
+Corrigé en `bg-action-600`, vérifié indépendamment plutôt que pris pour argent
+comptant : `#B35700`, et la configuration elle-même le documente comme
+« 4,91:1 sous du blanc : plancher d'un TEXTE blanc ». C'est le rôle exact, et
+c'est déjà l'usage de `DealCard.tsx`.
+
+### P2 — les prix ne passaient pas par `formatFCFA()`. Confirmé, corrigé.
+
+Deux lignes du même écran collaient le montant à « FCFA » avec une espace
+ordinaire, alors que `formatFCFA()` était déjà importé dans le fichier.
+
+### ⚠️ POURQUOI JE NE L'AI PAS VU — LA MÊME FAUTE QUE `banc:video`
+
+Mes 22 vérifications de ce matin portaient **sur le serveur** : encaissement,
+registre, refus, prolongation. Toutes justes. **Aucune ne regardait l'écran.**
+
+C'est mot pour mot la leçon du 15/09 sur la vidéo — *« le banc couvrait la moitié
+de la route qui marchait »* — et je l'ai refaite le lendemain, sur mon propre
+code, après l'avoir écrite dans ce journal. Ce n'est pas une coïncidence : **un
+banc se construit du côté qu'on sait tester**, et il faut un effort délibéré pour
+aller voir l'autre.
+
+Aggravant : ma fiche disait « ouvrez Demandes Pro, vous devez voir le tableau ».
+**Je n'ai jamais regardé cet écran moi-même.**
+
+### Fait : `npm run banc:classes`
+
+Une classe qui nomme une couleur inexistante ne produit **rien** — pas d'erreur
+de compilation, pas d'avertissement, `tsc` ne lit pas les chaînes des
+`className`. Le banc compare donc chaque classe écrite dans `src/` au **CSS
+réellement compilé** : la preuve même qui a servi à établir le bug.
+
+Trois bras témoins, parce qu'un banc doit pouvoir échouer : `bg-chap-orange` doit
+être absent du CSS, `bg-action-600` présent, et `bg-gradient-to-br` ne doit pas
+être pris pour une faute.
+
+**Deux fausses pistes traversées en l'écrivant, notées parce qu'elles instruisent :**
+
+1. Première version : deviner quels suffixes sont des couleurs. Elle accusait
+   `bg-gradient-to-br` et `ring-inset`. **On ne devine pas — on compare au CSS.**
+2. Deuxième version : chercher `.bg-cream-50` dans le CSS. Mais une variante
+   **déplace le point** : `hover:bg-cream-50` s'écrit `.hover\:bg-cream-50:hover`.
+   Quatre classes parfaitement valides déclarées fautives. Un banc qui crie au
+   loup est pire qu'un banc absent.
+
+### Et il a trouvé 7 classes mortes, toutes antérieures à moi
+
+- **`bg-cream-50`** (×3) — la palette `cream` n'a que `DEFAULT`, `100` et `200`.
+  **Trois effets de survol ne se produisent jamais.**
+- **`text-shadow`** (×3) — n'est pas une utilité Tailwind, et `plugins: []` est
+  vide. **Trois ombres de texte n'existent pas.**
+- **`ring-dashed`** (×1) — n'existe pas (`border-dashed` oui, `ring-` non).
+
+Déclarées en dette datée dans le banc, qui refuse désormais toute NOUVELLE venue.
+**Le remède demande une décision de 🎨 L'Atelier** — quelle nuance de crème,
+quelle ombre — pas une supposition du Développement.
+
+### Ce que je n'ai PAS fait, et pourquoi
+
+Sa proposition sur `border-gray-100` (barre du bas, menu des notifications) est
+juste et sans risque. **Écartée de ce zip volontairement** : elle touche toutes
+les pages, et la mélanger à un correctif urgent rendrait indiagnosticable le
+moindre problème. Prochain zip ordinaire.
+
+### Zip n° 29 — correctif
+
+Seule `empreinteSite` bouge : `1829a502624a`. L'API et le SEO de ce matin étaient
+justes, je n'y touche pas.

@@ -43,7 +43,8 @@
     "banc:deviner": "node scripts/banc-deviner.mjs",
     "banc:csp": "node scripts/banc-csp.mjs",
     "banc:vendre": "node scripts/banc-vendre.mjs",
-    "banc:pro-abonnement": "node scripts/banc-pro-abonnement.mjs"
+    "banc:pro-abonnement": "node scripts/banc-pro-abonnement.mjs",
+    "banc:classes": "node scripts/banc-classes.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",

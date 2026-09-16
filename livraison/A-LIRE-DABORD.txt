@@ -1,70 +1,55 @@
-CHAP.CI — ZIP DU 16 SEPTEMBRE 2026, n° 28
+CHAP.CI — ZIP DU 16 SEPTEMBRE 2026, n° 29 — CORRECTIF
 ===============================================================================
 
-⚠️ LES TROIS EMPREINTES CHANGENT CETTE FOIS — y compris celle de l'API. C'est
-normal : il y a du travail des deux côtés. Les chiffres attendus sont plus bas.
-
-Deux chantiers, ceux que vous avez demandés.
-
-
-CHANTIER 1 — LA VILLE D'UNE PAGE « VENDEZ À… » NE SERVAIT À RIEN
-----------------------------------------------------------------
-Votre site proposait à Google 368 pages du type « Vendez votre véhicule à Man ».
-Pour 46 annonces.
-
-Pire : ces pages ne regardaient pas la ville. « Vendez votre véhicule à Man » et
-« Vendez votre véhicule à Cocody » affichaient exactement les mêmes annonces —
-seul le nom de la ville changeait dans le texte. La ville de l'adresse était
-décorative.
-
-Google appelle ça du contenu dupliqué, et il le fait payer À TOUT LE DOMAINE,
-pas seulement à ces pages-là.
-
-Trois changements, dans l'ordre qui compte :
-
-  1. La page filtre enfin par ville. Sans ça, réduire le nombre de pages
-     n'aurait rien réglé : on aurait fermé la porte de pages dont le contenu
-     restait identique.
-
-  2. « Abidjan » couvre ses communes (Cocody, Yopougon, Treichville…).
-     Personne ne range son annonce sous « Abidjan » quand il peut écrire sa
-     commune — sans ce regroupement, votre page la plus recherchée serait vide
-     alors que le stock existe.
-
-  3. Sous trois annonces, une page ville disparaît du sitemap et demande à
-     Google de ne plus l'indexer. Ses liens continuent de fonctionner.
-
-Les seize pages CATÉGORIE restent toutes proposées : elles sont uniques entre
-elles, ce n'est pas leur nombre qui posait problème.
-
-⚠️ CE QUE VOUS VERREZ, ET QUI EST NORMAL : votre sitemap va beaucoup maigrir.
-C'est le but. Aujourd'hui, avec 46 annonces dont la plupart chez un seul
-vendeur, très peu de pages ville passeront le seuil. Ce n'est pas une perte :
-ces pages n'apportaient rien et coûtaient au reste du site. Elles reviendront
-toutes seules à mesure que les annonces arriveront.
+⚠️ CE ZIP CORRIGE UNE FAUTE DE MA PART, DANS LE ZIP n° 28 QUE VOUS VENEZ
+D'EXTRAIRE. Rien n'est cassé côté serveur — c'est un problème d'affichage, mais
+il rend inutilisable l'écran que je vous ai livré ce matin.
 
 
-CHANTIER 2 — LE COMPTE PRO PEUT ENFIN ÊTRE FACTURÉ
---------------------------------------------------
-Votre compte Pro était déjà construit : dossier, validation, badge, page
-vendeur, console, stock, réponses automatiques. Il ne manquait qu'UN PRIX.
+CE QUI S'EST PASSÉ
+------------------
+Dans le nouvel écran des abonnements Pro, les DEUX boutons — « Encaisser » et
+« Enregistrer l'encaissement » — sont écrits en blanc sur un fond qui n'existe
+pas. J'ai employé un nom de couleur qui n'est pas dans le site : le fond n'a
+donc jamais été fabriqué, et il reste du texte blanc sur du blanc.
 
-C'est fait. Tableau de bord -> onglet « Demandes Pro » : un tableau en haut
-montre désormais qui paie, qui expire bientôt, et combien vous avez encaissé.
+Autrement dit : les boutons SONT là, ils fonctionnent si on tombe dessus, mais
+ON NE LES VOIT PAS.
 
-Le bouton « Encaisser » ouvre un formulaire où vous saisissez CE QUE VOUS AVEZ
-RÉELLEMENT REÇU par Wave, Orange Money ou autre. Il n'y a pas de tarif figé :
-vous négociez au téléphone, un centre de formation et un garage ne paient pas
-la même chose. Le professionnel reçoit un e-mail avec sa date de fin.
+C'est 🎨 L'Atelier qui l'a trouvé ce matin, et il avait raison sur toute la
+ligne. J'ai vérifié moi-même avant de corriger : le nom employé ne produit
+aucune règle dans le fichier de style du site.
 
-Si quelqu'un renouvelle EN AVANCE, les mois achetés s'ajoutent à sa date de
-fin — il ne perd pas les jours qui lui restaient.
+Corrigé avec la couleur prévue pour ce rôle exact — l'orange foncé (#B35700)
+déjà utilisé ailleurs sur le site pour un bouton plein à texte blanc, et
+documenté comme le minimum lisible sous du texte blanc.
 
-⚠️ RIEN N'EST COUPÉ AUTOMATIQUEMENT À L'ÉCHÉANCE. C'est voulu, et c'est
-prudent : vous avez aujourd'hui UN vrai vendeur professionnel. Brancher la
-coupure avant d'avoir un client qui paie reviendrait à risquer de dégrader le
-seul compte qui fait vivre votre catalogue. Le jour où quelqu'un paie, on
-décidera ensemble ce qui se passe quand il arrête.
+Deuxième correction, plus petite, au même endroit : les montants en FCFA
+étaient collés à leur unité avec une espace ordinaire ; ils passent maintenant
+par l'espace insécable du site, pour que « 12 000 FCFA » ne se coupe pas en fin
+de ligne sur un téléphone.
+
+
+POURQUOI JE NE L'AVAIS PAS VU — ET CE QUE J'AI FAIT POUR QUE ÇA N'ARRIVE PLUS
+-----------------------------------------------------------------------------
+Mes 22 vérifications automatiques de ce matin portaient sur le SERVEUR :
+l'encaissement, le registre, les refus, les calculs de date. Toutes justes,
+toutes vertes. Aucune ne regardait l'écran.
+
+C'est exactement la même erreur que pour la vidéo la semaine dernière : j'avais
+vérifié la moitié de la route qui marchait.
+
+Un nom de couleur inexistant ne provoque AUCUNE erreur — ni à la compilation,
+ni au démarrage, ni dans les tests. Il ne fabrique simplement rien.
+
+J'ai donc écrit une vérification qui compare chaque couleur écrite dans le code
+au fichier de style réellement produit. Elle aurait arrêté ma faute en une
+seconde. Elle tourne désormais avant chaque livraison.
+
+Elle a aussi trouvé 7 autres endroits, plus anciens et sans gravité, où une
+couleur ou une ombre ne se produit pas (trois survols de bouton, trois ombres de
+texte). Ils sont notés pour 🎨 L'Atelier : le bon remède est une décision de
+design, pas une supposition de ma part.
 
 
 OÙ EXTRAIRE
@@ -77,64 +62,51 @@ Téléversez chapci-logo.zip DANS public_html, puis clic droit dessus ->
 PAS dans api/. Supprimez le zip après extraction.
 
 
-CE QUE LE ZIP CONTIENT
-----------------------
-  index.html + assets/  le site (CHANGE — l'écran des abonnements Pro)
-  api/index.php         l'API (CHANGE — l'encaissement et son registre)
-  seo.php               les pages pour les robots (CHANGE — le filtre par ville)
-  robots.txt            inchangé
-  api/watermark.png     identique
-
-144 entrées, vérifiées une par une sur le zip fini.
-
-
-CE QU'IL NE TOUCHE PAS
-----------------------
-  .htaccess            AUCUN, à aucun niveau
-  api/config.php       identifiants de base, secret de session, votre clé cron
-  uploads/             TOUTES les photos des annonces (et les vidéos)
-  api/data/            vos secrets — push.json ET votre fcm.json
-
-
 APRÈS L'EXTRACTION — LA VÉRIFICATION
 ------------------------------------
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
-  empreinte      doit devenir          951188b3cbcf   <- l'API, CHANGE
-  empreinteSite  doit devenir          847a8983fe65   <- le site, CHANGE
-  empreinteSeo   doit devenir          5002d50549e9   <- le SEO, CHANGE
+  empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
+  empreinteSite  doit devenir          1829a502624a   <- le site, CHANGE
+  empreinteSeo   doit RESTER           5002d50549e9   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
+
+Seul le site change : le serveur livré ce matin était juste, je n'y touche pas.
 
 ⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
 
 
 ⚠️⚠️ ET RECHARGEZ DEUX FOIS
 ---------------------------
-Chap.ci est une application installable : LE PREMIER RECHARGEMENT INSTALLE LA
-NOUVELLE VERSION, LE SECOND LA SERT.
-
   1. Fermez TOUS les onglets chap.ci
   2. Rouvrez chap.ci
   3. Rechargez une seconde fois (Cmd+R)
 
-En cas de doute : ouvrez chap.ci dans une fenêtre de navigation privée
-(Cmd+Maj+N). Elle n'a pas de cache d'application.
 
+LA VÉRIFICATION À L'ŒIL NU — C'EST TOUT L'OBJET DE CE ZIP
+---------------------------------------------------------
+Tableau de bord -> « Demandes Pro ».
 
-LES DEUX VÉRIFICATIONS À L'ŒIL NU
----------------------------------
-1. Tableau de bord -> « Demandes Pro ». En haut, un nouveau tableau
-   « abonnés Pro payants ». Votre vendeur de Treichville doit y apparaître
-   avec la mention « jamais payé » — c'est exactement le prospect à appeler.
+  AVANT : à droite de chaque professionnel, rien de visible (le bouton était là,
+          en blanc sur blanc).
+  APRÈS : un bouton ORANGE FONCÉ « Encaisser », bien lisible.
 
-2. Ouvrez https://chap.ci/sitemap.xml et cherchez « /vendre/ ». Il doit y en
-   avoir beaucoup moins qu'avant. C'est le but.
+Cliquez dessus : le formulaire s'ouvre, et son bouton du bas
+« Enregistrer l'encaissement » doit lui aussi être orange foncé, sur toute la
+largeur.
+
+Si vous ne voyez toujours rien d'orange après le double rechargement,
+dites-le-moi tout de suite.
 
 
 CE QUI N'EST PAS DANS CE ZIP
 ----------------------------
-· Les corrections de 🎨 L'Atelier : elles sont dans l'APPLICATION, et partiront
-  avec le prochain AAB (code 29).
-· La ligne à corriger à la main dans le .htaccess (fiche envoyée hier soir).
-  Toujours pas urgent, rien n'est cassé.
+· Les corrections de 🎨 L'Atelier pour l'APPLICATION (prochain AAB, code 29).
+· Sa proposition sur les bordures grises de la barre du bas et du menu des
+  notifications : volontairement laissée de côté. Elle touche toutes les pages,
+  et je ne veux pas la mélanger à un correctif urgent — si quelque chose
+  clochait, on ne saurait pas laquelle des deux en est la cause. Elle partira
+  dans le prochain zip ordinaire.
+· La ligne à corriger à la main dans le .htaccess (fiche d'hier soir). Toujours
+  pas urgent.

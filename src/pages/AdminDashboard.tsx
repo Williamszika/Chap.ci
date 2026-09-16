@@ -2132,7 +2132,7 @@ function AbonnementsPro() {
       <KpisCrm>
         <KpiCrm valeur={formatPrice(d.abonnesActifs)} libelle="abonnés Pro payants"
           sous={`sur ${d.pros} compte${d.pros > 1 ? 's' : ''} Pro`} ton={d.abonnesActifs > 0 ? 'bon' : 'neutre'} />
-        <KpiCrm valeur={`${formatPrice(d.totalEncaisse)} FCFA`} libelle="encaissé depuis le début" ton="bon" />
+        <KpiCrm valeur={formatFCFA(d.totalEncaisse)} libelle="encaissé depuis le début" ton="bon" />
         <KpiCrm valeur={formatPrice(bientot.length)} libelle="expirent sous 10 jours"
           ton={bientot.length > 0 ? 'alerte' : 'neutre'} />
         <KpiCrm valeur={formatPrice(jamais.length)} libelle="Pro sans abonnement"
@@ -2175,11 +2175,11 @@ function AbonnementsPro() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-700">
-                    {p.montant ? `${formatPrice(p.montant)} FCFA` : '—'}
+                    {p.montant ? formatFCFA(p.montant) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => setSaisie(p)}
-                      className="min-h-[44px] rounded-xl bg-chap-orange px-4 text-sm font-semibold text-white">
+                      className="min-h-[44px] rounded-xl bg-action-600 px-4 text-sm font-semibold text-white">
                       Encaisser
                     </button>
                   </td>
@@ -2263,7 +2263,7 @@ function SaisirPaiementPro({ pro, onFini }: { pro: ProAbonnement; onFini: () => 
       </label>
       {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
       <button onClick={valider} disabled={envoi}
-        className="mt-4 min-h-[44px] w-full rounded-xl bg-chap-orange px-4 font-semibold text-white disabled:opacity-60">
+        className="mt-4 min-h-[44px] w-full rounded-xl bg-action-600 px-4 font-semibold text-white disabled:opacity-60">
         {envoi ? 'Enregistrement…' : 'Enregistrer l’encaissement'}
       </button>
       <p className="mt-2 text-xs text-gray-500">
