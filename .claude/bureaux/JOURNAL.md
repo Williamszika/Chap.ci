@@ -7561,3 +7561,66 @@ décision du Gardien — surveiller, ne rien faire — est la bonne.
 Dixième ronde consécutive : **45 annonces, figées depuis le 07/09, 76 % chez un
 seul vendeur.** Conversion visiteur → vendeur : **1,6 % sur 30 jours**. Aucun
 correctif de sitemap ne déplace ce chiffre.
+
+---
+
+## 2026-09-17 20:56 — 🛡️ Le Gardien, ronde du soir — classée
+
+**Ronde exacte de bout en bout, et pour la première fois depuis une semaine je
+n'ai rien à corriger dans un rapport.** Vérifié ici :
+
+- Les commits cités existent aux heures dites : `c0bf386` 19:18 (correctif
+  sitemap), `d8d1828` 19:19 (registre).
+- **Le numéro de ligne est bon** : `Header always set Content-Security-Policy-Report-Only`
+  est bien à la **ligne 187** de `web/htaccess-root`. Une fiche destinée au Patron
+  se juge là-dessus — un numéro de ligne faux lui ferait éditer la mauvaise ligne
+  d'un fichier qui coupe tout le site quand on s'y trompe.
+- L'écart `web/seo.php` (production `5002d50549e9`, HEAD `14606b974ceb`) est
+  réel et attendu : le zip n° 32 est parti ce soir, pas encore extrait.
+
+### 📣 CE QUE LA RONDE A ENTERRÉ : LE CATALOGUE A BOUGÉ
+
+La ronde écrit, au milieu de sa ligne « modération » : *« 1 annonce récente
+examinée (Refroidisseur de téléphone, 10 000 FCFA, risque 0) → conforme »*.
+
+C'est traité comme un acte de modération ordinaire. **C'est la première annonce
+nouvelle depuis dix jours.** Mesuré :
+
+```
+annonces actives : 46   (45 ce matin)
+17/09 17:31  Refroidisseur de telephone
+07/09 19:32  Liquidation                 ← la précédente, DIX JOURS plus tôt
+```
+
+Dix rondes consécutives ont rapporté « catalogue figé depuis le 07/09 ». Celle-ci
+avait la preuve du contraire sous les yeux et ne l'a pas vue, parce qu'elle
+regardait une file de modération, pas une tendance. **Chaque bureau voit ce que
+sa routine lui fait regarder** — c'est au Secrétariat de recoller les deux.
+
+Une annonce ne fait pas une reprise. Mais c'est le seul chiffre qui ait bougé
+dans le bon sens depuis le 07/09, et le Patron doit l'apprendre autrement qu'en
+note de bas de page.
+
+### Une observation, et le correctif réflexe qu'il NE FAUT PAS faire
+
+Cette annonce arrive **sans commune** (`commune: null`). Conséquence : elle
+n'apparaît sur aucune page `/vendre/{cat}/{ville}` et ne compte dans le seuil
+d'aucune commune. Vérifié : **la commune n'est obligatoire nulle part**, ni au
+formulaire ni au serveur. Ce n'est donc pas un bug — le vendeur ne l'a pas
+remplie.
+
+⚠️ **Le réflexe serait de rendre le champ obligatoire. Ce serait une erreur
+aujourd'hui.** Le site publie **deux annonces par mois pour 125 visiteurs** ;
+ajouter une barrière à l'étape qui est déjà le goulot, c'est risquer de perdre la
+troisième pour mieux ranger les deux premières. À reconsidérer quand le flux le
+permettra, pas maintenant. Noté, pas fait.
+
+### Le reste
+
+`media-src` absent du `.htaccess` de production : connu, fiche remise le 16/09,
+et la ronde a raison de rappeler que rien n'est cassé — la balise `<meta>` est la
+politique qui bloque réellement, et elle est correcte. Seul le canal de
+surveillance reste périmé.
+
+Cloisonnement étanche, ménage à zéro, certificat au 12/10, Flutter inchangé,
+scans serveur conformes. Rien d'ouvert.
