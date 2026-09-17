@@ -4,10 +4,10 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 
 | | |
 |---|---|
-| Période couverte | du Samedi 11 juillet 2026 au Mercredi 16 septembre 2026 |
-| Livraisons | 893 |
-| Jours travaillés | 67 |
-| Dernière mise à jour | Mercredi 16 septembre 2026, 21:51 (Abidjan) |
+| Période couverte | du Samedi 11 juillet 2026 au Jeudi 17 septembre 2026 |
+| Livraisons | 896 |
+| Jours travaillés | 68 |
+| Dernière mise à jour | Jeudi 17 septembre 2026, 19:18 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -45,9 +45,15 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 <!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->
 
+### Jeudi 17 septembre 2026
+
+**1 livraison(s)** · Abidjan 19:18 → 19:18 · chez le Patron 21:18 → 21:18 · amplitude —
+
+- `19:18` · Une annonce vendue restait dans le sitemap — et le fichier se contredisait lui-même  <sub>`c0bf386`</sub>
+
 ### Mercredi 16 septembre 2026
 
-**13 livraison(s)** · Abidjan 03:48 → 21:51 · chez le Patron 05:48 → 23:51 · amplitude 18 h 02
+**15 livraison(s)** · Abidjan 03:48 → 22:03 · chez le Patron 05:48 → 00:03 · amplitude 18 h 14
 
 - `03:48` · Le brouillon de la règle de sécurité ignorait la vidéo — la bascule l'aurait recassée  <sub>`06d0f08`</sub>
 - `03:49` · Registre d'activité régénéré — 881 livraisons sur 67 jours  <sub>`cca0c0a`</sub>
@@ -62,6 +68,8 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `21:45` · La taille d'un vêtement se voit enfin, au lieu de se lire  <sub>`1f1833d`</sub>
 - `21:46` · Registre d'activité régénéré — 891 livraisons sur 67 jours  <sub>`83be3dd`</sub>
 - `21:51` · « Est-ce que ça existe en noir ? » se répond sans ouvrir l'annonce  <sub>`dab2797`</sub>
+- `21:51` · Registre d'activité régénéré — 893 livraisons sur 67 jours  <sub>`a6c71b9`</sub>
+- `22:03` · Le fuseau du Patron est écrit noir sur blanc : Aix-la-Chapelle, deux heures devant Abidjan  <sub>`0714042`</sub>
 
 ### Mardi 15 septembre 2026
 
