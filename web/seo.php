@@ -194,7 +194,28 @@ if (preg_match('#/sitemap\.xml$#', $uri)) {
     }
   }
   if ($pdo) {
-    $rows = $pdo->query('SELECT id, created_at FROM listings WHERE hidden IS NULL OR hidden = 0 ORDER BY created_at DESC LIMIT 5000')->fetchAll(PDO::FETCH_ASSOC);
+    /* ⚠️ `sold` AJOUTÉ LE 17/09/2026 — le fichier se contredisait lui-même.
+     *
+     * Cette boucle ne filtrait que `hidden`. Or `chapci_seo_stock()` et la page
+     * `/vendre/` (plus bas) excluent AUSSI les annonces vendues. Le même
+     * sitemap comptait donc une annonce vendue quand il listait les annonces,
+     * et l'ignorait quand il décidait si une page ville méritait d'exister.
+     *
+     * Trouvé par 📣 Le Crieur, qui a relevé un écart de 1 entre `/api/listings`
+     * (45) et le sitemap (46) et l'a mis sur le compte d'« une annonce publiée
+     * entre les deux appels ». L'explication était plausible et fausse : la
+     * liste publique exclut les vendues (index.php:7657), pas cette requête.
+     * Une annonce vendue, et une seule, faisait tout l'écart.
+     *
+     * Ce que ça change, honnêtement : PEU. La fiche d'une annonce vendue reste
+     * en ligne et déclare loyalement `SoldOutOfStock` à Google (ligne ~317) —
+     * personne n'était trompé. Ce qui est corrigé, c'est qu'un sitemap cesse
+     * d'annoncer comme disponible ce qu'une petite annonce ne remettra jamais
+     * en vente, et que le fichier n'applique plus deux règles opposées à la
+     * même notion. */
+    $rows = $pdo->query('SELECT id, created_at FROM listings
+      WHERE (hidden IS NULL OR hidden = 0) AND (sold IS NULL OR sold = 0)
+      ORDER BY created_at DESC LIMIT 5000')->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as $r) {
       $lastmod = substr((string) $r['created_at'], 0, 10);
       echo '  <url><loc>' . h($site . '/annonce/' . $r['id']) . '</loc>'

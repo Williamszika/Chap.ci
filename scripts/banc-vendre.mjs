@@ -136,6 +136,15 @@ dire(!url('/vendre/maison/man'), 'Man n’y est pas')
 dire(!url('/vendre/maison/bouake'), 'Bouaké (0 annonce) n’y est pas')
 dire(url('/vendre/maison'), 'la page catégorie y est')
 dire(url('/vendre/vehicules'), 'et celle d’une catégorie vide aussi (16 pages uniques, pas de doublon)')
+/* ⚠️ AJOUTÉ LE 17/09/2026 — le fichier appliquait DEUX règles opposées.
+ * La boucle des annonces du sitemap ne filtrait que `hidden`, quand la page
+ * `/vendre/` et le seuil de stock excluaient aussi les vendues. Résultat :
+ * `/api/listings` rendait 45 et le sitemap 46, et 📣 Le Crieur a mis l'écart
+ * sur le compte d'une annonce publiée entre deux appels — plausible, et faux. */
+dire(!sm.includes('/annonce/tre-vendu'), 'une annonce VENDUE n’entre pas dans le sitemap')
+dire(!sm.includes('/annonce/tre-cache'), 'une annonce MASQUÉE non plus')
+dire(sm.includes('/annonce/tre-1'), 'mais une annonce en vente y est bien')
+
 const nbVendre = [...sm.matchAll(/<loc>https:\/\/chap\.ci\/vendre\//g)].length
 dire(nbVendre < 30, `le sitemap est passé de 368 pages /vendre/ à ${nbVendre}`, `${nbVendre} page(s)`)
 

@@ -7480,3 +7480,84 @@ La ligne secondaire « Slim Fit · Cotton » sous le titre (ce serait
 « Wax · Uniwax » ici). Faisable, mais elle ajoute une ligne à chaque carte de
 mode et demande de choisir **quel attribut montrer par catégorie** — c'est une
 décision, pas un réglage. Proposée au Patron, pas faite.
+
+---
+
+## 2026-09-17 — Deux rondes classées : 🛡️ Le Gardien (15:5x) et 📣 Le Crieur (08:06)
+
+**Les deux sont solides.** Empreintes recalculées ici : `951188b3cbcf`,
+`5002d50549e9`, `1d836a7ec1f9` — identiques à HEAD `0714042`, production = dépôt.
+`php -l` propre. Certificat au 12/10, 25 jours : exact. Cloisonnement étanche,
+ménage à zéro, Flutter inchangé depuis le 13/09.
+
+### ⛔ L'écart de 1 du Crieur : son explication était plausible et fausse
+
+Il relève `/api/listings` → **45** et le sitemap → **46**, et conclut
+« probablement une annonce publiée entre les deux appels ». Il range le point en
+« à confirmer à la prochaine ronde ».
+
+**C'est une annonce VENDUE, et ça se lisait dans le code sans toucher au serveur.**
+
+`web/seo.php` appliquait **deux règles opposées à la même notion, dans le même
+fichier** :
+
+| | filtre |
+|---|---|
+| boucle des annonces du sitemap | `hidden` seulement |
+| `chapci_seo_stock()` (seuil des pages ville) | `hidden` **et** `sold` |
+| requête de la page `/vendre/` | `hidden` **et** `sold` |
+| liste publique `/api/listings` (`index.php:7657`) | `hidden` **et** `sold` |
+
+Une seule des quatre ignorait `sold` — et c'était celle qui compte les annonces
+du sitemap. Une annonce vendue, une seule, faisait tout l'écart.
+
+**Reproduit sur la base du banc, pas déduit :** ancienne requête **6**, nouvelle
+**5**, écart **1**. Le même écart qu'en production.
+
+Corrigé, et le banc `banc:vendre` garde désormais le cas (21 vérifications).
+
+**Ce que ça change, honnêtement : peu.** La fiche d'une annonce vendue reste en
+ligne et déclare loyalement `SoldOutOfStock` à Google (`seo.php:317`) — personne
+n'était trompé. Ce qui est réparé, c'est qu'un sitemap cesse d'annoncer ce qu'une
+petite annonce ne remettra jamais en vente, et qu'un fichier n'applique plus deux
+règles contraires. Je ne prétends pas à un gain de référencement.
+
+### ⚠️ L'entonnoir du Crieur n'est pas un entonnoir
+
+Il écrit : « 14 arrivées → 11 formulaire → 7 mur connexion → 3 mur e-mail →
+3 échec → 2 publiées ». Les flèches suggèrent des sous-ensembles emboîtés. La
+requête, elle, est :
+
+```sql
+SELECT etape AS k, COUNT(DISTINCT visitor_id) AS n
+  FROM publier_etapes WHERE created_at >= ? GROUP BY etape
+```
+
+**Chaque marche est un compteur indépendant de visiteurs distincts.** Personne ne
+garantit qu'un visiteur compté à `mur_email` figure parmi ceux comptés à
+`mur_connexion`. La preuve est dans ses propres chiffres : 3 au mur e-mail, puis
+**3 échecs ET 2 publications** — cinq issues pour trois personnes. C'est
+parfaitement cohérent pour des compteurs séparés (on échoue puis on réussit),
+et impossible pour un entonnoir.
+
+Sa conclusion tient quand même — 2 publiées / 125 visiteurs ≈ 1,6 %, deux vrais
+comptages. C'est la **chaîne de flèches** qui invite à lire une déperdition que
+la mesure ne dit pas. À écrire en liste, pas en entonnoir.
+
+### La clé cron de 65 caractères : presque sûrement bénigne, et voici pourquoi
+
+Le Gardien relève `cron/stats · cle-differente(entete, 65 car.)` et propose de
+surveiller. Un raisonnement vaut d'être ajouté : **la vraie clé fait 64
+caractères.** Quelqu'un qui devine n'atterrit pas à 65 — il atterrit n'importe
+où. Un caractère de trop, c'est la signature d'un copier-coller qui a emporté un
+espace ou un retour à la ligne. Donc quelqu'un **qui a la clé** l'a mal collée.
+
+Et les crons tournent : `derniersPassages` est cohérent partout. Ce n'est donc
+pas une tâche de production cassée. Occurrence unique, aucune IP suspecte : la
+décision du Gardien — surveiller, ne rien faire — est la bonne.
+
+### Ce que les deux rondes redisent, et qui n'est pas technique
+
+Dixième ronde consécutive : **45 annonces, figées depuis le 07/09, 76 % chez un
+seul vendeur.** Conversion visiteur → vendeur : **1,6 % sur 30 jours**. Aucun
+correctif de sitemap ne déplace ce chiffre.
