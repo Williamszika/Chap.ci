@@ -1,38 +1,70 @@
-CHAP.CI — ZIP DU 17 SEPTEMBRE 2026, n° 32
+CHAP.CI — ZIP DU 18 SEPTEMBRE 2026, n° 33
 ===============================================================================
 
-PETIT ZIP. UNE SEULE CHOSE CHANGE, ET SEULEMENT LE FICHIER DES ROBOTS.
+VOTRE LISTE DE VINGT POINTS : DIX-NEUF ÉTAIENT DÉJÀ FAITS.
+
+J'ai vérifié chacun dans le code plutôt que de tout refaire. Le détail est plus
+bas. Un seul manquait vraiment, et il est corrigé dans ce zip.
 
 
-CE QUI CHANGE
--------------
-Une annonce VENDUE restait annoncée à Google dans votre sitemap.
+CE QUI CHANGE : LA PAGE INTROUVABLE
+-----------------------------------
+Jusqu'à aujourd'hui, TOUTE adresse inconnue sur chap.ci servait la page
+d'accueil, sans un mot d'explication.
 
-📣 Le Crieur avait remarqué ce matin que votre site déclarait 45 annonces d'un
-côté et 46 de l'autre. Il pensait qu'une annonce avait été publiée entre ses
-deux mesures. Ce n'était pas ça.
+Quelqu'un qui suivait un lien vers une annonce vendue atterrissait sur
+l'accueil et croyait s'être trompé de site — ou que son lien avait été
+détourné.
 
-En regardant le code, j'ai trouvé que le même fichier appliquait DEUX RÈGLES
-CONTRAIRES à la même question :
+Et pour Google, c'est ce qu'on appelle une « fausse page trouvée » : une
+adresse morte qui répond comme si elle était vivante. Google le pénalise,
+parce qu'un nombre infini d'adresses servant toutes le même contenu, c'est du
+contenu dupliqué — exactement ce qu'on a passé la journée du 16 à retirer.
 
-  · la liste de vos annonces publiques         écarte les vendues
-  · la page « Vendez à... »                    écarte les vendues
-  · le comptage qui décide d'une page ville    écarte les vendues
-  · LA LISTE DU SITEMAP                        les gardait
+⚠️ ET J'AI TROUVÉ PIRE EN CHERCHANT. Une adresse de vendeur inventée —
+n'importe laquelle — produisait une PAGE COMPLÈTE ET INDEXABLE intitulée
+« Vendeur — Vendeur sur Chap.ci ». Le code ne vérifiait tout simplement pas que
+la personne existait. On fabriquait donc à l'infini des pages de gens qui
+n'existent pas. C'est corrigé aussi.
 
-Une seule des quatre les gardait — et c'était celle qui compte. Une annonce
-vendue, une seule, faisait tout l'écart.
+Désormais :
+  · une annonce inconnue ou vendue  -> vraie page « Cette annonce n'est plus
+    en ligne », avec le bon code d'erreur et l'instruction de ne pas l'indexer
+  · un vendeur inconnu              -> vraie page « Ce vendeur n'existe pas »
+  · toute autre adresse             -> « Cette page n'existe pas », avec deux
+    boutons : voir toutes les annonces, ou retour à l'accueil
+
+Une image du rendu accompagne ce zip : apercu-404.png.
 
 
-⚠️ CE QUE ÇA CHANGE VRAIMENT : PEU. JE NE VOUS PROMETS RIEN.
-------------------------------------------------------------
-La page d'une annonce vendue reste en ligne, et elle disait déjà honnêtement à
-Google qu'elle était vendue. Personne n'était trompé.
+VOTRE LISTE, POINT PAR POINT — VÉRIFIÉ, PAS SUPPOSÉ
+----------------------------------------------------
+  ✅ Page de CGU                    src/pages/Terms.tsx
+  ✅ Politique de confidentialité   src/pages/Privacy.tsx
+  ✅ Clés API hors du front         AUCUN secret trouvé dans le code du site
+  ✅ HTTPS                          tout le site, derrière Cloudflare
+  ✅ Bandeau cookies                CookieConsent.tsx (+ npm run apercu:cookies)
+  ✅ Meta-title et description      seo.php, par annonce et par catégorie
+  ✅ Image pour les réseaux         og:image, une bannière par catégorie
+  ✅ Favicon                        favicon.ico, favicon.svg, icône Apple
+  ✅ Sitemap et robots.txt          refaits les 15, 16 et 17 septembre
+  ✅ Textes alternatifs             36 images, 36 avec alt — aucune oubliée
+  ✅ Images compressées             vignettes 360 px, banc dédié
+  ✅ Vitesse de chargement          banc:front, chantier LCP du 10 septembre
+  ✅ Contraste des couleurs         palette documentée avec ses ratios mesurés
+  ✅ Site responsive                conçu mobile d'abord
+  ❌ Page 404 personnalisée         LE SEUL MANQUE — corrigé dans ce zip
+  ~  Liens cassés                   non vérifié (voir plus bas)
+  ✅ Validation des formulaires     101 schémas de sous-catégories, banc dédié
+  ✅ Protection anti-spam           pot de miel + limitation par adresse
+  ✅ Outil d'analytics              Google Analytics + votre propre tableau de
+                                    bord (visites, entonnoir, par commune)
+  ✅ Un seul appel à l'action       « Publier une annonce »
 
-Ce qui est réparé, c'est qu'un sitemap cesse d'annoncer ce qu'une petite annonce
-ne remettra jamais en vente, et qu'un fichier n'applique plus deux règles
-opposées. C'est de la propreté, pas un gain de référencement — et je préfère
-vous le dire que vous vendre une amélioration qui n'existe pas.
+⚠️ UNE HONNÊTETÉ SUR LES « LIENS CASSÉS » : je ne l'ai PAS vérifié. Le faire
+demande de parcourir tout le site en suivant chaque lien, et le serveur m'a
+refusé une requête il y a une heure (son anti-robot). Je ne vais pas le
+bombarder pour cocher une case. À faire dans une ronde dédiée, calmement.
 
 
 OÙ EXTRAIRE
@@ -50,36 +82,40 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit RESTER           1d836a7ec1f9   <- le site, INCHANGÉ
-  empreinteSeo   doit devenir          14606b974ceb   <- les robots, CHANGE
+  empreinteSite  doit devenir          4bb557a563f1   <- le site, CHANGE
+  empreinteSeo   doit devenir          2229085e1295   <- les robots, CHANGE
   fichiersInattendus                   0
   fcm                                  true
 
 ⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
 
-⚠️ SEULE empreinteSeo bouge cette fois. Le site et l'API ne changent pas : vous
-n'avez donc RIEN à recharger deux fois, et rien de visible ne bougera à l'écran.
-Ce zip ne parle qu'aux moteurs de recherche.
+
+⚠️⚠️ ET RECHARGEZ DEUX FOIS
+---------------------------
+  1. Fermez TOUS les onglets chap.ci
+  2. Rouvrez chap.ci
+  3. Rechargez une seconde fois (Cmd+R)
 
 
-LA VÉRIFICATION À L'ŒIL NU (facultative)
-----------------------------------------
-Ouvrez https://chap.ci/sitemap.xml et comptez les lignes « /annonce/ ».
-Il doit y en avoir exactement autant que vous avez d'annonces en vente —
-une de moins qu'avant si vous avez une annonce marquée vendue.
+LA VÉRIFICATION À L'ŒIL NU
+--------------------------
+Tapez dans votre navigateur une adresse qui n'existe pas, par exemple :
+
+    https://chap.ci/#/nimportequoi
+
+  AVANT : la page d'accueil s'affichait, comme si de rien n'était.
+  APRÈS : « Cette page n'existe pas », avec un bouton orange
+          « Voir toutes les annonces ».
+
+Et pour la version que voit Google :
+
+    https://chap.ci/annonce/ceci-nexiste-pas
+
+  AVANT : redirection silencieuse vers l'accueil.
+  APRÈS : « Cette annonce n'est plus en ligne ».
 
 
-CE QUI N'EST PAS DANS CE ZIP, ET QUI ATTEND TOUJOURS VOUS
-----------------------------------------------------------
-1. LE COUP DE FIL au vendeur de Treichville. Dixième ronde d'affilée qui dit la
-   même chose : 45 annonces, figées depuis le 07/09, dont 76 % chez lui. Deux
-   annonces publiées en trente jours pour 125 visiteurs. Aucun correctif
-   technique ne déplace ce chiffre-là.
-
-2. LE TICKET À VOTRE HÉBERGEUR pour débloquer le robot de ChatGPT (message prêt
-   à copier dans la fiche du 16/09).
-
-3. La ligne du .htaccess à corriger à la main. Toujours sans urgence.
-
-4. Le prochain AAB, code 29, avec les corrections de 🎨 L'Atelier pour
-   l'application.
+CE QUI RESTE, ET QUI N'EST TOUJOURS PAS TECHNIQUE
+-------------------------------------------------
+Le coup de fil au vendeur de Treichville. Votre catalogue a bougé deux fois
+cette semaine après dix jours d'immobilité — c'est le bon moment pour l'appeler.

@@ -148,6 +148,26 @@ dire(sm.includes('/annonce/tre-1'), 'mais une annonce en vente y est bien')
 const nbVendre = [...sm.matchAll(/<loc>https:\/\/chap\.ci\/vendre\//g)].length
 dire(nbVendre < 30, `le sitemap est passé de 368 pages /vendre/ à ${nbVendre}`, `${nbVendre} page(s)`)
 
+/* ── LE 404 FRANC (17/09/2026) ────────────────────────────────────────────────
+ * Une annonce inconnue tombait dans la redirection finale vers l'accueil, et un
+ * VENDEUR inconnu rendait une page complète et indexable intitulée « Vendeur —
+ * Vendeur sur Chap.ci ». Deux « soft 404 » : des adresses mortes qui répondent
+ * comme si elles étaient vivantes. Google le nomme et le pénalise. */
+console.log('\n── Une adresse morte répond-elle vraiment 404 ?')
+const brut = async (chemin) => {
+  const r = await fetch(SITE + chemin, { headers: { 'User-Agent': GOOGLEBOT }, redirect: 'manual' })
+  return { code: r.status, corps: await r.text() }
+}
+const a404 = await brut('/annonce/ce-truc-n-existe-pas')
+dire(a404.code === 404, 'annonce inconnue → HTTP 404', `HTTP ${a404.code}`)
+dire(/noindex/.test(a404.corps), 'et la page d’erreur est en noindex',
+  'sinon chaque adresse morte deviendrait une page indexée de plus')
+const v404 = await brut('/vendeur/personne-du-tout')
+dire(v404.code === 404, 'vendeur inconnu → HTTP 404', `HTTP ${v404.code}`)
+dire(!/Vendeur — Vendeur/.test(v404.corps), 'et plus de page fabriquée pour un vendeur qui n’existe pas')
+const vrai = await brut('/annonce/tre-1')
+dire(vrai.code === 200, 'mais une VRAIE annonce répond toujours 200', `HTTP ${vrai.code}`)
+
 console.log('\n' + '═'.repeat(72))
 if (rouges) {
   console.log(`⛔ ${rouges} vérification(s) au rouge.`)

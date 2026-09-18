@@ -7687,3 +7687,69 @@ mode) après le refroidisseur d'hier, ce qui ferait **deux en deux jours** aprè
 dix jours figés. **Non confirmé de mon côté**, et je préfère le dire que le
 supposer — sonder maintenant serait exactement la faute que je viens de relever.
 À vérifier à la prochaine occasion.
+
+---
+
+## 2026-09-18 — Check-list de lancement du Patron : 19 points sur 20 déjà faits
+
+Le Patron a transmis une check-list générique de mise en ligne (vingt points,
+dont deux répétés). **Vérifiés un par un dans le code, pas refaits par réflexe.**
+
+Déjà en place : CGU (`Terms.tsx`), confidentialité (`Privacy.tsx`), bandeau
+cookies, favicons, meta, `og:image`, sitemap, robots.txt, compression d'images,
+vitesse, contraste, responsive, validation, anti-spam (pot de miel +
+`rate_limit`), analytics (GA + tableau de bord maison), appel à l'action unique.
+**Aucun secret dans le front** : recherche `sk_live|AIza|BEGIN|client_secret`
+sur tout `src/` → rien.
+
+**Et un comptage que j'ai dû corriger sur moi-même.** Un premier `grep` ligne à
+ligne annonçait « 36 images, 30 avec alt » — six manquantes. Faux : les balises
+`<img>` sont multi-lignes en JSX, l'attribut est sur une ligne suivante. Compté
+correctement avec une expression multi-lignes : **36 sur 36**. C'est exactement
+l'erreur de méthode que je relève chez les bureaux depuis une semaine, et elle
+m'a pris au premier essai.
+
+### ⛔ LE SEUL VRAI MANQUE — et il en cachait un pire
+
+`src/App.tsx` portait `<Route path="*" element={<Home />} />`. **Toute adresse
+inconnue servait l'accueil**, en silence. Pour un visiteur : il croit s'être
+trompé de site. Pour Google : un **soft 404**, une adresse morte qui répond comme
+une vivante — c'est-à-dire du contenu dupliqué à l'infini, exactement ce que le
+chantier du 16/09 a passé la journée à retirer du sitemap.
+
+Et `web/seo.php` faisait pire des deux côtés :
+
+- `/annonce/{id}` inconnu → tombait dans `header('Location: ' . $site . '/')`,
+  une redirection vers l'accueil. Soft 404.
+- `/vendeur/{id}` inconnu → **aucune vérification du tout.** `$p` valait `false`,
+  `$name` retombait sur `'Vendeur'`, et le code rendait une **page complète et
+  indexable** intitulée « Vendeur — Vendeur sur Chap.ci », en HTTP 200. On
+  fabriquait à l'infini des pages de gens qui n'existent pas.
+
+Le second est le plus grave et personne ne l'avait vu, parce qu'il ne casse rien
+et qu'aucune route ne s'en plaint.
+
+**Fait** : `render_404()` dans `seo.php` — vrai code 404, `noindex, follow`, et
+un texte qui dit ce qui s'est passé (« elle a peut-être été vendue ») plutôt que
+« 404 Not Found », qui ne veut rien dire à quelqu'un qui cherchait une chemise.
+Plus `src/pages/Introuvable.tsx` pour la moitié humaine.
+
+**`noindex` est le point essentiel** : sans lui, Google indexerait la page
+d'erreur elle-même et chaque adresse morte deviendrait une entrée de plus.
+
+`banc:vendre` passe à **26 vérifications**, dont cinq neuves et mesurées sur de
+vrais codes HTTP : annonce inconnue → 404, page d'erreur en `noindex`, vendeur
+inconnu → 404, plus de page fabriquée, et **une vraie annonce répond toujours
+200** — ce dernier bras existe pour que le banc puisse prouver qu'il n'a pas
+cassé le cas normal.
+
+Rendu vérifié à l'écran (`livraison/apercu-404.png`) : bouton 320 × 48,
+`rgb(179,87,0)`, aucun débordement à 390 px.
+
+### Ce que je n'ai PAS vérifié, et je le dis
+
+**Les liens cassés.** Le point 16 de la liste demande de les réparer ; les
+trouver demande de parcourir le site en suivant chaque lien. **Le serveur m'a
+refusé une requête il y a une heure** (anti-robot). Je ne vais pas le bombarder
+pour cocher une case — à faire dans une ronde dédiée, calmement. Non vérifié,
+non annoncé comme vert.

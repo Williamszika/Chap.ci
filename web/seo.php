@@ -247,6 +247,14 @@ if (preg_match('#/annonce/([A-Za-z0-9-]+)#', $uri, $m) && $pdo) {
     render_page($title, $desc, $img, $canon, $appUrl, $l, $price, $loc, $isBot);
     exit;
   }
+  /* Annonce inconnue, retirée ou masquée : 404 FRANC (17/09/2026).
+   * Elle tombait auparavant dans la redirection finale vers l'accueil — un
+   * « soft 404 », que Google nomme et pénalise : une adresse morte qui répond
+   * comme si elle était vivante. Sur un site de petites annonces, où chaque
+   * vente fait mourir une adresse, ce n'est pas un cas rare : c'est le cas
+   * NORMAL au bout de quelques mois. */
+  render_404($site, 'Cette annonce n’est plus en ligne',
+    'Elle a peut-être été vendue, ou retirée par son vendeur.');
 }
 
 // -------------------------------------------------------------- /vendeur/{id} --
@@ -254,6 +262,14 @@ if (preg_match('#/vendeur/([A-Za-z0-9-]+)#', $uri, $m) && $pdo) {
   $st = $pdo->prepare('SELECT full_name, bio, avatar_url FROM profiles WHERE id = ?');
   $st->execute([$m[1]]);
   $p = $st->fetch(PDO::FETCH_ASSOC);
+  /* ⚠️ AUCUNE VÉRIFICATION ICI JUSQU'AU 17/09/2026. Sans ce test, un
+   * identifiant inventé rendait une page COMPLÈTE et indexable, intitulée
+   * « Vendeur — Vendeur sur Chap.ci », en HTTP 200 : on fabriquait à l'infini
+   * des pages de gens qui n'existent pas. Pire qu'une redirection. */
+  if (!$p) {
+    render_404($site, 'Ce vendeur n’existe pas',
+      'Le compte a peut-être été supprimé, ou l’adresse est incorrecte.');
+  }
   $name = $p['full_name'] ?? 'Vendeur';
   $title = $name . ' — Vendeur sur Chap.ci';
   $desc = trim((string) ($p['bio'] ?? '')) ?: ('Découvrez les annonces de ' . $name . ' sur Chap.ci.');
@@ -286,6 +302,42 @@ header('Location: ' . $site . '/');
 exit;
 
 // -----------------------------------------------------------------------------
+/**
+ * LA PAGE INTROUVABLE — un vrai 404, pour les robots comme pour les humains.
+ *
+ * ⚠️ `noindex` EST LE POINT ESSENTIEL, et il n'est pas décoratif : sans lui,
+ * Google indexerait la page d'erreur elle-même, et chaque adresse morte
+ * deviendrait une entrée de plus au catalogue — exactement le contenu dupliqué
+ * que le chantier du 16/09 a passé la journée à retirer.
+ *
+ * Le ton compte aussi. « 404 Not Found » ne veut rien dire pour quelqu'un qui
+ * cherchait une chemise ; « Cette annonce n'est plus en ligne — elle a
+ * peut-être été vendue » lui dit ce qui s'est passé ET ce qu'il peut faire
+ * ensuite. Une page d'erreur qui ne propose pas de suite est une porte fermée.
+ */
+function render_404(string $site, string $titre, string $explication): void {
+  http_response_code(404);
+  header('Content-Type: text/html; charset=utf-8');
+  $t = h($titre); $e = h($explication); $s = h($site);
+  echo "<!doctype html>\n<html lang=\"fr\">\n<head>\n"
+     . "<meta charset=\"utf-8\">\n"
+     . "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+     . "<title>$t — Chap.ci</title>\n"
+     . "<meta name=\"description\" content=\"$e\">\n"
+     . "<meta name=\"robots\" content=\"noindex, follow\">\n"
+     . "<style>body{margin:0;font:16px/1.6 system-ui,sans-serif;background:#FFFDF9;color:#1B1A17}"
+     . ".w{max-width:560px;margin:0 auto;padding:48px 20px}h1{font-size:24px;margin:0 0 8px}"
+     . "p{color:#4b5563;margin:0 0 24px}a{display:inline-block;background:#B35700;color:#fff;"
+     . "text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:600;margin-right:8px}"
+     . "a.s{background:transparent;color:#00734A;padding-left:0}</style>\n"
+     . "</head>\n<body>\n<div class=\"w\">\n"
+     . "<h1>$t</h1>\n<p>$e</p>\n"
+     . "<a href=\"$s/\">Retour à l’accueil</a>\n"
+     . "<a class=\"s\" href=\"$s/#/explorer\">Voir toutes les annonces →</a>\n"
+     . "</div>\n</body>\n</html>";
+  exit;
+}
+
 function render_page(string $title, string $desc, string $img, string $canon, string $appUrl, ?array $l, string $price, string $loc, bool $isBot): void {
   header('Content-Type: text/html; charset=utf-8');
   $t = h($title); $d = h($desc); $i = h($img); $c = h($canon); $a = h($appUrl);

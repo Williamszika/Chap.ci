@@ -26,6 +26,7 @@ import { Register } from './pages/Register'
 // module d'analyse d'image (nsfw, ~2,8 Mo) qui ne doit PAS peser sur l'accueil.
 // Seuls les visiteurs qui publient le téléchargent.
 const PostAd = lazy(() => import('./pages/PostAd').then((m) => ({ default: m.PostAd })))
+const Introuvable = lazy(() => import('./pages/Introuvable'))
 
 // « Mon compte » aussi, malgré son trafic.
 //
@@ -171,7 +172,12 @@ export default function App() {
               parlent entre eux. Le serveur décide de ce que chacun voit. */}
           <Route path="/assistance" element={<Assistance />} />
           <Route path="/assistance/:id" element={<Assistance />} />
-          <Route path="*" element={<Home />} />
+          {/* ⚠️ CETTE ROUTE SERVAIT L'ACCUEIL JUSQU'AU 17/09/2026.
+              Toute adresse inconnue rendait <Home /> sans un mot : le visiteur
+              d'un lien périmé croyait s'être trompé de site, et Google voyait
+              un « soft 404 » — une adresse morte qui répond comme si elle était
+              vivante, c'est-à-dire du contenu dupliqué à l'infini. */}
+          <Route path="*" element={<Introuvable />} />
           </Routes>
           </Suspense>
         </main>
