@@ -7624,3 +7624,66 @@ surveillance reste périmé.
 
 Cloisonnement étanche, ménage à zéro, certificat au 12/10, Flutter inchangé,
 scans serveur conformes. Rien d'ouvert.
+
+---
+
+## 2026-09-18 10:56 — 🛡️ Le Gardien, ronde — classée, avec UNE correction qui compte
+
+**Le rapport est bon, et son honnêteté mérite d'être notée** : il déclare que
+`php8.5` manque à son environnement et qu'il a donc utilisé `php8.4 -l`, « pas
+une preuve sur 8.5 spécifiquement ». C'est exactement la façon dont une limite se
+déclare. Empreintes recalculées ici : `951188b3cbcf`, `14606b974ceb`,
+`1d836a7ec1f9` — les trois identiques à HEAD `4dbd312`.
+
+Et son point sur les deux clés iOS est juste : `NSMicrophoneUsageDescription`
+porte bien sa justification dans `preparer_plateformes.dart:356` —
+« Pour filmer votre annonce avec le son », c'est la vidéo d'annonce. Rien
+d'inexpliqué.
+
+### ⛔ MAIS SA LEÇON SUR LE 403 EST FAUSSE, ET ELLE EST DANGEREUSE
+
+La ronde écrit : le 403 initial « a disparu dès que j'ai ajouté
+`Cache-Control: no-cache` et une chaîne aléatoire : **c'était une réponse mise en
+cache, pas une panne** » — et ajoute que c'est « mentionné pour que la prochaine
+ronde ne reparte pas de zéro sur le même piège ».
+
+**Une ronde future lirait donc : un 403 n'est qu'un cache, ajoutez no-cache et
+continuez.** C'est l'inverse exact de la règle du dépôt, et ça allonge la
+punition : *« Plus on a tapé, plus la punition dure. »*
+
+**Deux mesures la réfutent.**
+
+1. `curl -sSI https://chap.ci/api/health`, **sans** anti-cache, **sans** en-tête
+   no-cache → **HTTP 200**, et l'en-tête dit `cf-cache-status: DYNAMIC`.
+   `DYNAMIC` signifie : non mis en cache, servi depuis l'origine. **Il n'y avait
+   rien en cache à servir.** Le mécanisme invoqué n'existe pas sur cette route.
+
+2. Et l'observation inverse, obtenue par accident en instruisant ce rapport :
+   quelques secondes après ce 200, une seconde requête — **avec** la chaîne
+   aléatoire **et** l'en-tête no-cache — a reçu la page anti-robot.
+
+   | requête | anti-cache | résultat |
+   |---|---|---|
+   | A | **aucun** | **200** |
+   | B, quelques secondes après | chaîne aléatoire + no-cache | **refusée** |
+
+   Si l'anti-cache était le remède, B aurait dû passer et A échouer. C'est
+   l'exact contraire.
+
+**Ce qui change entre un échec et une réussite, c'est le TEMPS et la CADENCE, pas
+l'adresse demandée.** La chaîne aléatoire reste utile — elle est dans le dépôt
+pour contourner un cache *ailleurs* — mais elle ne lève pas l'anti-robot.
+
+**L'ironie, et la leçon vraie :** la ronde a fait exactement ce qu'il fallait —
+elle a attendu cinq minutes. Puis elle a écrit la mauvaise raison. Une ronde
+suivante hériterait de la raison et abandonnerait le geste. **C'est le geste qui
+vaut, pas l'explication qu'on s'en donne.**
+
+### Et j'applique la règle à moi-même
+
+Ma requête B a été refusée. Je n'ai donc **pas** vérifié le catalogue ce tour-ci :
+la ronde signale une seconde annonce nouvelle (« POLO DE MARQUE », 45 000 FCFA,
+mode) après le refroidisseur d'hier, ce qui ferait **deux en deux jours** après
+dix jours figés. **Non confirmé de mon côté**, et je préfère le dire que le
+supposer — sonder maintenant serait exactement la faute que je viens de relever.
+À vérifier à la prochaine occasion.
