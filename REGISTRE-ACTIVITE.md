@@ -4,10 +4,10 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 
 | | |
 |---|---|
-| Période couverte | du Samedi 11 juillet 2026 au Jeudi 17 septembre 2026 |
-| Livraisons | 898 |
-| Jours travaillés | 68 |
-| Dernière mise à jour | Jeudi 17 septembre 2026, 21:57 (Abidjan) |
+| Période couverte | du Samedi 11 juillet 2026 au Vendredi 18 septembre 2026 |
+| Livraisons | 900 |
+| Jours travaillés | 69 |
+| Dernière mise à jour | Vendredi 18 septembre 2026, 12:18 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -45,13 +45,20 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 <!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->
 
+### Vendredi 18 septembre 2026
+
+**1 livraison(s)** · Abidjan 12:17 → 12:17 · chez le Patron 14:17 → 14:17 · amplitude —
+
+- `12:17` · Un 403 de l'anti-robot n'est pas un cache — la leçon écrite hier aurait empiré la panne  <sub>`7b8e109`</sub>
+
 ### Jeudi 17 septembre 2026
 
-**3 livraison(s)** · Abidjan 19:18 → 21:57 · chez le Patron 21:18 → 23:57 · amplitude 2 h 39
+**4 livraison(s)** · Abidjan 19:18 → 21:57 · chez le Patron 21:18 → 23:57 · amplitude 2 h 39
 
 - `19:18` · Une annonce vendue restait dans le sitemap — et le fichier se contredisait lui-même  <sub>`c0bf386`</sub>
 - `19:19` · Registre d'activité régénéré — 896 livraisons sur 68 jours  <sub>`d8d1828`</sub>
 - `21:57` · Le catalogue a bougé : première annonce nouvelle depuis dix jours  <sub>`4fbd4fc`</sub>
+- `21:57` · Registre d'activité régénéré — 898 livraisons sur 68 jours  <sub>`4dbd312`</sub>
 
 ### Mercredi 16 septembre 2026
 
