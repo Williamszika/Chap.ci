@@ -73,16 +73,44 @@ Android vérifie que l'application installée est bien signée par la clé que l
 site déclare. Cette empreinte se lit **dans la Play Console, jamais dans le
 keystore** — comme le dit déjà `CLAUDE.md` pour la SHA-1 :
 
-1. Play Console → l'application Chap.ci → *Configuration* → *Intégrité de
-   l'application* → *Signature d'application* → « Empreinte du certificat
-   SHA-256 » : une suite de 32 paires de caractères séparées par « : ».
+1. Play Console → l'application Chap.ci → page **Signature d'application**.
+   L'adresse directe, plus sûre que le menu que Google réorganise sans cesse :
+   `https://play.google.com/console/u/0/developers/<dev>/app/<app>/keymanagement`
+   — les deux numéros se lisent dans l'adresse de n'importe quelle page de la
+   console.
+
+   ⚠️⚠️ **DEUX EMPREINTES SHA-256 COHABITENT SUR CETTE PAGE, ET LA PLUS
+   VISIBLE EST LA MAUVAISE.** Vécu le 19/09/2026 :
+
+   | ce qu'on voit | ce que c'est | à prendre ? |
+   |---|---|---|
+   | « Empreinte du certificat SHA-256 », en gros, sous *Certificat de clé d'importation* | la clé d'**importation** : elle sert à envoyer les fichiers à Google, le téléphone ne la regarde jamais | ❌ |
+   | la valeur à l'intérieur du bloc **« Fichier JSON Digital Asset Links »**, plus bas | la clé de **signature** : c'est elle qu'Android vérifie | ✅ |
+
+   Les deux font 32 paires et ont exactement la même forme. **Le serveur
+   accepte les deux sans broncher** — vérifié contre le motif de `seo.php`.
+   Avec la mauvaise, `/.well-known/assetlinks.json` s'affiche correctement,
+   Google le lit, et les liens continuent d'ouvrir le navigateur : aucune
+   erreur, nulle part. C'est le genre de faute qu'on ne trouve qu'en
+   comparant, jamais en regardant.
+
+   **Le plus simple est donc de ne pas choisir** : le bloc JSON que Google
+   affiche a exactement la forme que `seo.php` produit — relation, namespace,
+   package_name, sha256_cert_fingerprints. Recopiez l'empreinte de CE bloc-là
+   et il n'y a plus d'ambiguïté possible.
+
 2. Dans `config.php`, une ligne :
    ```
    'android_sha256' => 'AA:BB:CC:…',
    ```
-   (Si la Play Console montre aussi une empreinte « de téléversement », ne
-   mettez que celle de **signature d'application**. Plusieurs empreintes se
-   séparent par une virgule.)
+   (Plusieurs empreintes se séparent par une virgule — utile seulement si
+   d'anciennes installations portent encore une clé de signature précédente.)
+
+   ⚠️ **Ne faites pas taper cette ligne au Patron.** Une virgule oubliée dans
+   `config.php` coupe toute l'API. Demandez-lui le fichier, rendez-le-lui
+   complet avec la ligne ajoutée, et qu'il le renomme — la règle posée dans
+   `CLAUDE.md` après la panne du 19/09. Et **effacez sa copie dès qu'elle est
+   posée** : ce fichier porte ses mots de passe.
 
 Rien à faire dans l'application : la déclaration Android est déjà posée par
 l'outil de préparation, à chaque build.

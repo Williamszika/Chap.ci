@@ -48,6 +48,8 @@ ici même — `npm run registre` ne touche jamais cette section.
 | 19/09/2026 | **PANNE — site entier en erreur 500.** Les trois modifications du `.htaccess` tapées à la main à 14 h 02 ont coupé la racine du site ; aucune sauvegarde n'avait été faite. Sans `.htaccess`, `DirectoryIndex index.html` disparaît et le serveur sert l'`index.php` de 280 Ko qui traîne à la racine depuis le 20/07 — d'où un 500 au corps vide, pendant que `/assets/…` répondait 200 |
 | 19/09/2026 | **Rétabli** en remplaçant le fichier entier (téléversé puis renommé en `.htaccess`), au lieu de le retaper. **Vérifié** : accueil en ligne, et `https://chap.ci/a-propos` répond 200 à Googlebot avec les deux fondateurs |
 | 19/09/2026 | Bouton « Signaler les pages à Bing » utilisé : l'accueil et `/a-propos` signalés à Bing, Yandex et Seznam, envoi **accepté** |
+| 19/09/2026 | Indexation de `/a-propos` demandée dans Google Search Console |
+| 19/09/2026 | Empreinte SHA-256 de la **clé de signature** posée dans `api/config.php`. **Vérifié** : `/.well-known/assetlinks.json` répond 200 avec `ci.chap.app` et l'empreinte `95:B1:65:…`. Les liens `chap.ci` ouvrent enfin l'application — la règle manquait depuis le 02/08, l'empreinte depuis toujours |
 
 ---
 
