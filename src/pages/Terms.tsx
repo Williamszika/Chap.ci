@@ -15,7 +15,11 @@ const LAST_UPDATE = '14 juillet 2026'
 // restent vides parce qu'ils n'existent pas : pas de RCCM sans société, pas
 // de NCC sans immatriculation fiscale. Le jour où une société est créée, on
 // remplace le nom ET on remplit les trois autres — pas l'un sans les autres.
-const EDITOR_NAME = 'Zika BI ABRAHAM'
+// 19/09/2026, deuxième passage : capitales abandonnées. Rendue à l'écran, la
+// forme « Zika BI ABRAHAM » se lisait « Zika Bl ABRAHAM » — le I majuscule et
+// le l minuscule sont le même trait dans cette police. Sur un nom d'éditeur,
+// qui sert précisément à identifier quelqu'un, l'ambiguïté n'est pas tolérable.
+const EDITOR_NAME = 'Zika Bi Abraham'
 const EDITOR_RCCM = ''    // ex. « RCCM CI-ABJ-2026-B-12345 »
 const EDITOR_ADDRESS = '' // ex. « Cocody, Abidjan, Côte d'Ivoire »
 const EDITOR_NCC = ''     // numéro de compte contribuable (DGI)

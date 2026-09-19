@@ -2,6 +2,7 @@ import { Wordmark } from '../components/Logo'
 import { useTraductionPage } from '../lib/langue'
 import type { TexteAPropos } from '../i18n/apropos'
 import { ChoixLangue } from '../components/ChoixLangue'
+import { FONDATEURS, initiales } from '../data/fondateurs'
 
 // « À propos » du modèle artifact : un héro chaleureux + 4 cartes de valeurs.
 // Le français vit ici ; les autres langues (`?lang=`, posé par l'application)
@@ -46,6 +47,54 @@ export function About() {
               <div className="text-[26px] leading-none" aria-hidden>{v.e}</div>
               <p className="mt-2 font-display text-sm font-bold text-ink">{t?.valeurs[i]?.t ?? v.t}</p>
               <p className="mt-1 text-[13px] leading-relaxed text-gray-500">{t?.valeurs[i]?.d ?? v.d}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* LES FONDATEURS — 19/09/2026.
+         *
+         * Les noms ne sont pas traduits : un nom de personne est le même dans
+         * toutes les langues. Seul le libellé du rôle l'est, et il ne l'est pas
+         * encore — `t` ne porte pas ce champ, donc on affiche le français. Une
+         * clé ajoutée aux six langues viendra avec les portraits.
+         *
+         * ⚠️ Cette section a une JUMELLE servie par web/seo.php sur
+         * `https://chap.ci/a-propos`, sans `#`. C'est elle que Google lit :
+         * celle-ci vit derrière le `#` et reste invisible aux robots. Les deux
+         * listes sortent du même fichier de données et `npm run banc:fondateurs`
+         * refuse qu'elles s'écartent. */}
+        <h2 className="mt-9 font-display text-lg font-bold text-ink">Les fondateurs</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {FONDATEURS.map((f) => (
+            <div
+              key={f.nom}
+              className="flex items-center gap-3 rounded-[14px] border border-line bg-white p-4
+                         shadow-[0_1px_3px_rgba(60,40,10,0.09),0_1px_2px_rgba(60,40,10,0.05)]"
+            >
+              {f.photo ? (
+                <img
+                  src={f.photo}
+                  alt={f.nom}
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                /* Pas de portrait livré : une pastille d'initiales, jamais une
+                 * image cassée sur la page de ceux qui cherchent qui est
+                 * derrière Chap.ci. */
+                <div
+                  aria-hidden
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full
+                             bg-[#FFF1E0] font-display text-lg font-bold text-[#B35700]"
+                >
+                  {initiales(f.nom)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-display text-[15px] font-bold text-ink">{f.nom}</p>
+                <p className="text-[13px] text-gray-500">{f.role} de Chap.ci</p>
+              </div>
             </div>
           ))}
         </div>
