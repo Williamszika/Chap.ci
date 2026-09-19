@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Samedi 19 septembre 2026 |
-| Livraisons | 906 |
+| Livraisons | 908 |
 | Jours travaillés | 70 |
-| Dernière mise à jour | Samedi 19 septembre 2026, 10:24 (Abidjan) |
+| Dernière mise à jour | Samedi 19 septembre 2026, 10:57 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -47,11 +47,13 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 19 septembre 2026
 
-**3 livraison(s)** · Abidjan 09:43 → 10:24 · chez le Patron 11:43 → 12:24 · amplitude 41 min
+**5 livraison(s)** · Abidjan 09:43 → 10:56 · chez le Patron 11:43 → 12:56 · amplitude 1 h 14
 
 - `09:43` · Sept textes étaient à la moitié du seuil de lisibilité — au soleil, ils n'existaient pas  <sub>`9e23c4e`</sub>
 - `09:43` · Registre d'activité régénéré — 904 livraisons sur 70 jours  <sub>`6958646`</sub>
 - `10:24` · Le banc des liens était aveugle au pied de page — 67 liens annoncés, 94 en réalité  <sub>`f221971`</sub>
+- `10:24` · Registre d'activité régénéré — 906 livraisons sur 70 jours  <sub>`29af0ae`</sub>
+- `10:56` · La politique de confidentialité disait le contraire de ce que fait le site depuis quinze jours  <sub>`ade9d26`</sub>
 
 ### Vendredi 18 septembre 2026
 

@@ -1,47 +1,76 @@
-CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 34
+CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 35
 ===============================================================================
 
-SEPT TEXTES TROP PÂLES DEVIENNENT LISIBLES.
+VOTRE PAGE « CONFIDENTIALITÉ » PROMETTAIT UNE CHOSE QUE LE SITE NE FAIT PLUS.
 
 
-CE QUI CHANGE
--------------
-🎨 L'Atelier a trouvé sept textes gris trop clairs pour être lus au soleil.
-Tous portent un vrai sens — ce ne sont pas des décorations :
+CE QUI S'EST PASSÉ
+------------------
+Le 1er août, votre politique de confidentialité a été écrite. Elle disait, en
+gras, que les photos ajoutées à une annonce sont examinées « entièrement sur
+votre appareil » et que la photo « n'est transmise à aucun service extérieur ».
 
-  · l'explication des chiffres de vos annonces (Mes annonces)
-  · l'heure des événements de votre fil Pro (Espace Pro)
-  · le statut « fermé » de vos horaires d'ouverture (Réglages Pro)
-  · les mentions « (recommandé) » et « (facultatif) » sur les numéros
-  · le message « Chargement… »
+C'ÉTAIT VRAI CE JOUR-LÀ.
 
-J'AI REFAIT LE CALCUL AVANT DE CORRIGER, et il était plus grave qu'annoncé.
-L'Atelier estimait le contraste à 2,85 pour 1. La mesure exacte donne :
+Le 4 septembre, pour alléger le site sur les forfaits ivoiriens, ce contrôle
+des photos a été déplacé sur le serveur — donc vers un prestataire extérieur —
+et ajouté à l'application, qui n'en avait aucun.
 
-  gris actuel  sur fond blanc  : 2,50 pour 1   ❌ (le minimum lisible est 4,50)
-  gris corrigé sur fond blanc  : 4,83 pour 1   ✅
-
-Autrement dit, ces textes étaient à la MOITIÉ du seuil de lisibilité. Sur un
-téléphone en plein soleil à Abidjan, ils n'existaient tout simplement pas.
-
-⚠️ Je n'ai touché QUE ces sept lignes, une par une. Il reste environ 182 autres
-textes du même gris ailleurs sur le site : ce sont des icônes, des chevrons et
-des étiquettes de section — du décor assumé, qui ne se lit pas et n'a pas à
-être lisible. Les changer tous aurait alourdi le site sans rien gagner.
+Le programme a changé. La page, elle, a continué d'annoncer le contraire.
+Pendant QUINZE JOURS. C'est la page que Google Play exige exacte, et celle que
+la loi ivoirienne oppose à vous en cas de réclamation.
 
 
-CE QUI CHANGE AUSSI, ET QUI NE SE VOIT PAS
--------------------------------------------
-L'Atelier a rendu son audit en déclarant qu'il ne pouvait pas regarder le site
-à l'écran, faute d'un outil installé. J'ai vérifié : L'OUTIL ÉTAIT LÀ.
+CE QUI N'EST PAS ARRIVÉ — LISEZ CECI AVANT DE VOUS INQUIÉTER
+-------------------------------------------------------------
+AUCUNE PHOTO DE VOS UTILISATEURS N'EST PARTIE NULLE PART.
 
-La cause est un piège réel, et il se répétera : cet outil s'installe « sans
-enregistrement », donc la commande de reconstruction que lancent les autres
-rondes l'efface à chaque passage. Le bureau qui a le plus besoin de VOIR le
-site travaillait donc à l'aveugle, pour une commande de cinq secondes.
+Le moteur d'analyse d'images n'est pas allumé chez vous : la clé n'est pas
+renseignée. Je l'ai vérifié aujourd'hui sur votre serveur, il répond bien
+« pas disponible ». Le problème était donc le TEXTE, pas une fuite.
 
-C'est maintenant écrit dans le manuel du projet, avec la commande. Rien à faire
-de votre côté — c'est une note pour les rondes.
+Le danger était pour le jour où vous allumeriez ce moteur — ce qui se fait
+d'un réglage, sans qu'une ligne de programme bouge. Ce jour-là, votre page
+aurait menti pour de bon, sans que personne ne s'en aperçoive.
+
+
+CE QUI, EN REVANCHE, EST VRAI AUJOURD'HUI ET QUE VOUS DEVEZ SAVOIR
+------------------------------------------------------------------
+⚠️ DANS L'APPLICATION, LES PHOTOS NE SONT CONTRÔLÉES PAR RIEN.
+
+Le site, lui, garde son contrôle qui tourne dans le téléphone du vendeur.
+Mais l'application n'a pas ce programme : elle comptait sur le serveur, qui
+est éteint. Une photo publiée depuis l'application ne passe donc devant aucun
+filtre automatique — seulement devant votre modération et les signalements.
+
+Votre page promettait l'inverse. Elle le dit maintenant honnêtement.
+
+Si vous voulez fermer ce trou, c'est un réglage à ajouter dans api/config.php
+et une clé à obtenir. Dites-le-moi et je vous guide pas à pas. Ce n'est pas
+urgent tant que le volume reste celui d'aujourd'hui, mais c'est à savoir.
+
+
+CE QUI CHANGE DANS LE TEXTE
+---------------------------
+  · le paragraphe sur les photos décrit les deux cas réels, et dit clairement
+    quand la photo N'EST PAS examinée, au lieu de le promettre ;
+  · « Chap.ci écrit l'annonce » est déclaré : ce bouton envoie la photo au
+    même prestataire, et ce n'était écrit nulle part ;
+  · le prestataire est NOMMÉ dans la liste des destinataires. La loi demande
+    qu'on sache à qui les données vont, pas seulement qu'elles partent ;
+  · la phrase « vos photos ne quittent pas la Côte d'Ivoire » est corrigée :
+    elle était absolue, et un simple réglage suffisait à la démentir.
+
+L'application affiche cette page du site telle quelle : la correction couvre
+les deux d'un coup, sans nouvelle version à publier sur le Play Store.
+
+
+⚖️ CE QUE VOUS DEVEZ FAIRE FAIRE
+--------------------------------
+Ce texte est un texte de loi. Je l'ai rendu EXACT — il décrit maintenant ce
+que fait réellement votre site. Je ne suis pas juriste et je ne rends pas
+d'avis juridique : faites-le relire par un juriste humain avant d'en faire
+un engagement définitif.
 
 
 OÙ EXTRAIRE
@@ -59,7 +88,7 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          f7402d1cf1d9   <- le site, CHANGE
+  empreinteSite  doit devenir          0fdcc438d521   <- le site, CHANGE
   empreinteSeo   doit RESTER           2229085e1295   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
@@ -76,11 +105,17 @@ Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
 LA VÉRIFICATION À L'ŒIL NU
 --------------------------
-Ouvrez « Mes annonces ». Sous vos annonces, la petite phrase qui explique les
-chiffres doit être nettement plus foncée qu'avant — lisible sans plisser.
+Ouvrez https://chap.ci/confidentialite et descendez jusqu'au cadre
+« Analyse automatique des photos ». Il ne doit plus contenir les mots
+« entièrement sur votre appareil ». Juste en dessous, un second cadre parle
+de « Chap.ci écrit l'annonce » : il est nouveau.
 
-Si vous avez un compte Pro sous la main : Réglages Pro -> Horaires. Les jours
-marqués « fermé » doivent se lire d'un coup d'œil.
+
+UNE QUESTION POUR VOUS
+----------------------
+Avez-vous déclaré le traitement de vos données auprès de l'ARTCI ? Votre page
+annonce que Chap.ci est soumis à ces formalités. Si c'est fait, je note la
+date ; si ce n'est pas fait, dites-le-moi et je vous prépare la démarche.
 
 
 CE QUI RESTE
@@ -89,5 +124,10 @@ CE QUI RESTE
    cette semaine après dix jours figés.
 2. Le ticket à votre hébergeur pour débloquer le robot de ChatGPT.
 3. La ligne 187 du .htaccess, à la main. Toujours sans urgence.
-4. Les liens cassés : toujours pas vérifiés, à faire dans une ronde dédiée.
+4. La relecture de la page confidentialité par un juriste humain.
 5. Le prochain AAB, code 29, quand vous voudrez.
+
+RAYÉ DE LA LISTE : les liens cassés. Les 94 liens internes écrits dans le site
+mènent tous vers une page qui existe — vérifié ce matin, et la vérification
+sait signaler un lien mort, je le lui ai fait trouver exprès. Restent hors de
+portée : les liens vers d'AUTRES sites, qu'il faudrait appeler un par un.

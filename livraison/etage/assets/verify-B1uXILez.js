@@ -1,0 +1,6 @@
+import{c as t,bB as e,bC as n,bD as r}from"./index-8i2dN8Pv.js";/**
+ * @license lucide-react v0.454.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const c=t("RotateCw",[["path",{d:"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8",key:"1p45f6"}],["path",{d:"M21 3v5h-5",key:"1q7to0"}]]);async function i(){return e()}async function o(){return n()}async function f(a){return r(a)}export{c as R,f as c,i as f,o as s};
