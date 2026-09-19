@@ -103,6 +103,36 @@ les adresses arrivent dans `seo.php`, alors que le `.htaccess` n'en laisse passe
 poignée. Un banc qui ne lit pas `web/htaccess-root` croit une porte ouverte parce qu'il
 est entré par la fenêtre — `banc:fondateurs` le lit désormais.
 
+⚠️⚠️ **NE DEMANDEZ JAMAIS AU PATRON DE MODIFIER LE `.htaccess` LIGNE À LIGNE.
+DONNEZ-LUI LE FICHIER ENTIER À REMPLACER.**
+
+Le 19/09/2026, une fiche lui a demandé trois modifications au clavier dans ce fichier,
+en lui disant de faire une copie de sauvegarde d'abord. **Il n'a pas fait la copie** — et
+une faute de frappe a mis **le site entier en erreur 500**. Le plan de secours reposait
+entièrement sur une sauvegarde qui n'existait pas.
+
+Ce qui rend l'incident instructif n'est pas la faute de frappe, c'est la consigne : **une
+instruction dont la sûreté dépend d'une étape que la personne peut sauter n'est pas une
+instruction sûre.** Taper dans un fichier où une virgule coupe le site n'est pas un geste
+qu'on demande à quelqu'un qui n'est pas développeur.
+
+La bonne façon, désormais :
+
+1. préparer le fichier COMPLET (`cp web/htaccess-root livraison/htaccess-A-RENOMMER.txt`) ;
+2. le lui envoyer, et lui demander de le téléverser puis de le **renommer** en `.htaccess` ;
+3. aucune frappe dans le fichier, donc aucune faute de frappe possible.
+
+Ce fichier de livraison est un DOUBLON : il se régénère d'une commande et **ne se commite
+pas**. Deux copies du même `.htaccess` dans le dépôt finiraient par diverger — la panne
+même qu'on vient de payer.
+
+**Signature de cette panne, pour la reconnaître tout de suite :** `/` répond **500 au corps
+vide** pendant que `/assets/…` répond 200. Sans `.htaccess`, `DirectoryIndex index.html`
+disparaît, le serveur sert l'`index.php` qui traîne à la racine depuis le 20/07, et PHP
+rend une erreur vide. Ce couple-là — statique vert, racine 500 — ne ressemble à aucune
+autre panne connue ici, et surtout pas à l'anti-robot (qui donne 403 sur le dynamique et
+200 sur `/`).
+
 **Après chaque déploiement, vérifiez les trois empreintes** contre le dépôt
 (`md5sum server/index.php web/seo.php dist/index.html`, 12 premiers caractères), et
 rappelez-vous que chacune ne prouve que son propre fichier.

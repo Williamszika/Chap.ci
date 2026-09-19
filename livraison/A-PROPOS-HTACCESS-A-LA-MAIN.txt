@@ -1,142 +1,79 @@
-CHAP.CI — LE .HTACCESS DE LA RACINE, 19 SEPTEMBRE 2026
+CHAP.CI — LE .HTACCESS DE LA RACINE
 ===============================================================================
 
-TROIS CHANGEMENTS, EN UNE SEULE VISITE. Pas de zip : ce fichier ne voyage
-jamais dedans, il vit uniquement sur votre serveur.
+⚠️ CETTE FICHE A ÉTÉ REFAITE LE 19/09/2026, APRÈS UNE PANNE.
+
+La version précédente vous demandait de taper trois modifications DANS le
+fichier, après avoir fait une copie de sauvegarde. La copie n'a pas été faite,
+une faute de frappe s'est glissée, et VOTRE SITE ENTIER EST TOMBÉ en erreur
+500 — sans rien pour revenir en arrière.
+
+Ce n'est pas votre faute. C'est la consigne qui était mauvaise : on ne demande
+pas de taper au clavier dans un fichier où une virgule de travers coupe le
+site. Désormais, vous ne tapez plus rien dedans. Vous remplacez le fichier
+entier.
 
 
-⚠️ D'ABORD : L'EN-TÊTE DE VOTRE FICHIER DIT UNE CHOSE FAUSSE
---------------------------------------------------------------
-En haut de votre fichier, on lit :
+LA MÉTHODE — REMPLACER, JAMAIS MODIFIER
+----------------------------------------
+Je vous envoie le fichier complet, déjà correct. Vous le téléversez et vous le
+renommez. Aucune frappe, donc aucune faute possible.
 
-    « CE FICHIER EST DÉPLOYÉ PAR LE ZIP ET ÉCRASE CELUI DU SERVEUR.
-      Une règle ajoutée à la main sur le serveur serait perdue à la
-      prochaine mise en ligne : ajoutez-la ICI, pas là-bas. »
-
-C'ÉTAIT VRAI LE 27 JUILLET. Ça a cessé de l'être le 2 août — le jour où le
-.htaccess d'un zip a écrasé celui de l'API et coupé votre site pendant des
-heures. Depuis, plus aucun .htaccess ne voyage dans un zip.
-
-Cette phrase a donc menti pendant sept semaines, et elle vous a coûté deux
-choses, que vous allez réparer ci-dessous :
-
-  · la règle de la page « À propos », que j'ai écrite côté dépôt en croyant
-    qu'elle partirait toute seule. Elle n'est jamais arrivée ;
-  · deux lignes pour les liens qui ouvrent votre application, disparues de
-    votre serveur le 2 août et jamais remises.
-
-Le remplacement de cet en-tête est le changement n° 3, plus bas.
-
-
-AVANT DE COMMENCER
-------------------
 1. cPanel -> Gestionnaire de fichiers -> dossier public_html
 
-2. ⚠️ AFFICHEZ LES FICHIERS CACHÉS, sinon vous ne verrez pas le fichier :
-   en haut à droite, bouton « Settings » -> cochez
-   « Show Hidden Files (dotfiles) » -> Save.
+2. ⚠️ AFFICHEZ LES FICHIERS CACHÉS : en haut à droite, bouton « Settings »
+   -> cochez « Show Hidden Files (dotfiles) » -> Save.
 
-3. ⚠️ FAITES UNE COPIE D'ABORD. Clic droit sur .htaccess -> « Copy » ->
-   nommez-la  .htaccess-avant-19-09
-   Si quoi que ce soit tourne mal, vous la renommerez en .htaccess et tout
-   redeviendra comme avant.
+3. S'IL EXISTE DÉJÀ UN .htaccess : clic droit dessus -> « Renommer » ->
+   appelez-le  .htaccess-ancien-JJ-MM  (la date du jour).
+   NE LE SUPPRIMEZ PAS. C'est lui qui dira ce qui n'allait pas.
 
-4. Clic droit sur .htaccess -> « Edit ». Si une fenêtre d'avertissement
-   s'ouvre, cliquez « Edit ».
+4. Bouton « Téléverser » en haut -> choisissez le fichier
+   htaccess-A-RENOMMER.txt que je vous ai envoyé.
 
+5. Revenez dans public_html (« Retour »), puis cliquez « Recharger ».
 
-CHANGEMENT N° 1 — REMPLACER UN BLOC DE CINQ LIGNES
----------------------------------------------------
-Cherchez ces cinq lignes, vers le haut du fichier :
+6. Clic droit sur htaccess-A-RENOMMER.txt -> « Renommer » -> tapez exactement :
 
-    # --- Pages « crawlables » (SEO + aperçus WhatsApp/Facebook) -> seo.php --------
-    RewriteRule ^annonce/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
-    RewriteRule ^vendeur/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
-    # Pages d'atterrissage « Vendez votre {catégorie} à {ville} »
-    RewriteRule ^vendre/([A-Za-z0-9-]+)(/[A-Za-z0-9-]+)?/?$ seo.php [L,QSA]
-    RewriteRule ^sitemap\.xml$ seo.php [L]
+       .htaccess
 
-SÉLECTIONNEZ-LES et remplacez-les par CECI (copiez tout le bloc) :
+   Avec le point devant, et rien d'autre. Si cPanel prévient que le fichier
+   deviendra caché, acceptez.
 
-    # --- Pages « crawlables » (SEO + aperçus WhatsApp/Facebook) -> seo.php --------
-    RewriteRule ^annonce/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
-    RewriteRule ^vendeur/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
-    # Pages d'atterrissage « Vendez votre {catégorie} à {ville} »
-    RewriteRule ^vendre/([A-Za-z0-9-]+)(/[A-Za-z0-9-]+)?/?$ seo.php [L,QSA]
-    RewriteRule ^sitemap\.xml$ seo.php [L]
-    # « À propos » : la page des fondateurs, lisible par Google (19/09/2026).
-    RewriteRule ^a-propos/?$ seo.php [L,QSA]
-    # Liens qui ouvrent l'application (iOS et Android). Disparus le 02/08/2026.
-    RewriteRule ^\.well-known/apple-app-site-association$ seo.php [L]
-    RewriteRule ^\.well-known/assetlinks\.json$ seo.php [L]
-
-Vous ajoutez donc quatre lignes : une pour « À propos », deux pour les liens
-de l'application, et leurs commentaires.
+7. Ouvrez https://chap.ci/ dans une fenêtre de NAVIGATION PRIVÉE.
+   Le site doit s'afficher.
 
 
-CHANGEMENT N° 2 — RETIRER UN MOT DANS UNE LONGUE LIGNE
--------------------------------------------------------
-Cherchez la longue ligne qui commence par :
+LES TROIS VÉRIFICATIONS
+-----------------------
+Toujours en navigation privée :
 
-    RewriteRule ^(suppression-compte|confidentialite|conditions|aide|...
+  1. https://chap.ci/
+     La page d'accueil. Si elle s'affiche, le plus important est réglé.
 
-Dans cette ligne, trouvez   a-propos|   et SUPPRIMEZ-LE, avec sa barre
-verticale. Ne touchez à rien d'autre.
+  2. https://chap.ci/a-propos          (SANS le dièse)
+     Une page simple, fond crème, « À propos de Chap.ci », vos deux noms.
+     C'est la page que Google lira.
 
-    AVANT :  ...|faq|contact|a-propos|plan-du-site|publicite|...
-    APRÈS :  ...|faq|contact|plan-du-site|publicite|...
-
-⚠️ LES CHANGEMENTS 1 ET 2 VONT ENSEMBLE. C'est cette ligne-là qui renvoyait
-/a-propos derrière le dièse, là où Google ne peut rien lire. Ajouter la
-nouvelle règle sans retirer ce mot ne servirait à rien.
-
-
-CHANGEMENT N° 3 — CORRIGER L'EN-TÊTE QUI MENT
-----------------------------------------------
-Tout en haut du fichier, remplacez ces trois lignes :
-
-    #  ⚠️ CE FICHIER EST DÉPLOYÉ PAR LE ZIP ET ÉCRASE CELUI DU SERVEUR.
-    #  Une règle ajoutée à la main sur le serveur serait perdue à la prochaine mise
-    #  en ligne : ajoutez-la ICI, pas là-bas.
-
-par celles-ci :
-
-    #  ⚠️ CE FICHIER NE VOYAGE PLUS DANS AUCUN ZIP (depuis le 02/08/2026).
-    #  Il vit ICI et nulle part ailleurs, et s'édite à la main dans cPanel.
-    #  La copie du dépôt (web/htaccess-root) n'est qu'une référence : la
-    #  modifier ne change RIEN en production.
-
-Ce changement n'a aucun effet technique — tout ce qui commence par # est un
-commentaire. Mais il évite que la même erreur se reproduise.
+  3. https://chap.ci/.well-known/assetlinks.json
+     Du texte, pas une page d'erreur. S'il affiche 404 avec une page blanche,
+     c'est que l'empreinte de l'application manque côté serveur — un autre
+     réglage, dites-le-moi.
 
 
-ENREGISTRER
------------
-Bouton « Save Changes » en haut à droite.
+SI LE SITE NE REVIENT PAS
+--------------------------
+Ne tentez rien d'autre : dites-le-moi immédiatement, avec ce que vous voyez
+exactement à l'écran. La cause serait ailleurs et je reprendrais le
+diagnostic depuis le début.
 
 
-VÉRIFIER — TROIS ADRESSES, EN NAVIGATION PRIVÉE
-------------------------------------------------
-1.  https://chap.ci/a-propos          (SANS le dièse)
-    Une page simple, fond crème, titre « À propos de Chap.ci », vos deux noms
-    dans deux cadres. C'est la page que Google lira.
-    Si vous retombez sur l'application, un des deux premiers changements n'a
-    pas pris.
+CE QUI RESTE À REGARDER, UNE FOIS LE SITE DEBOUT
+-------------------------------------------------
+Un fichier index.php de 280 Ko dort dans public_html depuis le 20 juillet. Il
+n'a rien à faire là : la racine de votre site est une application, pas du PHP.
+C'est même lui que le serveur a servi quand le .htaccess a disparu — et c'est
+lui qui a produit l'erreur 500.
 
-2.  https://chap.ci/#/a-propos        (AVEC le dièse)
-    Doit continuer de marcher exactement comme avant. On ouvre une porte, on
-    n'en ferme aucune.
-
-3.  https://chap.ci/.well-known/assetlinks.json
-    Vous devez voir du texte, PAS une page d'erreur. S'il contient
-    « ci.chap.app », les liens qui ouvrent votre application fonctionnent.
-    S'il affiche 404 alors que la règle est bien là, c'est que l'empreinte de
-    l'application n'est pas encore renseignée côté serveur — dites-le-moi,
-    c'est un autre réglage.
-
-
-SI LE SITE TOMBE (ERREUR 500)
-------------------------------
-C'est rare, et ça se répare en une minute : supprimez le fichier .htaccess,
-puis renommez votre copie .htaccess-avant-19-09 en .htaccess. Le site revient
-immédiatement. Prévenez-moi ensuite.
+NE LE SUPPRIMEZ PAS MAINTENANT. On le regardera ensemble, sans urgence, une
+fois que tout sera stable.
