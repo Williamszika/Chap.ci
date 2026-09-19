@@ -7813,3 +7813,44 @@ partout.
 
 Sept corrections de contraste. `lint`, `build` et `banc:classes` verts. Zip n° 34,
 `empreinteSite f7402d1cf1d9` ; l'API et le SEO ne bougent pas.
+
+---
+
+## 2026-09-19 — Réponses du Patron à la liste de suites, et le banc des liens
+
+Le Patron a répondu point par point : **le coup de fil à Treichville est fait**,
+le **ticket à l'hébergeur** pour le robot de ChatGPT est **envoyé**, le
+`.htaccess` attend un guide, les liens sont à vérifier, et l'AAB code 29 est
+reporté.
+
+### Point 4 — les liens cassés, enfin vérifiés
+
+Reportés depuis le 18/09 faute de pouvoir parcourir le site sans réveiller
+l'anti-robot. **Fait autrement, et sans une seule requête** : `npm run banc:liens`
+compare les liens ÉCRITS dans `src/` aux routes DÉCLARÉES dans `App.tsx`.
+
+**94 liens internes, tous vers une route existante. Aucun mort.**
+
+⚠️ **Mais la première version de ce banc en annonçait 67, et elle était
+aveugle là où ça compte.** Son motif ne lisait que `to="/x"` — la forme JSX.
+Or `src/data/footerLinks.ts`, **source unique du pied de page ET de la page
+« Plan du site »**, écrit `to: '/explorer'` : deux-points, apostrophes, dans un
+fichier de données. Le banc annonçait donc fièrement « tous valides » **sans
+avoir regardé une seule ligne du pied de page, qui est sur toutes les pages**.
+
+Motif élargi aux deux formes → 67 devient **94**. Les 27 manquants étaient
+exactement ceux qu'il fallait voir. *Un motif qui a l'air complet peut n'en
+couvrir que la moitié* — c'est la troisième fois cette semaine (les `alt` le
+18/09, les classes CSS le 16/09), et c'est toujours la même faute : **on teste
+la forme qu'on a en tête, pas celle qui est dans le code.**
+
+Le banc déclare ce qu'il **ne** couvre pas : liens externes, liens construits à
+l'exécution, pages existantes mais en erreur. *Un banc qui ne dit pas ce qu'il
+ignore laisse croire qu'il a tout vu.*
+
+### Point 3 — le guide `.htaccess`
+
+Ancre vérifiée **unique** dans `web/htaccess-root` : `img-src 'self' data: blob:
+https:;` n'apparaît qu'une fois. Le guide dit donc de CHERCHER cette chaîne et
+d'INSÉRER après, plutôt que de remplacer la ligne entière — coller 1 200
+caractères dans l'éditeur cPanel est une faute qui coupe tout le site.
