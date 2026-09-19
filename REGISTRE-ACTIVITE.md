@@ -38,6 +38,9 @@ ici même — `npm run registre` ne touche jamais cette section.
 | 13/09/2026 | AAB v1.26 (code 27) construit (69,3 Mo) ; application mise à jour sur son iPhone |
 | 13/09/2026 | Zip n° 25 extrait à **02 h 07** — les routes de l’avis sur l’application sont en ligne |
 | 13/09/2026 | AAB **v1.26.1 (code 28)** construit et **déployé sur le canal de test fermé à 10 h 06** — l’avis sur l’application arrive chez les douze testeurs |
+| 13 → 19/09/2026 | Les zips n° 26 à 34 ont été extraits au fil de ces journées. **Le détail jour par jour n’a pas été tenu ici** : cette ligne le dit plutôt que d’inventer des dates qu’on ne pourrait opposer à personne. |
+| 16/09/2026 | Ligne 187 du `.htaccess` modifiée à la main (ajout de `media-src 'self' blob:` à l’en-tête Report-Only) — vérifié en ligne, le site répondait toujours 200 |
+| 19/09/2026 | Zip n° 35 extrait — **vérifié empreinte en main** : `empreinteSite` passée à `0fdcc438d521`, les deux autres inchangées, et la page confidentialité servie en ligne ne contient plus « entièrement sur votre appareil » |
 
 ---
 
