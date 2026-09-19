@@ -1576,14 +1576,27 @@ function chapci_indexnow_key(array $config): string {
   return $val;
 }
 
-/** Signale une ou plusieurs URLs neuves/modifiées à IndexNow. Silencieux, non bloquant. */
-function chapci_indexnow_ping(array $config, array $urls): void {
+/**
+ * Signale une ou plusieurs URLs neuves/modifiées à IndexNow. Silencieux, non bloquant.
+ *
+ * ⚠️ IndexNow N'EST PAS GOOGLE. Bing, Yandex et Seznam le consomment ; Google
+ * ne s'en sert pas et continue de passer par le sitemap et les liens. Dire
+ * « on a prévenu les moteurs » après un appel réussi serait donc faux de la
+ * moitié qui intéresse le plus le Patron.
+ *
+ * Rend le code HTTP du moteur (200/202 = accepté), ou `null` si rien n'a pu
+ * être envoyé. Les appels existants ignorent ce retour — la publication d'une
+ * annonce ne doit jamais dépendre d'un moteur de recherche —, mais le bouton
+ * d'administration, lui, en a besoin : un bouton qui dit « fait » sans
+ * pouvoir échouer ne rend compte de rien.
+ */
+function chapci_indexnow_ping(array $config, array $urls): ?int {
   try {
     $urls = array_values(array_filter(array_unique($urls)));
-    if (!$urls) return;
+    if (!$urls) return null;
     $site = rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/');
     $host = parse_url($site, PHP_URL_HOST);
-    if (!$host) return;
+    if (!$host) return null;
     $key = chapci_indexnow_key($config);
     $payload = json_encode([
       'host'        => $host,
@@ -1592,12 +1605,14 @@ function chapci_indexnow_ping(array $config, array $urls): void {
       'urlList'     => $urls,
     ], JSON_UNESCAPED_SLASHES);
     // Timeout court : la publication ne doit jamais attendre le moteur.
-    http_fetch('https://api.indexnow.org/indexnow', [
+    $r = http_fetch('https://api.indexnow.org/indexnow', [
       'method'  => 'POST',
       'headers' => ['Content-Type: application/json; charset=utf-8'],
       'body'    => $payload,
     ]);
+    return isset($r['status']) ? (int) $r['status'] : null;
   } catch (Throwable $e) { /* jamais bloquer la publication d'une annonce */ }
+  return null;
 }
 
 // ---- Téléphone & SMS (connexion par code) -----------------------------------
@@ -13815,6 +13830,35 @@ try {
       $b = body();
       seo_auto_set($config, !empty($b['enabled']));
       jout(['ok' => true, 'enabled' => seo_auto_enabled($config)]);
+    }
+    /* Signaler les PAGES FIXES du site à IndexNow — 19/09/2026.
+     *
+     * Les annonces s'annoncent déjà toutes seules : chapci_indexnow_ping() part
+     * à leur création et à leur modification. Les pages fixes, elles, n'avaient
+     * aucun moyen de se signaler — et /a-propos, née ce jour-là, portait
+     * justement les noms des fondateurs que le Patron cherchait en vain dans un
+     * moteur.
+     *
+     * ⚠️ ET ÇA NE TOUCHERA PAS GOOGLE. IndexNow sert Bing, Yandex et Seznam ;
+     * Google ne le consomme pas et passe par le sitemap. C'est utile quand
+     * même, et pour une raison précise : la recherche de ChatGPT s'appuie sur
+     * Bing. C'est donc le seul levier que nous ayons sur ce front tant que
+     * l'hébergeur refuse OAI-SearchBot.
+     *
+     * Volontairement un BOUTON, pas une ronde : IndexNow attend des pages
+     * neuves ou modifiées. Répéter chaque jour les mêmes adresses inchangées
+     * serait du bruit, et le bruit finit par être ignoré. */
+    if ($path === 'admin/seo/indexnow' && $method === 'POST') {
+      $site = rtrim((string) ($config['site_url'] ?? 'https://chap.ci'), '/');
+      // Les seules pages que `web/seo.php` rend à une adresse SANS dièse et qui
+      // ne sont pas des annonces. Les autres vues vivent derrière le `#` : les
+      // envoyer ici serait annoncer l'accueil plusieurs fois.
+      $urls = [$site . '/', $site . '/a-propos'];
+      $status = chapci_indexnow_ping($config, $urls);
+      log_security_event($pdo, 'indexnow_pages', $u['email'] ?? null, (string) ($status ?? 'échec'));
+      // 200 et 202 valent tous deux « accepté » chez IndexNow.
+      jout(['ok' => in_array($status, [200, 202], true), 'status' => $status, 'urls' => $urls,
+            'note' => 'IndexNow sert Bing, Yandex et Seznam. Google ne le consomme pas.']);
     }
     // Générer MAINTENANT la diffusion du jour (remplace celle du jour si besoin).
     if ($path === 'admin/seo/run' && $method === 'POST') {

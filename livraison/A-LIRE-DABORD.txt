@@ -1,98 +1,75 @@
-CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 37
+CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 38
 ===============================================================================
 
-VOUS ET VENCESLAS ÊTES MAINTENANT LES FONDATEURS DE CHAP.CI,
-ET GOOGLE A ENFIN UNE PAGE À LIRE.
+UN BOUTON POUR PRÉVENIR BING (ET DONC CHATGPT).
 
 
-POURQUOI VOTRE NOM NE SORTAIT PAS DANS GOOGLE
-----------------------------------------------
-Ce n'était pas une question de patience. Votre nom était INTROUVABLE, et il
-le serait resté dans six mois.
-
-J'ai mesuré avant de toucher à quoi que ce soit. En me faisant passer pour le
-robot de Google, voici ce que votre site répondait :
-
-    /a-propos          renvoyé à l'accueil
-    /conditions        renvoyé à l'accueil
-    /confidentialite   renvoyé à l'accueil
-    /vendre/maison     vraie page
-
-Deux causes, qui s'additionnaient.
-
-1. LE SIGNE # DANS VOS ADRESSES. Vos pages s'écrivent
-   https://chap.ci/#/a-propos. Tout ce qui suit le # reste DANS le navigateur
-   et n'arrive jamais jusqu'à votre serveur. Google, lui, ne voit que
-   https://chap.ci/ — la page d'accueil, et rien d'autre. Pour lui, votre page
-   « À propos » n'avait pas d'adresse du tout.
-
-2. VOTRE SERVEUR NE CONNAISSAIT QUE CINQ SORTES D'ADRESSES : les annonces, les
-   vendeurs, les pages « Vendez à … », et deux fichiers techniques. Tout le
-   reste repartait à l'accueil.
-
-Autrement dit : il n'y avait aucune porte par laquelle Google pouvait entrer
-pour lire votre nom.
+⚠️ CETTE FOIS, LES TROIS EMPREINTES CHANGENT
+---------------------------------------------
+Les livraisons précédentes ne touchaient que le site. Celle-ci modifie aussi
+l'API — c'est normal, le nouveau bouton a besoin d'une route côté serveur.
+Le détail des empreintes est plus bas.
 
 
 CE QUI CHANGE
 -------------
-Il y a maintenant une vraie page, à une vraie adresse, SANS le # :
+Dans l'administration, onglet où vit le « Bureau de Croissance SEO », un
+nouveau bouton à côté de « Générer la diffusion du jour » :
 
-    https://chap.ci/a-propos
+        [ Signaler les pages à Bing ]
 
-Elle porte vos deux noms, et elle est servie à l'identique aux robots et aux
-visiteurs — ce qui compte, parce que montrer une chose à Google et une autre
-aux gens est une faute lourde qu'il punit.
+Il prévient instantanément Bing, Yandex et Seznam que vos pages fixes —
+l'accueil et la nouvelle page « À propos » — existent ou ont changé.
 
-⚠️ CE QUI FAIT VRAIMENT LE TRAVAIL N'EST PAS LE TEXTE. La page contient un
-bloc de données invisible qui DIT à Google, dans son langage : « cette
-entreprise s'appelle Chap.ci, et elle a deux fondateurs, qui s'appellent … ».
-Un nom noyé dans un paragraphe, Google le lit. Un nom déclaré ainsi, il le
-comprend, et il peut le relier à vous.
-
-L'adresse est aussi entrée dans votre plan de site, sinon la page existerait
-sans que personne ne sache aller la chercher.
+Vos ANNONCES se signalaient déjà toutes seules à chaque publication. Les
+pages fixes, elles, n'avaient aucun moyen de le faire : la page des fondateurs
+née ce matin serait restée inconnue de Bing jusqu'à ce qu'il passe de
+lui-même, ce qui peut prendre des semaines.
 
 
-⚠️ CE QUE JE NE VOUS PROMETS PAS
----------------------------------
-Que vous sortiez en PREMIER quand on tape votre nom.
+⚠️ CE QUE CE BOUTON NE FAIT PAS — ET C'EST IMPORTANT
+------------------------------------------------------
+IL NE PRÉVIENT PAS GOOGLE.
 
-Exister dans Google et arriver en tête sont deux choses différentes. La
-deuxième dépend de qui d'autre porte un nom proche du vôtre et de la
-réputation de votre domaine — rien de tout cela ne se règle dans un fichier.
+Le système utilisé (IndexNow) est lu par Bing, Yandex et Seznam. Google a
+choisi de ne pas s'en servir : il continue de passer par votre plan de site et
+par les liens, à son rythme.
 
-Ce que ce zip garantit, c'est qu'il y a désormais QUELQUE CHOSE À TROUVER.
-Ce n'était pas le cas ce matin.
+Pour Google, le chemin reste celui que je vous ai donné : Search Console ->
+« Inspecter toute URL » -> coller https://chap.ci/a-propos -> « Demander une
+indexation ».
 
-Comptez plusieurs jours, voire quelques semaines, avant que Google passe.
-Vous pouvez accélérer en déposant l'adresse dans Google Search Console —
-dites-le-moi et je vous guide clic par clic.
+Le message qui s'affiche après le clic dit cela noir sur blanc. Un bouton qui
+annoncerait « pages envoyées aux moteurs » vous ferait attendre une chose qui
+n'arriverait pas.
 
 
-L'ORTHOGRAPHE — À VÉRIFIER AVANT D'EXTRAIRE
+POURQUOI BING QUAND MÊME — LE VRAI INTÉRÊT
 --------------------------------------------
-Vous m'avez écrit « Vanceslas ». Le pacte de fondateurs, lui, écrit :
+LA RECHERCHE DE CHATGPT S'APPUIE SUR BING.
 
-    GUIBE Goze Ange Venceslas          (avec un E : Ven-ces-las)
+Vous m'aviez demandé la semaine dernière que ChatGPT connaisse votre site.
+Le robot d'OpenAI est toujours refusé par votre hébergeur — le ticket est
+en attente chez eux. Mais passer par Bing est un second chemin, qui ne dépend
+pas de ce ticket.
 
-J'ai retenu celle du document. SI C'EST L'AUTRE, DITES-LE AVANT D'EXTRAIRE :
-un nom de personne ne se corrige pas « plus tard ».
-
-Votre nom, lui, passe de « Zika BI ABRAHAM » à « Zika Bi Abraham ». En
-capitales, le I de BI se lisait comme un petit L à l'écran — sur un nom
-d'éditeur, dont le rôle est justement d'identifier quelqu'un, c'était gênant.
+Je ne vous promets pas que ChatGPT citera Chap.ci demain. Je dis que c'est le
+seul levier que nous ayons sur ce front aujourd'hui, et qu'il ne coûte qu'un
+clic.
 
 
-LES PHOTOS
-----------
-La place est prête. En attendant, chaque fondateur a ses initiales dans un
-rond orange — jamais une image cassée.
+COMMENT S'EN SERVIR
+-------------------
+Une fois le zip extrait :
 
-Quand vous voudrez les ajouter, envoyez-les-moi ainsi :
-  · CARRÉES (même largeur que hauteur), 400 × 400 pixels au moins
-  · le visage bien au centre, il sera découpé en rond
-  · format JPG ou PNG
+  1. Ouvrez votre administration, allez à l'encadré vert « Bureau de
+     Croissance SEO »
+  2. Cliquez « Signaler les pages à Bing »
+  3. Une fenêtre vous dira ce qui a été envoyé, ou que l'envoi a échoué
+
+⚠️ N'appuyez pas tous les jours. Ce système attend des pages NEUVES ou
+MODIFIÉES. Répéter les mêmes adresses inchangées, c'est du bruit, et le bruit
+finit par être ignoré. Une fois aujourd'hui, puis quand une page fixe change.
 
 
 OÙ EXTRAIRE
@@ -109,14 +86,11 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 ------------------------------------
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
-  empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          137835d4d96c   <- le site, CHANGE
-  empreinteSeo   doit devenir          d104d660fe33   <- CHANGE AUSSI cette fois
+  empreinte      doit devenir          c583a928951a   <- l'API, CHANGE cette fois
+  empreinteSite  doit devenir          1681de23ac98   <- le site, CHANGE
+  empreinteSeo   doit RESTER           d104d660fe33   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
-
-⚠️ L'empreinteSeo change, et c'est normal : c'est le fichier qui sert la
-nouvelle page à Google.
 
 ⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
 
@@ -127,26 +101,19 @@ nouvelle page à Google.
   2. Rouvrez chap.ci
   3. Rechargez une seconde fois (Cmd+R)
 
-
-LA VÉRIFICATION À L'ŒIL NU — DEUX ADRESSES DIFFÉRENTES
--------------------------------------------------------
-1. La page que voient vos visiteurs :   https://chap.ci/#/a-propos
-   Descendez : « Les fondateurs », vos deux noms.
-
-2. LA PAGE QUE VOIT GOOGLE :            https://chap.ci/a-propos
-   (SANS le #). C'est la nouveauté. Elle a une mise en page plus simple —
-   c'est voulu, elle est faite pour être lue par une machine.
-
-Si la deuxième vous renvoie à l'accueil, le zip n'est pas extrait.
+Sans ce double rechargement, le nouveau bouton n'apparaîtra pas.
 
 
 CE QUI RESTE
 ------------
 1. LE COUP DE FIL au vendeur de Treichville.
 2. Le ticket à votre hébergeur pour débloquer le robot de ChatGPT.
-3. La ligne 187 du .htaccess, à la main. Toujours sans urgence.
-4. La relecture de la page confidentialité par un juriste humain.
-5. La déclaration ARTCI, quand vous ouvrirez ce chantier.
-6. Votre adresse dans les mentions légales, si vous voulez l'y mettre.
-7. Vos deux photos, quand vous les aurez.
-8. Le prochain AAB, code 29, quand vous voudrez.
+3. Demander l'indexation de /a-propos dans Google Search Console.
+4. L'empreinte SHA-256 de la Play Console, pour les liens qui ouvrent
+   l'application (voir mon message précédent).
+5. La ligne 187 du .htaccess, à la main. Toujours sans urgence.
+6. La relecture de la page confidentialité par un juriste humain.
+7. La déclaration ARTCI, quand vous ouvrirez ce chantier.
+8. Votre adresse dans les mentions légales, si vous voulez l'y mettre.
+9. Vos deux photos, quand vous les aurez.
+10. Le prochain AAB, code 29, quand vous voudrez.

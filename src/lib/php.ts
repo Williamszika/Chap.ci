@@ -1325,6 +1325,12 @@ export async function phpAdminSeoToggle(enabled: boolean): Promise<void> {
 export async function phpAdminSeoRun<T>(): Promise<T> {
   return req<T>('/admin/seo/run', { method: 'POST', body: {} })
 }
+/** Signale les pages fixes du site à IndexNow (Bing, Yandex, Seznam — pas Google). */
+export async function phpAdminSeoIndexNow(): Promise<{
+  ok: boolean; status: number | null; urls: string[]; note: string
+}> {
+  return req('/admin/seo/indexnow', { method: 'POST', body: {} })
+}
 
 export async function phpAdminConversations<T>(): Promise<T> {
   return req<T>('/admin/conversations')

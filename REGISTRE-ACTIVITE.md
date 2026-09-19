@@ -5,9 +5,9 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 | | |
 |---|---|
 | Période couverte | du Samedi 11 juillet 2026 au Samedi 19 septembre 2026 |
-| Livraisons | 920 |
+| Livraisons | 921 |
 | Jours travaillés | 70 |
-| Dernière mise à jour | Samedi 19 septembre 2026, 12:01 (Abidjan) |
+| Dernière mise à jour | Samedi 19 septembre 2026, 12:12 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -50,7 +50,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 ### Samedi 19 septembre 2026
 
-**17 livraison(s)** · Abidjan 09:43 → 11:56 · chez le Patron 11:43 → 13:56 · amplitude 2 h 13
+**18 livraison(s)** · Abidjan 09:43 → 12:01 · chez le Patron 11:43 → 14:01 · amplitude 2 h 18
 
 - `09:43` · Sept textes étaient à la moitié du seuil de lisibilité — au soleil, ils n'existaient pas  <sub>`9e23c4e`</sub>
 - `09:43` · Registre d'activité régénéré — 904 livraisons sur 70 jours  <sub>`6958646`</sub>
@@ -69,6 +69,7 @@ ici même — `npm run registre` ne touche jamais cette section.
 - `11:51` · Les fondateurs ont une page, et Google a enfin une porte pour la lire  <sub>`bbabd83`</sub>
 - `11:52` · Fiche du zip n° 37, aperçus des deux pages et registre  <sub>`2db36d0`</sub>
 - `11:56` · La page des fondateurs existait, mais le serveur ne l'appelait jamais  <sub>`046c42e`</sub>
+- `12:01` · L'en-tête du .htaccess mentait depuis sept semaines  <sub>`84a44b5`</sub>
 
 ### Vendredi 18 septembre 2026
 

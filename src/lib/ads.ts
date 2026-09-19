@@ -220,6 +220,22 @@ export async function runSeoNow(): Promise<{ ok: boolean; goal: string; title: s
   return php.phpAdminSeoRun()
 }
 
+/**
+ * Signale les pages fixes du site à IndexNow (19/09/2026).
+ *
+ * ⚠️ IndexNow N'EST PAS GOOGLE : Bing, Yandex et Seznam le consomment, Google
+ * non. On le garde quand même parce que la recherche de ChatGPT s'appuie sur
+ * Bing — c'est le seul levier disponible sur ce front tant que l'hébergeur
+ * refuse le robot d'OpenAI. L'écran doit le dire, sinon « envoyé aux moteurs »
+ * laisserait croire que Google a été prévenu.
+ */
+export async function pingIndexNowPages(): Promise<{
+  ok: boolean; status: number | null; urls: string[]; note: string
+}> {
+  if (!isPhp) throw new Error('Le tableau de bord admin nécessite le backend PHP.')
+  return php.phpAdminSeoIndexNow()
+}
+
 /** Pause par défaut entre deux animations (secondes). */
 export const AD_GAP_DEFAULT = 8
 export const AD_GAP_MIN = 5

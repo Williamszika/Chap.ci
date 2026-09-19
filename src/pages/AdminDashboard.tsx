@@ -43,7 +43,7 @@ import {
 } from '../lib/php'
 import {
   fetchAdminAds, adminAdAction, adminAdDelete, adminAdBroadcast,
-  fetchSeoState, setSeoEnabled, runSeoNow,
+  fetchSeoState, setSeoEnabled, runSeoNow, pingIndexNowPages,
   AD_GAP_DEFAULT, type AdminAd, type AdStyle, type SeoState,
 } from '../lib/ads'
 import { ComptabiliteTab } from '../components/ComptabiliteTab'
@@ -3585,6 +3585,25 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
     try { const r = await runSeoNow(); load(); onChanged?.(); alert(`Diffusion générée : « ${r.title} »`) }
     catch (e) { alert((e as Error).message) } finally { setBusy(false) }
   }
+  /* Signaler les pages fixes à IndexNow.
+   *
+   * ⚠️ Le message de retour NOMME les moteurs concernés, et dit que Google n'en
+   * fait pas partie. « Pages signalées aux moteurs » serait faux là où ça
+   * compte : le Patron cherche son nom dans GOOGLE, et Google ne consomme pas
+   * IndexNow. Un bouton qui laisse croire le contraire ferait attendre pour
+   * rien. */
+  const pingIndexNow = async () => {
+    setBusy(true)
+    try {
+      const r = await pingIndexNowPages()
+      alert(r.ok
+        ? `${r.urls.length} page(s) signalée(s) à Bing, Yandex et Seznam.\n\n`
+          + `${r.urls.join('\n')}\n\n`
+          + `⚠️ Google ne consomme pas IndexNow : pour lui, passez par la Search Console.`
+        : `Le moteur n’a pas accepté l’envoi (réponse : ${r.status ?? 'aucune'}).\n\n`
+          + `Rien n’est cassé sur le site — seule l’annonce aux moteurs a échoué.`)
+    } catch (e) { alert((e as Error).message) } finally { setBusy(false) }
+  }
 
   return (
     <div className="rounded-2xl border border-ivoire-green/30 bg-ivoire-green/10 p-4">
@@ -3620,6 +3639,15 @@ function SeoOfficePanel({ onChanged }: { onChanged?: () => void }) {
       <div className="mt-3 flex flex-wrap gap-2">
         <button onClick={runNow} disabled={busy} className="flex items-center gap-1.5 rounded-lg bg-ivoire-green px-3 py-1.5 text-xs font-semibold text-white hover:bg-ivoire-green disabled:opacity-50">
           {busy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Générer la diffusion du jour
+        </button>
+        <button
+          onClick={pingIndexNow}
+          disabled={busy}
+          title="Prévient Bing, Yandex et Seznam. Google ne consomme pas IndexNow."
+          className="flex items-center gap-1.5 rounded-lg border border-ivoire-green/40 bg-white px-3 py-1.5
+                     text-xs font-semibold text-ivoire-green-dark hover:bg-ivoire-green/5 disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Signaler les pages à Bing
         </button>
         <button
           onClick={() => { navigator.clipboard?.writeText(cronUrl); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
