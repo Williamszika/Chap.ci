@@ -6,9 +6,16 @@ import { ChoixLangue } from '../components/ChoixLangue'
 
 const CONTACT_EMAIL = 'contact@chap.ci'
 const LAST_UPDATE = '14 juillet 2026'
-// Renseignez ces champs quand la société est immatriculée : ils s'affichent
-// dans les mentions légales (identification complète exigée par la loi 2013-546).
-const EDITOR_NAME = ''    // ex. « Chap.ci SARL »
+// Ces champs s'affichent dans les mentions légales (identification complète
+// exigée par la loi 2013-546).
+//
+// 19/09/2026 — Le Patron a tranché l'arbitrage ouvert depuis le 26/07 : il
+// édite Chap.ci EN SON NOM PROPRE, pas au nom d'une société. `EDITOR_NAME`
+// porte donc son nom de personne physique, et les trois champs qui suivent
+// restent vides parce qu'ils n'existent pas : pas de RCCM sans société, pas
+// de NCC sans immatriculation fiscale. Le jour où une société est créée, on
+// remplace le nom ET on remplit les trois autres — pas l'un sans les autres.
+const EDITOR_NAME = 'Zika BI ABRAHAM'
 const EDITOR_RCCM = ''    // ex. « RCCM CI-ABJ-2026-B-12345 »
 const EDITOR_ADDRESS = '' // ex. « Cocody, Abidjan, Côte d'Ivoire »
 const EDITOR_NCC = ''     // numéro de compte contribuable (DGI)
