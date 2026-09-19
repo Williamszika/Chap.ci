@@ -254,7 +254,7 @@ export function MesAnnonces({ annonces, onRecharger, filtreInitial, onFiltreCons
         </div>
       )}
 
-      <p className="px-1 text-center text-[11.5px] leading-relaxed text-gray-400">
+      <p className="px-1 text-center text-[11.5px] leading-relaxed text-gray-500">
         Les chiffres de chaque annonce se mettent à jour en continu · appuyez sur le ❤ pour
         voir qui suit l’annonce · une annonce masquée vous dit pourquoi, et le bouton la répare
       </p>
@@ -274,7 +274,7 @@ export function MesAnnonces({ annonces, onRecharger, filtreInitial, onFiltreCons
             </div>
 
             {quiCharge ? (
-              <p className="py-10 text-center text-sm text-gray-400">Chargement…</p>
+              <p className="py-10 text-center text-sm text-gray-500">Chargement…</p>
             ) : qui.gens.length === 0 ? (
               <p className="py-10 text-center text-sm text-gray-500">Personne pour l’instant.</p>
             ) : (

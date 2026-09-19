@@ -7753,3 +7753,63 @@ trouver demande de parcourir le site en suivant chaque lien. **Le serveur m'a
 refusé une requête il y a une heure** (anti-robot). Je ne vais pas le bombarder
 pour cocher une case — à faire dans une ronde dédiée, calmement. Non vérifié,
 non annoncé comme vert.
+
+---
+
+## 2026-09-19 09:04 — 🎨 L'Atelier, ronde — classée, appliquée, et une limite levée
+
+**Ses sept lignes sont exactes**, vérifiées une par une : `text-gray-400` est
+bien présent à chacune des positions citées. Appliquées **ligne par ligne**, pas
+par remplacement global — les ~182 autres occurrences sont du décor assumé
+(icônes, chevrons, étiquettes en petites majuscules) et devaient rester.
+
+### Son chiffre était faux, et dans le mauvais sens
+
+Il annonce « gray-400 sur blanc tourne autour de 2,85:1 ». Recalculé :
+
+| | sur blanc | sur crème |
+|---|---|---|
+| `gray-400` `#9CA3AF` | **2,50:1** ❌ | 2,50:1 ❌ |
+| `gray-500` `#6B7280` | **4,83:1** ✅ | 4,76:1 ✅ |
+
+**2,50 et non 2,85 : c'est pire que ce qu'il croyait**, et à peine plus de la
+moitié du seuil AA de 4,50. Sa conclusion tenait donc largement, et son remède
+passe le seuil sur les deux fonds du site. Corriger un chiffre qui va dans le
+sens de la proposition ne change pas la décision — mais un chiffre faux répété
+finit par servir d'argument ailleurs, où il ne tiendra plus.
+
+### ⛔ ET LA LIMITE QU'IL S'EST DÉCLARÉE N'EXISTE PAS
+
+Il ouvre son rapport ainsi : *« je n'ai pas tenté de construire/rendre le site
+dans Chromium ce tour-ci (pas de `playwright-core` installé, coût de mise en
+place trop lourd) : rien ci-dessous n'est présenté comme vérifié à l'écran »*.
+
+**Les deux étaient là.** `node_modules/playwright-core` : présent. Chromium dans
+`/opt/pw-browsers/` : présent. Je m'en sers tous les jours depuis le 15/09.
+
+**Mais sa méprise a une cause réelle, et elle se répétera.** `playwright-core`
+s'installe en `--no-save` : il n'est pas dans `package.json`, et **`npm ci` —
+que les rondes lancent pour reconstruire les empreintes — l'efface**. Le Gardien
+le lance à chaque passage. Le bureau qui a le plus besoin de VOIR le site est
+donc rendu aveugle, à tour de rôle, par la ronde du bureau voisin.
+
+Écrit dans `CLAUDE.md` avec la commande de cinq secondes qui le restaure. **La
+leçon : une limite qu'on se déclare se vérifie comme le reste.** « L'outil n'est
+pas là » est une mesure, pas une impression — et celle-ci était fausse.
+
+### Ce qu'il a bien fait, et qui mérite d'être dit
+
+Il a **retiré lui-même un faux signal** : un premier grep lui faisait craindre
+25 écrans Flutter « sans `SafeArea` » ; il a vérifié et conclu que c'était faux,
+`Scaffold(appBar:)` prenant déjà le haut en charge. Il le déclare explicitement
+comme faux signal au lieu de le taire. C'est exactement l'erreur de méthode que
+j'ai commise hier en comptant les `alt` — et lui l'a rattrapée seul.
+
+Et il classe `StockPro.tsx` **propre** après l'avoir ouvert : un bureau qui ne
+trouve rien sur un fichier qu'il a lu est plus crédible qu'un bureau qui trouve
+partout.
+
+### Fait
+
+Sept corrections de contraste. `lint`, `build` et `banc:classes` verts. Zip n° 34,
+`empreinteSite f7402d1cf1d9` ; l'API et le SEO ne bougent pas.

@@ -868,7 +868,7 @@ function Evenement({ e, premier }: { e: Tableau['activite'][number]; premier: bo
         <span className="block truncate text-xs font-bold text-ink">{rendu.titre}</span>
         {rendu.texte && <span className="block truncate text-[11px] text-gray-500">{rendu.texte}</span>}
       </span>
-      <span className="whitespace-nowrap pt-0.5 text-[10.5px] text-gray-400">{timeAgo(e.quand)}</span>
+      <span className="whitespace-nowrap pt-0.5 text-[10.5px] text-gray-500">{timeAgo(e.quand)}</span>
     </div>
   )
 }
@@ -966,7 +966,7 @@ function Formulaire({ statut, onDepose }: { statut: Statut; onDepose: () => void
 
         <div>
           <label htmlFor="pro-numero" className="mb-1.5 block text-sm font-semibold text-gray-700">
-            {typeCourant.numero} <span className="font-normal text-gray-400">(recommandé)</span>
+            {typeCourant.numero} <span className="font-normal text-gray-500">(recommandé)</span>
           </label>
           <input
             id="pro-numero" value={numero} onChange={(e) => setNumero(e.target.value)}
@@ -994,7 +994,7 @@ function Formulaire({ statut, onDepose }: { statut: Statut; onDepose: () => void
 
         <div>
           <label htmlFor="pro-tel" className="mb-1.5 block text-sm font-semibold text-gray-700">
-            Téléphone professionnel <span className="font-normal text-gray-400">(facultatif)</span>
+            Téléphone professionnel <span className="font-normal text-gray-500">(facultatif)</span>
           </label>
           <input
             id="pro-tel" value={tel} onChange={(e) => setTel(e.target.value)}

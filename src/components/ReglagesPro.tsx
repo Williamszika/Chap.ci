@@ -296,7 +296,7 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
             return (
               <div key={JOURS[i]} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 ring-1 ring-line">
                 <button onClick={basculer}
-                  className={`min-w-0 flex-1 truncate text-left text-[12.5px] font-bold ${h.ouvert ? 'text-ink' : 'text-gray-400'}`}>
+                  className={`min-w-0 flex-1 truncate text-left text-[12.5px] font-bold ${h.ouvert ? 'text-ink' : 'text-gray-500'}`}>
                   {JOURS[i]}
                 </button>
                 {h.ouvert ? (
@@ -306,7 +306,7 @@ export function FicheProEdit({ pro, lieu, banniere, logo, onEnregistre, onAdress
                     <ChoixHeure valeur={h.a || '18:00'} onChange={(v) => poser('a', v)} />
                   </span>
                 ) : (
-                  <span className="shrink-0 text-[12px] text-gray-400">fermé</span>
+                  <span className="shrink-0 text-[12px] text-gray-500">fermé</span>
                 )}
                 <button onClick={basculer} className="shrink-0"><Bascule active={h.ouvert} /></button>
               </div>

@@ -46,7 +46,21 @@ sous 44 px sur chaque page — toutes dans la barre du haut, qui n'existe QUE su
 grand écran : personne ne l'avait jamais mesurée.
 
 `banc:front` demande Chromium (`CHROMIUM_PATH=/opt/pw-browsers/chromium`) et
-`playwright-core` (`npm i --no-save playwright-core`). Il ne touche pas la production :
+`playwright-core` (`npm i --no-save playwright-core`).
+
+⚠️ **ET `npm ci` L'EFFACE.** `playwright-core` s'installe en `--no-save` : il
+n'est donc PAS dans `package.json`, et `npm ci` — que les rondes lancent pour
+reconstruire les empreintes — nettoie tout ce qui n'y figure pas. Le 19/09/2026,
+🎨 L'Atelier a rendu un audit entier en déclarant « pas de `playwright-core`
+installé, coût de mise en place trop lourd » et n'a donc **rien vérifié à
+l'écran** — le bureau qui en a le plus besoin, aveugle pour une commande de
+cinq secondes. Chromium, lui, est toujours là : il vit dans `/opt`, hors du
+dépôt. **Si le rendu manque, réinstallez, n'y renoncez pas :**
+
+```bash
+npm i --no-save playwright-core   # cinq secondes, à refaire après chaque npm ci
+```
+ Il ne touche pas la production :
 il rejoue le site construit sur un serveur PHP local, comme `banc:affiche`. Avant
 toute promesse sur « la vitesse » ou « les bugs », c'est lui qu'on lance.
 

@@ -1,70 +1,47 @@
-CHAP.CI — ZIP DU 18 SEPTEMBRE 2026, n° 33
+CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 34
 ===============================================================================
 
-VOTRE LISTE DE VINGT POINTS : DIX-NEUF ÉTAIENT DÉJÀ FAITS.
-
-J'ai vérifié chacun dans le code plutôt que de tout refaire. Le détail est plus
-bas. Un seul manquait vraiment, et il est corrigé dans ce zip.
+SEPT TEXTES TROP PÂLES DEVIENNENT LISIBLES.
 
 
-CE QUI CHANGE : LA PAGE INTROUVABLE
------------------------------------
-Jusqu'à aujourd'hui, TOUTE adresse inconnue sur chap.ci servait la page
-d'accueil, sans un mot d'explication.
+CE QUI CHANGE
+-------------
+🎨 L'Atelier a trouvé sept textes gris trop clairs pour être lus au soleil.
+Tous portent un vrai sens — ce ne sont pas des décorations :
 
-Quelqu'un qui suivait un lien vers une annonce vendue atterrissait sur
-l'accueil et croyait s'être trompé de site — ou que son lien avait été
-détourné.
+  · l'explication des chiffres de vos annonces (Mes annonces)
+  · l'heure des événements de votre fil Pro (Espace Pro)
+  · le statut « fermé » de vos horaires d'ouverture (Réglages Pro)
+  · les mentions « (recommandé) » et « (facultatif) » sur les numéros
+  · le message « Chargement… »
 
-Et pour Google, c'est ce qu'on appelle une « fausse page trouvée » : une
-adresse morte qui répond comme si elle était vivante. Google le pénalise,
-parce qu'un nombre infini d'adresses servant toutes le même contenu, c'est du
-contenu dupliqué — exactement ce qu'on a passé la journée du 16 à retirer.
+J'AI REFAIT LE CALCUL AVANT DE CORRIGER, et il était plus grave qu'annoncé.
+L'Atelier estimait le contraste à 2,85 pour 1. La mesure exacte donne :
 
-⚠️ ET J'AI TROUVÉ PIRE EN CHERCHANT. Une adresse de vendeur inventée —
-n'importe laquelle — produisait une PAGE COMPLÈTE ET INDEXABLE intitulée
-« Vendeur — Vendeur sur Chap.ci ». Le code ne vérifiait tout simplement pas que
-la personne existait. On fabriquait donc à l'infini des pages de gens qui
-n'existent pas. C'est corrigé aussi.
+  gris actuel  sur fond blanc  : 2,50 pour 1   ❌ (le minimum lisible est 4,50)
+  gris corrigé sur fond blanc  : 4,83 pour 1   ✅
 
-Désormais :
-  · une annonce inconnue ou vendue  -> vraie page « Cette annonce n'est plus
-    en ligne », avec le bon code d'erreur et l'instruction de ne pas l'indexer
-  · un vendeur inconnu              -> vraie page « Ce vendeur n'existe pas »
-  · toute autre adresse             -> « Cette page n'existe pas », avec deux
-    boutons : voir toutes les annonces, ou retour à l'accueil
+Autrement dit, ces textes étaient à la MOITIÉ du seuil de lisibilité. Sur un
+téléphone en plein soleil à Abidjan, ils n'existaient tout simplement pas.
 
-Une image du rendu accompagne ce zip : apercu-404.png.
+⚠️ Je n'ai touché QUE ces sept lignes, une par une. Il reste environ 182 autres
+textes du même gris ailleurs sur le site : ce sont des icônes, des chevrons et
+des étiquettes de section — du décor assumé, qui ne se lit pas et n'a pas à
+être lisible. Les changer tous aurait alourdi le site sans rien gagner.
 
 
-VOTRE LISTE, POINT PAR POINT — VÉRIFIÉ, PAS SUPPOSÉ
-----------------------------------------------------
-  ✅ Page de CGU                    src/pages/Terms.tsx
-  ✅ Politique de confidentialité   src/pages/Privacy.tsx
-  ✅ Clés API hors du front         AUCUN secret trouvé dans le code du site
-  ✅ HTTPS                          tout le site, derrière Cloudflare
-  ✅ Bandeau cookies                CookieConsent.tsx (+ npm run apercu:cookies)
-  ✅ Meta-title et description      seo.php, par annonce et par catégorie
-  ✅ Image pour les réseaux         og:image, une bannière par catégorie
-  ✅ Favicon                        favicon.ico, favicon.svg, icône Apple
-  ✅ Sitemap et robots.txt          refaits les 15, 16 et 17 septembre
-  ✅ Textes alternatifs             36 images, 36 avec alt — aucune oubliée
-  ✅ Images compressées             vignettes 360 px, banc dédié
-  ✅ Vitesse de chargement          banc:front, chantier LCP du 10 septembre
-  ✅ Contraste des couleurs         palette documentée avec ses ratios mesurés
-  ✅ Site responsive                conçu mobile d'abord
-  ❌ Page 404 personnalisée         LE SEUL MANQUE — corrigé dans ce zip
-  ~  Liens cassés                   non vérifié (voir plus bas)
-  ✅ Validation des formulaires     101 schémas de sous-catégories, banc dédié
-  ✅ Protection anti-spam           pot de miel + limitation par adresse
-  ✅ Outil d'analytics              Google Analytics + votre propre tableau de
-                                    bord (visites, entonnoir, par commune)
-  ✅ Un seul appel à l'action       « Publier une annonce »
+CE QUI CHANGE AUSSI, ET QUI NE SE VOIT PAS
+-------------------------------------------
+L'Atelier a rendu son audit en déclarant qu'il ne pouvait pas regarder le site
+à l'écran, faute d'un outil installé. J'ai vérifié : L'OUTIL ÉTAIT LÀ.
 
-⚠️ UNE HONNÊTETÉ SUR LES « LIENS CASSÉS » : je ne l'ai PAS vérifié. Le faire
-demande de parcourir tout le site en suivant chaque lien, et le serveur m'a
-refusé une requête il y a une heure (son anti-robot). Je ne vais pas le
-bombarder pour cocher une case. À faire dans une ronde dédiée, calmement.
+La cause est un piège réel, et il se répétera : cet outil s'installe « sans
+enregistrement », donc la commande de reconstruction que lancent les autres
+rondes l'efface à chaque passage. Le bureau qui a le plus besoin de VOIR le
+site travaillait donc à l'aveugle, pour une commande de cinq secondes.
+
+C'est maintenant écrit dans le manuel du projet, avec la commande. Rien à faire
+de votre côté — c'est une note pour les rondes.
 
 
 OÙ EXTRAIRE
@@ -82,8 +59,8 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          4bb557a563f1   <- le site, CHANGE
-  empreinteSeo   doit devenir          2229085e1295   <- les robots, CHANGE
+  empreinteSite  doit devenir          f7402d1cf1d9   <- le site, CHANGE
+  empreinteSeo   doit RESTER           2229085e1295   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
 
@@ -99,23 +76,18 @@ Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
 LA VÉRIFICATION À L'ŒIL NU
 --------------------------
-Tapez dans votre navigateur une adresse qui n'existe pas, par exemple :
+Ouvrez « Mes annonces ». Sous vos annonces, la petite phrase qui explique les
+chiffres doit être nettement plus foncée qu'avant — lisible sans plisser.
 
-    https://chap.ci/#/nimportequoi
-
-  AVANT : la page d'accueil s'affichait, comme si de rien n'était.
-  APRÈS : « Cette page n'existe pas », avec un bouton orange
-          « Voir toutes les annonces ».
-
-Et pour la version que voit Google :
-
-    https://chap.ci/annonce/ceci-nexiste-pas
-
-  AVANT : redirection silencieuse vers l'accueil.
-  APRÈS : « Cette annonce n'est plus en ligne ».
+Si vous avez un compte Pro sous la main : Réglages Pro -> Horaires. Les jours
+marqués « fermé » doivent se lire d'un coup d'œil.
 
 
-CE QUI RESTE, ET QUI N'EST TOUJOURS PAS TECHNIQUE
--------------------------------------------------
-Le coup de fil au vendeur de Treichville. Votre catalogue a bougé deux fois
-cette semaine après dix jours d'immobilité — c'est le bon moment pour l'appeler.
+CE QUI RESTE
+------------
+1. LE COUP DE FIL au vendeur de Treichville. Votre catalogue a bougé deux fois
+   cette semaine après dix jours figés.
+2. Le ticket à votre hébergeur pour débloquer le robot de ChatGPT.
+3. La ligne 187 du .htaccess, à la main. Toujours sans urgence.
+4. Les liens cassés : toujours pas vérifiés, à faire dans une ronde dédiée.
+5. Le prochain AAB, code 29, quand vous voudrez.

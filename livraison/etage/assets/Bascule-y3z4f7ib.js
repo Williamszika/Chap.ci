@@ -1,0 +1,1 @@
+import{j as e}from"./index-DFS_2GL7.js";function i({active:s}){return e.jsx("span",{className:`relative inline-block h-6 w-11 shrink-0 rounded-full transition ${s?"bg-ivoire-green":"bg-line2"}`,children:e.jsx("span",{className:`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${s?"left-[22px]":"left-0.5"}`})})}const l="favori_prix";export{i as B,l as C};
