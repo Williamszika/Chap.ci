@@ -1,14 +1,29 @@
 # =============================================================================
 #  Chap.ci — .htaccess de la RACINE du site  (public_html/.htaccess)
 #
-#  ⚠️ CE FICHIER EST DÉPLOYÉ PAR LE ZIP ET ÉCRASE CELUI DU SERVEUR.
-#  Une règle ajoutée à la main sur le serveur serait perdue à la prochaine mise
-#  en ligne : ajoutez-la ICI, pas là-bas.
+#  ⚠️⚠️ CE FICHIER N'EST PAS DÉPLOYÉ. C'EST UNE COPIE DE RÉFÉRENCE.
 #
-#  Depuis le 27/07/2026, il fusionne ce qui vivait dans deux fichiers séparés :
-#  le routage SEO (qui était déployé) et les en-têtes de sécurité + cache (qui
-#  ne l'étaient pas — ils dormaient dans deploy/htaccess-racine.txt et se
-#  faisaient effacer à chaque déploiement).
+#  Le seul exemplaire qui compte vit sur le serveur, dans public_html, et il
+#  s'édite À LA MAIN dans cPanel. Modifier ce fichier-ci ne change RIEN en
+#  production : il sert à savoir ce que le serveur devrait contenir, et à
+#  préparer ce qu'on demandera au Patron de recopier.
+#
+#  ⚠️ L'EN-TÊTE PRÉCÉDENT DISAIT L'INVERSE, et il a menti pendant sept semaines :
+#  « CE FICHIER EST DÉPLOYÉ PAR LE ZIP ET ÉCRASE CELUI DU SERVEUR — ajoutez
+#  votre règle ICI, pas là-bas. » C'était vrai le 27/07/2026. Ça a cessé de
+#  l'être le 02/08, quand le .htaccess de ce zip a écrasé api/.htaccess et
+#  coupé l'API pendant des heures : depuis ce jour, AUCUN .htaccess ne voyage
+#  dans un zip, à aucun niveau (voir CLAUDE.md, « Le déploiement »).
+#
+#  Le coût de ce mensonge, mesuré le 19/09/2026 : la règle ajoutée ici pour
+#  servir /a-propos aux robots n'est jamais arrivée en production, et la page
+#  des fondateurs restait introuvable alors que tout était vert au dépôt. Les
+#  deux lignes des liens universels, elles, manquent sur le serveur depuis le
+#  02/08 pour la même raison. Une consigne fausse dans un en-tête ne casse
+#  rien le jour où on l'écrit ; elle casse tout ce qui la suit.
+#
+#  Depuis le 27/07/2026, ce fichier rassemble ce qui vivait en deux endroits :
+#  le routage SEO et les en-têtes de sécurité + cache.
 # =============================================================================
 
 RewriteEngine On

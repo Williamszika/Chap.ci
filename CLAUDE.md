@@ -86,6 +86,23 @@ présents ; téléverser un fichier seul n'écrase que lui.
 Ces quatre-là vivent sur le serveur et nulle part ailleurs. Un zip qui en contient un
 seul est un zip à refaire.
 
+⚠️ **CONSÉQUENCE QU'ON OUBLIE : `web/htaccess-root` N'EST QU'UNE RÉFÉRENCE.** Y ajouter
+une règle ne change **rien** en production — le seul exemplaire qui compte est celui du
+serveur, que le Patron édite à la main dans cPanel. **Toute modification de ce fichier se
+termine donc par une fiche d'instructions pour lui**, sinon elle n'existe que dans git.
+
+Le 19/09/2026, la règle qui sert `/a-propos` aux robots a été écrite ici, le banc est
+passé au vert, le zip a été extrait — et la page restait introuvable : rien n'était
+arrivé sur le serveur. Deux lignes des liens universels manquaient d'ailleurs **depuis
+le 02/08** pour la même raison. L'en-tête du fichier y était pour beaucoup : il
+affirmait encore « CE FICHIER EST DÉPLOYÉ PAR LE ZIP […] ajoutez-la ICI, pas là-bas »,
+vrai jusqu'au 02/08 et faux ensuite. Corrigé le 19/09.
+
+**Et un banc qui joue `php -S … seo.php` ne voit pas ce problème** : dans ce mode, TOUTES
+les adresses arrivent dans `seo.php`, alors que le `.htaccess` n'en laisse passer qu'une
+poignée. Un banc qui ne lit pas `web/htaccess-root` croit une porte ouverte parce qu'il
+est entré par la fenêtre — `banc:fondateurs` le lit désormais.
+
 **Après chaque déploiement, vérifiez les trois empreintes** contre le dépôt
 (`md5sum server/index.php web/seo.php dist/index.html`, 12 premiers caractères), et
 rappelez-vous que chacune ne prouve que son propre fichier.
