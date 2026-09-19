@@ -1,0 +1,97 @@
+CHAP.CI — DEUX LIGNES À CHANGER À LA MAIN, LE 19 SEPTEMBRE 2026
+===============================================================================
+
+⚠️ IL N'Y A PAS DE ZIP POUR CELLE-CI. Le fichier à modifier ne voyage JAMAIS
+dans un zip : il vit sur votre serveur et nulle part ailleurs. C'est le même
+fichier que la ligne 187 que vous avez déjà éditée.
+
+
+POURQUOI
+--------
+Le zip n° 37 est bien extrait — les trois empreintes sont bonnes, je les ai
+vérifiées. La page « À propos » pour Google EXISTE sur votre serveur.
+
+Mais elle n'est jamais appelée. J'ai essayé l'adresse en me faisant passer
+pour le robot de Google, et voici ce qui revient :
+
+    https://chap.ci/a-propos   ->   301   ->   https://chap.ci/#/a-propos
+
+Autrement dit : votre serveur renvoie cette adresse DERRIÈRE LE DIÈSE, c'est-
+à-dire exactement à l'endroit que Google ne peut pas lire. Une ligne de votre
+.htaccess, écrite bien avant ce chantier, range « a-propos » avec les pages
+qui n'ont pas de version pour les robots.
+
+C'est un manque de ma part : j'avais vérifié la page, pas le chemin qui y
+mène. Mon banc de test joue le fichier directement, où toutes les adresses
+arrivent — le vrai serveur, lui, choisit. Le banc lit désormais aussi ce
+fichier, et il refuse cette situation.
+
+
+CE QU'IL FAUT FAIRE — SEPT ÉTAPES
+----------------------------------
+1. cPanel -> Gestionnaire de fichiers -> dossier public_html
+
+2. ⚠️ AFFICHEZ LES FICHIERS CACHÉS, sinon vous ne verrez pas le fichier :
+   en haut à droite, bouton « Settings » (Paramètres) -> cochez
+   « Show Hidden Files (dotfiles) » -> Save.
+
+3. Clic droit sur le fichier  .htaccess  -> « Edit » (Modifier).
+   Si une fenêtre d'avertissement s'ouvre, cliquez « Edit ».
+
+4. PREMIER CHANGEMENT — AJOUTER UNE LIGNE.
+   Cherchez cette ligne, vers le haut du fichier :
+
+       RewriteRule ^sitemap\.xml$ seo.php [L]
+
+   Placez le curseur à la FIN de cette ligne, appuyez sur Entrée, et écrivez
+   exactement ceci sur la nouvelle ligne :
+
+       RewriteRule ^a-propos/?$ seo.php [L,QSA]
+
+5. DEUXIÈME CHANGEMENT — RETIRER UN MOT.
+   Cherchez la longue ligne qui commence par :
+
+       RewriteRule ^(suppression-compte|confidentialite|conditions|aide|...
+
+   Dans cette ligne, trouvez  a-propos|  et SUPPRIMEZ-LE, avec sa barre
+   verticale. Attention à ne rien toucher d'autre.
+
+   AVANT :  ...|faq|contact|a-propos|plan-du-site|publicite|...
+   APRÈS :  ...|faq|contact|plan-du-site|publicite|...
+
+   ⚠️ LES DEUX CHANGEMENTS VONT ENSEMBLE. Faire le premier sans le second ne
+   sert à rien : l'ancienne ligne reprendrait la main.
+
+6. Bouton « Save Changes » (Enregistrer) en haut à droite.
+
+7. VÉRIFIEZ, dans une fenêtre de navigation privée :
+
+       https://chap.ci/a-propos        (SANS le dièse)
+
+   Vous devez voir une page simple, fond crème, titre « À propos de Chap.ci »,
+   et vos deux noms dans deux cadres. C'est la page que Google lira.
+
+   Si vous retombez sur l'application habituelle, c'est que l'un des deux
+   changements n'a pas pris. Dites-le-moi.
+
+
+SI QUELQUE CHOSE CASSE
+----------------------
+Une erreur dans ce fichier peut rendre le site entier inaccessible (erreur
+500). C'est rare mais c'est possible, et ça se répare en une minute :
+
+  · le Gestionnaire de fichiers garde une copie : clic droit sur .htaccess ->
+    « Restore » si l'option existe ;
+  · sinon, retirez la ligne que vous venez d'ajouter et remettez  a-propos|
+    là où il était, puis enregistrez. Le site revient.
+
+Par sécurité : avant de modifier, faites un clic droit sur .htaccess ->
+« Copy » -> nommez la copie  .htaccess-avant-19-09  . Si quoi que ce soit
+tourne mal, vous la renommerez en .htaccess et tout sera comme avant.
+
+
+CE QUE ÇA NE CHANGE PAS
+-----------------------
+Rien pour vos visiteurs. L'adresse avec le dièse, https://chap.ci/#/a-propos,
+continue de fonctionner exactement comme aujourd'hui dans l'application et
+sur le site. On ouvre une porte, on n'en ferme aucune.

@@ -139,6 +139,46 @@ for (const nom of servis) {
 dire(!page.corps.includes('Jean Dupont'),
   'et un nom qui n’est pas fondateur n’y est pas', 'le banc ne dit pas oui à tout')
 
+/* ── 5. LA PORTE EST-ELLE OUVERTE CÔTÉ SERVEUR ? ────────────────────────────
+ *
+ * ⚠️ LA VÉRIFICATION QUI MANQUAIT, ET QUI A COÛTÉ UNE LIVRAISON POUR RIEN.
+ *
+ * Le 19/09/2026, tout ce qui précède était vert, le zip a été extrait… et
+ * https://chap.ci/a-propos répondait toujours 301 vers /#/a-propos. La page
+ * était bonne ; elle n'était simplement jamais appelée.
+ *
+ * La raison tient à la façon dont ce banc s'y prend : il lance
+ * `php -S … seo.php`, et dans ce mode TOUTES les adresses arrivent dans
+ * seo.php. En production, c'est le `.htaccess` qui décide lesquelles y vont —
+ * et il n'en envoie qu'une poignée. Un banc qui ne lit pas cette liste croit
+ * une porte ouverte parce qu'il est entré par la fenêtre.
+ *
+ * On lit donc le `.htaccess` de référence. Il ne voyage jamais dans un zip
+ * (il vit sur le serveur, le Patron l'édite à la main), mais `web/htaccess-root`
+ * en est la copie de référence : si elle est fausse, ce qu'on lui demandera de
+ * recopier le sera aussi. */
+console.log('\n── ⚠️ Le serveur envoie-t-il vraiment /a-propos à seo.php ?')
+const ht = readFileSync(join(racine, 'web/htaccess-root'), 'utf8')
+  .split('\n').filter((l) => !l.trimStart().startsWith('#')).join('\n')
+
+dire(/RewriteRule\s+\^a-propos[^\n]*seo\.php/.test(ht),
+  'le .htaccess route /a-propos vers seo.php',
+  'sans cette ligne, la page existe mais personne ne l’appelle')
+
+// Et la redirection vers le dièse ne doit plus l'intercepter : elle arrive
+// après, mais un `a-propos` resté dans sa liste reprendrait la main si on
+// déplaçait les règles.
+const redirDiese = ht.match(/RewriteRule\s+\^\(([^)]*)\)\/\?\$\s+\/#\//)
+dire(!!redirDiese, 'la redirection vers le dièse est bien trouvée',
+  redirDiese ? '' : 'le motif a changé — cette vérification ne prouve plus rien')
+if (redirDiese) {
+  dire(!redirDiese[1].split('|').includes('a-propos'),
+    '/a-propos n’y figure plus',
+    'c’est elle qui l’envoyait derrière le dièse, hors de portée des robots')
+  dire(redirDiese[1].split('|').includes('conditions'),
+    'mais les autres pages y sont toujours', 'on n’a retiré que celle qui a une version serveur')
+}
+
 console.log('\n── Le sitemap propose-t-il cette adresse ?')
 const sm = (await demander('/sitemap.xml')).corps
 dire(sm.includes('<loc>https://chap.ci/a-propos</loc>'), '/a-propos est dans le sitemap',

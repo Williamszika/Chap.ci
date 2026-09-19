@@ -19,6 +19,12 @@ RewriteRule ^vendeur/([A-Za-z0-9-]+)/?$ seo.php [L,QSA]
 # Pages d'atterrissage « Vendez votre {catégorie} à {ville} »
 RewriteRule ^vendre/([A-Za-z0-9-]+)(/[A-Za-z0-9-]+)?/?$ seo.php [L,QSA]
 RewriteRule ^sitemap\.xml$ seo.php [L]
+# « À propos » — 19/09/2026. DOIT RESTER AVANT la redirection vers le dièse
+# (plus bas) : c'est elle qui interceptait cette adresse, et le Patron a tapé
+# son nom dans Google sans rien trouver pendant des semaines à cause de ça.
+# `a-propos` a donc été RETIRÉ de la liste de cette redirection ; les deux
+# changements vont ensemble, l'un sans l'autre ne sert à rien.
+RewriteRule ^a-propos/?$ seo.php [L,QSA]
 
 # Les liens qui ouvrent l'application (liens universels iOS, App Links Android) :
 # le téléphone lit ici que chap.ci reconnaît l'application ci.chap.app. seo.php
@@ -47,7 +53,18 @@ RewriteRule ^([A-Za-z0-9]{8,64})\.txt$ seo.php [L]
 #
 # ⚠️ Le drapeau NE (noescape) est INDISPENSABLE : sans lui, Apache encode le
 # dièse en %23 et redirige vers /%23/aide, qui ne mène nulle part.
-RewriteRule ^(suppression-compte|confidentialite|conditions|aide|faq|contact|a-propos|plan-du-site|publicite|don|explorer|publier)/?$ /#/$1 [R=301,NE,L]
+# ⚠️ `a-propos` A ÉTÉ RETIRÉ DE CETTE LISTE LE 19/09/2026, et c'est le cœur du
+# problème qu'on corrige ce jour-là. Cette redirection envoyait /a-propos vers
+# /#/a-propos — c'est-à-dire derrière le dièse, là où AUCUN robot ne peut lire
+# quoi que ce soit, puisque tout ce qui suit le dièse reste dans le navigateur
+# et n'arrive jamais au serveur. Résultat : le Patron cherchait son nom dans
+# Google et ne trouvait rien, alors que la page existait.
+#
+# `/a-propos` part maintenant vers seo.php (règle plus haut), qui en rend une
+# vraie version indexable portant les fondateurs en JSON-LD. Les autres
+# adresses restent ici : elles n'ont pas de version serveur, et les envoyer à
+# l'application est ce qu'on peut faire de mieux pour elles.
+RewriteRule ^(suppression-compte|confidentialite|conditions|aide|faq|contact|plan-du-site|publicite|don|explorer|publier)/?$ /#/$1 [R=301,NE,L]
 
 # --- L'application (SPA) et sa page d'accueil --------------------------------
 # index.html SEUL. La racine du site est une application statique : aucun
