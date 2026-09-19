@@ -4,10 +4,10 @@ Quand chaque chose a été faite. **Ce document se génère** : `npm run registr
 
 | | |
 |---|---|
-| Période couverte | du Samedi 11 juillet 2026 au Vendredi 18 septembre 2026 |
-| Livraisons | 902 |
-| Jours travaillés | 69 |
-| Dernière mise à jour | Vendredi 18 septembre 2026, 17:45 (Abidjan) |
+| Période couverte | du Samedi 11 juillet 2026 au Samedi 19 septembre 2026 |
+| Livraisons | 904 |
+| Jours travaillés | 70 |
+| Dernière mise à jour | Samedi 19 septembre 2026, 09:43 (Abidjan) |
 
 **Les heures sont celles d’Abidjan** (UTC+0, sans heure d’été) — c’est le
 calendrier du site. L’heure du Patron est donnée à côté, calculée pour
@@ -45,13 +45,20 @@ ici même — `npm run registre` ne touche jamais cette section.
 
 <!-- DÉBUT REGISTRE AUTOMATIQUE — ne rien écrire entre ces deux marques -->
 
+### Samedi 19 septembre 2026
+
+**1 livraison(s)** · Abidjan 09:43 → 09:43 · chez le Patron 11:43 → 11:43 · amplitude —
+
+- `09:43` · Sept textes étaient à la moitié du seuil de lisibilité — au soleil, ils n'existaient pas  <sub>`9e23c4e`</sub>
+
 ### Vendredi 18 septembre 2026
 
-**3 livraison(s)** · Abidjan 12:17 → 17:44 · chez le Patron 14:17 → 19:44 · amplitude 5 h 27
+**4 livraison(s)** · Abidjan 12:17 → 17:45 · chez le Patron 14:17 → 19:45 · amplitude 5 h 27
 
 - `12:17` · Un 403 de l'anti-robot n'est pas un cache — la leçon écrite hier aurait empiré la panne  <sub>`7b8e109`</sub>
 - `12:18` · Registre d'activité régénéré — 900 livraisons sur 69 jours  <sub>`b25f1c4`</sub>
 - `17:44` · Une adresse de vendeur inventée fabriquait une page indexable pour quelqu'un qui n'existe pas  <sub>`bfd67b2`</sub>
+- `17:45` · Registre d'activité régénéré — 902 livraisons sur 69 jours  <sub>`ff9ec6d`</sub>
 
 ### Jeudi 17 septembre 2026
 
