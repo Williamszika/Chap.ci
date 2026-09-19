@@ -1,76 +1,54 @@
-CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 35
+CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 36
 ===============================================================================
 
-VOTRE PAGE « CONFIDENTIALITÉ » PROMETTAIT UNE CHOSE QUE LE SITE NE FAIT PLUS.
+VOTRE NOM APPARAÎT MAINTENANT DANS LES MENTIONS LÉGALES.
 
 
-CE QUI S'EST PASSÉ
-------------------
-Le 1er août, votre politique de confidentialité a été écrite. Elle disait, en
-gras, que les photos ajoutées à une annonce sont examinées « entièrement sur
-votre appareil » et que la photo « n'est transmise à aucun service extérieur ».
+CE QUI CHANGE
+-------------
+Votre page « Conditions générales », section 2, affichait jusqu'ici :
 
-C'ÉTAIT VRAI CE JOUR-LÀ.
+    Éditeur du service : Chap.ci, Côte d'Ivoire.
 
-Le 4 septembre, pour alléger le site sur les forfaits ivoiriens, ce contrôle
-des photos a été déplacé sur le serveur — donc vers un prestataire extérieur —
-et ajouté à l'application, qui n'en avait aucun.
+C'est-à-dire le nom du site à la place du nom de la personne qui le publie.
+La loi ivoirienne n° 2013-546 demande une identification — un nom de domaine
+n'en est pas une. Le point était ouvert depuis le 26 juillet : il fallait que
+vous choisissiez entre votre nom personnel et une société, et vous seul
+pouviez le faire.
 
-Le programme a changé. La page, elle, a continué d'annoncer le contraire.
-Pendant QUINZE JOURS. C'est la page que Google Play exige exacte, et celle que
-la loi ivoirienne oppose à vous en cas de réclamation.
+Vous avez choisi votre nom. La page affiche désormais :
 
-
-CE QUI N'EST PAS ARRIVÉ — LISEZ CECI AVANT DE VOUS INQUIÉTER
--------------------------------------------------------------
-AUCUNE PHOTO DE VOS UTILISATEURS N'EST PARTIE NULLE PART.
-
-Le moteur d'analyse d'images n'est pas allumé chez vous : la clé n'est pas
-renseignée. Je l'ai vérifié aujourd'hui sur votre serveur, il répond bien
-« pas disponible ». Le problème était donc le TEXTE, pas une fuite.
-
-Le danger était pour le jour où vous allumeriez ce moteur — ce qui se fait
-d'un réglage, sans qu'une ligne de programme bouge. Ce jour-là, votre page
-aurait menti pour de bon, sans que personne ne s'en aperçoive.
+    Éditeur du service : Zika BI ABRAHAM, Côte d'Ivoire.
 
 
-CE QUI, EN REVANCHE, EST VRAI AUJOURD'HUI ET QUE VOUS DEVEZ SAVOIR
-------------------------------------------------------------------
-⚠️ DANS L'APPLICATION, LES PHOTOS NE SONT CONTRÔLÉES PAR RIEN.
+⚠️ TROIS CHOSES À SAVOIR AVANT D'EXTRAIRE
+------------------------------------------
+1. VOTRE NOM DEVIENT PUBLIC. Il sera lisible par n'importe qui à l'adresse
+   https://chap.ci/#/conditions, et les moteurs de recherche le liront. C'est
+   précisément ce que la loi demande d'un éditeur qui publie en son nom
+   propre — mais il faut le savoir avant, pas le découvrir après.
 
-Le site, lui, garde son contrôle qui tourne dans le téléphone du vendeur.
-Mais l'application n'a pas ce programme : elle comptait sur le serveur, qui
-est éteint. Une photo publiée depuis l'application ne passe donc devant aucun
-filtre automatique — seulement devant votre modération et les signalements.
+2. J'AI GARDÉ VOTRE ORTHOGRAPHE EXACTE : « Zika BI ABRAHAM », avec BI et
+   ABRAHAM en capitales, comme vous me l'avez écrit. Si vous préférez
+   « Zika Bi Abraham », dites-le, c'est un mot à changer.
 
-Votre page promettait l'inverse. Elle le dit maintenant honnêtement.
-
-Si vous voulez fermer ce trou, c'est un réglage à ajouter dans api/config.php
-et une clé à obtenir. Dites-le-moi et je vous guide pas à pas. Ce n'est pas
-urgent tant que le volume reste celui d'aujourd'hui, mais c'est à savoir.
-
-
-CE QUI CHANGE DANS LE TEXTE
----------------------------
-  · le paragraphe sur les photos décrit les deux cas réels, et dit clairement
-    quand la photo N'EST PAS examinée, au lieu de le promettre ;
-  · « Chap.ci écrit l'annonce » est déclaré : ce bouton envoie la photo au
-    même prestataire, et ce n'était écrit nulle part ;
-  · le prestataire est NOMMÉ dans la liste des destinataires. La loi demande
-    qu'on sache à qui les données vont, pas seulement qu'elles partent ;
-  · la phrase « vos photos ne quittent pas la Côte d'Ivoire » est corrigée :
-    elle était absolue, et un simple réglage suffisait à la démentir.
-
-L'application affiche cette page du site telle quelle : la correction couvre
-les deux d'un coup, sans nouvelle version à publier sur le Play Store.
+3. VOTRE ADRESSE N'EST PAS RENSEIGNÉE. La page dit « Côte d'Ivoire » sans
+   plus de précision. Pour un éditeur qui publie en son nom propre, une
+   adresse est normalement attendue. Je ne l'ai pas mise parce que c'est un
+   choix qui vous appartient — celle d'Abidjan, ou celle où vous vivez.
+   Dites-moi laquelle et je l'ajoute.
 
 
-⚖️ CE QUE VOUS DEVEZ FAIRE FAIRE
---------------------------------
-Ce texte est un texte de loi. Je l'ai rendu EXACT — il décrit maintenant ce
-que fait réellement votre site. Je ne suis pas juriste et je ne rends pas
-d'avis juridique : faites-le relire par un juriste humain avant d'en faire
-un engagement définitif.
+CE QUI N'A PAS CHANGÉ, ET POURQUOI
+-----------------------------------
+Trois champs voisins restent vides : le RCCM (registre du commerce), le
+numéro de compte contribuable, et le siège social. Ce n'est pas un oubli :
+ces trois-là n'existent que pour une société. Vous publiez en votre nom, donc
+ils n'ont pas de valeur à afficher — et une page qui annoncerait un numéro de
+registre introuvable serait pire que muette.
+
+Le jour où vous créerez une société, ces quatre champs se remplissent
+ensemble, jamais l'un sans les autres.
 
 
 OÙ EXTRAIRE
@@ -88,7 +66,7 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          0fdcc438d521   <- le site, CHANGE
+  empreinteSite  doit devenir          2ca3049a8583   <- le site, CHANGE
   empreinteSeo   doit RESTER           2229085e1295   <- inchangé
   fichiersInattendus                   0
   fcm                                  true
@@ -105,40 +83,16 @@ Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
 LA VÉRIFICATION À L'ŒIL NU
 --------------------------
-Ouvrez https://chap.ci/confidentialite et descendez jusqu'au cadre
-« Analyse automatique des photos ». Il ne doit plus contenir les mots
-« entièrement sur votre appareil ». Juste en dessous, un second cadre parle
-de « Chap.ci écrit l'annonce » : il est nouveau.
-
-
-L'ARTCI — VOTRE RÉPONSE, NOTÉE
-------------------------------
-La déclaration du traitement de vos données auprès de l'ARTCI n'est PAS faite.
-Vous avez choisi de vous en occuper plus tard : c'est noté, et ce n'est pas un
-oubli de ma part si je n'y reviens pas d'ici là.
-
-À savoir en attendant : votre page annonce elle-même que Chap.ci est soumis à
-ces formalités. Tant que la déclaration n'est pas faite, la page promet donc
-une démarche qui n'a pas eu lieu. Ce n'est pas urgent au volume d'aujourd'hui,
-mais ça reste un écart entre ce qui est écrit et ce qui est fait — le même
-genre d'écart que ce zip vient corriger.
-
-Quand vous voudrez ouvrir ce chantier, dites-le-moi : je vous prépare la
-démarche étape par étape.
+Ouvrez https://chap.ci/#/conditions et descendez à la section 2, « Mentions
+légales ». La première ligne doit porter votre nom.
 
 
 CE QUI RESTE
 ------------
-1. LE COUP DE FIL au vendeur de Treichville. Votre catalogue a bougé deux fois
-   cette semaine après dix jours figés.
+1. LE COUP DE FIL au vendeur de Treichville.
 2. Le ticket à votre hébergeur pour débloquer le robot de ChatGPT.
 3. La ligne 187 du .htaccess, à la main. Toujours sans urgence.
-4. La relecture de la page confidentialité par un juriste humain — vous avez dit
-   oui, c'est à faire faire de votre côté.
+4. La relecture de la page confidentialité par un juriste humain.
 5. La déclaration ARTCI, quand vous ouvrirez ce chantier.
-6. Le prochain AAB, code 29, quand vous voudrez.
-
-RAYÉ DE LA LISTE : les liens cassés. Les 94 liens internes écrits dans le site
-mènent tous vers une page qui existe — vérifié ce matin, et la vérification
-sait signaler un lien mort, je le lui ai fait trouver exprès. Restent hors de
-portée : les liens vers d'AUTRES sites, qu'il faudrait appeler un par un.
+6. Votre adresse dans les mentions légales, si vous voulez l'y mettre.
+7. Le prochain AAB, code 29, quand vous voudrez.
