@@ -1,31 +1,6 @@
 ════════════════════════════════════════════════════════════════════
- CHAP.CI — TEXTES DE LA FICHE GOOGLE PLAY   (révision du 19/09/2026)
+ CHAP.CI — TEXTES DE LA FICHE GOOGLE PLAY   (révision du 27/07/2026)
 ════════════════════════════════════════════════════════════════════
-
-⚠️ RÉVISION DU 19/09/2026 — UNE PROMESSE RETIRÉE, ET POURQUOI.
-
-   La fiche annonçait : « Ajoutez une photo : une description vous est
-   proposée automatiquement », suivi de « Tout cela fonctionne sur votre
-   téléphone, sans envoyer vos photos ailleurs ».
-
-   C'ÉTAIT VRAI LE 27/07. La reconnaissance d'objet tournait sur le
-   téléphone (src/lib/vision.ts, MobileNet, né le 23/07). Deux choses
-   l'ont défait :
-
-   · le 03/09, « Chap.ci écrit l'annonce » a ajouté un SECOND chemin pour
-     la même promesse — distant celui-là : la photo part au serveur, puis
-     au prestataire d'analyse d'images. La phrase « sans envoyer vos
-     photos ailleurs » devient fausse le jour où `vision_cle` est
-     renseignée, sans qu'une ligne de code ait bougé ;
-   · et surtout, CETTE FICHE DÉCRIT L'APPLICATION. L'application n'embarque
-     aucun modèle local : moteur éteint, elle ne propose AUCUNE description
-     à partir d'une photo. La promesse était donc déjà morte, aujourd'hui,
-     sur la fiche que Google lit.
-
-   La puce est retirée plutôt que réécrite : une fiche de boutique ne
-   promet pas ce qui n'arrive pas. Le jour où `vision_cle` sera activée,
-   la fonction devient réelle et la puce peut revenir — accompagnée de la
-   déclaration du prestataire, pas de « sans envoyer vos photos ailleurs ».
 
 ⚠️ CETTE VERSION REMPLACE CELLE DU 21/07.
    L'ancienne annonçait « des milliers d'annonces » et « des milliers
@@ -48,7 +23,7 @@ BRÈVE DESCRIPTION (79 / 80 caractères)
 Achetez et vendez chap-chap partout en Côte d'Ivoire. Gratuit, sans commission.
 
 ────────────────────────────────────────────────────────────────────
-DESCRIPTION COMPLÈTE (1 820 / 4 000 caractères — mesuré le 19/09/2026)
+DESCRIPTION COMPLÈTE (1 740 / 4 000 caractères)
 ────────────────────────────────────────────────────────────────────
 Chap.ci est la place de marché ivoirienne pour acheter et vendre chap-chap, partout en Côte d'Ivoire.
 
@@ -61,8 +36,9 @@ VENDRE EST GRATUIT, ET LE RESTE
 
 UNE APPLICATION QUI VOUS AIDE À PUBLIER
 • Tapez le nom de votre article : la catégorie se remplit toute seule.
+• Ajoutez une photo : une description vous est proposée automatiquement.
 • Votre commune est reconnue si vous l'autorisez.
-Cela fonctionne sur votre téléphone, sans rien envoyer ailleurs.
+Tout cela fonctionne sur votre téléphone, sans envoyer vos photos ailleurs.
 
 VOTRE NUMÉRO RESTE PRIVÉ
 Il n'apparaît jamais sur votre annonce. Les acheteurs passent par la messagerie de Chap.ci. Vous décidez à qui vous le donnez, et quand.
