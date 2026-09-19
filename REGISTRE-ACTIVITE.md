@@ -45,6 +45,9 @@ ici même — `npm run registre` ne touche jamais cette section.
 | 19/09/2026 | Zip n° 37 extrait — `empreinteSite` `137835d4d96c`, `empreinteSeo` `d104d660fe33`. La page des fondateurs est déployée… mais encore injoignable, le `.htaccess` la renvoyant derrière le dièse |
 | 19/09/2026 | **`.htaccess` racine édité à la main**, trois changements : route `/a-propos` vers `seo.php`, retrait d’`a-propos` de la redirection au dièse, et les deux lignes des liens universels remises (absentes depuis le 02/08). **Vérifié** : `https://chap.ci/a-propos` répond 200 à Googlebot, sans redirection |
 | 19/09/2026 | Zip n° 38 extrait — `empreinte` `c583a928951a` (l’API change cette fois), `empreinteSite` `1681de23ac98`. Le bouton « Signaler les pages à Bing » est en ligne |
+| 19/09/2026 | **PANNE — site entier en erreur 500.** Les trois modifications du `.htaccess` tapées à la main à 14 h 02 ont coupé la racine du site ; aucune sauvegarde n'avait été faite. Sans `.htaccess`, `DirectoryIndex index.html` disparaît et le serveur sert l'`index.php` de 280 Ko qui traîne à la racine depuis le 20/07 — d'où un 500 au corps vide, pendant que `/assets/…` répondait 200 |
+| 19/09/2026 | **Rétabli** en remplaçant le fichier entier (téléversé puis renommé en `.htaccess`), au lieu de le retaper. **Vérifié** : accueil en ligne, et `https://chap.ci/a-propos` répond 200 à Googlebot avec les deux fondateurs |
+| 19/09/2026 | Bouton « Signaler les pages à Bing » utilisé : l'accueil et `/a-propos` signalés à Bing, Yandex et Seznam, envoi **accepté** |
 
 ---
 
