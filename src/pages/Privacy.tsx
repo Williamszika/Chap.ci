@@ -158,19 +158,49 @@ export function Privacy() {
                 <b>ne vendons pas</b> vos données personnelles. Les coordonnées des vendeurs ne sont pas
                 affichées publiquement : les échanges passent par la messagerie de l’application.
               </p>
-              {/* Google Play exige que tout traitement automatise du contenu utilisateur soit
-                  annonce dans la politique de confidentialite. L'analyse est locale : c'est
-                  precisement ce qui la rend acceptable, donc c'est ce qu'il faut dire en premier. */}
+              {/* Google Play exige que tout traitement automatisé du contenu utilisateur soit
+                  annoncé dans la politique de confidentialité.
+
+                  ⚠️ CE PARAGRAPHE A ÉTÉ VRAI, PUIS FAUX PENDANT QUINZE JOURS. Écrit le
+                  01/08/2026, quand l'analyse était purement locale. Le 04/09/2026, le
+                  chantier « le poids sur 3G » a déplacé le contrôle sur le serveur —
+                  `controlerPhotosServeur()` d'abord, le modèle de 5,4 Mo en repli — et
+                  ajouté un contrôle à l'application, qui n'en avait aucun. Le code a
+                  changé sous le texte ; le texte, lui, continuait d'annoncer « entièrement
+                  sur votre appareil ». Un texte publié ne se met pas à jour tout seul.
+
+                  Il est donc réécrit pour rester vrai dans les QUATRE cas, et pas
+                  seulement dans celui du jour :
+
+                    · site,        moteur éteint → modèle local, sur l'appareil ;
+                    · site,        moteur allumé → photo envoyée au serveur, puis au prestataire ;
+                    · application, moteur éteint → AUCUN contrôle (pas de modèle local dans l'app) ;
+                    · application, moteur allumé → photo envoyée au serveur, puis au prestataire.
+
+                  Le moteur est éteint aujourd'hui (`vision_cle` absente ; /api/annonce/deviner
+                  répond `disponible:false` le 19/09/2026). Mais il s'allume d'un réglage
+                  dans api/config.php : un texte qui ne décrirait que l'état du jour
+                  redeviendrait faux sans qu'une seule ligne de code ait bougé. C'est
+                  exactement ce qui vient de se produire — ne le refaisons pas. */}
               <p className="mt-3 rounded-xl border border-line bg-cream-100/60 p-3">
-                <b>Analyse automatique des photos, sur votre téléphone.</b> Lorsque vous ajoutez une photo à
-                une annonce, elle est examinée par un programme de reconnaissance d’images afin d’écarter les
-                contenus à caractère sexuel, que nos règles interdisent. Cet examen a lieu{' '}
-                <b>entièrement sur votre appareil</b>, avant tout envoi : la photo n’est transmise à aucun
-                service extérieur pour être analysée, aucun résultat d’analyse n’est conservé, et rien n’en
-                est déduit sur vous. Si une photo est écartée, vous en êtes informé immédiatement et vous
-                pouvez en choisir une autre. Le programme de reconnaissance est <b>livré avec
-                l’application</b> : il ne va rien chercher sur Internet, et il fonctionne même hors
-                connexion.
+                <b>Analyse automatique des photos.</b> Lorsque vous ajoutez une photo à une annonce, elle
+                peut être examinée par un programme de reconnaissance d’images, afin d’écarter les contenus
+                à caractère sexuel que nos règles interdisent. Cet examen a lieu de deux façons selon les
+                cas : <b>sur votre appareil</b>, par un programme livré avec le site, qui n’envoie la photo
+                nulle part ; ou <b>sur notre serveur</b>, qui transmet alors la photo, réduite, à notre
+                prestataire d’analyse d’images (nommé à la section 5). Dans l’application mobile, cet
+                examen est fait par notre serveur uniquement : <b>lorsqu’il n’est pas disponible, la photo
+                n’est pas examinée automatiquement</b>, et le contrôle repose alors sur notre modération et
+                sur vos signalements. Dans tous les cas, <b>aucun résultat d’analyse n’est conservé</b>, et
+                rien n’en est déduit sur vous. Si une photo est écartée, vous en êtes informé immédiatement
+                et vous pouvez en choisir une autre.
+              </p>
+              <p className="mt-2 rounded-xl border border-line bg-cream-100/60 p-3">
+                <b>« Chap.ci écrit l’annonce ».</b> Si — et seulement si — vous appuyez sur ce bouton, la
+                photo que vous avez choisie est transmise, réduite, au même prestataire d’analyse d’images,
+                pour vous proposer un titre, une description et une catégorie. Vous restez libre de tout
+                modifier avant de publier, et <b>sans ce geste de votre part, aucune photo n’est envoyée
+                pour cet usage</b>.
               </p>
             </Section>
 
@@ -206,13 +236,34 @@ export function Privacy() {
                   ni votre nom, ni votre compte, ni vos annonces.
                 </li>
                 <li><b>Service d’emailing</b> : envoi éventuel de la newsletter et des emails du site (si vous y consentez).</li>
+                {/* Ajouté le 19/09/2026. Ce prestataire reçoit une PHOTO — la donnée la
+                    plus parlante que nous manipulions — et il ne figurait nulle part,
+                    alors que le paragraphe voisin jurait que la photo « n'est transmise à
+                    aucun service extérieur ». Le même raisonnement que pour les quatre
+                    services de géolocalisation ci-dessus s'applique, en plus fort. */}
+                <li>
+                  <b>Analyse d’images</b> (<b>Anthropic</b>, États-Unis) : reçoit la photo, réduite, dans
+                  deux cas seulement — le contrôle anti-nudité décrit à la section 3 lorsqu’il est fait par
+                  notre serveur, et « Chap.ci écrit l’annonce » si vous utilisez ce bouton. Il reçoit la
+                  photo et rien d’autre : ni votre nom, ni votre compte, ni vos coordonnées. Nous ne lui
+                  transmettons aucune donnée permettant de vous identifier, et nous ne conservons pas le
+                  résultat de son analyse.{' '}
+                  <i>Ce service n’est pas actif aujourd’hui : aucune photo n’est envoyée.</i>
+                </li>
               </ul>
               <p className="mt-2">
                 Ces transferts vers des pays tiers sont limités à ce qui est indispensable au
                 fonctionnement du service, et réalisés dans le respect des conditions prévues par la loi
                 n° 2013-450 (niveau de protection suffisant et, le cas échéant, autorisation de l’ARTCI).
-                <b> Vos données de compte, vos annonces, vos photos et vos messages, eux, ne quittent pas
-                la Côte d’Ivoire.</b>
+                {/* 19/09/2026 — cette phrase disait « vos photos […] ne quittent pas la
+                    Côte d'Ivoire », sans réserve. Elle est vraie aujourd'hui (le moteur
+                    d'analyse est éteint) et deviendrait fausse le jour où on l'allume,
+                    dans les deux cas nommés plus haut. Une promesse catégorique qu'un
+                    réglage suffit à démentir n'est pas une promesse qu'on peut publier. */}
+                <b> Vos données de compte, vos annonces et vos messages ne quittent pas la Côte d’Ivoire.
+                Vos photos non plus</b>, à la seule exception de l’analyse d’images décrite ci-dessus —
+                contrôle anti-nudité fait par notre serveur, et « Chap.ci écrit l’annonce » si vous
+                l’utilisez.
               </p>
             </Section>
 

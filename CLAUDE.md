@@ -36,6 +36,7 @@ npm run banc:catalogue # le plafond des 500 annonces : 520 en base, l'ancien app
 npm run banc:push-natif # le téléphone que l'application enregistre (FCM) — inerte sans api/data/fcm.json
 npm run banc:vignettes # la vignette de grille : 360 px à l'envoi, les anciennes refaites par le cron
 npm run apercu:cookies # le bandeau cookies en image : barre + panneau, téléphone et ordinateur
+npm run banc:confidentialite # la politique de confidentialité contre le code : ce qu'elle promet des photos
 npm run registre   # REGISTRE-ACTIVITE.md : quand chaque chose a été livrée, lu dans git
 php8.5 -l server/index.php   # le back se vérifie avec le linter PHP, il n'a pas de tests
 ```
@@ -121,6 +122,38 @@ suppression passent par `compta_clos()` avant d'écrire.
 
 **Les administrateurs se créent par l'interface**, jamais par une insertion en base :
 l'alerte d'intégrité `admins_tampered` se déclenche sinon.
+
+---
+
+## Les textes publiés sont des promesses
+
+La politique de confidentialité, les CGU et les pages d'aide **décrivent le code**. Quand le
+code change, elles deviennent fausses **en silence** : rien ne casse, aucun banc ne rougit,
+et la page continue d'affirmer le contraire de ce que fait le programme.
+
+C'est arrivé. Le 01/08/2026, la politique annonçait que l'analyse anti-nudité des photos avait
+lieu « entièrement sur votre appareil » et que la photo « n'est transmise à aucun service
+extérieur ». **C'était vrai ce jour-là.** Le 04/09/2026, le chantier « le poids sur 3G » a
+déplacé ce contrôle sur le serveur — qui envoie la photo à un prestataire — et l'a ajouté à
+l'application, qui n'en avait aucun. Le texte, lui, n'a pas bougé : **quinze jours**, sur une
+page publique que Google Play exige exacte, et que la loi n° 2013-450 oppose à Chap.ci.
+
+⚠️ **Un écart pareil se signale mal.** ⚖️ Le Juriste l'a bien rapporté — daté du 01/09, trois
+jours AVANT que l'écart n'existe, et pour la mauvaise raison : il croyait l'application
+dépourvue de tout filtre, quand le filtre est là et qu'il est **distant**. Un signalement juste
+par accident ne protège de rien : vérifiez le fait avant d'agir sur le remède.
+
+**Règle : tout chantier qui change où vont les données de quelqu'un — photo, position, message,
+numéro — se termine dans `src/pages/Privacy.tsx`, pas seulement dans le code.**
+`npm run banc:confidentialite` confronte les deux et refuse l'écart.
+
+**Écrivez ces textes pour l'état ALLUMÉ, pas pour celui du jour.** Le moteur de vision est
+éteint aujourd'hui (`vision_cle` absente) : la photo ne part nulle part. Il s'allume d'un
+réglage dans `api/config.php`, sans qu'une ligne de code bouge — et un texte qui ne décrirait
+que l'état éteint redeviendrait faux ce jour-là, sans que personne ne l'ait touché.
+
+**Un texte de loi se fait relire par un juriste humain avant publication.** Ce dépôt corrige
+ce qui est factuellement faux ; il ne rend pas d'avis juridique.
 
 ---
 

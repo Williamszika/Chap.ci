@@ -45,7 +45,8 @@
     "banc:vendre": "node scripts/banc-vendre.mjs",
     "banc:pro-abonnement": "node scripts/banc-pro-abonnement.mjs",
     "banc:classes": "node scripts/banc-classes.mjs",
-    "banc:liens": "node scripts/banc-liens.mjs"
+    "banc:liens": "node scripts/banc-liens.mjs",
+    "banc:confidentialite": "node scripts/banc-confidentialite.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.3",
