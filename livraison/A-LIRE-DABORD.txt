@@ -1,54 +1,98 @@
-CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 36
+CHAP.CI — ZIP DU 19 SEPTEMBRE 2026, n° 37
 ===============================================================================
 
-VOTRE NOM APPARAÎT MAINTENANT DANS LES MENTIONS LÉGALES.
+VOUS ET VENCESLAS ÊTES MAINTENANT LES FONDATEURS DE CHAP.CI,
+ET GOOGLE A ENFIN UNE PAGE À LIRE.
+
+
+POURQUOI VOTRE NOM NE SORTAIT PAS DANS GOOGLE
+----------------------------------------------
+Ce n'était pas une question de patience. Votre nom était INTROUVABLE, et il
+le serait resté dans six mois.
+
+J'ai mesuré avant de toucher à quoi que ce soit. En me faisant passer pour le
+robot de Google, voici ce que votre site répondait :
+
+    /a-propos          renvoyé à l'accueil
+    /conditions        renvoyé à l'accueil
+    /confidentialite   renvoyé à l'accueil
+    /vendre/maison     vraie page
+
+Deux causes, qui s'additionnaient.
+
+1. LE SIGNE # DANS VOS ADRESSES. Vos pages s'écrivent
+   https://chap.ci/#/a-propos. Tout ce qui suit le # reste DANS le navigateur
+   et n'arrive jamais jusqu'à votre serveur. Google, lui, ne voit que
+   https://chap.ci/ — la page d'accueil, et rien d'autre. Pour lui, votre page
+   « À propos » n'avait pas d'adresse du tout.
+
+2. VOTRE SERVEUR NE CONNAISSAIT QUE CINQ SORTES D'ADRESSES : les annonces, les
+   vendeurs, les pages « Vendez à … », et deux fichiers techniques. Tout le
+   reste repartait à l'accueil.
+
+Autrement dit : il n'y avait aucune porte par laquelle Google pouvait entrer
+pour lire votre nom.
 
 
 CE QUI CHANGE
 -------------
-Votre page « Conditions générales », section 2, affichait jusqu'ici :
+Il y a maintenant une vraie page, à une vraie adresse, SANS le # :
 
-    Éditeur du service : Chap.ci, Côte d'Ivoire.
+    https://chap.ci/a-propos
 
-C'est-à-dire le nom du site à la place du nom de la personne qui le publie.
-La loi ivoirienne n° 2013-546 demande une identification — un nom de domaine
-n'en est pas une. Le point était ouvert depuis le 26 juillet : il fallait que
-vous choisissiez entre votre nom personnel et une société, et vous seul
-pouviez le faire.
+Elle porte vos deux noms, et elle est servie à l'identique aux robots et aux
+visiteurs — ce qui compte, parce que montrer une chose à Google et une autre
+aux gens est une faute lourde qu'il punit.
 
-Vous avez choisi votre nom. La page affiche désormais :
+⚠️ CE QUI FAIT VRAIMENT LE TRAVAIL N'EST PAS LE TEXTE. La page contient un
+bloc de données invisible qui DIT à Google, dans son langage : « cette
+entreprise s'appelle Chap.ci, et elle a deux fondateurs, qui s'appellent … ».
+Un nom noyé dans un paragraphe, Google le lit. Un nom déclaré ainsi, il le
+comprend, et il peut le relier à vous.
 
-    Éditeur du service : Zika BI ABRAHAM, Côte d'Ivoire.
-
-
-⚠️ TROIS CHOSES À SAVOIR AVANT D'EXTRAIRE
-------------------------------------------
-1. VOTRE NOM DEVIENT PUBLIC. Il sera lisible par n'importe qui à l'adresse
-   https://chap.ci/#/conditions, et les moteurs de recherche le liront. C'est
-   précisément ce que la loi demande d'un éditeur qui publie en son nom
-   propre — mais il faut le savoir avant, pas le découvrir après.
-
-2. J'AI GARDÉ VOTRE ORTHOGRAPHE EXACTE : « Zika BI ABRAHAM », avec BI et
-   ABRAHAM en capitales, comme vous me l'avez écrit. Si vous préférez
-   « Zika Bi Abraham », dites-le, c'est un mot à changer.
-
-3. VOTRE ADRESSE N'EST PAS RENSEIGNÉE. La page dit « Côte d'Ivoire » sans
-   plus de précision. Pour un éditeur qui publie en son nom propre, une
-   adresse est normalement attendue. Je ne l'ai pas mise parce que c'est un
-   choix qui vous appartient — celle d'Abidjan, ou celle où vous vivez.
-   Dites-moi laquelle et je l'ajoute.
+L'adresse est aussi entrée dans votre plan de site, sinon la page existerait
+sans que personne ne sache aller la chercher.
 
 
-CE QUI N'A PAS CHANGÉ, ET POURQUOI
------------------------------------
-Trois champs voisins restent vides : le RCCM (registre du commerce), le
-numéro de compte contribuable, et le siège social. Ce n'est pas un oubli :
-ces trois-là n'existent que pour une société. Vous publiez en votre nom, donc
-ils n'ont pas de valeur à afficher — et une page qui annoncerait un numéro de
-registre introuvable serait pire que muette.
+⚠️ CE QUE JE NE VOUS PROMETS PAS
+---------------------------------
+Que vous sortiez en PREMIER quand on tape votre nom.
 
-Le jour où vous créerez une société, ces quatre champs se remplissent
-ensemble, jamais l'un sans les autres.
+Exister dans Google et arriver en tête sont deux choses différentes. La
+deuxième dépend de qui d'autre porte un nom proche du vôtre et de la
+réputation de votre domaine — rien de tout cela ne se règle dans un fichier.
+
+Ce que ce zip garantit, c'est qu'il y a désormais QUELQUE CHOSE À TROUVER.
+Ce n'était pas le cas ce matin.
+
+Comptez plusieurs jours, voire quelques semaines, avant que Google passe.
+Vous pouvez accélérer en déposant l'adresse dans Google Search Console —
+dites-le-moi et je vous guide clic par clic.
+
+
+L'ORTHOGRAPHE — À VÉRIFIER AVANT D'EXTRAIRE
+--------------------------------------------
+Vous m'avez écrit « Vanceslas ». Le pacte de fondateurs, lui, écrit :
+
+    GUIBE Goze Ange Venceslas          (avec un E : Ven-ces-las)
+
+J'ai retenu celle du document. SI C'EST L'AUTRE, DITES-LE AVANT D'EXTRAIRE :
+un nom de personne ne se corrige pas « plus tard ».
+
+Votre nom, lui, passe de « Zika BI ABRAHAM » à « Zika Bi Abraham ». En
+capitales, le I de BI se lisait comme un petit L à l'écran — sur un nom
+d'éditeur, dont le rôle est justement d'identifier quelqu'un, c'était gênant.
+
+
+LES PHOTOS
+----------
+La place est prête. En attendant, chaque fondateur a ses initiales dans un
+rond orange — jamais une image cassée.
+
+Quand vous voudrez les ajouter, envoyez-les-moi ainsi :
+  · CARRÉES (même largeur que hauteur), 400 × 400 pixels au moins
+  · le visage bien au centre, il sera découpé en rond
+  · format JPG ou PNG
 
 
 OÙ EXTRAIRE
@@ -66,10 +110,13 @@ APRÈS L'EXTRACTION — LA VÉRIFICATION
 Ouvrez :  https://chap.ci/api/health   (UNE fois)
 
   empreinte      doit RESTER           951188b3cbcf   <- l'API, INCHANGÉE
-  empreinteSite  doit devenir          2ca3049a8583   <- le site, CHANGE
-  empreinteSeo   doit RESTER           2229085e1295   <- inchangé
+  empreinteSite  doit devenir          137835d4d96c   <- le site, CHANGE
+  empreinteSeo   doit devenir          d104d660fe33   <- CHANGE AUSSI cette fois
   fichiersInattendus                   0
   fcm                                  true
+
+⚠️ L'empreinteSeo change, et c'est normal : c'est le fichier qui sert la
+nouvelle page à Google.
 
 ⚠️ UNE SEULE requête sur /api/health, et pas d'enchaînement.
 
@@ -81,10 +128,16 @@ Ouvrez :  https://chap.ci/api/health   (UNE fois)
   3. Rechargez une seconde fois (Cmd+R)
 
 
-LA VÉRIFICATION À L'ŒIL NU
---------------------------
-Ouvrez https://chap.ci/#/conditions et descendez à la section 2, « Mentions
-légales ». La première ligne doit porter votre nom.
+LA VÉRIFICATION À L'ŒIL NU — DEUX ADRESSES DIFFÉRENTES
+-------------------------------------------------------
+1. La page que voient vos visiteurs :   https://chap.ci/#/a-propos
+   Descendez : « Les fondateurs », vos deux noms.
+
+2. LA PAGE QUE VOIT GOOGLE :            https://chap.ci/a-propos
+   (SANS le #). C'est la nouveauté. Elle a une mise en page plus simple —
+   c'est voulu, elle est faite pour être lue par une machine.
+
+Si la deuxième vous renvoie à l'accueil, le zip n'est pas extrait.
 
 
 CE QUI RESTE
@@ -95,4 +148,5 @@ CE QUI RESTE
 4. La relecture de la page confidentialité par un juriste humain.
 5. La déclaration ARTCI, quand vous ouvrirez ce chantier.
 6. Votre adresse dans les mentions légales, si vous voulez l'y mettre.
-7. Le prochain AAB, code 29, quand vous voudrez.
+7. Vos deux photos, quand vous les aurez.
+8. Le prochain AAB, code 29, quand vous voudrez.

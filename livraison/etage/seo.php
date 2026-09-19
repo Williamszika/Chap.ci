@@ -170,6 +170,12 @@ if (preg_match('#/sitemap\.xml$#', $uri)) {
   echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
   // Page d'accueil (les vues internes utilisent #/, non indexables : on les omet).
   echo '  <url><loc>' . h($site . '/') . "</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n";
+  /* « À propos » — la SEULE vue interne qui ait une vraie adresse (19/09/2026).
+   * Les autres (#/conditions, #/confidentialite…) restent derrière le `#` et
+   * n'ont rien à proposer ici. Celle-ci est servie par render_about_page() et
+   * porte les fondateurs en JSON-LD : sans cette ligne, la page existerait
+   * sans que personne ne sache l'aller chercher. */
+  echo '  <url><loc>' . h($site . '/a-propos') . "</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>\n";
   // Pages d'atterrissage SEO « Vendez votre {catégorie} à {ville} » (capte les vendeurs).
   //
   // ⚠️ LE SITEMAP NE PROPOSE PLUS QUE LES PAGES VILLE QUI ONT DU STOCK (16/09/2026).
@@ -297,6 +303,43 @@ if (preg_match('#^/vendre/([a-z0-9-]+)(?:/([a-z0-9-]+))?/?$#', $uri, $mv)) {
   exit;
 }
 
+/* ------------------------------------------------------------------ /a-propos --
+ *
+ * LA PAGE QUI DONNE UNE ADRESSE AUX FONDATEURS (19/09/2026).
+ *
+ * Le Patron a tapé son nom dans Google : rien. C'était inévitable, et pas une
+ * question de délai. Deux causes se cumulaient :
+ *
+ *   1. l'application tourne en HashRouter. Dans `https://chap.ci/#/a-propos`,
+ *      TOUT ce qui suit le `#` reste dans le navigateur et n'arrive jamais au
+ *      serveur. Google ne voit que `https://chap.ci/`. La page « À propos »
+ *      n'avait donc aucune adresse à indexer — le sitemap le dit lui-même plus
+ *      haut : « les vues internes utilisent #/, non indexables : on les omet » ;
+ *   2. ce fichier ne connaissait que cinq formes d'adresses (clé de
+ *      vérification, /.well-known/, /annonce/, /vendeur/, /vendre/). Tout le
+ *      reste tombait dans la redirection ci-dessous. Vérifié en local avant
+ *      d'écrire une ligne : /a-propos, /conditions et /confidentialite
+ *      renvoyaient un 302 vers l'accueil, y compris à Googlebot.
+ *
+ * Cette page-ci est donc la porte qui manquait : une vraie adresse, sans `#`,
+ * servie identiquement aux robots et aux humains (pas de « cloaking »).
+ *
+ * ⚠️ Ce qui fait le travail ici n'est pas le texte, c'est le bloc JSON-LD
+ * `Organization` avec ses deux `founder`. C'est lui qui relie un NOM DE
+ * PERSONNE à Chap.ci dans une forme que Google sait lire. Un nom noyé dans un
+ * paragraphe ne crée pas ce lien.
+ *
+ * ⚠️ ET CE N'EST PAS UNE PROMESSE DE CLASSEMENT. Exister dans l'index et
+ * sortir en tête sur un nom propre sont deux choses différentes : la seconde
+ * dépend de la concurrence sur ce nom et de l'autorité du domaine, que cette
+ * page ne change pas. Ce qu'elle garantit, c'est qu'il y a désormais quelque
+ * chose à trouver — ce qui n'était pas le cas.
+ */
+if (preg_match('#^/a-propos/?$#', $uri)) {
+  render_about_page($site);
+  exit;
+}
+
 // Rien trouvé : on renvoie vers l'app.
 header('Location: ' . $site . '/');
 exit;
@@ -336,6 +379,120 @@ function render_404(string $site, string $titre, string $explication): void {
      . "<a class=\"s\" href=\"$s/#/explorer\">Voir toutes les annonces →</a>\n"
      . "</div>\n</body>\n</html>";
   exit;
+}
+
+/**
+ * LES FONDATEURS — source unique.
+ *
+ * Orthographe reprise du pacte de fondateurs (journal du 21/08/2026). Un nom
+ * de personne ne s'approxime pas : si l'une de ces deux lignes est fausse,
+ * c'est ici qu'on la corrige, et nulle part ailleurs.
+ *
+ * `photo` reste vide tant que les portraits ne sont pas livrés. La page sait
+ * afficher les deux cas : avec photo, ou avec les initiales dans un rond. Une
+ * balise <img> vers un fichier absent ferait un carré cassé sur la page la
+ * plus regardée par ceux qui cherchent qui est derrière Chap.ci.
+ */
+function chapci_fondateurs(): array {
+  return [
+    ['nom' => 'Zika Bi Abraham',          'role' => 'Cofondateur', 'photo' => ''],
+    ['nom' => 'Guibe Goze Ange Venceslas', 'role' => 'Cofondateur', 'photo' => ''],
+  ];
+}
+
+function render_about_page(string $site): void {
+  header('Content-Type: text/html; charset=utf-8');
+  header('Cache-Control: public, max-age=3600');
+  $fondateurs = chapci_fondateurs();
+  $noms  = implode(' et ', array_column($fondateurs, 'nom'));
+  $title = 'À propos de Chap.ci — qui est derrière la marketplace ivoirienne';
+  $desc  = 'Chap.ci est la place de marché 100 % ivoirienne, fondée par ' . $noms
+         . '. Acheter et vendre chap-chap partout en Côte d’Ivoire, sans commission.';
+  $canon = $site . '/a-propos';
+
+  /* Le bloc qui fait réellement le travail : il DIT à Google que ces deux
+   * personnes ont fondé cette organisation. Un nom dans un paragraphe se lit ;
+   * un `founder` se comprend. */
+  $jsonld = [
+    '@context' => 'https://schema.org',
+    '@type' => 'Organization',
+    'name' => 'Chap.ci',
+    'url' => $site . '/',
+    'logo' => $site . '/icons/icon-512.png',
+    'description' => 'Place de marché de petites annonces en Côte d’Ivoire.',
+    'areaServed' => ['@type' => 'Country', 'name' => 'Côte d’Ivoire'],
+    'founder' => array_map(
+      fn(array $f) => array_filter([
+        '@type' => 'Person',
+        'name' => $f['nom'],
+        'jobTitle' => $f['role'],
+        'image' => $f['photo'] !== '' ? $site . $f['photo'] : null,
+      ]),
+      $fondateurs,
+    ),
+  ];
+
+  $t = h($title); $d = h($desc); $c = h($canon); $s = h($site);
+  echo "<!doctype html>\n<html lang=\"fr\">\n<head>\n"
+     . "<meta charset=\"utf-8\">\n"
+     . "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+     . "<title>$t</title>\n"
+     . "<meta name=\"description\" content=\"$d\">\n"
+     . "<link rel=\"canonical\" href=\"$c\">\n"
+     . "<meta property=\"og:type\" content=\"website\">\n"
+     . "<meta property=\"og:title\" content=\"$t\">\n"
+     . "<meta property=\"og:description\" content=\"$d\">\n"
+     . "<meta property=\"og:url\" content=\"$c\">\n"
+     . "<meta property=\"og:image\" content=\"" . h($site . '/og/accueil.png') . "\">\n"
+     . "<meta name=\"twitter:card\" content=\"summary_large_image\">\n"
+     . '<script type="application/ld+json">'
+     . json_encode($jsonld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+     . "</script>\n"
+     . "<style>body{margin:0;font:16px/1.65 system-ui,sans-serif;background:#FFFDF9;color:#1B1A17}"
+     . ".w{max-width:720px;margin:0 auto;padding:40px 20px 56px}"
+     . "h1{font-size:28px;line-height:1.2;margin:0 0 12px}h2{font-size:20px;margin:36px 0 12px}"
+     . "p{color:#44403C;margin:0 0 16px}"
+     . ".f{display:flex;gap:14px;align-items:center;border:1px solid #EADFD0;background:#fff;"
+     . "border-radius:14px;padding:14px;margin:0 0 12px}"
+     . ".av{width:56px;height:56px;border-radius:50%;flex:0 0 56px;object-fit:cover;"
+     . "background:#FFF1E0;color:#B35700;font-weight:700;display:flex;align-items:center;"
+     . "justify-content:center;font-size:18px}"
+     . ".n{font-weight:700;font-size:17px}.r{color:#6B7280;font-size:14px}"
+     . "a.b{display:inline-block;background:#B35700;color:#fff;text-decoration:none;padding:12px 20px;"
+     . "border-radius:12px;font-weight:600;margin:8px 8px 0 0}"
+     . "a.s{color:#00734A}"
+     . "footer{margin-top:40px;color:#6B7280;font-size:14px}</style>\n"
+     . "</head>\n<body>\n<div class=\"w\">\n";
+
+  echo "<h1>À propos de Chap.ci</h1>\n";
+  echo "<p>Chap.ci est la place de marché <strong>100 % ivoirienne</strong> : on y achète et on y "
+     . "vend chap-chap, de Cocody à Korhogo. Publier est gratuit, et il n’y a <strong>aucune "
+     . "commission</strong> sur les ventes — les paiements se règlent entre vous, comme au marché.</p>\n";
+
+  echo "<h2>Les fondateurs</h2>\n";
+  foreach ($fondateurs as $f) {
+    // Initiales : première lettre des deux premiers mots du nom.
+    $mots = preg_split('/\s+/', trim($f['nom']));
+    $ini = mb_strtoupper(mb_substr($mots[0], 0, 1) . (isset($mots[1]) ? mb_substr($mots[1], 0, 1) : ''));
+    $av = $f['photo'] !== ''
+      ? '<img class="av" src="' . h($site . $f['photo']) . '" alt="' . h($f['nom']) . '" width="56" height="56">'
+      : '<div class="av" aria-hidden="true">' . h($ini) . '</div>';
+    echo "<div class=\"f\">$av<div><div class=\"n\">" . h($f['nom']) . "</div>"
+       . "<div class=\"r\">" . h($f['role']) . " de Chap.ci</div></div></div>\n";
+  }
+
+  echo "<h2>Nous écrire</h2>\n";
+  echo "<p>Une question, un partenariat, un problème sur une annonce : "
+     . "<a class=\"s\" href=\"mailto:contact@chap.ci\">contact@chap.ci</a>.</p>\n";
+
+  echo "<a class=\"b\" href=\"$s/#/explorer\">Voir toutes les annonces</a>\n"
+     . "<a class=\"b\" href=\"$s/#/publier\" style=\"background:#00734A\">Publier une annonce</a>\n";
+
+  echo "<footer>Chap.ci — petites annonces 100 % ivoiriennes 🇨🇮 · "
+     . "<a class=\"s\" href=\"$s/\">Accueil</a> · "
+     . "<a class=\"s\" href=\"$s/#/conditions\">Conditions</a> · "
+     . "<a class=\"s\" href=\"$s/#/confidentialite\">Confidentialité</a></footer>\n";
+  echo "</div>\n</body>\n</html>";
 }
 
 function render_page(string $title, string $desc, string $img, string $canon, string $appUrl, ?array $l, string $price, string $loc, bool $isBot): void {
