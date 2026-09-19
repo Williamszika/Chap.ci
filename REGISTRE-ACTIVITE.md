@@ -41,6 +41,10 @@ ici même — `npm run registre` ne touche jamais cette section.
 | 13 → 19/09/2026 | Les zips n° 26 à 34 ont été extraits au fil de ces journées. **Le détail jour par jour n’a pas été tenu ici** : cette ligne le dit plutôt que d’inventer des dates qu’on ne pourrait opposer à personne. |
 | 16/09/2026 | Ligne 187 du `.htaccess` modifiée à la main (ajout de `media-src 'self' blob:` à l’en-tête Report-Only) — vérifié en ligne, le site répondait toujours 200 |
 | 19/09/2026 | Zip n° 35 extrait — **vérifié empreinte en main** : `empreinteSite` passée à `0fdcc438d521`, les deux autres inchangées, et la page confidentialité servie en ligne ne contient plus « entièrement sur votre appareil » |
+| 19/09/2026 | Zip n° 36 extrait — `empreinteSite` `2ca3049a8583`. Son nom d’éditeur apparaît dans les mentions légales |
+| 19/09/2026 | Zip n° 37 extrait — `empreinteSite` `137835d4d96c`, `empreinteSeo` `d104d660fe33`. La page des fondateurs est déployée… mais encore injoignable, le `.htaccess` la renvoyant derrière le dièse |
+| 19/09/2026 | **`.htaccess` racine édité à la main**, trois changements : route `/a-propos` vers `seo.php`, retrait d’`a-propos` de la redirection au dièse, et les deux lignes des liens universels remises (absentes depuis le 02/08). **Vérifié** : `https://chap.ci/a-propos` répond 200 à Googlebot, sans redirection |
+| 19/09/2026 | Zip n° 38 extrait — `empreinte` `c583a928951a` (l’API change cette fois), `empreinteSite` `1681de23ac98`. Le bouton « Signaler les pages à Bing » est en ligne |
 
 ---
 
